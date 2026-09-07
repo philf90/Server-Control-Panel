@@ -61,53 +61,71 @@ final class ServerZone
     private static ?DateTimeZone $cached = null;
 
     /**
-     * Die Zone, in der cron rechnet.
+     * Ob schon gelesen wurde.
      *
-     * **Der Rückfall ist UTC und nicht die Anzeigezone.** Wenn `/etc/localtime`
-     * nicht zu deuten ist, ist die richtige Antwort „ich weiss es nicht" — und
-     * die harmloseste Vertretung dafür ist die, in der auch gespeichert wird.
-     * Die Anzeigezone zu nehmen hiesse, eine Einstellung des Betreibers für eine
-     * Eigenschaft des Servers auszugeben.
+     * **Getrennt vom Wert, weil `null` jetzt eine Antwort ist.** Ohne diese
+     * Fahne läse jede Zeile einer Jobliste den Symlink neu, sobald er sich
+     * nicht deuten lässt — also genau im teuren Fall.
      */
-    public static function current(): DateTimeZone
+    private static bool $read = false;
+
+    /**
+     * Die Zone, in der cron rechnet — oder `null`, wenn sie nicht abzulesen ist.
+     *
+     * **Der Rückgabewert war bis zum 7. September 2026 nie `null`**, und das
+     * hat ein Jahr lang eine falsche Uhrzeit erzeugt. Er fiel auf UTC zurück,
+     * „die harmloseste Vertretung" — und auf einem Server in `Europe/Berlin`
+     * ist sie das nicht: Ein Job „jeden Tag um 03:15" stand auf der Cronseite
+     * mit der nächsten Fälligkeit **05:15**.
+     *
+     * > **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine
+     * > falsche Auskunft.**
+     *
+     * Gefunden hat es der Abnahmelauf von A11 auf `cloudsrv24` (`docs/107`):
+     * Dieselbe Klasse antwortete auf der Kommandozeile mit `Europe/Berlin` und
+     * im Web-Request mit nichts — die `open_basedir` des Panels führte
+     * `/etc/localtime` nicht.
+     *
+     * > **Eine Klasse, die auf der Kommandozeile antwortet, beantwortet
+     * > dieselbe Frage im Web-Request nicht — und der Unterschied steht in
+     * > einer Datei, die keiner von beiden nennt.**
+     *
+     * Die Ursache ist behoben (`packaging/etc/fpm.conf` führt den Pfad), aber
+     * die Ursache war austauschbar: Ein kopiertes statt verlinktes
+     * `/etc/localtime` erzeugt denselben Zustand. Deshalb trägt der
+     * Rückgabewert ihn jetzt, statt ihn zu verdecken.
+     *
+     * **Die Anzeigezone wäre auch nicht die Antwort gewesen** — das hiesse,
+     * eine Einstellung des Betreibers für eine Eigenschaft des Servers
+     * auszugeben.
+     */
+    public static function current(): ?DateTimeZone
     {
-        if (self::$cached instanceof DateTimeZone) {
+        if (self::$read) {
             return self::$cached;
         }
 
-        return self::$cached = self::read() ?? new DateTimeZone('UTC');
-    }
+        self::$read = true;
 
-    /** Der Name, wie ihn die Oberfläche an den Zeitplan schreibt. */
-    public static function name(): string
-    {
-        return self::current()->getName();
+        return self::$cached = self::read();
     }
 
     /**
-     * Der Name — oder `null`, wenn er nicht abzulesen war.
+     * Der Name, wie ihn die Oberfläche an den Zeitplan schreibt — oder `null`.
      *
-     * **Derselbe Leser, zwei Aufrufer, zwei Entscheidungen.** {@see self::current()}
-     * braucht eine Zone zum Rechnen und nimmt im Zweifel UTC; A11 zeigt die
-     * Zone des Servers an und muss „nicht feststellbar" sagen können. Ein
-     * gezeigtes UTC, das in Wahrheit „ich weiss es nicht" heisst, ist genau die
-     * Auskunft, gegen die dieser Bereich gebaut ist.
-     *
-     * > **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu
-     * > tun".**
-     *
-     * Das ist die Bauart von `SrvPanel\Agent\Apt` aus A1 Schritt 1: Der Leser
-     * entscheidet nichts, die Aufrufer entscheiden verschieden.
+     * Dasselbe wie {@see self::known()}; die beiden gibt es, weil die
+     * Oberfläche den Namen will und der Rechner die Zone.
      */
-    public static function known(): ?string
+    public static function name(): ?string
     {
-        return self::read()?->getName();
+        return self::current()?->getName();
     }
 
     /** Für Tests, die eine andere Zone unterstellen wollen. */
     public static function forget(): void
     {
         self::$cached = null;
+        self::$read = false;
     }
 
     /**

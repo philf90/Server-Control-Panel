@@ -65,14 +65,24 @@ vorher jemand hingesehen hat.
 `Europe/Berlin — CEST (UTC+02:00)` oder `Etc/UTC — UTC`, je nachdem, was
 `readlink /etc/localtime` im Vorflug gesagt hat.
 
-**Gegenprobe am Server**, und die ist der Kern dieses Punktes:
+**Gegenprobe am Server**, und die ist der Kern dieses Punktes — **durch die
+Schranke, unter der die Seite läuft** und nicht mit `srvpanel tinker`. Warum,
+steht in §0c: Auf der Kommandozeile gibt es kein `open_basedir`, und die Frage
+wurde dort ein Jahr lang anders beantwortet als auf der Seite.
 
-    srvpanel tinker --execute='echo App\Support\Cron\ServerZone::known(), "\n";'
+    php -d open_basedir="$(sed -n 's/^php_admin_value\[open_basedir\] = //p' \
+          /etc/srvpanel/fpm.conf)" \
+        -r 'require "/opt/srvpanel/current/vendor/autoload.php";
+            var_dump(App\Support\Cron\ServerZone::name());'
 
-Der Wert muss **derselbe** sein wie in der Zeile der Seite. Und dieselbe Zone
-schreibt die Cronseite an einen Zeitplan — das ist der Befund dieser Stufe von
-der Seite des Betreibers aus: Es gibt **eine** Antwort auf „in welcher Zone
-steht dieser Server" und nicht zwei.
+Der Wert muss **derselbe** sein wie in der Zeile der Seite.
+
+**Und dieselbe Zone schreibt die Cronseite an einen Zeitplan.** Das ist der
+Befund dieser Stufe von der Seite des Betreibers aus: Es gibt **eine** Antwort
+auf „in welcher Zone steht dieser Server" und nicht zwei. Gemessen wird das an
+einer Cronseite mit einem Job — Zeitplan und nächste Fälligkeit müssen dieselbe
+Uhrzeit zeigen, solange Anzeigezone und Serverzone gleich sind. Vor der Behebung
+standen dort 03:15 und 05:15.
 
 ---
 
@@ -214,6 +224,90 @@ lädt nicht spürbar langsamer als vorher — der Griff ist ein Verschluss und l
 nur, wenn die Seite ihn schickt.
 
 > **Eine Messung, die man nur einmal fährt, misst den Zwischenspeicher mit.**
+
+---
+
+## 0c · Der Befund, der den Lauf angehalten hat — 7. September 2026
+
+**Punkt 1 und 2 sind beim ersten Blick durchgefallen, und die Ursache ist ein
+Fehler aus P6.**
+
+Auf der Seite standen `Zeitzone des Servers` und `Jetzt auf dem Server` auf
+**`nicht feststellbar`**, während der Rest des Bereichs richtig war — der Agent
+antwortete sauber. Die Konsole sagte für dieselbe Frage `Europe/Berlin`.
+
+Gefunden hat es die Gegenprobe, die Punkt 1 vorschreibt. Und meine eigene
+Vorarbeit war der Fehler: Ich hatte `ServerZone` über `srvpanel tinker`
+gemessen, also als root auf der Kommandozeile.
+
+> **Eine Gegenprobe über einen anderen Weg als den benutzten prüft den falschen
+> Weg.**
+
+### Der Mechanismus, gemessen
+
+    php -d open_basedir=<die Liste des Panels> -r 'var_dump(@readlink("/etc/localtime"));'
+    → bool(false)
+
+    php -r 'var_dump(@readlink("/etc/localtime"));'
+    → string(33) "/usr/share/zoneinfo/Europe/Berlin"
+
+`packaging/etc/fpm.conf` führte `/etc/localtime` nicht, und der Kommentar
+daneben sagt genau, warum: *„Das Panel liest und schreibt in seinem eigenen
+Bereich."*
+
+> **Eine Klasse, die auf der Kommandozeile antwortet, beantwortet dieselbe Frage
+> im Web-Request nicht — und der Unterschied steht in einer Datei, die keiner
+> von beiden nennt.**
+
+### Und das trifft nicht A11, sondern die Cronseite
+
+`CronController` schickt `server_zone`, `CronJob::refreshNextDue()` rechnet über
+`Occurrence` — **beides Web-Requests**. `ServerZone::current()` fiel dort still
+auf UTC zurück. Gemessen auf `cloudsrv24`:
+
+| | |
+|---|---|
+| Zeitplan | jeden Tag um **03:15** |
+| Nächste Fälligkeit laut Seite | `2026-09-08 **05:15**:00` |
+
+Der Job feuert um 03:15 in der Zone der Maschine, also 01:15 UTC. Gerechnet
+wurde mit UTC, heraus kam 03:15 UTC, angezeigt in Berlin **05:15**. Der Kunde
+liest, sein nächtlicher Job laufe um 05:15 — er läuft um 03:15. **Seit es
+Cronjobs gibt.**
+
+> **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine falsche
+> Auskunft.**
+
+Der Satz steht seit `docs/93` in `CLAUDE.md`. `ServerZone` hat ihn im eigenen
+Kopf sogar begründet — „die harmloseste Vertretung" — und das stimmt auf einem
+Server in UTC. Auf jedem anderen ist es eine falsche Uhrzeit ohne Kennzeichen.
+
+### Behoben, in zwei Teilen — entschieden vom Betreiber
+
+**Die Quelle:** `/etc/localtime` steht jetzt in der `open_basedir` des Panels.
+**Ein Pfad und nicht zwei, und das ist gemessen:** `/usr/share/zoneinfo` wird
+nicht gebraucht, weil `ServerZone` nur `readlink()` ruft und das Ziel nie
+öffnet. Und der Eintrag macht sonst nichts auf — `/etc/passwd`, `/etc/shadow`,
+die nginx-Konfiguration und selbst das Ziel des Symlinks bleiben unerreichbar,
+alle vier gemessen.
+
+> **Eine gemessene Grenze ist schmaler als eine geratene.**
+
+**Der Rückfall:** `ServerZone::current()` gibt jetzt `?DateTimeZone`, `name()`
+gibt `?string`, und `Occurrence::next()` gibt `null` statt einer Zahl, die mit
+einer geratenen Zone gerechnet wäre. Die Cronseite sagt es dann — mit einem Satz
+statt einer leeren Spalte.
+
+Die Ursache ist behoben, aber sie war austauschbar: Ein **kopiertes** statt
+verlinktes `/etc/localtime` erzeugt denselben Zustand. Deshalb trägt der
+Rückgabewert ihn, statt ihn zu verdecken.
+
+### Was der Lauf davon lernt
+
+**Punkt 1 bekommt seine Gegenprobe auf dem richtigen Weg** — siehe dort. Und er
+misst sie an einer zweiten Stelle: der Cronseite. Es ist kein neuer Punkt,
+sondern derselbe an einem zweiten Ort, denn es geht um **eine** Antwort auf „in
+welcher Zone steht dieser Server".
 
 ---
 

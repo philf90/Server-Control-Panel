@@ -156,6 +156,12 @@ final class CronController extends Controller
              * > **Zwei Zeiten auf einer Seite, von denen nur eine beschriftet
              * > ist, sind eine Falle mit Erklärung daneben.**
              */
+            /*
+             * **Darf `null` sein, seit dem 7. September 2026.** Die Zone kann
+             * unlesbar sein; vorher stand dann UTC da, und die Fälligkeiten
+             * daneben waren mit UTC gerechnet, ohne dass es jemand sah
+             * (`docs/107`).
+             */
             'server_zone' => ServerZone::name(),
             'display_zone' => Clock::zone(),
 

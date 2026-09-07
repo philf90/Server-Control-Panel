@@ -143,25 +143,89 @@ final class TimezoneFileTest extends TestCase
 
         self::assertStringNotContainsString("'timezone'", $former,
             'Die Zone kommt aus der Antwort des Agenten statt von ihrem Aufrufer.');
+        self::assertStringNotContainsString('ServerZone', $former,
+            'ServerTime beschafft die Zone selbst — dann liesse sich „nicht ablesbar" nur auf einem Rechner mit kaputtem Symlink messen.');
+    }
 
-        // Und die andere Richtung: Genau eine Stelle beschafft sie, und das ist
-        // die, die auch den Agenten fragt. Zwei wären zwei Zeitpunkte für
-        // dieselbe Zeile.
-        $stellen = [];
+    /**
+     * `ServerZone` rät nicht.
+     *
+     * **Das ist der Befund vom 7. September 2026, als Regel.** `current()` fiel
+     * bei einem unlesbaren Symlink still auf UTC zurück — „die harmloseste
+     * Vertretung". Auf `cloudsrv24` (`Europe/Berlin`) war sie das nicht: Die
+     * Cronseite zeigte für „jeden Tag um 03:15" die nächste Fälligkeit als
+     * **05:15**, und zwar seit es Cronjobs gibt.
+     *
+     * > **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine
+     * > falsche Auskunft.**
+     *
+     * Gemessen am Rumpf und an der Signatur: Ein Rückgabewert, der `null`
+     * tragen kann, zwingt jeden Aufrufer zur Entscheidung — genau das fehlte.
+     */
+    public function test_the_machine_zone_is_never_guessed(): void
+    {
+        $quelle = $this->withoutComments((string) file_get_contents(__DIR__.'/../../app/Support/Cron/ServerZone.php'));
 
-        foreach ($this->sources() as $pfad) {
-            if (str_contains($this->withoutComments((string) file_get_contents($pfad)), 'ServerZone::known()')) {
-                $stellen[] = $pfad;
-            }
-        }
+        self::assertStringNotContainsString("new DateTimeZone('UTC')", $quelle,
+            'ServerZone setzt eine Zone ein, die es nicht gelesen hat.');
+        self::assertStringContainsString('public static function current(): ?DateTimeZone', $quelle,
+            'current() kann kein „ich weiss es nicht" tragen — dann rät irgendein Aufrufer.');
+        self::assertStringContainsString('public static function name(): ?string', $quelle);
 
-        self::assertCount(1, $stellen, sprintf(
-            'ServerZone::known() wird an %d Stellen gerufen: %s',
-            count($stellen),
-            implode(', ', $stellen),
-        ));
+        // Und die Wirkung an der Stelle, an der aus der Zone eine Uhrzeit wird:
+        // Ohne Zone gibt es keinen Termin, und keine geratene Zahl.
+        $rechner = $this->withoutComments((string) file_get_contents(__DIR__.'/../../app/Support/Cron/Occurrence.php'));
 
-        self::assertStringEndsWith('app/Http/Controllers/GeneralSettingsController.php', $stellen[0]);
+        self::assertMatchesRegularExpression(
+            '/\$zone = ServerZone::current\(\);\s*if \(!\s*\$zone instanceof DateTimeZone\) \{\s*return null;/',
+            $rechner,
+            'Occurrence rechnet weiter, wenn die Zone fehlt — dann ist die Fälligkeit geraten.',
+        );
+    }
+
+    /**
+     * Und dasselbe an der Wirkung, durch dieselbe Schranke wie auf dem Server.
+     *
+     * **Der Fall ist im Prüflauf sonst nicht herstellbar**: `/etc/localtime`
+     * ist hier lesbar, und es gibt keinen Weg, `ServerZone` etwas anderes
+     * unterzuschieben, ohne ihm eine Naht für Tests einzubauen. Also wird die
+     * Bedingung nachgestellt, unter der php-fpm läuft — ein Unterprozess mit
+     * `open_basedir` ohne den Pfad.
+     *
+     * **Beide Richtungen, und das ist der Kern.** Ohne die Gegenprobe wäre
+     * „beides `null`" von „die Messung läuft ins Leere" nicht zu unterscheiden.
+     *
+     * > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als
+     * > Null steht.**
+     */
+    public function test_a_blocked_symlink_yields_no_due_time(): void
+    {
+        $wurzel = dirname(__DIR__, 2);
+
+        $lauf = static function (string $basedir) use ($wurzel): string {
+            $code = 'require '.var_export($wurzel.'/vendor/autoload.php', true).';'
+                .'$z = App\Support\Cron\ServerZone::name();'
+                .'$n = App\Support\Cron\Occurrence::next(["minute"=>"15","hour"=>"3",'
+                .'"day_of_month"=>"*","month"=>"*","day_of_week"=>"*"]);'
+                .'echo ($z ?? "-"), "|", ($n === null ? "-" : "termin");';
+
+            $befehl = escapeshellarg(PHP_BINARY)
+                .' -d open_basedir='.escapeshellarg($basedir)
+                .' -r '.escapeshellarg($code).' 2>/dev/null';
+
+            return trim((string) shell_exec($befehl));
+        };
+
+        // Die Gegenprobe zuerst: ohne Schranke muss etwas herauskommen.
+        $offen = $lauf($wurzel.':'.sys_get_temp_dir().':/etc/localtime');
+
+        self::assertStringNotContainsString('-|', $offen,
+            'Auch ohne Schranke kommt keine Zone heraus — dann misst dieser Fall nichts.');
+        self::assertStringEndsWith('|termin', $offen);
+
+        // Und mit der Schranke: kein Name, und vor allem keine geratene Zeit.
+        self::assertSame('-|-', $lauf($wurzel.':'.sys_get_temp_dir()),
+            'Ohne lesbaren Symlink kommt eine Fälligkeit heraus — dann ist sie mit einer geratenen Zone gerechnet.');
     }
 
     /**

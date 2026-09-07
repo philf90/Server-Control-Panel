@@ -61,7 +61,7 @@ final class ServerTime
      * Es wäre der zweite Leser derselben Quelle gewesen, und zwei Seiten
      * desselben Panels hätten verschiedene Serverzonen nennen können.
      *
-     * Sie steht auch nicht als `ServerZone::known()` im Rumpf. Diese Klasse
+     * Sie steht auch nicht als `ServerZone::name()` im Rumpf. Diese Klasse
      * formt, sie beschafft nicht — sonst liesse sich der Fall „Zone nicht
      * ablesbar" nur auf einem Rechner messen, dessen Symlink kaputt ist.
      *

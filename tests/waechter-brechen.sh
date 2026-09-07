@@ -25620,6 +25620,91 @@ pruefe "die Beschriftung gilt fuer jetzt" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
 
+echo
+echo "== TimezoneFileTest: der stille Rueckfall auf UTC kommt zurueck =="
+#
+# Der Befund vom 7. September 2026 auf cloudsrv24. current() nahm bei einem
+# unlesbaren Symlink UTC -- -die harmloseste Vertretung-. Auf einem Server in
+# Europe/Berlin ist sie das nicht: Die Cronseite zeigte fuer -jeden Tag um
+# 03:15- die naechste Faelligkeit als 05:15, und zwar seit es Cronjobs gibt.
+vorher_datei app/Support/Cron/ServerZone.php
+python3 - <<'PY2'
+p = 'app/Support/Cron/ServerZone.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return self::$cached = self::read();"
+neu = "        return self::$cached = self::read() ?? new DateTimeZone('UTC');"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Cron/ServerZone.php "der stille Rueckfall auf UTC" &&
+pruefe "der stille Rueckfall auf UTC" \
+  TimezoneFileTest::test_the_machine_zone_is_never_guessed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
+
+echo
+echo "== TimezoneFileTest: current() kann kein -ich weiss es nicht- tragen =="
+#
+# Ein Rueckgabewert, der null tragen kann, zwingt jeden Aufrufer zur
+# Entscheidung. Genau das fehlte ein Jahr lang.
+vorher_datei app/Support/Cron/ServerZone.php
+python3 - <<'PY2'
+p = 'app/Support/Cron/ServerZone.php'
+s = open(p, encoding='utf-8').read()
+alt = "public static function current(): ?DateTimeZone"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "public static function current(): DateTimeZone", 1))
+PY2
+griff_datei app/Support/Cron/ServerZone.php "current() ohne null" &&
+pruefe "current() ohne null" \
+  TimezoneFileTest::test_the_machine_zone_is_never_guessed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
+
+echo
+echo "== TimezoneFileTest: Occurrence rechnet ohne Zone weiter =="
+#
+# Gemessen an der Wirkung, durch dieselbe Schranke wie auf dem Server: ein
+# Unterprozess mit open_basedir ohne den Pfad. Kommt dabei eine Faelligkeit
+# heraus, ist sie mit einer geratenen Zone gerechnet.
+vorher_datei app/Support/Cron/Occurrence.php
+python3 - <<'PY2'
+p = 'app/Support/Cron/Occurrence.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (! $zone instanceof DateTimeZone) {
+            return null;
+        }
+
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei app/Support/Cron/Occurrence.php "Occurrence rechnet ohne Zone" &&
+pruefe "Occurrence rechnet ohne Zone" \
+  TimezoneFileTest::test_a_blocked_symlink_yields_no_due_time failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
+
+echo
+echo "== TimezoneFileTest: ServerTime beschafft die Zone selbst =="
+#
+# Diese Klasse formt und beschafft nicht. Holte sie die Zone, liesse sich
+# -nicht ablesbar- nur auf einem Rechner mit kaputtem Symlink messen.
+vorher_datei app/Support/Time/ServerTime.php
+python3 - <<'PY2'
+p = 'app/Support/Time/ServerTime.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $lesbar = ($answer['readable'] ?? false) === true;"
+neu = alt + "\n        $zone = \\App\\Support\\Cron\\ServerZone::name();"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Time/ServerTime.php "ServerTime beschafft die Zone" &&
+pruefe "ServerTime beschafft die Zone" \
+  TimezoneFileTest::test_the_zone_does_not_travel_through_the_agent failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
+
 
 echo
 if [ "$fehler" -eq 0 ]; then

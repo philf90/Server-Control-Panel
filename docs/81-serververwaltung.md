@@ -2750,6 +2750,130 @@ den M5 vor dem ersten Eingriff gemessen hat.
 
 ---
 
+### 2.3t Die Messrunde vor A6 (7. September 2026)
+
+Gefahren im Container gegen **cron 3.0pl1-184ubuntu2** und **run-parts** aus
+`debianutils`. A6 ist eine **Leseansicht** von `/etc/crontab`, `/etc/cron.d` und
+den `cron.*`-Verzeichnissen — was der Admin ändern will, ändert er als root; ein
+Editor für `/etc/crontab` wäre Freitext mit Systemrechten über einen Umweg
+(`docs/80 §A6`).
+
+**Es gibt cron hier auch — es ist nur nicht installiert.** `apt-get install -y
+cron` holt es samt `/etc/crontab` und **sechs** `cron.*`-Verzeichnissen.
+Derselbe Satz zum achten Mal.
+
+#### Die Verzeichnisse haben keinen eigenen Zeitplan — und zwei Vorbehalte
+
+**M1.** Ihr Zeitplan ist eine Zeile in `/etc/crontab`:
+
+| Verzeichnis | Zeile in `/etc/crontab` | Vorbehalt |
+|---|---|---|
+| `cron.hourly` | `17 * * * *` | — |
+| `cron.daily` | `25 6 * * *` | **`test -x /usr/sbin/anacron ||`** |
+| `cron.weekly` | `47 6 * * 7` | **`test -x /usr/sbin/anacron ||`** |
+| `cron.monthly` | `52 6 1 * *` | **`test -x /usr/sbin/anacron ||`** |
+| `cron.yearly` | **keine** | — |
+
+**Zwei Funde daraus, und beide entscheiden den Entwurf.**
+
+`cron.yearly` **gibt es als Verzeichnis und in keiner Zeile**. Ein Skript dort
+läuft auf diesem System nie — und das Verzeichnis sieht aus wie die anderen vier.
+
+> **Ein Verzeichnis, das dasteht und in keinem Zeitplan vorkommt, ist von einem,
+> das läuft, nicht zu unterscheiden — ausser man liest den Zeitplan.**
+
+Und **drei der vier Zeilen laufen nur, wenn anacron *nicht* installiert ist.**
+Mit anacron tut cron für daily, weekly und monthly gar nichts; die Zeitpunkte
+stehen dann in `/etc/anacrontab` und sind ganz andere. Eine Anzeige „cron.daily
+läuft um 6:25", die den Vorbehalt verschweigt, ist auf jedem Server mit anacron
+falsch.
+
+> **Eine Zeile, die eine Bedingung trägt, sagt ohne die Bedingung das
+> Gegenteil.**
+
+`docs/80 §A6` nennt „`cron.daily` und `cron.weekly`" — es sind **fünf**
+Verzeichnisse mit Zeitplan plus eines ohne.
+
+#### Was `run-parts` still übergeht
+
+**M2.** Zwölf Prüfkörper in ein Verzeichnis gelegt, dann `run-parts --test`:
+
+| läuft | läuft **nicht** | Grund |
+|---|---|---|
+| `backup`, `sicherung-taeglich`, `00-erstes`, `UPPER`, `a_b`, `c-d` | `backup.sh` | **Punkt im Namen** |
+| | `e.f`, `logrotate.dpkg-new` | dasselbe |
+| | `alt~` | Tilde |
+| | `mit leerzeichen` | Leerzeichen |
+| | `nicht-ausfuehrbar` | kein Ausführbit |
+
+**Sechs von zwölf werden übergangen, und keine Meldung sagt es.**
+`backup.sh` in `/etc/cron.daily` ist der Fall, den ein Admin am ehesten macht;
+`logrotate.dpkg-new` entsteht von selbst bei einem Paketupdate.
+
+> **Ein Skript, das nicht läuft, sieht im Verzeichnis genauso aus wie eines, das
+> läuft.**
+
+**Der Entwurf folgt daraus unmittelbar: A6 baut die Namensregeln nicht nach,
+sondern fragt `run-parts --test`.** Eine zweite Fassung dieser Regeln wäre die,
+die veraltet — und sie stünde neben einem Werkzeug, das die Wahrheit kennt.
+
+**M2b:** `run-parts --test` braucht **kein root** (gegen `/etc/cron.daily`
+gemessen: unprivilegiert dieselben drei Zeilen wie als root), unterscheidet ein
+fehlendes Verzeichnis (`rc=1`, Meldung auf stderr) sauber von einem leeren
+(`rc=0`, nichts) — anders als `nft` in `§2.3s`.
+
+**Und der erste Lauf von M2b war ein Fehler meiner Messung**, nicht des
+Werkzeugs: Er lief gegen den Scratchpad und scheiterte an `Permission denied`.
+Nicht `run-parts` brauchte root, sondern `/tmp/claude-0` ist `drwx------`.
+
+> **Eine Datei, die für alle lesbar ist, ist damit nicht erreichbar — der Weg zu
+> ihr entscheidet.** Derselbe Satz wie bei der ACME-Prüfdatei in `docs/78`.
+
+#### Was cron in `/etc/cron.d` beim Namen nennt — und was nicht
+
+**M3.** Vier Prüfkörper in `/etc/cron.d`, dann `cron -n -x load,pars,sch`:
+
+| Prüfkörper | cron sagt |
+|---|---|
+| `probe-fremd` (Eigentümer `nobody`) | **`WRONG FILE OWNER`** |
+| `probe-schreibbar` (`0666`) | **`INSECURE MODE (group/other writable)`** |
+| `probe.punkt` | **nichts** — die Datei wird wortlos übergangen |
+| `probe-ohnepunkt` | `*system*probe-ohnepunkt:load_user()` |
+
+> **Zwei von drei Fehlern nennt cron beim Namen. Den dritten — einen Punkt im
+> Dateinamen — übergeht es wortlos, und das ist der, den ein Admin am ehesten
+> macht.**
+
+**Und die erste Fassung dieser Messung hat nichts gemessen.** `cron -x load`
+allein druckt **nur Ablehnungen**; ich habe die beiden Fehlerzeilen gezählt und
+die Abwesenheit einer dritten als Beleg genommen. Sie belegt nichts — eine
+geladene Datei erzeugt dort auch keine Zeile.
+
+> **Eine Abwesenheit ist nur dann ein Befund, wenn die Anwesenheit im Erfolgsfall
+> belegt ist.**
+
+Erst `-x load,pars,sch` druckt `…:load_user()` je geladener Datei, und damit
+steht der Erfolgsfall daneben: `probe-ohnepunkt` einmal, `probe.punkt` keinmal.
+
+#### Was daraus für A6 folgt
+
+1. **Drei Gegenstände und nicht einer.** `/etc/crontab` und `/etc/cron.d` sind
+   Zeitpläne mit Benutzer; die `cron.*`-Verzeichnisse sind Skripte **ohne
+   eigenen** Zeitplan. In einer Tabelle stünde bei den einen die Zeitspalte leer.
+2. **Der Zeitplan eines Verzeichnisses wird gelesen und nicht gewusst** — aus
+   `/etc/crontab`, samt dem anacron-Vorbehalt.
+3. **Die Namensregeln fragt A6 bei `run-parts`**, nicht bei sich selbst.
+4. **Die stillen Fälle sind der Grund für die Ansicht.** Ein Skript mit Punkt,
+   eine Datei mit falschem Eigentümer, ein Verzeichnis ohne Zeitplan — drei
+   Zustände, die auf der Platte alle gleich aussehen.
+
+**Der Prüfstand ist abgeräumt und belegt:** `/etc/cron.d` Zeile für Zeile wie im
+Vorflug (`.placeholder`, `e2scrub_all`, `php`), die Prüfverzeichnisse im
+Scratchpad fort, kein `cron`-Prozess übrig. `cron` selbst bleibt installiert —
+es ist die Messgrundlage für den nächsten Lauf.
+
+---
+
 ## 4. Das Abnahmekriterium von A1
 
 Acht Punkte, gemessen auf einem echten Server. Der Lauf dazu ist

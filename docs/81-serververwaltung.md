@@ -2598,6 +2598,158 @@ Drei Festlegungen dazu, jede mit ihrem Grund:
 Datei.** M8 hat gemessen, warum: Ein fremdes Paket hatte `APT::Periodic::Enable`
 auf `0` gesetzt, und die eigene Datei hätte weiter „an" gemeldet.
 
+### 2.3s Die Messrunde vor A3 (erster Wurf) — 7. September 2026
+
+Gefahren im Container gegen Ubuntu 24.04, `iproute2 6.1.0`, `nft` und
+`iptables 1.8.10`. Der erste Wurf von A3 zeigt an und schreibt nicht: **welche
+Ports lauschen, welches Regelwerk läuft, und ob die Ports von aussen erreichbar
+sind.** Alle drei Fragen sind hier gemessen worden, und zwei Antworten werfen
+den Entwurf um.
+
+**Was dieser Container nicht kann, und das steht vor den Messungen:** Er hat
+**kein IPv6** — `/proc/net/if_inet6` gibt es nicht, `AF_INET6` gibt
+`Errno 97 Address family not supported by protocol`, und eine eigene
+Netz-Namespace hilft nicht (gemessen, beide). Damit bleibt hier ungemessen, wie
+ein Lauscher auf `::` aussieht und ob `bindv6only` greift — genau die Falle, die
+`docs/44` auf dem echten Server bezahlt hat (MariaDB bindet `::`
+ausschliesslich IPv6). Wer A3 baut, misst das auf `cloudsrv24` und nicht hier.
+
+#### Was lauscht — `ss`
+
+| | Frage | gemessen |
+|---|---|---|
+| **M1** | Wie sieht die Ausgabe aus? | Spalten mit veränderlicher Breite; **die Kopfzeile klebt**: `Peer Address:PortProcess` ohne Leerzeichen. `-H` lässt sie weg und ist deshalb die Form für einen Leser. |
+| **M2** | Gibt es maschinenlesbare Ausgabe? | **Nein.** `ss` in iproute2 6.1.0 kennt kein `--json` (`ip` kennt `-j`, `ss` nicht). Eine unbekannte Option gibt `rc=255`, alles auf **stderr**, stdout 0 Bytes — sauber unterscheidbar. |
+| **M3** | Wie sehen bekannte Bindungen aus? | `0.0.0.0:19001` und `127.0.0.1:19002`, jeweils mit `users:(("python3",pid=…,fd=…))`. |
+| **M4** | Und ohne root? | **Dieselben Zeilen, `rc=0`, und die Prozessspalte ist wortlos leer.** Keine Meldung, kein anderer Rückgabewert. |
+
+> **Eine leere Spalte, die „nicht nachgesehen" bedeutet, sieht aus wie
+> „niemand".** Dieselbe Familie wie `apt-get update` mit Rückgabe 0 bei toter
+> Quelle (M5 von A1) und wie `journalctl`, das drei Zustände gleich benennt
+> (A5). Der Agent läuft als root und kommt daran — ein Leser, der die Spalte
+> auswertet, muss trotzdem wissen, ob er privilegiert war, sonst meldet er für
+> jeden Port „Eigentümer unbekannt".
+
+#### Welches Regelwerk läuft — und die Messung, die den Entwurf entscheidet
+
+| | Frage | gemessen |
+|---|---|---|
+| **M5** | `nft list ruleset` bei leerem Regelwerk | `rc=0`, **stdout 0 Bytes, stderr 0 Bytes** |
+| **M8** | `nft` ohne CAP_NET_ADMIN | `rc=1`, `Operation not permitted (you must be root)` auf stderr — „konnte nicht nachsehen" ist also **unterscheidbar** von „nichts da" |
+| **M6/M7** | Welche `iptables`-Bauart? | `iptables -V` → `v1.8.10 (nf_tables)`; `/usr/sbin/iptables` ist ein alternatives-Symlink auf **`iptables-nft`** |
+| **M9** | Sieht `nft` die Regeln von `iptables-nft`? | **Ja** — als `table ip filter`, mit der Regel im Wortlaut |
+| **M10** | Sieht `nft` die Regeln von `iptables-legacy`? | **Nein.** `nft list ruleset` gibt `rc=0` und **nichts**; `iptables-nft -S` sieht sie auch nicht; nur `iptables-legacy -S` zeigt sie |
+| **M11** | Wie sieht „nichts konfiguriert" bei beiden Bauarten aus? | Beide: genau drei Zeilen `-P INPUT/FORWARD/OUTPUT ACCEPT`, `rc=0` |
+
+**M10 ist der Fund, an dem der Entwurf hängt.** Ein Server mit einer
+vollständigen Firewall über `iptables-legacy` sieht für einen Leser, der nur
+`nft list ruleset` fragt, genauso aus wie ein Server ohne jede Regel — `rc=0`,
+keine Ausgabe, keine Warnung.
+
+> **Ein leeres Regelwerk und ein Regelwerk, das man mit dem falschen Werkzeug
+> abfragt, sehen gleich aus — und beide sagen `rc=0`.**
+
+Das ist die Schwester des Fundes aus A1 Schritt 2: *Eine Sperre, die man mit dem
+falschen Werkzeug abfragt, meldet immer frei.* Dort waren es `flock(2)` und
+`fcntl`, hier `nftables` und `iptables-legacy`. **A3 fragt deshalb beide
+Familien** und nicht nur `nft`; `iptables-legacy -S` mit genau drei
+`-P`-Zeilen ist der Beleg, dass dort nichts steht — und nicht das Schweigen von
+`nft`.
+
+#### ufw und firewalld
+
+**Es gibt beide hier auch — sie sind nur nicht installiert.** `apt-get install
+-y ufw firewalld` holt sie in einem Aufruf. Derselbe Satz wie bei MariaDB, dem
+`sshd`, PowerDNS, nginx, PHPStan und Composer, zum siebten Mal.
+
+| | Zustand | rc | stdout | stderr |
+|---|---|---|---|---|
+| **M13** | `ufw status`, nie aktiviert | 0 | `Status: inactive` | — |
+| **M14** | `ufw status` ohne root | 1 | — | `ERROR: You need to be root to run this script` |
+| **M19** | `ufw status`, aktiv | 0 | `Status: active` | — |
+| **M15a** | `firewall-cmd --state`, falscher Interpreter | **1** | — | Python-Traceback (`ImportError: _gi`) |
+| **M15b** | `firewall-cmd --state`, kein D-Bus | **36** | — | `Error: DBUS_ERROR: Failed to connect to socket …` |
+| **M15c** | `firewall-cmd --state`, Bus da, Dienst aus | **252** | — | `not running` |
+| **M15d** | `firewall-cmd --state`, Dienst läuft | **0** | `running` | — |
+
+**M15a ist ein Fund über das Messen und keiner über firewalld.** Der erste Lauf
+gab `rc=1` mit einem Traceback, und das liest sich wie „firewalld antwortet
+nicht". Die Ursache liegt woanders: `/usr/bin/python3` ist hier ein
+alternatives-Symlink auf **3.11**, `python3-gi` liefert die Erweiterung für
+**3.12**, und `firewall-cmd` trägt `#!/usr/bin/python3`. Das Werkzeug ist
+gestorben, **bevor** es die Frage gestellt hat.
+
+> **Ein Rückgabewert, der aus einem Fehlschlag vor der Frage entsteht, sieht aus
+> wie eine Antwort auf die Frage.**
+
+Damit hat `firewall-cmd --state` **vier** Ausgänge, von denen drei nicht die
+Frage beantworten. Nur `252` heisst „der Dienst läuft nicht".
+
+**Und wer welche Regeln sieht, hängt vom Werkzeug ab** (M18/M19, gemessen):
+
+| Regeln von | `nft list ruleset` | `iptables-nft -S` | `iptables-legacy -S` |
+|---|---|---|---|
+| `iptables-nft` | ja (`table ip filter`) | ja | nein |
+| `iptables-legacy` | **nein** | nein | ja |
+| `firewalld` | ja (`table inet firewalld`) | **nein** | nein |
+| `ufw` | ja (`table ip filter` + `ip6 filter`) | ja (Ketten `ufw-*`) | nein |
+
+Kein einzelnes Werkzeug sieht alle vier. `nft` sieht drei von vier und ist
+damit die breiteste Frage — aber eben nicht die vollständige.
+
+#### Von aussen erreichbar — die Frage, die der Server nicht beantworten kann
+
+**M20.** Aufbau: eine Namespace mit dem Lauscher, über ein `veth` verbunden mit
+der Aussenwelt; die DROP-Regel steht **davor** — genau dort, wo auf einem
+gemieteten Server die Cloud-Firewall steht.
+
+| | Blick von innen | von aussen |
+|---|---|---|
+| ohne Sperre davor | `LISTEN 0 5 0.0.0.0:19100` · `nft rc=0, 0 Bytes` | **erreichbar** |
+| mit DROP davor | `LISTEN 0 5 0.0.0.0:19100` · `nft rc=0, 0 Bytes` | **nicht erreichbar** |
+
+**Der Blick von innen ist Feld für Feld derselbe.**
+
+> **Ein Port, der lauscht, und ein Regelwerk, das nichts verbietet, sagen über
+> die Erreichbarkeit von aussen nichts — und sie sagen es in beiden Fällen mit
+> denselben Zeichen.**
+
+Damit ist die Warnung aus §11 gemessen und nicht mehr nur plausibel: Eine
+Anzeige „Port offen", die sich auf `ss` und `nft` stützt, ist auf einem Server
+hinter einer Cloud-Firewall **falsch**. A3s erster Wurf darf „lauscht" und „ist
+lokal nicht gesperrt" zeigen — „von aussen erreichbar" ist damit nicht belegt
+und braucht eine Messung von aussen.
+
+**Und die Gegenprobe war nötig.** Im ersten Lauf stand `Recv-Q` einmal auf `0`
+und einmal auf `1`, und das sah nach einem Unterschied aus. Derselbe Lauf mit
+**umgekehrter Reihenfolge** zeigt in beiden Fällen `0`: Die `1` war die nicht
+angenommene Verbindung der vorigen Messung.
+
+> **Ein Zähler, der den Rest der vorigen Messung trägt, sieht aus wie ein Wert
+> dieser Messung.**
+
+#### Was diese Runde über den Prüfstand gelernt hat
+
+> **Eine Netz-Namespace isoliert das Netz und nicht die Dateien.** `ufw --force
+> enable` in einer eigenen Namespace schreibt trotzdem `ENABLED=yes` nach
+> `/etc/ufw/ufw.conf` und baut `user.rules` und `user6.rules` um — gemessen am
+> `diff` davor und danach, zurückgeholt aus einer Sicherung mit `cp -a`.
+
+**Der Prüfstand ist abgeräumt und das ist belegt:** `ufw` und `firewalld`
+entfernt samt ihrem systemd-Symlink, `/etc/ufw` wieder auf dem Stand der
+Sicherung (`applications.d` gehört `nginx-common` und `openssh-server` und
+bleibt), der von Hand gestartete D-Bus beendet und sein Sockel fort, beide
+Namespaces und das `veth` fort, kein Lauscher mehr auf `190xx` — und **die
+`table ip filter`, die meine eigenen `iptables`-Aufrufe hinterlassen hatten,
+gelöscht**: `nft list ruleset` gibt wieder `0 Bytes` bei `rc=0`, also den Wert,
+den M5 vor dem ersten Eingriff gemessen hat.
+
+> **Ein Prüfkörper, der stehenbleibt, verändert die Antwort der nächsten
+> Messung** — hier hätte `nft list tables` danach eine Tabelle genannt, die
+> niemand angelegt hat.
+
+---
+
 ## 4. Das Abnahmekriterium von A1
 
 Acht Punkte, gemessen auf einem echten Server. Der Lauf dazu ist

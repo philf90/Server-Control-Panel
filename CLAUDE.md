@@ -3263,6 +3263,30 @@ Testen berücksichtigen:
 
   > **Dieselbe Messung kann aufs Pixel stimmen und trotzdem nichts über die
   > Ansicht sagen.**
+- **`ufw` und `firewalld` gibt es hier auch — sie sind nur nicht installiert.**
+  `apt-get install -y ufw firewalld` holt beide in einem Aufruf; derselbe Satz
+  zum siebten Mal. `ss`, `nft`, `iptables`, `iptables-nft` und
+  `iptables-legacy` liegen ohnehin da. Gemessen am 7. September 2026 für A3
+  (`docs/81 §2.3s`).
+
+  **Zwei Dinge dabei.** `ufw --force enable` in einer eigenen **Netz**-Namespace
+  schreibt seinen Zustand trotzdem nach `/etc/ufw` — eine Netz-Namespace
+  isoliert das Netz und nicht die Dateien; gesichert wird vorher mit `cp -a`.
+  Und `iptables` lässt seine `table ip filter` stehen, auch wenn man jede Regel
+  wieder löscht: `nft list ruleset` nennt danach eine Tabelle, die niemand
+  angelegt hat. Beides gehört hinterher weggeräumt.
+
+- **`/usr/bin/python3` ist hier 3.11, die dist-packages sind für 3.12 gebaut.**
+  Der Symlink zeigt über alternatives auf `python3.11`, `python3-gi` liefert
+  `_gi.cpython-312-*.so` — und **jedes** Werkzeug mit `#!/usr/bin/python3`, das
+  eine C-Erweiterung lädt, stirbt daran vor seiner ersten Zeile Arbeit.
+  Gemessen an `firewall-cmd`: `rc=1` mit einem `ImportError`-Traceback, was sich
+  wie „der Dienst antwortet nicht" liest. Mit `python3.12 /usr/bin/firewall-cmd`
+  gefahren kommt die echte Antwort.
+
+  > **Ein Rückgabewert, der aus einem Fehlschlag vor der Frage entsteht, sieht
+  > aus wie eine Antwort auf die Frage.**
+
 - **nginx, php-fpm, sshd und die Quota-Werkzeuge gibt es hier auch — sie sind
   nur nicht installiert.** Hier stand „kein nginx, kein PHP-FPM", und das war
   eine Aussage über den Auslieferungszustand. Gemessen am 2. September 2026 für

@@ -158,10 +158,19 @@ Text:
 unterscheidet — ohne dieses Feld wäre die Anzeige „Eigentümer unbekannt" für
 jeden Port eine Aussage über den Server statt über den Aufruf.
 
-`legacy.configured` ist **nicht** `lines > 0`, sondern `lines > 3`: M11 hat
-gemessen, dass beide Bauarten im unberührten Zustand genau die drei Zeilen
-`-P INPUT/FORWARD/OUTPUT ACCEPT` ausgeben. Drei Zeilen sind der Beleg, dass das
-Werkzeug geantwortet hat, und nicht, dass dort etwas steht.
+`legacy.configured` hing hier zuerst an `lines > 3`, weil M11 gemessen hat, dass
+beide Bauarten im unberührten Zustand genau die drei Zeilen
+`-P INPUT/FORWARD/OUTPUT ACCEPT` ausgeben.
+
+**Berichtigt am 7. September beim Bauen** (M11b): Das ist falsch. Ein
+`iptables-legacy -P INPUT DROP` **ohne eine einzige Regel** gibt ebenfalls drei
+Zeilen — und sperrt alles.
+
+> **Eine Zahl, die „unberührt" bedeuten soll, zählt eine geänderte
+> Standardrichtlinie mit — und die ist genau der Fall, den man sehen will.**
+
+Gefragt wird deshalb nach dem **Inhalt**: Alles, was nicht `-P <Kette> ACCEPT`
+ist, ist eine Konfiguration. Das trägt beide Fälle und zählt nichts.
 
 `manager` ist eine **geschlossene** Grundmenge und kein durchgereichter Wortlaut
 — aus demselben Grund, aus dem A11 `„Operation not possible due to RF-kill"`

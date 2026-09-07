@@ -3288,7 +3288,7 @@ vierhundert, und wenn ein ausgefallener Mailversand als solcher sichtbar ist.
 ### A3 — Firewall (nftables) · 2 Wochen, davon 4 Tage für den ersten Wurf
 
 **Die Messrunde zum ersten Wurf ist `§2.3s` (7. September 2026), der Plan
-`docs/109`.** Zwei Messungen haben den Entwurf umgeworfen: Ein Regelwerk über
+`docs/109`, der Abnahmelauf `docs/110`. Gebaut ist er seit dem 7. September.** Zwei Messungen haben den Entwurf umgeworfen: Ein Regelwerk über
 `iptables-legacy` ist für `nft` unsichtbar und sieht dabei aus wie „keine
 Regeln" (M10), und der Blick von innen ist Feld für Feld derselbe, ob eine
 Sperre davorsteht oder nicht (M20). Der erste Wurf sagt deshalb **nicht**, ob

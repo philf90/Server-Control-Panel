@@ -55,10 +55,25 @@ braucht kein root; in den Agenten kommt es wegen der Architekturgrenze.
 
 Vom 6. September 2026, auf die drei Fragen, die `§2.3r` offen liess:
 
-1. **Nur der Betreiber.** `/settings/general` bleibt ganz an `manage-settings`.
-   Eine Teilung wie bei „Updates" und „Dienste" wäre neue Arbeit ohne eigene
-   Frage: Was hier steht, dreht nichts und sagt nichts, was ein Administrator
-   für seine Arbeit braucht.
+1. **Die Seite wird nicht geteilt.** `/settings/general` bleibt ganz an
+   `manage-settings`. Eine Teilung wie bei „Updates" und „Dienste" wäre neue
+   Arbeit ohne eigene Frage: Was hier steht, dreht nichts.
+
+   **Diese Zeile hiess bis zum 7. September „Nur der Betreiber", und das war
+   falsch.** `manage-settings` gehört seit A9 dem **Administrator** — die Route
+   steht mit Begründung in `AdminAbility::administratorRoutes()`. Die
+   Überschrift stammte aus der Zeit vor A9, als beide Adminfähigkeiten auf
+   `isAdmin()` auflösten; der Satz darunter war die Entscheidung und ist
+   richtig geblieben.
+
+   > **Zwei Zeilen desselben Absatzes über dieselbe Frage laufen auseinander,
+   > und keine von beiden ist der Ort, an dem man nachsieht.**
+
+   Gefunden beim Ausschreiben des Abnahmelaufs, nicht beim Bauen — Punkt 6
+   stand nach der Überschrift da und war damit ein Kriterium, das der Prüfling
+   nicht erfüllen kann. Auf die Sache gesehen ist die Zuordnung richtig: Zone,
+   Zeitabgleich, Hardware-Uhr und Rechnername tragen keines der drei Merkmale
+   aus `docs/20 §6.1`.
 2. **„Nicht feststellbar" statt zweitem Leser.** Antwortet `timedatectl` nicht,
    steht das da — und nicht ein aus dem Symlink geratener Wert.
 
@@ -214,7 +229,7 @@ sind die beiden, die die Messrunde gefunden hat.
 | 3 | **NTP in seinen Zuständen** *(Ausschluss)* | „ausgeschaltet" und „eingeschaltet" sind verschiedene Sätze; „kein Zeitdienst installiert" ist ein dritter |
 | 4 | **Nicht feststellbar** *(Ausschluss)* | antwortet `timedatectl` nicht, steht das da — und **nicht** „aus" |
 | 5 | Der Rechnername | steht da; ohne vollständigen Namen der kurze, ohne beide „nicht feststellbar" |
-| 6 | Die Tür | ein Administrator bekommt 403, der Betreiber nicht |
+| 6 | Die Tür | ein **Administrator** sieht den Bereich (die Route steht in `administratorRoutes()`); ein Konto **ohne** Adminrolle bekommt 403 |
 | 7 | 390 px | `schiebt = 0`, Gegenprobe **200** |
 | 8 | Kosten | die Seite lädt nicht spürbar langsamer; der Griff kostet 10–12 ms |
 

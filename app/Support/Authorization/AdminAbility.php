@@ -153,9 +153,11 @@ final class AdminAbility
     public static function administratorRoutes(): array
     {
         return [
-            'settings/general' => 'Die Anzeigezeitzone des Panels (docs/40). Sie ändert, wie ein '
-                .'Zeitstempel dargestellt wird, und sonst nichts — kein Geheimnis, kein Weg zu root, '
-                .'und für einen Kunden ändert sich dadurch nichts an seinem Betrieb.',
+            'settings/general' => 'Die Anzeigezeitzone des Panels (docs/40), die Adressen dieses '
+                .'Servers und seit A11 seine Zeit: Zone, Zeitabgleich, Hardware-Uhr, Rechnername. '
+                .'Keines davon trägt eines der drei Merkmale aus docs/20 §6.1 — kein Geheimnis, kein '
+                .'Weg zu root, und für einen Kunden ändert sich dadurch nichts an seinem Betrieb. '
+                .'Der Zeitteil ist reines Lesen; gedreht wird die Zone des Servers hier gar nicht.',
             'services' => 'Den Zustand der Dienste und Timer ansehen (A2). Zu sehen sind '
                 .'Unitnamen aus dem Katalog, Zustände und Beschreibungen von systemd — kein '
                 .'Geheimnis des Betreibers und kein Weg zu root. Wer Kunden verwaltet, muss '

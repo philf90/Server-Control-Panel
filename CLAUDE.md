@@ -1470,7 +1470,24 @@ je Anweisungsname sieht eine fehlende Zeile nicht, wenn ihr Name noch anderswo
 vorkommt, und beide Richtungen stehen deshalb in **einem** Fall) und
 `MaintenanceOverdueTest` (der Nachtlauf misst die Ankündigung gegen den
 Zeitpunkt **des Laufs** und nicht gegen `now()` — derselbe Bestand, zwei Läufe,
-zwei Ergebnisse). Der Bruch selbst steht als
+zwei Ergebnisse) und `TimeStateTest` (der Leser für `timedatectl show` geht
+nach **Schlüssel** und nicht nach Zeile — die Prüfkörper sind die gemessenen
+Ausgaben aus `docs/81 §2.3r`, und der Fehlerfall trägt **keinen** Wert, denn ein
+geratenes `ntp: false` sähe wie ein gemessenes aus) und `ZoneLabelTest`
+(`Clock::describeZone()` fällt bei einem unbekannten Namen auf `null` und nicht
+auf eine erfundene Beschriftung — gemessen an `Etc/UTC`, das
+`DateTimeZone::listIdentifiers()` in der Gruppe ALL **nicht** führt, weshalb der
+Prüfer ein `try`/`catch` ist und kein `isValid()`) und `NtpVerdictTest` (die
+sechs Zeilen der Seite kommen aus **einer** Stelle, und die beiden Zeitzeilen
+tragen dieselbe Form — die Zone kommt aus `labelAt()` und nicht aus `label()`,
+gemessen an einem festen Zeitpunkt, sonst wäre der Fall ein halbes Jahr grün und
+ein halbes rot) und `TimezoneFileTest` (`/etc/localtime` steht in der
+`open_basedir` des Panels — die Regel, deren Fehlen ein Jahr lang jedem Kunden
+eine falsche Fälligkeit gezeigt hat, gehalten an der Datei der Paketierung und
+nicht an einem Kommentar) und `ServerZoneSourceTest` (nach der Zone des
+**Servers** fragt nur `ServerZone`, jede Ausnahme steht mit ihrem Grund da, und
+die nächste Fälligkeit wird **gerechnet und nicht abgelegt** — in beide
+Richtungen: kein Schreiber mehr, und die Seite rechnet). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -2389,6 +2406,159 @@ Und einer über die Zahl, die zwei Messungen verschieden beantwortet hatten:
 > **Zwei Messungen, die auseinandergehen, entscheidet keine Überlegung, sondern
 > die dritte — und die muss den Weg des Prüflings nehmen und nicht den
 > bequemeren.**
+
+---
+
+## Ein Jahr falsche Uhrzeit auf der Cronseite — 7. September 2026
+
+Gefunden hat es der **Abnahmelauf von A11**, und zwar an einem Schritt, dessen
+einziger Zweck war, die **neue** Seite zu bestätigen: die Gegenprobe von
+Punkt 1. Der Plan ist `docs/106`, der Lauf `docs/107`, das Protokoll
+**`docs/108`**.
+
+> **Ein Abnahmelauf für ein neues Merkmal misst den Bestand mit — und was er
+> dort findet, ist älter und teurer als alles, was er über sein eigenes Thema
+> sagen kann.**
+
+**Der Kunde las, sein nächtlicher Job laufe um 05:15. Er lief um 03:15.** Seit
+es Cronjobs gibt.
+
+Die Ursache steht in einer Datei, die weder der Leser noch sein Aufrufer nennt:
+`packaging/etc/fpm.conf` führte `/etc/localtime` nicht in seiner
+`open_basedir`. `ServerZone::current()` ruft `@readlink('/etc/localtime')` —
+auf der Kommandozeile antwortet das, im Web-Request gibt es `false`.
+
+> **Eine Klasse, die auf der Kommandozeile antwortet, beantwortet dieselbe Frage
+> im Web-Request nicht — und der Unterschied steht in einer Datei, die keiner
+> von beiden nennt.**
+
+**Und meine eigene Vorarbeit war der Fehler.** Gemessen hatte ich `ServerZone`
+über `srvpanel tinker`, also als root ohne Schranke.
+
+> **Eine Gegenprobe über einen anderen Weg als den benutzten prüft den falschen
+> Weg.** Zum zweiten Mal nach `docs/44` — dort ein Unix-Socket statt TCP.
+
+**Aus einem Nichtwissen wurde eine falsche Auskunft, weil der Rückfall immer
+etwas lieferte.** `ServerZone::current()` gab UTC zurück, und das ist auf einem
+Server in UTC richtig und auf jedem anderen eine falsche Uhrzeit ohne
+Kennzeichen. Der Kopf der Klasse hat es sogar begründet — „die harmloseste
+Vertretung".
+
+> **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine falsche
+> Auskunft.**
+
+**Behoben in zwei Teilen, beide vom Betreiber entschieden.** `/etc/localtime`
+steht jetzt in der `open_basedir` — **ein Pfad und nicht zwei**, weil
+`ServerZone` nur `readlink()` ruft und das Ziel nie öffnet, und der Eintrag
+macht sonst nichts auf (`/etc/passwd`, `/etc/shadow`, die
+nginx-Konfiguration und das Ziel des Symlinks bleiben unerreichbar, alle vier
+gemessen). Und `current()` gibt jetzt `?DateTimeZone`, `Occurrence::next()`
+gibt `null` statt einer Zahl aus einer geratenen Zone, und die Cronseite sagt
+es mit einem Satz.
+
+> **Eine gemessene Grenze ist schmaler als eine geratene.**
+
+**Und die Behebung war die halbe.** Gegen die nächste Fassung stand der falsche
+Wert weiter da: `next_due` war eine **Spalte**, geschrieben beim Anlegen und
+beim Ändern und sonst nie. Die Seite widersprach sich selbst — der Satz nannte
+die richtige Zone, die Zeile darunter die alte Rechnung.
+
+> **Ein Wert, der einmal gerechnet und dann abgelegt wird, wird von einer
+> Behebung an der Rechnung nicht mitgenommen.**
+
+> **Ein Wert, der aus „jetzt" folgt und abgelegt wird, ist ab dem nächsten
+> Augenblick falsch — die Frage ist nur, wie schnell es auffällt.**
+
+**Kein einziger Test hat die Spalte je erwähnt.** Geschrieben, an einer Stelle
+gelesen, nie geprüft — das gehört zur Erklärung, warum der falsche Wert ein
+Jahr überlebt hat. Die Spalte ist fort; gerechnet wird beim Lesen, und das
+kostet gemessen 0,03 bis 0,14 ms je Job bei höchstens zehn Jobs.
+
+> **Eine Bequemlichkeit, die 0,07 ms spart und einen falschen Wert über eine
+> Behebung hinwegträgt, war den Preis nicht wert.**
+
+`ServerZoneSourceTest` hält beides: dass nur `ServerZone` nach der Zone des
+Servers fragt, und dass die nächste Fälligkeit gerechnet und nicht abgelegt
+wird — in beide Richtungen, kein Schreiber mehr und die Seite rechnet.
+
+---
+
+## A11 ist abgenommen — 7. September 2026
+
+Auf `cloudsrv24` gegen `0.7.3-rc.24` bis `0.7.3-rc.26`, **alle acht Punkte aus
+`docs/106 §7`**, beide Ausschlusskriterien (3 und 4) darunter, keiner als
+„nicht herstellbar" ausgefallen. Der Plan ist `docs/106`, der Lauf `docs/107`,
+das Protokoll **`docs/108`**.
+
+**Punkt 7 stand einen halben Tag lang offen**, weil die ersten sieben vom
+Telefon aus gefahren wurden und `tests/bilder-messen.js` eine Browserkonsole
+verlangt. Er ist am selben Abend nachgeholt worden — vier Lagen, `dokument = 0`,
+Gegenprobe 200/200, `schiebt = 0` — und in der Zwischenzeit weder als „nicht
+herstellbar" geführt noch auf die Containermessung abgewälzt.
+
+> **Ein Punkt, der am Werkzeug scheitert und nicht am Gegenstand, ist nicht
+> „nicht herstellbar" — und ihn so zu nennen wäre die bequemere von zwei
+> falschen Auskünften.**
+
+> **Ein Kriterium, das man beim letzten Punkt weicher liest als beim ersten,
+> ist keines mehr — es ist eine Zusammenfassung.**
+
+**Dass jede der vier Lagen eine eigene geladene Seite hatte, steht in den Zahlen
+selbst.** `bilderMessen()` wirft beim zweiten Aufruf ohne Neuladen, und ein
+zweites Einfügen der Vorschrift scheitert an der Wiederdeklaration von `STAND`.
+
+> **Ein Prüfmittel, das seine eigene Falle nicht bloss beschreibt, sondern an
+> ihr scheitert, belegt nebenbei, dass die Vorbedingung eingehalten wurde.**
+
+Daneben steht die Bilderrunde des Containers, noch einmal gefahren mit den
+**gemessenen** Werten des Servers. Sie ist keine Krücke, sondern misst zwei
+Dinge, nach denen Punkt 7 gar nicht fragt: die Obergrenze eines Rechnernamens
+(ein FQDN von 194 Zeichen schiebt die Seite in keiner Lage) und die Zelle gegen
+ihren Bereich.
+
+> **Ein Zwilling, dem man dort glaubt, wo er allein misst, muss dort
+> übereinstimmen, wo beide messen.**
+
+**Acht Befunde, drei im Prüfling, und keiner davon aus A11** — die drei sind die
+oben beschriebenen aus P6. Der Grund für die Null ist derselbe wie bei A10, A2
+und A14: Vorschrift vorher ausgeschrieben, Messmittel als geprüfte Werkzeuge im
+Repo.
+
+**Zwei Sätze über das Messen, beide an einem Prüfkörper bezahlt.** Der erste,
+weil die Konsole der Seite widersprach und erst eine **dritte** Messung
+(`sleep 2`) es entschieden hat:
+
+> **Ein `show` unmittelbar nach einem `set` misst den Übergang und nicht den
+> Zustand.** Derselbe Satz wie am 4. September bei `srvpanel.target`, an einem
+> anderen Werkzeug.
+
+Der zweite, weil `bilder-messen.js` misst, **wer waagerecht rollt** — und eine
+Kennungszelle einer `pairs`-Tabelle hat eine zweite Art, kaputt zu sein: Sie
+überlappt, und der Seitenüberlauf bleibt dabei 0. Gemessen wird deshalb
+zusätzlich die Zelle gegen ihren Bereich, mit Gegenprobe (ohne
+`overflow-wrap` an `table.pairs td.ident`: 1277 px, mit der Regel: 0).
+
+> **Zwei Messungen, von denen die eine den Schaden manchmal sieht, ersetzen
+> einander nicht — welche der beiden zuschlägt, entscheidet die Umgebung der
+> Zelle und nicht der Schaden.**
+
+**Und ein Fund am Kriterium und einer an der Vorschrift.** Punkt 6 war gegen
+einen Zustand geschrieben, den der Prüfling nicht herstellen kann
+(`/settings/general` gehört seit A9 dem **Administrator**), und Punkt 8
+verlangte `/usr/bin/time` — ein eigenes Paket, auf einem Debian- oder
+Ubuntu-Server nicht im Grundbestand.
+
+> **Eine Messvorschrift, die ein Werkzeug voraussetzt, das der Server nicht
+> hat, misst nicht — sie meldet einen Fehler an sich selbst.**
+
+**Und ein Wortlaut, der wahr und unbrauchbar ist:** `timedatectl show` gegen
+einen maskierten `systemd-timedated` sagt *„Operation not possible due to
+RF-kill"* — auf einem Server ohne Funk. Genau dieser Satz wäre auf der Seite
+gelandet, hätte A11 den Wortlaut durchgereicht statt einer geschlossenen
+Grundmenge.
+
+> **Ein Wortlaut, den ein Werkzeug für einen Zustand wählt, muss mit dem Zustand
+> nichts zu tun haben.**
 
 ---
 

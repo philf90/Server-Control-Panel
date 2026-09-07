@@ -2483,13 +2483,18 @@ wird — in beide Richtungen, kein Schreiber mehr und die Seite rechnet.
 
 ---
 
-## A11 — sieben von acht, und das ist keine Abnahme
+## A11 ist abgenommen — 7. September 2026
 
-Gefahren am **7. September 2026** auf `cloudsrv24` gegen `0.7.3-rc.24` bis
-`0.7.3-rc.26`. **Sieben Punkte aus `docs/106 §7` sind gemessen und erfüllt**,
-beide Ausschlusskriterien (3 und 4) darunter. **Punkt 7 ist nicht gemessen** —
-er verlangt `tests/bilder-messen.js` in der Browserkonsole bei 390 px, und der
-Lauf wurde vom Telefon aus gefahren.
+Auf `cloudsrv24` gegen `0.7.3-rc.24` bis `0.7.3-rc.26`, **alle acht Punkte aus
+`docs/106 §7`**, beide Ausschlusskriterien (3 und 4) darunter, keiner als
+„nicht herstellbar" ausgefallen. Der Plan ist `docs/106`, der Lauf `docs/107`,
+das Protokoll **`docs/108`**.
+
+**Punkt 7 stand einen halben Tag lang offen**, weil die ersten sieben vom
+Telefon aus gefahren wurden und `tests/bilder-messen.js` eine Browserkonsole
+verlangt. Er ist am selben Abend nachgeholt worden — vier Lagen, `dokument = 0`,
+Gegenprobe 200/200, `schiebt = 0` — und in der Zwischenzeit weder als „nicht
+herstellbar" geführt noch auf die Containermessung abgewälzt.
 
 > **Ein Punkt, der am Werkzeug scheitert und nicht am Gegenstand, ist nicht
 > „nicht herstellbar" — und ihn so zu nennen wäre die bequemere von zwei
@@ -2498,10 +2503,21 @@ Lauf wurde vom Telefon aus gefahren.
 > **Ein Kriterium, das man beim letzten Punkt weicher liest als beim ersten,
 > ist keines mehr — es ist eine Zusammenfassung.**
 
-Stattdessen steht die Bilderrunde des Containers da, noch einmal gefahren mit
-den **gemessenen** Werten des Servers — vier Lagen, `dokument = 0`, Gegenprobe
-200/200 — und dazu die Obergrenze: ein FQDN von 194 Zeichen schiebt die Seite
-in keiner Lage. Sie ersetzt den Lauf auf dem Server nicht.
+**Dass jede der vier Lagen eine eigene geladene Seite hatte, steht in den Zahlen
+selbst.** `bilderMessen()` wirft beim zweiten Aufruf ohne Neuladen, und ein
+zweites Einfügen der Vorschrift scheitert an der Wiederdeklaration von `STAND`.
+
+> **Ein Prüfmittel, das seine eigene Falle nicht bloss beschreibt, sondern an
+> ihr scheitert, belegt nebenbei, dass die Vorbedingung eingehalten wurde.**
+
+Daneben steht die Bilderrunde des Containers, noch einmal gefahren mit den
+**gemessenen** Werten des Servers. Sie ist keine Krücke, sondern misst zwei
+Dinge, nach denen Punkt 7 gar nicht fragt: die Obergrenze eines Rechnernamens
+(ein FQDN von 194 Zeichen schiebt die Seite in keiner Lage) und die Zelle gegen
+ihren Bereich.
+
+> **Ein Zwilling, dem man dort glaubt, wo er allein misst, muss dort
+> übereinstimmen, wo beide messen.**
 
 **Acht Befunde, drei im Prüfling, und keiner davon aus A11** — die drei sind die
 oben beschriebenen aus P6. Der Grund für die Null ist derselbe wie bei A10, A2

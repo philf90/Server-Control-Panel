@@ -3175,7 +3175,7 @@ Liste.
 
 | | Was | Wo |
 |---|---|---|
-| **A11** | ~~Neustart~~ **am 26. August 2026 gebaut** (Schritt 7); Zeitzone des Servers und NTP **neben** der Anzeigezeitzone aus `docs/40`, Rechnername nur anzeigen | **gebaut und gefahren, noch nicht abgenommen** — die Messrunde ist `§2.3r`, der Plan `docs/106`, der Lauf `docs/107`, das Protokoll **`docs/108`**: sieben von acht Punkten am 7. September gegen `0.7.3-rc.26`, beide Ausschlüsse darunter; es fehlt Punkt 7 (390 px auf dem Server) |
+| **A11** | ~~Neustart~~ **am 26. August 2026 gebaut** (Schritt 7); Zeitzone des Servers und NTP **neben** der Anzeigezeitzone aus `docs/40`, Rechnername nur anzeigen | **abgenommen am 7. September 2026** auf `cloudsrv24` gegen `0.7.3-rc.24` bis `0.7.3-rc.26` — alle acht Punkte aus `docs/106 §7`, beide Ausschlüsse darunter; die Messrunde ist `§2.3r`, der Lauf `docs/107`, das Protokoll **`docs/108`** |
 | **A6** | Leseansicht von `/etc/crontab`, `/etc/cron.d`, `cron.daily` und `cron.weekly` | mit A2 |
 | **A8** | Welche Adressen der Server hat, welche der DNS-Abgleich als Soll nimmt | eigenständig; P7 ist fertig |
 | **A12** | Wartungsmodus: alle Kundenseiten auf 503, Panel erreichbar | **abgenommen am 5. September 2026** auf `cloudsrv24` gegen `0.7.3-rc.19` — alle acht Punkte aus `docs/101 §7`, das Protokoll ist `docs/102` |

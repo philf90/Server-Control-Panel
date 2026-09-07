@@ -210,22 +210,52 @@ Betrachter nicht drücken darf, wird gar nicht erst gezeigt.
 Die 403-Seite ist dabei die **entworfene** aus A9 und nicht Laravels englische
 Vorgabe — ein Befund aus `docs/84`, hier nebenbei nachgemessen.
 
-### Punkt 7 · 390 px — **auf dem Server nicht gemessen**
+### Punkt 7 · 390 px — **erfüllt**
 
-**Er ist nicht ausgefallen, und er ist auch nicht erfüllt.** Der Punkt verlangt
-`tests/bilder-messen.js` in der Browserkonsole bei 390 px; der Lauf wurde vom
-Telefon aus gefahren, und dort gibt es keine Konsole. Der Zustand ist
-herstellbar — es fehlt das Werkzeug, nicht der Zustand.
+**Nachgeholt am selben Abend, gegen `0.7.3-rc.26` auf `cloudsrv24`.** Der Punkt
+war zunächst offen: Er verlangt `tests/bilder-messen.js` in der Browserkonsole,
+und die ersten Punkte wurden vom Telefon aus gefahren. Er ist deshalb weder
+ausgefallen noch stillschweigend abgehakt worden.
 
 > **Ein Punkt, der am Werkzeug scheitert und nicht am Gegenstand, ist nicht
 > „nicht herstellbar" — und ihn so zu nennen wäre die bequemere von zwei
 > falschen Auskünften.**
 
-**Was stattdessen dasteht, ist die Bilderrunde im Container — noch einmal
-gefahren, mit den gemessenen Werten des Servers.** `docs/106 §8b` hat sie am
-6. September gefahren; dort standen aber die Werte des Containers in der
-Tabelle, und in einer Zeile ist der Server **länger**: `Rechnername` trug dort
-`vm` und hier `cloudsrv24.de`.
+Vier Lagen in Chrome, je in einer **frisch geladenen** Seite:
+
+    stand=2026-09-06 breite=390  thema=light dokument=0 gegenprobe=200 (soll 200) schiebt=0 rollt=0 versteckt=0
+    stand=2026-09-06 breite=390  thema=dark  dokument=0 gegenprobe=200 (soll 200) schiebt=0 rollt=0 versteckt=0
+    stand=2026-09-06 breite=1440 thema=light dokument=0 gegenprobe=200 (soll 200) schiebt=0 rollt=0 versteckt=0
+    stand=2026-09-06 breite=1440 thema=dark  dokument=0 gegenprobe=200 (soll 200) schiebt=0 rollt=0 versteckt=0
+
+**Dass jede Lage eine eigene geladene Seite hatte, steht in den Zahlen selbst
+und nicht in einer Zusage.** `bilderMessen()` wirft beim zweiten Aufruf ohne
+Neuladen, und ein zweites Einfügen der Vorschrift in dieselbe Seite scheitert an
+der Wiederdeklaration von `STAND`. Vier saubere Läufe heissen also vier
+Ladevorgänge — bestätigt durch die vier Zeitstempel der Zeile „Gespeichert"
+(17:55:41, 17:56:40, 17:57:05, 17:57:26 UTC).
+
+> **Ein Prüfmittel, das seine eigene Falle nicht bloss beschreibt, sondern an
+> ihr scheitert, belegt nebenbei, dass die Vorbedingung eingehalten wurde.**
+
+`rollt = 0` ist dabei kein Mangel: Ein Roller taucht nur auf, wenn er auch
+überläuft — die Erwartung, die der A14-Lauf berichtigt hat.
+
+Die Seite zeigte dabei die Werte aus Punkt 1 bis 5: `Europe/Berlin — CEST
+(UTC+02:00)`, `eingeschaltet`, `ja`, `UTC`, und bei 1440 px dazu `Dasselbe in
+der Anzeigezeit` sowie `cloudsrv24.de` als Rechnernamen. Die Fassung im
+Kopf der Seite ist `0.7.3-rc.26`.
+
+#### Die Nachmessung im Container daneben — sie ersetzt nichts und ergänzt zweierlei
+
+Vor dem Nachholen stand hier die Bilderrunde des Containers als das, was
+stattdessen dasteht. Sie bleibt, weil sie zwei Dinge misst, die der Lauf auf dem
+Server nicht misst — und sie ist damit keine Krücke mehr, sondern eine
+Ergänzung.
+
+`docs/106 §8b` hat sie am 6. September gefahren; dort standen aber die Werte des
+Containers in der Tabelle, und in einer Zeile ist der Server **länger**:
+`Rechnername` trug dort `vm` und hier `cloudsrv24.de`.
 
 Gefahren am 7. September gegen dieselbe Fassung des Zweiges, mit einer
 `timedatectl`-Attrappe, die den **Vorflug aus §1 Zeile für Zeile** druckt
@@ -301,10 +331,16 @@ Zeile für Zeile wie vorher, `/etc/localtime` zurück auf `Etc/UTC`,
 `/usr/bin/timedatectl` unberührt (ELF) — die Attrappe war ein Bind-Mount in
 einer eigenen Namespace.
 
-**Was das nicht ersetzt:** den Lauf auf `cloudsrv24`. Der Container trifft
-diesen Aufsatz aufs Pixel (`docs/56` Punkt 5), und trotzdem ist eine Messung am
-Prüfling etwas anderes als eine an seinem Zwilling. Punkt 7 bleibt offen und
-benannt.
+**Was der Server misst und der Container nicht:** die echte Seite mit echten
+Daten. **Was der Container misst und der Server nicht:** die Obergrenze eines
+Rechnernamens und die Zelle gegen ihren Bereich — beides Fragen, die die
+Vorschrift von Punkt 7 gar nicht stellt. Die beiden Läufe sagen dasselbe über
+`dokument` und `gegenprobe`, und das ist der Grund, dem Container hier zu
+glauben, wo er allein steht: Er trifft diesen Aufsatz aufs Pixel (`docs/56`
+Punkt 5), und in der einen Grösse, die beide messen, stimmen sie überein.
+
+> **Ein Zwilling, dem man dort glaubt, wo er allein misst, muss dort
+> übereinstimmen, wo beide messen.**
 
 ### Punkt 8 · Kosten — **erfüllt**
 
@@ -355,12 +391,11 @@ Belegt um 13:56, Zeile für Zeile gegen den Vorflug:
 
 ---
 
-## 5 · Bilanz — **A11 ist noch nicht abgenommen**
+## 5 · Bilanz — **A11 ist abgenommen**
 
-**Sieben der acht Punkte aus `docs/106 §7` sind gemessen und erfüllt**, beide
-Ausschlusskriterien (3 und 4) darunter, keiner als „nicht herstellbar"
-ausgefallen. Punkt 7 ist **nicht gemessen**, und das Kriterium verlangt alle
-acht.
+**Alle acht Punkte aus `docs/106 §7` sind am 7. September 2026 auf
+`cloudsrv24` gemessen und erfüllt**, beide Ausschlusskriterien (3 und 4)
+darunter, keiner als „nicht herstellbar" ausgefallen.
 
 | Punkt | gemessen |
 |---|---|
@@ -370,12 +405,13 @@ acht.
 | 4 · Nicht feststellbar *(Ausschluss)* | `rc=1`, drei Zeilen `nicht feststellbar` — Zone und Serverzeit **bleiben** |
 | 5 · Der Rechnername | `cloudsrv24.de`, mit dem sichtbaren Satz, warum er hier feststeht |
 | 6 · Die Tür | Administrator 200 mit dem Bereich · Kundenkonto 403 „Kein Zutritt" |
-| 7 · 390 px | **nicht gemessen** — vier Lagen im Container mit den Werten des Servers |
+| 7 · 390 px | vier Lagen, `dokument = 0`, Gegenprobe 200/200, `schiebt = 0` |
 | 8 · Kosten | 0,046 / 0,006 / 0,006 / 0,005 / 0,005 s |
 
-**Es fehlt eine Messung von zwei Minuten an einem Schreibtisch**, und bis sie da
-ist, steht A11 auf sieben von acht. Ein Punkt, der am Werkzeug scheitert, wird
-nicht dadurch erfüllt, dass alle anderen es sind.
+**Punkt 7 stand einen halben Tag lang offen**, weil die ersten sieben vom Telefon
+aus gefahren wurden und die Messvorschrift eine Browserkonsole verlangt. Er ist
+am selben Abend am MacBook nachgeholt worden — nicht als „nicht herstellbar"
+geführt und nicht auf die Containermessung abgewälzt.
 
 > **Ein Kriterium, das man beim letzten Punkt weicher liest als beim ersten, ist
 > keines mehr — es ist eine Zusammenfassung.**
@@ -439,9 +475,6 @@ haben es aufgedeckt.
 
 **Aus diesem Lauf:**
 
-- **Punkt 7 auf `cloudsrv24`.** Vier Lagen, `tests/bilder-messen.js` in der
-  Konsole. Solange er fehlt, ist A11 nicht abgenommen. Die Nachmessung im
-  Container steht daneben und ersetzt ihn nicht.
 - **Der dritte NTP-Zustand.** „kein Zeitdienst installiert" hiesse,
   `systemd-timesyncd` von einem laufenden Server zu entfernen. Belegt in
   `docs/81 §2.3r` M8 gegen echtes systemd 255, hier bewusst nicht wiederholt.

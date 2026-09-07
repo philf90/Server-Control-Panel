@@ -26302,3 +26302,63 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
 
   Der Rückweg der Migration legt die Spalte **leer** wieder an: Ein `down()`,
   das Werte erfände, stellte den Fehler wieder her.
+
+### A11 ist abgenommen — 7. September 2026
+
+Auf `cloudsrv24` gegen `0.7.3-rc.24` bis `0.7.3-rc.26`, **alle acht Punkte aus
+`docs/106 §7`**, beide Ausschlusskriterien (3 und 4) darunter, keiner als
+„nicht herstellbar" ausgefallen. Der Lauf ist `docs/107`, das Protokoll
+`docs/108`.
+
+- **Punkt 4 ist der Beleg, für den es die Trennung gibt.** `systemd-timedated`
+  maskiert, `timedatectl show` gibt `rc=1` — drei Zeilen stehen danach auf
+  „nicht feststellbar", **Zone und Serverzeit bleiben stehen**. Sie kommen aus
+  `ServerZone` und nicht aus dem Agenten; käme die Zone von dort, wüsste der
+  Betreiber nach dem Maskieren eines Dienstes nicht mehr, in welcher Zone seine
+  Cronjobs laufen.
+
+- **Punkt 7 stand einen halben Tag lang offen.** Die ersten sieben Punkte sind
+  vom Telefon aus gefahren worden, und `tests/bilder-messen.js` verlangt eine
+  Browserkonsole. Nachgeholt am selben Abend: vier Lagen, `dokument = 0`,
+  Gegenprobe 200/200, `schiebt = 0`.
+
+  > **Ein Punkt, der am Werkzeug scheitert und nicht am Gegenstand, ist nicht
+  > „nicht herstellbar" — und ihn so zu nennen wäre die bequemere von zwei
+  > falschen Auskünften.**
+
+  Dass jede Lage eine eigene geladene Seite hatte, steht dabei in den Zahlen
+  selbst: `bilderMessen()` wirft beim zweiten Aufruf ohne Neuladen, und ein
+  zweites Einfügen der Vorschrift scheitert an der Wiederdeklaration von
+  `STAND`.
+
+- **Acht Befunde, drei im Prüfling — und keiner davon aus A11.** Die drei sind
+  die Cronseite und `next_due`, beide oben, beide ein Jahr alt und aus P6.
+  Gefunden hat sie die Gegenprobe von Punkt 1: ein Schritt, dessen einziger
+  Zweck war, die **neue** Seite zu bestätigen.
+
+  > **Ein Abnahmelauf für ein neues Merkmal misst den Bestand mit — und was er
+  > dort findet, ist älter und teurer als alles, was er über sein eigenes Thema
+  > sagen kann.**
+
+- **Zwei Funde am Prüfmittel.** `timedatectl show` unmittelbar nach `set-ntp`
+  gibt den alten Wert zurück — der Griff wirkt über D-Bus und asynchron;
+  entschieden hat es erst eine dritte Messung mit `sleep 2`. Und
+  `bilder-messen.js` misst, **wer waagerecht rollt**: Eine Kennungszelle einer
+  `pairs`-Tabelle hat eine zweite Art, kaputt zu sein — sie überlappt, und der
+  Seitenüberlauf bleibt dabei 0. Nachgemessen wurde deshalb zusätzlich die Zelle
+  gegen ihren Bereich, mit Gegenprobe: ohne `overflow-wrap` an
+  `table.pairs td.ident` schlägt sie mit 1277 px aus, mit der Regel mit 0.
+
+- **Ein Fund am Kriterium und einer an der Vorschrift.** Punkt 6 war gegen einen
+  Zustand geschrieben, den der Prüfling nicht herstellen kann
+  (`/settings/general` gehört seit A9 dem Administrator), und Punkt 8 verlangte
+  `/usr/bin/time` — ein eigenes Paket, auf einem Debian- oder Ubuntu-Server
+  nicht im Grundbestand.
+
+  > **Eine Messvorschrift, die ein Werkzeug voraussetzt, das der Server nicht
+  > hat, misst nicht — sie meldet einen Fehler an sich selbst.**
+
+- **Und ein Wortlaut, der wahr und unbrauchbar ist:** `timedatectl` gegen einen
+  maskierten Dienst sagt *„Operation not possible due to RF-kill"* — auf einem
+  Server ohne Funk. Genau dieser Satz wäre auf der Seite gelandet, hätte A11 den
+  Wortlaut durchgereicht statt einer geschlossenen Grundmenge.

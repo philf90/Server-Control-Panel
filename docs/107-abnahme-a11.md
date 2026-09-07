@@ -311,6 +311,51 @@ welcher Zone steht dieser Server".
 
 ---
 
+## 0d · Und die Behebung war nur die halbe — gemessen gegen `0.7.3-rc.25`
+
+**Die Ursache war fort, der falsche Wert stand weiter da.**
+
+| Messung | vorher | gegen `rc.25` |
+|---|---|---|
+| `ServerZone::name()` durch die Schranke | `NULL` | **`Europe/Berlin`** |
+| Satz über der Jobliste | `UTC` | **`Europe/Berlin`** |
+| Nächste Fälligkeit für „jeden Tag um 03:15" | `05:15` | **`05:15`** |
+
+Die Seite widersprach sich damit selbst: Der Satz nannte die richtige Zone, die
+Zeile darunter die alte Rechnung.
+
+**`next_due` war eine Spalte.** Geschrieben von `refreshNextDue()`, gerufen
+beim Anlegen und beim Ändern eines Jobs — in ganz `app/` gab es genau zwei
+Aufrufstellen. Der Wert in der Datenbank stammte aus der Zeit vor der Behebung.
+
+> **Ein Wert, der einmal gerechnet und dann abgelegt wird, wird von einer
+> Behebung an der Rechnung nicht mitgenommen.**
+
+Und es war kein einmaliger Rest: Der Wert folgt aus „jetzt", und niemand zog ihn
+nach — auch nicht, nachdem ein Job gelaufen war.
+
+> **Ein Wert, der aus „jetzt" folgt und abgelegt wird, ist ab dem nächsten
+> Augenblick falsch — die Frage ist nur, wie schnell es auffällt.**
+
+**Kein einziger Test hat die Spalte je erwähnt.** Geschrieben, an einer Stelle
+gelesen, nie geprüft — das gehört zur Erklärung, warum der falsche Wert ein Jahr
+überlebt hat.
+
+### Behoben — entschieden vom Betreiber
+
+Die Spalte fällt weg, gerechnet wird beim Lesen. Ihre eigene Migration nannte
+sie „eine Bequemlichkeit für die Liste"; gemessen kostet die Rechnung **0,03 bis
+0,14 ms** je Job (2,6 ms im Sonderfall eines Zeitplans, den es nie gibt), bei
+höchstens zehn Jobs je Abonnement.
+
+> **Eine Bequemlichkeit, die 0,07 ms spart und einen falschen Wert über eine
+> Behebung hinwegträgt, war den Preis nicht wert.**
+
+`ServerZoneSourceTest::test_the_next_due_time_is_computed_and_not_stored` hält
+es seitdem, in beide Richtungen: kein Schreiber mehr, und die Seite rechnet.
+
+---
+
 ## 9 · Was dieser Lauf ausdrücklich **nicht** prüft
 
 - **`NTPSynchronized=yes`** als hergestellten Zustand. Ob die Uhr wirklich

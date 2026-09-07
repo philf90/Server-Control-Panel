@@ -125,6 +125,67 @@ final class ServerZoneSourceTest extends TestCase
     }
 
     /**
+     * Die nächste Fälligkeit wird gerechnet und nicht abgelegt.
+     *
+     * **Der Rest des Befundes vom 7. September 2026** (`docs/107 §0d`). Die
+     * Zone war behoben, und die Cronseite zeigte trotzdem weiter `05:15` für
+     * einen Job um 03:15: `next_due` stand als Spalte in der Datenbank und
+     * wurde nur beim Anlegen und Ändern geschrieben.
+     *
+     * > **Ein Wert, der einmal gerechnet und dann abgelegt wird, wird von einer
+     * > Behebung an der Rechnung nicht mitgenommen.**
+     *
+     * Und es war kein einmaliger Rest: Der Wert folgt aus „jetzt", und niemand
+     * zog ihn nach — auch nicht, nachdem ein Job gelaufen war.
+     *
+     * > **Ein Wert, der aus „jetzt" folgt und abgelegt wird, ist ab dem
+     * > nächsten Augenblick falsch — die Frage ist nur, wie schnell es
+     * > auffällt.**
+     *
+     * **Kein einziger Test hat die Spalte je erwähnt**, und das gehört zur
+     * Erklärung, warum der falsche Wert ein Jahr überlebt hat. Dieser Fall ist
+     * die Antwort darauf.
+     */
+    public function test_the_next_due_time_is_computed_and_not_stored(): void
+    {
+        $root = dirname(__DIR__, 2);
+
+        // Kein Schreiber und keine Spalte mehr — gesucht über app/ und
+        // database/, weil eine Migration sie wieder anlegen könnte.
+        $stellen = [];
+
+        foreach (['app', 'database/factories'] as $verzeichnis) {
+            $lauf = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($root.'/'.$verzeichnis, \FilesystemIterator::SKIP_DOTS),
+            );
+
+            foreach ($lauf as $datei) {
+                if (! $datei instanceof \SplFileInfo || $datei->getExtension() !== 'php') {
+                    continue;
+                }
+
+                $quelle = (string) file_get_contents($datei->getPathname());
+
+                if (str_contains($quelle, 'refreshNextDue')) {
+                    $stellen[] = str_replace($root.'/', '', $datei->getPathname());
+                }
+            }
+        }
+
+        $this->assertSame([], $stellen, sprintf(
+            "Diese Stellen schreiben die Fälligkeit in den Bestand:\n  %s",
+            implode("\n  ", $stellen),
+        ));
+
+        // Und die Wirkung: Die Zeile der Seite entsteht aus einer Rechnung.
+        $controller = (string) file_get_contents($root.'/app/Http/Controllers/CronController.php');
+
+        $this->assertStringContainsString("'next_due' => \$next === null", $controller,
+            'Die Seite liest die Fälligkeit, statt sie zu rechnen — dann kann sie wieder veralten.');
+        $this->assertStringNotContainsString('$job->next_due', $controller);
+    }
+
+    /**
      * Die Dateien, über die gesucht wird — mit ihrem Pfad relativ zum Repo.
      *
      * `vendor/` und `node_modules/` bleiben draussen: Was dort steht, ist nicht

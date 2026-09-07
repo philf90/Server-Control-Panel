@@ -26265,3 +26265,40 @@ keiner am Prüfling; sie stehen in `docs/102 §9` und in `CLAUDE.md`.
 
   > **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den
   > Verfasser.**
+
+### Und die Behebung war nur die halbe — `next_due` fällt weg
+
+- **Gemessen gegen `0.7.3-rc.25` auf `cloudsrv24`** (`docs/107 §0d`): Die Zone
+  kam an — `ServerZone::name()` durch die Schranke gibt `Europe/Berlin` statt
+  `NULL`, und der Satz über der Jobliste nennt sie. **Die nächste Fälligkeit
+  stand trotzdem unverändert auf `05:15`.**
+
+  Die Seite widersprach sich damit selbst: Der Satz nannte die richtige Zone,
+  die Zeile darunter die alte Rechnung.
+
+- **`next_due` war eine Spalte**, geschrieben beim Anlegen und beim Ändern eines
+  Jobs und sonst nie.
+
+  > **Ein Wert, der einmal gerechnet und dann abgelegt wird, wird von einer
+  > Behebung an der Rechnung nicht mitgenommen.**
+
+  Und es war kein einmaliger Rest: Der Wert folgt aus „jetzt", und niemand zog
+  ihn nach — auch nicht, nachdem ein Job gelaufen war.
+
+  > **Ein Wert, der aus „jetzt" folgt und abgelegt wird, ist ab dem nächsten
+  > Augenblick falsch — die Frage ist nur, wie schnell es auffällt.**
+
+- **Kein einziger Test hat die Spalte je erwähnt.** Geschrieben, an einer Stelle
+  gelesen, nie geprüft — das gehört zur Erklärung, warum der falsche Wert ein
+  Jahr überlebt hat.
+
+- **Sie fällt weg, gerechnet wird beim Lesen.** Ihre eigene Migration nannte sie
+  „eine Bequemlichkeit für die Liste"; gemessen kostet die Rechnung **0,03 bis
+  0,14 ms** je Job — 2,6 ms im Sonderfall eines Zeitplans, den es nie gibt — bei
+  höchstens zehn Jobs je Abonnement.
+
+  > **Eine Bequemlichkeit, die 0,07 ms spart und einen falschen Wert über eine
+  > Behebung hinwegträgt, war den Preis nicht wert.**
+
+  Der Rückweg der Migration legt die Spalte **leer** wieder an: Ein `down()`,
+  das Werte erfände, stellte den Fehler wieder her.

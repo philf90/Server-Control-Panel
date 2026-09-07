@@ -363,11 +363,30 @@ final class CronController extends Controller
      * dieselbe Umrechnung — wer das verwechselt, zeigt eine Zeile und findet sie
      * nicht.
      *
+     * **Gerechnet und nicht gelesen, seit dem 7. September 2026.** Bis dahin
+     * stand die nächste Fälligkeit als Spalte in der Datenbank, geschrieben
+     * beim Anlegen und beim Ändern eines Jobs und sonst nie. Als die Rechnung
+     * berichtigt wurde, blieben die alten Werte stehen: Auf `cloudsrv24` sagte
+     * der Satz oben `Europe/Berlin` und die Zeile darunter `05:15` für einen
+     * Job um 03:15 (`docs/107 §0d`).
+     *
+     * > **Ein Wert, der einmal gerechnet und dann abgelegt wird, wird von einer
+     * > Behebung an der Rechnung nicht mitgenommen.**
+     *
+     * Die Spalte war laut ihrer eigenen Migration „eine Bequemlichkeit für die
+     * Liste" — gemessen kostet die Rechnung 0,03 bis 0,14 ms je Job, bei
+     * höchstens zehn Jobs. Sie ist damit fort.
+     *
+     * > **Ein Wert, der aus „jetzt" folgt und abgelegt wird, ist ab dem
+     * > nächsten Augenblick falsch — die Frage ist nur, wie schnell es
+     * > auffällt.**
+     *
      * @return array<string,mixed>
      */
     private function job(CronJob $job): array
     {
         $schedule = $job->schedule();
+        $next = Occurrence::next($schedule);
 
         return [
             'id' => (int) $job->id,
@@ -377,7 +396,10 @@ final class CronController extends Controller
             'schedule' => $schedule,
             'expression' => Schedule::line($schedule),
             'spoken' => Spoken::schedule($schedule),
-            'next_due' => $job->next_due === null ? null : Clock::display($job->next_due),
+
+            // `null` heisst zweierlei und beides dasselbe für den Leser: kein
+            // Termin, oder die Zone der Maschine ist nicht abzulesen.
+            'next_due' => $next === null ? null : Clock::display(Carbon::instance($next)),
         ];
     }
 

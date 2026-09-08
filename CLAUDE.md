@@ -4280,6 +4280,43 @@ Testen berücksichtigen:
   eines Wächters ist das der Weg zurück — und wenn im selben Verzeichnis noch
   nicht Eingechecktes liegt, ist es danach fort. `tests/waechter-brechen.sh`
   weigert sich deshalb bei schmutzigem `resources/`; von Hand gilt dasselbe.
+- **Eine Freigabe lässt sich aus diesem Container nicht setzen — der Tag ist
+  der Griff des Betreibers.** Gemessen am 8. September 2026 an
+  `v0.7.3-rc.29`: Ein Branch-Ref liess sich fortschreiben
+  (`cb9e6e15..81e13d89`, dieselbe Leitung, dieselbe Minute), ein Tag-Ref nicht
+  anlegen — **zweimal `HTTP 403`**, und `recentRelayFailures` des Proxys blieb
+  beide Male leer. Die Abweisung kommt also von GitHub und nicht von der
+  Egress-Politik.
+
+  **Ob es an der Art des Refs liegt oder am Anlegen überhaupt, ist nicht
+  gemessen.** Hier steht eine Grenze und nicht ihre Ursache.
+
+  Der Bestand sagt dasselbe: Alle Freigaben tragen `philf90
+  <philipp@pf90.de>` mit Versatz **+0200**, dieser Container läuft in UTC, und
+  `v0.7.3-rc.28` kam beim `fetch` als `* [new tag]` herein — es hat hier nie
+  existiert.
+
+  > **Sechsmal steht in diesem Abschnitt, dass „es ist nicht da" und „es geht
+  > nicht" zwei Sätze sind, und jedes Mal widerlegt der Versuch die Sperre.
+  > Hier gilt der zweite — und deshalb steht er da.**
+
+  **`workflow_dispatch` ist kein Ersatz**, abgelesen an `release.yml`: Sowohl
+  „Freigabenotiz aus dem Tag" als auch „GitHub-Release" hängen an
+  `if: startsWith(github.ref, 'refs/tags/')`. Ein Dispatch baute und signierte,
+  legte **kein** Release an — und `repository` aktualisiert die Paketquelle
+  trotzdem. Das ist genau der halbe Zustand, vor dem der Kommentar in diesem
+  Lauf selbst warnt.
+
+  **Was hier geht und hierher gehört:** die Notiz vorbereiten und gegen beide
+  Wächter messen (`packaging/version-channel.sh` für den Kanal,
+  `packaging/release-notes.sh` für die Botschaft), den Commit nennen, den
+  Befehl fertig hinschreiben — und den lokal angelegten Tag danach **wieder
+  löschen**. Sonst steht er beim nächsten `fetch` als
+  `! [rejected] … (would clobber existing tag)` im Weg; in diesem Zustand
+  steckt `v0.7.3-rc.11` und meldet sich bei jedem Holen.
+
+  > **Ein lokaler Tag, den die Fernkopie nicht kennt, ist keine halbe Freigabe
+  > — er ist ein Stolperstein bei jedem `fetch`.**
 
 ---
 

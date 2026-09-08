@@ -301,6 +301,13 @@ das.
 
 Gefahren auf `cloudsrv24`. **Die Punkte 2 und 4 dürfen nicht ausfallen.**
 
+**Ausgeschrieben ist der Lauf als `docs/112`**, und dabei haben vier dieser acht
+Punkte ihre Fassung gewechselt (dort §0): Punkt 1 zählte die Dateien des Panels
+mit, obwohl die Seite sie nach Entscheidung als Einzeiler zeigt; Punkt 3 fragte
+`command -v anacron` statt `test -x /usr/sbin/anacron` — also `$PATH` statt der
+Frage, die `/etc/crontab` selbst stellt; Punkt 4 setzte `cron.yearly` als
+vorhanden voraus; und Punkt 6 brauchte den Rückweg über `srvpanel.target`.
+
 | | Was | Erfüllt, wenn |
 |---|---|---|
 | **1** | Die Zeitpläne stehen da | Jede Zeile aus `/etc/crontab` und `/etc/cron.d` erscheint mit Zeitplan, Benutzer und Kommando — gezählt gegen die Dateien selbst. |

@@ -26594,6 +26594,23 @@ an keiner Stelle — und drei Zustände sehen auf der Platte aus wie ein heiler.
   > **Ein Eingriff, der einen Zustand herstellt, den der Prüfling ohnehin gleich
   > beantwortet, misst die Regel nicht — er misst, dass sie unempfindlich ist.**
 
+- **Der Abnahmelauf steht als `docs/112`, ausgeschrieben vor dem Fahren** — und
+  vier der acht Punkte aus `docs/111 §7` haben dabei ihre Fassung gewechselt.
+  Der teuerste: Punkt 3 verlangte `command -v anacron`, der Agent fragt
+  `is_executable('/usr/sbin/anacron')` — weil `/etc/crontab` selbst
+  `test -x /usr/sbin/anacron` fragt. `command -v` fragt `$PATH`, und der führt
+  `/usr/sbin` nicht immer.
+
+  > **Eine Gegenprobe über einen anderen Weg als den benutzten prüft den
+  > falschen Weg.**
+
+  Punkt 1 zählte die Dateien des Panels mit, obwohl die Seite sie nach
+  Entscheidung als Einzeiler zeigt; Punkt 4 setzte `cron.yearly` als vorhanden
+  voraus; Punkt 6 brauchte den Rückweg über `srvpanel.target`. Die
+  Befehlsfolgen des Laufs sind im Container gegen den Leser gefahren, bevor das
+  Dokument stand — *ein Abnahmelauf ist Code, den niemand ausführt, bis es
+  darauf ankommt.*
+
 - **Neu:** `system.cron` im Agenten, `SrvPanel\Agent\CronState`,
   `SrvPanel\Agent\Cron\CronName`, `SrvPanel\Agent\Ops\SystemCron`,
   `App\Http\Controllers\SchedulesController`, die Seite `Schedules/Index.vue`,

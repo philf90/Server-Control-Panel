@@ -70,6 +70,12 @@ final class Runner
          * installiert" — deshalb prüft sie der Abnahmelauf auf dem Server
          * (`docs/109 §7`) und nicht dieser Kommentar.
          */
+        // `run-parts --test` führt nichts aus — es druckt, **welche** Skripte
+        // eines `cron.*`-Verzeichnisses liefen. Gefragt wird es, statt seine
+        // Namensregeln nachzubauen: Sechs von zwölf Prüfkörpern übergeht es
+        // wortlos (`docs/81 §2.3t` M2), und eine zweite Fassung dieser Regeln
+        // wäre die, die veraltet.
+        'run-parts' => '/usr/bin/run-parts',
         'ss' => '/usr/bin/ss',
         'nft' => '/usr/sbin/nft',
         'iptables-legacy' => '/usr/sbin/iptables-legacy',

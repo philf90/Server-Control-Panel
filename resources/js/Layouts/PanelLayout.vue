@@ -389,6 +389,27 @@ const navigation = computed(() => {
       { name: 'Dienste', href: '/services', icon: 'services', ability: 'inspect-server' },
 
       /*
+       * **„Zeitpläne" steht neben „Dienste", und zwar hinter ihm.** Beide
+       * beantworten „was läuft auf diesem Server" — „Dienste" das, was jetzt
+       * läuft, „Zeitpläne" das, was gleich losgeht. Wer nachsieht, warum
+       * nachts etwas passiert ist, kommt von „Logs" und geht hier weiter.
+       *
+       * **Und nicht als Bereich auf `/services`.** Dort stehen seit A2 Dienste
+       * und Timer und seit A3 Ports und Regelwerk; ein vierter und fünfter
+       * Bereich machten aus der Seite eine Halde (`docs/111 §4`).
+       *
+       * **Die Fähigkeit ist `operate-server` und trennt hier von den
+       * Nachbarn** — eine Cron-Zeile ist beliebiger Text, den root
+       * geschrieben hat, und das ist dieselbe Art Inhalt wie in „Logs"
+       * (`docs/111 §2`, Frage 1). `AbilityReachTest` hält, dass der
+       * Administrator den Punkt gar nicht erst sieht.
+       *
+       *   Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht
+       *   sie dort?
+       */
+      { name: 'Zeitpläne', href: '/schedules', icon: 'schedules', ability: 'operate-server' },
+
+      /*
        * **„Updates" schliesst die Reihe, die den Zustand dieses Servers
        * beschreibt** — „Vorgänge" sagt, was gerade läuft, „Protokoll", was das
        * Panel getan hat, „Logs", was auf dem Server steht, und „Updates", was

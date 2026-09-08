@@ -47,7 +47,7 @@ final class ClassNameTest extends TestCase
         'account', 'action', 'active', 'address', 'after', 'agent', 'area', 'arrow', 'aside', 'badge', 'band', 'bands', 'bar',
         'back', 'blank',
         'block', 'branch', 'breadcrumb', 'button', 'cell', 'check', 'choice', 'choices', 'codes',
-        'clamped', 'code', 'comment', 'confirmation', 'content', 'critical', 'crumbs', 'cursor', 'danger',
+        'clamped', 'code', 'command', 'comment', 'confirmation', 'content', 'critical', 'crumbs', 'cursor', 'danger',
         'dependent',
         'description', 'detail',
         'place',

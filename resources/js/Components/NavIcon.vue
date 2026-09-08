@@ -128,6 +128,18 @@ const PATHS: Record<string, string> = {
   services: 'M4 5h16v4H4zM4 15h16v4H4zM7 7h.01M7 17h.01',
 
   /*
+   * Zeitpläne: ein Kalenderblatt — Rahmen, Kopfleiste, zwei Aufhänger.
+   *
+   * **Keine Uhr**, obwohl es um Zeit geht: `cron` ist eine und `general` ist
+   * eine zweite, und drei Kreise mit Zeigern unterscheidet in einer Menüspalte
+   * niemand. Der Kalender sagt ausserdem das Richtigere — hier steht nicht,
+   * wie spät es ist, sondern **an welchen Tagen** etwas läuft.
+   *
+   * Und keine Sanduhr: Die gehört anderswo zum Warten, und hier wartet nichts.
+   */
+  schedules: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
+
+  /*
    * Diagnose: eine Kurve, wie sie ein Messgerät schreibt.
    *
    * **Keine Lupe.** Der Kreis mit Griff sähe neben `dns` — Kreis mit Linie

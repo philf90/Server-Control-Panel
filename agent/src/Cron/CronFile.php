@@ -142,8 +142,14 @@ final class CronFile
          * Frage, und die beantwortet
          * {@see \SrvPanel\Agent\Ops\SubscriptionProvision::systemUser()} für das
          * ganze Projekt. Hier steht nur, was cron von einem Dateinamen verlangt.
+         *
+         * **Und das steht seit A6 in {@see CronName}**, weil dieselbe Regel
+         * eine zweite Seite bekommen hat: Die Leseansicht der Zeitpläne
+         * (`docs/111`) muss für fremde Dateien beantworten, was hier für die
+         * eigenen beantwortet wird. Zwei Fassungen wären zwei, und die zweite
+         * ist die, die veraltet.
          */
-        if (preg_match('/\A[A-Za-z0-9_-]+$/D', $user) !== 1) {
+        if (! CronName::readable($user)) {
             throw AgentException::badRequest(
                 'Aus diesem Systembenutzer entstünde ein Dateiname, den cron übergeht.',
                 ['user' => $user, 'name' => self::PREFIX.$user],

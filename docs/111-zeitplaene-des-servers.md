@@ -141,11 +141,33 @@ dieselbe Bauart wie `system.time` und `system.ports`.
 }
 ```
 
+**Drei Berichtigungen aus dem Bau, alle am 8. September 2026.**
+
+**`known` ist dazugekommen, und es trägt einen dritten Zustand.** Ist
+`/etc/crontab` nicht lesbar, ist der Zeitplan eines Verzeichnisses **unbekannt**
+— und das lieferte ohne eigenes Feld dasselbe `schedule: null` wie
+`cron.yearly`, dessen Zeitplan es zu Recht nicht gibt.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts zu
+> tun".**
+
+**`owned` kommt aus `CronFile::PREFIX` und nicht aus `Host::cronFiles()`.** Der
+Plan nannte den Verbraucher; die Quelle ist die Konstante, aus der auch
+`LocalHost::cronFiles()` sie holt — und der Agent kann `app/` ohnehin nicht
+fragen. `CronPayloadTest` hält beide Seiten daran.
+
+**`entries` liest die `@`-Form mit** (M4): `@daily root /bin/backup` trägt ein
+Zeitfeld statt fünf. Wer sie in fünf zerlegt, zeigt den Benutzer als Tag des
+Monats an.
+
 **Vier Dinge daran sind aus den Messungen abgeleitet und nicht gewählt.**
 
 `ignored` ist die **Differenz** zwischen dem Verzeichnisinhalt und
 `run-parts --test`, nicht eine eigene Prüfung. Was dort steht, läuft nicht — und
-warum, sagt der Nachbau nicht besser als das Werkzeug.
+warum, sagt der Nachbau nicht besser als das Werkzeug. **Eine versteckte Datei
+zählt nicht mit** (M5): `.placeholder` liegt in jedem dieser Verzeichnisse und
+gehört zum Paket; mitgezählt meldete der Bereich auf jedem heilen Server fünf
+Funde.
 
 `conditional` trägt den anacron-Vorbehalt aus der Zeile. `schedule` ohne ihn
 wäre auf jedem Server mit anacron falsch.
@@ -248,3 +270,12 @@ Gefahren auf `cloudsrv24`. **Die Punkte 2 und 4 dürfen nicht ausfallen.**
   deren Zone und Vorbehalte A6 nicht kennt.
 - **Es bekommt keinen `check` in der Bestandsdiagnose** (Frage 4) — das ist der
   nächste Schritt und nicht dieser.
+- **Es sagt nicht, ob eine Zeile für cron gültig ist.** Gemessen (M4): Ein
+  `@`-Name, den cron nicht kennt, nimmt mit
+  `Syntax error, this crontab file will be ignored` die **ganze Datei** mit —
+  und zu sehen ist das nur, wenn man cron startet. Ein Nachbau seines Parsers
+  wäre dessen zweite Fassung, und die zweite ist die, die veraltet. A6 zeigt die
+  Zeilen, wie sie dastehen; ob cron sie annimmt, ist eine Frage an cron.
+
+  > **Eine Leseansicht, die urteilt, hat einen zweiten Prüfer gebaut — und der
+  > zweite ist der, der veraltet.**

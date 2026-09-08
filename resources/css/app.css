@@ -1855,7 +1855,20 @@ table.pairs {
  * inzwischen fünfte Fassung derselben Ausnahme: `overflow-wrap: anywhere`.
  * `min-width: 0` gehört hier nicht dazu — eine Tabellenzelle ist kein Flexkind.
  */
-.cell-name {
+/*
+ * **Und dieselbe Regel für ein Kommando** (A6, `docs/111 §2` Frage 3).
+ *
+ * Eine Cron-Zeile trägt einen Befehl im Wortlaut, und der ist beliebig lang:
+ * `test -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.daily; }`
+ * sind 74 Zeichen, und das ist die kurze Sorte. Ein gekürztes Kommando ist die
+ * Auskunft, die man gerade nicht brauchen kann.
+ *
+ * **Ein Selektor mehr und keine sechste Fassung.** Die Begründung darüber gilt
+ * wörtlich; sie hier zu wiederholen hiesse, eine zweite Stelle zu schaffen, an
+ * der jemand die eine ändert und die andere stehen lässt.
+ */
+.cell-name,
+.cell-command {
   overflow-wrap: anywhere;
 }
 

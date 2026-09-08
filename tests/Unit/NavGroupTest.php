@@ -224,8 +224,14 @@ final class NavGroupTest extends TestCase
          * wäre mit „Ankündigungen" auf neun gewachsen; herausgelöst ist, was
          * sagt, **was war** — Vorgänge, Protokoll, Logs. Die Trennlinie stand
          * schon im Kommentar an „Logs", die Zahl hat sie nur fällig gemacht.
+         *
+         * **Sieben seit dem 8. September 2026** — „Zeitpläne" (A6) steht neben
+         * „Dienste". Diese Zahl ist die bekannte Aufräumfalle in ihrer
+         * nützlichen Richtung: Sie ist kein Befund, sondern ein Halt, an dem
+         * jemand einmal entscheiden muss, ob die Gruppe noch eine Gruppe ist.
+         * Bei neun war sie es nicht mehr.
          */
-        $this->assertCount(6, $betrieb, 'Die Gruppe „Betrieb" trägt sechs Punkte — was jetzt ist und was ansteht.');
+        $this->assertCount(7, $betrieb, 'Die Gruppe „Betrieb" trägt sieben Punkte — was jetzt ist und was ansteht.');
         $this->assertCount(3, $verlauf, 'Die Gruppe „Verlauf" trägt drei Punkte — was war.');
     }
 

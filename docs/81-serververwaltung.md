@@ -2855,6 +2855,57 @@ geladene Datei erzeugt dort auch keine Zeile.
 Erst `-x load,pars,sch` druckt `…:load_user()` je geladener Datei, und damit
 steht der Erfolgsfall daneben: `probe-ohnepunkt` einmal, `probe.punkt` keinmal.
 
+#### Die `@`-Form, und ein Messfehler, der sie beinahe verdeckt hätte
+
+**M4, nachgemessen am 8. September 2026 beim Bauen.** Eine Zeile in
+`/etc/cron.d` darf ihren Zeitplan in **einem** Feld tragen statt in fünf:
+
+| angenommen | abgewiesen |
+|---|---|
+| `@reboot` · `@yearly` · `@annually` · `@monthly` · `@weekly` · `@daily` · `@midnight` · `@hourly` | `@every_minute` · `@jeden_tag` |
+
+Alle acht laufen durch `load_entry()…returning successfully`; die beiden
+anderen melden `ERROR (Syntax error, this crontab file will be ignored)` — und
+das nimmt die **ganze Datei** mit und nicht die eine Zeile.
+
+Ein Leser, der jede Zeile in fünf Zeitfelder zerlegt, zeigt bei `@daily root
+/bin/backup` den Benutzer als Tag des Monats an und verliert das Kommando.
+
+> **Eine zweite Gestalt derselben Zeile ist kein Sonderfall — sie ist die
+> Hälfte der Fälle, die man nicht gemessen hat.**
+
+**Und die erste Fassung dieser Messung hat zwei Dateien als „übergangen"
+gemeldet, die geladen waren.** `cron -n -x …` schreibt seine Zeilen auf
+**stdout**, umgeleitet also blockweise gepuffert — und `timeout` beendet den
+Prozess mit SIGTERM, worauf der ungeschriebene Rest des Puffers verfällt. Zwei
+Läufe, zwei verschiedene Dateien fehlten, beide Male reproduzierbar; es sah aus
+wie eine Regel im Dateinamen und war die Länge der Ausgabe. Mit `stdbuf -o0`
+stehen alle zehn da.
+
+> **Eine Abwesenheit am Ende einer abgeschnittenen Ausgabe sieht aus wie ein
+> Befund über den Gegenstand und ist einer über das Messmittel.**
+
+Derselbe Satz wie bei `| head` über der Bilderrunde (`docs/64`) und bei der
+abgeschnittenen Testnamensliste (`docs/94 §8`) — diesmal an einem Puffer statt
+an einer Pipe.
+
+#### Zwei Kleinigkeiten, die den Bereich „Übergangen" tragen
+
+**M5.** `cron-daemon-common` legt in **jedes** `cron.*`-Verzeichnis ein
+`.placeholder`, dessen Inhalt wörtlich „DO NOT EDIT OR REMOVE" sagt
+(`dpkg -S` gemessen). Es fällt bei `run-parts --test` heraus wie jeder Name mit
+Punkt — gezählt man es mit, meldete A6 auf jedem heilen Server fünf Funde.
+
+> **Ein Bereich, der auf jedem heilen Server etwas meldet, wird von dem
+> überlesen, für den es ihn gibt.**
+
+Gezählt wird deshalb, was **nicht** mit einem Punkt anfängt; ein Punkt *im*
+Namen (`backup.sh`) bleibt ein Fund.
+
+**M6.** Ein **Unterverzeichnis** übergeht `run-parts --test` ebenfalls wortlos
+(gemessen). Es trägt dabei ein Ausführbit — wer nach dem Bit fragt, bevor er
+nach dem Verzeichnis fragt, beschriftet es als „kein Ausführbit".
+
 #### Was daraus für A6 folgt
 
 1. **Drei Gegenstände und nicht einer.** `/etc/crontab` und `/etc/cron.d` sind

@@ -91,6 +91,7 @@ use SrvPanel\Agent\Ops\SubscriptionRemove;
 use SrvPanel\Agent\Ops\SubscriptionResume;
 use SrvPanel\Agent\Ops\SubscriptionSuspend;
 use SrvPanel\Agent\Ops\SubscriptionUsage;
+use SrvPanel\Agent\Ops\SystemCron;
 use SrvPanel\Agent\Ops\SystemDiagnose;
 use SrvPanel\Agent\Ops\SystemInfo;
 use SrvPanel\Agent\Ops\SystemLogsList;
@@ -217,6 +218,10 @@ final class Registry
         // läuft. Liest vier Programme und ändert nichts; das Schreiben ist der
         // zweite Wurf und steht in P9b.
         $this->register(new SystemPorts);
+
+        // P7b A6 — die Zeitpläne des Systems: `/etc/crontab`, `/etc/cron.d`
+        // und die `cron.*`-Verzeichnisse. Liest und ändert nichts.
+        $this->register(new SystemCron);
 
         $this->register(new WebLogrotate);
         $this->register(new WebIsolationProbe);

@@ -26429,6 +26429,91 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
+echo "== UnknownStateTest: der Gegenzweig faellt weg =="
+#
+# Gemessen auf cloudsrv24 (docs/114 §6): Bei angehaltenem Agenten stand unter
+# der Ueberschrift "Regelwerk" nichts -- die Konsole druckte
+# `unter Regelwerk: "Regelwerk"` und danach den Seitenfuss.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = """        <p v-else class="notice warn">
+          Das Regelwerk ist nicht feststellbar — der Agent hat nicht geantwortet.
+          Das heisst nicht, dass keine Regeln gelten.
+        </p>
+
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "der Gegenzweig faellt weg" &&
+pruefe "der Gegenzweig faellt weg" \
+  UnknownStateTest::test_the_filter_section_speaks_in_both_states failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnknownStateTest passed
+
+echo
+echo "== UnknownStateTest: der Gegenzweig sagt -keine Regeln- =="
+#
+# "Keine Regeln" ist eine Aussage ueber den Server; gefragt war eine ueber den
+# Aufruf.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'Das Regelwerk ist nicht feststellbar — der Agent hat nicht geantwortet.'
+neu = 'Es gelten keine Regeln.'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "der Gegenzweig sagt keine Regeln" &&
+pruefe "der Gegenzweig sagt keine Regeln" \
+  UnknownStateTest::test_the_filter_section_speaks_in_both_states failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnknownStateTest passed
+
+echo
+echo "== AgentMessageTest: der Einbetter setzt wieder einen Punkt =="
+#
+# Der erste Wurf dieses Waechters blieb hier gruen: Sein Ausdruck vertrug kein
+# `}` in der Mitte der Klammer und uebersprang ausgerechnet diese Stelle.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = "{{ error ? `: ${error}` : '.' }} Die Zustände"
+neu = "{{ error ? `: ${error}` : '' }}. Die Zustände"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "der Einbetter setzt wieder einen Punkt" &&
+pruefe "der Einbetter setzt wieder einen Punkt" \
+  AgentMessageTest::test_no_template_closes_an_embedded_message failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AgentMessageTest passed
+
+echo
+echo "== AgentMessageTest: eine Meldung verliert ihren Schlusspunkt =="
+#
+# Die andere Richtung: Ohne sie duerfte jemand die Schlusszeichen aus Client
+# entfernen, und alle zehn Einbettungen endeten ohne Punkt.
+vorher_datei agent/src/Client.php
+python3 - <<'PY2'
+p = 'agent/src/Client.php'
+s = open(p, encoding='utf-8').read()
+alt = "'Der Agent läuft nicht: Socket ist nicht vorhanden.'"
+neu = "'Der Agent läuft nicht: Socket ist nicht vorhanden'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Client.php "eine Meldung verliert ihren Schlusspunkt" &&
+pruefe "eine Meldung verliert ihren Schlusspunkt" \
+  AgentMessageTest::test_every_message_brings_its_own_end failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AgentMessageTest passed
+
+echo
 echo "== CronPayloadTest: die Bereiche stehen ohne Bedingung da =="
 #
 # Gemessen im Abnahmelauf (docs/113 §9.3): Bei angehaltenem Agenten standen

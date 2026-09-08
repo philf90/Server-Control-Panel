@@ -172,7 +172,16 @@ const gestoppt = computed(() => props.services.filter((s) => rang(s) === 'critic
 
   <PanelLayout title="Dienste" subline="Was auf diesem Server läuft — und welcher Timer keinen Termin mehr hat">
     <p v-if="!live" class="notice critical">
-      Der Agent antwortet nicht{{ error ? `: ${error}` : '' }}. Die Zustände unten fehlen
+      <!--
+        **Der Schlusspunkt gehört der eingebetteten Meldung** (`docs/114 §9.2`).
+        Alle acht Meldungen von {@see Client} sind ganze Sätze und enden mit
+        einem Punkt; wer hier einen zweiten setzt, druckt „vorhanden.." — auf
+        `cloudsrv24` am 8. September gemessen.
+
+        > **Ein Satz, der einen fremden Satz einbettet und selbst schliesst,
+        > schliesst ihn zweimal.**
+      -->
+      Der Agent antwortet nicht{{ error ? `: ${error}` : '.' }} Die Zustände unten fehlen
       deshalb — nicht, weil nichts läuft, sondern weil niemand geantwortet hat.
     </p>
 
@@ -354,6 +363,25 @@ const gestoppt = computed(() => props.services.filter((s) => rang(s) === 'critic
             </tr>
           </tbody>
         </table>
+
+        <!--
+          **Wo nichts feststeht, steht der Satz — und kein leerer Bereich.**
+          Bei angehaltenem Agenten gibt der Controller `readable: false` ohne
+          den Schlüssel `filter`; ohne diesen Zweig stünde hier die Überschrift
+          „Regelwerk" über nichts. Gemessen auf `cloudsrv24`
+          (`docs/114 §6`): `unter Regelwerk: "Regelwerk"` und sonst nichts.
+
+          > **Eine Anzeige, die zwei verschiedene Zustände gleich aussehen
+          > lässt, behauptet etwas, das sie nicht weiss.**
+
+          **Es ist ein `v-else` und keine zweite Bedingung.** Eine zweite wäre
+          die, die veraltet — genau daran hing derselbe Befund auf
+          `/schedules` einen Tag zuvor.
+        -->
+        <p v-else class="notice warn">
+          Das Regelwerk ist nicht feststellbar — der Agent hat nicht geantwortet.
+          Das heisst nicht, dass keine Regeln gelten.
+        </p>
 
         <!--
           **Die Zeile, die es ohne M10 nicht gäbe.** Ein Regelwerk über

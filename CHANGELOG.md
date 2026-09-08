@@ -26691,3 +26691,107 @@ Zustand, den Punkt 6 herstellt.
 - **Was ungeprüft bleibt und benannt ist:** der Satz „anacron bestimmt den
   Zeitpunkt". Auf `cloudsrv24` fehlt anacron, im Container ebenso — er ist gegen
   Prüfkörper gehalten und auf keiner Maschine gesehen worden.
+
+### Der Nachlauf zu `0.7.3-rc.28` — die drei Behebungen wirken
+
+Gefahren am 8. September 2026 auf `cloudsrv24` gegen die Fassung, die alle drei
+trägt (`docs/113 §12`). *Eine Behebung gilt als behoben, wenn jemand
+nachgesehen hat.*
+
+- **Beide Zellen stehen zusammen**, gemessen und nicht angesehen: Ein
+  Prüfkörper über alle `table.stacks td` bei 390 px meldet auf `/schedules` und
+  auf der SFTP-Seite **keine** Zelle mit einer Lücke über 8 px. Die Gegenprobe
+  nimmt der Zelle im DOM ihre Hülle und stellt damit das alte Markup her — mit
+  Hülle 0, ohne Hülle **14** beziehungsweise **81**.
+
+- **Wo nichts feststeht, steht keine Tabelle:** Bei angehaltenem Agenten
+  antwortet `/schedules` mit 200, `Bereiche: 0`, `Tabellen: 0` und dem Streifen.
+  Zurück über `srvpanel.target`, viermal `active`.
+
+- **Vier Lagen:** `dokument = 0`, Gegenprobe 200/200, `schiebt = 0` — überall.
+
+**Und der Prüfkörper aus dem ersten Punkt geht trotzdem nicht ins Repo.** Er
+überspringt Paare, deren Kästen verschieden hoch anfangen — und auf `rc.27` sah
+der Riss genau so aus, weil die Stücke je für sich umbrachen.
+
+> **Ein Prüfkörper, der die Paare überspringt, deren Kästen verschieden hoch
+> anfangen, überspringt genau den Fall, den er finden soll.** Dieselbe Behebung
+> ergab 81 px auf der einen und 14 px auf der anderen Seite; der Unterschied
+> ist der Umbruch und nicht der Schaden.
+
+> **Ein Bild nach einer Gegenprobe zeigt den hergestellten Zustand und nicht den
+> gemessenen** — ein Beleg für die Behebung, der wie ihr Gegenteil aussieht.
+
+Und eine Zahl, die als Erwartung dastand und falsch war: `versteckt` war mit 6
+angesagt und ist 4. Die 6 stammen aus dem Lauf **mit** den Prüfkörpern, also aus
+drei Tabellen; nach dem Abbau sind es zwei. Zwei Elemente je gestapelter
+Tabelle, in beiden Läufen.
+
+> **Eine Zahl aus einer Messung unter anderen Bedingungen ist eine Vermutung,
+> auch wenn sie aus einer Messung stammt.**
+
+### A3s erster Wurf — der Abnahmelauf vom 8. September 2026
+
+Gefahren auf `cloudsrv24` gegen `0.7.3-rc.28`, der Lauf ist `docs/110`, das
+Protokoll **`docs/114`**. **Sieben der acht Punkte erfüllt, beide
+Ausschlusskriterien (2 und 3) darunter — und Punkt 6 nicht.** Der Wurf ist
+damit **nicht abgenommen**: Der Zustand war herstellbar, und der Prüfling hat
+ihn falsch beantwortet.
+
+> **Ein Kriterium, das man beim letzten Punkt weicher liest als beim ersten,
+> ist keines mehr — es ist eine Zusammenfassung.**
+
+- **M10 ist auf einer echten Maschine gemessen, und stärker als im Container.**
+  Eine Regel über `iptables-legacy` liess `nft list ruleset` bei **2307 Bytes**
+  — byteweise dieselben wie vorher —, während `iptables-legacy -S` sie zeigt und
+  die Seite von `nftables` auf `iptables` umschaltet. Im Container war der Beleg
+  eine Null, und eine Null sieht aus wie „keine Regeln".
+
+- **Die Klammerform von IPv6 stand bis heute nach der Dokumentation da und nicht
+  nach einer Messung.** Fünf `inet6` in der Nutzlast gegen fünf `[`-Zeilen in
+  `ss`, Adressen ohne Klammern, `::` als `any` und `::1` als `loopback`. Dazu
+  ein Fall, den keine Messrunde kannte: `127.0.0.53%lo`, eine Adresse mit
+  **Schnittstellensuffix**, richtig als `loopback` eingeordnet.
+
+- **Die Grenze für den Prozessnamen liegt in der Nutzlast und nicht im Bild:**
+  Beim Administrator kamen **13 Lauscher und 0 Namen** über die Leitung.
+
+- **Befund 1: Wo nichts feststeht, stand eine Überschrift über nichts.** Bei
+  angehaltenem Agenten sagte der Ports-Bereich richtig „nicht feststellbar" —
+  und unter „Regelwerk" stand weder das noch „keine Regeln", sondern der
+  Seitenfuss. **Es ist derselbe Befund wie Befund 3 des A6-Laufs, am selben Tag
+  auf `/schedules` behoben.**
+
+  > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+  > wieder da, wenn die Behebung nicht die Regel wurde.**
+
+  Behoben mit einem `v-else` und nicht mit einer zweiten Bedingung:
+
+  > **Ein `v-else` kann nicht auseinanderlaufen — die zweite Bedingung ist die,
+  > die veraltet, und hier gibt es keine zweite.**
+
+- **Befund 2: ein doppelter Punkt.** *„…Socket ist nicht vorhanden.."* — alle
+  acht Meldungen von `Client` sind ganze Sätze, und die Vorlage setzte danach
+  noch einen. `AgentMessageTest` hält beide Richtungen.
+
+  > **Ein Satz, der einen fremden Satz einbettet und selbst schliesst, schliesst
+  > ihn zweimal.**
+
+- **Befund 3, gefunden beim Beheben:** `ReachabilityWordTest` trug seit dem
+  7. September einen **eigenen** Kommentarabtaster für `.vue` und behauptete im
+  Kopf, es gebe dafür nichts. `WithoutMarkupComments` gibt es seit dem
+  25. August, und neun Wächter benutzen es.
+
+  > **Eine Zeile, die eine Abwesenheit behauptet, lässt den Nächsten dasselbe
+  > noch einmal bauen.**
+
+- **Und der teuerste Handgriff war ein Bruch, der nicht gebissen hat.**
+  `AgentMessageTest` blieb grün, als der doppelte Punkt zurückkam: Sein Ausdruck
+  verträgt kein `}` in der Mitte der Klammer, und die Zeile trägt `${error}`.
+  Gezählt hatte er neun Einbettungen — die **anderen** neun Dateien.
+
+  > **Ein Wächter, der einen Ausdruck nicht auflösen kann, hat nicht wenig
+  > gemessen — er hat an dieser Stelle gar nicht gemessen.**
+
+  Dieselbe Zahl ist zweimal berichtigt worden: sieben, neun, zehn. Keine stand
+  vor dem Lauf fest; gemessen hat sie jedes Mal die Untergrenze des Wächters.

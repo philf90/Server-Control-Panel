@@ -174,6 +174,33 @@ final class CronPayloadTest extends TestCase
             $css,
             'Die Zelle des Kommandos bricht nicht.',
         );
+
+        /*
+         * **Und sie hat eine Obergrenze — sonst nützt das Brechen nichts.**
+         * Gemessen am 8. September 2026 bei 1440 px gegen den echten Bestand:
+         * ohne Grenze ist die Zelle 1396 px breit und die Tabelle läuft 736 px
+         * über ihren Bereich, während der Überlauf am Dokument 0 bleibt.
+         *
+         * > **`overflow-wrap` sagt, wo gebrochen werden darf, und nicht
+         * > wann.**
+         */
+        $this->assertMatchesRegularExpression(
+            '/\.cell-command\s*\{[^}]*max-width:/s',
+            $css,
+            'Die Zelle des Kommandos hat keine Obergrenze — dann wächst die Tabelle statt zu brechen.',
+        );
+
+        /*
+         * **Die Grenze steht auf einem Element in der Zelle und nicht auf ihr.**
+         * `max-width` gilt für eine Tabellenzelle laut CSS 2.1 nicht; dass
+         * dieses Chromium sie dort beachtet, ist gemessen und trotzdem keine
+         * Zusage.
+         */
+        $this->assertStringContainsString(
+            '<div class="cell-command">',
+            $seite,
+            'Die Grenze hängt an der Zelle statt an einem Element darin.',
+        );
     }
 
     /**

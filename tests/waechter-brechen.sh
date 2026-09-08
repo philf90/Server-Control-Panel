@@ -26429,6 +26429,62 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
+echo "== CronPayloadTest: die Obergrenze faellt weg =="
+#
+# Gemessen bei 1440 px gegen den echten Bestand: ohne Grenze ist die Zelle
+# 1396 px breit und die Tabelle laeuft 736 px ueber ihren Bereich -- waehrend
+# der Ueberlauf am Dokument 0 bleibt. overflow-wrap sagt, WO gebrochen werden
+# darf, und nicht WANN.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = ".cell-command {\n  max-width: 48ch;\n}"
+neu = ".cell-command {\n  min-width: 0;\n}"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff "die Obergrenze faellt weg" &&
+pruefe "die Obergrenze faellt weg" \
+  CronPayloadTest::test_the_command_wraps_and_is_not_cut failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
+
+echo
+echo "== CronPayloadTest: die Grenze haengt an der Zelle =="
+#
+# max-width gilt fuer eine Tabellenzelle laut CSS 2.1 nicht; dass dieses
+# Chromium sie dort beachtet, ist gemessen und trotzdem keine Zusage.
+vorher_datei resources/js/Pages/Schedules/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Schedules/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<div class="cell-command">{{ zeile.command }}</div>'
+neu = '{{ zeile.command }}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, neu, 1)
+alt2 = '<td data-column="Datei"><div class="cell-command">{{ d.name }}</div></td>'
+neu2 = '<td data-column="Datei">{{ d.name }}</td>'
+assert s.count(alt2) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt2, neu2, 1)
+alt3 = """                  <div class="cell-command">
+                    <span v-if="!v.readable" class="quiet">nicht feststellbar</span>
+                    <span v-else-if="v.scripts.length === 0" class="quiet">keine</span>
+                    <template v-else>{{ v.scripts.join(', ') }}</template>
+                  </div>"""
+neu3 = """                  <span v-if="!v.readable" class="quiet">nicht feststellbar</span>
+                  <span v-else-if="v.scripts.length === 0" class="quiet">keine</span>
+                  <template v-else>{{ v.scripts.join(', ') }}</template>"""
+assert s.count(alt3) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt3, neu3, 1))
+PY2
+griff_datei resources/js/Pages/Schedules/Index.vue "die Grenze haengt an der Zelle" &&
+pruefe "die Grenze haengt an der Zelle" \
+  CronPayloadTest::test_the_command_wraps_and_is_not_cut failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
+
+echo
 echo "== CronPayloadTest: das Kommando bricht nicht mehr =="
 #
 # docs/46 §20.13: Eine Textzelle ohne Umbruch hat den Inhalt einer Tabelle

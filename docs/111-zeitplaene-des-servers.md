@@ -238,6 +238,65 @@ Jeder mit seinem Bruch in `tests/waechter-brechen.sh`, jeder einmal rot gesehen.
 
 ---
 
+## 6b. Die Bilderrunde im Container — drei Befunde, alle im Prüfling
+
+Gefahren am 8. September 2026 gegen den **echten Bestand** dieses Containers,
+mit einem Prüfkörper je Fall: einer eigenen Datei des Panels, einem Kommando von
+205 Zeichen und drei übergangenen Skripten (Punkt, Tilde, fehlendes Ausführbit).
+Vier Lagen, je eine frisch geladene Seite.
+
+**Das Ergebnis nach den drei Behebungen:** `dokument = 0` in allen vier Lagen,
+Gegenprobe **200/200**, `schiebt = 0`, `rollt = 0`, keine Zelle über ihrem
+Bereich.
+
+**Befund 1 — `overflow-wrap` sagt, *wo* gebrochen werden darf, und nicht
+*wann*.** Bei 1440 px war die Kommandozelle **1396 px** breit und die Tabelle
+lief **736 px** über ihren Bereich hinaus; am Dokument war der Überlauf die
+ganze Zeit **0**, weil der Rollbehälter tut, was er soll.
+
+> **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine Zahl,
+> die sich beschwert.**
+
+Eine Tabelle mit `table-layout: auto` wächst bis zur Maximalbreite ihres
+Inhalts, und dann gibt es nichts mehr zu brechen. Behoben mit derselben Zahl,
+die `.rows .cell` seit P5c trägt (`max-width: 48ch`) — und die Grenze steht auf
+einem `div`, weil `max-width` für eine Tabellenzelle laut CSS 2.1 nicht gilt.
+
+**Und die Begründung dazu stand zuerst als gemessene Zusage da, ohne gemessen
+zu sein.** Nachgemessen, alle drei am selben Bestand: Grenze auf dem `div`
+**0 px** (Zelle 546), Grenze auf der `td` ebenfalls **0** (Zelle 537), gar keine
+Grenze **736** (Zelle 1396). Dieses Chromium beachtet sie auf der `td` sehr
+wohl; der `div` bleibt, weil die Spezifikation es nicht zusagt.
+
+> **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch dann
+> falsch, wenn der Handgriff daneben richtig ist.**
+
+**Befund 2 — „3 Dateien liegen in einem Verzeichnis und läuft nicht."** Gezählt
+war das erste Wort, das zweite Verb stand in der Vorlage daneben. Dieselbe
+Familie wie „geschätzt 1 Zeilen" (`docs/48 §3.3`), nur eine Konjunktion weiter;
+`counted()` bekommt seitdem beide Sätze ganz.
+
+**Befund 3 — derselbe Ausdruck in zwei Schriften.** Die Spalte „Läuft" zeigt
+einmal einen Zeitplan und einmal einen Satz; ohne Unterscheidung stand der
+Zeitplan in der Fliesstextschrift, während er im Bereich darüber in Monospace
+steht.
+
+> **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine doppelte Auskunft,
+> sondern eine widersprüchliche.**
+
+**Keinen der drei hat eine Zahl gefunden.** Befund 1 hatte eine, aber nicht die,
+auf die der Lauf sieht (`dokument`); 2 und 3 haben gar keine.
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
+> Keines von beiden ersetzt das andere.**
+
+**Was der Container nicht misst:** einen Server mit anacron. Hier ist keines
+installiert, `cron.daily` zeigt deshalb seinen Zeitpunkt; der anacron-Satz ist
+im Lauf noch nicht zu sehen gewesen. Punkt 3 des Abnahmekriteriums misst genau
+das.
+
+---
+
 ## 7. Das Abnahmekriterium — acht Punkte
 
 Gefahren auf `cloudsrv24`. **Die Punkte 2 und 4 dürfen nicht ausfallen.**

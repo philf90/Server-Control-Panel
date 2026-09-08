@@ -26558,6 +26558,42 @@ an keiner Stelle — und drei Zustände sehen auf der Platte aus wie ein heiler.
   `/services`. Die Gruppe trägt damit sieben Punkte; bei neun war sie am
   5. September geteilt worden.
 
+- **Die Bilderrunde hat drei Fehler gefunden, und keine Zahl hat einen davon
+  gemeldet.** Vier Lagen gegen den echten Bestand, danach `dokument = 0`,
+  Gegenprobe 200/200, `schiebt = 0`.
+
+  Der erste hatte eine Zahl, nur nicht die, auf die der Lauf sieht: Bei 1440 px
+  war die Kommandozelle 1396 px breit und die Tabelle lief 736 px über ihren
+  Bereich hinaus, während der Überlauf am Dokument 0 blieb.
+
+  > **`overflow-wrap` sagt, wo gebrochen werden darf, und nicht wann.** Eine
+  > Tabelle mit `table-layout: auto` wächst bis zur Maximalbreite ihres Inhalts,
+  > und dann gibt es nichts mehr zu brechen.
+
+  Behoben mit derselben Zahl, die `.rows .cell` seit P5c trägt — `max-width:
+  48ch` auf einem `div`, weil `max-width` für eine Tabellenzelle laut CSS 2.1
+  nicht gilt. **Die Begründung dazu stand zuerst als gemessene Zusage da, ohne
+  gemessen zu sein**; nachgemessen beachtet dieses Chromium sie auch auf der
+  `td` (0 px, Zelle 537 gegen 546).
+
+  > **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch
+  > dann falsch, wenn der Handgriff daneben richtig ist.**
+
+  Die beiden anderen haben gar keine Zahl: „3 Dateien liegen in einem
+  Verzeichnis und **läuft** nicht" — gezählt war das erste Wort, das zweite Verb
+  stand daneben — und derselbe Zeitplan in zwei Schriften, in der Tabelle
+  darüber in Monospace und in der Spalte „Läuft" in der Fliesstextschrift.
+
+- **Und ein Bruch hat nichts gemessen.** `RunPartsSeamTest: erst das Ausführbit,
+  dann das Verzeichnis` vertauschte die beiden Zweige von `CronState::why()` und
+  blieb grün: Als root — und der Agent läuft als root — gibt `is_executable()`
+  für **jedes** Verzeichnis `true`, gleich welche Rechte es trägt. Die Regel ist
+  nicht die Reihenfolge, sondern dass nach dem Verzeichnis überhaupt gefragt
+  wird.
+
+  > **Ein Eingriff, der einen Zustand herstellt, den der Prüfling ohnehin gleich
+  > beantwortet, misst die Regel nicht — er misst, dass sie unempfindlich ist.**
+
 - **Neu:** `system.cron` im Agenten, `SrvPanel\Agent\CronState`,
   `SrvPanel\Agent\Cron\CronName`, `SrvPanel\Agent\Ops\SystemCron`,
   `App\Http\Controllers\SchedulesController`, die Seite `Schedules/Index.vue`,

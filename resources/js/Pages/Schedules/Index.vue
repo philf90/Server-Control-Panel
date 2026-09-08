@@ -139,7 +139,10 @@ const umgebungen = computed(() =>
 /** Alles, was in einem Verzeichnis liegt und nicht läuft — über alle Verzeichnisse. */
 const uebergangen = computed(() =>
   props.cron.directories.flatMap((v) =>
-    v.ignored.map((datei) => ({ verzeichnis: v.name, ...datei })),
+    // **Der Pfad und nicht der Name.** Der Bereich darüber nennt dasselbe
+    // Verzeichnis mit seinem Pfad; zwei Schreibweisen auf einer Seite lesen
+    // sich als zwei Sachen.
+    v.ignored.map((datei) => ({ path: v.path, ...datei })),
   ),
 )
 
@@ -152,20 +155,30 @@ const uebergangen = computed(() =>
  * ohne den Vorbehalt zeigt, zeigt auf jedem Server mit anacron eine falsche
  * Uhrzeit.
  */
-function laeuft(v: Directory): string {
+function laeuft(v: Directory): { text: string; kennung: boolean } {
   if (!v.known) {
-    return 'nicht feststellbar'
+    return { text: 'nicht feststellbar', kennung: false }
   }
 
   if (v.schedule === null) {
-    return 'kein Zeitplan — nichts hier läuft'
+    return { text: 'kein Zeitplan — nichts hier läuft', kennung: false }
   }
 
   if (v.conditional === 'anacron' && props.cron.anacron) {
-    return 'anacron bestimmt den Zeitpunkt'
+    return { text: 'anacron bestimmt den Zeitpunkt', kennung: false }
   }
 
-  return v.schedule
+  /*
+   * **`kennung` reist mit, statt in der Vorlage entschieden zu werden.**
+   * Diese Zelle zeigt einmal einen Zeitplan und einmal einen Satz; ein festes
+   * `.ident` setzte den Satz in Monospace, gar keines den Zeitplan in die
+   * Fliesstextschrift. Gefunden hat das die Bilderrunde: Derselbe Ausdruck
+   * stand im Bereich darüber in Monospace und hier daneben in der Textschrift.
+   *
+   * > **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine doppelte
+   * > Auskunft, sondern eine widersprüchliche.**
+   */
+  return { text: v.schedule, kennung: true }
 }
 
 /**
@@ -205,9 +218,19 @@ function grund(schluessel: string): string {
       stünde auf jedem heilen Server und wäre in einem Monat überlesen. Er steht
       in der Tabelle, wo er hingehört.
     -->
+    <!--
+      **Beide Verben werden übergeben und keines abgeleitet.** Der erste Wurf
+      zählte nur das erste Wort und schrieb „3 Dateien liegen in einem
+      Verzeichnis und **läuft** nicht" — dieselbe Familie wie „geschätzt 1
+      Zeilen" (`docs/48 §3.3`), nur eine Konjunktion weiter. Gefunden hat es
+      das Bild und keine Zahl.
+    -->
     <p v-else-if="uebergangen.length > 0" class="notice warn">
-      {{ counted(uebergangen.length, 'Datei liegt', 'Dateien liegen') }} in einem
-      Verzeichnis und läuft nicht.
+      {{ counted(
+        uebergangen.length,
+        'Datei liegt in einem Verzeichnis und läuft nicht',
+        'Dateien liegen in einem Verzeichnis und laufen nicht',
+      ) }}.
     </p>
 
     <div class="sections">
@@ -247,8 +270,8 @@ function grund(schluessel: string): string {
                   `docs/46 §20.13` hat gemessen, was eine nicht brechende
                   Textzelle bei 390 px anrichtet.
                 -->
-                <td v-if="zeile.kind === 'entry'" data-column="Kommando" class="cell-command">
-                  {{ zeile.command }}
+                <td v-if="zeile.kind === 'entry'" data-column="Kommando">
+                  <div class="cell-command">{{ zeile.command }}</div>
                 </td>
 
                 <td v-else-if="zeile.kind === 'owned'" data-column="Kommando" class="quiet">
@@ -294,11 +317,15 @@ function grund(schluessel: string): string {
             <tbody>
               <tr v-for="v in props.cron.directories" :key="v.path">
                 <td data-column="Verzeichnis"><span class="ident">{{ v.path }}</span></td>
-                <td data-column="Läuft">{{ laeuft(v) }}</td>
-                <td data-column="Skripte" class="cell-command">
-                  <span v-if="!v.readable" class="quiet">nicht feststellbar</span>
-                  <span v-else-if="v.scripts.length === 0" class="quiet">keine</span>
-                  <template v-else>{{ v.scripts.join(', ') }}</template>
+                <td data-column="Läuft">
+                  <span :class="{ ident: laeuft(v).kennung }">{{ laeuft(v).text }}</span>
+                </td>
+                <td data-column="Skripte">
+                  <div class="cell-command">
+                    <span v-if="!v.readable" class="quiet">nicht feststellbar</span>
+                    <span v-else-if="v.scripts.length === 0" class="quiet">keine</span>
+                    <template v-else>{{ v.scripts.join(', ') }}</template>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -327,9 +354,9 @@ function grund(schluessel: string): string {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="d in uebergangen" :key="`${d.verzeichnis}/${d.name}`">
-                <td data-column="Verzeichnis"><span class="ident">{{ d.verzeichnis }}</span></td>
-                <td data-column="Datei" class="cell-command">{{ d.name }}</td>
+              <tr v-for="d in uebergangen" :key="`${d.path}/${d.name}`">
+                <td data-column="Verzeichnis"><span class="ident">{{ d.path }}</span></td>
+                <td data-column="Datei"><div class="cell-command">{{ d.name }}</div></td>
                 <td data-column="Warum">{{ grund(d.reason) }}</td>
               </tr>
             </tbody>

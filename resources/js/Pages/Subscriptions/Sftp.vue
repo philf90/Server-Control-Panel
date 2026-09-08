@@ -395,7 +395,22 @@ function problem(): Link | null {
                   Abstand hat `.stacks td` längst.
                 -->
                 <td data-column="Bezeichnung" class="cell-name">{{ key.label }}</td>
-                <td data-column="Art"><span class="ident">{{ key.type }}</span> {{ key.bits }} Bit</td>
+                <!--
+                  **Art und Länge stehen in *einem* Element**, und das ist
+                  nicht Geschmack. Eine gestapelte Zelle ist bei 390 px eine
+                  Flexzeile mit `justify-content: space-between`; zwei Kinder
+                  werden auseinandergeschoben. Gemessen am 8. September 2026:
+                  `ed25519` und `256 Bit` standen **111 px** auseinander und
+                  lasen sich als zwei Spalten, wo eine Angabe steht.
+
+                  Gefunden hat es der Abnahmelauf von A6 — dort zerriss
+                  derselbe Mechanismus einen Satz —, und die Nachmessung über
+                  alle gestapelten Zellen hat diese hier als zweite gebracht.
+
+                  > **Eine gestapelte Zelle verträgt genau ein Kind — mehrere
+                  > werden von `space-between` zu einer Zeile mit Lücken.**
+                -->
+                <td data-column="Art"><span><span class="ident">{{ key.type }}</span> {{ key.bits }} Bit</span></td>
                 <!--
                   `td .ident` und **nicht** `.cell-name` darum herum: Die
                   beiden sind Alternativen (`docs/46 §20.13`), und

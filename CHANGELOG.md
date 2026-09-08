@@ -26617,3 +26617,77 @@ an keiner Stelle — und drei Zustände sehen auf der Platte aus wie ein heiler.
   `run-parts` in der Programm-Positivliste — und die Wächter `CronTableTest`,
   `RunPartsSeamTest`, `CronScheduleTest`, `CronNameRuleTest` und
   `CronPayloadTest`.
+
+### A6 abgenommen — der Abnahmelauf vom 8. September 2026
+
+Gefahren auf `cloudsrv24` gegen `0.7.3-rc.27`, **alle acht Punkte aus
+`docs/112` erfüllt**, beide Ausschlusskriterien (2 und 4) darunter, keiner als
+„nicht herstellbar" ausgefallen. Das Protokoll ist `docs/113`.
+
+**Drei Befunde stecken im Prüfling, einer in der Vorschrift** — und keinen hat
+ein Test gefunden, keinen eine Zahl. Zwei kommen aus einem Bild, einer aus dem
+Zustand, den Punkt 6 herstellt.
+
+- **Der Satz „Vom Panel verwaltet — auf der Cronseite" war bei 390 px
+  zerrissen.** Text, Verweis und Schlusspunkt standen als **drei** Kinder in der
+  Zelle, und eine gestapelte Zelle ist unter 720 px eine Flexzeile mit
+  `justify-content: space-between`.
+
+  > **Eine gestapelte Zelle verträgt genau ein Kind — mehrere werden von
+  > `space-between` zu einer Zeile mit Lücken.**
+
+  Behoben mit einem `<span>` um den ganzen Satz und **nicht** mit einer neuen
+  Regel in `app.css`: Die Regel dort ist richtig, sie beschreibt eine Form, die
+  die Vorlage einhalten muss. Der Kommentar an `.stacks td` steht seitdem als
+  Frage da — *gehört das, was hier nebeneinander steht, zusammen?*
+
+  **Und im Bild der Bilderrunde stand er schon.** Die Aufnahme war auf drei
+  andere Fragen hin angesehen worden.
+
+  > **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+  > verdeckt alles, was daneben steht.**
+
+- **Dieselbe Form auf der SFTP-Seite**, gefunden durch Suchen und nicht beim
+  Benutzen: `<span class="ident">ed25519</span> 256 Bit` sind zwei Kinder, im
+  Nachbau bei 390 px **111 px** auseinandergezogen. Sie gibt es dort seit P6.
+
+  > **Wer etwas an einer Datei behebt, sieht in derselben Stunde nach, wo
+  > dieselbe Frage noch gestellt wird.**
+
+- **Wo nichts feststeht, stand trotzdem eine Kopfzeile.** Bei angehaltenem
+  Agenten antwortet `/schedules` mit 200 und dem Streifen „Die Zeitpläne sind
+  nicht feststellbar" — und darunter standen beide Bereiche mit ihrer Erklärung
+  und ihrer Kopfzeile über **null** Zeilen. Das Kriterium war wörtlich erfüllt,
+  nirgends stand „keine Zeitpläne"; getrennt wurden „ich weiss es nicht" und
+  „da ist nichts" allein durch den Streifen darüber.
+
+  > **Eine Anzeige, die zwei verschiedene Zustände gleich aussehen lässt,
+  > behauptet etwas, das sie nicht weiss.**
+
+  Die Bereiche hängen jetzt an derselben Bedingung wie der Streifen, und
+  `CronPayloadTest` hält die beiden **aneinander** statt bloss nach einem `v-if`
+  zu fragen: Ein Wächter über das Vorhandensein bliebe grün, sobald dort
+  irgendeine Bedingung steht — und die zweite Bedingung wäre eine zweite Fassung
+  derselben Regel.
+
+- **Und der Lauf zitierte einen Befund statt seiner Behebung.** `docs/112 §7`
+  sagte, der 403 sei „Laravels englische Vorgabeseite", mit Verweis auf
+  `docs/84`. Der Satz stammt von dort — und die Behebung steht im selben
+  Protokoll zwei Absätze weiter: eigene Fehlerseiten gibt es seit dem
+  25. August 2026. Gemessen zeigt der 403 eine deutsche, gestaltete Seite mit
+  einem Weg zurück.
+
+  > **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung — und
+  > nichts prüft sie.** Sie stand da als Beruhigung, und eine Beruhigung liest
+  > niemand nach.
+
+- **Die `@`-Form ist zum ersten Mal auf einer echten Maschine durch den Leser
+  gegangen** (`docs/113 §1`): `@daily` erscheint mit Zeitplan, Benutzer und
+  Kommando, wo eine Zerlegung in fünf Zeitfelder `root` als Tag des Monats
+  gezeigt hätte. Und die Umgebungszeile lautet `/etc/crontab setzt
+  SHELL=/bin/sh.` — auf Ubuntu 24.04 steht `PATH` dort als **Kommentar**, ein
+  Leser ohne Rücksicht auf das `#` schriebe eine Zuweisung hin, die nicht gilt.
+
+- **Was ungeprüft bleibt und benannt ist:** der Satz „anacron bestimmt den
+  Zeitpunkt". Auf `cloudsrv24` fehlt anacron, im Container ebenso — er ist gegen
+  Prüfkörper gehalten und auf keiner Maschine gesehen worden.

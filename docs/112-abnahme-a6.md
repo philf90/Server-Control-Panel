@@ -297,8 +297,21 @@ Zeitpläne".
 | **Administrator** | **403** | **nicht sichtbar** |
 | **Kundenkonto** | **403** | nicht sichtbar |
 
-**Der 403 ist Laravels englische Vorgabeseite**, und das ist bekannt und kein
-Befund (`docs/84`): `resources/views/errors/` gibt es in diesem Projekt nicht.
+**~~Der 403 ist Laravels englische Vorgabeseite~~ — dieser Satz war beim
+Ausschreiben schon falsch.** Er stammt aus `docs/84`, und die Behebung
+steht im selben Lauf: `resources/views/errors/` führt seit dem **25. August
+2026** sieben Blades samt Layout — Befund 3 desselben Protokolls.
+Zitiert habe ich also den Befund und nicht seine Behebung, die zwei Absätze
+weiter steht. Gemessen im Lauf zeigt der 403
+eine deutsche, gestaltete Seite — „Kein Zutritt · Dieser Bereich gehört einer
+Rolle, die dieses Konto nicht hat" mit einem Weg zurück zur Übersicht.
+
+> **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung — und
+> nichts prüft sie.** Sie stand hier als Beruhigung („kein Befund"), und eine
+> Beruhigung liest niemand nach.
+
+Erfüllt ist der Punkt am **Rückgabewert** und an der Sichtbarkeit des
+Menüpunkts; wie die Seite dahinter aussieht, ist nicht Gegenstand von A6.
 
 **Und die zweite Spalte gehört gemessen und nicht angesehen.** Beim
 Administrator, in der Konsole, **auf einer direkt geladenen Seite**:

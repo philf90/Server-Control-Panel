@@ -2714,7 +2714,18 @@ Zeitpunkt" ist auf keiner Maschine gesehen worden — weder `cloudsrv24` noch
 dieser Container haben anacron —, und der Rest aus P7 (`orphan.row` für
 `tls.cloudlab24.de`).
 
-**In P7b bleibt damit A3s erster Wurf.**
+**In P7b bleibt damit A3s erster Wurf — und offen ist an ihm der Abnahmelauf
+und nicht der Bau.** Er ist seit dem 7. September gebaut (`docs/81 §11`) und in
+`v0.7.3-rc.27` ausgeliefert: `system.ports` im Agenten, `PortState`,
+`App\Support\Ports\ServerPorts`, zwei Bereiche auf `/services` und die fünf
+Wächter aus `docs/109 §5`. Der Lauf ist **`docs/110`**, ausgeschrieben und nie
+gefahren.
+
+> **Eine Zeile über eine Stufe wird als Zeile über den Code gelesen, wenn sie
+> nicht sagt, welches von beidem offen ist.** Der Satz stand hier zuerst ohne
+> den Nachsatz, und sein eigener Verfasser hat ihn eine Nachricht später als
+> „noch zu bauen" gelesen — dieselbe Familie wie A8, einen Tag später. Gekostet
+> hat es nichts, weil davor ein `grep` stand und keine Erinnerung.
 
 ---
 

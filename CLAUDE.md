@@ -2715,7 +2715,8 @@ dieser Container haben anacron —, und der Rest aus P7 (`orphan.row` für
 `tls.cloudlab24.de`).
 
 **In P7b bleibt damit A3s erster Wurf — und offen ist an ihm der Abnahmelauf
-und nicht der Bau.** Er ist seit dem 7. September gebaut (`docs/81 §11`) und in
+und nicht der Bau.** *(Gefahren am 8. September; der Abschnitt darunter hat die
+Ergebnisse.)* Er ist seit dem 7. September gebaut (`docs/81 §11`) und in
 `v0.7.3-rc.27` ausgeliefert: `system.ports` im Agenten, `PortState`,
 `App\Support\Ports\ServerPorts`, zwei Bereiche auf `/services` und die fünf
 Wächter aus `docs/109 §5`. Der Lauf ist **`docs/110`**, ausgeschrieben und nie
@@ -2726,6 +2727,80 @@ gefahren.
 > den Nachsatz, und sein eigener Verfasser hat ihn eine Nachricht später als
 > „noch zu bauen" gelesen — dieselbe Familie wie A8, einen Tag später. Gekostet
 > hat es nichts, weil davor ein `grep` stand und keine Erinnerung.
+
+---
+
+## A3s erster Wurf ist gefahren und nicht abgenommen — 8. September 2026
+
+Auf `cloudsrv24` gegen `0.7.3-rc.28`, **sieben der acht Punkte aus `docs/110`**,
+beide Ausschlusskriterien (2 und 3) darunter — und **Punkt 6 nicht**. Der Plan
+ist `docs/109`, der Lauf `docs/110`, das Protokoll **`docs/114`**.
+
+Punkt 6 ist auch nicht als „nicht herstellbar" ausgefallen: Der Zustand war
+herstellbar, und der Prüfling hat ihn falsch beantwortet.
+
+> **Ein Kriterium, das man beim letzten Punkt weicher liest als beim ersten, ist
+> keines mehr — es ist eine Zusammenfassung.**
+
+**M10 ist auf einer echten Maschine gemessen, und stärker als im Container.**
+Eine Regel über `iptables-legacy` liess `nft list ruleset` bei **2307 Bytes**,
+byteweise denselben wie vorher, während `iptables-legacy -S` sie zeigt. Im
+Container war der Beleg eine **Null** — und eine Null sieht aus wie „keine
+Regeln".
+
+> **Ein leeres Regelwerk und ein Regelwerk, das man mit dem falschen Werkzeug
+> abfragt, sehen gleich aus — und beide sagen `rc=0`.**
+
+**Und die Klammerform von IPv6 hört auf, eine Vermutung mit Fussnote zu sein:**
+fünf `inet6` gegen fünf `[`-Zeilen in `ss`, Adressen ohne Klammern. Dazu ein
+Fall, den keine Messrunde kannte — `127.0.0.53%lo`, eine Adresse mit
+**Schnittstellensuffix**, richtig als `loopback` eingeordnet.
+
+**Befund 1 ist derselbe wie Befund 3 des A6-Laufs, am selben Tag.** Bei
+angehaltenem Agenten sagte der Ports-Bereich richtig „nicht feststellbar" — und
+unter der Überschrift „Regelwerk" stand **nichts**.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.** Zum vierten Mal in
+> diesem Repo, und diesmal mit **einem Tag** Abstand statt Wochen.
+
+Behoben mit einem `v-else` und nicht mit einer zweiten Bedingung — und das ist
+der Unterschied zu `/schedules`, wo Streifen und Bereiche getrennt stehen:
+
+> **Ein `v-else` kann nicht auseinanderlaufen — die zweite Bedingung ist die,
+> die veraltet, und hier gibt es keine zweite.**
+
+**Der teuerste Handgriff des Tages war ein Bruch, der nicht gebissen hat.**
+`AgentMessageTest` blieb grün, als der doppelte Punkt zurückgesetzt wurde: Sein
+Ausdruck `\{\{[^}]*\berrors?\b[^}]*\}\}` verträgt kein `}` in der Mitte der
+Klammer, und die Zeile lautet `{{ error ? \`: ${error}\` : '.' }}`. Gezählt
+hatte er neun Einbettungen — die **anderen** neun Dateien.
+
+> **Ein Wächter, der einen Ausdruck nicht auflösen kann, hat nicht wenig
+> gemessen — er hat an dieser Stelle gar nicht gemessen.**
+
+Überführt hat ihn die Regel von oben: *Wer einen Wächter über eine Aufzählung
+baut, prüft ihn an dem Fall, der ihn ausgelöst hat.* Dieselbe Zahl ist dabei
+zweimal berichtigt worden — sieben, neun, zehn —, und gemessen hat sie jedes Mal
+die **Untergrenze** des Wächters.
+
+> **Eine Untergrenze ist kein Formalismus — sie ist die einzige Stelle, an der
+> ein Wächter merkt, dass sein Ausdruck ins Leere greift.**
+
+**Und beim Beheben fiel ein dritter Befund heraus:** `ReachabilityWordTest` trug
+seit dem 7. September einen eigenen Kommentarabtaster für `.vue` und behauptete
+im Kopf, es gebe dafür nichts. `WithoutMarkupComments` gibt es seit dem
+25. August, und neun Wächter benutzen es.
+
+> **Eine Zeile, die eine Abwesenheit behauptet, lässt den Nächsten dasselbe noch
+> einmal bauen** — teurer als eine, die eine Grenze benennt.
+
+**Was zur Abnahme fehlt:** Punkt 6 gegen die nächste Fassung noch einmal messen.
+Alles andere steht. Was benannt offen bleibt (`docs/114 §12`): eine ungeklärte
+Konsolenmeldung, und dass `Verwaltet von: nftables` die **Maschine** nennt und
+nicht den Schreiber — `nft list ruleset` nennt in seinen eigenen Warnungen
+dreimal `iptables-nft`, und `inet f2b-table` gehört fail2ban. Das ist nach
+`docs/109 §1.1` entworfen; feiner wird es erst im zweiten Wurf.
 
 ---
 

@@ -1332,6 +1332,35 @@ table.pairs {
     margin-bottom: 0;
   }
 
+  /*
+   * **Eine gestapelte Zelle verträgt genau ein Kind.**
+   *
+   * Sie ist hier eine Flexzeile: Beschriftung links (`::before`, `flex: none`),
+   * Wert rechts. Der Wert ist **ein** anonymes Flexkind — solange er eines ist.
+   * Stehen dort mehrere (ein Text, ein Verweis, ein Schlusspunkt), macht
+   * `space-between` daraus eine Zeile mit Lücken, und ein Satz zerfällt.
+   *
+   * Gemessen am 8. September 2026 bei 390 px gegen das gebaute Stylesheet:
+   * derselbe Satz mit drei Kindern und mit einem — Lücke **14 px** gegen
+   * **0**, und im Bild stand der Schlusspunkt allein am rechten Rand. Gefunden
+   * hat es der Abnahmelauf von A6 auf `cloudsrv24`.
+   *
+   * > **Eine gestapelte Zelle verträgt genau ein Kind — mehrere werden von
+   * > `space-between` zu einer Zeile mit Lücken.**
+   *
+   * **Und das ist keine Regel, die ein Wächter halten kann.** Zwei Kinder sind
+   * manchmal genau richtig: `linux-image-generic` und eine Marke „Sicherheit"
+   * am rechten Rand lesen sich als Wert und Vermerk (gemessen: 25 px, und es
+   * sieht gewollt aus). Derselbe Abstand zwischen `ed25519` und `256 Bit`
+   * (gemessen: 111 px) liest sich als zwei Spalten, wo eine Angabe steht. Was
+   * die beiden unterscheidet, ist der Sinn und nicht die Form.
+   *
+   * > **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und
+   * > nicht als Zusage.**
+   *
+   * Die Frage lautet: **Gehört das, was hier nebeneinander steht, zusammen?**
+   * Wenn ja, gehört es in *ein* Element.
+   */
   .stacks td {
     display: flex;
     align-items: baseline;

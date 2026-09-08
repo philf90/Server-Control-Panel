@@ -274,9 +274,26 @@ function grund(schluessel: string): string {
                   <div class="cell-command">{{ zeile.command }}</div>
                 </td>
 
+                <!--
+                  **Der Satz steht in *einem* Element, und das ist der Kern.**
+                  Eine gestapelte Zelle ist bei 390 px eine Flexzeile mit
+                  `justify-content: space-between`: Beschriftung links, Wert
+                  rechts. Der Wert ist dabei **ein** anonymes Flexkind — hier
+                  waren es drei (Text, Verweis, Schlusspunkt), und die drei hat
+                  `space-between` auseinandergeschoben. Auf `cloudsrv24` stand
+
+                      KOMMANDO    Vom Panel        auf der      .
+                                  verwaltet —      Cronseite
+
+                  > **Eine gestapelte Zelle verträgt genau ein Kind — mehrere
+                  > werden von `space-between` zu einer Zeile mit Lücken.**
+
+                  Gefunden hat es der Abnahmelauf, und im Bild der Bilderrunde
+                  stand es schon: Die Aufnahme war auf drei andere Fragen hin
+                  angesehen worden.
+                -->
                 <td v-else-if="zeile.kind === 'owned'" data-column="Kommando" class="quiet">
-                  Vom Panel verwaltet —
-                  <Link href="/cron" class="link">auf der Cronseite</Link>.
+                  <span>Vom Panel verwaltet — <Link href="/cron" class="link">auf der Cronseite</Link>.</span>
                 </td>
 
                 <td v-else-if="zeile.kind === 'unreadable'" data-column="Kommando" class="quiet">

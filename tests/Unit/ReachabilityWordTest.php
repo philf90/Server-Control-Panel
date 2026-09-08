@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Tests\Support\WithoutMarkupComments;
 
 /**
  * Der Bereich „Ports und Regelwerk" sagt nicht, was dieser Server nicht weiss.
@@ -27,6 +28,8 @@ use PHPUnit\Framework\TestCase;
  */
 final class ReachabilityWordTest extends TestCase
 {
+    use WithoutMarkupComments;
+
     private const SEITE = __DIR__.'/../../resources/js/Pages/Services/Index.vue';
 
     /**
@@ -47,9 +50,16 @@ final class ReachabilityWordTest extends TestCase
      *
      * > **Derselbe Kommentar, der einen Wächter fälschlich grün hält, macht
      * > eine Messung fälschlich rot.** Der Satz steht seit dem 1. September in
-     * `CLAUDE.md`, dort für Shell und YAML; `WithoutPhpComments` und
-     * `WithoutHashComments` gibt es genau dafür. Für eine `.vue` gab es
-     * nichts — bis hier.
+     * `CLAUDE.md`, dort für Shell und YAML.
+     *
+     * **Hier stand, für eine `.vue` gebe es nichts — und das war falsch.**
+     * {@see WithoutMarkupComments} gibt es seit dem
+     * **25. August 2026**, dreizehn Tage vor diesem Wächter, und neun andere
+     * benutzen es. Der eigene Abtaster daneben war eine zweite Fassung
+     * derselben Regel; er ist fort (`docs/114 §9.3`).
+     *
+     * > **Eine Zeile, die eine Abwesenheit behauptet, lässt den Nächsten
+     * > dasselbe noch einmal bauen.**
      *
      * Gefragt ist ohnehin, was ein **Leser der Seite** sieht, und der sieht
      * keinen Kommentar.
@@ -68,13 +78,7 @@ final class ReachabilityWordTest extends TestCase
 
         $this->assertNotFalse($ende);
 
-        return self::ohneKommentare(substr($quelle, $anfang, $ende - $anfang));
-    }
-
-    /** Ein Markup ohne seine `<!-- … -->`-Blöcke. */
-    private static function ohneKommentare(string $markup): string
-    {
-        return preg_replace('/<!--.*?-->/su', '', $markup) ?? $markup;
+        return $this->withoutMarkupComments(substr($quelle, $anfang, $ende - $anfang));
     }
 
     /**

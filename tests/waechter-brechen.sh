@@ -26249,34 +26249,23 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RunPartsSeamTest passed
 
 echo
-echo "== RunPartsSeamTest: erst das Ausfuehrbit, dann das Verzeichnis =="
+echo "== RunPartsSeamTest: nach dem Verzeichnis wird nicht gefragt =="
 #
-# Ein Verzeichnis traegt ein Ausfuehrbit. Wer zuerst danach fragt, beschriftet
-# es als -kein Ausfuehrbit- (M6).
+# Als root gibt is_executable() fuer JEDES Verzeichnis true (gemessen, 0644 wie
+# 0755) -- ohne diese Frage faellt ein Unterverzeichnis durch beide Zweige und
+# landet auf -unknown-. Die Reihenfolge ist dabei nicht die Regel; gebrochen
+# wird deshalb die Frage selbst.
 vorher_datei agent/src/CronState.php
 python3 - <<'PY2'
 p = 'agent/src/CronState.php'
 s = open(p, encoding='utf-8').read()
-alt = """        // Vor dem Ausführbit gefragt, weil ein Verzeichnis eines hat.
-        if (@is_dir($path)) {
-            return 'directory';
-        }
-
-        if (! @is_executable($path)) {
-            return 'not-executable';
-        }"""
-neu = """        if (! @is_executable($path)) {
-            return 'not-executable';
-        }
-
-        if (@is_dir($path)) {
-            return 'directory';
-        }"""
+alt = "        if (@is_dir($path)) {\n            return 'directory';\n        }"
+neu = "        if (false) {\n            return 'directory';\n        }"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
 PY2
-griff_datei agent/src/CronState.php "erst das Ausfuehrbit, dann das Verzeichnis" &&
-pruefe "erst das Ausfuehrbit, dann das Verzeichnis" \
+griff_datei agent/src/CronState.php "nach dem Verzeichnis wird nicht gefragt" &&
+pruefe "nach dem Verzeichnis wird nicht gefragt" \
   RunPartsSeamTest::test_a_directory_is_named_as_one failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RunPartsSeamTest passed

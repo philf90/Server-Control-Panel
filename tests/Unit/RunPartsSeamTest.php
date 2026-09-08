@@ -133,9 +133,21 @@ final class RunPartsSeamTest extends TestCase
     /**
      * Ein Verzeichnis ist kein Skript, und `is_executable` sagt bei ihm Ja.
      *
-     * Gemessen: `run-parts --test` übergeht ein Unterverzeichnis wortlos. Ohne
-     * die Reihenfolge im Leser — Verzeichnis vor Ausführbit — stünde dort
-     * `unknown`.
+     * Gemessen: `run-parts --test` übergeht ein Unterverzeichnis wortlos. Und
+     * als root — so läuft der Agent — gibt `is_executable()` für **jedes**
+     * Verzeichnis `true`, gleich welche Rechte es trägt (0644 wie 0755
+     * gemessen), für eine gewöhnliche Datei ohne Ausführbit dagegen `false`.
+     * Ohne die Frage nach dem Verzeichnis fiele es durch beide Zweige und
+     * landete auf `unknown`.
+     *
+     * **Die Reihenfolge der beiden Zweige ist dabei nicht die Regel.** Der
+     * erste Bruch dazu vertauschte sie und biss nicht — weil `is_executable()`
+     * hier nie `false` sagt, kommt dieselbe Antwort heraus. Gebrochen wird
+     * deshalb die Frage selbst.
+     *
+     * > **Ein Eingriff, der einen Zustand herstellt, den der Prüfling ohnehin
+     * > gleich beantwortet, misst die Regel nicht — er misst, dass sie
+     * > unempfindlich ist.**
      */
     public function test_a_directory_is_named_as_one(): void
     {

@@ -321,7 +321,20 @@ final class CronState
             return CronName::reason($name) ?? 'unknown';
         }
 
-        // Vor dem Ausführbit gefragt, weil ein Verzeichnis eines hat.
+        /*
+         * **Ohne diese Frage bekäme ein Verzeichnis gar keine Beschriftung.**
+         * Gemessen als root — und der Agent läuft als root: `is_executable()`
+         * gibt für **jedes** Verzeichnis `true`, gleich welche Rechte es trägt
+         * (0644 wie 0755); für eine gewöhnliche Datei ohne Ausführbit dagegen
+         * `false`, auch als root. Ein Verzeichnis fiele also durch beide
+         * Zweige und landete auf `unknown`.
+         *
+         * Die **Reihenfolge** ist dabei nicht die Regel: Weil `is_executable()`
+         * hier nie `false` sagt, käme dieselbe Antwort auch heraus, stünde der
+         * Zweig darunter. Die Regel ist, dass die Frage überhaupt gestellt
+         * wird — und `RunPartsSeamTest` bricht sie deshalb, statt sie zu
+         * vertauschen.
+         */
         if (@is_dir($path)) {
             return 'directory';
         }

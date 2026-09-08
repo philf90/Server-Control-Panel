@@ -333,6 +333,69 @@ final class ServicesViewTest extends TestCase
     }
 
     /**
+     * Wo nichts feststeht, steht keine Tabelle.
+     *
+     * Der Wächter darüber hält den **Streifen** — und darunter standen
+     * „Dienste" und „Timer" mit ihrer Kopfzeile über null Zeilen. Gemessen auf
+     * `cloudsrv24` am 8. September 2026 gegen `0.7.3-rc.29`, im selben Bild
+     * wie Punkt 6 des A3-Laufs: `Tabellen: 2`, und das waren diese beiden.
+     *
+     * > **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie
+     * > irgendwo steht.** Der Streifen stand da, seine Folge nicht.
+     *
+     * Gefragt wird deshalb nach beiden Bedingungen **aneinander** und nicht
+     * nach dem Vorhandensein eines `v-if`: Der bliebe grün, sobald dort
+     * irgendeine Bedingung steht, und eine zweite Fassung derselben Regel ist
+     * die, die veraltet. Dieselbe Form hält `CronPayloadTest` für
+     * `/schedules`.
+     *
+     * Und die Hülle wird an ihrem **Inhalt** geprüft und nicht an ihrem
+     * Dasein: Ein `<template v-if="live">` irgendwo auf der Seite erfüllte
+     * sonst die Regel, ohne dass eine der beiden Tabellen darin stünde.
+     */
+    public function test_no_table_stands_where_nothing_is_known(): void
+    {
+        $seite = $this->withoutMarkupComments(self::quelle(self::SEITE));
+
+        $streifen = [];
+        $huelle = [];
+
+        preg_match('/<p v-if="!\s*([^"]+)"\s+class="notice critical"/', $seite, $streifen);
+        preg_match('/<template v-if="([^"]+)"\s*>/', $seite, $huelle);
+
+        $this->assertNotEmpty($streifen, 'Es gibt keinen Streifen für den schweigenden Agenten.');
+        $this->assertNotEmpty(
+            $huelle,
+            'Die Bereiche „Dienste" und „Timer" stehen ohne Bedingung da — auch dann, wenn nichts feststeht.',
+        );
+
+        $this->assertSame(
+            trim($streifen[1]),
+            trim($huelle[1]),
+            'Streifen und Bereiche hängen an verschiedenen Bedingungen — eine von beiden ist die, die veraltet.',
+        );
+
+        $auf = (int) strpos($seite, $huelle[0]);
+        $zu = strpos($seite, '</template>', $auf);
+
+        $this->assertNotFalse($zu, 'Die Hülle wird nicht geschlossen.');
+
+        $innen = substr($seite, $auf, $zu - $auf);
+
+        $this->assertStringContainsString(
+            '<Section title="Dienste"',
+            $innen,
+            'Der Bereich „Dienste" steht nicht in der Hülle — die Bedingung gilt für etwas anderes.',
+        );
+
+        $this->assertStringContainsString(
+            'Nächster Termin',
+            $innen,
+            'Der Bereich „Timer" steht nicht in der Hülle — die Bedingung gilt für etwas anderes.',
+        );
+    }
+
+    /**
      * Kein Rohwert von systemd steht in der Oberfläche.
      *
      * **Das ist die zweite Hälfte von Befund 5.** Die Übersicht druckte

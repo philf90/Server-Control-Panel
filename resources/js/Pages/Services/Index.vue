@@ -215,70 +215,96 @@ const gestoppt = computed(() => props.services.filter((s) => rang(s) === 'critic
     <p v-else class="notice">Jeder Dienst ist in Ordnung, und jeder Timer hat einen Termin.</p>
 
     <div class="sections">
-      <Section title="Dienste" full>
-        <div class="scrolls">
-          <!--
-            **`stacks`, und das war eine Auslassung und keine Entscheidung.**
-            Fünfundzwanzig Tabellen dieses Panels tragen es, diese und die der
-            Timer trugen es als einzige nicht — und der Kommentar in `app.css`
-            nennt „Dienste" ausdrücklich als `scrolls`-Fall, während die
-            Übersicht ihre Dienstetabelle seit jeher stapelt.
+      <!--
+        **Wo nichts feststeht, steht keine Tabelle.**
 
-            Gemessen auf `cloudsrv24` bei 390 px: Die Tabelle ist 1005 px breit
-            bei 358 px sichtbar, und „kein nächster Termin" — der Satz, an dem
-            das Abnahmekriterium von A2 hängt — ragte zehn Pixel über den Rand.
-            Das Dokument schob dabei nicht; ein Rollbehälter hat keine
-            Obergrenze, er hat nur keine Zahl, die sich beschwert.
-          -->
-          <table class="stacks">
-            <thead>
-              <tr>
-                <th>Unit</th>
-                <th>Zustand</th>
-                <th>PID</th>
-                <th>Neustarts</th>
-                <th>Beschreibung</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="zeile in services" :key="zeile.unit">
-                <td data-column="Unit"><span class="ident">{{ zeile.unit }}</span></td>
-                <td data-column="Zustand"><span class="badge" :class="rang(zeile)">{{ zustand(zeile) }}</span></td>
-                <td data-column="PID">{{ zeile.pid === null || zeile.pid === 0 ? '—' : zeile.pid }}</td>
-                <td data-column="Neustarts">{{ zeile.restarts === null ? '—' : zeile.restarts }}</td>
-                <td data-column="Beschreibung" class="quiet">{{ zeile.description || '—' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </Section>
+        Bei totem Agenten sind `services` und `timers` leer, und beide Tabellen
+        standen mit ihrer Kopfzeile über null Zeilen da. Der Streifen darüber
+        sagt zwar, dass die Zustände fehlen — genau diese Lage hat auf
+        `/schedules` als Befund 3 des A6-Laufs nicht genügt:
 
-      <Section
-        title="Timer"
-        full
-        note="Ein Timer ohne nächsten Termin ist abgeschaltet und meldet trotzdem „active“. Deshalb steht hier der Termin und nicht der Zustand von systemd."
-      >
-        <div class="scrolls">
-          <table class="stacks">
-            <thead>
-              <tr>
-                <th>Unit</th>
-                <th>Zustand</th>
-                <th>Nächster Termin</th>
-                <th>Startet</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="zeile in timers" :key="zeile.unit">
-                <td data-column="Unit"><span class="ident">{{ zeile.unit }}</span></td>
-                <td data-column="Zustand"><span class="badge" :class="rang(zeile)">{{ zustand(zeile) }}</span></td>
-                <td data-column="Nächster Termin">{{ termin(zeile) }}</td>
-                <td data-column="Startet"><span class="ident">{{ zeile.triggers || '—' }}</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </Section>
+        > **Eine Anzeige, die zwei verschiedene Zustände gleich aussehen lässt,
+        > behauptet etwas, das sie nicht weiss.**
+
+        Gemessen auf `cloudsrv24` am 8. September gegen `0.7.3-rc.29`, im
+        selben Bild wie Punkt 6 des A3-Laufs: `Tabellen: 2` — und das waren
+        diese beiden. Die Zahl stand schon in der Messung gegen `rc.28`
+        daneben; gelesen worden ist sie als Beiwerk.
+
+        **Eine Bedingung für beide Bereiche und nicht je eine** — die zweite
+        wäre die, die veraltet. Sie ist dieselbe, an der auch der Streifen
+        hängt; `ServicesViewTest` hält die beiden aneinander.
+
+        Die Ports-Tabelle weiter unten behält dagegen ihre Leerzeile: Dort ist
+        „geantwortet, und es horcht nichts" ein erreichbarer Zustand. Die Units
+        hier kommen aus der Paketierung — antwortet der Agent, gibt es sie.
+      -->
+      <template v-if="live">
+        <Section title="Dienste" full>
+          <div class="scrolls">
+            <!--
+              **`stacks`, und das war eine Auslassung und keine Entscheidung.**
+              Fünfundzwanzig Tabellen dieses Panels tragen es, diese und die der
+              Timer trugen es als einzige nicht — und der Kommentar in `app.css`
+              nennt „Dienste" ausdrücklich als `scrolls`-Fall, während die
+              Übersicht ihre Dienstetabelle seit jeher stapelt.
+
+              Gemessen auf `cloudsrv24` bei 390 px: Die Tabelle ist 1005 px breit
+              bei 358 px sichtbar, und „kein nächster Termin" — der Satz, an dem
+              das Abnahmekriterium von A2 hängt — ragte zehn Pixel über den Rand.
+              Das Dokument schob dabei nicht; ein Rollbehälter hat keine
+              Obergrenze, er hat nur keine Zahl, die sich beschwert.
+            -->
+            <table class="stacks">
+              <thead>
+                <tr>
+                  <th>Unit</th>
+                  <th>Zustand</th>
+                  <th>PID</th>
+                  <th>Neustarts</th>
+                  <th>Beschreibung</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="zeile in services" :key="zeile.unit">
+                  <td data-column="Unit"><span class="ident">{{ zeile.unit }}</span></td>
+                  <td data-column="Zustand"><span class="badge" :class="rang(zeile)">{{ zustand(zeile) }}</span></td>
+                  <td data-column="PID">{{ zeile.pid === null || zeile.pid === 0 ? '—' : zeile.pid }}</td>
+                  <td data-column="Neustarts">{{ zeile.restarts === null ? '—' : zeile.restarts }}</td>
+                  <td data-column="Beschreibung" class="quiet">{{ zeile.description || '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Section>
+
+        <Section
+          title="Timer"
+          full
+          note="Ein Timer ohne nächsten Termin ist abgeschaltet und meldet trotzdem „active“. Deshalb steht hier der Termin und nicht der Zustand von systemd."
+        >
+          <div class="scrolls">
+            <table class="stacks">
+              <thead>
+                <tr>
+                  <th>Unit</th>
+                  <th>Zustand</th>
+                  <th>Nächster Termin</th>
+                  <th>Startet</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="zeile in timers" :key="zeile.unit">
+                  <td data-column="Unit"><span class="ident">{{ zeile.unit }}</span></td>
+                  <td data-column="Zustand"><span class="badge" :class="rang(zeile)">{{ zustand(zeile) }}</span></td>
+                  <td data-column="Nächster Termin">{{ termin(zeile) }}</td>
+                  <td data-column="Startet"><span class="ident">{{ zeile.triggers || '—' }}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      </template>
 
       <!--
         **A3, erster Wurf.** Der Bereich liegt hier und nicht auf einer eigenen

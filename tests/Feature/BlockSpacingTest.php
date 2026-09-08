@@ -205,15 +205,24 @@ final class BlockSpacingTest extends TestCase
          */
         'link + ident',
         /*
-         * **Und dieselbe Brotkrume noch einmal, im Dateimanager.** `<span
-         * class="quiet">/</span>` und der Knopf mit dem Namen stehen in einer
-         * Zeile; zwei Blöcke im Fluss sind das nicht.
+         * **`quiet + link` stand hier bis zum 8. September 2026 und war nie eine
+         * Fuge.**
          *
-         * Gesehen am 23. August, nachdem der Ausdruck über die Tags
-         * Anführungszeichen gelernt hatte — vorher verzählte er sich an
-         * `@click="open('/')"` und der Nachbar entstand gar nicht.
+         * Gemeint war die Brotkrume des Dateimanagers: `<span
+         * class="quiet">/</span>` und der Knopf mit dem Namen stehen in einer
+         * Zeile. Die Begründung stimmte — nur war sie eine Ausnahme von Hand für
+         * einen Lesefehler dieses Wächters. Ihr Elternteil `.crumbs` ist seit
+         * jeher `display: flex` mit `gap`; gefunden wurde als Elternteil aber der
+         * Kasten, den {@see self::rendered()} aus dem `<template v-for>` machte,
+         * und ein klassenloser Kasten hat kein `gap`.
+         *
+         * Seit der Elternteil-Griff durch diese Kästen hindurchsieht, kommt der
+         * Wächter selbst zu dem Schluss, den die Zeile von Hand behauptet hat.
+         *
+         * > **Eine Ausnahme, die einen Lesefehler ausgleicht, sieht aus wie ein
+         * > bekanntes Loch — und verschwindet erst, wenn jemand den Leser
+         * > berichtigt.**
          */
-        'quiet + link',
         'form + form',
         'field + field-row',
         'hint + field-row',
@@ -590,7 +599,7 @@ final class BlockSpacingTest extends TestCase
                  *
                  * > **Wer eine Hülle wegwirft, wirft ihre Bedingung mit weg.**
                  */
-                return $benannt ? '<div data-slot>' : '<div'.$treffer[1].'>';
+                return $benannt ? '<div data-slot>' : '<div data-fragment'.$treffer[1].'>';
             },
             $ohneKommentare,
         );
@@ -818,7 +827,34 @@ final class BlockSpacingTest extends TestCase
             $eltern[$index] = end($stapel) ?: '';
 
             if (! in_array($tag[2], $void, true) && ! str_ends_with(rtrim($tag[3]), '/')) {
-                $stapel[] = $tag[3];
+                /*
+                 * **Ein `<template v-if>` ist kein Kasten — und sein Elternteil
+                 * bleibt damit der Elternteil seiner Kinder.**
+                 *
+                 * Der Kasten oben ist ein Hilfsmittel: Er hält die Zugehörigkeit
+                 * zum Zweig fest, den ein gelöschtes `<template>` verlöre. Hier
+                 * war er einer zuviel. Steht zwischen `.sections` und seinen
+                 * Bereichen ein `<template v-if>`, fand dieser Griff den
+                 * klassenlosen Kasten als Elternteil — und das `gap` des Rasters
+                 * darüber wurde nicht mehr angerechnet. Gemeldet war eine Fuge,
+                 * die es nicht gibt.
+                 *
+                 * Gemessen am 8. September 2026 mit `@vue/compiler-dom` über
+                 * `<div class="sections"><template v-if="live">…</template></div>`:
+                 * Der Übersetzer erzeugt ein `Fragment` und kein Element — alle
+                 * Kinder stehen als direkte Kinder des `div` da.
+                 *
+                 * > **Ein Hilfsmittel, das im Modell einen Kasten erfindet, wird
+                 * > an der Stelle falsch, an der jemand nach dem Elternteil
+                 * > fragt.**
+                 *
+                 * Ein echtes `<div v-if>` ohne Klasse bleibt dagegen ein Kasten
+                 * und unterbricht das `gap` zu Recht — der Unterschied ist die
+                 * Marke und nicht die fehlende Klasse.
+                 */
+                $stapel[] = str_contains($tag[3], 'data-fragment')
+                    ? $eltern[$index]
+                    : $tag[3];
             }
         }
 

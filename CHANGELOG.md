@@ -26691,3 +26691,41 @@ Zustand, den Punkt 6 herstellt.
 - **Was ungeprüft bleibt und benannt ist:** der Satz „anacron bestimmt den
   Zeitpunkt". Auf `cloudsrv24` fehlt anacron, im Container ebenso — er ist gegen
   Prüfkörper gehalten und auf keiner Maschine gesehen worden.
+
+### Der Nachlauf zu `0.7.3-rc.28` — die drei Behebungen wirken
+
+Gefahren am 8. September 2026 auf `cloudsrv24` gegen die Fassung, die alle drei
+trägt (`docs/113 §12`). *Eine Behebung gilt als behoben, wenn jemand
+nachgesehen hat.*
+
+- **Beide Zellen stehen zusammen**, gemessen und nicht angesehen: Ein
+  Prüfkörper über alle `table.stacks td` bei 390 px meldet auf `/schedules` und
+  auf der SFTP-Seite **keine** Zelle mit einer Lücke über 8 px. Die Gegenprobe
+  nimmt der Zelle im DOM ihre Hülle und stellt damit das alte Markup her — mit
+  Hülle 0, ohne Hülle **14** beziehungsweise **81**.
+
+- **Wo nichts feststeht, steht keine Tabelle:** Bei angehaltenem Agenten
+  antwortet `/schedules` mit 200, `Bereiche: 0`, `Tabellen: 0` und dem Streifen.
+  Zurück über `srvpanel.target`, viermal `active`.
+
+- **Vier Lagen:** `dokument = 0`, Gegenprobe 200/200, `schiebt = 0` — überall.
+
+**Und der Prüfkörper aus dem ersten Punkt geht trotzdem nicht ins Repo.** Er
+überspringt Paare, deren Kästen verschieden hoch anfangen — und auf `rc.27` sah
+der Riss genau so aus, weil die Stücke je für sich umbrachen.
+
+> **Ein Prüfkörper, der die Paare überspringt, deren Kästen verschieden hoch
+> anfangen, überspringt genau den Fall, den er finden soll.** Dieselbe Behebung
+> ergab 81 px auf der einen und 14 px auf der anderen Seite; der Unterschied
+> ist der Umbruch und nicht der Schaden.
+
+> **Ein Bild nach einer Gegenprobe zeigt den hergestellten Zustand und nicht den
+> gemessenen** — ein Beleg für die Behebung, der wie ihr Gegenteil aussieht.
+
+Und eine Zahl, die als Erwartung dastand und falsch war: `versteckt` war mit 6
+angesagt und ist 4. Die 6 stammen aus dem Lauf **mit** den Prüfkörpern, also aus
+drei Tabellen; nach dem Abbau sind es zwei. Zwei Elemente je gestapelter
+Tabelle, in beiden Läufen.
+
+> **Eine Zahl aus einer Messung unter anderen Bedingungen ist eine Vermutung,
+> auch wenn sie aus einer Messung stammt.**

@@ -388,11 +388,87 @@ Bereich leer.
 
 ---
 
-## 12 · Was offen bleibt
+## 12 · Der Nachlauf — die drei Behebungen auf dem Server
 
-- **Befund 3** (§9.3) — die Kopfzeile über null Zeilen. Er geht mit den
-  Behebungen zu 9.1 und 9.2 in **eine** Fassung, und die wird auf dem Server
-  nachgesehen; eine Behebung gilt als behoben, wenn jemand nachgesehen hat.
+**Gefahren am 8. September 2026 auf `cloudsrv24` gegen `0.7.3-rc.28`**, der
+Fassung, die alle drei Behebungen trägt. *Eine Behebung gilt als behoben, wenn
+jemand nachgesehen hat.*
+
+### 12.1 Die beiden Zellen, gemessen statt angesehen
+
+Ein Prüfkörper in der Browserkonsole misst die **Lücke innerhalb** einer
+gestapelten Zelle — das Symptom, das kein Überlauf meldet — und läuft über alle
+`table.stacks td` bei 390 px:
+
+| Seite | Zellen mit Lücke > 8 px | Gegenprobe an der Zelle |
+|---|---|---|
+| `/schedules` | **keine** | mit Hülle **0**, ohne Hülle **14** |
+| `/subscriptions/137/sftp` | **keine** | mit Hülle **0**, ohne Hülle **81** |
+
+**Die Gegenprobe nimmt der Zelle im DOM ihre Hülle** (`h.replaceWith(...h.childNodes)`)
+und stellt damit genau das alte Markup her. Ohne sie wäre die leere Liste
+wertlos — *eine Null ist nur dann eine Messung, wenn daneben etwas anderes als
+Null steht.*
+
+> **Ein Bild nach einer Gegenprobe zeigt den hergestellten Zustand und nicht den
+> gemessenen.** Die Aufnahme der SFTP-Seite ist nach dem Eingriff entstanden und
+> zeigt die Zelle auseinandergezogen — wer sie ohne diesen Satz aufhebt, hat
+> einen Beleg für die Behebung, der wie ihr Gegenteil aussieht.
+
+**Und der Prüfkörper selbst hat einen Fehler, der ihn vom Repo fernhält.** Er
+überspringt Paare, deren Kästen verschieden hoch anfangen
+(`Math.abs(top_i − top_{i−1}) > 2 → continue`) — und auf `rc.27` sah der Riss
+genau so aus: Die Stücke standen nebeneinander und brachen **je für sich** um.
+
+> **Ein Prüfkörper, der die Paare überspringt, deren Kästen verschieden hoch
+> anfangen, überspringt genau den Fall, den er finden soll.**
+
+Die 14 gegen die 81 sind derselbe Befund von zwei Seiten: Auf der SFTP-Seite
+passen beide Stücke in eine Zeile und die volle Lücke wird gemessen; auf der
+Zeitplanseite brechen sie um, und übrig bleibt der Rest. Wer ihn als
+`tests/zellen-messen.js` ins Repo holen will, misst vorher nach, was die
+richtige Regel ist — vermutlich `getClientRects()` je Zeile statt des
+Vereinigungskastens.
+
+### 12.2 Der Streifen ohne Tabelle darunter
+
+    systemctl stop srvpanel-agentd && sleep 2
+    inactive · inactive · inactive · active
+
+`/schedules` antwortet mit 200 und trägt **nur** den Streifen:
+
+    Bereiche: 0
+    Tabellen: 0
+    Streifen: Die Zeitpläne sind nicht feststellbar — der Agent hat nicht …
+
+Gegen `rc.27` standen dort zwei Bereichsüberschriften und zwei Kopfzeilen über
+null Zeilen. Zurück über das Ziel: viermal `active`, und die Seite trägt ihre
+zehn Zeilen wieder.
+
+### 12.3 Die vier Lagen
+
+| Breite | Thema | dokument | gegenprobe | schiebt | rollt | versteckt |
+|---|---|---|---|---|---|---|
+| 390 | hell | 0 | 200 (soll 200) | 0 | 0 | 4 |
+| 390 | dunkel | 0 | 200 (soll 200) | 0 | 0 | 4 |
+| 1440 | dunkel | 0 | 200 (soll 200) | 0 | 0 | 0 |
+| 1440 | hell | 0 | 200 (soll 200) | 0 | 0 | 0 |
+
+**Angesagt war `versteckt = 4` nicht, sondern 6** — die Zahl aus dem Lauf gegen
+`rc.27`, und dort standen die Prüfkörper noch, also **drei** Tabellen. Nach dem
+Abbau sind es zwei. Zwei Elemente je gestapelter Tabelle, in beiden Läufen:
+6 : 3 = 4 : 2.
+
+> **Eine Zahl aus einer Messung unter anderen Bedingungen ist eine Vermutung,
+> auch wenn sie aus einer Messung stammt.** Übernommen war sie aus einem
+> Zustand, den derselbe Satz ausdrücklich ausgeschlossen hatte.
+
+**Alle drei Behebungen sind damit auf dem Server nachgesehen.**
+
+---
+
+## 13 · Was offen bleibt
+
 - **Der anacron-Satz** bleibt auf keiner Maschine gemessen (§3). Er ist gegen
   Prüfkörper gehalten und wartet auf einen Server, auf dem anacron liegt.
 - **Der Rest aus P7** — `orphan.row` für `tls.cloudlab24.de`, unverändert.

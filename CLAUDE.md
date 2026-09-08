@@ -2689,7 +2689,27 @@ stammt aus `docs/84`, und dort steht zwei Absätze weiter, dass es seit dem
 > nichts prüft sie.** Sie stand da als Beruhigung, und eine Beruhigung liest
 > niemand nach.
 
-**Was benannt offen bleibt** (`docs/113 §12`): der Satz „anacron bestimmt den
+**Und die drei Behebungen sind nachgesehen** (`docs/113 §12`, `0.7.3-rc.28` auf
+`cloudsrv24`): keine gestapelte Zelle mit einer Lücke über 8 px auf beiden
+Seiten, der Streifen ohne Bereiche und ohne Tabellen darunter
+(`Bereiche: 0`, `Tabellen: 0`), und vier Lagen mit `dokument = 0`, Gegenprobe
+200/200, `schiebt = 0`.
+
+**Der Prüfkörper dafür geht trotzdem nicht ins Repo**, und das ist die Lehre
+über Prüfkörper aus diesem Nachlauf: Er misst die Lücke zwischen den Kindern
+einer Zelle — und überspringt Paare, deren Kästen verschieden hoch anfangen.
+
+> **Ein Prüfkörper, der die Paare überspringt, deren Kästen verschieden hoch
+> anfangen, überspringt genau den Fall, den er finden soll.** Auf der SFTP-Seite
+> schlug er mit 81 px an, auf der Zeitplanseite mit 14 — dieselbe Behebung,
+> zwei Zahlen, und der Unterschied ist der Umbruch und nicht der Schaden.
+
+> **Ein Bild nach einer Gegenprobe zeigt den hergestellten Zustand und nicht den
+> gemessenen.** Die Aufnahme der SFTP-Seite entstand nach dem Eingriff und zeigt
+> die Zelle auseinandergezogen — ein Beleg für die Behebung, der wie ihr
+> Gegenteil aussieht.
+
+**Was benannt offen bleibt** (`docs/113 §13`): der Satz „anacron bestimmt den
 Zeitpunkt" ist auf keiner Maschine gesehen worden — weder `cloudsrv24` noch
 dieser Container haben anacron —, und der Rest aus P7 (`orphan.row` für
 `tls.cloudlab24.de`).

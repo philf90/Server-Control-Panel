@@ -26429,6 +26429,68 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
+echo "== CronPayloadTest: die Bereiche stehen ohne Bedingung da =="
+#
+# Gemessen im Abnahmelauf (docs/113 §9.3): Bei angehaltenem Agenten standen
+# beide Bereiche mit ihrer Kopfzeile ueber null Zeilen -- "ich weiss es nicht"
+# sah aus wie "da ist nichts".
+vorher_datei resources/js/Pages/Schedules/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Schedules/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<div v-if="props.cron.readable" class="sections">'
+neu = '<div class="sections">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Schedules/Index.vue "die Bereiche stehen ohne Bedingung da" &&
+pruefe "die Bereiche stehen ohne Bedingung da" \
+  CronPayloadTest::test_no_table_stands_where_nothing_is_known failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
+
+echo
+echo "== CronPayloadTest: Streifen und Bereiche haengen an verschiedenen Bedingungen =="
+#
+# Die gefaehrlichere Haelfte: Ein Waechter, der bloss nach einem v-if fragte,
+# bliebe hier gruen -- und die zweite Bedingung waere eine zweite Fassung
+# derselben Regel.
+vorher_datei resources/js/Pages/Schedules/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Schedules/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<div v-if="props.cron.readable" class="sections">'
+neu = '<div v-if="props.cron.anacron" class="sections">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Schedules/Index.vue "Streifen und Bereiche haengen an verschiedenen Bedingungen" &&
+pruefe "Streifen und Bereiche haengen an verschiedenen Bedingungen" \
+  CronPayloadTest::test_no_table_stands_where_nothing_is_known failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
+
+echo
+echo "== CronPayloadTest: der Streifen verliert seine Bedingung =="
+#
+# Die andere Richtung: Steht der Satz "nicht feststellbar" auf jeder Seite,
+# sagt er nichts mehr -- und der Vergleich der beiden Bedingungen ist fort.
+vorher_datei resources/js/Pages/Schedules/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Schedules/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<p v-if="!props.cron.readable" class="notice critical">'
+neu = '<p class="notice critical">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Schedules/Index.vue "der Streifen verliert seine Bedingung" &&
+pruefe "der Streifen verliert seine Bedingung" \
+  CronPayloadTest::test_no_table_stands_where_nothing_is_known failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
+
+echo
 echo "== CronPayloadTest: die Obergrenze faellt weg =="
 #
 # Gemessen bei 1440 px gegen den echten Bestand: ohne Grenze ist die Zelle

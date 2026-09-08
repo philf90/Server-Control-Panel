@@ -233,7 +233,21 @@ function grund(schluessel: string): string {
       ) }}.
     </p>
 
-    <div class="sections">
+    <!--
+      **Wo nichts feststeht, steht der Satz und sonst nichts.** Bei
+      `readable: false` kommen `tables` und `directories` als leere Listen —
+      und ohne diese Bedingung stünden beide Bereiche mit ihrer Erklärung und
+      ihrer Kopfzeile über null Zeilen da. Gemessen im Abnahmelauf
+      (`docs/113 §9.3`): Eine Seite, deren `/etc/cron.d` wirklich leer wäre,
+      sähe unterhalb des Streifens genau gleich aus.
+
+      > **Eine Anzeige, die zwei verschiedene Zustände gleich aussehen lässt,
+      > behauptet etwas, das sie nicht weiss.**
+
+      Die Bedingung ist die Umkehrung der des Streifens und nicht ihre zweite
+      Fassung; `CronPayloadTest` hält die beiden aneinander.
+    -->
+    <div v-if="props.cron.readable" class="sections">
       <Section
         title="Zeitpläne"
         full

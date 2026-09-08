@@ -148,6 +148,43 @@ final class CronPayloadTest extends TestCase
     }
 
     /**
+     * Wo nichts feststeht, steht keine Tabelle.
+     *
+     * **Gemessen im Abnahmelauf** (`docs/113 §9.3`): Bei angehaltenem Agenten
+     * antwortete `/schedules` mit 200 und dem Streifen — und darunter standen
+     * beide Bereiche mit ihrer Kopfzeile über null Zeilen. Das Kriterium war
+     * wörtlich erfüllt, nirgends stand „keine Zeitpläne"; getrennt wurden „ich
+     * weiss es nicht" und „da ist nichts" allein durch den Streifen darüber.
+     *
+     * > **Eine Anzeige, die zwei verschiedene Zustände gleich aussehen lässt,
+     * > behauptet etwas, das sie nicht weiss.**
+     *
+     * **Gehalten wird die Umkehrung und nicht das Vorhandensein.** Ein Wächter,
+     * der bloss nach einem `v-if` an der Hülle fragte, bliebe grün, sobald dort
+     * *irgendeine* Bedingung steht — und die zweite Bedingung wäre dann eine
+     * zweite Fassung derselben Regel.
+     */
+    public function test_no_table_stands_where_nothing_is_known(): void
+    {
+        $seite = $this->seite();
+
+        $streifen = [];
+        $huelle = [];
+
+        preg_match('/<p v-if="!\s*([^"]+)"\s+class="notice critical"/', $seite, $streifen);
+        preg_match('/<div v-if="([^"]+)"\s+class="sections"/', $seite, $huelle);
+
+        $this->assertNotEmpty($streifen, 'Es gibt keinen Streifen für den unfeststellbaren Zustand.');
+        $this->assertNotEmpty($huelle, 'Die Bereiche stehen ohne Bedingung da — auch dann, wenn nichts feststeht.');
+
+        $this->assertSame(
+            trim($streifen[1]),
+            trim($huelle[1]),
+            'Streifen und Bereiche hängen an verschiedenen Bedingungen — eine von beiden ist die, die veraltet.',
+        );
+    }
+
+    /**
      * Das Kommando wird nicht gekürzt und bricht statt zu rollen.
      *
      * `docs/111 §2` Frage 3, und die Zahl dahinter steht in `docs/46 §20.13`:

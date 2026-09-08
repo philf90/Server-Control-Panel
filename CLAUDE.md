@@ -1487,7 +1487,21 @@ eine falsche Fälligkeit gezeigt hat, gehalten an der Datei der Paketierung und
 nicht an einem Kommentar) und `ServerZoneSourceTest` (nach der Zone des
 **Servers** fragt nur `ServerZone`, jede Ausnahme steht mit ihrem Grund da, und
 die nächste Fälligkeit wird **gerechnet und nicht abgelegt** — in beide
-Richtungen: kein Schreiber mehr, und die Seite rechnet). Der Bruch selbst steht als
+Richtungen: kein Schreiber mehr, und die Seite rechnet) und `CronTableTest`
+(eine `@`-Zeile hat **ein** Zeitfeld und keine fünf — gemessen an den acht
+Kurznamen, die `/etc/cron.d` wirklich nimmt, und mit der Gegenrichtung, dass
+eine gewöhnliche Zeile weiterhin sieben Felder hat) und `RunPartsSeamTest`
+(die übergangenen Dateien sind die **Differenz** aus Verzeichnisinhalt und
+`run-parts --test` und keine zweite Fassung von dessen Regeln; `.placeholder`
+ist keine — es liegt auf jedem heilen Server) und `CronScheduleTest` (der
+Zeitplan eines Verzeichnisses wird aus `/etc/crontab` gelesen und nicht
+gewusst, mitsamt dem anacron-Vorbehalt und dem **dritten** Zustand: „keine
+Zeile" ist nicht „nicht nachgesehen") und `CronPayloadTest` (die Naht zur
+Seite: Route und Menüpunkt tragen dieselbe Fähigkeit, `/schedules` trägt genau
+ein `GET`, das Präfix der eigenen Dateien kommt aus `CronFile` — und **wo
+nichts feststeht, steht keine Tabelle**: Streifen und Bereiche werden
+aneinander gehalten und nicht auf das Vorhandensein eines `v-if` geprüft, weil
+der grün bliebe, sobald dort irgendeine Bedingung steht). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -2603,6 +2617,84 @@ Grundmenge.
 
 > **Ein Wortlaut, den ein Werkzeug für einen Zustand wählt, muss mit dem Zustand
 > nichts zu tun haben.**
+
+---
+
+## A6 ist abgenommen — 8. September 2026
+
+Auf `cloudsrv24` gegen `0.7.3-rc.27`, **alle acht Punkte aus `docs/112`**,
+beide Ausschlusskriterien (2 und 4) darunter, keiner als „nicht herstellbar"
+ausgefallen. Der Plan ist `docs/111`, der Lauf `docs/112`, das Protokoll
+**`docs/113`**.
+
+A6 zeigt, was auf dem Server zeitgesteuert läuft — `/etc/crontab`,
+`/etc/cron.d` und die `cron.*`-Verzeichnisse —, und **schreibt nichts**.
+
+**Drei Gegenstände und nicht einer:** Tabellen tragen ihren Zeitplan in der
+Zeile, ein Verzeichnis trägt Skripte und **keinen eigenen** — der steht als
+Zeile in `/etc/crontab`, drei von vier mit `test -x /usr/sbin/anacron ||`, und
+für `cron.yearly` gibt es gar keine. Ein Verzeichnis hat deshalb **drei**
+Zustände und nicht zwei; ohne den dritten sähe „nicht nachgesehen" aus wie „es
+gibt keine Zeile".
+
+**Die teuerste Lehre gilt jeder Tabelle dieses Panels und nicht nur A6.**
+
+> **Eine gestapelte Zelle verträgt genau ein Kind — mehrere werden von
+> `space-between` zu einer Zeile mit Lücken.**
+
+Unter 720 px ist `.stacks td` eine Flexzeile mit `justify-content:
+space-between`: Beschriftung links, Wert rechts, und der Wert ist **ein**
+anonymes Flexkind. Der Satz „Vom Panel verwaltet — auf der Cronseite" stand als
+drei Kinder da (Text, Verweis, Schlusspunkt) und war auf `cloudsrv24`
+auseinandergezogen. Dieselbe Form fand die Suche danach auf der SFTP-Seite,
+wo es sie seit P6 gibt: 111 px im Nachbau. Behoben ist beides in der **Vorlage**
+und nicht mit einer neuen Regel in `app.css`; der Kommentar an `.stacks td`
+steht seitdem als Frage da — *gehört das, was hier nebeneinander steht,
+zusammen?*
+
+> **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+> verdeckt alles, was daneben steht.** Der Fehler stand in der Bilderrunde
+> schon im Bild; angesehen worden war die Aufnahme auf den Überlauf, die
+> Kennung und den Bereich „Übergangen".
+
+**Und der dritte Befund kam aus dem Zustand, den Punkt 6 herstellt.** Bei
+angehaltenem Agenten antwortet `/schedules` mit 200 und dem Streifen „Die
+Zeitpläne sind nicht feststellbar" — und darunter standen beide Bereiche mit
+ihrer Kopfzeile über **null** Zeilen.
+
+> **Eine Anzeige, die zwei verschiedene Zustände gleich aussehen lässt,
+> behauptet etwas, das sie nicht weiss.** „Ich weiss es nicht" und „da ist
+> nichts" trennte allein der Streifen darüber.
+
+Der Wächter hält die beiden Bedingungen **aneinander** und fragt nicht nach dem
+Vorhandensein eines `v-if`: Ein Wächter über das Vorhandensein bliebe grün,
+sobald dort irgendeine Bedingung steht — und die zweite Bedingung wäre eine
+zweite Fassung derselben Regel.
+
+**Ein Bruch dieser Stufe hat nichts gemessen, und das ist die Lehre über
+Brüche.** Der Eingriff vertauschte die beiden Zweige von `CronState::why()` und
+blieb grün: Als root — und der Agent läuft als root — gibt `is_executable()`
+für **jedes** Verzeichnis `true`, gleich welche Rechte es trägt.
+
+> **Ein Eingriff, der einen Zustand herstellt, den der Prüfling ohnehin gleich
+> beantwortet, misst die Regel nicht — er misst, dass sie unempfindlich ist.**
+
+**Was der Lauf über sich selbst gelernt hat:** Vier der acht Kriterien sind beim
+Ausschreiben umgefallen (`docs/112 §0`), und einer davon zitierte einen Befund
+statt seiner Behebung — der Satz „der 403 ist Laravels englische Vorgabeseite"
+stammt aus `docs/84`, und dort steht zwei Absätze weiter, dass es seit dem
+25. August eigene Fehlerseiten gibt.
+
+> **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung — und
+> nichts prüft sie.** Sie stand da als Beruhigung, und eine Beruhigung liest
+> niemand nach.
+
+**Was benannt offen bleibt** (`docs/113 §12`): der Satz „anacron bestimmt den
+Zeitpunkt" ist auf keiner Maschine gesehen worden — weder `cloudsrv24` noch
+dieser Container haben anacron —, und der Rest aus P7 (`orphan.row` für
+`tls.cloudlab24.de`).
+
+**In P7b bleibt damit A3s erster Wurf.**
 
 ---
 

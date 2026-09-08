@@ -26143,6 +26143,368 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PortAbilityTest passed
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#   A6 — die Zeitpläne des Servers (docs/111)
+# ═══════════════════════════════════════════════════════════════════════════
+
+echo
+echo "== CronTableTest: getrennt wird an einem Leerzeichen =="
+#
+# Gemessen: /etc/crontab setzt seine Felder mit Tabulatoren, /etc/cron.d/php mit
+# mehreren Leerzeichen. Wer eines von beiden voraussetzt, liest die andere Datei
+# falsch -- und zwar lautlos.
+vorher_datei agent/src/CronState.php
+python3 - <<'PY2'
+p = 'agent/src/CronState.php'
+s = open(p, encoding='utf-8').read()
+alt = "$teile = preg_split('/\\s+/', $line, $felder);"
+neu = "$teile = explode(' ', $line, $felder);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/CronState.php "getrennt wird an einem Leerzeichen" &&
+pruefe "getrennt wird an einem Leerzeichen" \
+  CronTableTest::test_the_fields_are_split_at_whitespace failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronTableTest passed
+
+echo
+echo "== CronTableTest: die @-Form bekommt fuenf Zeitfelder =="
+#
+# @daily root /bin/backup traegt ein Zeitfeld und nicht fuenf (M4). In fuenf
+# zerlegt steht der Benutzer als Tag des Monats da, und das Kommando fehlt.
+vorher_datei agent/src/CronState.php
+python3 - <<'PY2'
+p = 'agent/src/CronState.php'
+s = open(p, encoding='utf-8').read()
+alt = "$felder = str_starts_with($line, '@') ? 3 : 7;"
+neu = "$felder = 7;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/CronState.php "die @-Form bekommt fuenf Zeitfelder" &&
+pruefe "die @-Form bekommt fuenf Zeitfelder" \
+  CronTableTest::test_the_at_form_carries_one_time_field failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronTableTest passed
+
+echo
+echo "== CronTableTest: eine Zuweisung wird zur Zeile =="
+#
+# SHELL=/bin/sh stuende dann als Zeitplan mit vier Feldern in der Tabelle.
+vorher_datei agent/src/CronState.php
+python3 - <<'PY2'
+p = 'agent/src/CronState.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if (preg_match(self::ENVIRONMENT, $zeile, $treffer) === 1) {"
+neu = "            if (false && preg_match(self::ENVIRONMENT, $zeile, $treffer) === 1) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/CronState.php "eine Zuweisung wird zur Zeile" &&
+pruefe "eine Zuweisung wird zur Zeile" \
+  CronTableTest::test_an_assignment_is_environment_and_not_an_entry failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronTableTest passed
+
+echo
+echo "== RunPartsSeamTest: volle Pfade gegen Namen gehalten =="
+#
+# run-parts --test gibt volle Pfade aus. Ohne basename() meldet jeder Lauf jedes
+# Skript als uebergangen -- und das saehe aus wie ein Befund ueber den Server.
+vorher_datei agent/src/CronState.php
+python3 - <<'PY2'
+p = 'agent/src/CronState.php'
+s = open(p, encoding='utf-8').read()
+alt = "? array_map(static fn (string $l): string => basename(trim($l)), $test->lines())"
+neu = "? array_map(static fn (string $l): string => trim($l), $test->lines())"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/CronState.php "volle Pfade gegen Namen gehalten" &&
+pruefe "volle Pfade gegen Namen gehalten" \
+  RunPartsSeamTest::test_only_what_run_parts_names_is_a_script failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RunPartsSeamTest passed
+
+echo
+echo "== RunPartsSeamTest: die versteckte Datei zaehlt mit =="
+#
+# .placeholder liegt in jedem cron.*-Verzeichnis und gehoert zum Paket (M5).
+# Mitgezaehlt meldet der Bereich -Uebergangen- auf jedem heilen Server fuenf
+# Funde -- und ein Bereich, der immer meldet, wird ueberlesen.
+vorher_datei agent/src/CronState.php
+python3 - <<'PY2'
+p = 'agent/src/CronState.php'
+s = open(p, encoding='utf-8').read()
+alt = "                if (str_starts_with($name, '.')) {"
+neu = "                if (false) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/CronState.php "die versteckte Datei zaehlt mit" &&
+pruefe "die versteckte Datei zaehlt mit" \
+  RunPartsSeamTest::test_a_hidden_file_is_not_a_skipped_script failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RunPartsSeamTest passed
+
+echo
+echo "== RunPartsSeamTest: nach dem Verzeichnis wird nicht gefragt =="
+#
+# Als root gibt is_executable() fuer JEDES Verzeichnis true (gemessen, 0644 wie
+# 0755) -- ohne diese Frage faellt ein Unterverzeichnis durch beide Zweige und
+# landet auf -unknown-. Die Reihenfolge ist dabei nicht die Regel; gebrochen
+# wird deshalb die Frage selbst.
+vorher_datei agent/src/CronState.php
+python3 - <<'PY2'
+p = 'agent/src/CronState.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (@is_dir($path)) {\n            return 'directory';\n        }"
+neu = "        if (false) {\n            return 'directory';\n        }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/CronState.php "nach dem Verzeichnis wird nicht gefragt" &&
+pruefe "nach dem Verzeichnis wird nicht gefragt" \
+  RunPartsSeamTest::test_a_directory_is_named_as_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RunPartsSeamTest passed
+
+echo
+echo "== RunPartsSeamTest: ein stummes run-parts meldet leere Listen =="
+#
+# Wer nicht weiss, was laeuft, weiss auch nicht, was nicht laeuft. Eine leere
+# Liste sagt -nichts gefunden-, und das ist etwas anderes als -nicht gefragt-.
+vorher_datei agent/src/CronState.php
+python3 - <<'PY2'
+p = 'agent/src/CronState.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'readable' => $test !== null && $test->successful(),"
+neu = "            'readable' => true,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/CronState.php "ein stummes run-parts meldet leere Listen" &&
+pruefe "ein stummes run-parts meldet leere Listen" \
+  RunPartsSeamTest::test_a_silent_run_parts_leaves_the_lists_unknown failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RunPartsSeamTest passed
+
+echo
+echo "== CronScheduleTest: der anacron-Vorbehalt faellt weg =="
+#
+# Mit anacron tut cron fuer daily, weekly und monthly gar nichts. Ein Zeitpunkt
+# ohne den Vorbehalt ist auf jedem Server mit anacron falsch.
+vorher_datei agent/src/CronState.php
+python3 - <<'PY2'
+p = 'agent/src/CronState.php'
+s = open(p, encoding='utf-8').read()
+alt = "'conditional' => str_contains($eintrag['command'], 'anacron') ? 'anacron' : null,"
+neu = "'conditional' => null,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/CronState.php "der anacron-Vorbehalt faellt weg" &&
+pruefe "der anacron-Vorbehalt faellt weg" \
+  CronScheduleTest::test_the_caveat_stands_where_the_line_carries_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronScheduleTest passed
+
+echo
+echo "== CronScheduleTest: der Zeitplan gilt immer als bekannt =="
+#
+# Eine Null, die -nicht nachgesehen- bedeutet, sieht aus wie -nichts zu tun-.
+# cron.yearly und eine unlesbare /etc/crontab liefern beide schedule: null.
+vorher_datei agent/src/CronState.php
+python3 - <<'PY2'
+p = 'agent/src/CronState.php'
+s = open(p, encoding='utf-8').read()
+alt = "$bekannt = array_key_exists(self::CRONTAB, $files) && $files[self::CRONTAB] !== null;"
+neu = "$bekannt = true;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/CronState.php "der Zeitplan gilt immer als bekannt" &&
+pruefe "der Zeitplan gilt immer als bekannt" \
+  CronScheduleTest::test_an_unreadable_crontab_leaves_the_schedule_unknown failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronScheduleTest passed
+
+echo
+echo "== CronNameRuleTest: die Schreibseite bekommt ihre eigene Fassung zurueck =="
+#
+# Zwei Fassungen derselben Regel sind zwei, und die zweite ist die, die
+# veraltet.
+vorher_datei agent/src/Cron/CronFile.php
+python3 - <<'PY2'
+p = 'agent/src/Cron/CronFile.php'
+s = open(p, encoding='utf-8').read()
+alt = "if (! CronName::readable($user)) {"
+neu = "if (preg_match('/\\A[A-Za-z0-9_-]+$/D', $user) !== 1) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Cron/CronFile.php "die Schreibseite bekommt ihre eigene Fassung zurueck" &&
+pruefe "die Schreibseite bekommt ihre eigene Fassung zurueck" \
+  CronNameRuleTest::test_the_writing_side_carries_no_second_version failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronNameRuleTest passed
+
+echo
+echo "== CronNameRuleTest: die Leseseite baut die Regel nach =="
+#
+# Dieselbe Regel, andere Richtung -- und diesmal in der Datei, die A6 neu
+# gebracht hat.
+vorher_datei agent/src/CronState.php
+python3 - <<'PY2'
+p = 'agent/src/CronState.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! CronName::readable($name)) {\n            return CronName::reason($name) ?? 'unknown';\n        }"
+neu = "        if (preg_match('/\\A[A-Za-z0-9_-]+$/D', $name) !== 1) {\n            return str_contains($name, '.') ? 'dot' : 'character';\n        }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/CronState.php "die Leseseite baut die Regel nach" &&
+pruefe "die Leseseite baut die Regel nach" \
+  CronNameRuleTest::test_the_reading_side_carries_no_second_version failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronNameRuleTest passed
+
+echo
+echo "== CronPayloadTest: der Menuepunkt bekommt eine andere Faehigkeit =="
+#
+# Ein Eintrag, den der Betrachter sieht und der ihm einen 403 gibt.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = "href: '/schedules', icon: 'schedules', ability: 'operate-server'"
+neu = "href: '/schedules', icon: 'schedules', ability: 'inspect-server'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "der Menuepunkt bekommt eine andere Faehigkeit" &&
+pruefe "der Menuepunkt bekommt eine andere Faehigkeit" \
+  CronPayloadTest::test_the_menu_entry_carries_the_ability_of_its_route failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
+
+echo
+echo "== CronPayloadTest: der Leser traegt das Praefix woertlich =="
+#
+# Dieselbe Regel an drei Orten -- und beim naechsten Umbenennen zieht nur einer
+# mit.
+vorher_datei agent/src/CronState.php
+python3 - <<'PY2'
+p = 'agent/src/CronState.php'
+s = open(p, encoding='utf-8').read()
+alt = "return str_starts_with($path, CronFile::DIR.'/'.CronFile::PREFIX);"
+neu = "return str_starts_with($path, '/etc/cron.d/srvpanel-');"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/CronState.php "der Leser traegt das Praefix woertlich" &&
+pruefe "der Leser traegt das Praefix woertlich" \
+  CronPayloadTest::test_the_reader_carries_no_second_prefix failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
+
+echo
+echo "== CronPayloadTest: der Bereich -Uebergangen- steht immer da =="
+#
+# Leer waere er eine Beruhigung, die niemand bestellt hat.
+vorher_datei resources/js/Pages/Schedules/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Schedules/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '        v-if="uebergangen.length > 0"\n'
+neu = ''
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Schedules/Index.vue "der Bereich Uebergangen steht immer da" &&
+pruefe "der Bereich Uebergangen steht immer da" \
+  CronPayloadTest::test_the_ignored_section_is_conditional failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
+
+echo
+echo "== CronPayloadTest: die Obergrenze faellt weg =="
+#
+# Gemessen bei 1440 px gegen den echten Bestand: ohne Grenze ist die Zelle
+# 1396 px breit und die Tabelle laeuft 736 px ueber ihren Bereich -- waehrend
+# der Ueberlauf am Dokument 0 bleibt. overflow-wrap sagt, WO gebrochen werden
+# darf, und nicht WANN.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = ".cell-command {\n  max-width: 48ch;\n}"
+neu = ".cell-command {\n  min-width: 0;\n}"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff "die Obergrenze faellt weg" &&
+pruefe "die Obergrenze faellt weg" \
+  CronPayloadTest::test_the_command_wraps_and_is_not_cut failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
+
+echo
+echo "== CronPayloadTest: die Grenze haengt an der Zelle =="
+#
+# max-width gilt fuer eine Tabellenzelle laut CSS 2.1 nicht; dass dieses
+# Chromium sie dort beachtet, ist gemessen und trotzdem keine Zusage.
+vorher_datei resources/js/Pages/Schedules/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Schedules/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<div class="cell-command">{{ zeile.command }}</div>'
+neu = '{{ zeile.command }}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, neu, 1)
+alt2 = '<td data-column="Datei"><div class="cell-command">{{ d.name }}</div></td>'
+neu2 = '<td data-column="Datei">{{ d.name }}</td>'
+assert s.count(alt2) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt2, neu2, 1)
+alt3 = """                  <div class="cell-command">
+                    <span v-if="!v.readable" class="quiet">nicht feststellbar</span>
+                    <span v-else-if="v.scripts.length === 0" class="quiet">keine</span>
+                    <template v-else>{{ v.scripts.join(', ') }}</template>
+                  </div>"""
+neu3 = """                  <span v-if="!v.readable" class="quiet">nicht feststellbar</span>
+                  <span v-else-if="v.scripts.length === 0" class="quiet">keine</span>
+                  <template v-else>{{ v.scripts.join(', ') }}</template>"""
+assert s.count(alt3) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt3, neu3, 1))
+PY2
+griff_datei resources/js/Pages/Schedules/Index.vue "die Grenze haengt an der Zelle" &&
+pruefe "die Grenze haengt an der Zelle" \
+  CronPayloadTest::test_the_command_wraps_and_is_not_cut failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
+
+echo
+echo "== CronPayloadTest: das Kommando bricht nicht mehr =="
+#
+# docs/46 §20.13: Eine Textzelle ohne Umbruch hat den Inhalt einer Tabelle
+# 5710px breit gemacht statt 1907 -- und die Ueberlaufmessung sieht davon nichts.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = ".cell-name,\n.cell-command {"
+neu = ".cell-name {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff "das Kommando bricht nicht mehr" &&
+pruefe "das Kommando bricht nicht mehr" \
+  CronPayloadTest::test_the_command_wraps_and_is_not_cut failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
+
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

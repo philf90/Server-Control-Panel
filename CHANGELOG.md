@@ -26462,3 +26462,158 @@ schreibt daneben, die Firewall sei nicht seine Sache.
 
   > **Eine Zahl, die eine Regel vertritt, trägt die Annahme mit, dass daneben
   > nichts Neues entsteht — und die steht nirgends geschrieben.**
+
+### A6 — die Zeitpläne des Servers
+
+Gebaut am 8. September 2026, **nach** der Messrunde (`docs/81 §2.3t`). Der Plan
+ist `docs/111`; der Abnahmelauf steht noch aus. Der Wurf **liest und schreibt
+nicht** — was der Admin an `/etc/crontab` ändern will, ändert er als root, und
+ein Editor dafür wäre Freitext mit Systemrechten über einen Umweg.
+
+**Warum es ihn gibt:** Das Panel schreibt selbst nach `/etc/cron.d/srvpanel-*`
+und betreibt fünf Timer. Was **sonst** auf dem Server zeitgesteuert läuft, stand
+an keiner Stelle — und drei Zustände sehen auf der Platte aus wie ein heiler.
+
+- **Drei Gegenstände und nicht einer.** `/etc/crontab` und `/etc/cron.d` tragen
+  ihren Zeitplan in der Zeile, die `cron.*`-Verzeichnisse tragen Skripte und
+  **keinen eigenen**. In einer Tabelle bliebe bei den einen die Zeitspalte leer
+  — dieselbe Überlegung, aus der A2 Dienste und Timer getrennt hat.
+
+- **Der Zeitplan eines Verzeichnisses wird gelesen und nicht gewusst** (M1).
+  Zwei Fallen stecken darin: `cron.yearly` steht in **keiner** Zeile, und drei
+  der vier übrigen tragen `test -x /usr/sbin/anacron ||`.
+
+  > **Ein Verzeichnis, das dasteht und in keinem Zeitplan vorkommt, ist von
+  > einem, das läuft, nicht zu unterscheiden — ausser man liest den Zeitplan.**
+
+  > **Eine Zeile, die eine Bedingung trägt, sagt ohne die Bedingung das
+  > Gegenteil.**
+
+  Der Zeitpunkt steht deshalb nur da, wenn er gilt; sonst der Satz, dass anacron
+  ihn bestimmt. Und ein Verzeichnis hat **drei** Zustände, nicht zwei: Ist
+  `/etc/crontab` unlesbar, ist der Zeitplan unbekannt — ohne eigenes Feld sähe
+  das aus wie `cron.yearly`.
+
+- **Die Namensregeln fragt A6 bei `run-parts` und baut sie nicht nach** (M2).
+  Sechs von zwölf Prüfkörpern übergeht es wortlos: `backup.sh`,
+  `logrotate.dpkg-new`, `alt~`, `mit leerzeichen`, `nicht-ausfuehrbar`.
+
+  > **Ein Skript, das nicht läuft, sieht im Verzeichnis genauso aus wie eines,
+  > das läuft.**
+
+  `ignored` ist die **Differenz** aus Verzeichnisinhalt und `run-parts --test`
+  und keine eigene Prüfung; `CronName` beschriftet sie nur.
+
+- **Für `/etc/cron.d` ist es die Regel, die dieses Repo seit P6 hat** — auf der
+  Schreibseite. Sie ist nach `SrvPanel\Agent\Cron\CronName` gehoben, nach dem
+  Vorbild von `Net\Cidr`, das aus `Pg\Hba` herausgelöst wurde.
+
+  > **Zwei Fassungen derselben Regel sind zwei, und die zweite ist die, die
+  > veraltet.**
+
+- **Die `@`-Form ist beim Bauen dazugekommen** (M4, nachgemessen). `/etc/cron.d`
+  nimmt acht Namen — `@reboot`, `@yearly`, `@annually`, `@monthly`, `@weekly`,
+  `@daily`, `@midnight`, `@hourly` — mit **einem** Zeitfeld statt fünf. Wer eine
+  solche Zeile in fünf zerlegt, zeigt den Benutzer als Tag des Monats an.
+
+  Ob cron den Namen kennt, entscheidet A6 **nicht**: Ein unbekannter nimmt mit
+  `Syntax error, this crontab file will be ignored` die ganze Datei mit, und zu
+  sehen ist das nur, wenn man cron startet.
+
+  > **Eine Leseansicht, die urteilt, hat einen zweiten Prüfer gebaut — und der
+  > zweite ist der, der veraltet.**
+
+- **Und dieselbe Messung hat sich zuerst selbst betrogen.** `cron -n -x …`
+  schreibt auf stdout, umgeleitet also blockweise gepuffert; `timeout` beendet
+  den Prozess, und der ungeschriebene Rest verfällt. Zwei Läufe meldeten
+  reproduzierbar je zwei Dateien als „nicht geladen" — es sah aus wie eine Regel
+  im Dateinamen und war die Länge der Ausgabe.
+
+  > **Eine Abwesenheit am Ende einer abgeschnittenen Ausgabe sieht aus wie ein
+  > Befund über den Gegenstand und ist einer über das Messmittel.**
+
+- **Eine versteckte Datei ist kein übergangenes Skript** (M5).
+  `cron-daemon-common` legt in jedes dieser Verzeichnisse ein `.placeholder`,
+  dessen Inhalt „DO NOT EDIT OR REMOVE" sagt. Mitgezählt meldete der Bereich
+  „Übergangen" auf **jedem heilen Server** fünf Funde.
+
+  > **Ein Bereich, der auf jedem heilen Server etwas meldet, wird von dem
+  > überlesen, für den es ihn gibt.**
+
+  Ein Punkt *im* Namen bleibt ein Fund: `backup.sh` ist ein Skript, das jemand
+  abgelegt hat und das nicht läuft.
+
+- **Die Seite gehört dem Betreiber** (`docs/111 §2`, Frage 1, entschieden vom
+  Betreiber). Anders als eine Portnummer oder eine Paketfassung ist eine
+  Cron-Zeile beliebiger Text, den root geschrieben hat — dieselbe Art Inhalt,
+  deretwegen `/logs` dem Betreiber allein gehört. Damit entfällt der Schnitt in
+  der Nutzlast, den `/services` für die Prozessspalte braucht.
+
+- **Die eigenen Dateien stehen als eine Zeile mit Verweis** auf `/cron` und
+  nicht mit Inhalt (Frage 2). Das Kommando dagegen steht **vollständig** da
+  (Frage 3), in einer Zelle, die bricht statt zu rollen — `docs/46 §20.13` hat
+  gemessen, was eine nicht brechende Textzelle bei 390 px anrichtet.
+
+- **Eine eigene Seite „Zeitpläne" unter „Betrieb"** und kein vierter Bereich auf
+  `/services`. Die Gruppe trägt damit sieben Punkte; bei neun war sie am
+  5. September geteilt worden.
+
+- **Die Bilderrunde hat drei Fehler gefunden, und keine Zahl hat einen davon
+  gemeldet.** Vier Lagen gegen den echten Bestand, danach `dokument = 0`,
+  Gegenprobe 200/200, `schiebt = 0`.
+
+  Der erste hatte eine Zahl, nur nicht die, auf die der Lauf sieht: Bei 1440 px
+  war die Kommandozelle 1396 px breit und die Tabelle lief 736 px über ihren
+  Bereich hinaus, während der Überlauf am Dokument 0 blieb.
+
+  > **`overflow-wrap` sagt, wo gebrochen werden darf, und nicht wann.** Eine
+  > Tabelle mit `table-layout: auto` wächst bis zur Maximalbreite ihres Inhalts,
+  > und dann gibt es nichts mehr zu brechen.
+
+  Behoben mit derselben Zahl, die `.rows .cell` seit P5c trägt — `max-width:
+  48ch` auf einem `div`, weil `max-width` für eine Tabellenzelle laut CSS 2.1
+  nicht gilt. **Die Begründung dazu stand zuerst als gemessene Zusage da, ohne
+  gemessen zu sein**; nachgemessen beachtet dieses Chromium sie auch auf der
+  `td` (0 px, Zelle 537 gegen 546).
+
+  > **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch
+  > dann falsch, wenn der Handgriff daneben richtig ist.**
+
+  Die beiden anderen haben gar keine Zahl: „3 Dateien liegen in einem
+  Verzeichnis und **läuft** nicht" — gezählt war das erste Wort, das zweite Verb
+  stand daneben — und derselbe Zeitplan in zwei Schriften, in der Tabelle
+  darüber in Monospace und in der Spalte „Läuft" in der Fliesstextschrift.
+
+- **Und ein Bruch hat nichts gemessen.** `RunPartsSeamTest: erst das Ausführbit,
+  dann das Verzeichnis` vertauschte die beiden Zweige von `CronState::why()` und
+  blieb grün: Als root — und der Agent läuft als root — gibt `is_executable()`
+  für **jedes** Verzeichnis `true`, gleich welche Rechte es trägt. Die Regel ist
+  nicht die Reihenfolge, sondern dass nach dem Verzeichnis überhaupt gefragt
+  wird.
+
+  > **Ein Eingriff, der einen Zustand herstellt, den der Prüfling ohnehin gleich
+  > beantwortet, misst die Regel nicht — er misst, dass sie unempfindlich ist.**
+
+- **Der Abnahmelauf steht als `docs/112`, ausgeschrieben vor dem Fahren** — und
+  vier der acht Punkte aus `docs/111 §7` haben dabei ihre Fassung gewechselt.
+  Der teuerste: Punkt 3 verlangte `command -v anacron`, der Agent fragt
+  `is_executable('/usr/sbin/anacron')` — weil `/etc/crontab` selbst
+  `test -x /usr/sbin/anacron` fragt. `command -v` fragt `$PATH`, und der führt
+  `/usr/sbin` nicht immer.
+
+  > **Eine Gegenprobe über einen anderen Weg als den benutzten prüft den
+  > falschen Weg.**
+
+  Punkt 1 zählte die Dateien des Panels mit, obwohl die Seite sie nach
+  Entscheidung als Einzeiler zeigt; Punkt 4 setzte `cron.yearly` als vorhanden
+  voraus; Punkt 6 brauchte den Rückweg über `srvpanel.target`. Die
+  Befehlsfolgen des Laufs sind im Container gegen den Leser gefahren, bevor das
+  Dokument stand — *ein Abnahmelauf ist Code, den niemand ausführt, bis es
+  darauf ankommt.*
+
+- **Neu:** `system.cron` im Agenten, `SrvPanel\Agent\CronState`,
+  `SrvPanel\Agent\Cron\CronName`, `SrvPanel\Agent\Ops\SystemCron`,
+  `App\Http\Controllers\SchedulesController`, die Seite `Schedules/Index.vue`,
+  `run-parts` in der Programm-Positivliste — und die Wächter `CronTableTest`,
+  `RunPartsSeamTest`, `CronScheduleTest`, `CronNameRuleTest` und
+  `CronPayloadTest`.

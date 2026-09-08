@@ -1855,8 +1855,59 @@ table.pairs {
  * inzwischen fünfte Fassung derselben Ausnahme: `overflow-wrap: anywhere`.
  * `min-width: 0` gehört hier nicht dazu — eine Tabellenzelle ist kein Flexkind.
  */
-.cell-name {
+/*
+ * **Und dieselbe Regel für ein Kommando** (A6, `docs/111 §2` Frage 3).
+ *
+ * Eine Cron-Zeile trägt einen Befehl im Wortlaut, und der ist beliebig lang:
+ * `test -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.daily; }`
+ * sind 74 Zeichen, und das ist die kurze Sorte. Ein gekürztes Kommando ist die
+ * Auskunft, die man gerade nicht brauchen kann.
+ *
+ * **Ein Selektor mehr und keine sechste Fassung.** Die Begründung darüber gilt
+ * wörtlich; sie hier zu wiederholen hiesse, eine zweite Stelle zu schaffen, an
+ * der jemand die eine ändert und die andere stehen lässt.
+ */
+.cell-name,
+.cell-command {
   overflow-wrap: anywhere;
+}
+
+/*
+ * **Und die Obergrenze, ohne die das Brechen nichts nützt.**
+ *
+ * Gemessen am 8. September 2026 bei 1440 px, `/schedules` mit dem echten
+ * Bestand: `overflow-wrap: anywhere` **allein** liess die Zelle 1396 px breit
+ * werden und die Tabelle 736 px über ihren Bereich hinauslaufen — waagerechtes
+ * Rollen auf dem Schreibtisch, um ein Kommando zu lesen. Der Überlauf am
+ * Dokument war dabei die ganze Zeit **0**: Der Rollbehälter tut, was er soll.
+ *
+ * > **Eine Zelle, die rollen darf, hat keine Obergrenze — sie hat nur keine
+ * > Zahl, die sich beschwert.**
+ *
+ * `overflow-wrap` sagt, **wo** gebrochen werden darf, und nicht **wann**: Eine
+ * Tabelle mit `table-layout: auto` wächst bis zur Maximalbreite ihres Inhalts,
+ * und dann gibt es nichts zu brechen.
+ *
+ * **Die Grenze steht auf einem `div` und nicht auf der `td`** — und die
+ * Begründung dafür ist die Spezifikation und nicht die Messung. `max-width`
+ * gilt für eine Tabellenzelle nicht (CSS 2.1, „does not apply"); dass ein
+ * Browser sie trotzdem beachtet, ist eine Zugabe und keine Zusage.
+ *
+ * Gemessen, alle drei am selben Bestand bei 1440 px: Grenze auf dem `div`
+ * **0 px** Überlauf (Zelle 546), Grenze auf der `td` ebenfalls **0** (Zelle
+ * 537), gar keine Grenze **736** (Zelle 1396). Die `td` trägt es in diesem
+ * Chromium also — und der erste Wurf dieses Kommentars behauptete das
+ * Gegenteil, ohne es gemessen zu haben.
+ *
+ * > **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch
+ * > dann falsch, wenn der Handgriff daneben richtig ist.**
+ *
+ * **48ch ist dieselbe Zahl wie bei `.rows .cell`** und keine zweite für
+ * dieselbe Sache — ein Wert und ein Kommando sind beide Text, den man liest
+ * und nicht überfliegt.
+ */
+.cell-command {
+  max-width: 48ch;
 }
 
 /*

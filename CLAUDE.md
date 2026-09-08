@@ -3263,6 +3263,19 @@ Testen berücksichtigen:
 
   > **Dieselbe Messung kann aufs Pixel stimmen und trotzdem nichts über die
   > Ansicht sagen.**
+- **`cron` gibt es hier auch — es ist nur nicht installiert.** `apt-get install
+  -y cron` holt **3.0pl1-184ubuntu2** samt `/etc/crontab` und **sechs**
+  `cron.*`-Verzeichnissen; `run-parts` liegt ohnehin da. Gemessen am
+  7. September 2026 für A6 (`docs/81 §2.3t`). Derselbe Satz zum achten Mal.
+
+  **Der Griff, der die Messung trägt:** `cron -n -x load,pars,sch` lädt die
+  Datenbank im Vordergrund und druckt je geladener Datei
+  `*system*<name>:load_user()`. **`-x load` allein genügt nicht** — es druckt
+  nur Ablehnungen, und dann ist die Abwesenheit einer Zeile kein Beleg.
+
+  > **Eine Abwesenheit ist nur dann ein Befund, wenn die Anwesenheit im
+  > Erfolgsfall belegt ist.**
+
 - **`ufw` und `firewalld` gibt es hier auch — sie sind nur nicht installiert.**
   `apt-get install -y ufw firewalld` holt beide in einem Aufruf; derselbe Satz
   zum siebten Mal. `ss`, `nft`, `iptables`, `iptables-nft` und

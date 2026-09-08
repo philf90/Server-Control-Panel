@@ -28,6 +28,7 @@ use App\Http\Controllers\OverviewController;
 use App\Http\Controllers\PhpSettingsController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SchedulesController;
 use App\Http\Controllers\ServerController;
 use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\SftpController;
@@ -219,6 +220,23 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/services', [ServicesController::class, 'show'])
         ->middleware('can:inspect-server')
         ->name('services');
+
+    /*
+     * Die Zeitpläne dieses Servers — A6.
+     *
+     * **`can:operate-server` und nicht `inspect-server`**, entschieden vom
+     * Betreiber (`docs/111 §2`, Frage 1). Auf `/services` steht eine
+     * Portnummer und ein Unitname aus dem Katalog; hier steht eine Cron-Zeile,
+     * und die ist beliebiger Text, den root geschrieben hat — bis hin zu einem
+     * Zugangsdatum in einem Argument. Dieselbe Art Inhalt wie in `/logs`, und
+     * die gehört dem Betreiber allein.
+     *
+     * **Nur `GET`.** A6 schreibt nichts; was der Admin an `/etc/crontab`
+     * ändern will, ändert er als root (`docs/111 §8`).
+     */
+    Route::get('/schedules', [SchedulesController::class, 'show'])
+        ->middleware('can:operate-server')
+        ->name('schedules');
 
     Route::get('/updates', [UpdatesController::class, 'show'])
         ->middleware('can:inspect-server')

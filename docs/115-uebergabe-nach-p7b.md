@@ -173,7 +173,7 @@ funktionieren — **durch einen automatisierten Lauf, nicht von Hand.**
 ### 6.1 Was vor dem Plan zu messen ist
 
 Jede Stufe seit P5b hat ihre Messrunde **vor** dem Plan gehabt, und jede hat den
-Entwurf umgeworfen. Diese sechs Fragen stehen aus gemessenen Gründen da, nicht
+Entwurf umgeworfen. Diese sieben Fragen stehen aus gemessenen Gründen da, nicht
 aus Vollständigkeit:
 
 1. **Was kostet eine Dateisicherung — in Zeit und in Platz?** Für Datenbanken
@@ -202,7 +202,25 @@ aus Vollständigkeit:
    Namen hängen `/var/www/vhosts/<benutzer>`, die Dateirechte und
    `/etc/cron.d/srvpanel-<benutzer>`. **Das entscheidet die Form der
    Wiederherstellung** und gehört vor die erste Zeile Plan.
-6. **Wie meldet ein langer Lauf seinen Ausgang?** Form A aus `docs/86 §5`: Ein
+6. **Speichert eine Sicherung die Beschreibung oder die erzeugte Datei?** Der
+   Inhalt eines Server-Blocks wird **erzeugt** und nicht abgelegt: `SiteTemplate`
+   im Agenten baut ihn, `web.site.apply` ist der einzige Weg dorthin. A10 hält
+   jede Vhost-Datei **je Form** gegen `SiteTemplate::PROMISED_BY_FORM` — „Die
+   Form ist bekannt, wenn die Datei geschrieben wird, und sie ist bekannt, wenn
+   sie geprüft wird." Eine Wiederherstellung, die eine gesicherte Datei
+   **wörtlich zurückspielt**, legt damit etwas ab, das keine Vorlage erzeugt
+   hat; stammt sie aus einer älteren Fassung, meldet der Nachtlauf sie in der
+   Nacht darauf als `directive_lost`. Dasselbe gilt für `pg_hba.conf` und die
+   Cron-Dateien — überall dort schreibt ein verwalteter Bereich.
+
+   > **Eine Sicherung, die erzeugte Dateien aufhebt, sichert den Ausgang einer
+   > Rechnung und nicht ihre Eingaben — und die Rechnung ändert sich mit der
+   > nächsten Fassung.**
+
+   Das hängt an Frage 5 und ist nicht dieselbe: 5 fragt, ob die
+   Wiederherstellung **dieselben Pfade** trifft, 6 fragt, ob sie sie **neu
+   erzeugt oder zurückspielt**. Beide Antworten zusammen ergeben die Form.
+7. **Wie meldet ein langer Lauf seinen Ausgang?** Form A aus `docs/86 §5`: Ein
    Vorgang, der nur absetzt, sagt über den Ausgang nichts, und `fertig` liest
    sich wie das Gegenteil. `AwaitDispatchedRun` liest das Urteil nach — gebaut
    für apt. Ob dieselbe Form für eine Sicherung trägt oder ob sie Fortschritt
@@ -260,7 +278,7 @@ Wer sie vorzieht, verschiebt eine Zeile in `docs/20 §9` und in `docs/81 §12.1`
    Messung ist gefahren (`docs/114 §14`). **P7b hat keinen offenen Rest mehr
    aus dem eigenen Bauen** — was in §5 stehenbleibt, ist entweder eine
    Entwurfsentscheidung oder gehört einer anderen Stufe.
-4. **Erst dann planen.** Für P8 heisst das: die sechs Messungen aus §6.1 fahren,
+4. **Erst dann planen.** Für P8 heisst das: die sieben Messungen aus §6.1 fahren,
    das Ergebnis als `docs/81`-artigen Abschnitt festhalten, die Fragen aus §6.2
    dem Betreiber vorlegen — **und danach** den Plan schreiben.
 

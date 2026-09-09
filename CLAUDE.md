@@ -2744,7 +2744,12 @@ auch er erfüllt. Der Plan ist `docs/109`, der Lauf `docs/110`, das Protokoll
 **`docs/114`**, der Nachlauf dessen **§13**.
 
 **Damit ist P7b vollständig** — A5, A9, A2, A10, A12, A14, A1, A11, A8, A6 und
-A3s erster Wurf, alle abgenommen. Die Stufenzeile in `docs/81 §12.1` nannte bis
+A3s erster Wurf, alle abgenommen. **Die Übergabe danach ist `docs/115`**: der
+Stand in Zahlen, die sechs Gewohnheiten, die benannt offenen Reste, was P8 ist
+und die **sechs Messungen, die vor seinen Plan gehören** — darunter die, die
+seine Form entscheidet: ob ein wiederhergestelltes Abonnement seinen alten
+Systembenutzernamen zurückbekommt, den `Lifecycle::claim()` seit `docs/35`
+dauerhaft verbraucht. Die Stufenzeile in `docs/81 §12.1` nannte bis
 zum 9. September „A6 und A3s erster Wurf" als offen und führte A9 gar nicht auf,
 obwohl der Absatz darunter ihn nennt.
 

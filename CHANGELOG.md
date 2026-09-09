@@ -26795,3 +26795,97 @@ ihn falsch beantwortet.
 
   Dieselbe Zahl ist zweimal berichtigt worden: sieben, neun, zehn. Keine stand
   vor dem Lauf fest; gemessen hat sie jedes Mal die Untergrenze des Wächters.
+
+### A3s erster Wurf abgenommen — der Nachlauf gegen `0.7.3-rc.29`
+
+**Punkt 6 ist erfüllt, und damit ist P7b vollständig.** Gemessen am 9. September
+2026 auf `cloudsrv24` mit demselben Instrument wie gegen `rc.28`, in einer je
+frisch geladenen Seite:
+
+| | Agent tot | Agent läuft |
+|---|---|---|
+| `Ports-Satz` | `true` | `false` |
+| `Regelwerk-Rumpf` | `p.notice warn` | `table.pairs` |
+| `Tabellen` | 2 | 4 |
+
+**Die Gegenprobe ist der Grund, dass die erste Messung etwas bedeutet.** Ohne
+sie bliebe der Fall offen, dass der Satz *immer* dasteht — dann meldete das
+Panel „nicht feststellbar" auch bei antwortendem Agenten, und das wäre schwerer
+als der Befund, den es behebt.
+
+**Die Messvorschrift steht seit diesem Nachlauf im Protokoll** (`docs/114 §13`).
+Sie fehlte dort: Festgehalten waren die drei Ergebnisse und nicht das
+Instrument, das sie erzeugt hat — und beim Nachmessen musste es rekonstruiert
+werden.
+
+> **Ein Protokoll, das die Zahl festhält und nicht das Instrument, lässt den
+> Vergleich, für den es die Zahl aufhebt, nicht zu.**
+
+- **Wo nichts feststeht, steht keine Tabelle — auch auf `/services`.** Bei totem
+  Agenten standen „Dienste" und „Timer" mit ihrer Kopfzeile über **null**
+  Zeilen. Die Zahl stand schon in der Messung gegen `rc.28` daneben
+  (`Tabellen: 2`) und war als Beiwerk zur Frage nach dem Regelwerk gelesen
+  worden.
+
+  > **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+  > verdeckt alles, was daneben steht.**
+
+  Es ist dieselbe Familie zum **fünften** Mal, und diesmal nicht beim nächsten
+  Merkmal, sondern in derselben Datei zwei Bereiche über dem, den derselbe Lauf
+  behoben hatte. Gemessen an der Datei: Die Ports-Tabelle trug ihre Leerzeile,
+  die beiden anderen weder Wächter noch Leerzeile — drei Bereiche auf einer
+  Seite, drei Antworten auf dieselbe Frage.
+
+  Behoben mit **einer** Hülle für beide Bereiche und nicht je einer; die zweite
+  Bedingung ist die, die veraltet. Die Ports-Tabelle behält ihre Leerzeile: Dort
+  ist „geantwortet, und es horcht nichts" erreichbar — die Units kommen aus der
+  Paketierung, und antwortet der Agent, gibt es sie.
+
+  `ServicesViewTest` hält Streifen und Hülle aneinander **und die Hülle an ihrem
+  Inhalt**: Ein `<template v-if="live">` irgendwo auf der Seite erfüllte die
+  Regel sonst, ohne dass eine Tabelle darin stünde. Der bestehende Nachbar
+  konnte es nicht sehen — er sucht `v-if="!live"` und damit den Streifen.
+
+  > **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+  > steht.**
+
+- **`BlockSpacingTest` meldete eine Fuge, die es nicht gibt.** Der Wächter macht
+  aus jedem `<template>` einen klassenlosen Kasten, damit ein `v-else` seine
+  Zugehörigkeit zum Zweig behält — und sein Elternteil-Griff hielt diesen Kasten
+  für echt, womit das `gap` des Rasters darüber nicht mehr angerechnet wurde.
+  Gemessen mit `@vue/compiler-dom`: Der Übersetzer erzeugt ein **`Fragment`**
+  und kein Element.
+
+  > **Ein Hilfsmittel, das im Modell einen Kasten erfindet, wird an der Stelle
+  > falsch, an der jemand nach dem Elternteil fragt.**
+
+  Der Griff sieht seitdem durch Kästen mit der Marke `data-fragment` hindurch,
+  gemessen in beide Richtungen: Fragment grün, ein echtes `<div v-if>` ohne
+  Klasse rot, zurück grün. Der Unterschied ist die Marke und nicht die fehlende
+  Klasse.
+
+  **Damit fällt `quiet + link` aus `OPEN_SEAMS`, und der Eintrag war nie eine
+  Fuge:** Er meinte die Brotkrume des Dateimanagers, deren Elternteil `.crumbs`
+  seit jeher `display: flex` mit `gap` ist — gefunden wurde als Elternteil aber
+  der Kasten aus dem `<template v-for>`. Gemeldet hat es die Sperrklinke des
+  Wächters in die andere Richtung, statt es durchgehen zu lassen.
+
+  > **Eine Ausnahme, die einen Lesefehler ausgleicht, sieht aus wie ein
+  > bekanntes Loch — und verschwindet erst, wenn jemand den Leser berichtigt.**
+
+- **Zwei Eingriffe verloren ihren Text an zwei Leerzeichen.** Die Hülle hat
+  64 Zeilen um zwei Stellen eingerückt; beide zeigen jetzt auf die neue
+  Einrückung und beissen wieder.
+
+  > **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+  > wenn jemand sie um zwei Leerzeichen verschiebt.**
+
+- **Die Stufenzeile von P7b war veraltet.** `docs/81 §12.1` nannte „A6 und A3s
+  erster Wurf" als offen und führte **A9** gar nicht auf, obwohl der Absatz
+  darunter ihn seit dem 24. August nennt.
+
+  > **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander,
+  > und keine von beiden ist der Ort, an dem man nachsieht.**
+
+**Was offen bleibt:** Der Befund an „Dienste" und „Timer" ist behoben und hat
+**keinen Server gesehen** — er liegt hinter `rc.29`.

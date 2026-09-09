@@ -3705,7 +3705,7 @@ Serververwaltungssatz in P9 zeigt dorthin statt ihn ein zweites Mal zu führen.
 
 | Stufe | Inhalt | Wann |
 |---|---|---|
-| **P7b — Serververwaltung** | A5, A2, A10, **A12**, **A14**, A1, A11, ~~A8~~, A6, A3 (erster Wurf) | **entschieden**, vor P8; A12 am 2. September dazu, A14 am 4. September; A8 war am 22. August schon gebaut (§A8 in `docs/80`) — offen bleiben **A6** und **A3s erster Wurf** |
+| **P7b — Serververwaltung** | A5, **A9**, A2, A10, **A12**, **A14**, A1, A11, ~~A8~~, A6, A3 (erster Wurf) | **alle abgenommen**, vor P8; A12 am 2. September dazu, A14 am 4. September; A8 war am 22. August schon gebaut (§A8 in `docs/80`); A6 am 8. und **A3s erster Wurf am 9. September 2026 als letzter** (`docs/114 §13`). A9 stand hier nicht in der Aufzählung und gehört seit dem 24. August dazu — der Absatz unter dieser Tabelle sagt es, die Zeile sagte es nicht |
 | **P8** | Sicherungen und Wiederherstellung | unverändert |
 | **P9** | Kundenfähigkeit nach `docs/20 §9`, **ohne** den Serververwaltungssatz — **A7 steht darin** | unverändert |
 | **P9b — Absicherung des Servers** | A3 (zweiter Wurf), A4, **A13** | **entschieden am 28. August 2026**, zwischen P9 und P10; A13 ist ein **Vorschlag** vom 4. September (§11) und noch nicht entschieden |

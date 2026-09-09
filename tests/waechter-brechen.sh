@@ -19677,7 +19677,7 @@ vorher_datei resources/js/Pages/Services/Index.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Services/Index.vue'
 s = open(p, encoding='utf-8').read()
-alt = '<table class="stacks">\n            <thead>\n              <tr>\n                <th>Unit</th>\n                <th>Zustand</th>\n                <th>PID</th>'
+alt = '<table class="stacks">\n              <thead>\n                <tr>\n                  <th>Unit</th>\n                  <th>Zustand</th>\n                  <th>PID</th>'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace('<table class="stacks">', '<table>'), 1))
 PY2
@@ -21035,13 +21035,13 @@ vorher_datei resources/js/Pages/Services/Index.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Services/Index.vue'
 s = open(p, encoding='utf-8').read()
-alt = """      <Section
-        title="Timer"
-        full"""
+alt = """        <Section
+          title="Timer"
+          full"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, """      <div
-        title="Timer"
-        full""", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        <div
+          title="Timer"
+          full""", 1))
 PY2
 griff_datei resources/js/Pages/Services/Index.vue "ein Bereich statt zwei" &&
 pruefe "ein Bereich statt zwei" \
@@ -21126,6 +21126,63 @@ PY2
 griff_datei resources/js/Pages/Services/Index.vue "schweigender Agent" &&
 pruefe "schweigender Agent" \
   ServicesViewTest::test_a_silent_agent_is_told_apart_from_an_empty_server failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== ServicesViewTest: die Huelle verliert ihre Bedingung =="
+#
+# Der Zustand von vor dem 8. September: Die beiden Tabellen standen ohne
+# Bedingung da und zeigten bei totem Agenten ihre Kopfzeile ueber null Zeilen.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<template v-if="live">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<template>', 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "Huelle verliert ihre Bedingung" &&
+pruefe "Huelle verliert ihre Bedingung" \
+  ServicesViewTest::test_no_table_stands_where_nothing_is_known failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== ServicesViewTest: Streifen und Huelle haengen an verschiedenen Bedingungen =="
+#
+# Die gefaehrlichere Haelfte: Ein Waechter, der bloss nach einem v-if fragte,
+# bliebe hier gruen -- und die zweite Bedingung waere die, die veraltet.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<template v-if="live">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<template v-if="!error">', 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "Streifen und Huelle haengen an verschiedenen Bedingungen" &&
+pruefe "Streifen und Huelle haengen an verschiedenen Bedingungen" \
+  ServicesViewTest::test_no_table_stands_where_nothing_is_known failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
+
+echo
+echo "== ServicesViewTest: die Huelle steht neben den Bereichen statt um sie =="
+#
+# Die Bedingung ist da, sie gilt nur fuer nichts. Ein Waechter, der ihr Dasein
+# prueft statt ihres Inhalts, bliebe hier gruen.
+vorher_datei resources/js/Pages/Services/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Services/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<template v-if="live">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<template v-if="live"></template><template>', 1))
+PY2
+griff_datei resources/js/Pages/Services/Index.vue "Huelle steht neben den Bereichen" &&
+pruefe "Huelle steht neben den Bereichen" \
+  ServicesViewTest::test_no_table_stands_where_nothing_is_known failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 

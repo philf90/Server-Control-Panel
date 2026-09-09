@@ -1416,7 +1416,12 @@ im Katalog ist paketiert — beide Richtungen, weil ein toter Eintrag bei einer
 Umbenennung entsteht) und `ServicesViewTest` (die Farbe einer Zeile folgt dem
 nächsten Termin und nicht `ActiveState`, und ein Dienst, den ein Timer startet,
 darf stillstehen — gefragt wird je **Funktionsrumpf**, weil eine Zeichenkette
-irgendwo auf der Seite nichts über die Funktion sagt, in der sie wirken soll)
+irgendwo auf der Seite nichts über die Funktion sagt, in der sie wirken soll;
+**seit dem 9. September** steht ausserdem keine Tabelle, wo nichts feststeht:
+Streifen und Hülle hängen an **derselben** Bedingung, und die Hülle wird an
+ihrem **Inhalt** geprüft und nicht an ihrem Dasein — ein
+`<template v-if="live">` irgendwo auf der Seite erfüllte die Regel sonst, ohne
+dass eine der beiden Tabellen darin stünde)
 und `NavGroupTest` (jede Gruppe der Navigation trennt an der Grenze, an der auch
 die Route trennt) und `UpdateWaitTest` (`srvpanel update` liest das
 Urteil seines Laufs nach und gibt den passenden Rückgabewert zurück; geladen
@@ -2714,9 +2719,9 @@ Zeitpunkt" ist auf keiner Maschine gesehen worden — weder `cloudsrv24` noch
 dieser Container haben anacron —, und der Rest aus P7 (`orphan.row` für
 `tls.cloudlab24.de`).
 
-**In P7b bleibt damit A3s erster Wurf — und offen ist an ihm der Abnahmelauf
-und nicht der Bau.** *(Gefahren am 8. September; der Abschnitt darunter hat die
-Ergebnisse.)* Er ist seit dem 7. September gebaut (`docs/81 §11`) und in
+**In P7b blieb damit A3s erster Wurf — und offen war an ihm der Abnahmelauf
+und nicht der Bau.** *(Gefahren am 8. September, abgenommen am 9.; der Abschnitt
+darunter hat die Ergebnisse. Danach ist P7b durch.)* Er ist seit dem 7. September gebaut (`docs/81 §11`) und in
 `v0.7.3-rc.27` ausgeliefert: `system.ports` im Agenten, `PortState`,
 `App\Support\Ports\ServerPorts`, zwei Bereiche auf `/services` und die fünf
 Wächter aus `docs/109 §5`. Der Lauf ist **`docs/110`**, ausgeschrieben und nie
@@ -2730,14 +2735,29 @@ gefahren.
 
 ---
 
-## A3s erster Wurf ist gefahren und nicht abgenommen — 8. September 2026
+## A3s erster Wurf ist abgenommen — 9. September 2026, und damit ist P7b durch
 
-Auf `cloudsrv24` gegen `0.7.3-rc.28`, **sieben der acht Punkte aus `docs/110`**,
-beide Ausschlusskriterien (2 und 3) darunter — und **Punkt 6 nicht**. Der Plan
-ist `docs/109`, der Lauf `docs/110`, das Protokoll **`docs/114`**.
+Gefahren am 8. September auf `cloudsrv24` gegen `0.7.3-rc.28`: **sieben der acht
+Punkte aus `docs/110`**, beide Ausschlusskriterien (2 und 3) darunter — und
+**Punkt 6 nicht**. Nach der Behebung gegen `0.7.3-rc.29` am 9. September ist
+auch er erfüllt. Der Plan ist `docs/109`, der Lauf `docs/110`, das Protokoll
+**`docs/114`**, der Nachlauf dessen **§13**.
 
-Punkt 6 ist auch nicht als „nicht herstellbar" ausgefallen: Der Zustand war
-herstellbar, und der Prüfling hat ihn falsch beantwortet.
+**Damit ist P7b vollständig** — A5, A9, A2, A10, A12, A14, A1, A11, A8, A6 und
+A3s erster Wurf, alle abgenommen. **Die Übergabe danach ist `docs/115`**: der
+Stand in Zahlen, die sechs Gewohnheiten, die benannt offenen Reste, was P8 ist
+und die **sechs Messungen, die vor seinen Plan gehören** — darunter die, die
+seine Form entscheidet: ob ein wiederhergestelltes Abonnement seinen alten
+Systembenutzernamen zurückbekommt, den `Lifecycle::claim()` seit `docs/35`
+dauerhaft verbraucht. Die Stufenzeile in `docs/81 §12.1` nannte bis
+zum 9. September „A6 und A3s erster Wurf" als offen und führte A9 gar nicht auf,
+obwohl der Absatz darunter ihn nennt.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+Punkt 6 war am 8. September nicht als „nicht herstellbar" ausgefallen: Der
+Zustand war herstellbar, und der Prüfling hat ihn falsch beantwortet.
 
 > **Ein Kriterium, das man beim letzten Punkt weicher liest als beim ersten, ist
 > keines mehr — es ist eine Zusammenfassung.**
@@ -2795,8 +2815,66 @@ im Kopf, es gebe dafür nichts. `WithoutMarkupComments` gibt es seit dem
 > **Eine Zeile, die eine Abwesenheit behauptet, lässt den Nächsten dasselbe noch
 > einmal bauen** — teurer als eine, die eine Grenze benennt.
 
-**Was zur Abnahme fehlt:** Punkt 6 gegen die nächste Fassung noch einmal messen.
-Alles andere steht. Was benannt offen bleibt (`docs/114 §12`): eine ungeklärte
+**Der Nachlauf gegen `rc.29` hat Punkt 6 geschlossen** (`docs/114 §13`), und die
+Gegenprobe ist der Grund, dass die Messung etwas bedeutet: bei totem Agenten
+`Regelwerk-Rumpf : p.notice warn` und `Tabellen : 2`, bei laufendem
+`table.pairs` und `4`. Ohne sie bliebe offen, dass der Satz **immer** dasteht —
+und dann meldete das Panel „nicht feststellbar" auch bei antwortendem Agenten,
+was schwerer wöge als der Befund, den es behebt.
+
+**Drei Befunde kamen im Nachlauf dazu, alle drei aus dem Bauen und keiner aus
+einem Kriterium.** Der erste stand im Bild zur ersten Messung: „Dienste" und
+„Timer" mit ihrer Kopfzeile über **null** Zeilen — dieselbe Familie zum
+**fünften** Mal, und diesmal nicht beim nächsten Merkmal, sondern in derselben
+Datei zwei Bereiche über dem, den derselbe Lauf behoben hatte. Die Zahl stand
+schon in der Messung gegen `rc.28` daneben (`Tabellen : 2`) und war als Beiwerk
+zur Frage nach dem Regelwerk gelesen worden.
+
+> **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+> verdeckt alles, was daneben steht.**
+
+Gemessen an der Datei hatte die Ports-Tabelle ihre Leerzeile, die beiden anderen
+weder Wächter noch Leerzeile: **drei Bereiche auf einer Seite, drei Antworten
+auf dieselbe Frage.** Behoben mit **einer** Hülle für beide und nicht je einer;
+`ServicesViewTest` hält beide Bedingungen aneinander **und die Hülle an ihrem
+Inhalt**, denn ein `<template v-if="live">` irgendwo auf der Seite erfüllte die
+Regel sonst, ohne dass eine Tabelle darin stünde.
+
+**Der zweite ist ein Loch in einem Wächter, und es hat sich beim Beheben
+gemeldet.** `BlockSpacingTest` machte aus jedem `<template>` einen klassenlosen
+Kasten, damit ein `v-else` seine Zugehörigkeit zum Zweig behält — und sein
+Elternteil-Griff hielt diesen Kasten für echt, womit das `gap` des Rasters
+darüber nicht mehr angerechnet wurde. Gemessen mit `@vue/compiler-dom`: Der
+Übersetzer erzeugt ein **`Fragment`** und kein Element.
+
+> **Ein Hilfsmittel, das im Modell einen Kasten erfindet, wird an der Stelle
+> falsch, an der jemand nach dem Elternteil fragt.**
+
+Der Griff sieht seitdem durch Kästen mit der Marke `data-fragment` hindurch —
+gemessen in beide Richtungen: Fragment grün, ein echtes `<div v-if>` ohne Klasse
+rot, zurück grün. **Damit fiel `quiet + link` aus `OPEN_SEAMS`, und der Eintrag
+war nie eine Fuge:** Er meinte die Brotkrume des Dateimanagers, deren Elternteil
+`.crumbs` seit jeher `display: flex` mit `gap` ist. Gemeldet hat das die
+Sperrklinke des Wächters in die andere Richtung.
+
+> **Eine Ausnahme, die einen Lesefehler ausgleicht, sieht aus wie ein bekanntes
+> Loch — und verschwindet erst, wenn jemand den Leser berichtigt.**
+
+**Der dritte kostete zwei Leerzeichen:** Die Hülle hat 64 Zeilen um zwei Stellen
+eingerückt, und zwei Eingriffe des Bruchskripts fanden ihren Text nicht mehr.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand sie um zwei Leerzeichen verschiebt.**
+
+**Und eine Zeile der Gegenprobe war Messmittel und kein Befund:** `unter
+Regelwerk` lief als *„Verwaltet vonnftablesnftablesführt Regeln…"* zusammen,
+weil der `textContent` einer Tabelle Zellen ohne Trenner aneinandersetzt.
+
+> **Ein Rohdruck, der Zellen ohne Trenner aneinandersetzt, sieht kaputt aus und
+> misst nichts über die Anzeige.**
+
+**Was benannt offen bleibt** (`docs/114 §12`): dass Befund 4 hinter `rc.29`
+liegt und **keinen Server gesehen** hat, eine ungeklärte
 Konsolenmeldung, und dass `Verwaltet von: nftables` die **Maschine** nennt und
 nicht den Schreiber — `nft list ruleset` nennt in seinen eigenen Warnungen
 dreimal `iptables-nft`, und `inet f2b-table` gehört fail2ban. Das ist nach
@@ -4280,6 +4358,43 @@ Testen berücksichtigen:
   eines Wächters ist das der Weg zurück — und wenn im selben Verzeichnis noch
   nicht Eingechecktes liegt, ist es danach fort. `tests/waechter-brechen.sh`
   weigert sich deshalb bei schmutzigem `resources/`; von Hand gilt dasselbe.
+- **Eine Freigabe lässt sich aus diesem Container nicht setzen — der Tag ist
+  der Griff des Betreibers.** Gemessen am 8. September 2026 an
+  `v0.7.3-rc.29`: Ein Branch-Ref liess sich fortschreiben
+  (`cb9e6e15..81e13d89`, dieselbe Leitung, dieselbe Minute), ein Tag-Ref nicht
+  anlegen — **zweimal `HTTP 403`**, und `recentRelayFailures` des Proxys blieb
+  beide Male leer. Die Abweisung kommt also von GitHub und nicht von der
+  Egress-Politik.
+
+  **Ob es an der Art des Refs liegt oder am Anlegen überhaupt, ist nicht
+  gemessen.** Hier steht eine Grenze und nicht ihre Ursache.
+
+  Der Bestand sagt dasselbe: Alle Freigaben tragen `philf90
+  <philipp@pf90.de>` mit Versatz **+0200**, dieser Container läuft in UTC, und
+  `v0.7.3-rc.28` kam beim `fetch` als `* [new tag]` herein — es hat hier nie
+  existiert.
+
+  > **Sechsmal steht in diesem Abschnitt, dass „es ist nicht da" und „es geht
+  > nicht" zwei Sätze sind, und jedes Mal widerlegt der Versuch die Sperre.
+  > Hier gilt der zweite — und deshalb steht er da.**
+
+  **`workflow_dispatch` ist kein Ersatz**, abgelesen an `release.yml`: Sowohl
+  „Freigabenotiz aus dem Tag" als auch „GitHub-Release" hängen an
+  `if: startsWith(github.ref, 'refs/tags/')`. Ein Dispatch baute und signierte,
+  legte **kein** Release an — und `repository` aktualisiert die Paketquelle
+  trotzdem. Das ist genau der halbe Zustand, vor dem der Kommentar in diesem
+  Lauf selbst warnt.
+
+  **Was hier geht und hierher gehört:** die Notiz vorbereiten und gegen beide
+  Wächter messen (`packaging/version-channel.sh` für den Kanal,
+  `packaging/release-notes.sh` für die Botschaft), den Commit nennen, den
+  Befehl fertig hinschreiben — und den lokal angelegten Tag danach **wieder
+  löschen**. Sonst steht er beim nächsten `fetch` als
+  `! [rejected] … (would clobber existing tag)` im Weg; in diesem Zustand
+  steckt `v0.7.3-rc.11` und meldet sich bei jedem Holen.
+
+  > **Ein lokaler Tag, den die Fernkopie nicht kennt, ist keine halbe Freigabe
+  > — er ist ein Stolperstein bei jedem `fetch`.**
 
 ---
 

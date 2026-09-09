@@ -2746,7 +2746,7 @@ auch er erfüllt. Der Plan ist `docs/109`, der Lauf `docs/110`, das Protokoll
 **Damit ist P7b vollständig** — A5, A9, A2, A10, A12, A14, A1, A11, A8, A6 und
 A3s erster Wurf, alle abgenommen. **Die Übergabe danach ist `docs/115`**: der
 Stand in Zahlen, die sechs Gewohnheiten, die benannt offenen Reste, was P8 ist
-und die **sechs Messungen, die vor seinen Plan gehören** — darunter die, die
+und die **sieben Messungen, die vor seinen Plan gehören** — darunter die, die
 seine Form entscheidet: ob ein wiederhergestelltes Abonnement seinen alten
 Systembenutzernamen zurückbekommt, den `Lifecycle::claim()` seit `docs/35`
 dauerhaft verbraucht. Die Stufenzeile in `docs/81 §12.1` nannte bis
@@ -2873,8 +2873,13 @@ weil der `textContent` einer Tabelle Zellen ohne Trenner aneinandersetzt.
 > **Ein Rohdruck, der Zellen ohne Trenner aneinandersetzt, sieht kaputt aus und
 > misst nichts über die Anzeige.**
 
-**Was benannt offen bleibt** (`docs/114 §12`): dass Befund 4 hinter `rc.29`
-liegt und **keinen Server gesehen** hat, eine ungeklärte
+**Befund 4 hat am 9. September einen Server gesehen** (`docs/114 §14`): gegen
+`0.7.3-rc.30` auf `cloudsrv24` steht bei totem Agenten
+`Bereiche : Ports und Regelwerk , Regelwerk` und bei laufendem alle vier. Die
+Fassung bringt als einzige ausgelieferte Änderung diese Hülle mit — ein Nachlauf
+gegen eine Fassung, die vieles mitbringt, misst nicht die eine Behebung.
+
+**Was benannt offen bleibt** (`docs/114 §12`): eine ungeklärte
 Konsolenmeldung, und dass `Verwaltet von: nftables` die **Maschine** nennt und
 nicht den Schreiber — `nft list ruleset` nennt in seinen eigenen Warnungen
 dreimal `iptables-nft`, und `inet f2b-table` gehört fail2ban. Das ist nach

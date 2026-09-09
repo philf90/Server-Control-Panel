@@ -2,7 +2,7 @@
 
 Geschrieben am **9. September 2026**, nachdem Punkt 6 des A3-Laufs gegen
 `0.7.3-rc.29` nachgemessen war und damit **die letzte offene Abnahme von P7b**
-fiel. Auf `cloudsrv24` läuft `0.7.3-rc.29`.
+fiel. Auf `cloudsrv24` läuft seit demselben Abend **`0.7.3-rc.30`**.
 
 **Dieses Dokument ersetzt nichts.** Der Plan ist `docs/20`, die Lehren stehen in
 `CLAUDE.md`, der Zuschnitt von P7b in `docs/81 §12.1`. Hier steht, was eine neue
@@ -117,10 +117,12 @@ Dokument an und nicht bei null.
 
 **Aus P7b, frisch:**
 
-- **Der Befund an „Dienste" und „Timer"** (`docs/114 §13.3`) — bei totem Agenten
-  standen beide mit ihrer Kopfzeile über null Zeilen. Behoben und **auf keinem
-  Server nachgesehen**: Die Behebung liegt hinter `rc.29`. *Das ist die eine
-  Messung, die als Nächstes fällig ist.*
+- ~~**Der Befund an „Dienste" und „Timer"**~~ (`docs/114 §13.3`) — bei totem
+  Agenten standen beide mit ihrer Kopfzeile über null Zeilen. **Erledigt:** am
+  9. September auf `cloudsrv24` gegen `0.7.3-rc.30` nachgesehen, mit Gegenprobe
+  (`docs/114 §14`). Er stand hier als die eine fällige Messung — sie ist
+  gefahren, und **P7b hat damit keinen offenen Rest mehr aus dem eigenen
+  Bauen.**
 - **Die ungeklärte Konsolenmeldung auf `/services`** (`docs/114 §9.7`) — ein
   Inkognito-Fenster entscheidet sie.
 - **`Verwaltet von: nftables` nennt die Maschine und nicht den Schreiber**
@@ -171,7 +173,7 @@ funktionieren — **durch einen automatisierten Lauf, nicht von Hand.**
 ### 6.1 Was vor dem Plan zu messen ist
 
 Jede Stufe seit P5b hat ihre Messrunde **vor** dem Plan gehabt, und jede hat den
-Entwurf umgeworfen. Diese sechs Fragen stehen aus gemessenen Gründen da, nicht
+Entwurf umgeworfen. Diese sieben Fragen stehen aus gemessenen Gründen da, nicht
 aus Vollständigkeit:
 
 1. **Was kostet eine Dateisicherung — in Zeit und in Platz?** Für Datenbanken
@@ -200,7 +202,25 @@ aus Vollständigkeit:
    Namen hängen `/var/www/vhosts/<benutzer>`, die Dateirechte und
    `/etc/cron.d/srvpanel-<benutzer>`. **Das entscheidet die Form der
    Wiederherstellung** und gehört vor die erste Zeile Plan.
-6. **Wie meldet ein langer Lauf seinen Ausgang?** Form A aus `docs/86 §5`: Ein
+6. **Speichert eine Sicherung die Beschreibung oder die erzeugte Datei?** Der
+   Inhalt eines Server-Blocks wird **erzeugt** und nicht abgelegt: `SiteTemplate`
+   im Agenten baut ihn, `web.site.apply` ist der einzige Weg dorthin. A10 hält
+   jede Vhost-Datei **je Form** gegen `SiteTemplate::PROMISED_BY_FORM` — „Die
+   Form ist bekannt, wenn die Datei geschrieben wird, und sie ist bekannt, wenn
+   sie geprüft wird." Eine Wiederherstellung, die eine gesicherte Datei
+   **wörtlich zurückspielt**, legt damit etwas ab, das keine Vorlage erzeugt
+   hat; stammt sie aus einer älteren Fassung, meldet der Nachtlauf sie in der
+   Nacht darauf als `directive_lost`. Dasselbe gilt für `pg_hba.conf` und die
+   Cron-Dateien — überall dort schreibt ein verwalteter Bereich.
+
+   > **Eine Sicherung, die erzeugte Dateien aufhebt, sichert den Ausgang einer
+   > Rechnung und nicht ihre Eingaben — und die Rechnung ändert sich mit der
+   > nächsten Fassung.**
+
+   Das hängt an Frage 5 und ist nicht dieselbe: 5 fragt, ob die
+   Wiederherstellung **dieselben Pfade** trifft, 6 fragt, ob sie sie **neu
+   erzeugt oder zurückspielt**. Beide Antworten zusammen ergeben die Form.
+7. **Wie meldet ein langer Lauf seinen Ausgang?** Form A aus `docs/86 §5`: Ein
    Vorgang, der nur absetzt, sagt über den Ausgang nichts, und `fertig` liest
    sich wie das Gegenteil. `AwaitDispatchedRun` liest das Urteil nach — gebaut
    für apt. Ob dieselbe Form für eine Sicherung trägt oder ob sie Fortschritt
@@ -229,9 +249,11 @@ Wer sie vorzieht, verschiebt eine Zeile in `docs/20 §9` und in `docs/81 §12.1`
 
 ## 7 · Der Zustand von `cloudsrv24`
 
-- Fassung **`0.7.3-rc.29`**, Kanal `beta`.
-- **Was `rc.29` nicht enthält:** die Hülle um „Dienste" und „Timer"
-  (`fc108469`). Sie liegt auf dem Zweig und wartet auf die nächste Freigabe.
+- Fassung **`0.7.3-rc.30`**, Kanal `beta` — freigegeben am 9. September auf
+  `61a88997`. Ihre einzige ausgelieferte Änderung gegenüber `rc.29` ist die
+  Hülle um „Dienste" und „Timer" (`fc108469`); alles andere in dem Sprung ist
+  Dokumentation und Prüfmittel. Das war Absicht: Ein Nachlauf gegen eine
+  Fassung, die vieles mitbringt, misst nicht die eine Behebung.
 - Vier Dauerdienste und fünf Timer unter `srvpanel.target`; `stop` und `start`
   des Ziels sind am 4. September gemessen (`docs/100 §9.10`).
 - Die Bestandsdiagnose läuft nachts und meldet die beiden Reste aus §5.
@@ -250,11 +272,13 @@ Wer sie vorzieht, verschiebt eine Zeile in `docs/20 §9` und in `docs/81 §12.1`
 2. **Nachsehen, ob `vendor/autoload.php` da ist** — nicht, ob `vendor/`
    existiert. Ohne ihn prüft allein die CI, und jede Änderung kostet eine Runde.
    Der Weg zurück steht in „Diese Umgebung" (drei composer-Einstellungen).
-3. **Den offenen Rest aus §5 messen**, sobald eine Fassung mit `fc108469`
-   ausgeliefert ist: Agent anhalten, `/services` neu laden — unter „Dienste" und
-   „Timer" darf keine Kopfzeile über null Zeilen stehen. Dann Agent starten,
-   Gegenprobe.
-4. **Erst dann planen.** Für P8 heisst das: die sechs Messungen aus §6.1 fahren,
+3. **Nichts nachzumessen.** Dieser Schritt hiess bis zum Abend des
+   9. September „den offenen Rest aus §5 messen, sobald eine Fassung mit
+   `fc108469` ausgeliefert ist". `0.7.3-rc.30` hat ihn ausgeliefert, und die
+   Messung ist gefahren (`docs/114 §14`). **P7b hat keinen offenen Rest mehr
+   aus dem eigenen Bauen** — was in §5 stehenbleibt, ist entweder eine
+   Entwurfsentscheidung oder gehört einer anderen Stufe.
+4. **Erst dann planen.** Für P8 heisst das: die sieben Messungen aus §6.1 fahren,
    das Ergebnis als `docs/81`-artigen Abschnitt festhalten, die Fragen aus §6.2
    dem Betreiber vorlegen — **und danach** den Plan schreiben.
 

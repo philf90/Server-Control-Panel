@@ -191,6 +191,21 @@ final class AuditQuery
             'result' => $event->result->value,
             'result_label' => $event->result->label(),
             'account_id' => $event->account_id,
+
+            /*
+             * **Wer gehandelt hat, als lesbarer Satz** (`docs/901 §3.4`).
+             *
+             * Bis zum 9. September 2026 stand hier `account_id` und sonst
+             * nichts: eine Zahl, die die Seite gar nicht rendert und die im
+             * CSV unter der Überschrift „Konto" als nackte Kennung landet. Der
+             * Beleg, den jemand drei Jahre aufhebt, sagte damit „Konto 3".
+             *
+             * > **Ein Feld im Payload ist noch keine Spalte.**
+             *
+             * Die Kennung bleibt daneben stehen — die Seite verknüpft damit auf
+             * das Konto, solange es das gibt.
+             */
+            'account' => $event->actor(),
             'acting_as_account_id' => $event->acting_as_account_id,
             'subscription_id' => $event->subscription_id,
             'target' => $event->target_type !== null

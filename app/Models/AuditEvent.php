@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\AuditResult;
+use App\Models\Concerns\RecordsTheActor;
 use Database\Factories\AuditEventFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +27,7 @@ use Illuminate\Support\Carbon;
  *
  * @property int $id
  * @property int|null $account_id
+ * @property string|null $account_name
  * @property int|null $acting_as_account_id
  * @property int|null $subscription_id
  * @property string $action
@@ -43,9 +45,19 @@ use Illuminate\Support\Carbon;
 class AuditEvent extends Model
 {
     /** @use HasFactory<AuditEventFactory> */
-    use HasFactory;
+    use HasFactory, RecordsTheActor;
 
     public const UPDATED_AT = null;
+
+    /*
+     * `account_name` steht mit Absicht **nicht** in `$fillable`.
+     *
+     * Es ist eine Abschrift und keine Eingabe — dieselbe Begründung wie bei
+     * `Operation::$subscription_name` seit `docs/35`: Wäre die Spalte füllbar,
+     * gäbe es einen zweiten Weg, sie zu setzen, und damit einen Eintrag, der
+     * einen Handelnden nennt, den es nie gab. Geschrieben wird sie
+     * ausschliesslich in {@see RecordsTheActor::bootRecordsTheActor()}.
+     */
 
     /** @var list<string> */
     protected $fillable = [

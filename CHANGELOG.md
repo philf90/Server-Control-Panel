@@ -27026,3 +27026,77 @@ Regeln, die ein neuer Rang braucht.
 
   Die Kennung wird seitdem aus dem gebauten Stylesheet abgeleitet, und der
   Aufsatz bricht ab, wenn er sie nicht findet.
+
+### Das Protokoll behält den Namen — Schritt 1 bis 3 aus `docs/901`
+
+Geplant in `docs/901`, gebaut am 9. September 2026. **Das Löschen von
+Adminkonten gibt es damit noch nicht** — was hier entsteht, ist die
+Voraussetzung dafür: `audit_events.account_id` und `operations.account_id`
+stehen auf `nullOnDelete()`, und bis hierher zog ein gelöschtes Konto seine
+ganze Geschichte auf `null`.
+
+> **Löschen und Vergessen sind zwei Dinge. Die Zeile darf verschwinden; was sie
+> getan hat, darf es nicht.**
+
+- **Zwei Spalten und ein Nachtrag, den es genau einmal gibt.**
+  `audit_events.account_name` und `operations.account_name` tragen den Namen
+  dessen, der gehandelt hat — abgeschrieben beim **Anlegen** der Zeile, wie
+  `subscription_name` seit `docs/35`. Die Migration trägt ihn für alle
+  Bestandszeilen nach; sind die Konten erst fort, kann keine spätere Migration
+  sie rekonstruieren.
+
+  Der Nachtrag kann dabei nur den **heutigen** Namen schreiben, auch auf Zeilen,
+  die unter einem früheren entstanden sind — der frühere steht nirgends. Ab hier
+  hält die Abschrift fest, was zum Zeitpunkt der Handlung galt.
+
+  > **Ein Nachtrag kann nur abschreiben, was heute dasteht — nicht, was damals
+  > galt.**
+
+- **Geschrieben beim Anlegen und nicht beim Löschen, und das ist die
+  Entscheidung.** Namen ändern sich; wer erst beim Löschen schriebe, stempelte
+  den **letzten** Namen auf Zeilen, die unter einem früheren entstanden sind.
+  `RecordsTheActor` setzt ihn im `creating`-Ereignis — an **einer** Stelle je
+  Modell und nicht an den sechzehn, die Zeilen anlegen.
+
+  > **Was jede Stelle anders weiss, gehört an die Stelle. Was überall dasselbe
+  > ist, gehört an eine — und die muss eine sein, an der niemand vorbeikommt.**
+
+- **Kein Sammelname für Gelöschte, und der Grund ist gemessen.**
+  `account_id = NULL` trägt hier **schon** eine Bedeutung: `srvpanel access`
+  schreibt seinen Eintrag ohne Konto, weil auf der Kommandozeile niemand
+  angemeldet ist, und `Operations::dispatch()` tut dasselbe für jede Automatik.
+  Ein Sammelname beschriftete damit jeden Cron-Lauf als gelöschten Benutzer.
+
+  > **Eine Null, die schon eine Bedeutung trägt, kann keine zweite bekommen —
+  > die beiden Fälle sehen danach gleich aus.**
+
+  Als **Anzeige** ist das Wort trotzdem richtig, und genau dafür lohnt die
+  Spalte: Kennung leer und Abschrift leer heisst `System`, Kennung leer und
+  Abschrift gesetzt heisst `Anna Berger (gelöscht)`.
+
+- **`/audit` hat jetzt eine Spalte für den Handelnden — sie hatte nie eine.**
+  `account_id` stand seit P2 in der Ablage und wurde von keiner Zeile
+  gerendert; der CSV-Export schrieb unter „Konto" die nackte Kennung. Der
+  Bann auf das Löschen schützte damit eine Auskunft, die niemand sah.
+
+  > **Ein Feld im Payload ist noch keine Spalte.**
+
+  **Die Spalte der Ausfuhr heisst deshalb `Wer` und nicht mehr `Konto`** — sie
+  trägt einen Satz statt einer Kennung, und `System` ist kein Konto. Wer den
+  Export einliest, liest eine geänderte Kopfzeile.
+
+- **`/operations/{id}` unterscheidet „System" von „—".** Dort stand
+  `$operation->account?->name` mit einem Strich als Rückfall — derselbe Strich
+  für einen Vorgang der Automatik wie für einen, dessen Konto fort ist.
+
+**Gemessen** (Container, echtes Chromium, gebautes Stylesheet): Die siebte
+Spalte kostet bei üblichen Namen nichts — bei 390 px und bei 1440 px `doku=0`
+und kein Rollen, Gegenprobe 200. Erst ein Name von 90 Zeichen lässt `.scrolls`
+bei 1440 px um 369 px rollen, und dafür gibt es den Behälter. Die Bilderrunde
+auf der echten Seite steht noch aus (`docs/901 §7`, Schritt 8).
+
+**Der Wächter ist `ActorLabelTest`**, mit sechs Eingriffen in
+`tests/waechter-brechen.sh`, jeder einzeln gefahren und rot: keine Abschrift,
+kein Zusatz „gelöscht", die Automatik als gelöschter Benutzer, der Handelnde
+nicht in der Ablage, die Kennung statt des Namens in der Ausfuhr, und der
+Nachtrag ohne Wirkung.

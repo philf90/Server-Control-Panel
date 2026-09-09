@@ -4070,6 +4070,28 @@ Testen berücksichtigen:
     Gefangen hat es nur die Gegenprobe: ein absichtliches `strlen(42)`, das
     eine Zeile erzeugen **muss**. Ohne sie wäre der Lauf als grün durchgegangen.
 
+    **Und ein Trait allein ergibt null Zeilen — auch mit einem offensichtlich
+    falschen Rückgabetyp.** Gemessen am 9. September 2026 an
+    `App\Models\Concerns\RecordsTheActor`: `return strlen(42);` in einer
+    Methode, die `: string` zusagt, ergibt über die Trait-Datei allein **rc=0
+    und keine Ausgabe**; dieselbe Zeile in einer frisch angelegten Klasse ergibt
+    zwei Meldungen. Mit den beiden nutzenden Modellen im selben Lauf kommen
+    vier — „in context of class …".
+
+    > **Ein Trait wird nur im Kontext seiner Nutzer geprüft. Über ihn allein
+    > gefahren, ist die leere Ausgabe kein Freispruch, sondern eine Messung, die
+    > nicht stattgefunden hat.**
+
+    Das ist die Familie von „Ein Prüfer, dem die Schnittstelle fehlt" eine
+    Ebene weiter, und die gefährlichere Richtung: Dort meldet er etwas
+    Falsches, hier gar nichts. **Wer einen Trait prüft, nimmt seine Nutzer mit
+    in den Lauf** — und belegt die Stille mit einem absichtlich falschen Typ,
+    dessen Einsetzen er vorher nachgesehen hat.
+
+    > **Eine Gegenprobe, bei der man nicht nachsieht, ob der Eingriff wirklich
+    > in der Datei steht, belegt nichts — sie sieht genauso aus wie eine, die
+    > durchgelaufen ist.** Der erste Anlauf hier hat genau das getan.
+
     **Und `tests/Support/` gehört in denselben Lauf wie `agent/src`.** Die
     Testdoppel dort hängen am Agenten und nicht am Framework, also läuft Stufe 6
     auch über sie sauber durch. Wer das trennt, sieht die teuerste Meldung

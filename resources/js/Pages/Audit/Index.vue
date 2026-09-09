@@ -23,6 +23,7 @@ interface Row {
   result: string
   result_label: string
   account_id: number | null
+  account: string
   acting_as_account_id: number | null
   subscription_id: number | null
   target: string | null
@@ -100,8 +101,8 @@ function exportUrl(): string {
           <table class="stacks">
             <thead>
               <tr>
-                <th>Zeitpunkt</th><th>Aktion</th><th>Ergebnis</th><th>Ziel</th>
-                <th>Einzelheiten</th><th>IP</th>
+                <th>Zeitpunkt</th><th>Aktion</th><th>Ergebnis</th><th>Wer</th>
+                <th>Ziel</th><th>Einzelheiten</th><th>IP</th>
               </tr>
             </thead>
             <tbody>
@@ -111,6 +112,20 @@ function exportUrl(): string {
                 <td data-column="Ergebnis">
                   <Badge :kind="rang(row.result)">{{ row.result_label }}</Badge>
                 </td>
+                <!--
+                  **Wer gehandelt hat** (`docs/901 §3.4`). Diese Spalte gab es
+                  bis zum 9. September 2026 nicht: `account_id` stand in der
+                  Ablage und wurde von keiner Zeile dieser Seite gerendert.
+
+                  > **Ein Feld im Payload ist noch keine Spalte.**
+
+                  Den Satz baut `RecordsTheActor::actor()`, damit Liste,
+                  Ausfuhr und Vorgangsseite denselben lesen. Hier steht keine
+                  Zusammensetzung und keine zweite Bedingung — insbesondere
+                  keine über `account_id`, denn welcher der drei Zustände
+                  vorliegt, entscheidet dort schon jemand.
+                -->
+                <td data-column="Wer">{{ row.account }}</td>
                 <td data-column="Ziel" class="quiet">{{ row.target ?? '—' }}</td>
 
                 <!--
@@ -127,7 +142,7 @@ function exportUrl(): string {
                 <td data-column="IP" class="ident quiet">{{ row.ip_address ?? '—' }}</td>
               </tr>
               <tr v-if="events.data.length === 0">
-                <td colspan="6" class="quiet">Keine Einträge für diese Auswahl.</td>
+                <td colspan="7" class="quiet">Keine Einträge für diese Auswahl.</td>
               </tr>
             </tbody>
           </table>

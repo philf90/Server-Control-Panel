@@ -26794,6 +26794,122 @@ pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 
 echo
+echo "── ActorLabelTest: die Abschrift entsteht nicht mehr ──"
+#
+# Ohne sie zieht ein gelöschtes Konto seine ganze Geschichte auf `null` — genau
+# der Grund, aus dem `docs/82 §9` das Löschen offengelassen hat.
+vorher_datei app/Models/Concerns/RecordsTheActor.php
+python3 - <<'PY2'
+p = 'app/Models/Concerns/RecordsTheActor.php'
+s = open(p, encoding='utf-8').read()
+alt = "is_string($name) ? $name : null"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'null', 1))
+PY2
+griff_datei app/Models/Concerns/RecordsTheActor.php "keine Abschrift" &&
+pruefe "keine Abschrift" \
+  ActorLabelTest::test_a_row_of_a_deleted_account_keeps_its_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActorLabelTest passed
+
+echo
+echo "── ActorLabelTest: gelöscht und lebend sehen gleich aus ──"
+#
+# Der Zusatz ist die einzige Stelle, an der ein Leser erfährt, dass es das Konto
+# nicht mehr gibt — die Kennung daneben ist dann `null`.
+vorher_datei app/Models/Concerns/RecordsTheActor.php
+python3 - <<'PY2'
+p = 'app/Models/Concerns/RecordsTheActor.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return $this->account_id === null ? $name.' (gelöscht)' : $name;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        return $name;', 1))
+PY2
+griff_datei app/Models/Concerns/RecordsTheActor.php "kein Zusatz" &&
+pruefe "kein Zusatz" \
+  ActorLabelTest::test_a_row_of_a_deleted_account_keeps_its_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActorLabelTest passed
+
+echo
+echo "── ActorLabelTest: die Automatik wird zum gelöschten Benutzer ──"
+#
+# **Der teuerste denkbare Fehler dieser Spalte.** `account_id = NULL` heisst auf
+# der Kommandozeile und in der Automatik „niemand war angemeldet". Wer beide
+# Nullfälle gleich benennt, beschriftet jeden Cron-Lauf als gelöschten Benutzer.
+vorher_datei app/Models/Concerns/RecordsTheActor.php
+python3 - <<'PY2'
+p = 'app/Models/Concerns/RecordsTheActor.php'
+s = open(p, encoding='utf-8').read()
+alt = "    public const NOBODY = 'System';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "    public const NOBODY = 'Gelöschter Benutzer';", 1))
+PY2
+griff_datei app/Models/Concerns/RecordsTheActor.php "Automatik als gelöscht" &&
+pruefe "Automatik als gelöscht" \
+  ActorLabelTest::test_a_row_without_an_account_reads_as_the_system failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActorLabelTest passed
+
+echo
+echo "── ActorLabelTest: der Handelnde steht wieder nur im Payload ──"
+#
+# Der Zustand bis zum 9. September 2026: `account_id` in der Ablage, von keiner
+# Zeile gerendert. Ein Feld im Payload ist noch keine Spalte.
+vorher_datei app/Support/Audit/AuditQuery.php
+python3 - <<'PY2'
+p = 'app/Support/Audit/AuditQuery.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'account' => $event->actor(),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Audit/AuditQuery.php "kein Handelnder in der Ablage" &&
+pruefe "kein Handelnder in der Ablage" \
+  ActorLabelTest::test_the_page_carries_the_actor failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActorLabelTest passed
+
+echo
+echo "── ActorLabelTest: die Ausfuhr schreibt wieder die Kennung ──"
+#
+# Der Beleg, den jemand drei Jahre aufhebt, sagte damit „Konto 3".
+vorher_datei app/Http/Controllers/AuditController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AuditController.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    $row['account'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                    $row['account_id'],", 1))
+PY2
+griff_datei app/Http/Controllers/AuditController.php "Kennung statt Name" &&
+pruefe "Kennung statt Name" \
+  ActorLabelTest::test_the_export_carries_the_actor failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActorLabelTest passed
+
+echo
+echo "── ActorLabelTest: der Nachtrag fällt aus ──"
+#
+# **Es gibt ihn genau einmal.** Ohne ihn verliert die erste Löschung die
+# Historie, um derentwillen der Bann bestand — und zwar lautlos, weil eine Zeile
+# ohne Abschrift aussieht wie eine der Automatik.
+vorher_datei database/migrations/2026_09_09_120000_the_log_keeps_the_name_of_a_deleted_account.php
+python3 - <<'PY2'
+p = 'database/migrations/2026_09_09_120000_the_log_keeps_the_name_of_a_deleted_account.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $this->carryTheNamesOver();"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei database/migrations/2026_09_09_120000_the_log_keeps_the_name_of_a_deleted_account.php "kein Nachtrag" &&
+pruefe "kein Nachtrag" \
+  ActorLabelTest::test_the_migration_carries_the_names_of_existing_rows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActorLabelTest passed
+
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

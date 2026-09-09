@@ -683,6 +683,60 @@ Vorzustand festhalten, gehören vor dem Suchen abgestreift
 
 ---
 
+## 8a. Was beim Bauen von Schritt 1 bis 3 anders war als im Plan
+
+**Gebaut am 9. September 2026.** Die Schritte 1, 2 und 3 stehen; 4 bis 9 nicht.
+Vier Stellen sind beim Bauen anders entschieden worden als hier geplant, und
+eine Messung hat eine Sorge ausgeräumt.
+
+**a) Der Satz wohnt in einem Trait und nicht in `AuditQuery`.** §3.4 sah vor,
+ihn in `toArrayRow()` zu bauen — das trägt für Liste und Ausfuhr und **nicht**
+für `/operations/{id}`, das dieselbe Frage stellt. Zwei Fassungen desselben
+Satzes an zwei Orten sind genau das, wogegen die Begründung in §3.4 argumentiert.
+`App\Models\Concerns\RecordsTheActor` trägt jetzt beides: die Abschrift im
+`creating`-Ereignis und `actor()` für alle drei Oberflächen.
+
+**b) Der Nachtrag geht über alle Konten und nicht nur über Adminkonten.** §3.3
+schrieb `where('type', 'admin')`. Das hätte einen vierten Zustand hinterlassen —
+Kennung gesetzt, Abschrift leer —, den keine Anzeige braucht. Die Regel lautet
+jetzt schlicht: **Wo eine Kennung steht, steht auch ein Name.**
+
+**c) Der Rückruf greift über `getAttribute()` und nicht über die magische
+Eigenschaft.** `static::creating(function (Model $model))` bekommt ein `Model`,
+und das kennt weder `account_id` noch `account_name`. PHPStan meldet dafür vier
+undefinierte Eigenschaften. `BelongsToSubscription` macht es seit P1 richtig;
+der erste Wurf hier hat es nicht abgeschaut.
+
+**d) Zwei Verweise stehen als Prosa und nicht als `{@see}`.** Pint zieht aus
+einer Marke einen `use`-Eintrag — und damit zeigte ein Modell-Concern auf ein
+Konsolenkommando und auf die Autorisierung. `AccountMutationTest` hält es aus
+demselben Grund so.
+
+> **Ein Wächter, den man vor dem Formatierer prüft, ist nicht der, der ins Repo
+> geht.** Hier war es kein Wächter, sondern eine Abhängigkeitsrichtung.
+
+**Und die Sorge aus §5.5 ist gemessen und ausgeräumt.** Im Container gegen
+echtes Chromium, mit dem gebauten Stylesheet und dem echten Markup:
+
+| Fall | 390 px | 1440 px |
+|---|---|---|
+| sechs Spalten (vorher) | `doku=0`, rollt 0 | `doku=0`, rollt 0 |
+| sieben Spalten, übliche Namen | `doku=0`, rollt 0 | `doku=0`, rollt 0 |
+| sieben Spalten, Name aus 90 Zeichen | `doku=0`, rollt 0 | `doku=0`, **rollt 369** |
+
+Gegenprobe in jeder Lage 200, und die Zelle ragt in keiner über ihre Tabelle
+hinaus. **Die Spalte selbst kostet nichts**; was kostet, ist ein sehr langer
+Name bei grosser Breite — und dann rollt `.scrolls`, wofür es den Behälter gibt.
+
+> **Ein Prüfkörper, dessen Ausschlag am Inhalt hängt, misst den Inhalt und nicht
+> die Spalte.** Die erste Fassung dieser Messung fuhr nur den 90-Zeichen-Namen
+> und hätte die Spalte für etwas gemeldet, das der Name tut.
+
+**Was das nicht ersetzt:** die Bilderrunde auf der echten Seite mit echten Daten
+(Schritt 8). Sie steht aus.
+
+---
+
 ## 9. Was benannt offen bleibt
 
 - **Zwei Konten mit demselben Namen.** Nach dem Löschen beider sind ihre
@@ -692,6 +746,10 @@ Vorzustand festhalten, gehören vor dem Suchen abgestreift
   Zeitraums, ist sie nicht zur Hand. **Bewusst so entschieden**, weil das
   Vorbild `subscription_name` es ebenso hält; wer es anders will, nimmt die
   Kennung mit in die Abschrift.
+- **Die Spalte „Im Kontext von" der Ausfuhr trägt weiter eine Kennung.** Sie
+  nennt bei „Anmelden als" das Kundenkonto; eine Abschrift braucht sie nach
+  §3.1 nicht, einen Namen in der Anzeige hätte sie trotzdem verdient. Der
+  kostete eine Abfrage je Zeile im Export und ist deshalb hier nicht gebaut.
 - **Das Protokoll des Agenten bleibt ausserhalb.**
   `RunAgentOperation::actor()` schickt `account_id` als Zahl mit; der Agent
   schreibt sie in seine eigene Datei. Die ist anhängend, liegt ausserhalb der

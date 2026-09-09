@@ -78,7 +78,7 @@ final class AuditController extends Controller
             }
 
             fputcsv($handle, [
-                'Zeitpunkt (UTC)', 'Aktion', 'Ergebnis', 'Konto', 'Im Kontext von',
+                'Zeitpunkt (UTC)', 'Aktion', 'Ergebnis', 'Wer', 'Im Kontext von',
                 'Abonnement', 'Ziel', 'Einzelheiten', 'IP',
             ]);
 
@@ -108,7 +108,25 @@ final class AuditController extends Controller
                     $event->created_at?->toDateTimeString(),
                     $row['action'],
                     $row['result_label'],
-                    $row['account_id'],
+                    /*
+                     * **Der Name und nicht die Kennung** (`docs/901 §3.4`).
+                     * Hier stand `account_id`, und damit sagte der Beleg, den
+                     * jemand drei Jahre aufhebt, „Konto 3". Der Satz kommt aus
+                     * derselben Abbildung wie die Seite; zwei Formulierungen
+                     * liefen auseinander.
+                     *
+                     * `harmless()` weiter unten entschärft ihn: Ein Name kommt
+                     * aus einem Formular und darf mit `=` anfangen.
+                     */
+                    $row['account'],
+
+                    /*
+                     * **Bleibt die Kennung**, und das ist kein Versehen: Sie
+                     * trägt bei „Anmelden als" das **Kundenkonto**, und dieser
+                     * Weg löscht nur Adminkonten (`docs/901 §3.1`). Sie ist
+                     * also nachschlagbar, solange es sie gibt — eine Abschrift
+                     * dafür wäre ein Feld ohne Fall.
+                     */
                     $row['acting_as_account_id'],
                     $row['subscription_id'],
                     $row['target'],

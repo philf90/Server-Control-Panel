@@ -269,7 +269,15 @@ final class OperationController extends Controller
             'open' => $operation->open(),
             'progress' => $operation->progress,
             'message' => $operation->message,
-            'account' => $operation->account?->name,
+            /*
+             * **Über die Abschrift und nicht über die Beziehung**
+             * (`docs/901 §3.4`). Hier stand `$operation->account?->name`; nach
+             * dem Löschen des Kontos steht dort `nullOnDelete()` und die Seite
+             * zeigte „—" — denselben Strich wie ein Vorgang der Automatik, der
+             * nie ein Konto hatte. {@see \App\Models\Concerns\RecordsTheActor}
+             * hält die beiden auseinander.
+             */
+            'account' => $operation->actor(),
             'started_at' => Clock::display($operation->started_at),
             'finished_at' => Clock::display($operation->finished_at),
             // Angefordert, nicht vollzogen — solange der Vorgang noch offen

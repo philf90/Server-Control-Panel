@@ -26,7 +26,7 @@ interface Operation {
   open: boolean
   progress: number
   message: string | null
-  account: string | null
+  account: string
   started_at: string | null
   finished_at: string | null
   cancel_requested: boolean
@@ -262,7 +262,7 @@ watch(output, () => {
               <td class="quiet">Zustand</td>
               <td class="right"><Badge :kind="rang" :running="open">{{ label }}</Badge></td>
             </tr>
-            <tr><td class="quiet">Ausgelöst von</td><td class="right name">{{ props.operation.account ?? '—' }}</td></tr>
+            <tr><td class="quiet">Ausgelöst von</td><td class="right name">{{ props.operation.account }}</td></tr>
             <tr><td class="quiet">Begonnen</td><td class="right">{{ startedAt ?? '—' }}</td></tr>
             <tr><td class="quiet">Beendet</td><td class="right">{{ finishedAt ?? '—' }}</td></tr>
           </tbody>

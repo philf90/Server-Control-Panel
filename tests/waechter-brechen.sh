@@ -469,6 +469,90 @@ pruefe "  … zurückgesetzt wieder grün" \
   ButtonStyleTest::test_the_label_on_a_button_stays_readable passed
 
 echo
+echo "── RankReachTest: der vierte Rang ohne seine Regel ──"
+# Der Wert aus `AnnouncementCategory::badge()` fährt in drei Bausteine, und
+# alle drei setzen die Klasse als Ausdruck. `ClassReachTest` kann sie daraus
+# nicht ableiten — ohne diesen Wächter wäre eine fehlende Regel eine Marke
+# ohne Farbe, sichtbar erst im Browser.
+vorher
+sed -i 's/^\.band\.info {$/.band.tot {/' resources/css/app.css
+griff "Regel zum Rang fort" &&
+pruefe "Regel zum Rang fort" \
+  RankReachTest::test_every_rank_has_a_rule_in_every_component failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  RankReachTest::test_every_rank_has_a_rule_in_every_component passed
+
+echo
+echo "── RankReachTest: eine .band-Regel, die niemand erzeugt ──"
+# Die Gegenrichtung, und an ihr entsteht ein toter Eintrag wirklich: Bei einer
+# Umbenennung trägt man den neuen Namen nach, die andere Richtung ist wieder
+# grün, und der alte bleibt liegen. Genau so ist `.band.ok` entstanden, als
+# `Info` seinen eigenen Rang bekam.
+vorher
+printf '\n.band.zombie {\n  color: var(--info);\n}\n' >> resources/css/app.css
+griff "Rangregel ohne Erzeuger" &&
+pruefe "Rangregel ohne Erzeuger" \
+  RankReachTest::test_every_band_rule_belongs_to_a_rank failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  RankReachTest::test_every_band_rule_belongs_to_a_rank passed
+
+echo
+echo "── SurfaceTokenTest: Markenfläche behält die Schrift der Seite ──"
+# Der naive Wurf: `--nav-bg` gesetzt, die Textmarken stehen gelassen. Inkberry
+# gegen `--text` der Seite ergibt 1,76:1 — der Streifen ist da, die Navigation
+# ist fort.
+vorher
+sed -i 's/^  --text: #d9d2e6;$/  --text: #3a3f49;/' resources/css/app.css
+griff "Schrift auf dem falschen Grund" &&
+pruefe "Schrift auf dem falschen Grund" \
+  SurfaceTokenTest::test_a_brand_surface_carries_its_own_type failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SurfaceTokenTest::test_a_brand_surface_carries_its_own_type passed
+
+echo
+echo "── SurfaceTokenTest: Feldgrenze auf der Markenfläche ──"
+vorher
+sed -i 's/^  --control-line: #9a86b8;$/  --control-line: #3a2954;/' resources/css/app.css
+griff "Feldgrenze unter 3:1" &&
+pruefe "Feldgrenze unter 3:1" \
+  SurfaceTokenTest::test_a_control_on_a_brand_surface_keeps_its_border failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SurfaceTokenTest::test_a_control_on_a_brand_surface_keeps_its_border passed
+
+echo
+echo "── ColorRoleTest: der Akzent im falschen Theme ──"
+# Electric Pink steht im dunklen Theme bei 8,54:1 und im hellen bei 2,21:1 —
+# nicht einmal als Linie zulässig. Bis zu diesem Wächter hätte ihn nur ein
+# Knopf gemeldet, als Textfarbe eines Verweises nichts.
+vorher
+sed -i 's/^  --accent: #3730a3;$/  --accent: #ff7fec;/' resources/css/app.css
+griff "Akzent im hellen Block unlesbar" &&
+pruefe "Akzent im hellen Block unlesbar" \
+  ColorRoleTest::test_the_accent_carries_its_own_theme failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ColorRoleTest::test_the_accent_carries_its_own_theme passed
+
+echo
+echo "── ColorRoleTest: --surface einen Schritt dunkler ──"
+# Der Fall, für den es diesen Wächter gibt: Die zweite Kurve hat auf
+# `--surface` im hellen Theme sechs Hundertstel Luft über den 3:1. Ein Schritt
+# an der Fläche nimmt sie ihr, und bis zum 9. September 2026 hätte das
+# niemand erfahren — die Zahl stand im Kommentar und daneben keine Prüfung.
+vorher
+sed -i 's/^  --surface: #fafafb;$/  --surface: #eceef2;/' resources/css/app.css
+griff "Kurve verliert ihre Zulässigkeit" &&
+pruefe "Kurve verliert ihre Zulässigkeit" \
+  ColorRoleTest::test_a_second_curve_stays_visible failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  ColorRoleTest::test_a_second_curve_stays_visible passed
+
+echo
 echo "── DesignTokensTest: eine Stufe, die niemand benutzt ──"
 vorher
 sed -i 's/^  --text-metric: 34px;/  --text-metric: 34px;\n  --text-riesig: 99px;/' resources/css/app.css

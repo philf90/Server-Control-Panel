@@ -47,7 +47,7 @@ final class ClassNameTest extends TestCase
         'account', 'action', 'active', 'address', 'after', 'agent', 'area', 'arrow', 'aside', 'badge', 'band', 'bands', 'bar',
         'back', 'blank',
         'block', 'branch', 'breadcrumb', 'button', 'cell', 'check', 'choice', 'choices', 'codes',
-        'clamped', 'code', 'command', 'comment', 'confirmation', 'content', 'critical', 'crumbs', 'cursor', 'danger',
+        'clamped', 'code', 'command', 'comment', 'confirmation', 'content', 'critical', 'info', 'crumbs', 'cursor', 'danger',
         'dependent',
         'description', 'detail',
         'place',
@@ -237,6 +237,34 @@ final class ClassNameTest extends TestCase
         $used = [
             // Am Wurzelelement gesetzt, aus PanelLayout.vue über `classList`.
             'menu-open',
+
+            /*
+             * **Der Rang einer Ankündigung kommt aus `badge()` und steht in
+             * keinem Template.** `Bands.vue`, `Announcements/Index.vue` und
+             * `Announcements/Show.vue` setzen ihn als Ausdruck
+             * (`:class="hinweis.badge"`); diese Schleife liest wörtliche
+             * Listen, Objektschlüssel und Ternäre, und ein Ausdruck ist
+             * keines davon.
+             *
+             * **`ok`, `warn` und `critical` stehen hier nicht, und das ist
+             * ein Zufall und keine Ordnung.** Sie werden erreicht, weil
+             * andere Stellen dieselben Wörter wörtlich hinschreiben —
+             * `class="notice ok"` für eine Erfolgsmeldung, `class="band warn"`
+             * für den Sichtwechsel, `class="notice critical"` für einen
+             * Fehler. `info` hat keinen solchen Zwilling, und damit fällt
+             * auf, was für alle vier gilt.
+             *
+             * > **Eine Regel, die nur erreicht wird, weil ein anderer
+             * > Baustein zufällig dasselbe Wort benutzt, ist nicht
+             * > gehalten — sie ist unentdeckt.**
+             *
+             * Dass der Rang trotzdem erreicht wird, hält `RankReachTest`
+             * fest: Er prüft in beide Richtungen, dass jeder Rückgabewert
+             * von `AnnouncementCategory::badge()` seine drei Regeln hat und
+             * jede `.band`-Regel ihren Erzeuger — dieselbe Bauart wie
+             * `FrontendDependencyTest` für die CodeMirror-Marken darunter.
+             */
+            'info',
 
             // **CodeMirror setzt diese selbst, und die Marken vergibt die
             // `HighlightStyle` in `CodeEditor.vue` als Zeichenkette.** In einem

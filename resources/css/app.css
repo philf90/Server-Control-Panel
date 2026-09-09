@@ -158,17 +158,35 @@
    * hier vergeben: `--ok` heisst in diesem Panel „in Ordnung". Eine zweite
    * Kurve ist keine Aussage über einen Zustand, sondern eine zweite Messgröße;
    * sie in der Zustandsfarbe zu zeichnen hiesse, dass ausgehender Verkehr
-   * gesund und eingehender neutral ist. Deshalb ein Petrol, das weder nach
-   * „gut" noch nach „Warnung" aussieht: 6,18:1 gegen den hellen Grund,
-   * 11,10:1 gegen den dunklen — beides über den 3:1, die WCAG 1.4.11 für ein
-   * grafisches Objekt verlangt.
+   * gesund und eingehender neutral ist. Gebraucht wird also eine Farbe, die
+   * weder nach „gut" noch nach „Warnung" aussieht.
+   *
+   * **Hier stand bis zum 9. September 2026 ein Petrol** (`#0b6b7a` hell,
+   * `#5cd7e8` dunkel). Das Pink erfüllt dieselbe Zusage — es ist keine
+   * Zustandsfarbe dieses Panels, der Abstand zu `--critical` beträgt im hellen
+   * Theme ΔE 53,7 — und es trägt in **beiden** Themes denselben Wert, was
+   * sonst keine Farbe dieses Systems tut.
+   *
+   * **Und es ist die enge Stelle dieses Gestaltungssystems.** Gegen `--bg`
+   * erreicht es 3,20:1, gegen `--surface` **3,06:1** — über den 3:1, die
+   * WCAG 1.4.11 für ein grafisches Objekt verlangt, mit sechs Hundertstel
+   * Luft. Das Petrol hatte dort 6,18:1.
+   *
+   * > **Ein Wert, der die Grenze um sechs Hundertstel überschreitet, ist
+   * > zulässig und nicht robust — und was ihn hält, muss man dazuschreiben.**
+   *
+   * Gehalten hat ihn bis zum 9. September **nichts**: `ButtonStyleTest` prüft
+   * Bedienelemente, und eine Kurve ist keines; die Zahl stand hier im
+   * Kommentar und daneben keine Prüfung. Wer `--surface` je um einen Schritt
+   * abdunkelt, nimmt dieser Kurve ihre Zulässigkeit —
+   * `test_a_second_curve_stays_visible` meldet es seitdem.
    *
    * **Und die Farbe trägt den Unterschied nicht allein.** Zwei Linien, die
    * sich nur im Farbton unterscheiden, sind für rund acht Prozent der Männer
    * zwei gleiche Linien (WCAG 1.4.1). Die zweite Kurve ist deshalb zusätzlich
    * gestrichelt und hat keine Fläche unter sich; das steht in Tile.vue.
    */
-  --accent-second: #0b6b7a;
+  --accent-second: #ff4696;
 
   --ok: #076e54;
   --ok-surface: rgb(7 110 84 / 0.1);
@@ -176,6 +194,45 @@
   --warn-surface: rgb(132 83 6 / 0.11);
   --critical: #ab2b19;
   --critical-surface: rgb(171 43 25 / 0.09);
+
+  /*
+   * Der vierte Rang: „Info" — etwas ist zu wissen, und es ist weder gut noch
+   * schlecht.
+   *
+   * **Warum es ihn gibt, steht seit A14 im Quelltext dessen, was ohne ihn
+   * auskommen musste.** `AnnouncementCategory::badge()` gab `Info` die Marke
+   * `ok` und begründete daneben selbst, warum das falsch ist: „Grün behauptet
+   * daneben, etwas sei *gut*." Gewählt wurde es trotzdem, weil die
+   * naheliegende Alternative `neutral` im hellen Thema bei **ΔE 1,78** gegen
+   * die Seite steht — unter der Wahrnehmungsschwelle von 2,3. Ein Info-Streifen
+   * wäre dort nicht zu sehen.
+   *
+   * > **Eine Marke, die als „ohne Rang" gedacht ist, taugt für eine Meldung im
+   * > Inhalt und nicht für einen Streifen, der auffallen soll.**
+   *
+   * Gesucht war also eine Fläche, die **sichtbar** ist, **keine Zustandsfarbe**
+   * und **nicht grün**. Gemessen leistet das dieses Pink: Die Fläche steht bei
+   * **ΔE 8,52** gegen die Seite — mehr als `ok` mit 7,02 —, und zur
+   * Störungsfläche bleiben **ΔE 5,7**, also mehr als die 3,8, die dieses Panel
+   * heute zwischen Warnung und Störung führt (`docs/103`, M9).
+   *
+   * **Zwei Werte und nicht einer, und das ist der Punkt.** Die volle Farbe
+   * (`#ff4696`) erreicht auf ihrer eigenen hellen Fläche nur **2,86:1** und
+   * kann den Text eines Bandes dort nicht tragen; der helle Wert ist deshalb um
+   * ΔE 14,9 abgedunkelt und steht bei **4,83:1** auf der Fläche und 5,39:1
+   * gegen die Seite. Im dunklen Theme trägt die volle Farbe mit 5,08:1.
+   *
+   * > **Eine Farbe, die als Fläche trägt und als Text nicht, ist keine halbe
+   * > Farbe — sie ist zwei Werte, und wer nur einen einträgt, bekommt ein Band,
+   * > dessen Rang man sieht und dessen Wort man nicht liest.**
+   *
+   * Der Rang steht damit auf denselben drei Trägern wie die anderen drei:
+   * Fläche, Rand und Textfarbe. Das Wort „Info" trägt ihn zusätzlich, weil
+   * Farbe allein ihn für niemanden mit einer Farbsehschwäche trägt (WCAG
+   * 1.4.1).
+   */
+  --info: #c0306f;
+  --info-surface: rgb(255 70 150 / 0.09);
 
   --focus: #3730a3;
 
@@ -211,16 +268,37 @@
   --text-muted: #99a0ae;
   --text-faint: #858c9a;
 
-  --accent: #a3aaff;
+  /*
+   * **Der Akzent des dunklen Themas ist seit dem 9. September ein eigener
+   * Farbton und keine aufgehellte Fassung des hellen mehr.**
+   *
+   * Bis dahin standen hier Indigo hell und ein aufgehelltes Indigo dunkel —
+   * dieselbe Farbe in zwei Helligkeiten. Der Satz über diesem Block („das
+   * dunkle Theme ist keine Umkehrung") war damit für die Helligkeit gemeint
+   * und nicht für den Farbton; jetzt gilt er für beides.
+   *
+   * **Gerechnet trägt es dieselbe Last wie vorher:** 8,54:1 gegen `--bg`, wo
+   * `#a3aaff` 8,77:1 hatte — ein Unterschied, den die Marke nicht spürt. Die
+   * Beschriftung auf der Knopffläche erreicht mit `--accent-on` 8,19:1, die
+   * volle Farbe auf `--accent-surface` 6,85:1.
+   *
+   * **Und die Farbe hat im hellen Theme keinen Ort**, das ist keine
+   * Nachlässigkeit: Sie steht dort bei **2,21:1** und ist damit nicht einmal
+   * als Linie zulässig (WCAG 1.4.11 verlangt 3:1). Wer sie in den hellen Block
+   * trägt, bekommt einen Akzent, den `ButtonStyleTest` nur dort meldet, wo er
+   * auf einer Knopffläche landet — als Textfarbe eines Verweises meldete ihn
+   * bis dahin nichts. `test_the_accent_carries_its_own_theme` tut es seitdem.
+   */
+  --accent: #ff7fec;
   --accent-on: #12142a;
-  --accent-surface: rgb(163 170 255 / 0.14);
+  --accent-surface: rgb(255 127 236 / 0.14);
 
-  --mark-accent: #a3aaff;
+  --mark-accent: #ff7fec;
 
-  /* Aufgehellt statt umgekehrt, wie der Akzent — ein Petrol aus dem hellen
-     Theme erreicht auf `#0f1116` 1,5:1 und wäre keine Kurve, sondern ein
-     Schatten. */
-  --accent-second: #5cd7e8;
+  /* Derselbe Wert wie im hellen Theme, und das ist hier die Ausnahme und nicht
+     die Regel: 5,91:1 gegen den Grund reichen für ein grafisches Objekt
+     dreifach. Die Begründung steht beim hellen Wert. */
+  --accent-second: #ff4696;
 
   --ok: #57c99c;
   --ok-surface: rgb(87 201 156 / 0.14);
@@ -229,9 +307,72 @@
   --critical: #f08a72;
   --critical-surface: rgb(240 138 114 / 0.14);
 
-  --focus: #a3aaff;
+  /* Hier trägt die volle Farbe: 5,08:1 auf ihrer eigenen Fläche, 5,91:1 gegen
+     den Grund. Die Begründung steht beim hellen Wert; abgeleitet ist keiner der
+     beiden vom anderen, so wie bei `--ok`, `--warn` und `--critical` auch. */
+  --info: #ff4696;
+  --info-surface: rgb(255 70 150 / 0.14);
+
+  --focus: #ff7fec;
 
   --scrim: rgb(0 0 0 / 0.58);
+}
+
+/*
+ * **Die Markenflächen — zwei, und es sind mit Absicht nicht mehr.**
+ *
+ * Eine Fläche dieses Panels erbt den Grund der Seite. Das ist keine
+ * Beschränkung, sondern der Grund, warum jede Zustandsfarbe je Theme genau
+ * einmal gerechnet werden muss: `--ok`, `--warn` und `--critical` stehen auf
+ * `--bg` und `--surface` und sonst auf nichts.
+ *
+ * Zwei Flächen dürfen einen eigenen Grund mitbringen, und beide haben denselben
+ * Grund dafür: Auf ihnen steht **keine Zustandsfarbe**. Der
+ * Navigationsstreifen führt Menüpunkte, ein Konto und eine Fassungsnummer; die
+ * Anmeldeseite (siehe `.signin`) ein Formular. Keine Tabelle, kein Vorgang,
+ * keine Marke.
+ *
+ * > **Eine Markenfläche endet dort, wo eine Zustandsfarbe anfängt — sonst ist
+ * > sie keine Fläche, sondern ein zweites Theme.**
+ *
+ * **Warum es ein Markensatz ist und kein Baustein.** Weil jede Farbe dieses
+ * Panels aus einer Marke kommt, genügt es, die Marken auf dem Selektor zu
+ * setzen — `.rail`, `.nav-item`, `.rail-foot` und die Kopfleiste rechnen von
+ * selbst mit. Keine Regel ändert sich, keine Struktur, keine `.vue`.
+ *
+ * **Und `.topbar` steht hier neben `.rail`, weil beide dieselbe Marke lesen.**
+ * `PanelLayout` zeichnet bei ≤ 720 px eine Kopfleiste mit
+ * `background: var(--nav-bg)`; ihr Titel liest `--text-strong`, ihr Umschalter
+ * `--text-muted`. Stünde hier nur `.rail`, wäre auf dem Telefon eine helle
+ * Kopfleiste über einer dunklen Schublade — und wer statt dessen `:root`
+ * änderte, färbte beide und zerrisse jeden dunklen Text darin: Inkberry gegen
+ * `--text` ergibt **1,76:1**.
+ *
+ * > **Ein Streifen mit eigenem Grund braucht acht Marken und nicht eine — der
+ * > naive Wurf setzt `--nav-bg` und lässt die Navigation verschwinden.**
+ *
+ * Jeder Wert ist gegen `--nav-bg` (`#1a0b2e`) gerechnet: Überschrift 18,56:1 ·
+ * Menüpunkt 12,65:1 · Konto und Umschalter 7,24:1 · Gruppenüberschrift 6,14:1 ·
+ * aktiver Punkt 11,11:1. Die Fläche des aktiven Punktes ergibt `#3a233f`, der
+ * Peach darauf 8,42:1. Gehalten von `SurfaceTokenTest`.
+ *
+ * `--nav-border` ist davon ausgenommen und steht bei 1,44:1: Es ist eine
+ * Haarlinie zum Trennen und kein Bedienelement — dieselbe Rolle wie `--line`
+ * gegen `--bg`, das im hellen Theme bei 1,26:1 steht.
+ */
+.rail,
+.topbar {
+  --nav-bg: #1a0b2e;
+  --nav-border: #3a2954;
+
+  --text: #d9d2e6;
+  --text-strong: #ffffff;
+  --text-muted: #a99cbe;
+  --text-faint: #9b8fb0;
+
+  --accent: #ffb7a5;
+  --accent-surface: rgb(255 183 165 / 0.14);
+  --focus: #ffb7a5;
 }
 
 /*
@@ -4632,7 +4773,49 @@ p:not([class]) {
   min-height: 0;
 }
 
+/*
+ * Die Anmeldeseite ist eine **Markenfläche** — der zweite und letzte Ort
+ * dieses Panels, an dem eine Fläche ihren eigenen Grund mitbringen darf.
+ *
+ * Der erste ist der Navigationsstreifen (siehe `.rail, .topbar`). Beide haben
+ * gemeinsam, dass auf ihnen **keine Zustandsfarbe** steht: keine Tabelle, kein
+ * Vorgang, keine Marke. Überall sonst erbt eine Fläche den Grund der Seite,
+ * und das ist keine Beschränkung, sondern der Grund, warum `--ok`, `--warn`
+ * und `--critical` je Theme genau einmal gerechnet werden müssen.
+ *
+ * **Die Marken sitzen auf `.signin` und nicht auf `.signin-frame`, und das ist
+ * tragend.** Über dem Formular steht seit A14 ein Band der Kategorie
+ * *Störung* (`docs/103 §4.4`), und ein `.band` trägt seinen Rang in Fläche,
+ * Rand **und** Textfarbe — alle drei gegen den hellen Grund gerechnet. Läge
+ * der Markensatz eine Ebene höher, erbte das Band den pflaumenfarbenen Grund,
+ * und jede der drei Zustandsfarben bräuchte einen zweiten Wert.
+ *
+ * > **Eine Markenfläche endet dort, wo eine Zustandsfarbe anfängt — sonst ist
+ * > sie keine Fläche, sondern ein zweites Theme.**
+ *
+ * Jeder Wert ist gegen die Fläche gerechnet, auf der er liegt (`--surface`,
+ * `#1a0b2e`): Überschrift 11,11:1 · Fliesstext 15,57:1 · Beschriftung 9,26:1 ·
+ * Feldgrenze 4,96:1 auf der Feldfläche, verlangt sind dort 3:1. Gehalten von
+ * `SurfaceTokenTest`, der denselben Selektor liest.
+ */
 .signin {
+  --bg: #140823;
+  --surface: #1a0b2e;
+  --line: #3a2954;
+
+  --text: #efe9f2;
+  --text-strong: #ffb7a5;
+  --text-muted: #bfb2ce;
+  --text-faint: #a99cbe;
+
+  --control-bg: #2a1745;
+  --control-line: #9a86b8;
+
+  --accent: #ffb7a5;
+  --accent-on: #1a0b2e;
+  --accent-surface: rgb(255 183 165 / 0.14);
+  --focus: #ffb7a5;
+
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -4759,6 +4942,11 @@ p:not([class]) {
 .badge.critical {
   color: var(--critical);
   background: var(--critical-surface);
+}
+
+.badge.info {
+  color: var(--info);
+  background: var(--info-surface);
 }
 
 .badge.neutral {
@@ -4938,6 +5126,14 @@ p:not([class]) {
  * stiller Rückfall, für die es hier Wächter gibt — deshalb wird der Rang immer
  * geschrieben.
  */
+/* `.notice` setzt keine Textfarbe — der Rang steht hier auf Fläche und Rand,
+   und der Text bleibt `--text`. Deshalb zwei Träger statt dreier, so wie bei
+   den anderen drei Rängen auch. */
+.notice.info {
+  background: var(--info-surface);
+  border-color: var(--info);
+}
+
 .notice.neutral {
   background: var(--surface);
   border-color: var(--control-line);
@@ -5105,12 +5301,6 @@ td.text {
   text-decoration: none;
 }
 
-.band.ok {
-  color: var(--ok);
-  background: var(--ok-surface);
-  border-color: var(--ok);
-}
-
 .band.warn {
   color: var(--warn);
   background: var(--warn-surface);
@@ -5121,6 +5311,32 @@ td.text {
   color: var(--critical);
   background: var(--critical-surface);
   border-color: var(--critical);
+}
+
+/*
+ * Der vierte Rang trägt dieselben drei Träger wie die anderen drei — Fläche,
+ * Rand, Textfarbe. Die Begründung, warum es ihn gibt, steht bei `--info`.
+ *
+ * **Es sind drei Regeln und nicht eine, und das ist gemessen und nicht
+ * geschätzt.** Der Wert aus `AnnouncementCategory::badge()` fährt in drei
+ * Bausteine: `Bands.vue` setzt ihn auf `.band`, `Announcements/Index.vue` auf
+ * `.badge`, `Announcements/Show.vue` auf `.notice`. Wer nur diese eine Regel
+ * schriebe, bekäme auf der Übersicht eine Marke ohne Farbe und auf der
+ * Einzelseite eine Meldung ohne Rang.
+ *
+ * **Und `ClassReachTest` fängt das nicht.** Alle drei Stellen setzen die Klasse
+ * als *Ausdruck* (`:class="hinweis.badge"`) und nicht als Objektschlüssel; er
+ * kann den Rang daraus nicht ableiten. Was hier deckt, ist
+ * `RankReachTest` — er hält die Rückgabewerte von `badge()` gegen diese
+ * Regeln, in beide Richtungen.
+ *
+ * > **Ein Wächter, der einen Ausdruck nicht auflösen kann, hat nicht wenig
+ * > gemessen — er hat an dieser Stelle gar nicht gemessen.**
+ */
+.band.info {
+  color: var(--info);
+  background: var(--info-surface);
+  border-color: var(--info);
 }
 
 /*

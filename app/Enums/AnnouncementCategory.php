@@ -69,12 +69,32 @@ enum AnnouncementCategory: string
      * `.notice.neutral` steht im Inhalt, wo Seitenkopf und Tabelle die Kante
      * ohnehin zeichnen. Ein Band ganz oben hat diese Nachbarn nicht.
      *
-     * @return 'ok'|'warn'|'critical'
+     * **Seit dem 9. September 2026 hat `Info` einen eigenen Rang.** Der Einwand
+     * oben stand hier ein Jahr lang als richtig erkannt und ungelöst: Grün
+     * behauptet daneben, etwas sei *gut*. Was fehlte, war keine Einsicht,
+     * sondern eine Fläche — `neutral` schied an ΔE 1,78 aus, und eine andere
+     * gab es nicht.
+     *
+     * > **Ein Mangel, den man benennt und mit der zweitbesten Lösung schliesst,
+     * > bleibt ein Mangel — er sieht nur wie eine Entscheidung aus.**
+     *
+     * `--info` ist diese Fläche: **ΔE 8,52** gegen die Seite im hellen Theme,
+     * also mehr als `ok` mit 7,02 und weit über der Schwelle von 2,3. Die
+     * Rechnung steht bei der Marke in `app.css`.
+     *
+     * **Der Rückgabewert fährt in drei Bausteine** — `Bands.vue` setzt ihn auf
+     * `.band`, `Announcements/Index.vue` auf `.badge`,
+     * `Announcements/Show.vue` auf `.notice`. Alle drei setzen die Klasse als
+     * Ausdruck, `ClassReachTest` kann den Rang daraus nicht ableiten, und ein
+     * vierter Wert ohne seine drei Regeln wäre eine Marke ohne Farbe.
+     * `RankReachTest` hält beide Richtungen.
+     *
+     * @return 'ok'|'warn'|'critical'|'info'
      */
     public function badge(): string
     {
         return match ($this) {
-            self::Info => 'ok',
+            self::Info => 'info',
             self::Warning => 'warn',
             self::Incident => 'critical',
         };

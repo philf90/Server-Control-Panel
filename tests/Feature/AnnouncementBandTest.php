@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use PHPUnit\Framework\TestCase;
+use Tests\Support\ReadsAnnouncementRanks;
 
 /**
  * Der Streifen ganz oben hält, was die Messrunde vor A14 verlangt hat
@@ -42,6 +43,8 @@ use PHPUnit\Framework\TestCase;
  */
 final class AnnouncementBandTest extends TestCase
 {
+    use ReadsAnnouncementRanks;
+
     private function css(): string
     {
         return (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css');
@@ -224,7 +227,24 @@ final class AnnouncementBandTest extends TestCase
      */
     public function test_every_rank_carries_surface_border_and_text_colour(): void
     {
-        foreach (['ok', 'warn', 'critical'] as $rang) {
+        /*
+         * **Die Ränge kommen aus `badge()` und nicht aus einer Liste hier.**
+         * Bis zum 9. September 2026 stand hier `['ok', 'warn', 'critical']`.
+         * Als `Info` seinen eigenen Rang bekam, verlangte diese Zeile weiter
+         * eine Regel `.band.ok`, die es nicht mehr gab — und über den vierten
+         * Rang sagte sie nichts.
+         *
+         * > **Eine Aufzählung im Test misst den Stand beim Schreiben des
+         * > Tests und nicht den der Quelle.**
+         */
+        $raenge = $this->announcementRanks();
+
+        self::assertGreaterThan(
+            2,
+            count($raenge),
+            'Aus AnnouncementCategory::badge() kommen kaum Ränge — dann prüft dieser Test nichts.');
+
+        foreach ($raenge as $rang) {
             self::assertMatchesRegularExpression(
                 '/\.band\.'.$rang.' \{[^}]*color: var\(--'.$rang.'\);[^}]*'
                 .'background: var\(--'.$rang.'-surface\);[^}]*border-color: var\(--'.$rang.'\);/s',

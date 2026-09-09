@@ -26889,3 +26889,140 @@ werden.
 
 **Was offen bleibt:** Der Befund an „Dienste" und „Timer" ist behoben und hat
 **keinen Server gesehen** — er liegt hinter `rc.29`.
+### Die Farben aus den drei Bildschirmfotos — vier von sechs sind eingebaut
+
+Geprüft und geplant in `docs/900`; gebaut am 9. September 2026. Der Plan hat
+sechs Farben gegen „Kontor" gerechnet, vier bekommen einen Ort, zwei keinen.
+Kein Punkt ändert eine Regel oder eine Struktur — nur Werte und die drei
+Regeln, die ein neuer Rang braucht.
+
+- **„Info" hat einen eigenen Rang, und das behebt einen Mangel, der ein Jahr
+  lang als richtig erkannt und ungelöst dastand.**
+  `AnnouncementCategory::badge()` gab dem Rang `Info` die Marke `ok` und
+  begründete daneben selbst, warum das falsch ist: „Grün behauptet daneben,
+  etwas sei *gut*." Gewählt wurde es trotzdem, weil die naheliegende
+  Alternative `neutral` im hellen Thema bei ΔE 1,78 gegen die Seite steht —
+  unter der Wahrnehmungsschwelle von 2,3. Es fehlte keine Einsicht, sondern
+  eine Fläche.
+
+  > **Ein Mangel, den man benennt und mit der zweitbesten Lösung schliesst,
+  > bleibt ein Mangel — er sieht nur wie eine Entscheidung aus.**
+
+  `--info` ist diese Fläche: ΔE 8,52 gegen die Seite, mehr als `ok` mit 7,02,
+  und ΔE 5,7 zur Störungsfläche — mehr als die 3,8, die dieses Panel zwischen
+  Warnung und Störung führt.
+
+- **Es sind zwei Werte und nicht einer.** Die volle Farbe erreicht auf ihrer
+  eigenen hellen Fläche nur 2,86:1 und kann den Text eines Bandes dort nicht
+  tragen; der helle Wert ist deshalb `#c0306f` (4,83:1 auf der Fläche), im
+  dunklen Theme trägt `#ff4696` mit 5,08:1.
+
+  > **Eine Farbe, die als Fläche trägt und als Text nicht, ist keine halbe
+  > Farbe — sie ist zwei Werte, und wer nur einen einträgt, bekommt ein Band,
+  > dessen Rang man sieht und dessen Wort man nicht liest.**
+
+- **Und es sind drei Regeln und nicht eine.** Der Rückgabewert von `badge()`
+  fährt in drei Bausteine: `Bands.vue` setzt ihn auf `.band`,
+  `Announcements/Index.vue` auf `.badge`, `Announcements/Show.vue` auf
+  `.notice`. Alle drei schreiben ihn als **Ausdruck**, und `ClassReachTest`
+  führt dafür keine Ausnahmeliste — er kann den Rang daraus nicht ableiten.
+  `docs/900 §7` hatte das Gegenteil behauptet.
+
+  > **Ein Wächter, der einen Ausdruck nicht auflösen kann, hat nicht wenig
+  > gemessen — er hat an dieser Stelle gar nicht gemessen.**
+
+  `RankReachTest` ist deshalb keine Redundanz, sondern die einzige Deckung. Er
+  hält beide Richtungen, und die zweite hat sofort etwas gefunden: `.band.ok`
+  hatte nach dem Umbau keinen Erzeuger mehr und ist fort. `.badge.ok` und
+  `.notice.ok` bleiben — sie bedienen `CronRunStatus`, `DnsHealth`,
+  `DnsRecordState` und `FindingState`.
+
+  > **Eine Regel, die mehrere Erzeuger hat, ist nicht tot, weil einer von ihnen
+  > sie nicht mehr braucht.**
+
+- **`ok`, `warn` und `critical` wurden bis dahin nur zufällig erreicht.**
+  `ClassNameTest` fand sie, weil andere Bausteine dieselben Wörter wörtlich
+  hinschreiben — `class="notice ok"` für eine Erfolgsmeldung, `class="band
+  warn"` für den Sichtwechsel. `info` hat keinen solchen Zwilling, und damit
+  fiel auf, was für alle vier gilt.
+
+  > **Eine Regel, die nur erreicht wird, weil ein anderer Baustein zufällig
+  > dasselbe Wort benutzt, ist nicht gehalten — sie ist unentdeckt.**
+
+- **Der Navigationsstreifen und die Anmeldeseite sind Markenflächen.** Sie sind
+  die einzigen zwei Orte, an denen eine Fläche ihren eigenen Grund mitbringen
+  darf, und beide aus demselben Grund: Auf ihnen steht keine Zustandsfarbe. Es
+  sind acht beziehungsweise dreizehn Marken auf einem Selektor — keine Regel,
+  keine Struktur, keine `.vue`.
+
+  > **Eine Markenfläche endet dort, wo eine Zustandsfarbe anfängt — sonst ist
+  > sie keine Fläche, sondern ein zweites Theme.**
+
+  Deshalb sitzen die Marken der Anmeldeseite auf `.signin` und nicht auf
+  `.signin-frame`: Das Störungsband darüber behält den Grund der Seite und
+  damit seine gegen Weiss gerechneten Zustandsfarben.
+
+- **`.topbar` steht neben `.rail`, weil beide dieselbe Marke lesen.** Ein
+  Markensatz nur auf `.rail` liesse bei 390 px eine helle Kopfleiste über einer
+  dunklen Schublade. Und wer statt dessen `:root` änderte, färbte beide und
+  zerrisse jeden dunklen Text darin: Inkberry gegen `--text` ergibt 1,76:1.
+
+  > **Ein Streifen mit eigenem Grund braucht acht Marken und nicht eine — der
+  > naive Wurf setzt `--nav-bg` und lässt die Navigation verschwinden.**
+
+  `SurfaceTokenTest` rechnet die Schrift jeder Markenfläche gegen deren eigenen
+  Grund nach — er findet die Blöcke, statt sie aufzuzählen, damit eine dritte
+  Fläche mitgeprüft wird, ohne dass jemand nachträgt.
+
+- **Der Akzent des dunklen Themas ist ein eigener Farbton geworden.** Bisher
+  standen Indigo hell und ein aufgehelltes Indigo dunkel — dieselbe Farbe in
+  zwei Helligkeiten; der Satz „das dunkle Theme ist keine Umkehrung" galt für
+  die Helligkeit und nicht für den Farbton. Gerechnet trägt Pink dieselbe Last:
+  8,54:1 gegen 8,77:1.
+
+- **Die zweite Kurve hat ihren Wächter bekommen, und der ist mehr wert als der
+  Farbwechsel.** `--accent-second` stand seit seiner Einführung mit einer
+  gerechneten Zahl im Kommentar und **ohne Prüfung** daneben —
+  `ButtonStyleTest` prüft Bedienelemente, und eine Kurve ist keines. Auf
+  `--surface` hat die neue Farbe im hellen Thema 3,06:1, also sechs Hundertstel
+  über den 3:1 aus WCAG 1.4.11.
+
+  > **Ein Wert, der die Grenze um sechs Hundertstel überschreitet, ist zulässig
+  > und nicht robust — und was ihn hält, muss man dazuschreiben.**
+
+  `ColorRoleTest` hält beides: die Kurve gegen **beide** Gründe je Thema und
+  den Akzent gegen 4,5:1. Wer `--surface` einen Schritt abdunkelt, erfährt es
+  jetzt.
+
+- **Zwei der sechs Farben haben keinen Ort bekommen, und das ist gemessen.**
+  Night Violet liegt ΔE 2,12 von Inkberry entfernt — unter der Schwelle von
+  2,3, die dieses Projekt selbst führt; es ist keine zweite Farbe, sondern
+  derselbe Wert mit einem zweiten Namen. Dark Aubergine ist mit ΔE 8,10
+  unterscheidbar, spielt aber dieselbe Rolle am selben Ort. Und Peach bekommt
+  keine eigene Marke: Sie hat im Lab-Raum den Farbton 39,3° — genau den von
+  `--critical` —, steht im hellen Thema bei 1,67:1 und als Bandfläche im
+  dunklen ΔE 3,1 von der Störungsfläche entfernt.
+
+- **Eine Aufzählung im Test ist beim Umbau veraltet.**
+  `AnnouncementBandTest` prüfte die Träger jedes Ranges gegen ein
+  hingeschriebenes `['ok', 'warn', 'critical']`. Als `Info` seinen Rang bekam,
+  verlangte die Zeile weiter eine Regel `.band.ok`, die es nicht mehr gab, und
+  über den vierten Rang sagte sie nichts. Beide Wächter lesen die Ränge jetzt
+  über `Tests\Support\ReadsAnnouncementRanks` aus derselben Quelle.
+
+  > **Zwei Leser derselben Marken, die verschieden zählen, sind zwei Fassungen
+  > derselben Regel — und die zweite ist die, die veraltet.**
+
+- **Und der teuerste Fehler dieses Tages steckte im Messmittel.** Der Aufsatz
+  für die Bilderrunde trug die `scoped`-Kennung von `PanelLayout.vue` fest im
+  Quelltext — `data-v-11707708`, den Hash von vor dem letzten Merge. Danach
+  passte keine Regel des Streifens mehr; die Marken standen korrekt auf dem
+  Element, und die Messung meldete einen durchsichtigen Streifen mit dunkler
+  Schrift: **genau das Bild des Fehlers, den dieser Lauf belegen sollte.**
+
+  > **Ein Aufsatz, der eine Kennung fest verdrahtet, misst nach der nächsten
+  > Änderung an der Komponente eine Seite ohne deren Regeln — und das Ergebnis
+  > sieht aus wie ein Befund am Prüfling.**
+
+  Die Kennung wird seitdem aus dem gebauten Stylesheet abgeleitet, und der
+  Aufsatz bricht ab, wenn er sie nicht findet.

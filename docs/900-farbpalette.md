@@ -28,9 +28,13 @@ Messwerte, die tragen, und die Handgriffe, die daraus folgen — nicht die
 Herleitung. Wer wissen will, warum eine Farbe *keinen* Ort bekommen hat, findet
 das in §1 als Zeile und nirgends ausführlicher.
 
-**Nichts davon ist entschieden.** §2 nennt die vier Fragen, die vor dem ersten
-Handgriff beim Betreiber liegen. E1 und E2 ändern den Charakter der Oberfläche
-und sind deshalb keine Messfrage.
+**Am 9. September 2026 sind E1 bis E5 gebaut**, nachdem der Betreiber alle
+vier Fragen aus §2 mit Ja beantwortet hat — die Kopfleiste trägt den Markensatz
+mit. Was beim Bauen anders war als im Plan, steht in §12; der Rest dieses
+Dokuments ist der Stand davor und wird nicht rückwirkend geglättet.
+
+> **Ein Plan, den man nach dem Bauen glattzieht, verliert die Stelle, an der
+> er falsch lag — und die ist das einzige, was der nächste daraus lernt.**
 
 ---
 
@@ -332,11 +336,18 @@ anderen abgeleitet.
 nur `.band.info` schreibt, bekommt auf der Übersicht der Ankündigungen eine
 Marke ohne Farbe und auf der Einzelseite eine Meldung ohne Rang.
 
-**Der Wächter.** `ClassReachTest` greift von selbst, sobald die drei Regeln
+**Der Wächter.** ~~`ClassReachTest` greift von selbst, sobald die drei Regeln
 fehlen — vorausgesetzt, die Klasse steht als Objektschlüssel und nicht als
-Ausdruck. Dazu ein Fall, der die vier Rückgabewerte von `badge()` gegen die
-Regeln in `app.css` hält, in **beide** Richtungen: jeder Rang hat drei Regeln,
-und jede Regel hat einen Rang.
+Ausdruck.~~ **Die Voraussetzung ist an allen drei Stellen nicht erfüllt**, und
+das ist beim Bauen aufgefallen: `Bands.vue:39`, `Announcements/Index.vue:121`
+und `Announcements/Show.vue:34` schreiben die Klasse als Ausdruck, und
+`ClassReachTest` führt dafür keine Ausnahmeliste. Er kann den Rang nicht
+ableiten und fängt eine fehlende Regel **nicht**.
+
+`RankReachTest` ist damit keine Redundanz, sondern die einzige Deckung: Er hält
+die Rückgabewerte von `badge()` gegen die Regeln in `app.css`, in **beide**
+Richtungen — jeder Rang hat drei Regeln, und jede `.band`-Regel hat einen
+Erzeuger.
 
 **Die Messung.** Vier Lagen mit drei Ankündigungen gleichzeitig — Info, Warnung,
 Störung untereinander, damit der Abstand der Ränge im Bild steht und nicht nur
@@ -419,3 +430,66 @@ Inhalt ab, einer liess ein Loch. Auf dem Bild sah beides aus wie ein Ergebnis.
 
 > **Ein Rahmen, dessen Höhe man rät, schneidet ab oder lässt ein Loch — und
 > beides liest sich wie ein Befund am Prüfling.**
+
+---
+
+## 12 · Was beim Bauen anders war als in diesem Plan
+
+Gebaut am 9. September 2026, alle fünf Punkte. Vier Dinge standen hier falsch
+oder gar nicht; sie stehen unten, damit der nächste sie nicht noch einmal
+herleitet.
+
+**1 · `ClassReachTest` deckt den vierten Rang nicht — §7 hat das Gegenteil
+behauptet.** Der Satz trug seine Voraussetzung selbst („vorausgesetzt, die
+Klasse steht als Objektschlüssel"), und geprüft hatte sie niemand. Alle drei
+Stellen schreiben sie als Ausdruck.
+
+> **Eine Zusage mit einer Voraussetzung, die niemand nachgesehen hat, ist eine
+> Vermutung mit Fussnote.**
+
+**2 · `.band.ok` ist fort, und gefunden hat es die Gegenrichtung des neuen
+Wächters.** Sobald `Info` den Rang `info` bekam, hatte `.band.ok` keinen
+Erzeuger mehr — `.band`-Klassen entstehen nur aus `badge()` und aus dem einen
+wörtlichen `class="band warn"` des Sichtwechsels. `.badge.ok` und `.notice.ok`
+bleiben: Sie bedienen vier andere Enums.
+
+> **Eine Regel, die mehrere Erzeuger hat, ist nicht tot, weil einer von ihnen
+> sie nicht mehr braucht.**
+
+**3 · Die drei alten Ränge wurden bis dahin nur zufällig erreicht.**
+`ClassNameTest` fand `ok`, `warn` und `critical`, weil andere Bausteine
+dieselben Wörter wörtlich hinschreiben. `info` hat keinen solchen Zwilling und
+steht deshalb als benannte Ausnahme in der Erreichbarkeitsliste — mit dem
+Wächter daneben, der ihn hält.
+
+> **Eine Regel, die nur erreicht wird, weil ein anderer Baustein zufällig
+> dasselbe Wort benutzt, ist nicht gehalten — sie ist unentdeckt.**
+
+**4 · Und der teuerste Fehler des Tages steckte im Messmittel.** Der Aufsatz
+für die Bilderrunde trug die `scoped`-Kennung von `PanelLayout.vue` fest im
+Quelltext — den Hash von vor dem letzten Merge auf `main`. Danach passte keine
+Regel des Streifens mehr. Die Marken standen korrekt auf dem Element, und die
+Messung meldete einen durchsichtigen Streifen mit dunkler Schrift: **genau das
+Bild der Falle 2 aus §3, die dieser Lauf belegen sollte.**
+
+> **Ein Aufsatz, der eine Kennung fest verdrahtet, misst nach der nächsten
+> Änderung an der Komponente eine Seite ohne deren Regeln — und das Ergebnis
+> sieht aus wie ein Befund am Prüfling.**
+
+Die Kennung wird jetzt aus dem gebauten Stylesheet abgeleitet, und der Aufsatz
+bricht ab, wenn er sie nicht findet.
+
+**Was gemessen ist.** Vier Lagen (beide Themes × 390 und 1440 px) plus die
+Anmeldeseite in beiden Themes, jeweils mit **abgelesenen** Rechenwerten statt
+eines Blicks: Streifen `#1a0b2e`, Menüpunkt `#d9d2e6`, aktiver Punkt und
+Überschrift der Anmeldeseite `#ffb7a5`, Kopfleiste bei 390 px `#1a0b2e`,
+Info-Band `#c0306f` hell und `#ff4696` dunkel, zweite Kurve `#ff4696` in
+beiden. `schiebt` in jeder Lage 0 — die Änderung fasst kein Kastenmass an.
+
+**Und das Störungsband der Anmeldeseite trägt weiter die Zustandsfarben der
+Seite** (`#ab2b19` hell, `#f08a72` dunkel). Das ist die Zusage aus §4, gemessen
+und nicht behauptet.
+
+**Was nicht gemessen ist:** die echte Seite mit echten Daten auf einem echten
+Server. Der Aufsatz trifft aufs Pixel (`docs/56` Punkt 5), aber die Frage, ob
+eine Fläche als Marke *trägt*, beantwortet kein Messwert.

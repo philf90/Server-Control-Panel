@@ -398,8 +398,9 @@ ist nicht entstanden — die Legacy-Regel legt keine an.
   mit `UnknownStateTest` und zwei Brüchen, **nachgemessen am 9. September gegen
   `0.7.3-rc.29`** (§13). Erledigt.
 - **Befund 4** (§13.3) — „Dienste" und „Timer" standen bei totem Agenten mit
-  ihrer Kopfzeile über null Zeilen. Behoben, **auf einem Server nicht
-  nachgesehen**: Die Behebung liegt hinter `rc.29`.
+  ihrer Kopfzeile über null Zeilen. Behoben und **am 9. September auf
+  `cloudsrv24` gegen `0.7.3-rc.30` nachgesehen** (§14), mit Gegenprobe.
+  Erledigt.
 - **Befund 2** (§9.2) — der doppelte Punkt. **Behoben** mit `AgentMessageTest`
   und zwei Brüchen, in beide Richtungen.
 - **Befund 3** (§9.3) — die zweite Fassung im Wächter. **Behoben.**
@@ -580,10 +581,63 @@ die neue Einrückung und beissen wieder, von Hand nachgefahren.
 drei aus dem Bauen und keiner aus dem Kriterium: einer im Prüfling (4), einer im
 Wächter (5), einer im Bruchskript (6).
 
-**Was der Nachlauf nicht gemessen hat:** Befund 4 liegt hinter `rc.29`, die
-Behebung hat also keinen Server gesehen. Was hier steht, ist an der Datei
-gemessen und im Container geprüft — 3223 Tests, `BreakScriptTest` 11 grün, Pint,
-`vue-tsc` und PHPStan sauber.
+**Was *dieser* Nachlauf nicht gemessen hat:** Befund 4 liegt hinter `rc.29`,
+die Behebung hatte also am 9. September vormittags keinen Server gesehen. Was
+in §13 steht, ist an der Datei gemessen und im Container geprüft — 3223 Tests,
+`BreakScriptTest` 11 grün, Pint, `vue-tsc` und PHPStan sauber. **Nachgeholt ist
+es am selben Abend gegen `0.7.3-rc.30`; die Werte stehen in §14.**
 
 > **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
 > jemand ihn behoben hat.**
+
+---
+
+## 14 · Befund 4 auf dem Server — 9. September 2026, `0.7.3-rc.30`
+
+Der Satz aus §13.6 gilt nicht mehr: Die Behebung hat einen Server gesehen.
+
+`0.7.3-rc.30` ist am 9. September freigegeben worden — die einzige ausgelieferte
+Änderung gegenüber `rc.29` ist diese Hülle. Das war Absicht und nicht Zufall:
+
+> **Ein Nachlauf gegen eine Fassung, die vieles mitbringt, misst nicht die eine
+> Behebung.**
+
+Gemessen auf `cloudsrv24`, `srvpanel version` sagt `0.7.3-rc.30`, je frisch
+geladene Seite. Gedruckt wurde die `Bereiche`-Zeile — sie ist die Erweiterung
+des Instruments aus §13.1 um die Frage, nach der dieser Befund geht: nicht
+„stehen Tabellen da", sondern „stehen die Bereiche da".
+
+| | Agent tot | Agent läuft |
+|---|---|---|
+| `Bereiche` | `Ports und Regelwerk , Regelwerk` | `Dienste , Timer , Ports und Regelwerk , Regelwerk` |
+
+**Bei totem Agenten sind „Dienste" und „Timer" fort.** Darüber steht der rote
+Streifen mit seinem Satz, darunter die beiden Bereiche, die etwas zu sagen
+haben — jeder mit seinem eigenen. Keine Kopfzeile über null Zeilen.
+
+**Die Gegenprobe ist die Hälfte, die zählt.** Ohne sie bliebe offen, ob die
+beiden Bereiche jetzt *immer* fehlen; das Panel meldete dann bei antwortendem
+Agenten nichts, wo es alles zu melden hätte, und das wöge schwerer als der
+Befund, den es behebt.
+
+**Zwei Aussagen und nicht eine.** Gemessen ist die gedruckte `Bereiche`-Zeile.
+Dass unter den beiden Sätzen auch keine Tabelle steht, sagt das Bild daneben.
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, welcher Bereich es ist.
+> Keines von beiden ersetzt das andere.**
+
+### 14.1 Was nebenbei ein zweites Mal belegt ist
+
+Der Weg zurück lief über `systemctl start srvpanel.target` und nicht über den
+Agenten allein. In den PIDs steht, warum das der richtige Griff ist: Das
+Anhalten von `srvpanel-agentd.service` hat `srvpanel-worker` (309644) und
+`srvpanel-metrics` (309703) mitgenommen, und das Ziel hat alle drei
+zurückgeholt (311114 · 311116 · 311115), während `srvpanel-web` mit 309586
+durchlief.
+
+Das ist `docs/100 §9.10` an einem anderen Tag und ohne Absicht — der Nachlauf
+wollte etwas anderes messen und hat es mitgemessen.
+
+> **Eine Abhängigkeit, die das Anhalten überträgt und das Starten nicht,
+> hinterlässt einen Zustand, den nur der herstellt, der ihn auch beheben
+> müsste.**

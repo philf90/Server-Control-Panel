@@ -2873,8 +2873,13 @@ weil der `textContent` einer Tabelle Zellen ohne Trenner aneinandersetzt.
 > **Ein Rohdruck, der Zellen ohne Trenner aneinandersetzt, sieht kaputt aus und
 > misst nichts über die Anzeige.**
 
-**Was benannt offen bleibt** (`docs/114 §12`): dass Befund 4 hinter `rc.29`
-liegt und **keinen Server gesehen** hat, eine ungeklärte
+**Befund 4 hat am 9. September einen Server gesehen** (`docs/114 §14`): gegen
+`0.7.3-rc.30` auf `cloudsrv24` steht bei totem Agenten
+`Bereiche : Ports und Regelwerk , Regelwerk` und bei laufendem alle vier. Die
+Fassung bringt als einzige ausgelieferte Änderung diese Hülle mit — ein Nachlauf
+gegen eine Fassung, die vieles mitbringt, misst nicht die eine Behebung.
+
+**Was benannt offen bleibt** (`docs/114 §12`): eine ungeklärte
 Konsolenmeldung, und dass `Verwaltet von: nftables` die **Maschine** nennt und
 nicht den Schreiber — `nft list ruleset` nennt in seinen eigenen Warnungen
 dreimal `iptables-nft`, und `inet f2b-table` gehört fail2ban. Das ist nach

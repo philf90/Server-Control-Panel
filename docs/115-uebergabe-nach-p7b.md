@@ -220,6 +220,38 @@ aus Vollständigkeit:
    Das hängt an Frage 5 und ist nicht dieselbe: 5 fragt, ob die
    Wiederherstellung **dieselben Pfade** trifft, 6 fragt, ob sie sie **neu
    erzeugt oder zurückspielt**. Beide Antworten zusammen ergeben die Form.
+
+   **Der Teil ohne Server ist am 9. September gemessen** — fünfzehn Fassungen
+   von `SiteTemplate` aus der Geschichte, jede mit **ihrem eigenen** Code
+   gerendert und gegen den **heutigen** Prüfer gehalten (`lostInNginx` mit
+   `promised()`, je Form). Das ist der Weg des Prüflings; ein Vergleich der
+   Konstantenlisten hätte gesagt, was zugesagt ist, und nicht, was herauskommt.
+
+   | | |
+   |---|---|
+   | Der Schnitt | **4. September 2026** (`e86ecbb9`, die Wache aus A12) |
+   | Davor | in **allen vier** Formen fehlen `add_header`, `error_page`, `if`, `set` |
+   | Ab dann | alle vier Formen heil |
+   | Nur in der alten Fassung | **keine** — die Vorlage hat nie eine Anweisung verloren |
+   | Wachzeilen in einer Datei von davor | **0 von 6** |
+   | `PROMISED_WITH_TLS` über den Schnitt | byteweise identisch — der TLS-Fall ändert nichts |
+
+   Ein wörtlich zurückgespieltes File von vor dem 4. September meldet damit
+   `directive_lost` und nennt genau die vier Anweisungen, aus denen die Wache
+   besteht. Das ist die entworfene Meldung für „die ganze Wache ist fort"
+   (`Verdict::file()` nennt sie im Kopf) — nur liest sie sich als vier
+   Anweisungsnamen und nicht als „der Wartungsmodus greift für diese Domain
+   nicht". Wer sie nach einer Wiederherstellung sieht, muss wissen, dass die
+   vier *die Wache sind*.
+
+   > **Eine Vorlage, die nur wächst, macht aus jeder zurückgespielten Datei
+   > einen Befund — und zwar erst in der Nacht darauf.**
+
+   **Was das nicht sagt:** was eine Wiederherstellung tut (genau das ist die
+   Frage), ob das Sicherungsformat erzeugte Dateien überhaupt enthält, und wie
+   viele Domains ein echter Server dabei meldet. Die Gegenprobe des Messgestells
+   steht daneben: eine entfernte Zusage ergibt `try_files fehlt als Anweisung`,
+   ein leeres Ergebnis bedeutet also etwas.
 7. **Wie meldet ein langer Lauf seinen Ausgang?** Form A aus `docs/86 §5`: Ein
    Vorgang, der nur absetzt, sagt über den Ausgang nichts, und `fertig` liest
    sich wie das Gegenteil. `AwaitDispatchedRun` liest das Urteil nach — gebaut

@@ -135,7 +135,7 @@ so in der Nutzlast und wird richtig als `loopback` eingeordnet. In
 
 ---
 
-## 6 · Nicht feststellbar — **nicht erfüllt**
+## 6 · Nicht feststellbar — **nicht erfüllt** *(gegen `rc.29` erfüllt, §13)*
 
     systemctl stop srvpanel-agentd && sleep 2
     inactive · inactive · inactive · active
@@ -153,6 +153,14 @@ Regeln", sondern der Seitenfuss.
 
 `docs/110 §6` verlangt, dass der Bereich `nicht feststellbar` **sagt**. Er tut
 es nicht. **Das ist Befund 1** (§9.1).
+
+**Die Messvorschrift stand hier zuerst nicht da — nur ihre drei Ergebnisse.**
+Beim Nachmessen gegen `rc.29` musste sie deshalb rekonstruiert werden, und eine
+rekonstruierte ist nicht zwingend dieselbe. Sie steht seit dem 9. September in
+§13 und gilt für beide Läufe.
+
+> **Ein Protokoll, das die Zahl festhält und nicht das Instrument, lässt den
+> Vergleich, für den es die Zahl aufhebt, nicht zu.**
 
 **Zurück, über das Ziel und nicht über den Agenten:** viermal `active`.
 
@@ -368,12 +376,14 @@ Mechanismus. Gemessen sind 6.
 | 3 | Keine Zusage über aussen *(Ausschluss)* | erfüllt — 0/0/0, Satz 1, Gegenprobe 13 |
 | 4 | Der Verwalter wird benannt | erfüllt — `nftables` |
 | 5 | IPv6 | erfüllt — 5 `inet6`, ohne Klammern |
-| 6 | Nicht feststellbar | **nicht erfüllt** — Befund 1 |
+| 6 | Nicht feststellbar | **erfüllt gegen `rc.29`** (§13) — gegen `rc.28` nicht, Befund 1 |
 | 7 | Die Tür | erfüllt — 13 Lauscher, 0 Namen |
 | 8 | 390 px | erfüllt — vier Lagen, `dokument = 0` |
 
-**A3s erster Wurf ist nicht abgenommen.** Der Weg dahin ist kurz und benannt:
-Befund 1 beheben, ausliefern, Punkt 6 noch einmal messen.
+**A3s erster Wurf war damit am 8. September nicht abgenommen.** Der Weg dahin
+war kurz und benannt: Befund 1 beheben, ausliefern, Punkt 6 noch einmal messen.
+Gefahren ist das am 9. September gegen `0.7.3-rc.29` — **§13 hat die Werte, und
+die Stufe ist seitdem abgenommen.**
 
 **Der Prüfstand ist abgeräumt und der Abbau belegt:** `iptables-legacy -S`
 gleich dem Vorflug (`legacy wie vorher`), `nft list ruleset` wieder 2307 Bytes,
@@ -385,8 +395,11 @@ ist nicht entstanden — die Legacy-Regel legt keine an.
 ## 12 · Was offen bleibt
 
 - **Befund 1** (§9.1) — der schweigende Bereich. **Behoben am 8. September**
-  mit `UnknownStateTest` und zwei Brüchen; er hält die Abnahme auf, bis Punkt 6
-  gegen die nächste Fassung noch einmal gemessen ist.
+  mit `UnknownStateTest` und zwei Brüchen, **nachgemessen am 9. September gegen
+  `0.7.3-rc.29`** (§13). Erledigt.
+- **Befund 4** (§13.3) — „Dienste" und „Timer" standen bei totem Agenten mit
+  ihrer Kopfzeile über null Zeilen. Behoben, **auf einem Server nicht
+  nachgesehen**: Die Behebung liegt hinter `rc.29`.
 - **Befund 2** (§9.2) — der doppelte Punkt. **Behoben** mit `AgentMessageTest`
   und zwei Brüchen, in beide Richtungen.
 - **Befund 3** (§9.3) — die zweite Fassung im Wächter. **Behoben.**
@@ -399,3 +412,178 @@ ist nicht entstanden — die Legacy-Regel legt keine an.
 - **Was A3s erster Wurf nicht wird** (`docs/109 §8`): kein Schreibweg, keine
   Antwort auf „von aussen erreichbar", kein Regelwerk im Wortlaut, kein `check`
   in der Bestandsdiagnose, kein UDP.
+
+---
+
+## 13 · Der Nachlauf gegen `0.7.3-rc.29` — 9. September 2026
+
+Gefahren auf `cloudsrv24`, gegen die Fassung, die Befund 1 behebt. **Punkt 6 ist
+erfüllt; A3s erster Wurf ist damit abgenommen.**
+
+### 13.1 Die Messvorschrift
+
+Sie fehlte im Protokoll und steht deshalb hier — dasselbe Instrument für beide
+Läufe, in einer **frisch geladenen** Seite, weil die Nutzlast beim Laden
+entsteht:
+
+```js
+(() => {
+  const abschnitt = (titel) =>
+    [...document.querySelectorAll('section.section')].find(
+      (s) => s.querySelector('.section-head h2')?.textContent.trim() === titel
+    )
+  const rumpf = (s) =>
+    s ? [...s.children].filter((k) => !k.classList.contains('section-head')) : []
+  const kurz = (t) => t.trim().replace(/\s+/g, ' ')
+  const ports = abschnitt('Ports und Regelwerk')
+  const regel = abschnitt('Regelwerk')
+  const text = [
+    'Ports-Satz      : ' + !!ports?.querySelector('p.notice'),
+    'Ports-Text      : ' + (kurz(ports?.querySelector('p.notice')?.textContent ?? '') || '(keiner)'),
+    'Tabellen        : ' + document.querySelectorAll('table').length,
+    'Regelwerk-Rumpf : ' + (rumpf(regel).map((k) => k.tagName.toLowerCase() + (k.className ? '.' + k.className : '')).join(' , ') || '(leer)'),
+    'unter Regelwerk : ' + (kurz(rumpf(regel).map((k) => k.textContent).join(' | ')) || '(nichts)'),
+  ].join('\n')
+  console.log(text)
+  return text
+})()
+```
+
+Sie druckt ihr Urteil und gibt es zurück — der Satz aus `docs/105` über
+`baender-messen.js`, hier von Anfang an eingebaut.
+
+### 13.2 Die beiden Zustände
+
+`systemctl stop srvpanel-agentd && sleep 2` → dreimal `inactive`. Neu geladen:
+
+    Ports-Satz      : true
+    Ports-Text      : Die lauschenden Ports sind nicht feststellbar — der Agent hat nicht geantwortet.
+    Tabellen        : 2
+    Regelwerk-Rumpf : p.notice warn
+    unter Regelwerk : Das Regelwerk ist nicht feststellbar — der Agent hat nicht
+                      geantwortet. Das heisst nicht, dass keine Regeln gelten.
+
+`systemctl start srvpanel.target && sleep 2` → viermal `active`. Neu geladen:
+
+    Ports-Satz      : false
+    Ports-Text      : (keiner)
+    Tabellen        : 4
+    Regelwerk-Rumpf : table.pairs
+    unter Regelwerk : Verwaltet von | nftables · nftables | führt Regeln
+                      · iptables (alte Bauart) | führt nichts
+
+| | Agent tot | Agent läuft |
+|---|---|---|
+| `Ports-Satz` | `true` | `false` |
+| `Regelwerk-Rumpf` | `p.notice warn` | `table.pairs` |
+| `Tabellen` | 2 | 4 |
+
+**Die Gegenprobe ist der Grund, dass die erste Messung etwas bedeutet.** Ohne
+sie bliebe der Fall offen, dass der Satz **immer** dasteht — ein `v-else`
+verkehrt herum oder ein `props.ports.filter`, das nie trägt. Das Panel meldete
+dann „nicht feststellbar" auch bei antwortendem Agenten, und das wäre schwerer
+als der Befund, den es beheben sollte.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht** — und hier hätte die erste Messung allein genau so ausgesehen.
+
+**Eine Zeile ist Messmittel und kein Befund.** `unter Regelwerk` lief im
+Rohdruck als *„Verwaltet vonnftablesnftablesführt Regeln…"* zusammen: Der
+`textContent` einer Tabelle setzt Zellen ohne Trenner aneinander. Oben stehen
+die Zellen darum getrennt; über die Anzeige sagt der Rohdruck nichts.
+
+> **Ein Rohdruck, der Zellen ohne Trenner aneinandersetzt, sieht kaputt aus und
+> misst nichts über die Anzeige.**
+
+### 13.3 Befund 4 — dieselbe Familie zwei Bereiche höher
+
+**Im Bild zur ersten Messung standen „Dienste" und „Timer" mit ihrer Kopfzeile
+über null Zeilen.** Die Zahl stand daneben und ist mitgemessen worden: `Tabellen
+: 2` bei totem Agenten, `4` bei laufendem — die zwei sind genau diese beiden.
+
+Der Streifen darüber sagt „Die Zustände unten fehlen deshalb". Genau diese Lage
+hat auf `/schedules` als Befund 3 des A6-Laufs nicht genügt (`docs/113`), und
+zwei Bereiche tiefer war sie am selben Tag als Befund 1 behoben worden.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.** Zum fünften Mal — und
+> diesmal nicht beim nächsten Merkmal, sondern in **derselben Datei**, zwei
+> Bereiche über dem, den dieser Lauf behoben hat.
+
+Gemessen an der Datei: Die Ports-Tabelle trägt ihre Leerzeile
+(`<tr v-if="!props.ports.listeners?.length">`), die beiden anderen hatten weder
+Wächter noch Leerzeile. **Drei Bereiche auf einer Seite, drei Antworten auf
+dieselbe Frage.**
+
+Behoben mit **einer** Hülle für beide Bereiche (`<template v-if="live">`) und
+nicht je einer — die zweite Bedingung ist die, die veraltet. Die Ports-Tabelle
+behält ihre Leerzeile: Dort ist „geantwortet, und es horcht nichts" erreichbar;
+die Units hier kommen aus der Paketierung, und antwortet der Agent, gibt es sie.
+
+`ServicesViewTest::test_no_table_stands_where_nothing_is_known` hält beide
+Bedingungen aneinander **und die Hülle an ihrem Inhalt** — ein
+`<template v-if="live">` irgendwo auf der Seite erfüllte die Regel sonst, ohne
+dass eine Tabelle darin stünde. Drei Brüche, jeder einzeln gefahren, jeder an
+einer anderen Zusicherung rot (3 · 4 · 6).
+
+Der bestehende Nachbar `test_a_silent_agent_is_told_apart_from_an_empty_server`
+konnte es nicht sehen: Er sucht `v-if="!live"` und damit den **Streifen**.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht.** Der Streifen stand da, seine Folge nicht.
+
+### 13.4 Befund 5 — `BlockSpacingTest` meldete eine Fuge, die es nicht gibt
+
+Die Hülle machte den Wächter rot: `.scrolls` stehe unmittelbar unter `.scrolls`,
+und `app.css` kenne diese Nachbarschaft nicht.
+
+Der Wächter macht aus **jedem** `<template>` einen klassenlosen Kasten, damit
+ein `v-else` seine Zugehörigkeit zum Zweig behält — und sein Elternteil-Griff
+hielt diesen Kasten für echt. Damit wurde das `gap` von `.sections` nicht mehr
+angerechnet. Der Kopf der Umwandlung behauptet ausdrücklich das Gegenteil
+(„ein Kasten ohne Klasse ändert an der Fuge nichts"); das galt für die Fuge und
+nicht für die Frage nach dem Elternteil.
+
+Gemessen mit `@vue/compiler-dom` über
+`<div class="sections"><template v-if="live">…</template></div>`: Der Übersetzer
+erzeugt ein **`Fragment`** und kein Element.
+
+> **Ein Hilfsmittel, das im Modell einen Kasten erfindet, wird an der Stelle
+> falsch, an der jemand nach dem Elternteil fragt.**
+
+Der Griff sieht seitdem durch Kästen mit der Marke `data-fragment` hindurch.
+**Gemessen in beide Richtungen:** Fragment grün, ein echtes `<div v-if>` ohne
+Klasse rot, zurück grün — der Unterschied ist die Marke und nicht die fehlende
+Klasse.
+
+**Damit fiel `quiet + link` aus `OPEN_SEAMS`, und der Eintrag war nie eine
+Fuge.** Er meinte die Brotkrume des Dateimanagers; ihr Elternteil `.crumbs` ist
+seit jeher `display: flex` mit `gap`, gefunden wurde aber der Kasten aus dem
+`<template v-for>`. Gemeldet hat das die **Sperrklinke des Wächters in die
+andere Richtung** — sie liess den stumpferen Zustand nicht durchgehen.
+
+> **Eine Ausnahme, die einen Lesefehler ausgleicht, sieht aus wie ein bekanntes
+> Loch — und verschwindet erst, wenn jemand den Leser berichtigt.**
+
+### 13.5 Befund 6 — zwei Eingriffe verloren ihren Text an zwei Leerzeichen
+
+Die Hülle hat 64 Zeilen um zwei Stellen eingerückt. `BreakScriptTest` meldete
+zwei Eingriffe, die ihre Zielstelle nicht mehr fanden — beide zeigen jetzt auf
+die neue Einrückung und beissen wieder, von Hand nachgefahren.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand sie um zwei Leerzeichen verschiebt.**
+
+### 13.6 Die Bilanz des Nachlaufs
+
+**Punkt 6 erfüllt, A3s erster Wurf abgenommen.** Drei Befunde kamen dazu, alle
+drei aus dem Bauen und keiner aus dem Kriterium: einer im Prüfling (4), einer im
+Wächter (5), einer im Bruchskript (6).
+
+**Was der Nachlauf nicht gemessen hat:** Befund 4 liegt hinter `rc.29`, die
+Behebung hat also keinen Server gesehen. Was hier steht, ist an der Datei
+gemessen und im Container geprüft — 3223 Tests, `BreakScriptTest` 11 grün, Pint,
+`vue-tsc` und PHPStan sauber.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**

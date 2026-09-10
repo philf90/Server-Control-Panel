@@ -247,7 +247,70 @@ Tür antwortet mit „gibt es nicht" statt mit einem Fehler. Über den Fall eine
 **Kundenkontos** (Punkt 10) sagt das nichts; dort ist die Kennung gültig und
 die Zeile existiert.
 
-### 3.4 Die Reihenfolge für den Rest — neu, gegen den vollständigen Bestand
+## 4. Punkt 6b — erfüllt, und die Ablage misst mehr als die Knöpfe
+
+Gemessen auf `/accounts` bei 1440 px über die **lebende** Ablage:
+
+```
+Seite: /accounts · aktive Betreiber: 1
+```
+
+| # | id | name | self | letzter |
+|---|---|---|---|---|
+| 0 | 1 | Administrator | **true** | **true** |
+| 1 | 10 | Dritte Verwaltung | false | false |
+| 2 | 9 | Neu von Hand | false | false |
+| 3 | 8 | Wegwerf | false | false |
+| 4 | 7 | Zweite Verwaltung | false | false |
+
+**Punkt 6b verlangt `self: true` und `letzter: true` in derselben Zeile.**
+Beides steht da, und die vier übrigen Zeilen tragen in **beiden** Spalten
+`false`.
+
+**Die zweite Spalte ist dabei die schärfere Gegenprobe.** Wäre
+`is_last_operator` an „ist Betreiber" gehängt statt an `LastOperator::isLast()`,
+stünden „Neu von Hand" und „Wegwerf" auf `true` — sie **sind** Betreiber. Sie
+stehen auf `false`, weil sie deaktiviert sind und in `active()` nicht
+mitzählen. Die Hälfte der Regel, die §3.1 an den Knöpfen abgelesen hat, steht
+damit auch in der Ablage.
+
+**Und die Zahl daneben ist die dritte Quelle für dieselbe Tatsache:**
+`operators: 1` aus dem Payload, der Satz unter der Liste, und `aktive
+Betreiber: 1` aus dem Zustandsblock in §1. Alle drei kommen aus
+`LastOperator::active()` — das ist keine dreifache Bestätigung, sondern der
+Beleg, dass es **eine** Stelle ist.
+
+Nebenbei: Die Kennungen sind nicht fortlaufend (1, 7, 8, 9, 10). Sortiert wird
+nach `name`, nicht nach `id` — die Reihenfolge der Tabelle sagt nichts über das
+Alter eines Kontos.
+
+### 4.1 Befund 4 — ein Platzhalter, der in der Sprache des Prüfkörpers etwas bedeutet
+
+Der übergebene Befehl für 6c lautete ``fetch(`/accounts/${<id>}`, …)`` und
+endete mit `Uncaught SyntaxError: Unexpected token '<'`. Nicht der Prüfling,
+sondern der Prüfkörper: `<id>` steht dort **innerhalb** eines
+Template-Literals, und dort ist `<` JavaScript.
+
+Die Fassung davor schrieb `'/accounts/<id>'` als gewöhnliche Zeichenkette.
+Wörtlich eingefügt lief sie durch und gab `404` — harmlos und sichtbar falsch.
+Dieselbe Marke, zwei Formen, zwei ganz verschiedene Ausgänge; geändert hat sich
+nicht der Platzhalter, sondern die Syntax um ihn herum.
+
+> **Ein Platzhalter, der in der Sprache des Prüfkörpers selbst etwas bedeutet,
+> ist keiner — er ist ein Fehler, den erst der Einsetzende bemerkt.**
+
+Ein Prüfkörper zum Einfügen trägt deshalb den **gemessenen** Wert und keine
+Marke: `/accounts/1`.
+
+**Und eine Meldung derselben Konsole gehört nicht zu diesem Panel:** *„A
+listener indicated an asynchronous response by returning true, but the message
+channel closed before a response was received"* kommt von einer
+Browsererweiterung. Sie steht hier, damit sie später niemand als Befund
+aufschreibt.
+
+---
+
+### 4.2 Die Reihenfolge für den Rest — neu, gegen den vollständigen Bestand
 
 Die erste Fassung dieser Reihenfolge stand gegen einen Bestand aus zwei Konten
 und wollte „Dritte Verwaltung" zum Betreiber heben. Gegen fünf Konten gerechnet

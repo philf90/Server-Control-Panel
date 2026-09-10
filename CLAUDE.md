@@ -3017,6 +3017,90 @@ dreimal `iptables-nft`, und `inet f2b-table` gehört fail2ban. Das ist nach
 
 ---
 
+## Adminkonten lassen sich löschen — abgenommen am 10. September 2026
+
+Auf `cloudsrv24` gegen `0.7.4-rc.1`, **alle elf Punkte aus `docs/902 §15`**,
+beide Ausschlusskriterien (2 und 5) darunter, keiner als „nicht herstellbar"
+ausgefallen. Der Plan ist `docs/901`, der Lauf `docs/902`, das Protokoll
+**`docs/903`**.
+
+**Sechs Befunde, drei im Prüfling und drei im Prüfmittel** — und die drei
+Prüfmittelbefunde sind ein einziger Satz in drei Fassungen:
+
+> **Der Prüfkörper war gegen etwas anderes geschrieben als den Prüfling.**
+
+Zwei davon sind Wissen über **dieses** Panel und gehören deshalb hierher, nicht
+ins Protokoll:
+
+- **Inertia 3 legt die Ablage nicht ans Wurzelelement.** `@inertiajs/vue3 ^3.6.1`
+  liefert die Seite in einem `script[data-page="app"][type="application/json"]`;
+  `document.getElementById('app').dataset.page` ist seit dieser Fassung
+  `undefined`. Und **das Script-Element ist auch die falsche Quelle** — es trägt
+  die Seite, mit der geladen wurde, und überlebt jede Navigation. Die **lebende**
+  Ablage steht in
+  `document.getElementById('app').__vue_app__.config.globalProperties.$page`
+  (gemessen: `rootContainer.__vue_app__ = app` steht in
+  `runtime-core.cjs.prod.js`, also auch im Produktionsbau). Wer sie ausliest,
+  druckt `p.url` mit — sonst ist eine Messung der vorigen Seite von einer der
+  gemeinten nicht zu unterscheiden.
+
+- **`Accept: application/json` entscheidet in diesem Panel nichts.**
+  `bootstrap/app.php` schaltet Laravels Aushandlung ab:
+  `shouldRenderJsonWhen(fn ($r) => $r->is('api/*'))`. Eine
+  `ValidationException` nimmt deshalb den HTML-Weg — `back()->withErrors()`,
+  und `back()` ist dank `RememberPageUrl` die vorige Seite. **`fetch` folgt
+  dieser 302 mit derselben Methode** (die Spezifikation schreibt nur `POST` auf
+  `GET` um), also wird aus `DELETE /accounts/1` ein `DELETE /accounts` und
+  daraus eine `405` an einer Adresse, die niemand gerufen hat. Wer eine
+  schreibende Route ohne ihren Knopf prüfen will, ruft **denselben Klienten**:
+  `…__vue_app__.config.globalProperties.$inertia.delete(pfad, { onError, onSuccess })`.
+
+> **Eine Weiterleitung, der `fetch` folgt, macht aus einer abgewiesenen Anfrage
+> eine zweite, die es nie gab — und deren Fehler liest sich wie der Befund.**
+
+**Dagegen hat `tests/bilder-messen.js` in acht Lagen keinen einzigen Befund
+erzeugt.** Drei zu null zwischen einem aufgehobenen Messmittel und Befehlen, die
+für diesen Lauf neu getippt wurden — der Satz aus `docs/66` noch einmal bestätigt.
+
+**Der grösste Befund am Prüfling trifft jede Fehlermeldung dieses Panels.**
+Beim Anlegen eines Kontos mit vergebener Adresse steht dort *„The Anmeldeadresse
+has already been taken."* — englischer Satz, deutscher Feldname mittendrin.
+Gemessen: `lang/de/validation.php` führt **40 von 138** Regelschlüsseln; **98
+fehlen** und fallen auf Englisch zurück. Drei davon benutzt dieses Panel an **17
+Stellen** — `unique` (5), `date_format` (8), `enum` (4). Kein Wächter konnte es
+sehen, weil der englische Satz nirgends im Quelltext steht; er entsteht zur
+Laufzeit aus einer Datei des Frameworks.
+
+> **Ein Wächter über den Quelltext sieht keinen Satz, den das Framework zur
+> Laufzeit einsetzt.** Prüfbar ist die andere Richtung: Jede Regel, die unter
+> `app/Http` in einer Validierung vorkommt, zeigt auf einen Schlüssel in
+> `lang/de/validation.php`. Die Gegenrichtung wäre falsch — 98 ungenutzte
+> Schlüssel zu verlangen hiesse, Laravels Wortschatz zu pflegen statt den
+> eigenen.
+
+Beim Suchen danach ist der Ausdruck selbst dreimal danebengegriffen: `can` traf
+`cancel_requested_at`, `current_password` traf einen **Feldnamen** und nicht die
+gleichnamige Regel, und `Rule::requiredIf` erzeugt die Meldung `required`, die
+übersetzt ist.
+
+> **Ein Ausdruck, der einen Regelnamen als Zeichenkette sucht, findet jeden
+> Feldnamen mit, der so heisst.**
+
+**Was benannt offen bleibt** (`docs/903 §16.1`): dieser Befund und der Hinweis
+unter der Kontenliste, der zwei von drei Wegen nennt — herabstufen und sperren,
+nicht löschen, und ausgerechnet der dritte ist der, dessen Knopf in der Zeile
+des letzten Betreibers fehlt. Beide sind bewusst **nicht während des Laufs**
+behoben worden: Eine Behebung ist eine Änderung am Prüfling.
+
+**Und ein Rest hat geschwiegen statt zu bestehen.** Der Tabellenüberlauf bei
+sehr langen Namen (`docs/901 §9`) braucht 76 Zeichen; die fünf Konten dieses
+Servers haben kurze, und `rollt` stand auf `0`.
+
+> **Ein Rest, der bei diesen Daten nicht anschlägt, ist nicht gemessen worden —
+> er hat nur geschwiegen.**
+
+---
+
 ## Zwei Befunde an einem Feld — 4. September 2026
 
 Gemeldet hat den ersten der Betreiber, beim ersten Versuch, den Wartungsmodus

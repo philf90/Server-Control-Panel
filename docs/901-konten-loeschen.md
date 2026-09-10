@@ -869,13 +869,21 @@ nichts".
   mit Schritt 9 nachgetragen, und zwar dort und nicht bloss hier: Eine
   Ablösung, die nur im ablösenden Dokument steht, liest niemand, der beim
   abgelösten nachsieht.
-- **Kein Punkt des Abnahmekriteriums (§6) hat einen echten Server gesehen.**
-  Gemessen ist alles in diesem Container: der volle Testlauf, die sechs
-  Eingriffe einzeln, die Bilderrunde auf der echten Seite und der Griff im
-  Browser. Was hier grundsätzlich fehlt, ist MariaDB als Datenbank des
-  Prüflings — der Nachtrag aus Schritt 1 lief gegen SQLite, und die elf Punkte
-  aus §6 sind gegen `cloudsrv24` ausgeschrieben.
+- **Das Abnahmekriterium (§6) ist gefahren und erfüllt** — am 10. September 2026
+  auf `cloudsrv24` gegen `0.7.4-rc.1`, alle elf Punkte, beide
+  Ausschlusskriterien (2 und 5) darunter. Der Lauf ist `docs/902`, das
+  Protokoll **`docs/903`**; sechs Befunde, drei davon im Prüfling.
+
+  Bis dahin stand hier, kein Punkt habe einen echten Server gesehen — gemessen
+  war alles im Container, und was dort grundsätzlich fehlt, ist MariaDB als
+  Datenbank des Prüflings: Der Nachtrag aus Schritt 1 lief gegen SQLite. Genau
+  das hat der Lauf nachgeholt.
 
   > **Eine Ausbaustufe gilt erst als fertig, wenn ihr Abnahmekriterium
   > nachweisbar erfüllt ist — gemessen auf einem echten Server, nicht
   > geschätzt.**
+
+- **Zwei Befunde des Laufs sind offen und gehören hierher:** der Hinweis unter
+  der Kontenliste nennt zwei von drei Wegen (`docs/903 §3.2`), und drei
+  Prüfregeln antworten auf Englisch (`docs/903 §11.1`). Beide sind bewusst nicht
+  während des Laufs behoben worden.

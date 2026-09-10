@@ -1,8 +1,14 @@
 # Protokoll: der Abnahmelauf zum Löschen von Adminkonten
 
 **Gefahren am 10. September 2026** auf `cloudsrv24` gegen `0.7.4-rc.1`. Der Plan
-ist `docs/901`, der Lauf `docs/902`. Dieses Dokument wächst während des Laufs;
-was hier steht, ist gemessen und nicht erwartet.
+ist `docs/901`, der Lauf `docs/902`. Was hier steht, ist gemessen und nicht
+erwartet.
+
+**Abgenommen am selben Tag** — alle elf Punkte aus `docs/902 §15`, beide
+Ausschlusskriterien (2 und 5) darunter, keiner als „nicht herstellbar"
+ausgefallen. Die Bilanz steht in §15, die Abnahme in §16, was offen bleibt in
+§16.1. **Sechs Befunde, drei davon im Prüfling**, und keinen hat ein Test
+gefunden.
 
 ---
 
@@ -832,6 +838,175 @@ Themen brauchen es nicht beide: Die Zahl ist in beiden dieselbe, und der Roller
 folgt der Breite und nicht der Farbe.
 
 **Offen bleibt `/accounts`** — vier weitere Lagen.
+
+---
+
+## 14. Punkt 11, zweite Hälfte — `/accounts` in vier Lagen, und der Roller hat einen Namen
+
+```
+stand=2026-09-06 breite=1440 thema=light dokument=0 gegenprobe=200 schiebt=0 rollt=0 versteckt=0   schiebt: [] · rollt: []
+stand=2026-09-06 breite=390  thema=light dokument=0 gegenprobe=200 schiebt=0 rollt=0 versteckt=2   schiebt: [] · rollt: []
+stand=2026-09-06 breite=1440 thema=dark  dokument=0 gegenprobe=200 schiebt=0 rollt=0 versteckt=0   schiebt: [] · rollt: []
+stand=2026-09-06 breite=390  thema=dark  dokument=0 gegenprobe=200 schiebt=0 rollt=0 versteckt=2   schiebt: [] · rollt: []
+```
+
+**Vier Lagen, `dokument=0`, `gegenprobe=200`, und beide Listen leer.** Nicht nur
+die Zahlen null — die Namen daneben sind leer, und das ist der Unterschied
+zwischen „nichts gefunden" und „nichts angesehen".
+
+### 14.1 Der Roller von `/audit` — am Quelltext bestimmt statt in der Konsole aufgeklappt
+
+`rollt=1` bei 1440 px nannte kein Element. Bestimmt wird es durch Ausschluss,
+und die Grundmenge ist klein:
+
+- In `app.css` gibt es genau **zwei** Regeln mit `overflow-x: auto` —
+  `.scrolls` und `.field textarea.code`.
+- `Audit/Index.vue` trägt **ein** `class="scrolls"` (um die Tabelle) und
+  **kein** `<textarea>`.
+
+Der Browser hat ein Element gezählt, das überläuft **und** rollen darf; die
+Seite hat genau ein Element, das rollen darf. Beide meinen dasselbe.
+
+**Und es ist der gewollte Fall**, wörtlich begründet im Kopf der Regel: `.stacks`
+wirkt erst unter 720 px — *„Darüber ist die Tabelle eine Tabelle, und eine
+Tabelle mit sechs Spalten will auch auf 1024px rollen können statt sich zu
+quetschen."* Bei 390 px ist sie gestapelt, läuft nicht über, und `rollt` steht
+auf `0`. Kein Befund.
+
+> **Ein Name, den die Konsole wegklappt, steht auch im Quelltext — wenn die
+> Seite nur einen Kandidaten hat.** Das ist eine Bestimmung durch Ausschluss und
+> kein Ablesen; sie trägt, weil die Grundmenge gemessen ist und aus zwei Regeln
+> besteht.
+
+### 14.2 Was `/accounts` nicht gemessen hat
+
+`/accounts` trägt ebenfalls ein `class="scrolls"`, und dort steht `rollt=0` —
+die Tabelle läuft bei diesen Namen gar nicht über. Der benannte Rest aus
+`docs/901 §9` (240 px ohne, 334 px mit dem Löschknopf) braucht einen Namen von
+76 Zeichen; die fünf Konten dieses Servers haben kurze.
+
+> **Ein Rest, der bei diesen Daten nicht anschlägt, ist nicht gemessen worden —
+> er hat nur geschwiegen.** Punkt 11 ist erfüllt; über den Überlauf bei langen
+> Namen sagt er nichts, und `docs/902 §13` hat das vorher so gewollt.
+
+**Punkt 11 ist damit erfüllt**, acht Lagen auf zwei Seiten.
+
+---
+
+## 15. Die Bilanz
+
+**Alle elf Punkte erfüllt.** Keiner ist als „nicht herstellbar" ausgefallen.
+
+| # | Punkt | wo gemessen |
+|---|---|---|
+| 1 | Die Zeile ist fort | §9 |
+| 2 | Die Protokollzeilen tragen weiter ihren Namen | §9 |
+| 3 | `/audit` zeigt den Namen mit „gelöscht" | §10 |
+| 4 | Die Ausfuhr trägt den Namen | §12 |
+| 5 | Ein Eintrag ohne Handelnden liest sich als „System" | §2 |
+| 6 | Der letzte aktive Betreiber (Fassung aus `docs/902 §0.1`) | §3, §4, §6 |
+| 7 | Das eigene Konto bei zwei aktiven Betreibern | §7 |
+| 8 | Die Anmeldeadresse ist wieder frei | §11 |
+| 9 | Die offenen Sitzungen sind fort | §9 |
+| 10 | Der Eintrag `account.deleted` | §9, §10 |
+| 11 | Die Bilderrunde | §13, §14 |
+
+**Die beiden Punkte, die nicht ausfallen durften** (`docs/902 §15`), sind
+darunter: Punkt 5 — die beiden Nullfälle gehen auseinander — und Punkt 2 — die
+Abschrift überlebt das Löschen, und zwar in **beiden** Herkünften.
+
+### 15.1 Sechs Befunde, und keinen hat ein Test gefunden
+
+| # | Befund | wo | steckt im |
+|---|---|---|---|
+| 1 | „System" auch für einen anonymen Anmeldeversuch | §2 | **Prüfling** |
+| 2 | Der Hinweis nennt zwei von drei Wegen | §3.2 | **Prüfling** |
+| 3 | Der Messbefehl war gegen Inertia 1/2 geschrieben | §3.3 | Prüfmittel |
+| 4 | Ein Platzhalter, der in JavaScript etwas bedeutet | §4.1 | Prüfmittel |
+| 5 | Der Prüfkörper nahm Laravels Voreinstellung an | §5 | Prüfmittel |
+| 6 | Drei Prüfregeln antworten auf Englisch | §11.1 | **Prüfling** |
+
+**Drei und drei** — anders als bei `docs/45`, `docs/48`, `docs/59` und
+`docs/84`, wo die Mehrheit im Prüfmittel steckte, und anders als bei A2, A10 und
+A14, wo sie im Prüfling steckte.
+
+**Und die drei Prüfmittelbefunde sind ein einziger Satz in drei Fassungen:**
+
+> **Der Prüfkörper war gegen etwas anderes geschrieben als den Prüfling** —
+> einmal gegen eine ältere Inertia-Fassung, einmal gegen eine Sprache, in der
+> `<id>` Syntax ist, einmal gegen eine Framework-Voreinstellung, die diese
+> Anwendung abgeschaltet hat.
+
+**Dagegen hat `tests/bilder-messen.js` in acht Lagen keinen einzigen Befund
+erzeugt.** Das ist der Unterschied zwischen einem aufgehobenen Messmittel und
+einem, das für diesen Lauf neu getippt wurde.
+
+> **Ein Messmittel, das man aufhebt, macht die Fehler von letztem Mal nicht noch
+> einmal.** Der Satz steht seit `docs/66` in diesem Repo, und dieser Lauf hat
+> ihn an drei zu null bestätigt.
+
+**Was daraus folgt:** Die beiden Konsolengriffe dieses Laufs — die lebende
+Ablage über `__vue_app__.config.globalProperties.$page` und der Aufruf über
+`$inertia` — gehören ins Repo. Sie gelten für **jede** Inertia-Seite dieses
+Panels, und der nächste Lauf tippt sie sonst wieder neu und wieder falsch.
+
+### 15.2 Wer die Befunde gefunden hat
+
+Befund 6 fiel dem Betreiber beim Ausführen von Punkt 8 in die Hände, Befund 1
+kam aus einer Messung des Laufs, Befund 2 aus dem Nachlesen am Quelltext, nachdem
+ein Bild die Frage aufgeworfen hatte. Die drei Prüfmittelbefunde meldete jeweils
+der Prüfkörper selbst, indem er nicht lief.
+
+**Kein einziger kam aus dem Nachdenken vor dem Lauf.** Dabei war die Vorschrift
+vorher ausgeschrieben, und drei Kriterien sind beim Ausschreiben umgefallen
+(`docs/902 §0`) — das hat drei falsche Messungen verhindert und keinen einzigen
+Befund erzeugt.
+
+> **Ein Kriterium, das man vor dem Lauf berichtigt, spart eine falsche Messung.
+> Einen Befund findet trotzdem erst der Lauf.**
+
+---
+
+## 16. Die Abnahme
+
+**`docs/901` ist am 10. September 2026 abgenommen** — auf `cloudsrv24` gegen
+`0.7.4-rc.1`, alle elf Punkte aus `docs/902 §15`, beide Ausschlusskriterien
+(2 und 5) darunter, keiner als „nicht herstellbar" ausgefallen.
+
+Adminkonten lassen sich löschen, und was sie getan haben, bleibt lesbar: Die
+Zeile verschwindet, die Sitzungen gehen mit, die Anmeldeadresse wird frei — und
+das Protokoll trägt weiter den Namen, sowohl auf den Zeilen, die der Nachtrag
+erreicht hat, als auch auf denen, die nach dem Bau entstanden sind.
+
+> **Löschen und Vergessen sind zwei Dinge. Die Zeile darf verschwinden; was sie
+> getan hat, darf es nicht.**
+
+### 16.1 Was benannt offen bleibt
+
+**Zwei Befunde am Prüfling sind nicht behoben**, und das ist Absicht: Eine
+Behebung ist eine Änderung am Prüfling, und der Lauf lief.
+
+- **Befund 2** — der Hinweis unter der Kontenliste nennt zwei von drei Wegen.
+- **Befund 6** — `unique`, `date_format` und `enum` antworten auf Englisch, an
+  17 Stellen. Der Wächter dazu prüft die Richtung „benutzte Regel zeigt auf
+  einen Schlüssel in `lang/de/validation.php`".
+
+**Befund 1** ist kein Mangel des Baus, sondern eine Frage an die Anzeige: Ein
+anonymer Anmeldeversuch liest sich als „System", weil `account_id` dort schon
+vorher `null` war. Er gehört zu `/audit` und nicht zu `docs/901`.
+
+**Aus `docs/901 §9` bleibt stehen:**
+
+- Der Tabellenüberlauf bei sehr langen Namen — in diesem Lauf **nicht
+  angeschlagen und nicht gemessen** (§14.2).
+- Zwei gleichnamige gelöschte Konten — **jetzt auf diesem Server hergestellt**
+  (§12.1), folgenlos, und ihre Bindung hält im Löscheintrag.
+- Das Protokoll des Agenten trägt weiter die nackte Kennung.
+- Die Laufzeit des Nachtrags über ein grosses Protokoll kennt niemand; auf
+  `cloudsrv24` waren es 1.285 Zeilen.
+
+**Und ausserhalb dieses Laufs** bleibt der Rest aus P7 (`orphan.row` für
+`tls.cloudlab24.de`).
 
 ---
 

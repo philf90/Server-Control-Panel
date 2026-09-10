@@ -497,7 +497,59 @@ kann** — Punkt 9 hat sonst keinen Gegenstand.
 
 ---
 
-### 7.2 Die Reihenfolge für den Rest — neu, gegen den vollständigen Bestand
+## 8. Der Zustand vor dem Löschen — die Messung, die es nur einmal gibt
+
+```
+Konto da: 1
+Sitzungen Wegwerf: 2
+Sitzungen gesamt: 13
+2026-08-25 10:36:53  auth.login               id=8  name=Wegwerf
+2026-08-25 10:37:27  auth.logout              id=8  name=Wegwerf
+2026-09-10 18:24:19  auth.login               id=8  name=Wegwerf
+2026-09-10 18:24:34  auth.two_factor.enabled  id=8  name=Wegwerf
+2026-09-10 18:29:00  auth.two_factor.required id=8  name=Wegwerf
+2026-09-10 18:29:07  auth.login               id=8  name=Wegwerf
+```
+
+**Sechs Zeilen, und sie sind zweierlei.** Die beiden vom 25. August tragen
+ihren Namen aus dem **Nachtrag** — `0.7.4-rc.1` steht seit heute auf diesem
+Server, beim Anlegen dieser Zeilen gab es die Spalte noch nicht. Die vier von
+heute tragen ihn aus dem `creating`-Ereignis. Beide Arten stehen unter
+demselben Namen nebeneinander, und **beide müssen ihn nach dem Löschen
+behalten**.
+
+> **Ein Prüfkörper, der nur eine der beiden Herkünfte enthält, belegt die
+> andere nicht — und welche fehlt, sieht man ihm nicht an.**
+
+**Zwei Sitzungen, und das ist der Grund, warum es zwei sein mussten.**
+`Sessions::forgetAll()` heisst nach dem, was es verspricht; an genau einer
+Sitzung liesse sich „alle" von „die eine" nicht unterscheiden. `gesamt: 13` ist
+die Gegenprobe daneben: Sinkt es um mehr als zwei, hat der Griff fremde
+Sitzungen mitgenommen.
+
+**Und die Protokollzeilen bestätigen die Sitzungszahl, ohne dieselbe Messung zu
+sein:** zwei Anmeldungen heute (18:24:19 und 18:29:07), zwei Sitzungen in der
+Tabelle. Dazwischen liegt `auth.two_factor.required` um 18:29:00 — das zweite
+Gerät an der Schranke, bevor es hereinkam.
+
+### 8.1 Die Uhrzeit weicht um zwei Stunden ab, und das ist die Zusage
+
+Die Kontenliste nennt für dieselbe Anmeldung **12:36:53**, dieser Block
+**10:36:53**. Die Differenz ist genau der Versatz einer Anzeigezone, die im
+August auf +02:00 steht; in der Datenbank liegt UTC, und `Clock::display()`
+rechnet für die Seite um. `tinker` druckt den abgelegten Wert roh.
+
+Das ist kein Widerspruch, sondern die Zusage aus `docs/40` von der anderen
+Seite gesehen — und es steht hier, damit niemand die beiden Zahlen später
+nebeneinanderlegt und einen Befund daraus macht.
+
+> **Zwei Zahlen, die auseinandergehen, sind erst dann ein Befund, wenn beide
+> dasselbe behaupten.** Die eine sagt „so steht es da", die andere „so liest es
+> ein Mensch hier".
+
+---
+
+### 8.2 Die Reihenfolge für den Rest — neu, gegen den vollständigen Bestand
 
 Die erste Fassung dieser Reihenfolge stand gegen einen Bestand aus zwei Konten
 und wollte „Dritte Verwaltung" zum Betreiber heben. Gegen fünf Konten gerechnet

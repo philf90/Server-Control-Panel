@@ -1132,12 +1132,46 @@ Objektform wieder unsichtbar gemacht, bleibt `test_every_rule_in_use_has_a_germa
 - **`npm run types`** und **`npm run build`** grün, **`BreakScriptTest`** grün
   (11 Fälle, 905 Behauptungen), **`bash -n`** über das Bruchskript grün.
 
-**Was nicht gemessen ist:** Keine der beiden Behebungen hat einen Server
-gesehen. Der Satz auf der Seite und die vier Prüfmeldungen sind im Container
-belegt; wie sie auf `cloudsrv24` aussehen, sagt erst die nächste Fassung.
+### 17.4 Nachgesehen auf dem Server — 10. September 2026, `0.7.4-rc.2`
 
 > **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
 > jemand ihn behoben hat.**
+
+Gemessen auf `cloudsrv24`, `srvpanel version` sagt `0.7.4-rc.2`.
+
+**Befund 2.** Unter der Kontenliste stehen beide Sätze:
+
+> Es gibt genau einen aktiven Betreiber. Er lässt sich weder herabstufen noch
+> sperren **noch löschen**, solange er der letzte ist — sonst käme niemand mehr
+> an die Einstellungen dieses Servers.
+>
+> Das eigene Konto lässt sich nicht löschen. Ein zweiter Betreiber kann es tun.
+
+Beide **auf dem Telefon bei 390 px**, dunkles Thema, am Ende der gestapelten
+Liste. Der zweite Satz hängt an `eigeneZeile`, und er steht da — die eigene
+Zeile ist auf dieser Seite. Dass ein neuer Absatz in derselben Flussrichtung
+nichts schiebt, ist damit an der Stelle belegt, an der es überhaupt schieben
+könnte.
+
+**Befund 6.** Beim Anlegen eines Kontos mit `philipp@netzhost24.de`:
+
+> **Das Formular wurde nicht gespeichert.**
+> Das Feld Anmeldeadresse ist bereits vergeben.
+
+Deutsch, Wort für Wort der Satz aus `lang/de/validation.php`. Vorher stand dort
+*„The Anmeldeadresse has already been taken."*
+
+**Und was damit nicht belegt ist, gehört daneben:** Gemessen ist `unique`. Die
+drei anderen Sätze — `date_format`, `enum`, `required_if` — liegen in derselben
+Datei und kommen über denselben Weg, aber ihr **Wortlaut** ist auf dem Server
+nicht ausgelöst worden.
+
+> **Ein Mechanismus, der an einer Stelle belegt ist, trägt die anderen Stellen —
+> ihre Texte trägt er nicht.**
+
+---
+
+
 
 ---
 

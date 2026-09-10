@@ -3119,6 +3119,16 @@ beide Richtungen: Steht `sperren` nur noch im Kommentar, ist er rot.
 > steht — und ein Kommentar, der die entfernte Zeile zitiert, stellt sie für ihn
 > wieder her.**
 
+**Beide sind am selben Tag gegen `0.7.4-rc.2` auf dem Server nachgesehen**
+(`docs/903 §17.4`): die zwei Sätze unter der Kontenliste bei 390 px auf dem
+Telefon, und beim Anlegen mit vergebener Adresse *„Das Feld Anmeldeadresse ist
+bereits vergeben."* Gemessen ist damit `unique`; die drei anderen Sätze liegen
+in derselben Datei und kommen über denselben Weg, aber ihr **Wortlaut** ist auf
+dem Server nicht ausgelöst worden.
+
+> **Ein Mechanismus, der an einer Stelle belegt ist, trägt die anderen Stellen —
+> ihre Texte trägt er nicht.**
+
 **Ein Satz dieses Protokolls war dabei falsch und ist berichtigt:** „Kein
 Wächter dieses Repos konnte das sehen." Es gab ihn, und der Kopf der Datei, die
 zu ändern war, nennt ihn beim Namen — gekostet hat der Irrtum deshalb nichts.

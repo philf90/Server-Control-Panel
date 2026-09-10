@@ -794,6 +794,47 @@ Löscheintrag sind sie es nicht.
 
 ---
 
+## 13. Punkt 11, erste Hälfte — `/audit` in vier Lagen
+
+```
+stand=2026-09-06 breite=1440 thema=dark  dokument=0 gegenprobe=200 (soll 200) schiebt=0 rollt=1 versteckt=0
+stand=2026-09-06 breite=390  thema=dark  dokument=0 gegenprobe=200 (soll 200) schiebt=0 rollt=0 versteckt=2
+stand=2026-09-06 breite=390  thema=light dokument=0 gegenprobe=200 (soll 200) schiebt=0 rollt=0 versteckt=2
+stand=2026-09-06 breite=1440 thema=light dokument=0 gegenprobe=200 (soll 200) schiebt=0 rollt=1 versteckt=0
+```
+
+**`dokument=0` in allen vier, `gegenprobe=200` in allen vier, `schiebt=0` in
+allen vier.** Nichts schiebt, was nicht darf — und die Gegenprobe belegt, dass
+die Messung überhaupt ausschlagen kann.
+
+**`stand=2026-09-06` steht in jeder Zeile.** Das ist das Feld, das
+`tests/bilder-messen.js` am 19. August bekommen hat, weil eine Vorschrift aus
+der Zwischenablage nach jedem Neuladen zurückkommt; vier gleiche Stände heissen,
+dass viermal dieselbe geprüfte Fassung gelaufen ist.
+
+**`versteckt=2` bei 390 px und `0` bei 1440 px** — das sind Elemente, die
+überlaufen und nur fürs Vorlesen da sind (auf ein Pixel geklippt). Das Skript
+lässt sie aus der Liste und **nennt ihre Zahl daneben**, statt sie stillschweigend
+zu schlucken.
+
+> **Kein stiller Deckel: Wer die Sicht begrenzt, nennt die Zahl dazu.**
+
+**`rollt=1` bei 1440 px, in beiden Themen, und `0` bei 390 px.** Ein Roller ist
+nur dann ein Befund, wenn er kein gewollter Rollbehälter ist (`docs/902 §13`) —
+und **welches Element es ist, steht in dieser Ausgabe nicht**. Die Zeile zählt
+nur; der Name liegt im zurückgegebenen Objekt, und das klappt die Konsole nach
+fünf Schlüsseln zu.
+
+> **Eine Zahl sagt, dass etwas rollt. Ob es rollen soll, sagt nur sein Name.**
+
+Nachzuholen ist deshalb eine Lage bei 1440 px mit den Namen daneben. Die zwei
+Themen brauchen es nicht beide: Die Zahl ist in beiden dieselbe, und der Roller
+folgt der Breite und nicht der Farbe.
+
+**Offen bleibt `/accounts`** — vier weitere Lagen.
+
+---
+
 ### 12.2 Die Reihenfolge, nach der der Rest gefahren wurde
 
 Aufgeschrieben nach Punkt 6a, gegen den vollständigen Bestand gerechnet, und

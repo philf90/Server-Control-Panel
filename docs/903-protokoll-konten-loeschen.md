@@ -549,7 +549,163 @@ nebeneinanderlegt und einen Befund daraus macht.
 
 ---
 
-### 8.2 Die Reihenfolge für den Rest — neu, gegen den vollständigen Bestand
+## 9. Punkte 1, 2, 9 und 10 — erfüllt, alle vier in einem Block
+
+Gelöscht wurde über den **Knopf** auf `/accounts`; die Seite meldet
+*„Konto Wegwerf gelöscht."* und führt vier Konten. Danach:
+
+```
+Konto da: 0
+Sitzungen Wegwerf: 0
+Sitzungen gesamt: 11
+2026-08-25 10:36:53  auth.login               id=NULL  name=Wegwerf
+2026-08-25 10:37:27  auth.logout              id=NULL  name=Wegwerf
+2026-09-10 18:24:19  auth.login               id=NULL  name=Wegwerf
+2026-09-10 18:24:34  auth.two_factor.enabled  id=NULL  name=Wegwerf
+2026-09-10 18:29:00  auth.two_factor.required id=NULL  name=Wegwerf
+2026-09-10 18:29:07  auth.login               id=NULL  name=Wegwerf
+
+wer=Administrator  ziel=App\Models\Account/8
+Array
+(
+    [name] => Wegwerf
+    [email] => wegwerf@cloudlab24.de
+    [role] => operator
+)
+```
+
+**Punkt 1** — `Konto da: 0`. Die Zeile ist fort, hart gelöscht und nicht weich.
+
+**Punkt 2** — dieselben **sechs** Zeilen, dieselbe Zahl, `account_id` auf
+`NULL`, `account_name` unverändert `Wegwerf`. **Und beide Herkünfte haben ihn
+behalten**: die zwei vom 25. August, deren Name aus dem Nachtrag stammt, und die
+vier von heute, deren Name aus dem `creating`-Ereignis kommt. Wäre nur eine der
+beiden im Prüfkörper gewesen, stünde die andere hier ungemessen.
+
+**Punkt 9** — `Sitzungen Wegwerf: 0`, und `gesamt` von 13 auf **11**. Genau
+zwei, also genau seine. Sänke es weiter, hätte `Sessions::forgetAll()` fremde
+Sitzungen mitgenommen; das hält `AccountDeletionTest` im Container, und hier
+hält es ein echter Bestand mit elf fremden Sitzungen daneben.
+
+**Punkt 10** — der Eintrag trägt `name`, `email` **und `role`**. Er ist die
+einzige Stelle, an der die drei aneinander gebunden bleiben: Die Abschrift auf
+den sechs Zeilen darüber trägt nur den Namen. Wer in einem Jahr wissen will,
+unter welcher Adresse dieses „Wegwerf" angemeldet war und welche Rechte es
+hatte, findet es hier und sonst nirgends.
+
+`ziel=App\Models\Account/8` zeigt auf eine Zeile, die es nicht mehr gibt. Das
+ist `nullableMorphs` und kein Befund — `docs/902 §12` sagt es vorher.
+
+---
+
+## 10. Punkt 3 — erfüllt, und die Gegenprobe steht in derselben Ansicht
+
+Auf `/audit`, gefiltert auf `auth.`:
+
+| Zeitpunkt | Aktion | Wer | Ziel | Einzelheiten |
+|---|---|---|---|---|
+| 2026-09-10 20:36:50 | `account.deleted` | Administrator | Account#8 | name: Wegwerf · email: wegwerf@cloudlab24.de · role: operator |
+| 2026-09-10 20:29:07 | `auth.login` | **Wegwerf (gelöscht)** | — | method: totp |
+| 2026-09-10 20:29:00 | `auth.two_factor.required` | **Wegwerf (gelöscht)** | — | — |
+| 2026-09-10 20:28:49 | `auth.logout` | Administrator | — | — |
+| 2026-09-10 20:24:34 | `auth.two_factor.enabled` | **Wegwerf (gelöscht)** | — | — |
+| 2026-09-10 20:14:49 | `account.updated` | Administrator | Account#8 | … role: operator · status: disabled → active |
+
+**Beide Zustände stehen untereinander**: „Wegwerf (gelöscht)" für ein Konto, das
+es nicht mehr gibt, und „Administrator" ohne Zusatz für eines, das es gibt.
+Stünde überall „(gelöscht)", sagte die Spalte nichts.
+
+> **Eine Kennzeichnung, die überall steht, kennzeichnet nichts.**
+
+**Punkt 10 ist damit auch auf der Oberfläche belegt** und nicht nur in der
+Datenbank: Die Spalte „Einzelheiten" gibt den Zusammenhang des Eintrags aus,
+also Name, Adresse und Rolle. Dass er geschrieben wird, sagt der Block in §9;
+dass ihn jemand liest, sagt diese Zeile — und das sind zwei verschiedene
+Aussagen (`docs/66`).
+
+**Der Zähler oben steht auf 1.296**, zu Beginn des Laufs waren es 1.286: zehn
+Zeilen für den ganzen Lauf. Und die Zeitpunkte liegen zwei Stunden über denen
+aus `tinker` — die Anzeigezone, siehe §8.1.
+
+---
+
+## 11. Punkt 8 — erfüllt, mit der Gegenprobe davor
+
+**Vorher**, solange „Wegwerf" noch da war: `/accounts/create` mit
+`wegwerf@cloudlab24.de` wird abgewiesen — *„Das Formular wurde nicht
+gespeichert."*
+
+**Nachher**: *„Konto Wegwerf angelegt."*, die Liste führt wieder fünf Konten.
+Dieselbe Adresse, dieselbe Eingabe, zwei Ausgänge — und **nur deshalb** ist der
+zweite eine Messung.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+Nebenbei: Das neue Konto trägt dieselbe Adresse und eine neue Kennung. Seine
+Protokollzeilen werden ebenfalls `name=Wegwerf` tragen — auseinanderzuhalten
+sind die beiden auf `/audit` am Zusatz „(gelöscht)". Der benannte Rest aus
+`docs/901 §9` betrifft **zwei gelöschte** gleichen Namens; dieser Fall ist es
+nicht.
+
+### 11.1 Befund 6 — drei Prüfregeln antworten auf Englisch
+
+Die Ablehnung lautete vollständig:
+
+> **Das Formular wurde nicht gespeichert.**
+> The Anmeldeadresse has already been taken.
+
+Der erste Satz kommt aus dem Panel, der zweite aus dem Framework — mit dem
+deutschen Feldnamen mitten im englischen Satz. `docs/19 §4a` ist bindend: Alle
+Texte der Oberfläche sind deutsch.
+
+**Gemessen statt geschätzt.** `lang/de/validation.php` führt **40** der **138**
+Regelschlüssel, die Laravel kennt; **98 fehlen** und fallen auf Englisch
+zurück. Davon benutzt dieses Panel drei:
+
+| Regel | Stellen | englischer Satz |
+|---|---|---|
+| `unique` | 5 | The :attribute has already been taken. |
+| `date_format` | 8 | The :attribute field must match the format :format. |
+| `enum` | 4 | The selected :attribute is invalid. |
+
+Siebzehn Stellen, und sie liegen nicht am Rand: `unique` hängt an jeder
+Anmeldeadresse und jedem Plan- und Abonnementnamen, `date_format` an den Filtern
+von `/audit` und an den Ankündigungen, `enum` an Rolle und Zustand jedes
+Adminkontos.
+
+**Drei weitere Treffer des ersten Ausdrucks waren keine**, und das gehört
+dazu: `can` traf `cancel_requested_at`, `current_password` traf einen
+**Feldnamen** und nicht die gleichnamige Regel, und `Rule::requiredIf` erzeugt
+die Meldung `required` — die ist übersetzt.
+
+> **Ein Ausdruck, der einen Regelnamen als Zeichenkette sucht, findet jeden
+> Feldnamen mit, der so heisst.**
+
+**Kein Wächter dieses Repos konnte das sehen**, und der Grund ist derselbe wie
+bei Befund 5 aus `docs/91`: Der englische Satz steht nirgends im Quelltext. Er
+entsteht zur Laufzeit aus einer Datei des Frameworks, weil in unserer der
+Schlüssel fehlt.
+
+> **Ein Wächter über den Quelltext sieht keinen Satz, den das Framework zur
+> Laufzeit einsetzt.**
+
+**Prüfbar ist es trotzdem, und zwar in der Form, die dieses Repo bevorzugt:**
+Die Regelnamen, die unter `app/Http` in einer Validierung vorkommen, zeigen auf
+Schlüssel in `lang/de/validation.php` — eine Zeichenkette, die auf etwas zeigt,
+das es geben muss. Die Gegenrichtung wäre falsch: 98 ungenutzte Schlüssel zu
+verlangen hiesse, Laravels Wortschatz zu pflegen statt den eigenen.
+
+**Nicht während des Laufs behoben** — eine Behebung ist eine Änderung am
+Prüfling. Sie gehört mit Befund 2 zusammen nach Punkt 11.
+
+**Und wie Befund 2 hat ihn der Betreiber beim Benutzen gefunden und keine
+Messung.** Zwei von zwei Befunden am Prüfling in diesem Lauf; `docs/105` hat
+für A14 dasselbe Verhältnis notiert.
+
+---
+
+### 11.2 Die Reihenfolge für den Rest — neu, gegen den vollständigen Bestand
 
 Die erste Fassung dieser Reihenfolge stand gegen einen Bestand aus zwei Konten
 und wollte „Dritte Verwaltung" zum Betreiber heben. Gegen fünf Konten gerechnet

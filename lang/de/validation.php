@@ -50,7 +50,9 @@ return [
     'before' => 'Das Feld :attribute muss ein Datum vor :date sein.',
     'boolean' => 'Das Feld :attribute muss wahr oder falsch sein.',
     'confirmed' => 'Die Wiederholung von :attribute stimmt nicht überein.',
+    'date_format' => 'Das Feld :attribute muss dem Format :format entsprechen.',
     'email' => 'Das Feld :attribute muss eine gültige E-Mail-Adresse sein.',
+    'enum' => 'Der gewählte Wert für :attribute ist ungültig.',
     'exists' => 'Der gewählte Wert für :attribute ist ungültig.',
     'file' => 'Das Feld :attribute muss eine Datei sein.',
     'in' => 'Der gewählte Wert für :attribute ist ungültig.',
@@ -82,6 +84,7 @@ return [
     'present' => 'Das Feld :attribute muss vorhanden sein.',
     'regex' => 'Das Feld :attribute hat ein ungültiges Format.',
     'required' => 'Das Feld :attribute ist erforderlich.',
+    'required_if' => 'Das Feld :attribute ist erforderlich, wenn :other :value ist.',
     'required_unless' => 'Das Feld :attribute ist erforderlich, solange :other nicht :values ist.',
     'required_with' => 'Das Feld :attribute ist erforderlich, wenn :values vorhanden ist.',
 
@@ -94,6 +97,7 @@ return [
 
     'string' => 'Das Feld :attribute muss eine Zeichenkette sein.',
     'timezone' => 'Das Feld :attribute muss eine gültige Zeitzone sein.',
+    'unique' => 'Das Feld :attribute ist bereits vergeben.',
     'uppercase' => 'Das Feld :attribute darf nur Grossbuchstaben enthalten.',
     'url' => 'Das Feld :attribute muss eine gültige Adresse sein.',
 

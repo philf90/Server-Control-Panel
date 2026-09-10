@@ -2277,6 +2277,37 @@ der Namenszelle, einer ohne Navigationsleiste.
 > **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst die
 > falsche — und sein Grün liest sich wie ein Freispruch.**
 
+Und **`902` der Abnahmelauf dazu** — ausgeschrieben am 10. September 2026
+**vor** dem Fahren, gegen `0.7.4-rc.1` auf `cloudsrv24`. Er liegt im 900er-Block
+neben seinem Plan und nicht in der laufenden Zählung: Ein Lauf, den achtzig
+Nummern von seinem Plan trennen, wird nicht neben ihm gelesen. **§0 nennt die
+drei Kriterien, die beim Ausschreiben umgefallen sind**, §15 sagt, wann er durch
+ist und welcher Punkt nicht ausfallen darf.
+
+**Der teuerste davon ist Punkt 6**, und er bestätigt den Befund aus dem Bauen:
+`LastOperator::refusal()` ist an dieser Tür unerreichbar, weil der letzte aktive
+Betreiber nur das eigene Konto sein kann und die Selbstprüfung zuerst antwortet.
+Punkt 6 und Punkt 7 ergeben damit **dieselbe** Meldung; getrennt werden sie in
+der Ablage (`is_last_operator` gegen `is_self`), und genau dort misst der Lauf
+sie.
+
+> **Zwei Punkte, die dieselbe Meldung ergeben, sind nicht derselbe Punkt — aber
+> sie sind es an der Stelle, an der man sie misst.**
+
+**Der zweite hätte den Betreiber aussperren können.** Punkt 5 nennt `srvpanel
+access` als Weg zu einem Eintrag ohne Handelnden — gemessen schreibt das
+Kommando aber **nur, wenn es etwas ändert**, und auf eine leere Netzliste
+angewandt legt `--add` eine Beschränkung an, die seit A9 bei jeder Anfrage
+gilt. Der Punkt fragt deshalb zuerst den Bestand und stellt den Zustand nur her,
+wenn es ihn nicht schon gibt.
+
+> **Ein Prüfkörper, der den Zustand herstellt, statt ihn zu suchen, ändert den
+> Server für eine Zeile, die vielleicht schon dasteht.**
+
+Ausgezählt ist dabei, dass `srvpanel access` das **einzige** Konsolenkommando
+dieses Panels ist, das überhaupt ins Protokoll schreibt — der Plan hat es
+richtig benannt, und einen harmlosen Ersatz gibt es nicht.
+
 Und **`97` die Übergabe an A10** — der Stand von P7b (vier abgenommen, fünf
 offen), was A10 ist, **was vor dem Plan zu messen ist**, die vier frischen
 Prüfmittel-Fallen vom 1./2. September, der Zustand von `cloudsrv24` samt dem,
@@ -2983,6 +3014,124 @@ Konsolenmeldung, und dass `Verwaltet von: nftables` die **Maschine** nennt und
 nicht den Schreiber — `nft list ruleset` nennt in seinen eigenen Warnungen
 dreimal `iptables-nft`, und `inet f2b-table` gehört fail2ban. Das ist nach
 `docs/109 §1.1` entworfen; feiner wird es erst im zweiten Wurf.
+
+---
+
+## Adminkonten lassen sich löschen — abgenommen am 10. September 2026
+
+Auf `cloudsrv24` gegen `0.7.4-rc.1`, **alle elf Punkte aus `docs/902 §15`**,
+beide Ausschlusskriterien (2 und 5) darunter, keiner als „nicht herstellbar"
+ausgefallen. Der Plan ist `docs/901`, der Lauf `docs/902`, das Protokoll
+**`docs/903`**.
+
+**Sechs Befunde, drei im Prüfling und drei im Prüfmittel** — und die drei
+Prüfmittelbefunde sind ein einziger Satz in drei Fassungen:
+
+> **Der Prüfkörper war gegen etwas anderes geschrieben als den Prüfling.**
+
+Zwei davon sind Wissen über **dieses** Panel und gehören deshalb hierher, nicht
+ins Protokoll:
+
+- **Inertia 3 legt die Ablage nicht ans Wurzelelement.** `@inertiajs/vue3 ^3.6.1`
+  liefert die Seite in einem `script[data-page="app"][type="application/json"]`;
+  `document.getElementById('app').dataset.page` ist seit dieser Fassung
+  `undefined`. Und **das Script-Element ist auch die falsche Quelle** — es trägt
+  die Seite, mit der geladen wurde, und überlebt jede Navigation. Die **lebende**
+  Ablage steht in
+  `document.getElementById('app').__vue_app__.config.globalProperties.$page`
+  (gemessen: `rootContainer.__vue_app__ = app` steht in
+  `runtime-core.cjs.prod.js`, also auch im Produktionsbau). Wer sie ausliest,
+  druckt `p.url` mit — sonst ist eine Messung der vorigen Seite von einer der
+  gemeinten nicht zu unterscheiden.
+
+- **`Accept: application/json` entscheidet in diesem Panel nichts.**
+  `bootstrap/app.php` schaltet Laravels Aushandlung ab:
+  `shouldRenderJsonWhen(fn ($r) => $r->is('api/*'))`. Eine
+  `ValidationException` nimmt deshalb den HTML-Weg — `back()->withErrors()`,
+  und `back()` ist dank `RememberPageUrl` die vorige Seite. **`fetch` folgt
+  dieser 302 mit derselben Methode** (die Spezifikation schreibt nur `POST` auf
+  `GET` um), also wird aus `DELETE /accounts/1` ein `DELETE /accounts` und
+  daraus eine `405` an einer Adresse, die niemand gerufen hat. Wer eine
+  schreibende Route ohne ihren Knopf prüfen will, ruft **denselben Klienten**:
+  `…__vue_app__.config.globalProperties.$inertia.delete(pfad, { onError, onSuccess })`.
+
+> **Eine Weiterleitung, der `fetch` folgt, macht aus einer abgewiesenen Anfrage
+> eine zweite, die es nie gab — und deren Fehler liest sich wie der Befund.**
+
+**Dagegen hat `tests/bilder-messen.js` in acht Lagen keinen einzigen Befund
+erzeugt.** Drei zu null zwischen einem aufgehobenen Messmittel und Befehlen, die
+für diesen Lauf neu getippt wurden — der Satz aus `docs/66` noch einmal bestätigt.
+
+**Der grösste Befund am Prüfling trifft jede Fehlermeldung dieses Panels.**
+Beim Anlegen eines Kontos mit vergebener Adresse steht dort *„The Anmeldeadresse
+has already been taken."* — englischer Satz, deutscher Feldname mittendrin.
+Gemessen: `lang/de/validation.php` führt **40 von 138** Regelschlüsseln; **98
+fehlen** und fallen auf Englisch zurück. Drei davon benutzt dieses Panel an **17
+Stellen** — `unique` (5), `date_format` (8), `enum` (4).
+
+**Und den Wächter dafür gab es längst.** `ValidationLanguageTest` prüft seit dem
+15. August genau diese Frage und war grün — aus **drei** Gründen auf einmal: Er
+führte eine **eigene Liste** von 58 Regelnamen (ohne `date_format` und `enum`),
+er suchte nur die Form `'regel'` (in diesem Panel reisen `unique`, `enum`,
+`exists` und `required_if` **ausschliesslich** als `Rule::…()`), und seine
+Untergrenze verlangte drei Regeln, die alle in der Zeichenkettenform vorkamen.
+
+> **Ein Wächter, der begründet, warum er keine Liste führt, führte eine — und
+> sie war es, die ihn blind machte.** Sein Kopf argumentiert zwei Absätze über
+> der Liste, warum eine Liste im Test die schlechtere Zusage ist.
+
+> **Ein Aufruf, der als Objekt reist, ist für einen Ausdruck über Zeichenketten
+> verschwunden — nicht harmlos geworden.** Derselbe Satz wie am 26. August, als
+> `apt-get update` aus PHP in ein Shell-Skript zog.
+
+> **Eine Untergrenze, die nur die gewohnte Form enthält, belegt die andere
+> nicht.** Nachgestellt bleibt der eigentliche Satz des Wächters **grün**; nur
+> die Gegenprobe wird rot.
+
+Seit dem 10. September kommt seine Grundmenge aus Laravels **eigener**
+`en/validation.php`, gelesen wird über `token_get_all()` statt über einen
+Ausdruck (eine Klammer in einem `regex:`-Muster brächte jede Zählung aus dem
+Tritt), und die Untergrenze verlangt eine Regel, die es nur als Objekt gibt.
+Verlangt wird weiterhin **nur**, was `app/` benutzt: 98 ungenutzte Schlüssel zu
+fordern hiesse, Laravels Wortschatz zu pflegen statt den eigenen.
+
+Beim Suchen danach ist der Ausdruck selbst dreimal danebengegriffen: `can` traf
+`cancel_requested_at`, `current_password` traf einen **Feldnamen** und nicht die
+gleichnamige Regel, und `Rule::requiredIf` erzeugt die Meldung `required`, die
+übersetzt ist.
+
+> **Ein Ausdruck, der einen Regelnamen als Zeichenkette sucht, findet jeden
+> Feldnamen mit, der so heisst.**
+
+**Beide Befunde sind nach dem Lauf gebaut** (`docs/903 §16.1`) — während des
+Laufs bewusst nicht, denn eine Behebung ist eine Änderung am Prüfling. Der
+zweite war der Hinweis unter der Kontenliste: Er nannte herabstufen und sperren
+und schwieg zum Löschen, und ausgerechnet dessen Knopf fehlt in der Zeile des
+letzten Betreibers sichtbar. Für die **eigene** Zeile gab es gar keine Auskunft;
+sie hat jetzt den Satz der Ablehnung, wörtlich, und `AccountHintTest` hält die
+beiden aneinander.
+
+**Und dieser Wächter streift die Kommentare ab, bevor er sucht** — der Absatz,
+der die Behebung erklärt, schreibt die alte Zeile wörtlich hin. Gegengeprüft in
+beide Richtungen: Steht `sperren` nur noch im Kommentar, ist er rot.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht — und ein Kommentar, der die entfernte Zeile zitiert, stellt sie für ihn
+> wieder her.**
+
+**Ein Satz dieses Protokolls war dabei falsch und ist berichtigt:** „Kein
+Wächter dieses Repos konnte das sehen." Es gab ihn, und der Kopf der Datei, die
+zu ändern war, nennt ihn beim Namen — gekostet hat der Irrtum deshalb nichts.
+
+> **Eine Zeile, die eine Abwesenheit behauptet, lässt den Nächsten dasselbe noch
+> einmal bauen.**
+
+**Und ein Rest hat geschwiegen statt zu bestehen.** Der Tabellenüberlauf bei
+sehr langen Namen (`docs/901 §9`) braucht 76 Zeichen; die fünf Konten dieses
+Servers haben kurze, und `rollt` stand auf `0`.
+
+> **Ein Rest, der bei diesen Daten nicht anschlägt, ist nicht gemessen worden —
+> er hat nur geschwiegen.**
 
 ---
 

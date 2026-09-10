@@ -1,0 +1,1203 @@
+# Protokoll: der Abnahmelauf zum Löschen von Adminkonten
+
+**Gefahren am 10. September 2026** auf `cloudsrv24` gegen `0.7.4-rc.1`. Der Plan
+ist `docs/901`, der Lauf `docs/902`. Was hier steht, ist gemessen und nicht
+erwartet.
+
+**Abgenommen am selben Tag** — alle elf Punkte aus `docs/902 §15`, beide
+Ausschlusskriterien (2 und 5) darunter, keiner als „nicht herstellbar"
+ausgefallen. Die Bilanz steht in §15, die Abnahme in §16, was offen bleibt in
+§16.1. **Sechs Befunde, drei davon im Prüfling**, und keinen hat ein Test
+gefunden.
+
+---
+
+## 1. Der Zustand vor dem Lauf
+
+```
+0.7.4-rc.1
+Migration da: ja
+Protokollzeilen: 1286
+davon mit Abschrift: 1285
+davon ganz ohne Handelnden: 1
+aktive Betreiber: 1
+```
+
+**Der Nachtrag ist vollständig, und das steht in der Summe.** 1285 + 1 = 1286 —
+es bleibt keine Zeile übrig, die weder eine Abschrift trägt noch einen Grund
+hat, keine zu tragen. Eine Zahl allein hätte das nicht gesagt: „1285 von 1286"
+liesse offen, ob die eine übrige ein Rest des Nachtrags ist oder der Fall, für
+den es ihn nicht gibt.
+
+> **Zwei Zahlen, die sich zur dritten addieren, sagen mehr als jede von
+> ihnen.**
+
+### 1.1 Punkt 5 ist ein Blick und kein Eingriff
+
+`docs/902 §0.2` hat den Fall ausgeschrieben, in dem der Punkt eine
+Netzbeschränkung anlegen müsste — und damit jeden aussperren kann, der nicht in
+diesem Netz sitzt. Gemessen ist der Fall nicht eingetreten: Die Zeile ohne
+Handelnden gibt es schon.
+
+**Der Punkt wird deshalb gelesen und nicht hergestellt.** Der Server bleibt
+unberührt.
+
+> **Ein Prüfkörper, der den Zustand herstellt, statt ihn zu suchen, ändert den
+> Server für eine Zeile, die vielleicht schon dasteht.**
+
+### 1.2 Die Reihenfolge des Laufs kehrt sich um — Punkt 6 zuerst
+
+`docs/902 §8` sieht vor, den Zustand „ein einziger aktiver Betreiber"
+herzustellen, indem das zweite Konto nach den übrigen Punkten wieder
+herabgestuft wird. **Gemessen steht der Zustand schon da** (`aktive
+Betreiber: 1`).
+
+Punkt 6 wird deshalb **vor** §2 gemessen, im Ist-Zustand, und erst danach
+entsteht der Prüfkörper. Das spart zwei Zustandswechsel — und jeder Wechsel,
+den man nicht macht, ist einer, der nicht danebengehen kann.
+
+> **Ein Lauf, der einen Zustand herstellt, den die Maschine schon hat, misst
+> seine eigene Vorbereitung mit.**
+
+Die Abweichung steht hier und nicht als stille Korrektur in `docs/902`: Ein
+Lauf, den man während des Fahrens glattzieht, verliert die Stelle, an der seine
+Reihenfolge nicht trug.
+
+---
+
+## 2. Punkt 5 — erfüllt, und er hat einen Befund freigelegt
+
+```
+System-Zeile          : 2026-08-25 11:33:05  auth.login.failed  wer=[System]
+aelteste mit Abschrift: 2026-08-03 09:42:54  auth.login         wer=[Administrator]
+Migration Stapel      : 27
+```
+
+**Der Punkt ist erfüllt:** Die Zeile ohne Handelnden liest sich als `System` und
+nicht als gelöschter Benutzer. Damit ist belegt, was `docs/901 §1.3` verlangt —
+die beiden Nullfälle gehen auseinander.
+
+**Und die zweite Hälfte von Punkt 2 ist gleich mit belegt.** Die älteste Zeile
+mit Abschrift ist vom **3. August**, fünf Wochen vor dem Update; der Nachtrag
+hat den Bestand also wirklich erreicht und nicht nur die Zeilen von heute. Eine
+Zeile von heute hätte nichts belegt — sie trüge ihren Namen ohnehin vom
+Anlegen. Der Stapel 27 sagt dazu, dass die Migration mit diesem Update lief.
+
+### Befund 1 — „System" für einen anonymen Anmeldeversuch
+
+Die Zeile ohne Handelnden ist **nicht** die erwartete `settings.access` aus dem
+A9-Lauf, sondern ein `auth.login.failed`. Nachgemessen am Quelltext:
+`LoginController` übergibt `account: $account` — bei einer **bekannten** Adresse
+trägt die Zeile also das Konto. Diese hier trägt keins, war also ein Versuch mit
+einer Adresse, die es nicht gibt.
+
+**Damit reitet eine dritte Bedeutung auf derselben Null.** `docs/901 §3.4` hat
+zwei getrennt: „niemand war angemeldet" (Kommandozeile, Automatik) gegen „das
+Konto ist gelöscht". Die Abschrift trennt diese beiden sauber. Innerhalb des
+ersten Falls stecken aber **zwei**:
+
+- Die Maschine hat gehandelt — `srvpanel access`, `Operations::dispatch()`.
+  Dafür ist `System` richtig.
+- Ein Mensch hat gehandelt, und wir wissen nicht welcher — ein Anmeldeversuch
+  mit unbekannter Adresse. Dafür ist `System` falsch: Es behauptet, der Server
+  habe sich selbst anzumelden versucht.
+
+> **Eine Null, die schon zwei Bedeutungen trägt, bekommt eine dritte — und alle
+> drei sehen gleich aus.**
+
+**Was es schärft: die Auskunft ist da, und die Spalte daneben zeigt sie.**
+`toArrayRow()` liefert `details` aus `context`, und `context['email']` trägt die
+versuchte Adresse; `/audit` rendert sie unter „Einzelheiten".
+
+> **Zwei Spalten derselben Zeile, von denen die eine „die Maschine" sagt und die
+> andere die Adresse eines Menschen zeigt, widersprechen einander — und die
+> neue ist die, die irrt.**
+
+**Warum das jetzt und nicht früher auffällt:** Die Spalte „Wer" gibt es erst
+seit dieser Fassung. Vorher stand dort nichts, und nichts behauptet nichts.
+
+> **Ein Feld, das man sichtbar macht, macht auch seine Ungenauigkeit
+> sichtbar.**
+
+**Die Wirkung ist heute klein und wächst.** Auf `cloudsrv24` ist es genau
+**eine** Zeile von 1286 — aber es ist genau die Sorte Zeile, für die ein
+Prüfprotokoll existiert, und jeder weitere Versuch mit unbekannter Adresse legt
+eine neue an.
+
+**Nicht behoben während des Laufs.** `actor()` kann die beiden Fälle aus seinen
+zwei Spalten nicht unterscheiden — die Handlung weiss es, nicht der Handelnde.
+Wo die Behebung hingehört, entscheidet der Betreiber nach dem Lauf; ein
+Abnahmelauf, der seinen Prüfling während des Fahrens ändert, misst danach einen
+anderen.
+
+---
+
+## 3. Punkt 6a — erfüllt, mit der Gegenprobe im selben Bild
+
+Gemessen auf `/accounts` am Telefon, dunkles Thema:
+
+| Konto | Rolle | Marke | Knöpfe |
+|---|---|---|---|
+| Administrator (`philipp@netzhost24.de`) | Betreiber | **letzter** | nur *Bearbeiten* |
+| Dritte Verwaltung (`test@homesrv24.de`) | Administrator | — | *Bearbeiten*, **Löschen** |
+
+**Die zweite Zeile ist das, was die erste zu einer Messung macht.** „Kein
+Löschknopf" allein liesse offen, ob die Regel greift oder ob der Knopf
+überhaupt nirgends steht — etwa nach einem halben Bau. Beide Zustände auf
+demselben Bildschirm schliessen das aus.
+
+> **Eine Abwesenheit ist nur dann ein Befund, wenn die Anwesenheit im
+> Erfolgsfall daneben steht.**
+
+Nebenbei belegt: `is_last_operator` folgt der **Rolle** und nicht dem Kontotyp.
+„Dritte Verwaltung" ist aktiv und Admin, aber kein Betreiber, zählt also nicht
+in `LastOperator::active()` — und trägt deshalb zu Recht weder die Marke noch
+den fehlenden Knopf.
+
+### 3.1 Was das Telefonbild verdeckt hat — die Liste hat fünf Zeilen
+
+Am Rechner nachgesehen (1440 px, dunkles Thema, dieselbe Seite): Die Kopfzeile
+sagt **„5 für die Verwaltung dieses Servers"**. Das Telefonbild zeigte die
+ersten beiden.
+
+| Konto | Adresse | Rolle | Zustand | 2. Faktor | letzte Anmeldung | Marke | Knöpfe |
+|---|---|---|---|---|---|---|---|
+| Administrator | `philipp@netzhost24.de` | Betreiber | aktiv | eingerichtet | 2026-09-10 19:53:33 | **letzter** | nur *Bearbeiten* |
+| Dritte Verwaltung | `test@homesrv24.de` | Administrator | aktiv | noch nicht | noch nie | — | *Bearbeiten*, *Löschen* |
+| Neu von Hand | `neu@cloudlab24.de` | **Betreiber** | **deaktiviert** | noch nicht | noch nie | — | *Bearbeiten*, *Löschen* |
+| Wegwerf | `wegwerf@cloudlab24.de` | **Betreiber** | **deaktiviert** | noch nicht | 2026-08-25 12:36:53 | — | *Bearbeiten*, *Löschen* |
+| Zweite Verwaltung | `philipp@homesrv24.de` | Administrator | aktiv | eingerichtet | 2026-09-08 21:02:04 | — | *Bearbeiten*, *Löschen* |
+
+> **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+> verdeckt alles, was daneben steht.** Zum sechsten Mal in diesem Repo. Gefragt
+> war „Marke und Knöpfe", geantwortet hat das Bild darauf; dass die Liste
+> weitergeht, stand ausserhalb der Frage und ausserhalb des Ausschnitts.
+
+**Punkt 6a bleibt erfüllt** — die beiden Zeilen sind richtig abgelesen. Falsch
+war nicht die Messung, sondern der Eindruck daneben, die Liste sei damit
+vollständig.
+
+**Und die vollständige Liste trägt eine Gegenprobe, die die kurze nicht hatte.**
+„Dritte Verwaltung" trennt nur die **Rolle** — Admin, kein Betreiber. Die
+beiden deaktivierten Betreiber trennen den **Zustand**: Sie sind Betreiber und
+tragen trotzdem einen Löschknopf, weil `LastOperator::isLast()` beide Hälften
+fragt und ein deaktivierter Betreiber in `active()` nicht mitzählt.
+
+> **Eine Gegenprobe, die nur eine der beiden Bedingungen umdreht, belegt die
+> andere nicht.**
+
+### 3.2 Befund 2 — der Hinweis nennt zwei von drei Wegen
+
+Unter der Liste steht: *„Es gibt genau einen aktiven Betreiber. Er lässt sich
+weder herabstufen noch sperren, solange er der letzte ist — sonst käme niemand
+mehr an die Einstellungen dieses Servers."*
+
+Seit `docs/901` gibt es einen **dritten** Weg, und `LastOperator` kennt ihn:
+löschen. Der Satz nennt ihn nicht — und ausgerechnet er ist der, dessen Knopf
+in der ersten Zeile **fehlt**. Der Kommentar über dem Satz sagt selbst, wozu er
+da ist: *„Der Grund steht unter der Liste und nicht erst hinter der
+Ablehnung."* Für zwei Wege löst er das ein, für den sichtbarsten nicht.
+
+> **Ein Hinweis, der erklärt, was nicht geht, ist unvollständig, sobald ein Weg
+> dazukommt — und die Lücke fällt niemandem auf, weil der Satz ja stimmt.**
+
+Gemessen ist auch, dass es der **einzige** Satz der Seite ist: genau ein
+`class="hint"` in `Accounts/Index.vue`. Für die fehlenden Knöpfe der **eigenen**
+Zeile gibt es damit überhaupt keine Auskunft — weder für „das ist dein Konto"
+noch für „du bist der letzte".
+
+**Nicht während des Laufs behoben.** Eine Behebung ist eine Änderung, und jede
+Änderung ist ein neuer Anlass zu messen; sie käme nach Punkt 11.
+
+### 3.3 Befund 3 — der übergebene Messbefehl war gegen die falsche Fassung geschrieben
+
+Der Befehl für Punkt 6b lautete
+`JSON.parse(document.getElementById('app').dataset.page)` und ergab
+`"undefined" is not valid JSON`. Das Element gibt es, das Attribut nicht.
+
+Gemessen in `node_modules`, nicht überlegt: Dieses Panel fährt
+**`@inertiajs/vue3 ^3.6.1`**, und Inertia 3 liefert die Ablage nicht mehr als
+Attribut am Wurzelelement, sondern als eigenes Element —
+`getInitialPageFromDOM` in `@inertiajs/core` sucht
+`script[data-page="app"][type="application/json"]` und liest dessen
+`textContent`. Der Befehl stammt aus der Zeit von Inertia 1/2.
+
+> **Ein Prüfkörper, der gegen eine andere Fassung geschrieben ist als der
+> Prüfling, misst nicht — und dass er gar nichts liefert, ist der gnädige
+> Fall.**
+
+**Der ungnädige stünde daneben, und deshalb ist auch das Script-Element die
+falsche Quelle.** Es trägt die Seite, mit der das Dokument **geladen** wurde,
+und Inertia navigiert danach ohne Neuladen. Wer auf `/accounts` klickt statt
+die Adresse einzugeben, liest dort die Ablage der vorigen Seite — und die sieht
+aus wie eine Messung.
+
+> **Eine Ablage, die beim ersten Laden entsteht und bei jeder Navigation
+> stehenbleibt, liefert nach dem zweiten Klick eine Messung der vorigen
+> Seite.**
+
+Gefragt wird deshalb die **lebende** Ablage: `plugin.install()` von
+`@inertiajs/vue3` legt sie als `$page` in `app.config.globalProperties`, und
+Vue hängt die Anwendung als `__vue_app__` an den Behälter, in den sie montiert
+wurde (`rootContainer.__vue_app__ = app`, gemessen in
+`runtime-core.cjs.prod.js` — also nicht nur im Entwicklungsbau — und die
+Zeichenkette steht im gebauten Bündel `public/build/assets/app-*.js`).
+
+**Und die Messung druckt ihre Herkunft mit:** `p.url` muss `/accounts` sein.
+Ohne diese Zeile wäre die Verwechslung von oben nicht zu sehen.
+
+**Nebenbei aus derselben Konsole:** Der Aufruf aus 6c lief mit dem
+Platzhalter — `DELETE /accounts/%3Cid%3E` — und gab **404**. Das ist richtig
+und kein Befund: `<id>` ist keine Kennung, die Bindung findet nichts, und die
+Tür antwortet mit „gibt es nicht" statt mit einem Fehler. Über den Fall eines
+**Kundenkontos** (Punkt 10) sagt das nichts; dort ist die Kennung gültig und
+die Zeile existiert.
+
+## 4. Punkt 6b — erfüllt, und die Ablage misst mehr als die Knöpfe
+
+Gemessen auf `/accounts` bei 1440 px über die **lebende** Ablage:
+
+```
+Seite: /accounts · aktive Betreiber: 1
+```
+
+| # | id | name | self | letzter |
+|---|---|---|---|---|
+| 0 | 1 | Administrator | **true** | **true** |
+| 1 | 10 | Dritte Verwaltung | false | false |
+| 2 | 9 | Neu von Hand | false | false |
+| 3 | 8 | Wegwerf | false | false |
+| 4 | 7 | Zweite Verwaltung | false | false |
+
+**Punkt 6b verlangt `self: true` und `letzter: true` in derselben Zeile.**
+Beides steht da, und die vier übrigen Zeilen tragen in **beiden** Spalten
+`false`.
+
+**Die zweite Spalte ist dabei die schärfere Gegenprobe.** Wäre
+`is_last_operator` an „ist Betreiber" gehängt statt an `LastOperator::isLast()`,
+stünden „Neu von Hand" und „Wegwerf" auf `true` — sie **sind** Betreiber. Sie
+stehen auf `false`, weil sie deaktiviert sind und in `active()` nicht
+mitzählen. Die Hälfte der Regel, die §3.1 an den Knöpfen abgelesen hat, steht
+damit auch in der Ablage.
+
+**Und die Zahl daneben ist die dritte Quelle für dieselbe Tatsache:**
+`operators: 1` aus dem Payload, der Satz unter der Liste, und `aktive
+Betreiber: 1` aus dem Zustandsblock in §1. Alle drei kommen aus
+`LastOperator::active()` — das ist keine dreifache Bestätigung, sondern der
+Beleg, dass es **eine** Stelle ist.
+
+Nebenbei: Die Kennungen sind nicht fortlaufend (1, 7, 8, 9, 10). Sortiert wird
+nach `name`, nicht nach `id` — die Reihenfolge der Tabelle sagt nichts über das
+Alter eines Kontos.
+
+### 4.1 Befund 4 — ein Platzhalter, der in der Sprache des Prüfkörpers etwas bedeutet
+
+Der übergebene Befehl für 6c lautete ``fetch(`/accounts/${<id>}`, …)`` und
+endete mit `Uncaught SyntaxError: Unexpected token '<'`. Nicht der Prüfling,
+sondern der Prüfkörper: `<id>` steht dort **innerhalb** eines
+Template-Literals, und dort ist `<` JavaScript.
+
+Die Fassung davor schrieb `'/accounts/<id>'` als gewöhnliche Zeichenkette.
+Wörtlich eingefügt lief sie durch und gab `404` — harmlos und sichtbar falsch.
+Dieselbe Marke, zwei Formen, zwei ganz verschiedene Ausgänge; geändert hat sich
+nicht der Platzhalter, sondern die Syntax um ihn herum.
+
+> **Ein Platzhalter, der in der Sprache des Prüfkörpers selbst etwas bedeutet,
+> ist keiner — er ist ein Fehler, den erst der Einsetzende bemerkt.**
+
+Ein Prüfkörper zum Einfügen trägt deshalb den **gemessenen** Wert und keine
+Marke: `/accounts/1`.
+
+**Und eine Meldung derselben Konsole gehört nicht zu diesem Panel:** *„A
+listener indicated an asynchronous response by returning true, but the message
+channel closed before a response was received"* kommt von einer
+Browsererweiterung. Sie steht hier, damit sie später niemand als Befund
+aufschreibt.
+
+---
+
+## 5. Befund 5 — der Prüfkörper nahm die Voreinstellung des Frameworks an
+
+Der Aufruf aus 6c ergab **nicht** die erwartete `422`, sondern:
+
+```
+DELETE https://cloudsrv24.de:8443/accounts   405 (Method Not Allowed)
+Uncaught SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+```
+
+**Die Adresse in der Meldung ist nicht die, die gerufen wurde.** Gerufen war
+`/accounts/1`; gescheitert ist `/accounts`. Dazwischen liegt eine Weiterleitung,
+und sie erklärt alles drei.
+
+**Die Ursache steht in `bootstrap/app.php` und ist Absicht:**
+
+```php
+$exceptions->shouldRenderJsonWhen(
+    fn (Request $request) => $request->is('api/*'),
+);
+```
+
+Damit ist Laravels eigene Aushandlung abgeschaltet: `Accept: application/json`
+entscheidet hier **nichts**. Eine `ValidationException` nimmt deshalb den
+HTML-Weg — `redirect()->back()->withErrors(…)`, und `back()` ist dank
+`RememberPageUrl` genau `/accounts`.
+
+**Und `fetch` folgt dieser Weiterleitung mit derselben Methode.** Die Spezifikation
+schreibt nur `POST` auf `GET` um; ein `DELETE` bleibt eines. Aus der abgewiesenen
+Anfrage wurde also eine zweite, die niemand gestellt hat — `DELETE /accounts` —,
+und dort gibt es nur `GET` und `POST`: **405**, HTML als Rumpf, und `r.json()`
+stirbt am `<`.
+
+> **Ein Prüfkörper, der die Voreinstellung des Frameworks annimmt, misst die
+> Anwendung nicht — sie darf sie abgestellt haben.**
+
+> **Eine Weiterleitung, der `fetch` folgt, macht aus einer abgewiesenen Anfrage
+> eine zweite, die es nie gab — und deren Fehler liest sich wie der Befund.**
+
+**Was damit belegt ist und was nicht.** Die `405` an einer Adresse, die niemand
+gerufen hat, ist nur durch eine Weiterleitung nach `/accounts` erklärbar, und
+die entsteht auf diesem Weg genau dann, wenn eine `ValidationException` fliegt.
+Dass **eine** der beiden Prüfungen gegriffen hat, steht damit fest. **Welche**
+und **mit welchem Satz**, steht nicht fest — und genau darauf zielt Punkt 6c.
+
+> **Eine Spur ist kein Wortlaut.**
+
+### 5.1 Der berichtigte Prüfkörper geht durch dieselbe Tür wie der Knopf
+
+`docs/902 §8c` begründet den unmittelbaren Aufruf damit, die Route werde „durch
+dieselbe Kette aus Middleware und Controller" gerufen, „nur ohne das
+Bedienelement". Ein rohes `fetch` erfüllt das **nicht**: Der Knopf ruft
+`router.delete(…)`, und Inertia setzt eigene Kopfzeilen, prüft die Fassung und
+schreibt eine 302 auf einer schreibenden Methode zu **303** um — womit die
+Weiterleitung als `GET` weiterläuft statt als `DELETE`.
+
+Gerufen wird deshalb derselbe Klient, den die Seite benutzt:
+
+```js
+document.getElementById('app').__vue_app__.config.globalProperties.$inertia
+  .delete('/accounts/1', {
+    preserveScroll: true,
+    onError: (e) => console.log('abgewiesen:', e),
+    onSuccess: () => console.log('GELÖSCHT — das wäre der Befund'),
+  })
+```
+
+Das ist Zeile für Zeile, was `loeschen(row)` in `Accounts/Index.vue` tut —
+ohne den Bestätigungsdialog davor. `onError` bekommt die Ablage der Fehler;
+erwartet wird dort `account` mit dem Satz der **Selbstprüfung**.
+
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst die
+> falsche.** Zum zweiten Mal in diesem Lauf, nach Befund 3 — und beide Male war
+> die falsche Form die, die aussieht wie die neutralere.
+
+---
+
+## 6. Punkt 6c — erfüllt, und die Vorhersage aus §0.1 trifft zu
+
+Gerufen mit dem Klienten der Seite, `$inertia.delete('/accounts/1')`:
+
+```
+abgewiesen:
+  {account: 'Das eigene Konto lässt sich nicht löschen. Ein zweiter Betreiber kann es tun.'}
+```
+
+**Wort für Wort `AccountController::SELF_REFUSAL`** — und ausdrücklich **nicht**
+`LastOperator::refusal()` („Das ist der letzte aktive Betreiber…"). Damit ist
+gemessen, was `docs/902 §0.1` **vor** dem Fahren am Quelltext vorhergesagt hat:
+An dieser Tür lassen sich die beiden Regeln nicht trennen, weil der letzte
+aktive Betreiber nur das eigene Konto sein kann und die Selbstprüfung zuerst
+antwortet.
+
+> **Eine Vorhersage, die am Quelltext entsteht und an der Tür gemessen wird,
+> ist etwas anderes als eine, die beides am selben Ort tut.**
+
+**Die Gegenprobe steht im selben Bild:** Die Liste führt danach unverändert
+fünf Konten. Der Aufruf ist abgewiesen worden und nicht etwa halb
+durchgelaufen.
+
+**Und der Weg selbst ist mitgemessen.** Die Meldung kam über `onError` an, also
+hat Inertia die Antwort als Fehler einer schreibenden Anfrage behandelt — die
+303-Umschreibung und die ganze Kette dahinter haben sich verhalten wie beim
+echten Knopf. Der rohe `fetch` aus Befund 5 konnte das nicht zeigen.
+
+**Punkt 6 ist damit vollständig** — 6a die Seite, 6b die Ablage, 6c die Tür,
+alle drei in der Fassung aus `docs/902 §0.1`.
+
+---
+
+## 7. Punkt 7 — erfüllt, und hier trennen sich die beiden Punkte
+
+Hergestellt mit einem Schalter statt einer Rollenänderung: „Wegwerf" ist
+Betreiber und war deaktiviert; über *Bearbeiten* auf **aktiv** gesetzt, sind es
+zwei aktive Betreiber.
+
+**a) Die Seite.** Die eigene Zeile trägt weiterhin **keinen** Löschknopf — und
+die Marke `letzter` ist **fort**. „Wegwerf" steht jetzt als `aktiv` da und
+behält seinen Löschknopf.
+
+**Und der Satz unter der Liste ist verschwunden.** Er hängt an
+`v-if="props.operators <= 1"`, also an derselben Zahl wie die Marke. Beide sind
+gemeinsam gegangen; wären sie zwei Fassungen derselben Frage, wäre genau hier
+eine von ihnen stehengeblieben.
+
+> **Zwei Anzeigen, die aus derselben Zahl folgen, belegen einander erst, wenn
+> sie gemeinsam kippen.**
+
+**b) Die Ablage.**
+
+```
+Seite: /accounts · aktive Betreiber: 2
+```
+
+| # | id | name | self | letzter |
+|---|---|---|---|---|
+| 0 | 1 | Administrator | **true** | **false** |
+| 1 | 10 | Dritte Verwaltung | false | false |
+| 2 | 9 | Neu von Hand | false | false |
+| 3 | 8 | Wegwerf | false | false |
+| 4 | 7 | Zweite Verwaltung | false | false |
+
+Dieselbe Zeile wie in §4, ein Feld anders: `letzter` ist von `true` auf `false`
+gekippt, `self` steht unverändert auf `true`. **Das ist die ganze Trennung
+zwischen Punkt 6 und Punkt 7** — und sie ist nur hier zu sehen.
+
+**c) Die Tür.**
+
+```
+abgewiesen:
+  {account: 'Das eigene Konto lässt sich nicht löschen. Ein zweiter Betreiber kann es tun.'}
+```
+
+**Dieselbe Meldung wie bei Punkt 6, Zeichen für Zeichen** — obwohl sich der
+Zustand dazwischen geändert hat. Genau das war die Vorhersage aus
+`docs/902 §0.1`, und sie ist damit von **beiden** Seiten gemessen: bei einem
+Betreiber und bei zweien.
+
+> **Zwei Punkte, die dieselbe Meldung ergeben, sind nicht derselbe Punkt — aber
+> sie sind es an der Stelle, an der man sie misst.**
+
+### 7.1 Der Prüfling fürs Löschen steht fest — „Wegwerf" bringt seine Geschichte mit
+
+```
+Kennung: 8
+Zeilen als Handelnder: 2
+davon mit Abschrift: 2
+Sitzungen: 0
+```
+
+**Beide Zeilen tragen die Abschrift, und beide sind älter als die Behebung.**
+Wegwerfs letzte Anmeldung war der 25. August; `0.7.4-rc.1` steht seit heute auf
+diesem Server. Ihr `account_name` kann also nicht vom Haken beim Anlegen
+stammen — er kommt aus dem **Nachtrag** der Migration. Damit misst Punkt 2 an
+diesem Konto die Hälfte, die sich nach dem Löschen nie wieder herstellen liesse.
+
+> **Ein Prüfling, dessen Zeilen jünger sind als die Behebung, prüft die
+> Behebung und nicht den Nachtrag.**
+
+**Und nach der Anmeldung stehen beide Arten nebeneinander:** die zwei
+nachgetragenen vom August und die frischen, deren Name beim Anlegen geschrieben
+wurde. Auseinanderzuhalten sind sie am Datum.
+
+**`Sitzungen: 0` ist der Grund, warum die Anmeldung nicht übersprungen werden
+kann** — Punkt 9 hat sonst keinen Gegenstand.
+
+---
+
+## 8. Der Zustand vor dem Löschen — die Messung, die es nur einmal gibt
+
+```
+Konto da: 1
+Sitzungen Wegwerf: 2
+Sitzungen gesamt: 13
+2026-08-25 10:36:53  auth.login               id=8  name=Wegwerf
+2026-08-25 10:37:27  auth.logout              id=8  name=Wegwerf
+2026-09-10 18:24:19  auth.login               id=8  name=Wegwerf
+2026-09-10 18:24:34  auth.two_factor.enabled  id=8  name=Wegwerf
+2026-09-10 18:29:00  auth.two_factor.required id=8  name=Wegwerf
+2026-09-10 18:29:07  auth.login               id=8  name=Wegwerf
+```
+
+**Sechs Zeilen, und sie sind zweierlei.** Die beiden vom 25. August tragen
+ihren Namen aus dem **Nachtrag** — `0.7.4-rc.1` steht seit heute auf diesem
+Server, beim Anlegen dieser Zeilen gab es die Spalte noch nicht. Die vier von
+heute tragen ihn aus dem `creating`-Ereignis. Beide Arten stehen unter
+demselben Namen nebeneinander, und **beide müssen ihn nach dem Löschen
+behalten**.
+
+> **Ein Prüfkörper, der nur eine der beiden Herkünfte enthält, belegt die
+> andere nicht — und welche fehlt, sieht man ihm nicht an.**
+
+**Zwei Sitzungen, und das ist der Grund, warum es zwei sein mussten.**
+`Sessions::forgetAll()` heisst nach dem, was es verspricht; an genau einer
+Sitzung liesse sich „alle" von „die eine" nicht unterscheiden. `gesamt: 13` ist
+die Gegenprobe daneben: Sinkt es um mehr als zwei, hat der Griff fremde
+Sitzungen mitgenommen.
+
+**Und die Protokollzeilen bestätigen die Sitzungszahl, ohne dieselbe Messung zu
+sein:** zwei Anmeldungen heute (18:24:19 und 18:29:07), zwei Sitzungen in der
+Tabelle. Dazwischen liegt `auth.two_factor.required` um 18:29:00 — das zweite
+Gerät an der Schranke, bevor es hereinkam.
+
+### 8.1 Die Uhrzeit weicht um zwei Stunden ab, und das ist die Zusage
+
+Die Kontenliste nennt für dieselbe Anmeldung **12:36:53**, dieser Block
+**10:36:53**. Die Differenz ist genau der Versatz einer Anzeigezone, die im
+August auf +02:00 steht; in der Datenbank liegt UTC, und `Clock::display()`
+rechnet für die Seite um. `tinker` druckt den abgelegten Wert roh.
+
+Das ist kein Widerspruch, sondern die Zusage aus `docs/40` von der anderen
+Seite gesehen — und es steht hier, damit niemand die beiden Zahlen später
+nebeneinanderlegt und einen Befund daraus macht.
+
+> **Zwei Zahlen, die auseinandergehen, sind erst dann ein Befund, wenn beide
+> dasselbe behaupten.** Die eine sagt „so steht es da", die andere „so liest es
+> ein Mensch hier".
+
+---
+
+## 9. Punkte 1, 2, 9 und 10 — erfüllt, alle vier in einem Block
+
+Gelöscht wurde über den **Knopf** auf `/accounts`; die Seite meldet
+*„Konto Wegwerf gelöscht."* und führt vier Konten. Danach:
+
+```
+Konto da: 0
+Sitzungen Wegwerf: 0
+Sitzungen gesamt: 11
+2026-08-25 10:36:53  auth.login               id=NULL  name=Wegwerf
+2026-08-25 10:37:27  auth.logout              id=NULL  name=Wegwerf
+2026-09-10 18:24:19  auth.login               id=NULL  name=Wegwerf
+2026-09-10 18:24:34  auth.two_factor.enabled  id=NULL  name=Wegwerf
+2026-09-10 18:29:00  auth.two_factor.required id=NULL  name=Wegwerf
+2026-09-10 18:29:07  auth.login               id=NULL  name=Wegwerf
+
+wer=Administrator  ziel=App\Models\Account/8
+Array
+(
+    [name] => Wegwerf
+    [email] => wegwerf@cloudlab24.de
+    [role] => operator
+)
+```
+
+**Punkt 1** — `Konto da: 0`. Die Zeile ist fort, hart gelöscht und nicht weich.
+
+**Punkt 2** — dieselben **sechs** Zeilen, dieselbe Zahl, `account_id` auf
+`NULL`, `account_name` unverändert `Wegwerf`. **Und beide Herkünfte haben ihn
+behalten**: die zwei vom 25. August, deren Name aus dem Nachtrag stammt, und die
+vier von heute, deren Name aus dem `creating`-Ereignis kommt. Wäre nur eine der
+beiden im Prüfkörper gewesen, stünde die andere hier ungemessen.
+
+**Punkt 9** — `Sitzungen Wegwerf: 0`, und `gesamt` von 13 auf **11**. Genau
+zwei, also genau seine. Sänke es weiter, hätte `Sessions::forgetAll()` fremde
+Sitzungen mitgenommen; das hält `AccountDeletionTest` im Container, und hier
+hält es ein echter Bestand mit elf fremden Sitzungen daneben.
+
+**Punkt 10** — der Eintrag trägt `name`, `email` **und `role`**. Er ist die
+einzige Stelle, an der die drei aneinander gebunden bleiben: Die Abschrift auf
+den sechs Zeilen darüber trägt nur den Namen. Wer in einem Jahr wissen will,
+unter welcher Adresse dieses „Wegwerf" angemeldet war und welche Rechte es
+hatte, findet es hier und sonst nirgends.
+
+`ziel=App\Models\Account/8` zeigt auf eine Zeile, die es nicht mehr gibt. Das
+ist `nullableMorphs` und kein Befund — `docs/902 §12` sagt es vorher.
+
+---
+
+## 10. Punkt 3 — erfüllt, und die Gegenprobe steht in derselben Ansicht
+
+Auf `/audit`, gefiltert auf `auth.`:
+
+| Zeitpunkt | Aktion | Wer | Ziel | Einzelheiten |
+|---|---|---|---|---|
+| 2026-09-10 20:36:50 | `account.deleted` | Administrator | Account#8 | name: Wegwerf · email: wegwerf@cloudlab24.de · role: operator |
+| 2026-09-10 20:29:07 | `auth.login` | **Wegwerf (gelöscht)** | — | method: totp |
+| 2026-09-10 20:29:00 | `auth.two_factor.required` | **Wegwerf (gelöscht)** | — | — |
+| 2026-09-10 20:28:49 | `auth.logout` | Administrator | — | — |
+| 2026-09-10 20:24:34 | `auth.two_factor.enabled` | **Wegwerf (gelöscht)** | — | — |
+| 2026-09-10 20:14:49 | `account.updated` | Administrator | Account#8 | … role: operator · status: disabled → active |
+
+**Beide Zustände stehen untereinander**: „Wegwerf (gelöscht)" für ein Konto, das
+es nicht mehr gibt, und „Administrator" ohne Zusatz für eines, das es gibt.
+Stünde überall „(gelöscht)", sagte die Spalte nichts.
+
+> **Eine Kennzeichnung, die überall steht, kennzeichnet nichts.**
+
+**Punkt 10 ist damit auch auf der Oberfläche belegt** und nicht nur in der
+Datenbank: Die Spalte „Einzelheiten" gibt den Zusammenhang des Eintrags aus,
+also Name, Adresse und Rolle. Dass er geschrieben wird, sagt der Block in §9;
+dass ihn jemand liest, sagt diese Zeile — und das sind zwei verschiedene
+Aussagen (`docs/66`).
+
+**Der Zähler oben steht auf 1.296**, zu Beginn des Laufs waren es 1.286: zehn
+Zeilen für den ganzen Lauf. Und die Zeitpunkte liegen zwei Stunden über denen
+aus `tinker` — die Anzeigezone, siehe §8.1.
+
+---
+
+## 11. Punkt 8 — erfüllt, mit der Gegenprobe davor
+
+**Vorher**, solange „Wegwerf" noch da war: `/accounts/create` mit
+`wegwerf@cloudlab24.de` wird abgewiesen — *„Das Formular wurde nicht
+gespeichert."*
+
+**Nachher**: *„Konto Wegwerf angelegt."*, die Liste führt wieder fünf Konten.
+Dieselbe Adresse, dieselbe Eingabe, zwei Ausgänge — und **nur deshalb** ist der
+zweite eine Messung.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+Nebenbei: Das neue Konto trägt dieselbe Adresse und eine neue Kennung. Seine
+Protokollzeilen werden ebenfalls `name=Wegwerf` tragen — auseinanderzuhalten
+sind die beiden auf `/audit` am Zusatz „(gelöscht)". Der benannte Rest aus
+`docs/901 §9` betrifft **zwei gelöschte** gleichen Namens; dieser Fall ist es
+nicht.
+
+### 11.1 Befund 6 — drei Prüfregeln antworten auf Englisch
+
+Die Ablehnung lautete vollständig:
+
+> **Das Formular wurde nicht gespeichert.**
+> The Anmeldeadresse has already been taken.
+
+Der erste Satz kommt aus dem Panel, der zweite aus dem Framework — mit dem
+deutschen Feldnamen mitten im englischen Satz. `docs/19 §4a` ist bindend: Alle
+Texte der Oberfläche sind deutsch.
+
+**Gemessen statt geschätzt.** `lang/de/validation.php` führt **40** der **138**
+Regelschlüssel, die Laravel kennt; **98 fehlen** und fallen auf Englisch
+zurück. Davon benutzt dieses Panel drei:
+
+| Regel | Stellen | englischer Satz |
+|---|---|---|
+| `unique` | 5 | The :attribute has already been taken. |
+| `date_format` | 8 | The :attribute field must match the format :format. |
+| `enum` | 4 | The selected :attribute is invalid. |
+
+Siebzehn Stellen, und sie liegen nicht am Rand: `unique` hängt an jeder
+Anmeldeadresse und jedem Plan- und Abonnementnamen, `date_format` an den Filtern
+von `/audit` und an den Ankündigungen, `enum` an Rolle und Zustand jedes
+Adminkontos.
+
+**Drei weitere Treffer des ersten Ausdrucks waren keine**, und das gehört
+dazu: `can` traf `cancel_requested_at`, `current_password` traf einen
+**Feldnamen** und nicht die gleichnamige Regel, und `Rule::requiredIf` erzeugt
+die Meldung `required` — die ist übersetzt.
+
+> **Ein Ausdruck, der einen Regelnamen als Zeichenkette sucht, findet jeden
+> Feldnamen mit, der so heisst.**
+
+**Der englische Satz steht nirgends im Quelltext.** Er entsteht zur Laufzeit aus
+einer Datei des Frameworks, weil in unserer der Schlüssel fehlt — dieselbe
+Familie wie Befund 5 aus `docs/91`.
+
+> **Ein Wächter über den Quelltext sieht keinen Satz, den das Framework zur
+> Laufzeit einsetzt.**
+
+**Prüfbar ist es trotzdem, und zwar in der Form, die dieses Repo bevorzugt:**
+Die Regelnamen, die in einer Validierung vorkommen, zeigen auf Schlüssel in
+`lang/de/validation.php` — eine Zeichenkette, die auf etwas zeigt, das es geben
+muss. Die Gegenrichtung wäre falsch: 98 ungenutzte Schlüssel zu verlangen hiesse,
+Laravels Wortschatz zu pflegen statt den eigenen.
+
+### 11.2 Berichtigung — es gab diesen Wächter längst, und er war blind
+
+Hier stand bis zum Bau der Behebung: *„Kein Wächter dieses Repos konnte das
+sehen."* **Das ist falsch.** `Tests\Feature\ValidationLanguageTest` gibt es seit
+dem 15. August 2026, er prüft genau diese Frage, und der Kopf von
+`lang/de/validation.php` nennt ihn beim Namen.
+
+Er war grün, und zwar aus **drei** Gründen auf einmal:
+
+1. **Er führte eine eigene Liste** von 58 Regelnamen — `date_format` und `enum`
+   standen nicht darin. Sein eigener Kopf begründet zwei Absätze weiter oben,
+   warum eine Liste im Test die schlechtere Zusage ist.
+2. **Er suchte nur die Form `'regel'`.** In diesem Panel reisen `unique`,
+   `enum`, `exists` und `required_if` **ausschliesslich** als Objekt
+   (`Rule::unique(…)`), und dafür war der Ausdruck blind.
+3. **Seine Gegenprobe verlangte `required`, `string` und `max`** — alle drei in
+   der Zeichenkettenform. Die zweite Form kam darin nicht vor, also konnte die
+   Untergrenze den Ausfall nicht bemerken.
+
+> **Ein Wächter, der begründet, warum er keine Liste führt, führte eine — und
+> sie war es, die ihn blind machte.**
+
+> **Ein Aufruf, der als Objekt reist, ist für einen Ausdruck über Zeichenketten
+> verschwunden — nicht harmlos geworden.** Derselbe Satz wie am 26. August, als
+> `apt-get update` aus PHP in ein Shell-Skript zog.
+
+> **Eine Untergrenze, die nur die gewohnte Form enthält, belegt die andere
+> nicht.**
+
+**Und der stille Teil ist der gefährliche:** Beim Nachstellen des zweiten
+Grundes bleibt `test_every_rule_in_use_has_a_german_sentence` **grün** — nur die
+Gegenprobe wird rot. Ohne sie hätte der Wächter zu jedem künftigen
+`Rule::…`-Regelnamen ebenso geschwiegen.
+
+**Gekostet hat der falsche Satz nichts**, und der Grund ist kein Verdienst: Vor
+dem Bau eines neuen Wächters stand ein Blick in die Datei, die er ändern
+sollte — und ihr Kopf nennt den bestehenden.
+
+> **Eine Zeile, die eine Abwesenheit behauptet, lässt den Nächsten dasselbe noch
+> einmal bauen.** Zum zweiten Mal nach `docs/114`, diesmal in einem Protokoll
+> statt im Kopf eines Wächters.
+
+**Nicht während des Laufs behoben** — eine Behebung ist eine Änderung am
+Prüfling. Sie gehört mit Befund 2 zusammen nach Punkt 11.
+
+**Und wie Befund 2 hat ihn der Betreiber beim Benutzen gefunden und keine
+Messung.** Zwei von zwei Befunden am Prüfling in diesem Lauf; `docs/105` hat
+für A14 dasselbe Verhältnis notiert.
+
+---
+
+## 12. Punkt 4 — erfüllt, und die Spaltenzahl ist gemessen und nicht angenommen
+
+```
+"Zeitpunkt (UTC)",Aktion,Ergebnis,Wer,"Im Kontext von",Abonnement,Ziel,Einzelheiten,IP
+grep -c 'Wegwerf (gelöscht)'  →  6
+```
+
+**Die vierte Spalte heisst `Wer`.** Dass sie eine **Umbenennung** ist und keine
+zusätzliche Spalte, steht nicht in einer Erinnerung, sondern im Vergleich gegen
+den Stand vor dem Zweig (`08a0b555`):
+
+```
+vorher:  'Zeitpunkt (UTC)', 'Aktion', 'Ergebnis', 'Konto', 'Im Kontext von', …
+jetzt:   'Zeitpunkt (UTC)', 'Aktion', 'Ergebnis', 'Wer',   'Im Kontext von', …
+```
+
+**Neun Spalten vorher, neun nachher.** Der Unterschied ist ihr Inhalt: Dort
+stand die nackte Kennung, hier steht der Name. Wer die CSV weiterverarbeitet,
+muss genau das wissen — eine Spalte mehr bräche jeden Leser, eine umbenannte
+mit anderem Inhalt bricht ihn stiller.
+
+> **Eine Zusage über eine Spaltenzahl, die man nicht gezählt hat, ist eine
+> Vermutung mit Anspruch.**
+
+**Die Sechs ist dieselbe Sechs wie in §9 und auf der Seite** — die sechs Zeilen,
+in denen das gelöschte Konto der **Handelnde** war. Der siebte Ort, an dem es
+vorkommt, ist der Eintrag `account.deleted`: Dort steht es als **Ziel**
+(`Account#8`) und sein Name in den Einzelheiten, ohne den Zusatz. Der Zusatz
+gehört zur Spalte „Wer" und nicht zum Namen.
+
+**Und die Kopfzeile nennt die Zone** — `"Zeitpunkt (UTC)"`, während die Seite
+in der Anzeigezone rechnet (`docs/40`, §8.1). Der erste Wurf dieses Absatzes
+liess offen, ob die **Werte** ihr folgen; nachgemessen an der Zeitspalte des
+Eintrags:
+
+```
+"2026-09-10 18:36:50"
+```
+
+Die Seite zeigt für dieselbe Zeile `20:36:50`. Zwei Stunden Unterschied, in die
+Richtung, in die die Anzeigezone im September rechnet.
+
+> **Eine Kopfzeile, die eine Zone nennt, ist eine Zusage über die Spalte — kein
+> Beleg für den Wert darin.** Der Beleg ist eine Zeile weiter unten und kostet
+> ein `cut`.
+
+### 12.1 Eine Beobachtung, die der Lauf selbst hergestellt hat
+
+Dieselbe Abfrage gab **zwei** Zeilen: `18:36:50` und `18:40:12`. Die zweite ist
+das Aufräumen — das für Punkt 8 neu angelegte „Wegwerf" ist danach wieder
+gelöscht worden.
+
+**Damit stehen auf diesem Server zwei gelöschte Konten desselben Namens**, und
+das ist wörtlich der benannte Rest aus `docs/901 §9`: Ihre Protokollzeilen sind
+über `account_name` nicht mehr auseinanderzuhalten.
+
+**Hier bleibt es folgenlos, und das ist gemessen und nicht hergeleitet:**
+
+```
+Zeilen unter dem Namen: 6
+2026-09-10 18:40:12  ziel=11  {"name":"Wegwerf","email":"wegwerf@cloudlab24.de","role":"administrator"}
+2026-09-10 18:36:50  ziel=8   {"name":"Wegwerf","email":"wegwerf@cloudlab24.de","role":"operator"}
+```
+
+Weiterhin **sechs** — das zweite „Wegwerf" hat sich nie angemeldet und keine
+einzige Zeile als Handelnder hinterlassen. Die sechs gehören alle dem ersten.
+Der erste Wurf dieses Absatzes hat das aus der Spalte „letzte Anmeldung"
+geschlossen; die Zahl sagt es.
+
+> **Eine Herleitung, die stimmt, ist trotzdem keine Messung — und welche von
+> beiden dasteht, sieht man ihr später nicht an.**
+
+**Und die Bindung hält, wo `docs/901 §9` sie verspricht:** zwei Einträge
+`account.deleted`, **verschiedenes `ziel`** (11 und 8), gleicher Name, gleiche
+Adresse — und **verschiedene Rolle**. Das erste „Wegwerf" war `operator`, das
+zweite `administrator`.
+
+> **Derselbe Name und dieselbe Adresse bedeuten nicht dieselben Rechte — und
+> was sie zum Zeitpunkt der Handlung waren, steht an genau einer Stelle.**
+
+Damit ist der Rest aus `docs/901 §9` nicht nur hergestellt, sondern auch seine
+Gegenseite: Über `account_name` sind die beiden ununterscheidbar, über ihren
+Löscheintrag sind sie es nicht.
+
+> **Eine Grenze, die man beim Aufräumen selbst herstellt, ist besser belegt als
+> eine, die man beim Planen aufschreibt.**
+
+---
+
+## 13. Punkt 11, erste Hälfte — `/audit` in vier Lagen
+
+```
+stand=2026-09-06 breite=1440 thema=dark  dokument=0 gegenprobe=200 (soll 200) schiebt=0 rollt=1 versteckt=0
+stand=2026-09-06 breite=390  thema=dark  dokument=0 gegenprobe=200 (soll 200) schiebt=0 rollt=0 versteckt=2
+stand=2026-09-06 breite=390  thema=light dokument=0 gegenprobe=200 (soll 200) schiebt=0 rollt=0 versteckt=2
+stand=2026-09-06 breite=1440 thema=light dokument=0 gegenprobe=200 (soll 200) schiebt=0 rollt=1 versteckt=0
+```
+
+**`dokument=0` in allen vier, `gegenprobe=200` in allen vier, `schiebt=0` in
+allen vier.** Nichts schiebt, was nicht darf — und die Gegenprobe belegt, dass
+die Messung überhaupt ausschlagen kann.
+
+**`stand=2026-09-06` steht in jeder Zeile.** Das ist das Feld, das
+`tests/bilder-messen.js` am 19. August bekommen hat, weil eine Vorschrift aus
+der Zwischenablage nach jedem Neuladen zurückkommt; vier gleiche Stände heissen,
+dass viermal dieselbe geprüfte Fassung gelaufen ist.
+
+**`versteckt=2` bei 390 px und `0` bei 1440 px** — das sind Elemente, die
+überlaufen und nur fürs Vorlesen da sind (auf ein Pixel geklippt). Das Skript
+lässt sie aus der Liste und **nennt ihre Zahl daneben**, statt sie stillschweigend
+zu schlucken.
+
+> **Kein stiller Deckel: Wer die Sicht begrenzt, nennt die Zahl dazu.**
+
+**`rollt=1` bei 1440 px, in beiden Themen, und `0` bei 390 px.** Ein Roller ist
+nur dann ein Befund, wenn er kein gewollter Rollbehälter ist (`docs/902 §13`) —
+und **welches Element es ist, steht in dieser Ausgabe nicht**. Die Zeile zählt
+nur; der Name liegt im zurückgegebenen Objekt, und das klappt die Konsole nach
+fünf Schlüsseln zu.
+
+> **Eine Zahl sagt, dass etwas rollt. Ob es rollen soll, sagt nur sein Name.**
+
+Nachzuholen ist deshalb eine Lage bei 1440 px mit den Namen daneben. Die zwei
+Themen brauchen es nicht beide: Die Zahl ist in beiden dieselbe, und der Roller
+folgt der Breite und nicht der Farbe.
+
+**Offen bleibt `/accounts`** — vier weitere Lagen.
+
+---
+
+## 14. Punkt 11, zweite Hälfte — `/accounts` in vier Lagen, und der Roller hat einen Namen
+
+```
+stand=2026-09-06 breite=1440 thema=light dokument=0 gegenprobe=200 schiebt=0 rollt=0 versteckt=0   schiebt: [] · rollt: []
+stand=2026-09-06 breite=390  thema=light dokument=0 gegenprobe=200 schiebt=0 rollt=0 versteckt=2   schiebt: [] · rollt: []
+stand=2026-09-06 breite=1440 thema=dark  dokument=0 gegenprobe=200 schiebt=0 rollt=0 versteckt=0   schiebt: [] · rollt: []
+stand=2026-09-06 breite=390  thema=dark  dokument=0 gegenprobe=200 schiebt=0 rollt=0 versteckt=2   schiebt: [] · rollt: []
+```
+
+**Vier Lagen, `dokument=0`, `gegenprobe=200`, und beide Listen leer.** Nicht nur
+die Zahlen null — die Namen daneben sind leer, und das ist der Unterschied
+zwischen „nichts gefunden" und „nichts angesehen".
+
+### 14.1 Der Roller von `/audit` — am Quelltext bestimmt statt in der Konsole aufgeklappt
+
+`rollt=1` bei 1440 px nannte kein Element. Bestimmt wird es durch Ausschluss,
+und die Grundmenge ist klein:
+
+- In `app.css` gibt es genau **zwei** Regeln mit `overflow-x: auto` —
+  `.scrolls` und `.field textarea.code`.
+- `Audit/Index.vue` trägt **ein** `class="scrolls"` (um die Tabelle) und
+  **kein** `<textarea>`.
+
+Der Browser hat ein Element gezählt, das überläuft **und** rollen darf; die
+Seite hat genau ein Element, das rollen darf. Beide meinen dasselbe.
+
+**Und es ist der gewollte Fall**, wörtlich begründet im Kopf der Regel: `.stacks`
+wirkt erst unter 720 px — *„Darüber ist die Tabelle eine Tabelle, und eine
+Tabelle mit sechs Spalten will auch auf 1024px rollen können statt sich zu
+quetschen."* Bei 390 px ist sie gestapelt, läuft nicht über, und `rollt` steht
+auf `0`. Kein Befund.
+
+> **Ein Name, den die Konsole wegklappt, steht auch im Quelltext — wenn die
+> Seite nur einen Kandidaten hat.** Das ist eine Bestimmung durch Ausschluss und
+> kein Ablesen; sie trägt, weil die Grundmenge gemessen ist und aus zwei Regeln
+> besteht.
+
+### 14.2 Was `/accounts` nicht gemessen hat
+
+`/accounts` trägt ebenfalls ein `class="scrolls"`, und dort steht `rollt=0` —
+die Tabelle läuft bei diesen Namen gar nicht über. Der benannte Rest aus
+`docs/901 §9` (240 px ohne, 334 px mit dem Löschknopf) braucht einen Namen von
+76 Zeichen; die fünf Konten dieses Servers haben kurze.
+
+> **Ein Rest, der bei diesen Daten nicht anschlägt, ist nicht gemessen worden —
+> er hat nur geschwiegen.** Punkt 11 ist erfüllt; über den Überlauf bei langen
+> Namen sagt er nichts, und `docs/902 §13` hat das vorher so gewollt.
+
+**Punkt 11 ist damit erfüllt**, acht Lagen auf zwei Seiten.
+
+---
+
+## 15. Die Bilanz
+
+**Alle elf Punkte erfüllt.** Keiner ist als „nicht herstellbar" ausgefallen.
+
+| # | Punkt | wo gemessen |
+|---|---|---|
+| 1 | Die Zeile ist fort | §9 |
+| 2 | Die Protokollzeilen tragen weiter ihren Namen | §9 |
+| 3 | `/audit` zeigt den Namen mit „gelöscht" | §10 |
+| 4 | Die Ausfuhr trägt den Namen | §12 |
+| 5 | Ein Eintrag ohne Handelnden liest sich als „System" | §2 |
+| 6 | Der letzte aktive Betreiber (Fassung aus `docs/902 §0.1`) | §3, §4, §6 |
+| 7 | Das eigene Konto bei zwei aktiven Betreibern | §7 |
+| 8 | Die Anmeldeadresse ist wieder frei | §11 |
+| 9 | Die offenen Sitzungen sind fort | §9 |
+| 10 | Der Eintrag `account.deleted` | §9, §10 |
+| 11 | Die Bilderrunde | §13, §14 |
+
+**Die beiden Punkte, die nicht ausfallen durften** (`docs/902 §15`), sind
+darunter: Punkt 5 — die beiden Nullfälle gehen auseinander — und Punkt 2 — die
+Abschrift überlebt das Löschen, und zwar in **beiden** Herkünften.
+
+### 15.1 Sechs Befunde, und keinen hat ein Test gefunden
+
+| # | Befund | wo | steckt im |
+|---|---|---|---|
+| 1 | „System" auch für einen anonymen Anmeldeversuch | §2 | **Prüfling** |
+| 2 | Der Hinweis nennt zwei von drei Wegen | §3.2 | **Prüfling** |
+| 3 | Der Messbefehl war gegen Inertia 1/2 geschrieben | §3.3 | Prüfmittel |
+| 4 | Ein Platzhalter, der in JavaScript etwas bedeutet | §4.1 | Prüfmittel |
+| 5 | Der Prüfkörper nahm Laravels Voreinstellung an | §5 | Prüfmittel |
+| 6 | Drei Prüfregeln antworten auf Englisch | §11.1 | **Prüfling** |
+
+**Drei und drei** — anders als bei `docs/45`, `docs/48`, `docs/59` und
+`docs/84`, wo die Mehrheit im Prüfmittel steckte, und anders als bei A2, A10 und
+A14, wo sie im Prüfling steckte.
+
+**Und die drei Prüfmittelbefunde sind ein einziger Satz in drei Fassungen:**
+
+> **Der Prüfkörper war gegen etwas anderes geschrieben als den Prüfling** —
+> einmal gegen eine ältere Inertia-Fassung, einmal gegen eine Sprache, in der
+> `<id>` Syntax ist, einmal gegen eine Framework-Voreinstellung, die diese
+> Anwendung abgeschaltet hat.
+
+**Dagegen hat `tests/bilder-messen.js` in acht Lagen keinen einzigen Befund
+erzeugt.** Das ist der Unterschied zwischen einem aufgehobenen Messmittel und
+einem, das für diesen Lauf neu getippt wurde.
+
+> **Ein Messmittel, das man aufhebt, macht die Fehler von letztem Mal nicht noch
+> einmal.** Der Satz steht seit `docs/66` in diesem Repo, und dieser Lauf hat
+> ihn an drei zu null bestätigt.
+
+**Was daraus folgt:** Die beiden Konsolengriffe dieses Laufs — die lebende
+Ablage über `__vue_app__.config.globalProperties.$page` und der Aufruf über
+`$inertia` — gehören ins Repo. Sie gelten für **jede** Inertia-Seite dieses
+Panels, und der nächste Lauf tippt sie sonst wieder neu und wieder falsch.
+
+### 15.2 Wer die Befunde gefunden hat
+
+Befund 6 fiel dem Betreiber beim Ausführen von Punkt 8 in die Hände, Befund 1
+kam aus einer Messung des Laufs, Befund 2 aus dem Nachlesen am Quelltext, nachdem
+ein Bild die Frage aufgeworfen hatte. Die drei Prüfmittelbefunde meldete jeweils
+der Prüfkörper selbst, indem er nicht lief.
+
+**Kein einziger kam aus dem Nachdenken vor dem Lauf.** Dabei war die Vorschrift
+vorher ausgeschrieben, und drei Kriterien sind beim Ausschreiben umgefallen
+(`docs/902 §0`) — das hat drei falsche Messungen verhindert und keinen einzigen
+Befund erzeugt.
+
+> **Ein Kriterium, das man vor dem Lauf berichtigt, spart eine falsche Messung.
+> Einen Befund findet trotzdem erst der Lauf.**
+
+---
+
+## 16. Die Abnahme
+
+**`docs/901` ist am 10. September 2026 abgenommen** — auf `cloudsrv24` gegen
+`0.7.4-rc.1`, alle elf Punkte aus `docs/902 §15`, beide Ausschlusskriterien
+(2 und 5) darunter, keiner als „nicht herstellbar" ausgefallen.
+
+Adminkonten lassen sich löschen, und was sie getan haben, bleibt lesbar: Die
+Zeile verschwindet, die Sitzungen gehen mit, die Anmeldeadresse wird frei — und
+das Protokoll trägt weiter den Namen, sowohl auf den Zeilen, die der Nachtrag
+erreicht hat, als auch auf denen, die nach dem Bau entstanden sind.
+
+> **Löschen und Vergessen sind zwei Dinge. Die Zeile darf verschwinden; was sie
+> getan hat, darf es nicht.**
+
+### 16.1 Was benannt offen bleibt
+
+**Zwei Befunde am Prüfling sind nicht behoben**, und das ist Absicht: Eine
+Behebung ist eine Änderung am Prüfling, und der Lauf lief.
+
+- **Befund 2** — der Hinweis unter der Kontenliste nennt zwei von drei Wegen.
+- **Befund 6** — `unique`, `date_format` und `enum` antworten auf Englisch, an
+  17 Stellen. Der Wächter dazu prüft die Richtung „benutzte Regel zeigt auf
+  einen Schlüssel in `lang/de/validation.php`".
+
+**Befund 1** ist kein Mangel des Baus, sondern eine Frage an die Anzeige: Ein
+anonymer Anmeldeversuch liest sich als „System", weil `account_id` dort schon
+vorher `null` war. Er gehört zu `/audit` und nicht zu `docs/901`.
+
+**Aus `docs/901 §9` bleibt stehen:**
+
+- Der Tabellenüberlauf bei sehr langen Namen — in diesem Lauf **nicht
+  angeschlagen und nicht gemessen** (§14.2).
+- Zwei gleichnamige gelöschte Konten — **jetzt auf diesem Server hergestellt**
+  (§12.1), folgenlos, und ihre Bindung hält im Löscheintrag.
+- Das Protokoll des Agenten trägt weiter die nackte Kennung.
+- Die Laufzeit des Nachtrags über ein grosses Protokoll kennt niemand; auf
+  `cloudsrv24` waren es 1.285 Zeilen.
+
+**Und ausserhalb dieses Laufs** bleibt der Rest aus P7 (`orphan.row` für
+`tls.cloudlab24.de`).
+
+---
+
+## 17. Nach der Abnahme gebaut — die beiden Befunde am Prüfling
+
+Gebaut am 10. September 2026, **nach** dem Lauf und nicht während seiner: Eine
+Behebung ist eine Änderung am Prüfling.
+
+### 17.1 Befund 2 — der Hinweis nennt jetzt alle drei Wege
+
+Der Satz unter der Kontenliste nennt herabstufen, sperren **und** löschen.
+Daneben steht ein zweiter, der erklärt, warum die eigene Zeile nie einen
+Löschknopf trägt — und er ist wörtlich der der Ablehnung
+(`AccountController::SELF_REFUSAL`).
+
+Er hängt an `is_self` aus der Ablage und nicht an einem Vergleich mit dem
+angemeldeten Konto; und er steht nur da, wenn die eigene Zeile auf **dieser**
+Seite ist — die Liste blättert.
+
+**Der Wächter ist `AccountHintTest`** (framework-frei, drei Fälle): Der erste
+Hinweis nennt jeden Weg, der zweite wiederholt die Ablehnung Wort für Wort, und
+es gibt beide. **Was er nicht kann, steht in seinem Kopf:** Dass es *drei* Wege
+sind, ist eine Eigenschaft von `LastOperator` und wird von `LastOperatorTest`
+gehalten. Kommt ein vierter dazu, meldet sich hier niemand.
+
+**Vier Eingriffe, alle beissen** — und der dritte ist die Gegenprobe, auf die es
+ankommt: `sperren` aus dem Satz entfernt, während das Wort im erklärenden
+Kommentar wörtlich stehenbleibt. Gemessen steht es dort (`herabstufen und
+sperren`, ein Treffer), und der Wächter wird trotzdem rot.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht — und ein Kommentar, der die entfernte Zeile zitiert, stellt sie für ihn
+> wieder her.**
+
+### 17.2 Befund 6 — vier Sätze, und ein Wächter, der wieder sieht
+
+`lang/de/validation.php` hat `unique`, `date_format`, `enum` und `required_if`
+bekommen. Die ersten drei sind gemessen erreichbar; `required_if` ist die
+**sichere Seite**: `Rule::requiredIf` löst heute auf `required` auf, und darauf
+soll sich niemand verlassen müssen. Der Preis ist eine Zeile.
+
+**`ValidationLanguageTest` ist umgebaut** (§11.2 nennt die drei Gründe seiner
+Blindheit):
+
+- Die Grundmenge kommt aus Laravels **eigener** `en/validation.php` — keine
+  Liste mehr im Test.
+- Gelesen wird über `token_get_all()` und nicht über einen Ausdruck. Eine
+  Klammer in einem `regex:`-Muster brächte jede Klammerzählung aus dem Tritt,
+  und die Kommentare fielen mit hinein.
+- Gesucht wird in den **Argumentbereichen** der Validierungsaufrufe, und darin
+  beides: die Regel als Zeichenkette und als Objekt. Der Inhalt eines
+  `Rule::…()` wird übersprungen — dort stehen Tabellen und Spalten, und
+  `accounts` ist keine Prüfregel.
+- Die Untergrenze verlangt jetzt zusätzlich `unique` und `enum`, also zwei
+  Regeln, die es hier **nur** als Objekt gibt.
+
+Gemessen findet er **22** benutzte Regeln in `app/`, vier davon nur als Objekt
+(`enum`, `exists`, `required_if`, `unique`). `exists` hatte seinen deutschen
+Satz schon — von Hand nachgetragen, denn verlangen konnte ihn niemand.
+
+**Drei Eingriffe, alle beissen** — und einer zeigt den stillen Teil: Wird die
+Objektform wieder unsichtbar gemacht, bleibt `test_every_rule_in_use_has_a_german_sentence`
+**grün**, und nur die Gegenprobe wird rot.
+
+### 17.3 Womit gemessen wurde
+
+- **Voller Testlauf**: 3302 grün, `rc=0`. Ohne die Behebung (bei vorhandenem
+  neuen Wächter) sind es drei Fehlschläge — die Paarung aus Befund und Wächter
+  ist damit in beide Richtungen belegt.
+- **Pint** grün. Er hat dabei aus einem `{@see \App\…}` im Dokumentblock einen
+  `use`-Eintrag gemacht und den framework-freien Wächter an `App\` gehängt; die
+  Marke ist deshalb durch Backticks ersetzt.
+
+  > **Ein Wächter, den man vor dem Formatierer prüft, ist nicht der, der ins
+  > Repo geht.** Der Satz steht seit A9 in `CLAUDE.md` und ist hier zum zweiten
+  > Mal fällig geworden.
+
+- **PHPStan** (Stufe 6, larastan, Projektdatei) über die geänderten Dateien:
+  leer — **mit Gegenprobe**, ein absichtliches `strlen(42)` erzeugt dort zwei
+  Zeilen. Er hat vorher ein `array_values()` auf einer Liste gefunden, die schon
+  eine ist.
+- **`npm run types`** und **`npm run build`** grün, **`BreakScriptTest`** grün
+  (11 Fälle, 905 Behauptungen), **`bash -n`** über das Bruchskript grün.
+
+**Was nicht gemessen ist:** Keine der beiden Behebungen hat einen Server
+gesehen. Der Satz auf der Seite und die vier Prüfmeldungen sind im Container
+belegt; wie sie auf `cloudsrv24` aussehen, sagt erst die nächste Fassung.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**
+
+---
+
+### 12.2 Die Reihenfolge, nach der der Rest gefahren wurde
+
+Aufgeschrieben nach Punkt 6a, gegen den vollständigen Bestand gerechnet, und
+Schritt für Schritt so gefahren. Sie steht am Ende, weil sie ein Stück
+Vorgehen ist und keine Messung.
+
+Die erste Fassung dieser Reihenfolge stand gegen einen Bestand aus zwei Konten
+und wollte „Dritte Verwaltung" zum Betreiber heben. Gegen fünf Konten gerechnet
+ist beides billiger und schärfer:
+
+**Ein zweiter aktiver Betreiber ist ein Schalter und keine Rollenänderung.**
+„Neu von Hand" und „Wegwerf" **sind** Betreiber und nur deaktiviert. Wer einen
+davon aktiviert, hat zwei aktive Betreiber, ohne eine Rolle anzufassen — und
+ändert damit genau die eine Grösse, um die es geht.
+
+**Und der Prüfling für das Löschen bringt seine Geschichte schon mit.**
+„Wegwerf" hat sich am 25. August angemeldet, „Zweite Verwaltung" am
+8. September. Beide tragen damit Protokollzeilen **von vor der Migration** —
+und das misst mehr als ein frisch angelegtes Konto: nicht den Haken beim
+Anlegen, sondern den **Nachtrag** für den Bestand.
+
+> **Ein Prüfling, dessen Zeilen jünger sind als die Behebung, prüft die
+> Behebung und nicht den Nachtrag.**
+
+Die Falle aus der ersten Fassung bleibt und bekommt einen Befehl:
+
+> **Punkt 2 misst die Zeilen des gelöschten Kontos. Hat es keine, ist er nach
+> dem Löschen nicht offen, sondern für dieses Konto für immer unmessbar.**
+
+```bash
+srvpanel tinker --execute="
+  \$k = \App\Models\Account::where('email','wegwerf@cloudlab24.de')->firstOrFail();
+  echo 'Kennung: ', \$k->id, PHP_EOL;
+  echo 'Zeilen als Handelnder: ', \App\Models\AuditEvent::where('account_id',\$k->id)->count(), PHP_EOL;
+  echo 'davon mit Abschrift: ', \App\Models\AuditEvent::where('account_id',\$k->id)
+      ->whereNotNull('account_name')->count(), PHP_EOL;
+  echo 'Sitzungen: ', \Illuminate\Support\Facades\DB::table('sessions')->where('user_id',\$k->id)->count(), PHP_EOL;
+"
+```
+
+Weder `Account` noch `AuditEvent` tragen `BelongsToSubscription`; die
+Mandantenklammer greift hier nicht, und `withoutGlobalScopes()` ist deshalb
+nicht nötig (gemessen am Quelltext, und §1 hat mit denselben Fragen schon
+Zahlen geliefert).
+
+Die Reihenfolge daraus:
+
+1. **Punkt 6b/6c** im Ist-Zustand — ein aktiver Betreiber, und der ist das
+   eigene Konto.
+2. **„Wegwerf" aktivieren** → zwei aktive Betreiber. Keine Rolle angefasst.
+3. **Punkt 7b/7c** — dieselbe eigene Zeile, jetzt `letzter: false`. Hier
+   trennen sich 6 und 7; an der Tür tun sie es nicht.
+4. Als „Wegwerf" **anmelden**, zweiten Faktor einrichten, eine Seite aufrufen.
+   Das öffnet die Sitzung für Punkt 9. Der Block oben sagt vorher, ob das Konto
+   überhaupt Zeilen hat — sonst ist ein anderes zu wählen.
+5. **Vor** dem Löschen messen: Punkt 1 (`= 1`), Punkt 2 (Kennung **und** Name),
+   Punkt 9 (`>= 1`), Punkt 8 als Gegenprobe (die Adresse ist vergeben).
+6. Löschen.
+7. **Nach** dem Löschen: dieselben vier, dazu Punkt 3, 4 und 10.
+8. **Punkt 11**, die Bilderrunde.

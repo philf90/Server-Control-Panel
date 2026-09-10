@@ -27070,6 +27070,126 @@ pruefe "eigene Zeile unerkannt" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AccountDeletionTest passed
 
+echo
+echo "── AccountHintTest: der Hinweis nennt wieder zwei von drei Wegen ──"
+#
+# docs/903 §3.2: Der Satz unter der Kontenliste erklaerte, warum der letzte
+# Betreiber sich nicht herabstufen und nicht sperren laesst — und schwieg zum
+# Loeschen, seit es den Weg gibt. Ausgerechnet dessen Knopf fehlt sichtbar.
+vorher_datei resources/js/Pages/Accounts/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Accounts/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'noch sperren noch löschen, solange er der letzte ist'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'noch sperren, solange er der letzte ist', 1))
+PY2
+griff_datei resources/js/Pages/Accounts/Index.vue "Hinweis ohne das Löschen" &&
+pruefe "Hinweis ohne das Löschen" \
+  AccountHintTest::test_the_last_operator_hint_names_every_way failed
+wiederherstellen
+
+echo
+echo "── AccountHintTest: das Wort steht nur noch im Kommentar ──"
+#
+# **Die Gegenprobe zum Abstreifen der Kommentare.** Der Absatz, der die Behebung
+# erklaert, schreibt „herabstufen und sperren" woertlich hin. Ein Waechter, der
+# roh sucht, faende „sperren" dort und bliebe gruen — derselbe Fehler wie bei
+# OutcomeTest am 1. September (`docs/96 §3`).
+vorher_datei resources/js/Pages/Accounts/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Accounts/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'Er lässt sich weder herabstufen\n      noch sperren noch löschen,'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+assert 'herabstufen und sperren' in s, 'Das Wort steht nicht im Kommentar — dann misst dieser Eingriff nichts'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, 'Er lässt sich weder herabstufen\n      noch löschen,', 1))
+PY2
+griff_datei resources/js/Pages/Accounts/Index.vue "Wort nur noch im Kommentar" &&
+pruefe "Wort nur noch im Kommentar" \
+  AccountHintTest::test_the_last_operator_hint_names_every_way failed
+wiederherstellen
+
+echo
+echo "── AccountHintTest: der Satz zur eigenen Zeile wird umformuliert ──"
+#
+# Zwei Fassungen desselben Satzes laufen auseinander, und die auf der Seite ist
+# die, die niemand nachliest — sie erscheint, bevor etwas schiefgeht.
+vorher_datei resources/js/Pages/Accounts/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Accounts/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'Das eigene Konto lässt sich nicht löschen. Ein zweiter Betreiber kann es tun.'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'Das eigene Konto kann man nicht löschen.', 1))
+PY2
+griff_datei resources/js/Pages/Accounts/Index.vue "eigener Satz umformuliert" &&
+pruefe "eigener Satz umformuliert" \
+  AccountHintTest::test_the_self_hint_repeats_the_refusal_word_for_word failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountHintTest passed
+
+echo
+echo "── ValidationLanguageTest: eine benutzte Regel verliert ihren deutschen Satz ──"
+#
+# docs/903 §11.1: Beim Anlegen eines Kontos mit vergebener Adresse stand
+# „The Anmeldeadresse has already been taken." — `unique` fehlte in lang/de,
+# und der Waechter daneben war gruen.
+vorher_datei lang/de/validation.php
+python3 - <<'PY2'
+p = 'lang/de/validation.php'
+s = open(p, encoding='utf-8').read()
+alt = "    'unique' => 'Das Feld :attribute ist bereits vergeben.',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei lang/de/validation.php "Regel ohne deutschen Satz" &&
+pruefe "Regel ohne deutschen Satz" \
+  ValidationLanguageTest::test_every_rule_in_use_has_a_german_sentence failed
+wiederherstellen
+
+echo
+echo "── ValidationLanguageTest: die Objektform wird wieder unsichtbar ──"
+#
+# **Der zweite der drei Gruende, aus denen dieser Waechter geschwiegen hat.**
+# `unique`, `enum`, `exists` und `required_if` reisen hier ausschliesslich als
+# `Rule::…()`; ein Ausdruck ueber Zeichenketten sieht keinen davon. Und der
+# Ausfall ist still: Der Satz oben bliebe gruen.
+vorher_datei tests/Feature/ValidationLanguageTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/ValidationLanguageTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! is_array($token) || $token[0] !== T_STRING || $token[1] !== 'Rule') {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        if (true) {", 1))
+PY2
+griff_datei tests/Feature/ValidationLanguageTest.php "Objektform unsichtbar" &&
+pruefe "Objektform unsichtbar" \
+  ValidationLanguageTest::test_the_search_really_finds_rules failed
+wiederherstellen
+
+echo
+echo "── ValidationLanguageTest: die Grundmenge wird wieder eine Liste im Test ──"
+#
+# Der erste der drei Gruende. Die alte Liste fuehrte 58 Namen und kannte
+# `date_format` und `enum` nicht — und der Kopf des Waechters begruendete
+# daneben, warum eine Liste im Test die schlechtere Zusage ist.
+vorher_datei tests/Feature/ValidationLanguageTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/ValidationLanguageTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $englisch = require $pfad;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "        $englisch = ['required' => '', 'string' => '', 'max' => ''];", 1))
+PY2
+griff_datei tests/Feature/ValidationLanguageTest.php "Grundmenge als Liste" &&
+pruefe "Grundmenge als Liste" \
+  ValidationLanguageTest::test_the_vocabulary_is_not_a_list_in_this_test failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ValidationLanguageTest passed
+
 
 echo
 if [ "$fehler" -eq 0 ]; then

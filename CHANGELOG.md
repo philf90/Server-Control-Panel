@@ -27026,3 +27026,193 @@ Regeln, die ein neuer Rang braucht.
 
   Die Kennung wird seitdem aus dem gebauten Stylesheet abgeleitet, und der
   Aufsatz bricht ab, wenn er sie nicht findet.
+
+### Das Protokoll behält den Namen — Schritt 1 bis 3 aus `docs/901`
+
+Geplant in `docs/901`, gebaut am 9. September 2026. **Das Löschen von
+Adminkonten gibt es damit noch nicht** — was hier entsteht, ist die
+Voraussetzung dafür: `audit_events.account_id` und `operations.account_id`
+stehen auf `nullOnDelete()`, und bis hierher zog ein gelöschtes Konto seine
+ganze Geschichte auf `null`.
+
+> **Löschen und Vergessen sind zwei Dinge. Die Zeile darf verschwinden; was sie
+> getan hat, darf es nicht.**
+
+- **Zwei Spalten und ein Nachtrag, den es genau einmal gibt.**
+  `audit_events.account_name` und `operations.account_name` tragen den Namen
+  dessen, der gehandelt hat — abgeschrieben beim **Anlegen** der Zeile, wie
+  `subscription_name` seit `docs/35`. Die Migration trägt ihn für alle
+  Bestandszeilen nach; sind die Konten erst fort, kann keine spätere Migration
+  sie rekonstruieren.
+
+  Der Nachtrag kann dabei nur den **heutigen** Namen schreiben, auch auf Zeilen,
+  die unter einem früheren entstanden sind — der frühere steht nirgends. Ab hier
+  hält die Abschrift fest, was zum Zeitpunkt der Handlung galt.
+
+  > **Ein Nachtrag kann nur abschreiben, was heute dasteht — nicht, was damals
+  > galt.**
+
+- **Geschrieben beim Anlegen und nicht beim Löschen, und das ist die
+  Entscheidung.** Namen ändern sich; wer erst beim Löschen schriebe, stempelte
+  den **letzten** Namen auf Zeilen, die unter einem früheren entstanden sind.
+  `RecordsTheActor` setzt ihn im `creating`-Ereignis — an **einer** Stelle je
+  Modell und nicht an den sechzehn, die Zeilen anlegen.
+
+  > **Was jede Stelle anders weiss, gehört an die Stelle. Was überall dasselbe
+  > ist, gehört an eine — und die muss eine sein, an der niemand vorbeikommt.**
+
+- **Kein Sammelname für Gelöschte, und der Grund ist gemessen.**
+  `account_id = NULL` trägt hier **schon** eine Bedeutung: `srvpanel access`
+  schreibt seinen Eintrag ohne Konto, weil auf der Kommandozeile niemand
+  angemeldet ist, und `Operations::dispatch()` tut dasselbe für jede Automatik.
+  Ein Sammelname beschriftete damit jeden Cron-Lauf als gelöschten Benutzer.
+
+  > **Eine Null, die schon eine Bedeutung trägt, kann keine zweite bekommen —
+  > die beiden Fälle sehen danach gleich aus.**
+
+  Als **Anzeige** ist das Wort trotzdem richtig, und genau dafür lohnt die
+  Spalte: Kennung leer und Abschrift leer heisst `System`, Kennung leer und
+  Abschrift gesetzt heisst `Anna Berger (gelöscht)`.
+
+- **`/audit` hat jetzt eine Spalte für den Handelnden — sie hatte nie eine.**
+  `account_id` stand seit P2 in der Ablage und wurde von keiner Zeile
+  gerendert; der CSV-Export schrieb unter „Konto" die nackte Kennung. Der
+  Bann auf das Löschen schützte damit eine Auskunft, die niemand sah.
+
+  > **Ein Feld im Payload ist noch keine Spalte.**
+
+  **Die Spalte der Ausfuhr heisst deshalb `Wer` und nicht mehr `Konto`** — sie
+  trägt einen Satz statt einer Kennung, und `System` ist kein Konto. Wer den
+  Export einliest, liest eine geänderte Kopfzeile.
+
+- **`/operations/{id}` unterscheidet „System" von „—".** Dort stand
+  `$operation->account?->name` mit einem Strich als Rückfall — derselbe Strich
+  für einen Vorgang der Automatik wie für einen, dessen Konto fort ist.
+
+**Gemessen** (Container, echtes Chromium, gebautes Stylesheet): Die siebte
+Spalte kostet bei üblichen Namen nichts — bei 390 px und bei 1440 px `doku=0`
+und kein Rollen, Gegenprobe 200. Erst ein Name von 90 Zeichen lässt `.scrolls`
+bei 1440 px um 369 px rollen, und dafür gibt es den Behälter. Die Bilderrunde
+auf der echten Seite steht noch aus (`docs/901 §7`, Schritt 8).
+
+**Der Wächter ist `ActorLabelTest`**, mit sechs Eingriffen in
+`tests/waechter-brechen.sh`, jeder einzeln gefahren und rot: keine Abschrift,
+kein Zusatz „gelöscht", die Automatik als gelöschter Benutzer, der Handelnde
+nicht in der Ablage, die Kennung statt des Namens in der Ausfuhr, und der
+Nachtrag ohne Wirkung.
+
+### Adminkonten lassen sich löschen — Schritt 4 bis 9 aus `docs/901`
+
+Gebaut am 10. September 2026, und damit ist `docs/82 §9` abgelöst: Der Bann auf
+das Löschen stand, solange das Protokoll seinen Handelnden über
+`nullOnDelete()` verlor. Die Abschrift aus dem Schritt davor nimmt ihm den
+Grund.
+
+- **`DELETE /accounts/{admin}` mit zwei Prüfungen, und sie beantworten
+  verschiedene Fragen.** Das eigene Konto nicht — auch dann nicht, wenn ein
+  zweiter Betreiber übrig bliebe; wer sich als Betreiber Nr. 2 von 2 löscht,
+  sperrt niemanden aus und schiesst sich trotzdem ins Knie. Und der
+  Aussperrschutz mit dem Zielzustand eines gelöschten Kontos: keine Rolle,
+  nicht aktiv.
+
+  **Der zweite lässt sich durch die Tür nicht messen**, und das ist gemessen
+  und nicht vermutet: Wer die Route erreicht, trägt `operate-server` und ist
+  damit aktiver Betreiber; ist das Ziel der letzte, ist es das eigene Konto.
+
+  > **Zwei Regeln, die sich nur an einem Zustand trennen lassen, den es nicht
+  > geben kann, lassen sich durch die Tür nicht auseinanderhalten.**
+
+  Gefunden hat es ein Eingriff, der **nicht** gebissen hat. Der Aufruf bleibt
+  stehen und hängt an `AccountMutationTest`, der den Quelltext liest — ihn
+  wegzulassen hiesse zu behaupten, Löschen könne keinen Betreiber wegnehmen.
+
+- **Die Reihenfolge im Rumpf ist tragend.** Sitzungen beenden, Eintrag
+  schreiben, dann löschen. Der Eintrag steht davor, weil `audit_events`
+  `nullableMorphs` benutzt: `target_id` zeigt danach auf eine Zeile, die es
+  nicht mehr gibt. Sein Zusammenhang trägt Name, Anmeldeadresse und Rolle — er
+  ist die einzige Stelle, an der die Bindung „dieser Name gehörte zu dieser
+  Adresse und dieser Kennung" festgehalten wird.
+
+- **Die offenen Sitzungen gehen mit.** `sessions.user_id` trägt als einziger
+  der sechs Verweise auf ein Konto **keinen** Fremdschlüssel — dort räumte kein
+  `nullOnDelete` auf, weil es dort nichts gab, was hätte greifen können.
+  `Sessions::forgetAll()` ist der Griff, und er fragt nach dem Konto: ohne die
+  Bedingung beendete der Löschweg die Sitzung jedes angemeldeten Menschen.
+
+- **Die Seite zeigt keinen Knopf, den der Aufruf danach abwiese.** `is_self`
+  steht neben dem vorhandenen `is_last_operator` und kommt aus derselben
+  Quelle, die `destroy()` später fragt. Zwei Knöpfe in einer Zelle stehen in
+  einer `.button-row`; `Löschen` trägt `.danger`, weil `app.css` die Klasse für
+  „was sich nicht zurücknehmen lässt" führt.
+
+  **Kein Abtippen.** `useConfirmation()` kennt einen `challenge` und keine
+  Seite benutzt ihn; hier wäre er unverhältnismässig, weil ein gelöschtes
+  Adminkonto sich neu anlegen lässt und seine Adresse wieder frei wird.
+
+**Die Bilderrunde** ist auf der echten Seite mit echten Daten gefahren, vier
+Lagen: `dokument = 0`, Gegenprobe 200/200, nichts schiebt. Der Griff ist im
+Browser gedrückt worden — vier Zeilen auf drei, und auf `/audit` stehen danach
+alle drei Zustände nebeneinander: `Philipp Fuchs` · `System` ·
+`Jonas Weiss (gelöscht)`.
+
+**Und ein Befund, den die Zahl nicht hatte.** Die erste Runde lief mit einem
+Namen aus 76 Zeichen; sie meldete `dokument = 0` und einen erlaubten Roller,
+und das Bild zeigte beide Knöpfe bei 1440 px ausserhalb des Sichtbaren.
+
+> **Dieselbe Messung kann aufs Pixel stimmen und trotzdem nichts über die
+> Ansicht sagen.**
+
+Am Prüfling nachgemessen, mit entferntem Löschknopf im DOM: 240 px Überlauf
+ohne ihn, 334 px mit ihm. **Der Überlauf ist älter als diese Spalte**; er steht
+als benannter Rest in `docs/901 §9`. Zwei eigene Aufsätze hatten ihn vorher
+verschwiegen — einer ohne die Klasse `multiline` an der Namenszelle, einer ohne
+Navigationsleiste und damit mit einem Behälter von 1440 statt 1140.
+
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst die
+> falsche — und sein Grün liest sich wie ein Freispruch.**
+
+**Der Wächter ist `AccountDeletionTest`** mit acht Fällen, dazu der Weg 3 in
+`LastOperatorTest`, der bis dahin festhielt, dass es ihn **nicht** gibt. Sechs
+Eingriffe stehen in `tests/waechter-brechen.sh`, jeder einzeln gefahren und rot.
+
+### Ein Eingriff hörte auf zu messen, weil dieser Zweig seine Voraussetzung baute
+
+Gefunden vom PR-Lauf am 10. September 2026 — dem ersten auf diesem Zweig, denn
+`waechter.yml` hängt allein an `pull_request`. Fünfzehn Jobs grün, „Jede Regel
+absichtlich brechen" rot mit **einer** Zeile: `veraltete Ausnahme — passed
+(erwartet: failed)`.
+
+Der Eingriff trägt `'destroy'` in die `HARMLESS`-Liste von
+`AccountMutationTest` ein und erwartet, dass
+`test_no_exception_stands_for_a_route_that_is_gone` rot wird: eine Ausnahme für
+eine Route, die es nicht gibt. Derselbe Zweig hat `DELETE /accounts/{admin}`
+gebaut. Die Ausnahme war damit nicht veraltet, und der Wächter blieb zu Recht
+grün.
+
+> **Ein Prüfkörper, der einen Zustand *behauptet*, statt ihn zu prüfen, hört auf
+> zu messen, sobald jemand den Zustand herstellt — und sagt es nicht.**
+
+Behoben ist nicht der Name allein. Der Eingriff heisst jetzt `routeThatIsGone`
+— was er ist, und was keine Route werden kann — **und sichert seine Prämisse
+zu**: Findet er den Namen unter den gebauten Kontenrouten, bricht er mit
+Begründung ab. Gegengeprüft in beide Richtungen: mit `routeThatIsGone` beisst
+er, mit `destroy` fällt die Zusicherung aus. Hätte es sie gestern gegeben, wäre
+der Eingriff im Augenblick des Baus rot geworden statt still grün.
+
+**Der Kommentar des Wächters trug denselben Fehler**, und zwar seit A9: Er
+nannte `destroy` als Beispiel für „einmal harmlos und ausgebaut". Seit dem
+10. September ist genau diese Methode der dritte Weg in die Aussperrung — der
+Satz stand damit auf dem Kopf. Er nennt jetzt keinen Namen mehr.
+
+> **Ein Beispiel, das eine Abwesenheit behauptet, veraltet in dem Augenblick, in
+> dem jemand die Sache baut — und liest sich danach als ihr Gegenteil.**
+
+**Und die Regel, nach der Eingriffe ausgewählt werden, war zu eng.** Sie lautete
+„alle, deren `vorher_datei` eine Datei nennt, die dieser Zweig geändert hat" —
+danach wäre dieser hier **nie** gefahren worden: Seine `vorher_datei` ist
+`tests/Unit/AccountMutationTest.php`, unberührt; geändert war `routes/web.php`,
+die der Wächter *liest*. Ausgezählt lesen siebzehn Dateien unter `tests/` diese
+eine.
+
+> **Ein Eingriff misst nicht nur die Datei, die er anfasst — er misst jede, die
+> sein Wächter liest.**

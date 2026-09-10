@@ -498,6 +498,33 @@ Agent-Aufrufe, die gar keine Vorgangszeile anlegen.
 - **Das Löschen von Adminkonten** (§1.1) — solange das Protokoll den Handelnden
   über `nullOnDelete()` verliert, ist Sperren die ehrlichere Antwort. Wer es
   später bauen will, löst zuerst die Frage, wie der Name im Protokoll bleibt.
+
+  **Diese Zeile ist am 10. September 2026 abgelöst.** Der Plan dazu ist
+  `docs/901`; gebaut sind seine Schritte 1 bis 9. Die Antwort auf die Frage,
+  wie der Name im Protokoll bleibt, ist eine **Abschrift auf der Protokollzeile
+  selbst** — abgeschrieben beim Anlegen der Zeile, wie `subscription_name` seit
+  `docs/35`. Adminkonten werden seitdem gelöscht und nicht bloss gesperrt.
+
+  **Was der Löschweg ausserdem mitnimmt:** die offenen Sitzungen. Sie standen
+  in keiner Fassung dieses Abschnitts, weil `sessions.user_id` als einziger
+  Verweis auf ein Konto **keinen** Fremdschlüssel trägt — dort räumte kein
+  `nullOnDelete` auf, weil es dort nichts gab, was hätte greifen können.
+
+  Nachgemessen wurde am 2. September, dass dieser Abschnitt eine Auskunft
+  schützte, die **keine Oberfläche als Name anzeigte**: `/audit` hatte gar
+  keine Spalte dafür, der CSV-Export schrieb die nackte Kennung.
+
+  > **Ein Verbot, das eine Auskunft schützt, die niemand anzeigt, schützt eine
+  > Absicht und keine Auskunft.**
+
+  **Beides ist seit Schritt 3 nicht mehr wahr** (10. September 2026): Die
+  Spalte heisst „Wer", der Export schreibt denselben Wert. Die drei Sätze
+  darüber stehen deshalb in der Vergangenheit — sie waren die Begründung
+  dafür, den Bann aufzuheben, und ein Satz im Präsens läse sich nach der
+  Behebung wie ein offener Mangel.
+
+  > **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung — und
+  > nichts prüft sie.**
 - **A3, A4 und A7** haben weiterhin keine Stufe (`docs/20 §9`). A9 ist mit
   dieser Entscheidung aus dieser Gruppe herausgelöst.
 - **Ob zwei Rollen genügen** (§4). Die Entscheidung ist getroffen und

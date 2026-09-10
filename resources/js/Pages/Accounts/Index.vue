@@ -11,8 +11,9 @@
  * daran, ob der Mensch dahinter angekommen ist. Die Spalte ist eine Auskunft
  * und kein Schalter: Ein Schalter für eine Pflicht wäre ihre Abschaffung.
  */
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import Badge from '../../Components/Badge.vue'
+import { useConfirmation } from '../../Composables/useConfirmation'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Pager from '../../Components/Pager.vue'
 
@@ -27,6 +28,32 @@ interface Row {
   two_factor: boolean
   last_login_at: string | null
   is_last_operator: boolean
+  is_self: boolean
+}
+
+const { ask } = useConfirmation()
+
+/*
+ * **Die Rückfrage nennt, was mitgeht — und was bleibt.**
+ *
+ * Das Konto verschwindet hart; was es getan hat, bleibt im Protokoll unter
+ * seinem Namen stehen (`docs/901`). Beides gehört in die Frage: Ohne den
+ * zweiten Satz liest sich „löschen" wie „die Geschichte ist fort", und ohne
+ * den ersten wie „lässt sich zurückholen".
+ *
+ * **Kein Abtippen.** `ask()` kennt seit P5c einen `challenge`, und keine Seite
+ * benutzt ihn. Hier wäre er unverhältnismässig: Ein gelöschtes Adminkonto lässt
+ * sich neu anlegen, seine Anmeldeadresse wird wieder frei — anders als ein
+ * zurückgezogenes Abonnement, dessen Dateien fort sind. Rot und die Zeile beim
+ * Namen zu nennen ist das Mass, das dieser Griff verdient.
+ */
+function loeschen(row: Row): void {
+  ask(
+    `Konto ${row.name} löschen? Die Anmeldung ist danach fort und die Adresse wieder frei.\n`
+    + 'Im Protokoll bleibt stehen, was dieses Konto getan hat — unter seinem Namen.',
+    'Löschen',
+    () => { router.delete(`/accounts/${row.id}`, { preserveScroll: true }) },
+  )
 }
 
 const props = defineProps<{
@@ -106,8 +133,36 @@ const props = defineProps<{
               {{ row.last_login_at ?? 'noch nie' }}
             </td>
 
+            <!--
+              **Zwei Knöpfe in einer Zelle stehen in einer `.button-row`.**
+              Ohne sie kleben sie aneinander; die Regel steht seit P5b in
+              `app.css`, und `ButtonRowTest` hält sie seit dem 6. September.
+
+              Die Zelle trägt kein `data-column`: `MobileTableTest` lässt die
+              Knopfzelle am Zeilenende als einzige ohne Beschriftung durch, und
+              entschieden wird das an ihrem Inhalt.
+            -->
             <td>
-              <Link :href="`/accounts/${row.id}/edit`" class="button small">Bearbeiten</Link>
+              <span class="button-row">
+                <Link :href="`/accounts/${row.id}/edit`" class="button small">Bearbeiten</Link>
+
+                <!--
+                  **Der Knopf fehlt, wo der Aufruf danach ablehnen würde**
+                  (`docs/901 §3.5`) — beim eigenen Konto und beim letzten
+                  aktiven Betreiber. Beide Fragen beantwortet der Server in
+                  derselben Zeile; eine zweite Bedingung hier wäre eine zweite
+                  Fassung der Regel, und die zweite veraltet.
+
+                  `.danger`, weil `app.css` die Klasse ausdrücklich für „was
+                  sich nicht zurücknehmen lässt" führt.
+                -->
+                <button
+                  v-if="!row.is_self && !row.is_last_operator"
+                  type="button"
+                  class="button small danger"
+                  @click="loeschen(row)"
+                >Löschen</button>
+              </span>
             </td>
           </tr>
         </tbody>

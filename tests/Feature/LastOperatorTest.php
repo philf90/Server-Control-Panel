@@ -9,7 +9,6 @@ use App\Enums\AdminRole;
 use App\Models\Account;
 use App\Support\Authorization\LastOperator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Route as Router;
 use Tests\TestCase;
 
 /**
@@ -75,58 +74,85 @@ final class LastOperatorTest extends TestCase
     }
 
     /**
-     * Weg 3 gibt es nicht — und das ist hier ein Draht und keine Lücke.
+     * Weg 3: löschen — und bis zum 10. September 2026 stand hier das Gegenteil.
      *
-     * `docs/82 §9` lässt das Löschen von Adminkonten bewusst offen, solange das
-     * Protokoll seinen Handelnden über `nullOnDelete()` verliert. Wer es später
-     * baut, bekommt hier Rot und damit die Erinnerung, dass der Aussperrschutz
-     * mitgehört — statt einer stillen dritten Tür.
+     * **Der Vorgänger war ein Draht und keine Prüfung.** Er suchte ein `DELETE`
+     * auf `accounts/{…}` und meldete Rot, sobald es eines gab: `docs/82 §9`
+     * liess das Löschen offen, solange das Protokoll seinen Handelnden über
+     * `nullOnDelete()` verlor, und der Draht sollte den erinnern, der es baut.
      *
      * > **Ein Weg, den es noch nicht gibt, ist nur so lange kein Loch, wie
      * > jemand merkt, dass er entsteht.**
+     *
+     * Er hat zugebissen, als die Route entstand — und ist damit zu dem Fall
+     * geworden, auf den er gewartet hat. Gemessen wird jetzt die **Wirkung**
+     * und nicht mehr die Abwesenheit: Der letzte aktive Betreiber überlebt den
+     * Aufruf.
+     *
+     * **Welche der beiden Regeln ihn dabei rettet, sagt dieser Fall nicht** —
+     * und das ist gemessen, nicht vermutet: Nimmt man
+     * `LastOperator::permits()` aus `destroy()` heraus, bleibt er grün, weil
+     * die Selbstprüfung zuerst antwortet. Er misst den Ausgang, nicht den Weg.
+     *
+     * > **Ein Prüfkörper, den zwei Regeln abweisen, sagt über keine von beiden
+     * > etwas.**
+     *
+     * Den Aufruf hält deshalb `AccountMutationTest` über den Quelltext, den
+     * Zielzustand der Fall darunter. Warum es dazwischen nichts gibt, steht
+     * ebenfalls dort.
      */
-    public function test_there_is_no_third_way(): void
+    public function test_the_last_operator_cannot_be_deleted(): void
     {
-        $deleting = [];
+        $operator = Account::factory()->admin()->create();
+
+        $this->actingAs($operator)
+            ->delete("/accounts/{$operator->id}")
+            ->assertSessionHasErrors('account');
+
+        $this->assertNotNull($operator->fresh(), 'Der letzte Betreiber wurde gelöscht.');
+    }
+
+    /**
+     * **Der Aussperrschutz kennt den Löschweg — gemessen am Zielzustand.**
+     *
+     * Hier stand zuerst eine Messung durch die Route: ein zweites Konto löscht
+     * den letzten aktiven Betreiber. **Sie ist nicht herstellbar**, und das ist
+     * keine Schwäche des Prüfkörpers, sondern eine Eigenschaft des Entwurfs.
+     *
+     * Wer die Route erreicht, trägt `operate-server`, und das löst seit A9 auf
+     * den **aktiven Betreiber** auf. Gäbe es einen zweiten davon, wäre das Ziel
+     * nicht mehr der letzte; gibt es keinen, kommt niemand bis zum Controller.
+     * Gemessen: Ein gesperrtes Adminkonto bekommt **302 auf `/login`**, also
+     * die Tür und nicht die Prüfung.
+     *
+     * > **Zwei Regeln, die sich nur an einem Zustand trennen lassen, den es
+     * > nicht geben kann, lassen sich durch die Tür nicht auseinanderhalten.**
+     *
+     * Gefragt wird deshalb {@see LastOperator::permits()} unmittelbar, mit dem
+     * Zielzustand eines gelöschten Kontos — keine Rolle, nicht aktiv. Was der
+     * Controller damit tut, hält `AccountMutationTest` in beide Richtungen;
+     * dass der Weg auch wirkt, hält der Fall darüber.
+     */
+    public function test_the_guard_refuses_the_target_state_of_a_deleted_account(): void
+    {
+        $operator = Account::factory()->admin()->create();
+        Account::factory()->admin()->create(['status' => AccountStatus::Disabled]);
+
+        $this->assertSame(1, LastOperator::active(), 'Der Prüfkörper stellt nicht genau einen aktiven Betreiber her.');
+
+        $this->assertFalse(
+            LastOperator::permits($operator, null, AccountStatus::Disabled),
+            'Der Aussperrschutz lässt den Zielzustand eines gelöschten letzten Betreibers zu.',
+        );
 
         /*
-         * **`->getRoutes()` auf der Sammlung und nicht die Sammlung selbst.**
-         * `Route::getRoutes()` gibt ein `RouteCollectionInterface` zurück; das
-         * ist zur Laufzeit iterierbar, sagt es aber im Typ nicht zu — PHPStan
-         * meldet `foreach.nonIterable`. Die Methode darauf liefert das Array.
+         * **Die Gegenprobe**, ohne die der Fall auch für eine Prüfung bestünde,
+         * die jeden Zielzustand ablehnt: Mit einem zweiten aktiven Betreiber
+         * geht derselbe Aufruf durch.
          */
-        foreach (Router::getRoutes()->getRoutes() as $route) {
-            /*
-             * **Die Adresse des Kontos selbst und nicht alles darunter.**
-             *
-             * Der erste Wurf fragte „irgendein `DELETE` unter `/accounts`" und
-             * war beim ersten Zusatz rot: `DELETE /accounts/{admin}/sessions`
-             * beendet eine Sitzung und nimmt niemandem seine Rolle. Ein
-             * Wächter, der jede Unterressource mitmeldet, wird beim ersten
-             * Aufräumen abgeschaltet.
-             *
-             * > **Ein Wächter, der Richtiges mitmeldet, ist kein strenger
-             * > Wächter — er ist einer, den man gleich wieder los ist.**
-             *
-             * Gemeint ist die eine Adresse, hinter der das Konto verschwindet:
-             * `accounts/{…}` und nichts dahinter.
-             */
-            if (preg_match('/\Aaccounts\/\{[^}\/]+\}\z/', $route->uri()) !== 1) {
-                continue;
-            }
+        Account::factory()->admin()->create();
 
-            if (in_array('DELETE', $route->methods(), true)) {
-                $deleting[] = $route->uri();
-            }
-        }
-
-        $this->assertSame([], $deleting, sprintf(
-            "Es gibt jetzt eine löschende Kontenroute:\n\n  %s\n\n"
-            .'Löschen ist der dritte Weg in dieselbe Aussperrung (docs/82 §8). Er gehört durch '
-            .'App\Support\Authorization\LastOperator, und dieser Wächter gehört um seinen Fall '
-            .'erweitert — vorher ist der Schutz eine Schranke an zwei von drei Türen.',
-            implode("\n  ", $deleting),
-        ));
+        $this->assertTrue(LastOperator::permits($operator, null, AccountStatus::Disabled));
     }
 
     /**

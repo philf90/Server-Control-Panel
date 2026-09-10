@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\OperationStatus;
 use App\Models\Concerns\BelongsToSubscription;
+use App\Models\Concerns\RecordsTheActor;
 use App\Support\Operations\Origin;
 use App\Support\Tenancy\Tenancy;
 use Database\Factories\OperationFactory;
@@ -29,6 +30,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $subject_id
  * @property string|null $origin
  * @property int|null $account_id
+ * @property string|null $account_name
  * @property string $type
  * @property string|null $task
  * @property OperationStatus $status
@@ -47,15 +49,16 @@ use Illuminate\Support\Carbon;
 class Operation extends Model
 {
     /** @use HasFactory<OperationFactory> */
-    use BelongsToSubscription, HasFactory;
+    use BelongsToSubscription, HasFactory, RecordsTheActor;
 
     /*
-     * `subscription_name` steht mit Absicht **nicht** darin.
+     * `subscription_name` und `account_name` stehen mit Absicht **nicht** darin.
      *
      * Es ist eine Abschrift und keine Eingabe: Wäre die Spalte füllbar, gäbe es
      * einen zweiten Weg, sie zu setzen — einen Vorgang, der einen Namen trägt,
      * den es nie gab, und nichts, das den Widerspruch meldet. Geschrieben wird
-     * sie ausschliesslich in {@see self::booted()}.
+     * sie ausschliesslich in {@see self::booted()} beziehungsweise in
+     * {@see RecordsTheActor::bootRecordsTheActor()}.
      */
 
     /** @var list<string> */

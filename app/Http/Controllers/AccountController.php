@@ -52,13 +52,35 @@ use Inertia\Response;
  * steht im Protokoll; ihr Wechsel ist ein eigener Vorgang mit Bestätigung und
  * gehört nicht in ein Formular, das auch den Namen ändert.
  *
- * **Löschen** (`docs/82 §9`). Solange das Protokoll seinen Handelnden über
- * `nullOnDelete()` verliert, ist Sperren die ehrlichere Antwort: Ein gesperrtes
- * Konto kommt nicht mehr herein, und seine Einträge tragen weiter seinen Namen.
+ * ## Löschen gibt es seit dem 10. September 2026 — und warum es das vorher nicht gab
+ *
+ * `docs/82 §9` hat es offengelassen, solange das Protokoll seinen Handelnden
+ * über `nullOnDelete()` verlor: Ein gelöschtes Adminkonto zog seine ganze
+ * Geschichte auf `null`, und Sperren war die ehrlichere Antwort.
+ *
+ * Seit `docs/901` hält `RecordsTheActor` den Namen
+ * auf der Protokollzeile selbst fest — abgeschrieben beim Anlegen der Zeile,
+ * wie `subscription_name` seit `docs/35`. Damit trägt der Satz nicht mehr, und
+ * {@see self::destroy()} ist der dritte Weg, den `LastOperator` seit A9
+ * erwartet.
+ *
+ * > **Löschen und Vergessen sind zwei Dinge. Die Zeile darf verschwinden; was
+ * > sie getan hat, darf es nicht.**
  */
 final class AccountController extends Controller
 {
-    public function index(): Response
+    /**
+     * Warum niemand sein eigenes Konto löscht.
+     *
+     * **Hier und nicht in {@see LastOperator}:** Der Aussperrschutz beantwortet
+     * „bleibt ein aktiver Betreiber übrig", und das ist eine andere Frage.
+     * Der Satz sagt, **warum** abgelehnt wurde und **was** hilft — eine
+     * Ablehnung ohne Ausweg ist eine Sackgasse mit Begründung.
+     */
+    private const SELF_REFUSAL = 'Das eigene Konto lässt sich nicht löschen. '
+        .'Ein zweiter Betreiber kann es tun.';
+
+    public function index(Request $request): Response
     {
         $accounts = Account::query()
             ->where('type', AccountType::Admin)
@@ -77,6 +99,8 @@ final class AccountController extends Controller
          */
         $operators = LastOperator::active();
 
+        $self = (int) ($request->user()?->getAuthIdentifier() ?? 0);
+
         return Inertia::render('Accounts/Index', [
             'accounts' => Page::from($accounts, static fn (Account $account): array => [
                 'id' => (int) $account->id,
@@ -89,6 +113,17 @@ final class AccountController extends Controller
                 'two_factor' => $account->hasTwoFactor(),
                 'last_login_at' => Clock::display($account->last_login_at),
                 'is_last_operator' => LastOperator::isLast($account),
+
+                /*
+                 * **Ob das die eigene Zeile ist** (`docs/901 §3.5`). Die Seite
+                 * zeigt dort keinen Löschknopf, und die Frage kommt aus
+                 * derselben Quelle, die {@see self::destroy()} später stellt.
+                 *
+                 * Eine zweite Bedingung in der Vue-Datei — „vergleiche mit dem
+                 * angemeldeten Konto aus der geteilten Ablage" — wäre eine
+                 * zweite Fassung derselben Regel, und die zweite veraltet.
+                 */
+                'is_self' => (int) $account->id === $self,
             ]),
             'operators' => $operators,
         ]);
@@ -358,6 +393,68 @@ final class AccountController extends Controller
 
         return redirect()->route('accounts.edit', $admin)
             ->with('success', 'Die Sitzung wurde beendet.');
+    }
+
+    /**
+     * Ein Adminkonto löschen — hart, mit Abschrift im Protokoll.
+     *
+     * **Bis zum 10. September 2026 gab es diesen Weg nicht** (`docs/82 §9`):
+     * Solange das Protokoll seinen Handelnden über `nullOnDelete()` verlor, war
+     * Sperren die ehrlichere Antwort. Seit `docs/901` hält
+     * `RecordsTheActor` den Namen auf der
+     * Protokollzeile fest, und damit trägt der Satz nicht mehr.
+     *
+     * > **Löschen und Vergessen sind zwei Dinge. Die Zeile darf verschwinden;
+     * > was sie getan hat, darf es nicht.**
+     *
+     * ## Zwei Prüfungen, und sie beantworten verschiedene Fragen
+     *
+     * **Das eigene Konto nicht** — und diese Prüfung gehört ausdrücklich
+     * **nicht** in {@see LastOperator}. Die Klasse beantwortet „bleibt ein
+     * aktiver Betreiber übrig"; wer sich als Betreiber Nr. 2 von 2 löscht,
+     * sperrt niemanden aus und schiesst sich trotzdem ins Knie. Zwei Fragen,
+     * zwei Stellen.
+     *
+     * **Und der Aussperrschutz** mit dem Zielzustand eines gelöschten Kontos:
+     * keine Rolle, nicht aktiv. Kein neuer Mechanismus, ein Aufruf.
+     *
+     * ## Die Reihenfolge im Rumpf ist tragend
+     *
+     * Der Protokolleintrag steht **vor** dem Löschen, und sein `context` trägt
+     * Name, Anmeldeadresse und Rolle: `audit_events` benutzt `nullableMorphs`,
+     * `target_id` zeigt danach auf eine Zeile, die es nicht mehr gibt. Dieser
+     * eine Eintrag ist die Stelle, an der die Bindung „dieser Name gehörte zu
+     * dieser Adresse und dieser Kennung" festgehalten wird — die Abschrift auf
+     * den übrigen Zeilen trägt nur den Namen.
+     *
+     * Und die Sitzungen gehen davor, weil `sessions.user_id` als einziger
+     * Verweis auf ein Konto **keinen** Fremdschlüssel trägt: Dort räumt sonst
+     * niemand auf (`docs/901 §1.1`).
+     */
+    public function destroy(Request $request, Account $admin, Audit $audit): RedirectResponse
+    {
+        if ((int) $request->user()?->getAuthIdentifier() === (int) $admin->id) {
+            throw ValidationException::withMessages(['account' => self::SELF_REFUSAL]);
+        }
+
+        if (! LastOperator::permits($admin, null, AccountStatus::Disabled)) {
+            throw ValidationException::withMessages(['account' => LastOperator::refusal()]);
+        }
+
+        $name = $admin->name;
+
+        Sessions::forgetAll($admin);
+
+        $audit->success('account.deleted', $admin, [
+            'name' => $admin->name,
+            'email' => $admin->email,
+            'role' => $admin->role?->value,
+        ]);
+
+        $admin->delete();
+
+        return redirect()->route('accounts.index')
+            ->with('success', "Konto {$name} gelöscht.");
     }
 
     /**

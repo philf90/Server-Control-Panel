@@ -846,8 +846,10 @@ Protokollhistorie** auf `null`.
 > **Ein Protokoll, aus dem sich der Handelnde nachträglich entfernen lässt, ist
 > kein Protokoll — es ist eine Liste von Ereignissen.**
 
-Adminkonten werden deshalb **gesperrt und nicht gelöscht**; den Zustand
-`disabled` gibt es längst, und drei Stellen fragen ihn schon.
+Adminkonten wurden deshalb **gesperrt und nicht gelöscht**; den Zustand
+`disabled` gibt es längst, und drei Stellen fragen ihn schon. **Seit dem
+10. September 2026 gilt das nicht mehr** — `docs/901` hält den Namen als
+Abschrift auf der Protokollzeile fest, und damit trägt der Satz nicht mehr.
 
 **Die Schritte 1 und 2 sind gebaut** — die Schritte 3, 5 und 7 stehen weiter
 unten unter „A9 ist gebaut". `AdminRole` ist die zweite Achse — kein
@@ -1331,8 +1333,11 @@ nichts Rundes in Nutzerkoordinaten gezeichnet) — und aus P7b
 Rückgabewert; er sucht ausdrücklich **nicht** das Wort `successful()`, sondern
 misst die Wirkung an einem selbstgebauten Ergebnis mit Rückgabe 0),
 `LastOperatorTest` (der letzte Betreiber lässt sich weder herabstufen noch
-sperren — gemessen an beiden Wegen, mit dem Nachweis, dass es keinen dritten
-gibt), `AccountMutationTest` (jede ändernde Kontenroute fragt den
+sperren noch löschen — gemessen an allen drei Wegen; **der dritte war bis zum
+10. September 2026 ein Draht**, der festhielt, dass es ihn nicht gibt, und ist
+mit der Route zu dem Fall geworden, auf den er gewartet hat. Was er **nicht**
+kann, steht in seinem Kopf: Welche der beiden Regeln den letzten Betreiber
+rettet, sagt er nicht, weil sich beide durch die Tür nicht trennen lassen), `AccountMutationTest` (jede ändernde Kontenroute fragt den
 Aussperrschutz — oder steht mit Begründung als harmlos da, in beide Richtungen
 und ohne Framework), `AdminPayloadTest` (keine Seite überschreibt die geteilte
 Fähigkeitsablage, jeder Menüpunkt trägt die Fähigkeit seiner Route, und keine
@@ -1501,7 +1506,17 @@ eine gewöhnliche Zeile weiterhin sieben Felder hat) und `RunPartsSeamTest`
 ist keine — es liegt auf jedem heilen Server) und `CronScheduleTest` (der
 Zeitplan eines Verzeichnisses wird aus `/etc/crontab` gelesen und nicht
 gewusst, mitsamt dem anacron-Vorbehalt und dem **dritten** Zustand: „keine
-Zeile" ist nicht „nicht nachgesehen") und `CronPayloadTest` (die Naht zur
+Zeile" ist nicht „nicht nachgesehen") und `ActorLabelTest` (wer gehandelt hat, bleibt lesbar — drei Zustände, drei
+Antworten, und der Prüfkörper ist der Fall „kein Konto, keine Abschrift": Er
+muss `System` ergeben und nicht „gelöscht", weil `account_id = NULL` auf der
+Kommandozeile und in der Automatik schon etwas bedeutet; gemessen wird die
+**Wirkung** durch dieselbe Abbildung, die Seite und Ausfuhr benutzen, und die
+Abschrift hält fest, was zum Zeitpunkt der Handlung galt) und
+`AccountDeletionTest` (ein Adminkonto verschwindet, und seine Geschichte bleibt
+— samt Sitzungen, freigewordener Anmeldeadresse und dem einen Eintrag, der Name,
+Adresse und Rolle bindet; das eigene Konto wird abgewiesen, und der Prüfkörper
+dafür trägt einen **zweiten** Betreiber, sonst wiese schon der Aussperrschutz ab
+und der Fall bestünde, ohne die Selbstprüfung je erreicht zu haben) und `CronPayloadTest` (die Naht zur
 Seite: Route und Menüpunkt tragen dieselbe Fähigkeit, `/schedules` trägt genau
 ein `GET`, das Präfix der eigenen Dateien kommt aus `CronFile` — und **wo
 nichts feststeht, steht keine Tabelle**: Streifen und Bereiche werden
@@ -2177,6 +2192,90 @@ vorhergesagt, der nicht kam: Findet die Datei einen Befund, wird die Leitung gar
 nicht erst gefragt, und `CertificateVerdictTest` hält genau das. Hätte die
 Vorhersage im Protokoll gestanden, wäre aus richtigem Verhalten ein Mangel
 geworden.
+
+Und **`901` das Löschen von Adminkonten** — ausgeschrieben am 2. September 2026
+auf Frage des Betreibers, am 9. September gegen `main @ 08a0b55` neu gemessen,
+**gebaut am 9. und 10. September** (Schritte 1 bis 9; §8a und §8b sagen, was
+dabei anders war als im Plan). Die Nummer kommt aus dem 900er-Block, weil
+98 und 99 in derselben Woche an die Bestandsdiagnose und den A10-Nachlauf
+gegangen sind — der Fall, den `docs/900` beschreibt. Der Plan löst Entscheidung
+1 aus `docs/82` ab: Konten werden nicht gesperrt, sondern gelöscht, und was sie
+getan haben, bleibt als **Abschrift des Namens auf der Protokollzeile** stehen —
+wie `subscription_name` seit `docs/35`. §1 ist der gemessene Bestand, §1.5 die
+Nachmessung gegen main, §2 die vier Entscheidungen des Betreibers, §3 der Bau,
+§6 das Abnahmekriterium mit elf Punkten, §7 die neun Schritte, §8 die Wächter
+und §9 was benannt offen bleibt.
+
+**Zwei Funde tragen den Plan.** Der erste macht den bestehenden Bann schwächer,
+als er beim Treffen war: `/audit` hatte für den Handelnden **gar keine Spalte**,
+und der CSV-Export schrieb unter „Konto" die nackte Kennung. Der Bann aus
+`docs/82 §1.1` schützte damit eine Auskunft, die niemand sah. **Seit Schritt 3
+ist beides nicht mehr wahr** — die Spalte heisst „Wer", der Export schreibt
+denselben Wert; der Satz steht deshalb in der Vergangenheit.
+
+> **Ein Verbot, das eine Auskunft schützt, die niemand anzeigt, schützt eine
+> Absicht und keine Auskunft.**
+
+> **Löschen und Vergessen sind zwei Dinge. Die Zeile darf verschwinden; was sie
+> getan hat, darf es nicht.**
+
+Der zweite entscheidet die Bauart und schliesst den naheliegenden Entwurf aus —
+alle Zeilen eines gelöschten Kontos mit einem Sammelnamen wie „gelöschter
+Benutzer" zu versehen. **`account_id = NULL` trägt hier schon eine Bedeutung:**
+`App\Console\Commands\Access` schreibt seinen Eintrag ohne Konto und begründet
+es daneben (*„Auf der Kommandozeile ist niemand angemeldet; ein Eintrag, der
+sich einen Handelnden ausdenkt, wäre schlechter als einer ohne"*), und
+`Operations::dispatch()` tut dasselbe für jede Automatik. Ein Sammelname
+beschriftete damit jeden Cron-Lauf als gelöschten Benutzer.
+
+> **Eine Null, die schon eine Bedeutung trägt, kann keine zweite bekommen — die
+> beiden Fälle sehen danach gleich aus.**
+
+Als **Anzeige** ist „gelöscht" trotzdem richtig, und genau dafür lohnt die
+Spalte: Kennung leer **und** Abschrift leer heisst „System", Kennung leer und
+Abschrift gesetzt heisst „Anna Berger (gelöscht)". Ohne die Spalte fallen beide
+Zustände zusammen — und ein künftiger Prüfer der Bestandsdiagnose über
+`account_id IS NULL` müsste sie auseinanderhalten, sonst meldet er jede Nacht
+die ganze Geschichte des Servers.
+
+**Der letzte Betreiber braucht dafür nichts Neues.** `LastOperator::permits()`
+fragt seit A9 nach dem **Zielzustand** und nennt das Löschen im eigenen Kopf als
+den dritten der drei Wege; es ist ein Aufruf und kein Mechanismus. Ein
+„initialer Betreiber" wird ausdrücklich **nicht** gebaut — die Eigenschaft, die
+man will, heisst nicht „dieses Konto überlebt", sondern „mindestens ein aktiver
+Betreiber überlebt", und die übersteht Umbenennung, Übergabe und Weggang. Die
+Selbstlöschung ist verboten und gehört **nicht** in `LastOperator`: Wer sich als
+Betreiber Nr. 2 von 2 löscht, sperrt niemanden aus und schiesst sich trotzdem
+ins Knie.
+
+**Und die eigene Messung dieses Plans war beim ersten Mal unvollständig.** §1.1
+führte fünf Verweise auf ein Konto; es sind sechs. `account_subscription`
+steht auf `cascadeOnDelete` und wurde übersehen, weil der Ausdruck nach dem Wort
+`accounts` in der Zeile suchte — und `constrained()` ohne Argument leitet den
+Tabellennamen aus dem Spaltennamen ab.
+
+> **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die Gewohnheit und
+> nicht die Regel.**
+
+**Und zwei Funde aus dem Bauen, beide von einem Eingriff und nicht vom
+Nachdenken.** Der erste: `LastOperator::permits()` am Löschweg lässt sich durch
+die Tür **nicht** messen. Wer `DELETE /accounts/{admin}` erreicht, trägt
+`operate-server` und ist damit aktiver Betreiber; ist das Ziel der letzte, ist
+es das eigene Konto, und die Selbstprüfung antwortet zuerst. Gemerkt hat es ein
+Eingriff, der **nicht** gebissen hat.
+
+> **Zwei Regeln, die sich nur an einem Zustand trennen lassen, den es nicht
+> geben kann, lassen sich durch die Tür nicht auseinanderhalten.**
+
+Der zweite kam aus der Bilderrunde: Die Zahlen sagten `dokument = 0` und einen
+erlaubten Roller, und das Bild zeigte beide Knöpfe bei 1440 px ausserhalb des
+Sichtbaren. Am Prüfling nachgemessen sind es 240 px Überlauf **ohne** den neuen
+Knopf und 334 px mit ihm — der Überlauf ist älter als die Spalte. Zwei eigene
+Aufsätze hatten ihn vorher verschwiegen, einer ohne die Klasse `multiline` an
+der Namenszelle, einer ohne Navigationsleiste.
+
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst die
+> falsche — und sein Grün liest sich wie ein Freispruch.**
 
 Und **`97` die Übergabe an A10** — der Stand von P7b (vier abgenommen, fünf
 offen), was A10 ist, **was vor dem Plan zu messen ist**, die vier frischen
@@ -4009,6 +4108,28 @@ Testen berücksichtigen:
     Gefangen hat es nur die Gegenprobe: ein absichtliches `strlen(42)`, das
     eine Zeile erzeugen **muss**. Ohne sie wäre der Lauf als grün durchgegangen.
 
+    **Und ein Trait allein ergibt null Zeilen — auch mit einem offensichtlich
+    falschen Rückgabetyp.** Gemessen am 9. September 2026 an
+    `App\Models\Concerns\RecordsTheActor`: `return strlen(42);` in einer
+    Methode, die `: string` zusagt, ergibt über die Trait-Datei allein **rc=0
+    und keine Ausgabe**; dieselbe Zeile in einer frisch angelegten Klasse ergibt
+    zwei Meldungen. Mit den beiden nutzenden Modellen im selben Lauf kommen
+    vier — „in context of class …".
+
+    > **Ein Trait wird nur im Kontext seiner Nutzer geprüft. Über ihn allein
+    > gefahren, ist die leere Ausgabe kein Freispruch, sondern eine Messung, die
+    > nicht stattgefunden hat.**
+
+    Das ist die Familie von „Ein Prüfer, dem die Schnittstelle fehlt" eine
+    Ebene weiter, und die gefährlichere Richtung: Dort meldet er etwas
+    Falsches, hier gar nichts. **Wer einen Trait prüft, nimmt seine Nutzer mit
+    in den Lauf** — und belegt die Stille mit einem absichtlich falschen Typ,
+    dessen Einsetzen er vorher nachgesehen hat.
+
+    > **Eine Gegenprobe, bei der man nicht nachsieht, ob der Eingriff wirklich
+    > in der Datei steht, belegt nichts — sie sieht genauso aus wie eine, die
+    > durchgelaufen ist.** Der erste Anlauf hier hat genau das getan.
+
     **Und `tests/Support/` gehört in denselben Lauf wie `agent/src`.** Die
     Testdoppel dort hängen am Agenten und nicht am Framework, also läuft Stufe 6
     auch über sie sauber durch. Wer das trennt, sieht die teuerste Meldung
@@ -4145,6 +4266,33 @@ Testen berücksichtigen:
   > **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
   > wenn jemand neben seiner Regel eine zweite baut, die dieselbe Frage
   > beantwortet.**
+
+  **Und die Regel selbst ist zu eng, gemessen am 10. September 2026.** Der
+  PR-Lauf zu `docs/901` meldete `veraltete Ausnahme — passed (erwartet:
+  failed)`: Der Eingriff trägt `'destroy'` als Ausnahme für eine Route, **die es
+  nicht gibt**, und derselbe Zweig hatte `DELETE /accounts/{admin}` gebaut. Die
+  Ausnahme war damit nicht veraltet, und der Wächter blieb zu Recht grün.
+
+  Nach der Regel oben wäre er **nie gefahren worden**: Seine `vorher_datei` ist
+  `tests/Unit/AccountMutationTest.php`, und die hat der Zweig nicht angefasst —
+  geändert war `routes/web.php`, die der Wächter *liest*. Ausgezählt lesen
+  **siebzehn** Dateien unter `tests/` diese eine Datei.
+
+  > **Ein Eingriff misst nicht nur die Datei, die er anfasst — er misst jede,
+  > die sein Wächter liest.** Wer eine Datei ändert, fährt deshalb auch die
+  > Eingriffe, deren Wächter sie liest: `grep -rl "routes/web\.php" tests/`.
+
+  Und der Fehler eine Ebene tiefer, der ihn überhaupt möglich gemacht hat:
+
+  > **Ein Prüfkörper, der einen Zustand *behauptet*, statt ihn zu prüfen, hört
+  > auf zu messen, sobald jemand den Zustand herstellt — und sagt es nicht.**
+
+  Der Eingriff trägt seitdem `routeThatIsGone` statt eines plausiblen Namens
+  **und sichert die Prämisse zu**: Findet er den Namen unter den gebauten
+  Kontenrouten, bricht er laut ab. Gegengeprüft in beide Richtungen — mit
+  `routeThatIsGone` beisst er, mit `destroy` fällt die Zusicherung mit ihrer
+  Begründung aus. Derselbe Griff gehört jedem Eingriff, dessen Prüfkörper eine
+  **Abwesenheit** braucht.
 
   Nachgeholt über die vierzehn Dateien dieses Zweiges: **53 Eingriffe, alle
   beissen.** Ein Wegwerfskript im Scratchpad genügt dafür — es wendet den

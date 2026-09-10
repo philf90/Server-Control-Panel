@@ -131,6 +131,29 @@ final class Sessions
     }
 
     /**
+     * Alle Sitzungen eines Kontos beenden. Gibt zurück, wie viele es waren.
+     *
+     * **Für den Löschweg** (`docs/901 §3.6`), und er ist der einzige Aufrufer:
+     * `sessions.user_id` trägt als einziger der sechs Verweise auf ein Konto
+     * **keinen Fremdschlüssel** — Laravels eigene Migration schreibt
+     * `foreignId('user_id')->nullable()->index()` ohne `constrained()`. Kein
+     * `nullOnDelete` greift dort, weil es dort nichts gibt, was greifen könnte.
+     *
+     * Ohne diesen Griff bliebe die Zeile bis zur Sitzungsbereinigung liegen.
+     * Eine Rechteausweitung ist das nicht — die Authentifizierung findet kein
+     * Konto und behandelt den Besucher als Gast —, aber es ist der Rest eines
+     * Kontos, das gelöscht sein soll.
+     *
+     * **Hier und nicht im Controller**, aus demselben Grund wie
+     * {@see self::forget()}: Zwei Stellen, die `sessions` anfassen, sind eine
+     * zu viel.
+     */
+    public static function forgetAll(Account $account): int
+    {
+        return DB::table('sessions')->where('user_id', $account->id)->delete();
+    }
+
+    /**
      * Das Gerät hinter einer Sitzung — kurz und lesbar.
      *
      * **Gekürzt und nicht ausgewertet.** Eine Kennung wie „Mozilla/5.0

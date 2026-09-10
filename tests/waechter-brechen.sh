@@ -17111,13 +17111,40 @@ echo "── AccountMutationTest: eine Ausnahme fuer eine Route, die es nicht gi
 #
 # Die Gegenrichtung der Registratur. Ohne sie waechst die Ausnahmeliste ueber
 # Jahre und entschuldigt irgendwann eine neue Methode desselben Namens.
+#
+# **Der Name war bis zum 10. September 2026 `destroy`, und der Eingriff hat an
+# dem Tag aufgehoert zu beissen** — nicht weil seine Zielstelle umzog, sondern
+# weil `docs/901` die Route `DELETE /accounts/{admin}` gebaut hat. Damit war
+# `destroy` keine Ausnahme fuer eine Route, die es nicht gibt, und der Waechter
+# blieb zu Recht gruen.
+#
+#   Ein Pruefkoerper, der einen Zustand *behauptet*, statt ihn zu pruefen, hoert
+#   auf zu messen, sobald jemand den Zustand herstellt — und sagt es nicht.
+#
+# Der Name heisst deshalb, was er ist, und die Zusicherung darunter prueft ihn:
+# Baut jemand diese Route doch, faellt der Eingriff laut aus statt still.
 vorher_datei tests/Unit/AccountMutationTest.php
 python3 - <<'PY2'
+import re
+
 p = 'tests/Unit/AccountMutationTest.php'
 s = open(p, encoding='utf-8').read()
+
+# Die Praemisse dieses Eingriffs, gemessen statt geglaubt.
+NAME = 'routeThatIsGone'
+routen = open('routes/web.php', encoding='utf-8').read()
+gebaut = re.findall(
+    r"Route::(?:post|patch|put|delete)\('/accounts[^']*',\s*\[AccountController::class,\s*'(\w+)'\]",
+    routen,
+)
+assert NAME not in gebaut, (
+    'Die Route %s gibt es — dann ist die Ausnahme nicht veraltet und der '
+    'Eingriff misst nichts. Anderen Namen waehlen.' % NAME
+)
+
 alt = "    ];\n\n    /** Die eine Stelle"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-neu = "        'destroy' => 'Gibt es nicht mehr.',\n" + alt
+neu = "        '%s' => 'Gibt es nicht mehr.',\n" % NAME + alt
 open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
 PY2
 griff_datei tests/Unit/AccountMutationTest.php "veraltete Ausnahme" &&
@@ -26791,6 +26818,257 @@ pruefe "das Kommando bricht nicht mehr" \
   CronPayloadTest::test_the_command_wraps_and_is_not_cut failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
+
+
+echo
+echo "── ActorLabelTest: die Abschrift entsteht nicht mehr ──"
+#
+# Ohne sie zieht ein gelöschtes Konto seine ganze Geschichte auf `null` — genau
+# der Grund, aus dem `docs/82 §9` das Löschen offengelassen hat.
+vorher_datei app/Models/Concerns/RecordsTheActor.php
+python3 - <<'PY2'
+p = 'app/Models/Concerns/RecordsTheActor.php'
+s = open(p, encoding='utf-8').read()
+alt = "is_string($name) ? $name : null"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'null', 1))
+PY2
+griff_datei app/Models/Concerns/RecordsTheActor.php "keine Abschrift" &&
+pruefe "keine Abschrift" \
+  ActorLabelTest::test_a_row_of_a_deleted_account_keeps_its_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActorLabelTest passed
+
+echo
+echo "── ActorLabelTest: gelöscht und lebend sehen gleich aus ──"
+#
+# Der Zusatz ist die einzige Stelle, an der ein Leser erfährt, dass es das Konto
+# nicht mehr gibt — die Kennung daneben ist dann `null`.
+vorher_datei app/Models/Concerns/RecordsTheActor.php
+python3 - <<'PY2'
+p = 'app/Models/Concerns/RecordsTheActor.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return $this->account_id === null ? $name.' (gelöscht)' : $name;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        return $name;', 1))
+PY2
+griff_datei app/Models/Concerns/RecordsTheActor.php "kein Zusatz" &&
+pruefe "kein Zusatz" \
+  ActorLabelTest::test_a_row_of_a_deleted_account_keeps_its_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActorLabelTest passed
+
+echo
+echo "── ActorLabelTest: die Automatik wird zum gelöschten Benutzer ──"
+#
+# **Der teuerste denkbare Fehler dieser Spalte.** `account_id = NULL` heisst auf
+# der Kommandozeile und in der Automatik „niemand war angemeldet". Wer beide
+# Nullfälle gleich benennt, beschriftet jeden Cron-Lauf als gelöschten Benutzer.
+vorher_datei app/Models/Concerns/RecordsTheActor.php
+python3 - <<'PY2'
+p = 'app/Models/Concerns/RecordsTheActor.php'
+s = open(p, encoding='utf-8').read()
+alt = "    public const NOBODY = 'System';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "    public const NOBODY = 'Gelöschter Benutzer';", 1))
+PY2
+griff_datei app/Models/Concerns/RecordsTheActor.php "Automatik als gelöscht" &&
+pruefe "Automatik als gelöscht" \
+  ActorLabelTest::test_a_row_without_an_account_reads_as_the_system failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActorLabelTest passed
+
+echo
+echo "── ActorLabelTest: der Handelnde steht wieder nur im Payload ──"
+#
+# Der Zustand bis zum 9. September 2026: `account_id` in der Ablage, von keiner
+# Zeile gerendert. Ein Feld im Payload ist noch keine Spalte.
+vorher_datei app/Support/Audit/AuditQuery.php
+python3 - <<'PY2'
+p = 'app/Support/Audit/AuditQuery.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'account' => $event->actor(),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Audit/AuditQuery.php "kein Handelnder in der Ablage" &&
+pruefe "kein Handelnder in der Ablage" \
+  ActorLabelTest::test_the_page_carries_the_actor failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActorLabelTest passed
+
+echo
+echo "── ActorLabelTest: die Ausfuhr schreibt wieder die Kennung ──"
+#
+# Der Beleg, den jemand drei Jahre aufhebt, sagte damit „Konto 3".
+vorher_datei app/Http/Controllers/AuditController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AuditController.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    $row['account'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                    $row['account_id'],", 1))
+PY2
+griff_datei app/Http/Controllers/AuditController.php "Kennung statt Name" &&
+pruefe "Kennung statt Name" \
+  ActorLabelTest::test_the_export_carries_the_actor failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActorLabelTest passed
+
+echo
+echo "── ActorLabelTest: der Nachtrag fällt aus ──"
+#
+# **Es gibt ihn genau einmal.** Ohne ihn verliert die erste Löschung die
+# Historie, um derentwillen der Bann bestand — und zwar lautlos, weil eine Zeile
+# ohne Abschrift aussieht wie eine der Automatik.
+vorher_datei database/migrations/2026_09_09_120000_the_log_keeps_the_name_of_a_deleted_account.php
+python3 - <<'PY2'
+p = 'database/migrations/2026_09_09_120000_the_log_keeps_the_name_of_a_deleted_account.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $this->carryTheNamesOver();"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei database/migrations/2026_09_09_120000_the_log_keeps_the_name_of_a_deleted_account.php "kein Nachtrag" &&
+pruefe "kein Nachtrag" \
+  ActorLabelTest::test_the_migration_carries_the_names_of_existing_rows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActorLabelTest passed
+
+
+echo
+echo "── AccountDeletionTest: die Selbstprüfung fällt weg ──"
+#
+# Sie beantwortet eine andere Frage als der Aussperrschutz: Wer sich als
+# Betreiber Nr. 2 von 2 löscht, sperrt niemanden aus und schiesst sich trotzdem
+# ins Knie. Genau deshalb steht sie nicht in LastOperator.
+vorher_datei app/Http/Controllers/AccountController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AccountController.php'
+s = open(p, encoding='utf-8').read()
+alt = "if ((int) $request->user()?->getAuthIdentifier() === (int) $admin->id) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (false) {', 1))
+PY2
+griff_datei app/Http/Controllers/AccountController.php "keine Selbstprüfung" &&
+pruefe "keine Selbstprüfung" \
+  AccountDeletionTest::test_nobody_deletes_their_own_account failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountDeletionTest passed
+
+echo
+echo "── AccountDeletionTest: die Sitzungen bleiben liegen ──"
+#
+# sessions.user_id traegt als einziger Verweis auf ein Konto keinen
+# Fremdschluessel — dort raeumt sonst niemand auf.
+vorher_datei app/Http/Controllers/AccountController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AccountController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        Sessions::forgetAll($admin);\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/AccountController.php "Sitzungen bleiben" &&
+pruefe "Sitzungen bleiben" \
+  AccountDeletionTest::test_the_open_sessions_go_with_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountDeletionTest passed
+
+echo
+echo "── AccountDeletionTest: forgetAll räumt fremde Sitzungen mit ab ──"
+#
+# Ohne die Bedingung auf das Konto beendet der Loeschweg die Sitzung jedes
+# angemeldeten Menschen — derselbe Fehler, gegen den forget() seit A9 gebaut ist.
+vorher_datei app/Support/Authorization/Sessions.php
+python3 - <<'PY2'
+p = 'app/Support/Authorization/Sessions.php'
+s = open(p, encoding='utf-8').read()
+alt = "return DB::table('sessions')->where('user_id', $account->id)->delete();"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "return DB::table('sessions')->delete();", 1))
+PY2
+griff_datei app/Support/Authorization/Sessions.php "fremde Sitzungen mit" &&
+pruefe "fremde Sitzungen mit" \
+  AccountDeletionTest::test_the_open_sessions_go_with_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountDeletionTest passed
+
+echo
+echo "── AccountDeletionTest: der Eintrag steht nach dem Löschen ──"
+#
+# audit_events benutzt nullableMorphs: Nach dem Loeschen zeigt target_id auf
+# eine Zeile, die es nicht mehr gibt — und der Zusammenhang traegt dann nichts.
+vorher_datei app/Http/Controllers/AccountController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AccountController.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $audit->success('account.deleted', $admin, [
+            'name' => $admin->name,
+            'email' => $admin->email,
+            'role' => $admin->role?->value,
+        ]);
+
+        $admin->delete();"""
+neu = """        $admin->delete();
+
+        $audit->success('account.deleted', $admin, [
+            'name' => $admin->name,
+            'email' => $admin->email,
+            'role' => null,
+        ]);"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Http/Controllers/AccountController.php "Eintrag nach dem Löschen" &&
+pruefe "Eintrag nach dem Löschen" \
+  AccountDeletionTest::test_the_deletion_is_recorded_with_name_address_and_role failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountDeletionTest passed
+
+echo
+echo "── LastOperatorTest: der Löschweg fragt den Aussperrschutz nicht ──"
+#
+# Weg 3 in dieselbe Aussperrung. Bis zum 10. September 2026 gab es ihn nicht,
+# und ein Draht hat darauf gewartet.
+#
+# **Gemessen und nicht geraten, welcher Waechter das haelt:** die Wirkung nicht.
+# Wer die Route erreicht, traegt operate-server und ist damit aktiver Betreiber;
+# ist das Ziel der letzte, ist es das eigene Konto — und die Selbstpruefung
+# antwortet zuerst. Der Aufruf haengt deshalb allein an AccountMutationTest, der
+# den Quelltext liest.
+vorher_datei app/Http/Controllers/AccountController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AccountController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! LastOperator::permits($admin, null, AccountStatus::Disabled)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        if (false) {', 1))
+PY2
+griff_datei app/Http/Controllers/AccountController.php "kein Aussperrschutz beim Löschen" &&
+pruefe "kein Aussperrschutz beim Löschen" \
+  AccountMutationTest::test_every_mutating_account_route_asks_the_guard failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountMutationTest passed
+
+echo
+echo "── AccountDeletionTest: die Seite verschweigt die eigene Zeile ──"
+#
+# Ein Knopf, den der Aufruf danach ablehnt, ist genau das, was AbilityReachTest
+# und OperatorControlTest verbieten.
+vorher_datei app/Http/Controllers/AccountController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AccountController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'is_self' => (int) $account->id === $self,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'is_self' => false,", 1))
+PY2
+griff_datei app/Http/Controllers/AccountController.php "eigene Zeile unerkannt" &&
+pruefe "eigene Zeile unerkannt" \
+  AccountDeletionTest::test_the_page_marks_the_rows_that_cannot_be_deleted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountDeletionTest passed
 
 
 echo

@@ -27100,3 +27100,77 @@ auf der echten Seite steht noch aus (`docs/901 §7`, Schritt 8).
 kein Zusatz „gelöscht", die Automatik als gelöschter Benutzer, der Handelnde
 nicht in der Ablage, die Kennung statt des Namens in der Ausfuhr, und der
 Nachtrag ohne Wirkung.
+
+### Adminkonten lassen sich löschen — Schritt 4 bis 9 aus `docs/901`
+
+Gebaut am 10. September 2026, und damit ist `docs/82 §9` abgelöst: Der Bann auf
+das Löschen stand, solange das Protokoll seinen Handelnden über
+`nullOnDelete()` verlor. Die Abschrift aus dem Schritt davor nimmt ihm den
+Grund.
+
+- **`DELETE /accounts/{admin}` mit zwei Prüfungen, und sie beantworten
+  verschiedene Fragen.** Das eigene Konto nicht — auch dann nicht, wenn ein
+  zweiter Betreiber übrig bliebe; wer sich als Betreiber Nr. 2 von 2 löscht,
+  sperrt niemanden aus und schiesst sich trotzdem ins Knie. Und der
+  Aussperrschutz mit dem Zielzustand eines gelöschten Kontos: keine Rolle,
+  nicht aktiv.
+
+  **Der zweite lässt sich durch die Tür nicht messen**, und das ist gemessen
+  und nicht vermutet: Wer die Route erreicht, trägt `operate-server` und ist
+  damit aktiver Betreiber; ist das Ziel der letzte, ist es das eigene Konto.
+
+  > **Zwei Regeln, die sich nur an einem Zustand trennen lassen, den es nicht
+  > geben kann, lassen sich durch die Tür nicht auseinanderhalten.**
+
+  Gefunden hat es ein Eingriff, der **nicht** gebissen hat. Der Aufruf bleibt
+  stehen und hängt an `AccountMutationTest`, der den Quelltext liest — ihn
+  wegzulassen hiesse zu behaupten, Löschen könne keinen Betreiber wegnehmen.
+
+- **Die Reihenfolge im Rumpf ist tragend.** Sitzungen beenden, Eintrag
+  schreiben, dann löschen. Der Eintrag steht davor, weil `audit_events`
+  `nullableMorphs` benutzt: `target_id` zeigt danach auf eine Zeile, die es
+  nicht mehr gibt. Sein Zusammenhang trägt Name, Anmeldeadresse und Rolle — er
+  ist die einzige Stelle, an der die Bindung „dieser Name gehörte zu dieser
+  Adresse und dieser Kennung" festgehalten wird.
+
+- **Die offenen Sitzungen gehen mit.** `sessions.user_id` trägt als einziger
+  der sechs Verweise auf ein Konto **keinen** Fremdschlüssel — dort räumte kein
+  `nullOnDelete` auf, weil es dort nichts gab, was hätte greifen können.
+  `Sessions::forgetAll()` ist der Griff, und er fragt nach dem Konto: ohne die
+  Bedingung beendete der Löschweg die Sitzung jedes angemeldeten Menschen.
+
+- **Die Seite zeigt keinen Knopf, den der Aufruf danach abwiese.** `is_self`
+  steht neben dem vorhandenen `is_last_operator` und kommt aus derselben
+  Quelle, die `destroy()` später fragt. Zwei Knöpfe in einer Zelle stehen in
+  einer `.button-row`; `Löschen` trägt `.danger`, weil `app.css` die Klasse für
+  „was sich nicht zurücknehmen lässt" führt.
+
+  **Kein Abtippen.** `useConfirmation()` kennt einen `challenge` und keine
+  Seite benutzt ihn; hier wäre er unverhältnismässig, weil ein gelöschtes
+  Adminkonto sich neu anlegen lässt und seine Adresse wieder frei wird.
+
+**Die Bilderrunde** ist auf der echten Seite mit echten Daten gefahren, vier
+Lagen: `dokument = 0`, Gegenprobe 200/200, nichts schiebt. Der Griff ist im
+Browser gedrückt worden — vier Zeilen auf drei, und auf `/audit` stehen danach
+alle drei Zustände nebeneinander: `Philipp Fuchs` · `System` ·
+`Jonas Weiss (gelöscht)`.
+
+**Und ein Befund, den die Zahl nicht hatte.** Die erste Runde lief mit einem
+Namen aus 76 Zeichen; sie meldete `dokument = 0` und einen erlaubten Roller,
+und das Bild zeigte beide Knöpfe bei 1440 px ausserhalb des Sichtbaren.
+
+> **Dieselbe Messung kann aufs Pixel stimmen und trotzdem nichts über die
+> Ansicht sagen.**
+
+Am Prüfling nachgemessen, mit entferntem Löschknopf im DOM: 240 px Überlauf
+ohne ihn, 334 px mit ihm. **Der Überlauf ist älter als diese Spalte**; er steht
+als benannter Rest in `docs/901 §9`. Zwei eigene Aufsätze hatten ihn vorher
+verschwiegen — einer ohne die Klasse `multiline` an der Namenszelle, einer ohne
+Navigationsleiste und damit mit einem Behälter von 1440 statt 1140.
+
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst die
+> falsche — und sein Grün liest sich wie ein Freispruch.**
+
+**Der Wächter ist `AccountDeletionTest`** mit acht Fällen, dazu der Weg 3 in
+`LastOperatorTest`, der bis dahin festhielt, dass es ihn **nicht** gibt. Sechs
+Eingriffe stehen in `tests/waechter-brechen.sh`, jeder einzeln gefahren und rot.

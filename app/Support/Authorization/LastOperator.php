@@ -39,13 +39,31 @@ use App\Models\Account;
  * > **Eine Prüfung, die die Handlung entgegennimmt, muss jede Handlung kennen.
  * > Eine, die den Zielzustand entgegennimmt, kennt sie alle.**
  *
- * ## Das Löschen gibt es nicht — und das ist keine Lücke, sondern ein Draht
+ * ## Den dritten Weg gibt es seit dem 10. September 2026
  *
- * `docs/82 §9` lässt das Löschen von Adminkonten bewusst offen, solange das
- * Protokoll den Handelnden über `nullOnDelete()` verliert. Es gibt also heute
- * nur zwei der drei Wege. `LastOperatorTest` prüft beide **und** stellt fest,
- * dass es keinen dritten gibt: Wer eine Löschroute baut, bekommt dort Rot
- * statt einer stillen dritten Tür.
+ * `docs/82 §9` hatte ihn offengelassen, solange das Protokoll den Handelnden
+ * über `nullOnDelete()` verlor; `LastOperatorTest` hielt bis dahin fest, dass
+ * es **keinen** dritten gibt — ein Draht statt einer stillen dritten Tür. Er
+ * hat zugebissen, als die Route entstand, und ist seitdem der Fall, auf den er
+ * gewartet hat.
+ *
+ * ## Was diese Klasse am Löschweg nicht leisten kann
+ *
+ * **Gemessen, nicht vermutet:** Ihre Ablehnung ist dort durch die Tür nicht
+ * herstellbar. Wer `DELETE /accounts/{admin}` erreicht, trägt `operate-server`
+ * und ist damit aktiver Betreiber; ist das Ziel der letzte, ist es das eigene
+ * Konto — und die Selbstprüfung in `AccountController::destroy()` antwortet
+ * zuerst. Ein gesperrtes Adminkonto bekommt 302 auf `/login`, also die Tür und
+ * nicht die Prüfung.
+ *
+ * > **Zwei Regeln, die sich nur an einem Zustand trennen lassen, den es nicht
+ * > geben kann, lassen sich durch die Tür nicht auseinanderhalten.**
+ *
+ * Der Aufruf steht trotzdem da, und `AccountMutationTest` hält ihn über den
+ * Quelltext: Er ist die ehrliche Fassung der Regel, und er wird wirksam, sobald
+ * eine dritte Rolle oder eine zweite Fähigkeit die Tür öffnet. Ihn
+ * wegzulassen hiesse, in die `HARMLESS`-Liste zu schreiben, Löschen könne
+ * keinen Betreiber wegnehmen — und das wäre falsch.
  */
 final class LastOperator
 {

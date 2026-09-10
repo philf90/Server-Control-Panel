@@ -480,6 +480,24 @@ Route::middleware('auth')->group(function (): void {
         ->name('accounts.sessions.end');
 
     /*
+     * **Der dritte Weg in dieselbe Aussperrung** (`docs/901 §3.5`).
+     *
+     * Herabstufen, sperren und löschen sehen im Formular verschieden aus und
+     * sind dieselbe Handlung: Danach kommt niemand mehr an die Einstellungen
+     * dieses Servers. `LastOperator::permits()` fragt deshalb seit A9 nach dem
+     * **Zielzustand** und nicht nach der Handlung — für das Löschen ist er
+     * „keine Rolle, nicht aktiv".
+     *
+     * Bis zum 10. September 2026 gab es diesen Weg nicht, und
+     * `LastOperatorTest::test_there_is_no_third_way` hat darüber gewacht. Er
+     * prüft seitdem, dass die Route den Wächter **fragt**, statt dass es sie
+     * nicht gibt.
+     */
+    Route::delete('/accounts/{admin}', [AccountController::class, 'destroy'])
+        ->middleware('can:operate-server')
+        ->name('accounts.destroy');
+
+    /*
      * Der Zugang zum Panel — A9 Schritt 7.
      *
      * **`can:operate-server`**, und zwar in seiner schärfsten Lesart: Wer diese

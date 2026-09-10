@@ -4,8 +4,9 @@
 2. September 2026 auf Frage des Betreibers, **am 9. September gegen
 `main @ 08a0b55` neu gemessen** (§1.5).*
 
-> **Gebaut ist nichts.** Dieses Dokument ist die Vorschrift und nicht das
-> Protokoll. Wer es abarbeitet, schreibt das Protokoll daneben.
+> **Gebaut sind die Schritte 1 bis 9** — 1 bis 3 am 9. September 2026, 4 bis 9
+> am 10. Was dabei anders war als hier geplant, steht in §8a; der Rest dieses
+> Dokuments ist der Stand davor und wird nicht rückwirkend geglättet.
 
 **Warum die Nummer 901.** Der Plan lag eine Woche als `docs/98` auf seinem
 Zweig; in derselben Woche ist 98 an `docs/98-diagnose-des-bestands.md` gegangen
@@ -732,8 +733,96 @@ Name bei grosser Breite — und dann rollt `.scrolls`, wofür es den Behälter g
 > die Spalte.** Die erste Fassung dieser Messung fuhr nur den 90-Zeichen-Namen
 > und hätte die Spalte für etwas gemeldet, das der Name tut.
 
-**Was das nicht ersetzt:** die Bilderrunde auf der echten Seite mit echten Daten
-(Schritt 8). Sie steht aus.
+---
+
+## 8b. Was beim Bauen von Schritt 4 bis 9 anders war als im Plan
+
+**Gebaut am 10. September 2026.** Zwei Stellen sind anders entschieden worden
+als hier geplant, und eine Messung hat eine Zusage des Plans widerlegt.
+
+**a) Der Aussperrschutz am Löschweg lässt sich durch die Tür nicht messen.**
+§3.5 nennt zwei Prüfungen in einer Reihenfolge, als wären es zwei Schranken.
+Gemessen sind sie es nicht: Wer `DELETE /accounts/{admin}` erreicht, trägt
+`operate-server` und ist damit **aktiver Betreiber**. Ist das Ziel der letzte,
+ist es das eigene Konto — und die Selbstprüfung antwortet zuerst. Ein
+gesperrtes Adminkonto kommt gar nicht bis zum Controller (gemessen: **302 auf
+`/login`**).
+
+> **Zwei Regeln, die sich nur an einem Zustand trennen lassen, den es nicht
+> geben kann, lassen sich durch die Tür nicht auseinanderhalten.**
+
+Gefunden hat es kein Nachdenken, sondern ein Eingriff, der **nicht** gebissen
+hat: `LastOperator::permits()` aus `destroy()` herausgenommen, und
+`test_the_last_operator_cannot_be_deleted` blieb grün. Der Aufruf hängt damit
+allein an `AccountMutationTest`, der den Quelltext liest — und er bleibt
+stehen, weil ein Eintrag in dessen `HARMLESS`-Liste behaupten müsste, Löschen
+könne keinen Betreiber wegnehmen. Das wäre falsch.
+
+> **Ein Prüfkörper, den zwei Regeln abweisen, sagt über keine von beiden
+> etwas.**
+
+**b) Kein Abtippen.** `useConfirmation()` kennt seit P5c einen `challenge`, und
+**keine Seite benutzt ihn**. Hier wäre er unverhältnismässig: Ein gelöschtes
+Adminkonto lässt sich neu anlegen, seine Anmeldeadresse wird wieder frei —
+anders als ein zurückgezogenes Abonnement, dessen Dateien fort sind. Rot und
+die Zeile beim Namen zu nennen ist das Mass, das dieser Griff verdient.
+
+### Die Bilderrunde — vier Lagen, und ein Befund, den die Zahl nicht hatte
+
+Auf der echten Seite mit echten Daten, `tests/bilder-messen.js` je Lage in einer
+frisch geladenen Seite:
+
+| Lage | dokument | Gegenprobe | schiebt | rollt |
+|---|---|---|---|---|
+| hell 390 · hell 1440 · dunkel 390 · dunkel 1440 | 0 | 200/200 | — | — |
+
+**Und die erste Runde lief mit einem 76-Zeichen-Namen**, weil der Prüfkörper
+den ungünstigsten Fall herstellen sollte. Die Zahlen sagten `dokument = 0` und
+einen Roller mit `darf: true` — und das Bild zeigte, dass **beide Knöpfe bei
+1440 px ausserhalb des Sichtbaren** standen.
+
+> **Dieselbe Messung kann aufs Pixel stimmen und trotzdem nichts über die
+> Ansicht sagen.**
+
+Ob das die Spalte ist oder der Name, hat erst die dritte Messung entschieden —
+am Prüfling selbst, mit entferntem Löschknopf im DOM:
+
+| | Tabelle | Behälter | rollt |
+|---|---|---|---|
+| 76 Zeichen, mit Löschknopf | 1474 | 1140 | 334 |
+| 76 Zeichen, ohne ihn (Zustand vorher) | 1380 | 1140 | **240** |
+| üblicher Name | 1140 | 1140 | 0 |
+
+**Der Überlauf ist älter als diese Spalte** — sie legt 94 px auf 240 drauf.
+`docs/901` baut ihn nicht und behebt ihn nicht; er steht als benannter Rest
+in §9.
+
+**Zwei eigene Aufsätze haben dabei danebengemessen**, beide mit einem Ergebnis,
+das nach „alles in Ordnung" aussah. Der erste hatte die Klasse `multiline` an
+der Namenszelle nicht, die die echte Seite trägt. Der zweite hatte keine
+Navigationsleiste — sein Behälter war 1440 statt 1140.
+
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst die
+> falsche — und sein Grün liest sich wie ein Freispruch.**
+
+> **Zwei Messungen, die auseinandergehen, entscheidet keine Überlegung, sondern
+> die dritte — und die muss den Weg des Prüflings nehmen und nicht den
+> bequemeren.**
+
+### Und der Griff ist im Browser gedrückt worden
+
+Vier Zeilen auf drei, Meldung „Konto Anna Berger gelöscht.", Eintrag
+`account.deleted` mit Name, Adresse und Rolle. Auf `/audit` stehen danach alle
+drei Zustände aus §3.4 nebeneinander: `Philipp Fuchs` · `System` ·
+`Jonas Weiss (gelöscht)`.
+
+**Die erste Sonde hat dabei den falschen Knopf gedrückt** — die Rückfrage steht
+über der Tabelle, ihr `Löschen` ist damit das **erste** im Dokument, und
+`.last()` traf die letzte Zeile. Das Ergebnis las sich wie „der Löschweg tut
+nichts".
+
+> **Ein Prüfkörper, der ein anderes Element trifft als das gemeinte, meldet
+> einen Befund am Prüfling.**
 
 ---
 
@@ -746,6 +835,11 @@ Name bei grosser Breite — und dann rollt `.scrolls`, wofür es den Behälter g
   Zeitraums, ist sie nicht zur Hand. **Bewusst so entschieden**, weil das
   Vorbild `subscription_name` es ebenso hält; wer es anders will, nimmt die
   Kennung mit in die Abschrift.
+- **Ein sehr langer Name lässt die Kontentabelle bei 1440 px rollen**, und das
+  ist älter als der Löschknopf: 240 px ohne ihn, 334 px mit ihm (gemessen am
+  10. September, §8b). `dokument` bleibt dabei 0 — die Seite schiebt nicht, nur
+  `.scrolls` rollt, wofür es den Behälter gibt. Wer es angeht, fasst die
+  Namenszelle an und nicht diese Spalte.
 - **Die Spalte „Im Kontext von" der Ausfuhr trägt weiter eine Kennung.** Sie
   nennt bei „Anmelden als" das Kundenkonto; eine Abschrift braucht sie nach
   §3.1 nicht, einen Namen in der Anzeige hätte sie trotzdem verdient. Der
@@ -771,5 +865,17 @@ Name bei grosser Breite — und dann rollt `.scrolls`, wofür es den Behälter g
   Erweiterung dieses Plans.
 - **Kundenkonten** bleiben unberührt (§4). Wird ihr Löschen je gebaut, gilt
   §1.1 nicht mehr: Dann braucht auch `acting_as_account_id` seine Abschrift.
-- **`docs/82 §9` wird durch dieses Dokument abgelöst**, sobald Schritt 5
-  gebaut ist — vorher nicht.
+- **`docs/82 §9` ist durch dieses Dokument abgelöst** — am 10. September 2026
+  mit Schritt 9 nachgetragen, und zwar dort und nicht bloss hier: Eine
+  Ablösung, die nur im ablösenden Dokument steht, liest niemand, der beim
+  abgelösten nachsieht.
+- **Kein Punkt des Abnahmekriteriums (§6) hat einen echten Server gesehen.**
+  Gemessen ist alles in diesem Container: der volle Testlauf, die sechs
+  Eingriffe einzeln, die Bilderrunde auf der echten Seite und der Griff im
+  Browser. Was hier grundsätzlich fehlt, ist MariaDB als Datenbank des
+  Prüflings — der Nachtrag aus Schritt 1 lief gegen SQLite, und die elf Punkte
+  aus §6 sind gegen `cloudsrv24` ausgeschrieben.
+
+  > **Eine Ausbaustufe gilt erst als fertig, wenn ihr Abnahmekriterium
+  > nachweisbar erfüllt ist — gemessen auf einem echten Server, nicht
+  > geschätzt.**

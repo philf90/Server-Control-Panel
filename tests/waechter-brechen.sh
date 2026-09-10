@@ -26910,6 +26910,141 @@ pruefe "  … zurückgesetzt wieder grün" ActorLabelTest passed
 
 
 echo
+echo "── AccountDeletionTest: die Selbstprüfung fällt weg ──"
+#
+# Sie beantwortet eine andere Frage als der Aussperrschutz: Wer sich als
+# Betreiber Nr. 2 von 2 löscht, sperrt niemanden aus und schiesst sich trotzdem
+# ins Knie. Genau deshalb steht sie nicht in LastOperator.
+vorher_datei app/Http/Controllers/AccountController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AccountController.php'
+s = open(p, encoding='utf-8').read()
+alt = "if ((int) $request->user()?->getAuthIdentifier() === (int) $admin->id) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (false) {', 1))
+PY2
+griff_datei app/Http/Controllers/AccountController.php "keine Selbstprüfung" &&
+pruefe "keine Selbstprüfung" \
+  AccountDeletionTest::test_nobody_deletes_their_own_account failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountDeletionTest passed
+
+echo
+echo "── AccountDeletionTest: die Sitzungen bleiben liegen ──"
+#
+# sessions.user_id traegt als einziger Verweis auf ein Konto keinen
+# Fremdschluessel — dort raeumt sonst niemand auf.
+vorher_datei app/Http/Controllers/AccountController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AccountController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        Sessions::forgetAll($admin);\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/AccountController.php "Sitzungen bleiben" &&
+pruefe "Sitzungen bleiben" \
+  AccountDeletionTest::test_the_open_sessions_go_with_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountDeletionTest passed
+
+echo
+echo "── AccountDeletionTest: forgetAll räumt fremde Sitzungen mit ab ──"
+#
+# Ohne die Bedingung auf das Konto beendet der Loeschweg die Sitzung jedes
+# angemeldeten Menschen — derselbe Fehler, gegen den forget() seit A9 gebaut ist.
+vorher_datei app/Support/Authorization/Sessions.php
+python3 - <<'PY2'
+p = 'app/Support/Authorization/Sessions.php'
+s = open(p, encoding='utf-8').read()
+alt = "return DB::table('sessions')->where('user_id', $account->id)->delete();"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "return DB::table('sessions')->delete();", 1))
+PY2
+griff_datei app/Support/Authorization/Sessions.php "fremde Sitzungen mit" &&
+pruefe "fremde Sitzungen mit" \
+  AccountDeletionTest::test_the_open_sessions_go_with_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountDeletionTest passed
+
+echo
+echo "── AccountDeletionTest: der Eintrag steht nach dem Löschen ──"
+#
+# audit_events benutzt nullableMorphs: Nach dem Loeschen zeigt target_id auf
+# eine Zeile, die es nicht mehr gibt — und der Zusammenhang traegt dann nichts.
+vorher_datei app/Http/Controllers/AccountController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AccountController.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $audit->success('account.deleted', $admin, [
+            'name' => $admin->name,
+            'email' => $admin->email,
+            'role' => $admin->role?->value,
+        ]);
+
+        $admin->delete();"""
+neu = """        $admin->delete();
+
+        $audit->success('account.deleted', $admin, [
+            'name' => $admin->name,
+            'email' => $admin->email,
+            'role' => null,
+        ]);"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Http/Controllers/AccountController.php "Eintrag nach dem Löschen" &&
+pruefe "Eintrag nach dem Löschen" \
+  AccountDeletionTest::test_the_deletion_is_recorded_with_name_address_and_role failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountDeletionTest passed
+
+echo
+echo "── LastOperatorTest: der Löschweg fragt den Aussperrschutz nicht ──"
+#
+# Weg 3 in dieselbe Aussperrung. Bis zum 10. September 2026 gab es ihn nicht,
+# und ein Draht hat darauf gewartet.
+#
+# **Gemessen und nicht geraten, welcher Waechter das haelt:** die Wirkung nicht.
+# Wer die Route erreicht, traegt operate-server und ist damit aktiver Betreiber;
+# ist das Ziel der letzte, ist es das eigene Konto — und die Selbstpruefung
+# antwortet zuerst. Der Aufruf haengt deshalb allein an AccountMutationTest, der
+# den Quelltext liest.
+vorher_datei app/Http/Controllers/AccountController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AccountController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! LastOperator::permits($admin, null, AccountStatus::Disabled)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        if (false) {', 1))
+PY2
+griff_datei app/Http/Controllers/AccountController.php "kein Aussperrschutz beim Löschen" &&
+pruefe "kein Aussperrschutz beim Löschen" \
+  AccountMutationTest::test_every_mutating_account_route_asks_the_guard failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountMutationTest passed
+
+echo
+echo "── AccountDeletionTest: die Seite verschweigt die eigene Zeile ──"
+#
+# Ein Knopf, den der Aufruf danach ablehnt, ist genau das, was AbilityReachTest
+# und OperatorControlTest verbieten.
+vorher_datei app/Http/Controllers/AccountController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/AccountController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'is_self' => (int) $account->id === $self,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'is_self' => false,", 1))
+PY2
+griff_datei app/Http/Controllers/AccountController.php "eigene Zeile unerkannt" &&
+pruefe "eigene Zeile unerkannt" \
+  AccountDeletionTest::test_the_page_marks_the_rows_that_cannot_be_deleted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountDeletionTest passed
+
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

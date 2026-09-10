@@ -419,7 +419,85 @@ alle drei in der Fassung aus `docs/902 §0.1`.
 
 ---
 
-### 6.1 Die Reihenfolge für den Rest — neu, gegen den vollständigen Bestand
+## 7. Punkt 7 — erfüllt, und hier trennen sich die beiden Punkte
+
+Hergestellt mit einem Schalter statt einer Rollenänderung: „Wegwerf" ist
+Betreiber und war deaktiviert; über *Bearbeiten* auf **aktiv** gesetzt, sind es
+zwei aktive Betreiber.
+
+**a) Die Seite.** Die eigene Zeile trägt weiterhin **keinen** Löschknopf — und
+die Marke `letzter` ist **fort**. „Wegwerf" steht jetzt als `aktiv` da und
+behält seinen Löschknopf.
+
+**Und der Satz unter der Liste ist verschwunden.** Er hängt an
+`v-if="props.operators <= 1"`, also an derselben Zahl wie die Marke. Beide sind
+gemeinsam gegangen; wären sie zwei Fassungen derselben Frage, wäre genau hier
+eine von ihnen stehengeblieben.
+
+> **Zwei Anzeigen, die aus derselben Zahl folgen, belegen einander erst, wenn
+> sie gemeinsam kippen.**
+
+**b) Die Ablage.**
+
+```
+Seite: /accounts · aktive Betreiber: 2
+```
+
+| # | id | name | self | letzter |
+|---|---|---|---|---|
+| 0 | 1 | Administrator | **true** | **false** |
+| 1 | 10 | Dritte Verwaltung | false | false |
+| 2 | 9 | Neu von Hand | false | false |
+| 3 | 8 | Wegwerf | false | false |
+| 4 | 7 | Zweite Verwaltung | false | false |
+
+Dieselbe Zeile wie in §4, ein Feld anders: `letzter` ist von `true` auf `false`
+gekippt, `self` steht unverändert auf `true`. **Das ist die ganze Trennung
+zwischen Punkt 6 und Punkt 7** — und sie ist nur hier zu sehen.
+
+**c) Die Tür.**
+
+```
+abgewiesen:
+  {account: 'Das eigene Konto lässt sich nicht löschen. Ein zweiter Betreiber kann es tun.'}
+```
+
+**Dieselbe Meldung wie bei Punkt 6, Zeichen für Zeichen** — obwohl sich der
+Zustand dazwischen geändert hat. Genau das war die Vorhersage aus
+`docs/902 §0.1`, und sie ist damit von **beiden** Seiten gemessen: bei einem
+Betreiber und bei zweien.
+
+> **Zwei Punkte, die dieselbe Meldung ergeben, sind nicht derselbe Punkt — aber
+> sie sind es an der Stelle, an der man sie misst.**
+
+### 7.1 Der Prüfling fürs Löschen steht fest — „Wegwerf" bringt seine Geschichte mit
+
+```
+Kennung: 8
+Zeilen als Handelnder: 2
+davon mit Abschrift: 2
+Sitzungen: 0
+```
+
+**Beide Zeilen tragen die Abschrift, und beide sind älter als die Behebung.**
+Wegwerfs letzte Anmeldung war der 25. August; `0.7.4-rc.1` steht seit heute auf
+diesem Server. Ihr `account_name` kann also nicht vom Haken beim Anlegen
+stammen — er kommt aus dem **Nachtrag** der Migration. Damit misst Punkt 2 an
+diesem Konto die Hälfte, die sich nach dem Löschen nie wieder herstellen liesse.
+
+> **Ein Prüfling, dessen Zeilen jünger sind als die Behebung, prüft die
+> Behebung und nicht den Nachtrag.**
+
+**Und nach der Anmeldung stehen beide Arten nebeneinander:** die zwei
+nachgetragenen vom August und die frischen, deren Name beim Anlegen geschrieben
+wurde. Auseinanderzuhalten sind sie am Datum.
+
+**`Sitzungen: 0` ist der Grund, warum die Anmeldung nicht übersprungen werden
+kann** — Punkt 9 hat sonst keinen Gegenstand.
+
+---
+
+### 7.2 Die Reihenfolge für den Rest — neu, gegen den vollständigen Bestand
 
 Die erste Fassung dieser Reihenfolge stand gegen einen Bestand aus zwei Konten
 und wollte „Dritte Verwaltung" zum Betreiber heben. Gegen fünf Konten gerechnet

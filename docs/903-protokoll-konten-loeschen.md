@@ -56,3 +56,70 @@ den man nicht macht, ist einer, der nicht danebengehen kann.
 Die Abweichung steht hier und nicht als stille Korrektur in `docs/902`: Ein
 Lauf, den man während des Fahrens glattzieht, verliert die Stelle, an der seine
 Reihenfolge nicht trug.
+
+---
+
+## 2. Punkt 5 — erfüllt, und er hat einen Befund freigelegt
+
+```
+System-Zeile          : 2026-08-25 11:33:05  auth.login.failed  wer=[System]
+aelteste mit Abschrift: 2026-08-03 09:42:54  auth.login         wer=[Administrator]
+Migration Stapel      : 27
+```
+
+**Der Punkt ist erfüllt:** Die Zeile ohne Handelnden liest sich als `System` und
+nicht als gelöschter Benutzer. Damit ist belegt, was `docs/901 §1.3` verlangt —
+die beiden Nullfälle gehen auseinander.
+
+**Und die zweite Hälfte von Punkt 2 ist gleich mit belegt.** Die älteste Zeile
+mit Abschrift ist vom **3. August**, fünf Wochen vor dem Update; der Nachtrag
+hat den Bestand also wirklich erreicht und nicht nur die Zeilen von heute. Eine
+Zeile von heute hätte nichts belegt — sie trüge ihren Namen ohnehin vom
+Anlegen. Der Stapel 27 sagt dazu, dass die Migration mit diesem Update lief.
+
+### Befund 1 — „System" für einen anonymen Anmeldeversuch
+
+Die Zeile ohne Handelnden ist **nicht** die erwartete `settings.access` aus dem
+A9-Lauf, sondern ein `auth.login.failed`. Nachgemessen am Quelltext:
+`LoginController` übergibt `account: $account` — bei einer **bekannten** Adresse
+trägt die Zeile also das Konto. Diese hier trägt keins, war also ein Versuch mit
+einer Adresse, die es nicht gibt.
+
+**Damit reitet eine dritte Bedeutung auf derselben Null.** `docs/901 §3.4` hat
+zwei getrennt: „niemand war angemeldet" (Kommandozeile, Automatik) gegen „das
+Konto ist gelöscht". Die Abschrift trennt diese beiden sauber. Innerhalb des
+ersten Falls stecken aber **zwei**:
+
+- Die Maschine hat gehandelt — `srvpanel access`, `Operations::dispatch()`.
+  Dafür ist `System` richtig.
+- Ein Mensch hat gehandelt, und wir wissen nicht welcher — ein Anmeldeversuch
+  mit unbekannter Adresse. Dafür ist `System` falsch: Es behauptet, der Server
+  habe sich selbst anzumelden versucht.
+
+> **Eine Null, die schon zwei Bedeutungen trägt, bekommt eine dritte — und alle
+> drei sehen gleich aus.**
+
+**Was es schärft: die Auskunft ist da, und die Spalte daneben zeigt sie.**
+`toArrayRow()` liefert `details` aus `context`, und `context['email']` trägt die
+versuchte Adresse; `/audit` rendert sie unter „Einzelheiten".
+
+> **Zwei Spalten derselben Zeile, von denen die eine „die Maschine" sagt und die
+> andere die Adresse eines Menschen zeigt, widersprechen einander — und die
+> neue ist die, die irrt.**
+
+**Warum das jetzt und nicht früher auffällt:** Die Spalte „Wer" gibt es erst
+seit dieser Fassung. Vorher stand dort nichts, und nichts behauptet nichts.
+
+> **Ein Feld, das man sichtbar macht, macht auch seine Ungenauigkeit
+> sichtbar.**
+
+**Die Wirkung ist heute klein und wächst.** Auf `cloudsrv24` ist es genau
+**eine** Zeile von 1286 — aber es ist genau die Sorte Zeile, für die ein
+Prüfprotokoll existiert, und jeder weitere Versuch mit unbekannter Adresse legt
+eine neue an.
+
+**Nicht behoben während des Laufs.** `actor()` kann die beiden Fälle aus seinen
+zwei Spalten nicht unterscheiden — die Handlung weiss es, nicht der Handelnde.
+Wo die Behebung hingehört, entscheidet der Betreiber nach dem Lauf; ein
+Abnahmelauf, der seinen Prüfling während des Fahrens ändert, misst danach einen
+anderen.

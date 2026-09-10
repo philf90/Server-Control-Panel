@@ -2277,6 +2277,37 @@ der Namenszelle, einer ohne Navigationsleiste.
 > **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst die
 > falsche — und sein Grün liest sich wie ein Freispruch.**
 
+Und **`902` der Abnahmelauf dazu** — ausgeschrieben am 10. September 2026
+**vor** dem Fahren, gegen `0.7.4-rc.1` auf `cloudsrv24`. Er liegt im 900er-Block
+neben seinem Plan und nicht in der laufenden Zählung: Ein Lauf, den achtzig
+Nummern von seinem Plan trennen, wird nicht neben ihm gelesen. **§0 nennt die
+drei Kriterien, die beim Ausschreiben umgefallen sind**, §15 sagt, wann er durch
+ist und welcher Punkt nicht ausfallen darf.
+
+**Der teuerste davon ist Punkt 6**, und er bestätigt den Befund aus dem Bauen:
+`LastOperator::refusal()` ist an dieser Tür unerreichbar, weil der letzte aktive
+Betreiber nur das eigene Konto sein kann und die Selbstprüfung zuerst antwortet.
+Punkt 6 und Punkt 7 ergeben damit **dieselbe** Meldung; getrennt werden sie in
+der Ablage (`is_last_operator` gegen `is_self`), und genau dort misst der Lauf
+sie.
+
+> **Zwei Punkte, die dieselbe Meldung ergeben, sind nicht derselbe Punkt — aber
+> sie sind es an der Stelle, an der man sie misst.**
+
+**Der zweite hätte den Betreiber aussperren können.** Punkt 5 nennt `srvpanel
+access` als Weg zu einem Eintrag ohne Handelnden — gemessen schreibt das
+Kommando aber **nur, wenn es etwas ändert**, und auf eine leere Netzliste
+angewandt legt `--add` eine Beschränkung an, die seit A9 bei jeder Anfrage
+gilt. Der Punkt fragt deshalb zuerst den Bestand und stellt den Zustand nur her,
+wenn es ihn nicht schon gibt.
+
+> **Ein Prüfkörper, der den Zustand herstellt, statt ihn zu suchen, ändert den
+> Server für eine Zeile, die vielleicht schon dasteht.**
+
+Ausgezählt ist dabei, dass `srvpanel access` das **einzige** Konsolenkommando
+dieses Panels ist, das überhaupt ins Protokoll schreibt — der Plan hat es
+richtig benannt, und einen harmlosen Ersatz gibt es nicht.
+
 Und **`97` die Übergabe an A10** — der Stand von P7b (vier abgenommen, fünf
 offen), was A10 ist, **was vor dem Plan zu messen ist**, die vier frischen
 Prüfmittel-Fallen vom 1./2. September, der Zustand von `cloudsrv24` samt dem,

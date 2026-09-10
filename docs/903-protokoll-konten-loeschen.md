@@ -735,17 +735,51 @@ vorkommt, ist der Eintrag `account.deleted`: Dort steht es als **Ziel**
 (`Account#8`) und sein Name in den Einzelheiten, ohne den Zusatz. Der Zusatz
 gehört zur Spalte „Wer" und nicht zum Namen.
 
-**Und die Kopfzeile nennt die Zone.** `"Zeitpunkt (UTC)"` — die Ausfuhr bleibt
-UTC, während die Seite in der Anzeigezone rechnet (`docs/40`, §8.1 dieses
-Protokolls). Dass die **Werte** der Kopfzeile folgen, ist hier nicht mitgemessen
-worden; der Block in §9 zeigt dieselben Zeilen in UTC.
+**Und die Kopfzeile nennt die Zone** — `"Zeitpunkt (UTC)"`, während die Seite
+in der Anzeigezone rechnet (`docs/40`, §8.1). Der erste Wurf dieses Absatzes
+liess offen, ob die **Werte** ihr folgen; nachgemessen an der Zeitspalte des
+Eintrags:
+
+```
+"2026-09-10 18:36:50"
+```
+
+Die Seite zeigt für dieselbe Zeile `20:36:50`. Zwei Stunden Unterschied, in die
+Richtung, in die die Anzeigezone im September rechnet.
 
 > **Eine Kopfzeile, die eine Zone nennt, ist eine Zusage über die Spalte — kein
-> Beleg für den Wert darin.**
+> Beleg für den Wert darin.** Der Beleg ist eine Zeile weiter unten und kostet
+> ein `cut`.
+
+### 12.1 Eine Beobachtung, die der Lauf selbst hergestellt hat
+
+Dieselbe Abfrage gab **zwei** Zeilen: `18:36:50` und `18:40:12`. Die zweite ist
+das Aufräumen — das für Punkt 8 neu angelegte „Wegwerf" ist danach wieder
+gelöscht worden.
+
+**Damit stehen auf diesem Server zwei gelöschte Konten desselben Namens**, und
+das ist wörtlich der benannte Rest aus `docs/901 §9`: Ihre Protokollzeilen sind
+über `account_name` nicht mehr auseinanderzuhalten.
+
+**Hier bleibt es folgenlos, und der Grund ist messbar:** Das zweite „Wegwerf"
+hat sich nie angemeldet — es trägt keine einzige Zeile als Handelnder. Die sechs
+Zeilen unter diesem Namen gehören alle dem ersten.
+
+**Und die Bindung hält, wo `docs/901 §9` sie verspricht:** Es gibt **zwei**
+Einträge `account.deleted`, jeder mit eigenem `target_id` und eigenem
+Zusammenhang aus Name, Adresse und Rolle. Was der Abschrift auf den übrigen
+Zeilen fehlt, steht dort einmal pro Konto.
+
+> **Eine Grenze, die man beim Aufräumen selbst herstellt, ist besser belegt als
+> eine, die man beim Planen aufschreibt.**
 
 ---
 
-### 12.1 Die Reihenfolge für den Rest — neu, gegen den vollständigen Bestand
+### 12.2 Die Reihenfolge, nach der der Rest gefahren wurde
+
+Aufgeschrieben nach Punkt 6a, gegen den vollständigen Bestand gerechnet, und
+Schritt für Schritt so gefahren. Sie steht am Ende, weil sie ein Stück
+Vorgehen ist und keine Messung.
 
 Die erste Fassung dieser Reihenfolge stand gegen einen Bestand aus zwei Konten
 und wollte „Dritte Verwaltung" zum Betreiber heben. Gegen fünf Konten gerechnet

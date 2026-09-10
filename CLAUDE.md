@@ -4267,6 +4267,33 @@ Testen berücksichtigen:
   > wenn jemand neben seiner Regel eine zweite baut, die dieselbe Frage
   > beantwortet.**
 
+  **Und die Regel selbst ist zu eng, gemessen am 10. September 2026.** Der
+  PR-Lauf zu `docs/901` meldete `veraltete Ausnahme — passed (erwartet:
+  failed)`: Der Eingriff trägt `'destroy'` als Ausnahme für eine Route, **die es
+  nicht gibt**, und derselbe Zweig hatte `DELETE /accounts/{admin}` gebaut. Die
+  Ausnahme war damit nicht veraltet, und der Wächter blieb zu Recht grün.
+
+  Nach der Regel oben wäre er **nie gefahren worden**: Seine `vorher_datei` ist
+  `tests/Unit/AccountMutationTest.php`, und die hat der Zweig nicht angefasst —
+  geändert war `routes/web.php`, die der Wächter *liest*. Ausgezählt lesen
+  **siebzehn** Dateien unter `tests/` diese eine Datei.
+
+  > **Ein Eingriff misst nicht nur die Datei, die er anfasst — er misst jede,
+  > die sein Wächter liest.** Wer eine Datei ändert, fährt deshalb auch die
+  > Eingriffe, deren Wächter sie liest: `grep -rl "routes/web\.php" tests/`.
+
+  Und der Fehler eine Ebene tiefer, der ihn überhaupt möglich gemacht hat:
+
+  > **Ein Prüfkörper, der einen Zustand *behauptet*, statt ihn zu prüfen, hört
+  > auf zu messen, sobald jemand den Zustand herstellt — und sagt es nicht.**
+
+  Der Eingriff trägt seitdem `routeThatIsGone` statt eines plausiblen Namens
+  **und sichert die Prämisse zu**: Findet er den Namen unter den gebauten
+  Kontenrouten, bricht er laut ab. Gegengeprüft in beide Richtungen — mit
+  `routeThatIsGone` beisst er, mit `destroy` fällt die Zusicherung mit ihrer
+  Begründung aus. Derselbe Griff gehört jedem Eingriff, dessen Prüfkörper eine
+  **Abwesenheit** braucht.
+
   Nachgeholt über die vierzehn Dateien dieses Zweiges: **53 Eingriffe, alle
   beissen.** Ein Wegwerfskript im Scratchpad genügt dafür — es wendet den
   Python-Block an, fährt den genannten Test im Gestell und holt die Datei

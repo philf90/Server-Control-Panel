@@ -106,13 +106,23 @@ final class AccountMutationTest extends TestCase
     /**
      * Und die Gegenrichtung: keine Ausnahme für etwas, das es nicht gibt.
      *
-     * **Ohne diese Frage wächst die Liste über Jahre.** Eine Methode `destroy`,
-     * die einmal harmlos war und ausgebaut wurde, entschuldigte sonst eine
-     * neue Methode desselben Namens — und die wäre der dritte Weg in dieselbe
-     * Aussperrung.
+     * **Ohne diese Frage wächst die Liste über Jahre.** Eine Methode, die einmal
+     * harmlos war und ausgebaut wurde, entschuldigte sonst eine neue Methode
+     * desselben Namens — und die wäre der dritte Weg in dieselbe Aussperrung.
      *
      * > **Eine Registratur, die nur in eine Richtung geprüft wird, wächst über
      * > Jahre und deckt irgendwann etwas, an das niemand mehr gedacht hat.**
+     *
+     * **Das Beispiel hiess bis zum 10. September 2026 `destroy`**, und es ist an
+     * dem Tag wahr geworden: `docs/901` hat `DELETE /accounts/{admin}` gebaut.
+     * Der Satz stand damit auf dem Kopf — die genannte Methode war nicht die
+     * ausgebaute, sondern der dritte Weg selbst. Hier steht deshalb kein Name
+     * mehr; der Prüfkörper in `tests/waechter-brechen.sh` trägt einen, der
+     * keiner werden kann, und sichert das ausdrücklich zu.
+     *
+     * > **Ein Beispiel, das eine Abwesenheit behauptet, veraltet in dem
+     * > Augenblick, in dem jemand die Sache baut — und liest sich danach als
+     * > ihr Gegenteil.**
      */
     public function test_no_exception_stands_for_a_route_that_is_gone(): void
     {

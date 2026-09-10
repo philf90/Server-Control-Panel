@@ -27174,3 +27174,45 @@ Navigationsleiste und damit mit einem Behälter von 1440 statt 1140.
 **Der Wächter ist `AccountDeletionTest`** mit acht Fällen, dazu der Weg 3 in
 `LastOperatorTest`, der bis dahin festhielt, dass es ihn **nicht** gibt. Sechs
 Eingriffe stehen in `tests/waechter-brechen.sh`, jeder einzeln gefahren und rot.
+
+### Ein Eingriff hörte auf zu messen, weil dieser Zweig seine Voraussetzung baute
+
+Gefunden vom PR-Lauf am 10. September 2026 — dem ersten auf diesem Zweig, denn
+`waechter.yml` hängt allein an `pull_request`. Fünfzehn Jobs grün, „Jede Regel
+absichtlich brechen" rot mit **einer** Zeile: `veraltete Ausnahme — passed
+(erwartet: failed)`.
+
+Der Eingriff trägt `'destroy'` in die `HARMLESS`-Liste von
+`AccountMutationTest` ein und erwartet, dass
+`test_no_exception_stands_for_a_route_that_is_gone` rot wird: eine Ausnahme für
+eine Route, die es nicht gibt. Derselbe Zweig hat `DELETE /accounts/{admin}`
+gebaut. Die Ausnahme war damit nicht veraltet, und der Wächter blieb zu Recht
+grün.
+
+> **Ein Prüfkörper, der einen Zustand *behauptet*, statt ihn zu prüfen, hört auf
+> zu messen, sobald jemand den Zustand herstellt — und sagt es nicht.**
+
+Behoben ist nicht der Name allein. Der Eingriff heisst jetzt `routeThatIsGone`
+— was er ist, und was keine Route werden kann — **und sichert seine Prämisse
+zu**: Findet er den Namen unter den gebauten Kontenrouten, bricht er mit
+Begründung ab. Gegengeprüft in beide Richtungen: mit `routeThatIsGone` beisst
+er, mit `destroy` fällt die Zusicherung aus. Hätte es sie gestern gegeben, wäre
+der Eingriff im Augenblick des Baus rot geworden statt still grün.
+
+**Der Kommentar des Wächters trug denselben Fehler**, und zwar seit A9: Er
+nannte `destroy` als Beispiel für „einmal harmlos und ausgebaut". Seit dem
+10. September ist genau diese Methode der dritte Weg in die Aussperrung — der
+Satz stand damit auf dem Kopf. Er nennt jetzt keinen Namen mehr.
+
+> **Ein Beispiel, das eine Abwesenheit behauptet, veraltet in dem Augenblick, in
+> dem jemand die Sache baut — und liest sich danach als ihr Gegenteil.**
+
+**Und die Regel, nach der Eingriffe ausgewählt werden, war zu eng.** Sie lautete
+„alle, deren `vorher_datei` eine Datei nennt, die dieser Zweig geändert hat" —
+danach wäre dieser hier **nie** gefahren worden: Seine `vorher_datei` ist
+`tests/Unit/AccountMutationTest.php`, unberührt; geändert war `routes/web.php`,
+die der Wächter *liest*. Ausgezählt lesen siebzehn Dateien unter `tests/` diese
+eine.
+
+> **Ein Eingriff misst nicht nur die Datei, die er anfasst — er misst jede, die
+> sein Wächter liest.**

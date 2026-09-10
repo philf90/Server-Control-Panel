@@ -17111,13 +17111,40 @@ echo "── AccountMutationTest: eine Ausnahme fuer eine Route, die es nicht gi
 #
 # Die Gegenrichtung der Registratur. Ohne sie waechst die Ausnahmeliste ueber
 # Jahre und entschuldigt irgendwann eine neue Methode desselben Namens.
+#
+# **Der Name war bis zum 10. September 2026 `destroy`, und der Eingriff hat an
+# dem Tag aufgehoert zu beissen** — nicht weil seine Zielstelle umzog, sondern
+# weil `docs/901` die Route `DELETE /accounts/{admin}` gebaut hat. Damit war
+# `destroy` keine Ausnahme fuer eine Route, die es nicht gibt, und der Waechter
+# blieb zu Recht gruen.
+#
+#   Ein Pruefkoerper, der einen Zustand *behauptet*, statt ihn zu pruefen, hoert
+#   auf zu messen, sobald jemand den Zustand herstellt — und sagt es nicht.
+#
+# Der Name heisst deshalb, was er ist, und die Zusicherung darunter prueft ihn:
+# Baut jemand diese Route doch, faellt der Eingriff laut aus statt still.
 vorher_datei tests/Unit/AccountMutationTest.php
 python3 - <<'PY2'
+import re
+
 p = 'tests/Unit/AccountMutationTest.php'
 s = open(p, encoding='utf-8').read()
+
+# Die Praemisse dieses Eingriffs, gemessen statt geglaubt.
+NAME = 'routeThatIsGone'
+routen = open('routes/web.php', encoding='utf-8').read()
+gebaut = re.findall(
+    r"Route::(?:post|patch|put|delete)\('/accounts[^']*',\s*\[AccountController::class,\s*'(\w+)'\]",
+    routen,
+)
+assert NAME not in gebaut, (
+    'Die Route %s gibt es — dann ist die Ausnahme nicht veraltet und der '
+    'Eingriff misst nichts. Anderen Namen waehlen.' % NAME
+)
+
 alt = "    ];\n\n    /** Die eine Stelle"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-neu = "        'destroy' => 'Gibt es nicht mehr.',\n" + alt
+neu = "        '%s' => 'Gibt es nicht mehr.',\n" % NAME + alt
 open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
 PY2
 griff_datei tests/Unit/AccountMutationTest.php "veraltete Ausnahme" &&

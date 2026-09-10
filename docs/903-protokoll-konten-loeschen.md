@@ -386,7 +386,40 @@ erwartet wird dort `account` mit dem Satz der **Selbstprüfung**.
 
 ---
 
-### 5.2 Die Reihenfolge für den Rest — neu, gegen den vollständigen Bestand
+## 6. Punkt 6c — erfüllt, und die Vorhersage aus §0.1 trifft zu
+
+Gerufen mit dem Klienten der Seite, `$inertia.delete('/accounts/1')`:
+
+```
+abgewiesen:
+  {account: 'Das eigene Konto lässt sich nicht löschen. Ein zweiter Betreiber kann es tun.'}
+```
+
+**Wort für Wort `AccountController::SELF_REFUSAL`** — und ausdrücklich **nicht**
+`LastOperator::refusal()` („Das ist der letzte aktive Betreiber…"). Damit ist
+gemessen, was `docs/902 §0.1` **vor** dem Fahren am Quelltext vorhergesagt hat:
+An dieser Tür lassen sich die beiden Regeln nicht trennen, weil der letzte
+aktive Betreiber nur das eigene Konto sein kann und die Selbstprüfung zuerst
+antwortet.
+
+> **Eine Vorhersage, die am Quelltext entsteht und an der Tür gemessen wird,
+> ist etwas anderes als eine, die beides am selben Ort tut.**
+
+**Die Gegenprobe steht im selben Bild:** Die Liste führt danach unverändert
+fünf Konten. Der Aufruf ist abgewiesen worden und nicht etwa halb
+durchgelaufen.
+
+**Und der Weg selbst ist mitgemessen.** Die Meldung kam über `onError` an, also
+hat Inertia die Antwort als Fehler einer schreibenden Anfrage behandelt — die
+303-Umschreibung und die ganze Kette dahinter haben sich verhalten wie beim
+echten Knopf. Der rohe `fetch` aus Befund 5 konnte das nicht zeigen.
+
+**Punkt 6 ist damit vollständig** — 6a die Seite, 6b die Ablage, 6c die Tür,
+alle drei in der Fassung aus `docs/902 §0.1`.
+
+---
+
+### 6.1 Die Reihenfolge für den Rest — neu, gegen den vollständigen Bestand
 
 Die erste Fassung dieser Reihenfolge stand gegen einen Bestand aus zwei Konten
 und wollte „Dritte Verwaltung" zum Betreiber heben. Gegen fünf Konten gerechnet

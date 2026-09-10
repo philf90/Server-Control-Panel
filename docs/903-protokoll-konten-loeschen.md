@@ -310,7 +310,83 @@ aufschreibt.
 
 ---
 
-### 4.2 Die Reihenfolge für den Rest — neu, gegen den vollständigen Bestand
+## 5. Befund 5 — der Prüfkörper nahm die Voreinstellung des Frameworks an
+
+Der Aufruf aus 6c ergab **nicht** die erwartete `422`, sondern:
+
+```
+DELETE https://cloudsrv24.de:8443/accounts   405 (Method Not Allowed)
+Uncaught SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+```
+
+**Die Adresse in der Meldung ist nicht die, die gerufen wurde.** Gerufen war
+`/accounts/1`; gescheitert ist `/accounts`. Dazwischen liegt eine Weiterleitung,
+und sie erklärt alles drei.
+
+**Die Ursache steht in `bootstrap/app.php` und ist Absicht:**
+
+```php
+$exceptions->shouldRenderJsonWhen(
+    fn (Request $request) => $request->is('api/*'),
+);
+```
+
+Damit ist Laravels eigene Aushandlung abgeschaltet: `Accept: application/json`
+entscheidet hier **nichts**. Eine `ValidationException` nimmt deshalb den
+HTML-Weg — `redirect()->back()->withErrors(…)`, und `back()` ist dank
+`RememberPageUrl` genau `/accounts`.
+
+**Und `fetch` folgt dieser Weiterleitung mit derselben Methode.** Die Spezifikation
+schreibt nur `POST` auf `GET` um; ein `DELETE` bleibt eines. Aus der abgewiesenen
+Anfrage wurde also eine zweite, die niemand gestellt hat — `DELETE /accounts` —,
+und dort gibt es nur `GET` und `POST`: **405**, HTML als Rumpf, und `r.json()`
+stirbt am `<`.
+
+> **Ein Prüfkörper, der die Voreinstellung des Frameworks annimmt, misst die
+> Anwendung nicht — sie darf sie abgestellt haben.**
+
+> **Eine Weiterleitung, der `fetch` folgt, macht aus einer abgewiesenen Anfrage
+> eine zweite, die es nie gab — und deren Fehler liest sich wie der Befund.**
+
+**Was damit belegt ist und was nicht.** Die `405` an einer Adresse, die niemand
+gerufen hat, ist nur durch eine Weiterleitung nach `/accounts` erklärbar, und
+die entsteht auf diesem Weg genau dann, wenn eine `ValidationException` fliegt.
+Dass **eine** der beiden Prüfungen gegriffen hat, steht damit fest. **Welche**
+und **mit welchem Satz**, steht nicht fest — und genau darauf zielt Punkt 6c.
+
+> **Eine Spur ist kein Wortlaut.**
+
+### 5.1 Der berichtigte Prüfkörper geht durch dieselbe Tür wie der Knopf
+
+`docs/902 §8c` begründet den unmittelbaren Aufruf damit, die Route werde „durch
+dieselbe Kette aus Middleware und Controller" gerufen, „nur ohne das
+Bedienelement". Ein rohes `fetch` erfüllt das **nicht**: Der Knopf ruft
+`router.delete(…)`, und Inertia setzt eigene Kopfzeilen, prüft die Fassung und
+schreibt eine 302 auf einer schreibenden Methode zu **303** um — womit die
+Weiterleitung als `GET` weiterläuft statt als `DELETE`.
+
+Gerufen wird deshalb derselbe Klient, den die Seite benutzt:
+
+```js
+document.getElementById('app').__vue_app__.config.globalProperties.$inertia
+  .delete('/accounts/1', {
+    preserveScroll: true,
+    onError: (e) => console.log('abgewiesen:', e),
+    onSuccess: () => console.log('GELÖSCHT — das wäre der Befund'),
+  })
+```
+
+Das ist Zeile für Zeile, was `loeschen(row)` in `Accounts/Index.vue` tut —
+ohne den Bestätigungsdialog davor. `onError` bekommt die Ablage der Fehler;
+erwartet wird dort `account` mit dem Satz der **Selbstprüfung**.
+
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst die
+> falsche.** Zum zweiten Mal in diesem Lauf, nach Befund 3 — und beide Male war
+> die falsche Form die, die aussieht wie die neutralere.
+
+---
+
+### 5.2 Die Reihenfolge für den Rest — neu, gegen den vollständigen Bestand
 
 Die erste Fassung dieser Reihenfolge stand gegen einen Bestand aus zwei Konten
 und wollte „Dritte Verwaltung" zum Betreiber heben. Gegen fünf Konten gerechnet

@@ -273,19 +273,31 @@ console.table(z)
 **Erwartet:** die eigene Zeile mit `self: true` **und** `letzter: true`.
 
 **c) Die Tür.** Den Knopf gibt es nicht, also wird die Route unmittelbar
-gerufen — durch dieselbe Kette aus Middleware und Controller, nur ohne das
-Bedienelement:
+gerufen — durch dieselbe Kette aus Middleware und Controller **und mit
+demselben Klienten**, nur ohne das Bedienelement:
 
 ```js
-const t = decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)[1])
-const r = await fetch('/accounts/<eigene id>', { method: 'DELETE', headers: {
-  'X-XSRF-TOKEN': t, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
-console.log(r.status, await r.json())
+document.getElementById('app').__vue_app__.config.globalProperties.$inertia
+  .delete('/accounts/<eigene id>', {
+    preserveScroll: true,
+    onError: (e) => console.log('abgewiesen:', e),
+    onSuccess: () => console.log('GELÖSCHT — das wäre der Befund'),
+  })
 ```
 
-**Erwartet:** `422` und die Meldung der **Selbstprüfung** („Das eigene Konto
-lässt sich nicht löschen. Ein zweiter Betreiber kann es tun."). Nicht
-`LastOperator::refusal()` — und das ist richtig, siehe §0.1.
+**Erwartet:** `onError` mit `account` und der Meldung der **Selbstprüfung**
+(„Das eigene Konto lässt sich nicht löschen. Ein zweiter Betreiber kann es
+tun."). Nicht `LastOperator::refusal()` — und das ist richtig, siehe §0.1.
+
+> **Diese Fassung ist am 10. September während des Laufs berichtigt worden**
+> (`docs/903 §5`). Vorher stand hier ein rohes `fetch` mit
+> `Accept: application/json` und der Erwartung `422`. Beides trägt hier nicht:
+> `bootstrap/app.php` schaltet Laravels Aushandlung über
+> `shouldRenderJsonWhen(fn ($r) => $r->is('api/*'))` ab, die Ablehnung kommt
+> also als Weiterleitung — und `fetch` folgt ihr mit derselben Methode, womit
+> aus `DELETE /accounts/1` ein `DELETE /accounts` und daraus eine `405` wird.
+> Der Knopf ruft `router.delete()`; wer die Tür ohne ihn prüfen will, ruft
+> denselben Klienten.
 
 Danach Anna wieder auf *Betreiber* und *aktiv* setzen.
 
@@ -301,7 +313,8 @@ Mit Anna wieder aktiv (`LastOperator::active()` ist `2`) dasselbe noch einmal:
 **b)** In der Ablage: `self: true`, `letzter: false`. **Hier trennen sich die
 beiden Punkte** — an der Tür tun sie es nicht.
 
-**c)** Derselbe Aufruf wie in §8c gibt dieselbe `422` mit derselben Meldung.
+**c)** Derselbe Aufruf wie in §8c gibt dasselbe `onError` mit derselben
+Meldung der Selbstprüfung.
 
 > **Zwei Punkte, die dieselbe Meldung ergeben, sind nicht derselbe Punkt —
 > aber sie sind es an der Stelle, an der man sie misst.**

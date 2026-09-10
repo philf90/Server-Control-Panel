@@ -94,9 +94,17 @@ Flackern. Er macht die Seite unruhiger, nicht schneller.
 
 ### 2.1 Und `/updates` wird dabei nicht leer
 
-Gemessen an der Vorlage: `packages` speist **zwei** Bereiche — „Pakete" und
-„Unbeaufsichtigte Updates". Der dritte, „Paketquellen", hängt an `sources` und
-kostet 35 ms.
+Gemessen an der Vorlage: `packages` speist **drei** Stellen — die Kachelreihe
+oben, „Pakete" und „Unbeaufsichtigte Updates". Der Bereich „Paketquellen" hängt
+an `sources` und kostet 35 ms.
+
+> **Hier stand „zwei Bereiche", und das war beim Bauen falsch.** Gezählt hatte
+> ich die `<Section>`-Blöcke; die Kachelreihe ist keiner und hängt trotzdem an
+> demselben Wert. Ohne sie stünde `.tiles` mit seinen zwei Haarlinien als 2 px
+> hohe Leerzeile da und spränge nach drei Sekunden auf 96.
+>
+> **Eine Aufzählung, die nach der Form der Bausteine zählt statt nach dem, was
+> sie speist, lässt genau den weg, der anders gebaut ist.**
 
 `sources` bleibt deshalb **synchron**. Die Seite kommt mit ihrer Überschrift,
 ihrer Navigation und einem fertigen Bereich, und nur die beiden teuren stehen
@@ -139,6 +147,26 @@ die Komponente**, gemessen im Bündel. Sie kennt daneben `#default` und, wenn de
 Server die Eigenschaft als gerettet markiert, `#rescue`; die Slot-Eigenschaft
 heisst `reloading`.
 
+**Gebaut ist sie trotzdem nicht, und das ist eine Messung.** Wer das Nachladen
+auslöst, war die Frage — und es ist **nicht** die Komponente. Im Bündel von
+`@inertiajs/core` tut es der Router selbst:
+`page.set()` → `fireInternalEvent('loadDeferredProps')` →
+`doReload({ only: … })`, und zwar **eine** Anfrage je Gruppe. `<Deferred>`
+registriert nur Listener für sein `reloading` und wählt zwischen zwei Slots.
+
+Damit ist sie hier Zucker, und sie kostet etwas: Ihr Rumpf müsste den ganzen
+Bereich „Pakete" umschliessen — 290 Zeilen zwei Stellen tiefer eingerückt, für
+eine Änderung von sechs. Ein Umbruch ohne Inhalt begräbt den Inhalt.
+
+Gebaut ist stattdessen ein `v-if` auf `props.packages === undefined` — dieselbe
+Unterscheidung, die die Kachelreihe und der Prop-Typ ohnehin treffen:
+**`undefined` heisst unterwegs, `null` heisst ausgefallen.** Eine Seite mit zwei
+Sprachen für denselben Zustand hätte eine zu viel.
+
+> **Ein Wächter, der ein Werkzeug verlangt, prüft das Werkzeug. Der Zustand
+> darunter ist die Regel** — und `DeferredPropTest` liest deshalb beide Formen,
+> auch die, die es hier heute nirgends gibt.
+
 **`rescue` wird hier nicht gebraucht**, und das ist eine Messung und keine
 Vorliebe: `UpdatesController::read()` fängt die `AgentException` schon selbst
 und legt den Satz nach `errors['packages']`. Dieser `try`/`catch` zieht mit in
@@ -157,20 +185,39 @@ Vorgesehen ist ein Baustein `.skeleton` mit den Formen, die diese Seite braucht
 bestehenden Marken; **eine neue Farbe gibt es nicht**, und ob eine gebraucht
 wird, entscheidet die Kontrastrechnung und nicht der Eindruck.
 
-**Der Schimmer hat eine Ausnahme, und sie ist der Teil, der still verrottet:**
-
-```css
-@media (prefers-reduced-motion: reduce) {
-  .skeleton { animation: none; }
-}
-```
-
-Ohne sie bewegt sich auf dem Gerät eines Menschen, der Bewegung abgestellt hat,
-trotzdem etwas — und niemand von uns bemerkt es, weil unser Gerät sie nicht
-abgestellt hat.
+**Der Schimmer bekommt seine eigene `prefers-reduced-motion`-Ausnahme nicht —
+sie gibt es schon, und zwar für alle.** Ganz unten in `app.css` steht seit
+langem eine `*`-Regel, die jede Animation anhält. Eine zweite wäre ihre zweite
+Fassung.
 
 > **Eine Ausnahme für eine Einstellung, die man selbst nicht benutzt, prüft
-> niemand beim Ansehen.**
+> niemand beim Ansehen** — und deshalb gehört sie an genau eine Stelle.
+
+**Ob sie wirklich anhält, war eine Vermutung und ist jetzt gemessen.** Die
+Regel setzt `animation-duration: 0.01ms !important`, und eine Dauer von
+0,01 ms bei `infinite` könnte auch heissen: jedes Bild eine andere Phase, also
+Flackern statt Stillstand. Gemessen im Container gegen echtes Chromium, je
+Lauf 40 Bilder:
+
+| | verschiedene Werte über 40 Bilder |
+|---|---|
+| ohne die Einstellung | **30** (jedes Bild ein anderer) |
+| mit `prefers-reduced-motion: reduce` | **1** ab dem zweiten Bild |
+
+Kein Flackern, sondern Stillstand — die Regel trägt.
+
+**Die Ruhelage ist dabei beliebig:** Zwei Läufe endeten bei `40%` und bei
+`-60%`. Deshalb ist der Verlauf flach und breit gehalten, damit ein
+eingefrorenes Bild an jeder Stelle wie derselbe graue Balken aussieht.
+
+> **Eine Regel, die die Bewegung anhält, sagt nichts darüber, in welchem Bild
+> sie stehenbleibt.**
+
+Und eine Beobachtung über das Messmittel: `emulateMedia({ reducedMotion })`
+**erreicht** den Prüfling — anders als `emulateMedia({ colorScheme })` in der
+A5-Bildrunde, das ins Leere lief, weil `app.css` das Thema an `data-theme`
+hängt und nicht an `prefers-color-scheme`. Dasselbe Werkzeug, zwei Ausgänge,
+und unterschieden hat sie nur die Messung.
 
 **Der Skeleton bildet nach, was kommt, und nicht irgendetwas.** Eine Tabelle
 wird zu Zeilen, ein Kärtchen zu einem Kärtchen. Er trägt dabei **keine**
@@ -251,21 +298,41 @@ beiden dasteht, sieht man ihr später nicht an.
 
 ## 9. Die Wächter
 
-**`DeferredPropTest`** — jede Eigenschaft, die ein Controller über
-`Inertia::defer()` schickt, hat auf ihrer Seite ein `<Deferred>`, das sie beim
-Namen nennt, **und umgekehrt**. Die zweite Richtung ist die, an der ein toter
-Eintrag wirklich entsteht: Wer das Deferieren zurücknimmt und das `<Deferred>`
-stehenlässt, bekommt einen Platzhalter, der nie verschwindet.
+**`DeferredPropTest`** — drei Regeln. Jede **Gruppe**, die ein Controller über
+`Inertia::defer()` schickt, hat auf ihrer Seite einen Zweig für „noch
+unterwegs"; jede nachgereichte Eigenschaft ist als `name?:` deklariert; und
+**umgekehrt** gibt es keinen solchen Zweig ohne nachgereichte Eigenschaft.
+
+Je Gruppe und nicht je Eigenschaft, und das ist gemessen: Inertia lädt eine
+Gruppe in **einer** Anfrage nach, `packages` und `packagesError` kommen also
+zusammen an. Ein Wächter je Eigenschaft verlangte einen zweiten Zweig, der nie
+eine andere Antwort gäbe als der erste.
+
+Die zweite Richtung ist die, an der ein toter Eintrag wirklich entsteht: Wer das
+Nachreichen zurücknimmt, ändert den Controller — und der Zweig auf der Seite
+bleibt stehen, wird nie gezeigt und sieht im Quelltext aus wie ein abgedeckter
+Zustand.
 
 **`SkeletonStyleTest`** — das Aussehen eines Skeletons steht ausschliesslich in
-`app.css`, und **der Schimmer trägt seine `prefers-reduced-motion`-Ausnahme**.
-Die zweite Hälfte ist der Grund für diesen Wächter; die erste hielte
-`ClassReachTest` ohnehin halb.
+`app.css`, es gibt **genau einen** `prefers-reduced-motion`-Block, er trifft
+`*`, und **keine Animation stellt sich mit `!important` über ihn**. Die
+Ausnahme, die dieser Absatz beim Schreiben des Plans noch verlangt hat, ist
+damit ersetzt durch die Bedingung, unter der die vorhandene Regel für den
+Platzhalter gilt (§5). Die letzte Hälfte ist die stille: `!important` schlägt
+`!important` über die Spezifität, und die einer Klasse ist höher als die von
+`*` — eine solche Zeile sieht auf einem Gerät ohne die Einstellung völlig
+richtig aus.
 
-**`ProgressColourTest`** — `app.ts` konfiguriert den Fortschrittsbalken, und der
-Wert kommt nicht als Hexliteral im Quelltext vor. Was er **nicht** kann, steht
-in seinem Kopf: Ob die Farbe im Browser wirklich ankommt, misst er nicht — das
-tut Punkt 5 des Abnahmelaufs.
+**`ProgressColourTest`** — `app.ts` konfiguriert den Fortschrittsbalken
+überhaupt (**das Fehlen ist der Fehler**, denn ohne Angabe gilt `#29d`), die
+Farbe ist eine Marke, die `app.css` wirklich führt, im Einstieg steht kein
+Hexwert, und die Verzögerung bleibt bei Inertias 250 ms. Er streift die
+Kommentare ab, bevor er sucht — der Block über der Zeile schreibt `#29d`
+wörtlich hin, und roh gelesen meldete er einen Hexwert, den es im Code nicht
+gibt (in beide Richtungen gemessen).
+
+Was er **nicht** kann, steht in seinem Kopf: Ob die Farbe im Browser wirklich
+ankommt, misst er nicht — das tut Punkt 5 des Abnahmelaufs.
 
 Jeder der drei bekommt seinen Eingriff in `tests/waechter-brechen.sh`, einzeln
 gefahren und rot belegt.
@@ -280,9 +347,14 @@ Gefahren auf `cloudsrv24`, jeder Punkt mit seinem gemessenen Wert.
    300 ms** statt in 3068. Gemessen an der Zeit bis zur ersten Antwort, nicht
    am Gefühl.
 2. **Der Bereich „Paketquellen" ist sofort gefüllt**, während „Pakete" und
-   „Unbeaufsichtigte Updates" als Skeleton stehen.
+   „Unbeaufsichtigte Updates" als Skeleton stehen — und **die Kachelreihe steht
+   mit ihren fünf Beschriftungen da**, nur ohne Zahlen (§2.1).
 3. **Der Skeleton wird ersetzt**, und zwar nach den gemessenen drei Sekunden,
-   ohne dass die Seite springt.
+   ohne dass die Seite springt. Gemessen in **einem** Seitenaufbau — Höhe
+   vorher, Anfrage durchlassen, Höhe nachher —, denn zwei getrennte Läufe
+   verglichen zwei Seiten und nicht zwei Zustände derselben. Im Container ist
+   der Sprung 0 px bei 390 und bei 1440 (§10a); auf dem Server ist er zu
+   wiederholen, weil dort echte Zahlen in den Kacheln stehen.
 4. **Bei totem Agenten** steht dort der bestehende `notice critical` und **kein
    endloser Skeleton**. *(Dieser Punkt darf nicht ausfallen — ein Platzhalter,
    der bei einem Fehler stehenbleibt, ist schlimmer als der Fehler.)*
@@ -298,6 +370,141 @@ Gefahren auf `cloudsrv24`, jeder Punkt mit seinem gemessenen Wert.
    ins Protokoll schreibt, verdoppelte den Bestand.)*
 9. **Die Bilderrunde**, vier Lagen je Zustand, `dokument = 0`, Gegenprobe 200.
    **Der Skeleton-Zustand ist ein Zustand, den noch nie jemand gemessen hat.**
+
+---
+
+## 10a. Was beim Bauen anders war als im Plan
+
+Gebaut am 10. September 2026. **Sieben Befunde, und vier davon hat kein
+Nachdenken gefunden, sondern ein Wächter oder eine Messung.**
+
+### Der grösste: die Seite ist gesprungen
+
+Punkt 3 verlangt „ohne dass die Seite springt", und der erste Wurf tat genau
+das. Gemessen in **einem** Seitenaufbau — Höhe vorher, Anfrage durchlassen,
+Höhe nachher:
+
+| Breite | Kachelreihe vorher | nachher | Sprung |
+|---|---|---|---|
+| 390 px | 479,69 px | 459,69 px | **−20 px** |
+| 1440 px | 99,94 px | 95,94 px | **−4 px** |
+
+Alles darunter zog mit, gemessen an der Oberkante des Bereichs „Pakete": exakt
+derselbe Versatz. Die Ursache war ein `margin: 2px 0` am Kachelplatzhalter —
+aus Gefühl gesetzt und gegen nichts gemessen. Vier Pixel je Kachel; bei 1440 px
+stehen die fünf nebeneinander, bei 390 px stapeln sie sich, daher 4 gegen 20.
+
+**Die Höhe selbst stimmte von Anfang an:** `1.05em` ergibt 35,69 px, und genau
+so hoch ist der Textkasten der geladenen Kachel. Der Rand war der ganze Fehler.
+
+> **Ein Platzhalter, der nicht genau so hoch ist wie das, was er vertritt,
+> verschiebt alles darunter — und auf dem Bild sieht das nach nichts aus.**
+
+Nach dem Entfernen: **0 px** an beiden Breiten, für die Kachelreihe wie für den
+Bereich darunter.
+
+### Der teuerste: die Bilderrunde hat den vorigen Stand gemessen
+
+Die erste vollständige Runde lief gegen ein `public/build`, das vor der letzten
+CSS-Änderung entstanden war. `artisan serve` liefert von dort, und der Fehler
+ist in CLAUDE.md als „zweimal darauf hereingefallen" vermerkt — dies war das
+dritte Mal.
+
+**Das Bild hat es nicht verraten.** Es zeigte vier Balken verschiedener Länge,
+also genau das, was der Entwurf will. Gefunden hat es erst der Blick auf die
+**Klassennamen im DOM**: Dort standen `skeleton line medium` und
+`skeleton line short` — zwei Klassen, die es im Quelltext nicht mehr gab.
+
+> **Ein Bild, das plausibel aussieht, belegt nicht, dass es den gebauten Stand
+> zeigt. Die Klassennamen im DOM sagen es, die Pixel nicht.**
+
+### Ein Befund am Bestand: `errors` hat die Prüfmeldungen verdeckt
+
+`/updates` schickte einen eigenen Fehlerbeutel `errors`, und Inertia lässt
+Seitenwerte geteilte überschreiben. Damit war
+`HandleInertiaRequests::resolveValidationErrors()` auf dieser einen Seite fort,
+und die Zusammenfassung oben — die genau dafür dasteht — hat nie eine
+Prüfmeldung gezeigt.
+
+> **Ein geteilter Schlüssel, den eine Seite auch benutzt, ist auf genau dieser
+> Seite fort — und der Ausfall liest sich wie ein Rechteproblem.**
+
+Derselbe Satz steht seit `docs/82` Schritt 5 über `can` gegen `abilities`; hier
+war es `errors`. Behoben nebenbei, weil die Umstellung den Beutel ohnehin
+auftrennen musste: `packagesError` reist nachgereicht, `sourcesError` synchron.
+
+### Drei Wächter haben zugebissen, und zwei waren blind
+
+**`StandaloneClassTest`** hat einen Klassennamen abgefangen, den es schon gibt:
+Der erste Wurf hiess `.skeleton.line.short`, und `.short` bedeutet in diesem
+Stylesheet „ein `.code`, dessen Inhalt eine bekannte Länge hat".
+
+> **Ein Klassenname mit zwei Bedeutungen ist global — und die zweite Bedeutung
+> trifft jede Stelle, die die erste meint.**
+
+Die Breiten stehen seitdem am Stapel (`:nth-child(2n)`, `:last-child`) statt als
+Klassen an den Zeilen. Das ist ohnehin richtiger: „unterschiedlich lang" ist
+eine Eigenschaft des Absatzes und nicht der Zeile.
+
+**`AgentMessageTest`** war blind, und zwar nicht erst seit heute. Sein Filter
+lautete `\berrors?\b` — zwischen `s` und `E` in `packagesError` steht keine
+Wortgrenze, beide sind Wortzeichen. Gemeldet hat es die **Untergrenze**: zehn
+Einbettungen erwartet, acht gefunden.
+
+Nachgemessen erreicht `/errors?\b/i` **zwölf**, und nur zwei davon sind an
+diesem Tag entstanden. `dump.last_error` in `Databases/Show.vue` und
+`fieldError('plan')` in `Plans/Form.vue` standen längst da und waren nie
+im Blick des Wächters. Beide halten die Regel — gemessen, nicht angenommen.
+
+> **Eine Untergrenze ist kein Formalismus — sie ist die einzige Stelle, an der
+> ein Wächter merkt, dass sein Ausdruck ins Leere greift.**
+
+**`InertiaPropsTest`** hat den Payload als unvollständig gemeldet, weil die
+Schlüssel als `...`-Streuung ins Feld kamen. Das ist die freundliche Richtung:
+Er hat sie als **fehlend** gemeldet und nicht als „nicht nachgesehen".
+
+> **Ein Wächter, der einen Ausdruck nicht auflösen kann, meldet im besten Fall
+> zu viel — und der beste Fall ist der, den man sich aussucht.**
+
+Die Schlüssel stehen seitdem ausgeschrieben, und das ist auch für einen Leser
+besser: Wer im Controller steht, will sehen, was die Seite bekommt.
+
+### Und zwei Fehler des eigenen Prüfmittels
+
+Der Läufer für einzelne Eingriffe des Bruchskripts kannte **einen**
+Python-Block je Eingriff; zwei Eingriffe haben zwei. Er führte beide als eine
+Quelle aus, was kein gültiges Python ist, und meldete „der Eingriff selbst
+scheitert" — also *stumm* statt *ohne Biss*. Berichtigt beissen beide.
+
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst die
+> falsche.**
+
+Und derselbe Läufer sicherte nur die eine Datei, die `vorher_datei` nennt.
+Dieselben zwei Eingriffe fassen drei weitere an; die blieben verändert liegen
+und sind nur aufgefallen, weil `git status` danach gelesen wurde.
+
+> **Ein Rückweg, der eine Datei kennt, ist keiner für einen Eingriff, der drei
+> anfasst.**
+
+### Die Messung selbst
+
+Gefahren mit einem Agenten im Container: `system.packages.list` braucht
+`/usr/lib/srvpanel/apt-run` und `systemd-run`, und das zweite braucht systemd
+als PID 1. Der Ausweg ist die Attrappe in einer eigenen Mount-Namespace
+(CLAUDE.md). Gemessen kostet der Aufruf hier **3529 ms** — dieselbe
+Grössenordnung wie die 3033 ms auf `cloudsrv24`.
+
+Der Platzhalterzustand wurde photographiert, indem die **nachgereichte
+Anfrage im Browser angehalten** wurde (sie trägt `X-Inertia-Partial-Data`).
+Das ändert am Prüfling keine Zeile und hält ihn beliebig lange in genau dem
+Zustand, um den es geht; das Durchlassen ist die Gegenprobe.
+
+**Acht Lagen, alle mit `dokument = 0` und Gegenprobe 200:**
+
+| | Kachelreihe 390 px | 1440 px | Platzhalter |
+|---|---|---|---|
+| unterwegs | 459,69 px | 95,94 px | 11 |
+| geladen | 459,69 px | 95,94 px | 0 |
 
 ---
 

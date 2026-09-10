@@ -229,27 +229,57 @@ final class SourceKeyFilterTest extends TestCase
             dirname(__DIR__, 2).'/app/Http/Controllers/UpdatesController.php',
         ));
 
-        $von = strpos($quelle, 'private function read(');
-        $this->assertNotFalse($von, 'Der Payload wird anders gebaut als erwartet — dieser Test misst nichts mehr.');
+        /*
+         * **Zwei Rümpfe und nicht mehr einer.** `read()` gab es bis zum
+         * 10. September; seit `packages` nachgereicht wird (`docs/904`),
+         * steht der Filter in `sources()` und der Anteil für den Neustart in
+         * `show()`. Beide Anker stehen deshalb einzeln da — ein gemeinsamer
+         * über die ganze Datei fände seinen Text auch dann, wenn eine der
+         * beiden Stellen fort wäre.
+         */
+        $vonQuellen = strpos($quelle, 'private function sources(');
+        $this->assertNotFalse(
+            $vonQuellen,
+            'Der Payload wird anders gebaut als erwartet — dieser Test misst nichts mehr.',
+        );
+
+        $vonSeite = strpos($quelle, 'public function show(');
+        $this->assertNotFalse(
+            $vonSeite,
+            'Die Seite wird anders gebaut als erwartet — dieser Test misst nichts mehr.',
+        );
 
         /*
          * Nur der Rumpf und nicht die ganze Datei: Eine fehlgeschlagene
          * Behauptung über vierhundert Zeilen ist keine Meldung, sondern ein
          * Abdruck — und wer sie liest, sucht den Unterschied selbst.
          */
-        $rumpf = substr($quelle, $von);
+        $quellenRumpf = substr($quelle, $vonQuellen);
+        $seitenRumpf = substr($quelle, $vonSeite, $vonQuellen > $vonSeite ? $vonQuellen - $vonSeite : null);
 
         $this->assertMatchesRegularExpression(
-            '/if\s*\(\s*!\s*\$operator\s*&&.*?\{\s*\$sources\s*=\s*self::withoutKeys\(\$sources\);/s',
-            $rumpf,
+            '/\$operator\s*\?\s*\$antwort\s*:\s*self::withoutKeys\(\$antwort\)/s',
+            $quellenRumpf,
             'Der Payload läuft nicht mehr durch den Filter — oder er läuft für jeden hindurch. '
             .'Beides sieht von aussen aus wie eine Seite, die funktioniert.',
         );
 
         $this->assertStringContainsString(
             '$operator ? ServerController::prompt() : null',
-            $rumpf,
+            $seitenRumpf,
             'Der Anteil für den Neustart geht nicht mehr an der Rolle vorbei.',
+        );
+
+        /*
+         * **Und der teure Aufruf bleibt nachgereicht.** Ohne diese Zeile wäre
+         * eine Rücknahme von `Inertia::defer()` von aussen nicht zu sehen: Die
+         * Seite käme weiterhin, nur eben drei Sekunden später — und genau das
+         * war der Anlass (`docs/904 §1`).
+         */
+        $this->assertStringContainsString(
+            "'packages' => Inertia::defer(",
+            $seitenRumpf,
+            'Der Paketstand kommt wieder synchron — die Seite wartet damit auf `apt-get -s upgrade`.',
         );
     }
 }

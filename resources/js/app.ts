@@ -46,6 +46,42 @@ router.on('before', (ereignis) => {
 
 createInertiaApp({
   title: (titel) => (titel ? `${titel} · SrvPanel` : 'SrvPanel'),
+
+  /**
+   * Der Fortschrittsbalken trägt die Farbe dieses Panels.
+   *
+   * ## Der Befund
+   *
+   * Er war blau, und zwar seit es diese Datei gibt. Ohne diese Angabe gilt
+   * Inertias Voreinstellung — gemessen im Bündel:
+   * `delay = 250, color = "#29d", includeCSS = true, showSpinner = false`.
+   * Damit stand auf **jeder** Seite dieses Panels ein Hexwert, den `app.css`
+   * nicht kennt.
+   *
+   * > **Ein Wächter über den Quelltext sieht keine Farbe, die das Framework
+   * > zur Laufzeit einsetzt.**
+   *
+   * Sie kommt nicht aus einer `.vue` und nicht aus `app.css`, sondern aus
+   * einem `<style>`, das die Bibliothek beim Start ins Dokument schreibt.
+   * `DesignTokensTest` liest Quelltext und konnte sie nie sehen.
+   *
+   * ## Warum `var(--accent)` und kein gelesener Wert
+   *
+   * Weil `color` in ein `background:` der eingespritzten Regel eingesetzt
+   * wird — dort ist eine Custom Property zulässig und wird **am Element**
+   * aufgelöst. Ein über `getComputedStyle` gelesener Wert wäre der des Themas
+   * zum Zeitpunkt des Starts und bliebe beim Umschalten stehen; dieser folgt
+   * ihm. Eine Quelle, drei Themen, keine Zeile Pflege.
+   *
+   * ## Warum der Balken überhaupt bleibt
+   *
+   * Er beantwortet eine andere Frage als der Platzhalter aus `docs/904`: Der
+   * sagt „hier kommt noch etwas", der Balken sagt „überhaupt ist etwas
+   * unterwegs" — auf jeder Seite ohne Platzhalter und bei jedem abgesendeten
+   * Formular. Die 250 ms bleiben ebenfalls: Sie sind der Grund, dass auf einer
+   * schnellen Seite gar nichts blinkt.
+   */
+  progress: { color: 'var(--accent)' },
   /*
    * Das Muster muss zum Verzeichnis passen — und nichts erzwingt das.
    *

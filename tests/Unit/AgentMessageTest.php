@@ -128,7 +128,22 @@ final class AgentMessageTest extends TestCase
             );
 
             foreach ($treffer as $eins) {
-                if (! preg_match('/\berrors?\b/', $eins[1])) {
+                /*
+                 * **Ohne `i` und ohne den Verzicht auf die vordere Grenze
+                 * sieht dieser Ausdruck kein `packagesError`.** Zwischen `s`
+                 * und `E` steht keine Wortgrenze — beide sind Wortzeichen —,
+                 * und `\berrors?\b` greift dort nicht.
+                 *
+                 * Gemerkt hat es am 10. September die **Untergrenze** unten
+                 * und nicht diese Zeile: `/updates` hat zwei Einbettungen von
+                 * `props.errors.x` auf `props.xError` umbenannt, und der
+                 * Wächter zählte danach acht statt zehn. Die Regel war für
+                 * genau diese beiden Stellen still ausgefallen.
+                 *
+                 * > **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft
+                 * > die Gewohnheit und nicht die Regel.**
+                 */
+                if (! preg_match('/errors?\b/i', $eins[1])) {
                     continue;
                 }
 
@@ -140,10 +155,17 @@ final class AgentMessageTest extends TestCase
             }
         }
 
+        /*
+         * **Zwölf und nicht mehr zehn**, nachgezählt am 10. September 2026.
+         * Vier davon hat der alte Ausdruck nie gesehen, und nur zwei sind an
+         * diesem Tag entstanden: `dump.last_error` und `fieldError('plan')`
+         * standen längst da. Beide halten die Regel — gemessen, nicht
+         * angenommen —, aber gemessen hatte sie hier niemand.
+         */
         $this->assertGreaterThanOrEqual(
-            10,
+            12,
             $gefunden,
-            'Weniger als zehn Einbettungen gefunden — am 8. September 2026 gezählt — der Ausdruck greift nicht mehr.',
+            'Weniger als zwölf Einbettungen gefunden — am 10. September 2026 gezählt — der Ausdruck greift nicht mehr.',
         );
 
         $this->assertSame(

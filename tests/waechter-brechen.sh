@@ -19901,15 +19901,15 @@ echo
 echo "── SourceKeyFilterTest: der Filter wird nicht mehr gerufen ──"
 #
 # **Die Haelfte, die dem ersten Wurf gefehlt hat.** Der Wächter rechnete den
-# Filter nach und blieb gruen, als der Aufruf in `read()` gestrichen wurde —
+# Filter nach und blieb gruen, als der Aufruf gestrichen wurde —
 # er mass die Methode und nicht ihre Erreichbarkeit.
 vorher_datei app/Http/Controllers/UpdatesController.php
 python3 - <<'PY2'
 p = 'app/Http/Controllers/UpdatesController.php'
 s = open(p, encoding='utf-8').read()
-alt = "        if (! $operator && is_array($sources)) {\n            $sources = self::withoutKeys($sources);\n        }\n\n"
+alt = "$operator ? $antwort : self::withoutKeys($antwort)"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$antwort', 1))
 PY2
 griff_datei app/Http/Controllers/UpdatesController.php "Filter ohne Aufruf" &&
 pruefe "Filter ohne Aufruf" \
@@ -19927,9 +19927,9 @@ vorher_datei app/Http/Controllers/UpdatesController.php
 python3 - <<'PY2'
 p = 'app/Http/Controllers/UpdatesController.php'
 s = open(p, encoding='utf-8').read()
-alt = 'if (! $operator && is_array($sources)) {'
+alt = '$operator ? $antwort : self::withoutKeys($antwort)'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (is_array($sources)) {', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'self::withoutKeys($antwort)', 1))
 PY2
 griff_datei app/Http/Controllers/UpdatesController.php "Filter ohne Bedingung" &&
 pruefe "Filter ohne Bedingung" \
@@ -27189,6 +27189,211 @@ pruefe "Grundmenge als Liste" \
   ValidationLanguageTest::test_the_vocabulary_is_not_a_list_in_this_test failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ValidationLanguageTest passed
+
+
+echo
+echo "── DeferredPropTest: nachgereicht ohne Ladezustand ──"
+#
+# **Der eigentliche Waechter.** `undefined` blendet in JavaScript aus, statt zu
+# scheitern — ohne Zweig saehe „kommt noch" aus wie „ist nichts da", und der
+# beruhigende Fall ist der haeufigere.
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'v-if="props.packages === undefined"'
+assert s.count(alt) == 2, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, 'v-if="false"')
+alt2 = '  if (p === undefined) {'
+assert s.count(alt2) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt2, '  if (false) {', 1))
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "nachgereicht ohne Ladezustand" &&
+pruefe "nachgereicht ohne Ladezustand" \
+  DeferredPropTest::test_every_deferred_group_has_a_pending_branch failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DeferredPropTest passed
+
+echo
+echo "── DeferredPropTest: nachgereicht und trotzdem als sicher deklariert ──"
+#
+# Ohne diese Haelfte luege der Typ: `packages: {...} | null` sagt „einer von
+# zwei Werten", und beim ersten Rendern steht dort ein dritter.
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '  packages?: {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '  packages: {', 1))
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "nachgereicht ohne Fragezeichen" &&
+pruefe "nachgereicht ohne Fragezeichen" \
+  DeferredPropTest::test_every_deferred_prop_is_declared_optional failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DeferredPropTest passed
+
+echo
+echo "── DeferredPropTest: ein Zweig ohne nachgereichte Eigenschaft ──"
+#
+# Die Gegenrichtung, und hier entsteht ein toter Eintrag wirklich: Wer das
+# Nachreichen zuruecknimmt, aendert den Controller — der Zweig auf der Seite
+# bleibt stehen und sieht aus wie ein abgedeckter Zustand.
+vorher_datei app/Http/Controllers/UpdatesController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/UpdatesController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'packages' => Inertia::defer(fn (): ?array => $lesen()['data']),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "'packages' => $lesen()['data'],", 1))
+PY2
+griff_datei app/Http/Controllers/UpdatesController.php "Zweig ohne Nachreichen" &&
+pruefe "Zweig ohne Nachreichen" \
+  DeferredPropTest::test_no_pending_branch_without_a_deferred_prop failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DeferredPropTest passed
+
+echo
+echo "── SkeletonStyleTest: die Regel, die alles anhaelt, gibt es zweimal ──"
+#
+# Zwei Bloecke laufen auseinander, und welcher gilt, entscheidet die
+# Reihenfolge in der Datei. Wer den zweiten schreibt, glaubt den ersten zu
+# ersetzen.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '@media (prefers-reduced-motion: reduce) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '@media (prefers-reduced-motion: reduce) {\n  .skeleton {\n    animation: none;\n  }\n}\n\n' + alt
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/css/app.css "zwei Bewegungsregeln" &&
+pruefe "zwei Bewegungsregeln" \
+  SkeletonStyleTest::test_one_rule_stops_every_animation failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SkeletonStyleTest passed
+
+echo
+echo "── SkeletonStyleTest: eine Animation stellt sich darueber ──"
+#
+# `!important` schlaegt `!important` ueber die Spezifitaet, und die einer
+# Klasse ist hoeher als die von `*`. Auf einem Geraet ohne die Einstellung
+# sieht die Zeile voellig richtig aus.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '  animation: platzhalter-wandert 1.6s linear infinite;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, '  animation: platzhalter-wandert 1.6s linear infinite !important;', 1))
+PY2
+griff_datei resources/css/app.css "Animation ueber der Bewegungsregel" &&
+pruefe "Animation ueber der Bewegungsregel" \
+  SkeletonStyleTest::test_no_animation_outranks_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SkeletonStyleTest passed
+
+echo
+echo "── SkeletonStyleTest: eine Komponente gestaltet den Platzhalter selbst ──"
+#
+# Dieselbe Regel wie bei Knopf, Feld und Tabelle — und die zweite Fassung ist
+# die, die beim naechsten Umbau stehenbleibt.
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '</template>\n'
+assert s.count(alt) >= 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.rstrip() + '\n\n<style scoped>\n.skeleton {\n  background: red;\n}\n</style>\n')
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "Platzhalter in der Komponente" &&
+pruefe "Platzhalter in der Komponente" \
+  SkeletonStyleTest::test_the_placeholder_is_styled_only_in_the_stylesheet failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SkeletonStyleTest passed
+
+echo
+echo "── ProgressColourTest: der Balken bekommt gar keine Angabe ──"
+#
+# **Das Fehlen ist der Fehler und nicht ein falscher Wert.** Ohne Angabe gilt
+# Inertias Voreinstellung `#29d` — auf jeder Seite, und kein Ausdruck ueber
+# `resources/` findet sie.
+vorher_datei resources/js/app.ts
+python3 - <<'PY2'
+p = 'resources/js/app.ts'
+s = open(p, encoding='utf-8').read()
+alt = "  progress: { color: 'var(--accent)' },\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/app.ts "Balken ohne Angabe" &&
+pruefe "Balken ohne Angabe" \
+  ProgressColourTest::test_the_bar_is_configured_at_all failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ProgressColourTest passed
+
+echo
+echo "── ProgressColourTest: ein Hexwert im Einstieg ──"
+#
+# Jede Farbe kommt aus `app.css` — auch die, die an eine Bibliothek
+# weitergereicht wird.
+vorher_datei resources/js/app.ts
+python3 - <<'PY2'
+p = 'resources/js/app.ts'
+s = open(p, encoding='utf-8').read()
+alt = "  progress: { color: 'var(--accent)' },"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "  progress: { color: '#3730a3' },", 1))
+PY2
+griff_datei resources/js/app.ts "Hexwert im Einstieg" &&
+pruefe "Hexwert im Einstieg" \
+  ProgressColourTest::test_the_colour_comes_from_the_design_system failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ProgressColourTest passed
+
+echo
+echo "── ProgressColourTest: eine Marke, die es nicht gibt ──"
+#
+# Eine Custom Property ohne Definition ist im Browser kein Fehler — sie ist
+# eine fehlende Farbe, und der Balken bleibt unsichtbar.
+vorher_datei resources/js/app.ts
+python3 - <<'PY2'
+p = 'resources/js/app.ts'
+s = open(p, encoding='utf-8').read()
+alt = "color: 'var(--accent)'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "color: 'var(--gibt-es-nicht)'", 1))
+PY2
+griff_datei resources/js/app.ts "Marke ohne Definition" &&
+pruefe "Marke ohne Definition" \
+  ProgressColourTest::test_the_colour_comes_from_the_design_system failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ProgressColourTest passed
+
+echo
+echo "── ProgressColourTest: eine eigene Verzoegerung ──"
+#
+# Inertias 250 ms sind hier die richtige Zahl; eine zweite Fassung davon ist
+# die, die veraltet — und `delay: 0` gaebe auf jeder schnellen Seite ein
+# Zucken.
+vorher_datei resources/js/app.ts
+python3 - <<'PY2'
+p = 'resources/js/app.ts'
+s = open(p, encoding='utf-8').read()
+alt = "  progress: { color: 'var(--accent)' },"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "  progress: { color: 'var(--accent)', delay: 0 },", 1))
+PY2
+griff_datei resources/js/app.ts "eigene Verzoegerung" &&
+pruefe "eigene Verzoegerung" \
+  ProgressColourTest::test_the_delay_is_left_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ProgressColourTest passed
 
 
 echo

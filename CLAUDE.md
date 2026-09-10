@@ -1521,7 +1521,23 @@ Seite: Route und Menüpunkt tragen dieselbe Fähigkeit, `/schedules` trägt gena
 ein `GET`, das Präfix der eigenen Dateien kommt aus `CronFile` — und **wo
 nichts feststeht, steht keine Tabelle**: Streifen und Bereiche werden
 aneinander gehalten und nicht auf das Vorhandensein eines `v-if` geprüft, weil
-der grün bliebe, sobald dort irgendeine Bedingung steht). Der Bruch selbst steht als
+der grün bliebe, sobald dort irgendeine Bedingung steht) und `DeferredPropTest`
+(was ein Controller über `Inertia::defer()` nachreicht, hat auf seiner Seite
+einen Zweig für „noch unterwegs" — **je Gruppe und nicht je Eigenschaft**, weil
+Inertia eine Gruppe in *einer* Anfrage nachlädt; dazu ist jede nachgereichte
+Eigenschaft als `name?:` deklariert, sonst lügt der Typ, und die Gegenrichtung
+hält den toten Zweig auf, der stehenbleibt, wenn jemand das Nachreichen
+zurücknimmt. Er verlangt **kein** `<Deferred>`: Die Komponente löst das
+Nachladen gar nicht aus, das tut der Router — ein Wächter, der sie verlangte,
+prüfte das Werkzeug statt des Zustands) und `SkeletonStyleTest` (es gibt genau
+**einen** `prefers-reduced-motion`-Block, er trifft `*`, und keine Animation
+stellt sich mit `!important` über ihn — `!important` schlägt `!important` über
+die Spezifität, und eine solche Zeile sieht auf einem Gerät ohne die Einstellung
+völlig richtig aus) und `ProgressColourTest` (der Fortschrittsbalken bekommt
+überhaupt eine Angabe — **das Fehlen ist der Fehler**, denn ohne sie gilt
+Inertias `#29d` auf jeder Seite —, seine Farbe ist eine Marke, die `app.css`
+wirklich führt, und die Kommentare fallen weg, bevor gesucht wird, weil der
+Block darüber `#29d` wörtlich zitiert). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -3145,6 +3161,82 @@ Servers haben kurze, und `rollt` stand auf `0`.
 
 ---
 
+## Ein Platzhalter für `/updates` — 10. September 2026
+
+Gemeldet hat es der Betreiber („manche Seiten haben etwas längere Ladezeiten,
+wie z. B. `/updates`"). Der Plan ist **`docs/904`**, geschrieben **nach** der
+Messrunde — und die hat den Umfang von „alle Seiten" auf **eine Eigenschaft auf
+einer Seite** zusammengezogen: `system.packages.list` kostet 3033 ms, der
+zweitteuerste Agentenaufruf dieses Panels 104 ms, dazwischen liegt nichts.
+
+**Vier Dinge daraus gelten über den Platzhalter hinaus.**
+
+**Der Fortschrittsbalken war blau, seit es `resources/js/app.ts` gibt.** Ohne
+`progress:` gilt Inertias Voreinstellung `#29d` — eine Farbe, die `app.css`
+nicht kennt, auf jeder Seite. Sie steht in keinem Quelltext: Die Bibliothek
+schreibt sie beim Start als `<style>` ins Dokument.
+
+> **Ein Wächter über den Quelltext sieht keine Farbe, die das Framework zur
+> Laufzeit einsetzt.**
+
+Durchgereicht wird jetzt `var(--accent)` und **kein gelesener Wert** — die Marke
+wird am Element aufgelöst und folgt dem Thema; ein `getComputedStyle` beim Start
+bliebe beim Umschalten stehen.
+
+**Eine Seite darf `errors` nicht als eigene Eigenschaft schicken.** Inertia
+lässt Seitenwerte geteilte überschreiben, und `/updates` hat damit
+`HandleInertiaRequests::resolveValidationErrors()` verdeckt — die
+Zusammenfassung oben zeigte dort nie eine Prüfmeldung. Derselbe Satz wie seit
+`docs/82` Schritt 5 über `can` gegen `abilities`, nur an einem anderen
+Schlüssel.
+
+**`prefers-reduced-motion` ist in diesem Repo eine `*`-Regel ganz unten in
+`app.css`, und sie hält wirklich an.** Das war bis heute eine Vermutung:
+`animation-duration: 0.01ms !important` bei `infinite` könnte auch heissen,
+dass jedes Bild eine andere Phase zeigt. Gemessen gegen echtes Chromium,
+40 Bilder je Lauf — ohne die Einstellung **30** verschiedene Werte, mit ihr
+**einer** ab dem zweiten Bild. Wer eine Animation baut, schreibt deshalb
+**keine** zweite Ausnahme; die wäre die, die veraltet.
+
+> **Eine Regel, die die Bewegung anhält, sagt nichts darüber, in welchem Bild
+> sie stehenbleibt.** Die Ruhelage ist beliebig (zwei Läufe: `40%` und `-60%`) —
+> ein Verlauf gehört deshalb flach und breit, damit jedes eingefrorene Bild
+> gleich aussieht.
+
+**Und `<Deferred>` aus `@inertiajs/vue3` löst das Nachladen nicht aus.** Das tut
+der Router: `page.set()` → `loadDeferredProps` → `doReload({ only: … })`, **eine
+Anfrage je Gruppe**. Die Komponente wählt nur zwischen zwei Slots und wirft ohne
+`#fallback`. Ein `v-if` auf `props.x === undefined` tut dasselbe, ohne einen
+ganzen Bereich tiefer einrücken zu müssen.
+
+**Der teuerste Fehler des Baus war ein Rand von 2 px.** Der Kachelplatzhalter
+trug `margin: 2px 0`, gesetzt aus Gefühl. Vier Pixel je Kachel: Bei 1440 px
+stehen die fünf nebeneinander und die Seite sprang um 4 px, bei 390 px stapeln
+sie sich und es waren 20 — alles darunter zog mit. Die **Höhe** stimmte aufs
+Hundertstel.
+
+> **Ein Platzhalter, der nicht genau so hoch ist wie das, was er vertritt,
+> verschiebt alles darunter — und auf dem Bild sieht das nach nichts aus.**
+
+**Und die Bilderrunde hat beim ersten Lauf den vorigen Stand gemessen** — zum
+dritten Mal die Falle, die unter „Diese Umgebung" als „zweimal darauf
+hereingefallen" steht. Das Bild verriet es nicht: Es zeigte vier Balken
+verschiedener Länge, also genau das Gewollte. Gefunden hat es der Blick auf die
+**Klassennamen im DOM**, wo zwei Klassen standen, die es im Quelltext nicht mehr
+gab.
+
+> **Ein Bild, das plausibel aussieht, belegt nicht, dass es den gebauten Stand
+> zeigt. Die Klassennamen im DOM sagen es, die Pixel nicht.**
+
+**Der Platzhalterzustand lässt sich messen, ohne den Prüfling anzufassen:** Die
+nachgereichte Anfrage trägt `X-Inertia-Partial-Data`; wer sie im Browser
+anhält, hält die Seite beliebig lange in genau diesem Zustand, und das
+Durchlassen ist die Gegenprobe. Damit ist auch der Sprung in **einem**
+Seitenaufbau messbar — zwei getrennte Läufe verglichen zwei Seiten und nicht
+zwei Zustände derselben.
+
+---
+
 ## Zwei Befunde an einem Feld — 4. September 2026
 
 Gemeldet hat den ersten der Betreiber, beim ersten Versuch, den Wartungsmodus
@@ -4620,8 +4712,18 @@ Testen berücksichtigen:
     bedient eine Anfrage gleichzeitig, und `PHP_CLI_SERVER_WORKERS` greift
     hier nicht. Im Aufnahmeskript `page.route('**/stream', r => r.abort())`.
   - **Der Entwicklungsserver liefert aus `public/build`.** Nach jeder Änderung
-    an einer `.vue` erst `npm run build`, sonst zeigt die Aufnahme den
-    vorigen Stand. Zweimal darauf hereingefallen.
+    an einer `.vue` **oder an `app.css`** erst `npm run build`, sonst zeigt die
+    Aufnahme den vorigen Stand. **Dreimal darauf hereingefallen**, zuletzt am
+    10. September 2026 — und dieses Mal sah das Bild richtig aus: Es zeigte
+    genau die Form, die der Entwurf will, nur aus dem vorigen Bau. Verraten
+    haben es die **Klassennamen im DOM**, wo zwei Klassen standen, die es im
+    Quelltext nicht mehr gab.
+
+    > **Ein Bild, das plausibel aussieht, belegt nicht, dass es den gebauten
+    > Stand zeigt. Die Klassennamen im DOM sagen es, die Pixel nicht.**
+
+    Wer eine Klasse umbenennt, liest deshalb nach der Aufnahme `className` aus
+    dem Prüfling und nicht nur die Zahlen daneben.
   - Nach jeder Aufnahme `scrollWidth - clientWidth` messen. Ein waagerechter
     Überlauf bei 390px sieht auf dem Bild nach nichts aus und ist auf dem
     Telefon der ganze Unterschied.

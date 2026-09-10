@@ -688,19 +688,60 @@ die Meldung `required` — die ist übersetzt.
 > **Ein Ausdruck, der einen Regelnamen als Zeichenkette sucht, findet jeden
 > Feldnamen mit, der so heisst.**
 
-**Kein Wächter dieses Repos konnte das sehen**, und der Grund ist derselbe wie
-bei Befund 5 aus `docs/91`: Der englische Satz steht nirgends im Quelltext. Er
-entsteht zur Laufzeit aus einer Datei des Frameworks, weil in unserer der
-Schlüssel fehlt.
+**Der englische Satz steht nirgends im Quelltext.** Er entsteht zur Laufzeit aus
+einer Datei des Frameworks, weil in unserer der Schlüssel fehlt — dieselbe
+Familie wie Befund 5 aus `docs/91`.
 
 > **Ein Wächter über den Quelltext sieht keinen Satz, den das Framework zur
 > Laufzeit einsetzt.**
 
 **Prüfbar ist es trotzdem, und zwar in der Form, die dieses Repo bevorzugt:**
-Die Regelnamen, die unter `app/Http` in einer Validierung vorkommen, zeigen auf
-Schlüssel in `lang/de/validation.php` — eine Zeichenkette, die auf etwas zeigt,
-das es geben muss. Die Gegenrichtung wäre falsch: 98 ungenutzte Schlüssel zu
-verlangen hiesse, Laravels Wortschatz zu pflegen statt den eigenen.
+Die Regelnamen, die in einer Validierung vorkommen, zeigen auf Schlüssel in
+`lang/de/validation.php` — eine Zeichenkette, die auf etwas zeigt, das es geben
+muss. Die Gegenrichtung wäre falsch: 98 ungenutzte Schlüssel zu verlangen hiesse,
+Laravels Wortschatz zu pflegen statt den eigenen.
+
+### 11.2 Berichtigung — es gab diesen Wächter längst, und er war blind
+
+Hier stand bis zum Bau der Behebung: *„Kein Wächter dieses Repos konnte das
+sehen."* **Das ist falsch.** `Tests\Feature\ValidationLanguageTest` gibt es seit
+dem 15. August 2026, er prüft genau diese Frage, und der Kopf von
+`lang/de/validation.php` nennt ihn beim Namen.
+
+Er war grün, und zwar aus **drei** Gründen auf einmal:
+
+1. **Er führte eine eigene Liste** von 58 Regelnamen — `date_format` und `enum`
+   standen nicht darin. Sein eigener Kopf begründet zwei Absätze weiter oben,
+   warum eine Liste im Test die schlechtere Zusage ist.
+2. **Er suchte nur die Form `'regel'`.** In diesem Panel reisen `unique`,
+   `enum`, `exists` und `required_if` **ausschliesslich** als Objekt
+   (`Rule::unique(…)`), und dafür war der Ausdruck blind.
+3. **Seine Gegenprobe verlangte `required`, `string` und `max`** — alle drei in
+   der Zeichenkettenform. Die zweite Form kam darin nicht vor, also konnte die
+   Untergrenze den Ausfall nicht bemerken.
+
+> **Ein Wächter, der begründet, warum er keine Liste führt, führte eine — und
+> sie war es, die ihn blind machte.**
+
+> **Ein Aufruf, der als Objekt reist, ist für einen Ausdruck über Zeichenketten
+> verschwunden — nicht harmlos geworden.** Derselbe Satz wie am 26. August, als
+> `apt-get update` aus PHP in ein Shell-Skript zog.
+
+> **Eine Untergrenze, die nur die gewohnte Form enthält, belegt die andere
+> nicht.**
+
+**Und der stille Teil ist der gefährliche:** Beim Nachstellen des zweiten
+Grundes bleibt `test_every_rule_in_use_has_a_german_sentence` **grün** — nur die
+Gegenprobe wird rot. Ohne sie hätte der Wächter zu jedem künftigen
+`Rule::…`-Regelnamen ebenso geschwiegen.
+
+**Gekostet hat der falsche Satz nichts**, und der Grund ist kein Verdienst: Vor
+dem Bau eines neuen Wächters stand ein Blick in die Datei, die er ändern
+sollte — und ihr Kopf nennt den bestehenden.
+
+> **Eine Zeile, die eine Abwesenheit behauptet, lässt den Nächsten dasselbe noch
+> einmal bauen.** Zum zweiten Mal nach `docs/114`, diesmal in einem Protokoll
+> statt im Kopf eines Wächters.
 
 **Nicht während des Laufs behoben** — eine Behebung ist eine Änderung am
 Prüfling. Sie gehört mit Befund 2 zusammen nach Punkt 11.
@@ -1007,6 +1048,96 @@ vorher `null` war. Er gehört zu `/audit` und nicht zu `docs/901`.
 
 **Und ausserhalb dieses Laufs** bleibt der Rest aus P7 (`orphan.row` für
 `tls.cloudlab24.de`).
+
+---
+
+## 17. Nach der Abnahme gebaut — die beiden Befunde am Prüfling
+
+Gebaut am 10. September 2026, **nach** dem Lauf und nicht während seiner: Eine
+Behebung ist eine Änderung am Prüfling.
+
+### 17.1 Befund 2 — der Hinweis nennt jetzt alle drei Wege
+
+Der Satz unter der Kontenliste nennt herabstufen, sperren **und** löschen.
+Daneben steht ein zweiter, der erklärt, warum die eigene Zeile nie einen
+Löschknopf trägt — und er ist wörtlich der der Ablehnung
+(`AccountController::SELF_REFUSAL`).
+
+Er hängt an `is_self` aus der Ablage und nicht an einem Vergleich mit dem
+angemeldeten Konto; und er steht nur da, wenn die eigene Zeile auf **dieser**
+Seite ist — die Liste blättert.
+
+**Der Wächter ist `AccountHintTest`** (framework-frei, drei Fälle): Der erste
+Hinweis nennt jeden Weg, der zweite wiederholt die Ablehnung Wort für Wort, und
+es gibt beide. **Was er nicht kann, steht in seinem Kopf:** Dass es *drei* Wege
+sind, ist eine Eigenschaft von `LastOperator` und wird von `LastOperatorTest`
+gehalten. Kommt ein vierter dazu, meldet sich hier niemand.
+
+**Vier Eingriffe, alle beissen** — und der dritte ist die Gegenprobe, auf die es
+ankommt: `sperren` aus dem Satz entfernt, während das Wort im erklärenden
+Kommentar wörtlich stehenbleibt. Gemessen steht es dort (`herabstufen und
+sperren`, ein Treffer), und der Wächter wird trotzdem rot.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht — und ein Kommentar, der die entfernte Zeile zitiert, stellt sie für ihn
+> wieder her.**
+
+### 17.2 Befund 6 — vier Sätze, und ein Wächter, der wieder sieht
+
+`lang/de/validation.php` hat `unique`, `date_format`, `enum` und `required_if`
+bekommen. Die ersten drei sind gemessen erreichbar; `required_if` ist die
+**sichere Seite**: `Rule::requiredIf` löst heute auf `required` auf, und darauf
+soll sich niemand verlassen müssen. Der Preis ist eine Zeile.
+
+**`ValidationLanguageTest` ist umgebaut** (§11.2 nennt die drei Gründe seiner
+Blindheit):
+
+- Die Grundmenge kommt aus Laravels **eigener** `en/validation.php` — keine
+  Liste mehr im Test.
+- Gelesen wird über `token_get_all()` und nicht über einen Ausdruck. Eine
+  Klammer in einem `regex:`-Muster brächte jede Klammerzählung aus dem Tritt,
+  und die Kommentare fielen mit hinein.
+- Gesucht wird in den **Argumentbereichen** der Validierungsaufrufe, und darin
+  beides: die Regel als Zeichenkette und als Objekt. Der Inhalt eines
+  `Rule::…()` wird übersprungen — dort stehen Tabellen und Spalten, und
+  `accounts` ist keine Prüfregel.
+- Die Untergrenze verlangt jetzt zusätzlich `unique` und `enum`, also zwei
+  Regeln, die es hier **nur** als Objekt gibt.
+
+Gemessen findet er **22** benutzte Regeln in `app/`, vier davon nur als Objekt
+(`enum`, `exists`, `required_if`, `unique`). `exists` hatte seinen deutschen
+Satz schon — von Hand nachgetragen, denn verlangen konnte ihn niemand.
+
+**Drei Eingriffe, alle beissen** — und einer zeigt den stillen Teil: Wird die
+Objektform wieder unsichtbar gemacht, bleibt `test_every_rule_in_use_has_a_german_sentence`
+**grün**, und nur die Gegenprobe wird rot.
+
+### 17.3 Womit gemessen wurde
+
+- **Voller Testlauf**: 3302 grün, `rc=0`. Ohne die Behebung (bei vorhandenem
+  neuen Wächter) sind es drei Fehlschläge — die Paarung aus Befund und Wächter
+  ist damit in beide Richtungen belegt.
+- **Pint** grün. Er hat dabei aus einem `{@see \App\…}` im Dokumentblock einen
+  `use`-Eintrag gemacht und den framework-freien Wächter an `App\` gehängt; die
+  Marke ist deshalb durch Backticks ersetzt.
+
+  > **Ein Wächter, den man vor dem Formatierer prüft, ist nicht der, der ins
+  > Repo geht.** Der Satz steht seit A9 in `CLAUDE.md` und ist hier zum zweiten
+  > Mal fällig geworden.
+
+- **PHPStan** (Stufe 6, larastan, Projektdatei) über die geänderten Dateien:
+  leer — **mit Gegenprobe**, ein absichtliches `strlen(42)` erzeugt dort zwei
+  Zeilen. Er hat vorher ein `array_values()` auf einer Liste gefunden, die schon
+  eine ist.
+- **`npm run types`** und **`npm run build`** grün, **`BreakScriptTest`** grün
+  (11 Fälle, 905 Behauptungen), **`bash -n`** über das Bruchskript grün.
+
+**Was nicht gemessen ist:** Keine der beiden Behebungen hat einen Server
+gesehen. Der Satz auf der Seite und die vier Prüfmeldungen sind im Container
+belegt; wie sie auf `cloudsrv24` aussehen, sagt erst die nächste Fassung.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**
 
 ---
 

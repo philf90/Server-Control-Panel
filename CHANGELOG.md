@@ -27216,3 +27216,66 @@ eine.
 
 > **Ein Eingriff misst nicht nur die Datei, die er anfasst — er misst jede, die
 > sein Wächter liest.**
+
+### Zwei Befunde des Abnahmelaufs — der Hinweis und die englischen Prüfregeln
+
+Gefunden am 10. September 2026 beim Fahren von `docs/902` auf `cloudsrv24`,
+gebaut nach der Abnahme: Eine Behebung ist eine Änderung am Prüfling, und der
+Lauf lief. Das Protokoll ist `docs/903`, die beiden Befunde stehen dort in §3.2
+und §11.1.
+
+**Der Hinweis unter der Kontenliste nannte zwei von drei Wegen.** Er erklärte,
+warum der letzte aktive Betreiber sich nicht herabstufen und nicht sperren
+lässt, und schwieg zum Löschen — seit es den Weg gibt. Ausgerechnet dessen Knopf
+fehlt in der Zeile sichtbar. Und für die **eigene** Zeile, die nie einen
+Löschknopf trägt, gab es überhaupt keine Auskunft.
+
+> **Ein Hinweis, der erklärt, was nicht geht, ist unvollständig, sobald ein Weg
+> dazukommt — und die Lücke fällt niemandem auf, weil der Satz ja stimmt.**
+
+Der Satz nennt jetzt alle drei, und daneben steht der der Ablehnung, wörtlich:
+*„Das eigene Konto lässt sich nicht löschen. Ein zweiter Betreiber kann es
+tun."* Wer ihn dort liest, liest ihn **bevor** er drückt — genau dafür steht der
+Hinweis unter der Liste und nicht hinter dem Formular. `AccountHintTest` hält
+die beiden aneinander und streift die Kommentare ab, bevor er sucht: Der Absatz,
+der diese Behebung erklärt, schreibt die alte Zeile wörtlich hin.
+
+**Und drei Prüfregeln antworteten auf Englisch.** Beim Anlegen eines Kontos mit
+vergebener Adresse stand unter der deutschen Zeile *„The Anmeldeadresse has
+already been taken."* Gemessen: `lang/de/validation.php` führte **40 von 138**
+Regelschlüsseln; drei der fehlenden benutzt dieses Panel an **17 Stellen** —
+`unique` (5), `date_format` (8), `enum` (4). Sie haben jetzt ihren Satz, dazu
+`required_if` als sichere Seite: `Rule::requiredIf` löst heute auf `required`
+auf, und darauf soll sich niemand verlassen müssen.
+
+**Den Wächter dafür gab es längst, und er war grün** — aus drei Gründen auf
+einmal. Er führte eine **eigene Liste** von 58 Regelnamen, in der `date_format`
+und `enum` fehlten; er suchte nur die Form `'regel'`, während `unique`, `enum`,
+`exists` und `required_if` hier ausschliesslich als `Rule::…()` reisen; und
+seine Untergrenze verlangte drei Regeln, die alle in der Zeichenkettenform
+vorkommen.
+
+> **Ein Wächter, der begründet, warum er keine Liste führt, führte eine — und
+> sie war es, die ihn blind machte.**
+
+> **Ein Aufruf, der als Objekt reist, ist für einen Ausdruck über Zeichenketten
+> verschwunden — nicht harmlos geworden.**
+
+> **Eine Untergrenze, die nur die gewohnte Form enthält, belegt die andere
+> nicht.** Stellt man den zweiten Grund nach, bleibt der eigentliche Satz des
+> Wächters **grün**; nur die Gegenprobe wird rot.
+
+Seine Grundmenge kommt seitdem aus Laravels eigener `en/validation.php`, gelesen
+wird über `token_get_all()` statt über einen Ausdruck — eine Klammer in einem
+`regex:`-Muster brächte jede Klammerzählung aus dem Tritt —, und die Untergrenze
+verlangt eine Regel, die es nur als Objekt gibt. Verlangt wird weiterhin nur,
+was `app/` benutzt: 98 ungenutzte Schlüssel zu fordern hiesse, Laravels
+Wortschatz zu pflegen statt den eigenen.
+
+**Und ein Satz des Protokolls war falsch.** Er lautete „Kein Wächter dieses
+Repos konnte das sehen"; berichtigt in `docs/903 §11.2`. Gekostet hat der Irrtum
+nichts, und das ist kein Verdienst: Vor dem Bau eines neuen Wächters stand ein
+Blick in die Datei, die er ändern sollte, und deren Kopf nennt den bestehenden.
+
+> **Eine Zeile, die eine Abwesenheit behauptet, lässt den Nächsten dasselbe noch
+> einmal bauen.**

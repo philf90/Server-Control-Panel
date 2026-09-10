@@ -11,6 +11,7 @@
  * daran, ob der Mensch dahinter angekommen ist. Die Spalte ist eine Auskunft
  * und kein Schalter: Ein Schalter für eine Pflicht wäre ihre Abschaffung.
  */
+import { computed } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import Badge from '../../Components/Badge.vue'
 import { useConfirmation } from '../../Composables/useConfirmation'
@@ -60,6 +61,19 @@ const props = defineProps<{
   accounts: { data: Row[]; current_page: number; last_page: number; total: number }
   operators: number
 }>()
+
+/*
+ * **Steht das eigene Konto auf dieser Seite?**
+ *
+ * Der Hinweis darunter erklärt, warum die eigene Zeile keinen Löschknopf hat.
+ * Auf einer Seite, auf der sie gar nicht steht, wäre der Satz eine Antwort auf
+ * eine Frage, die niemand gestellt hat — die Liste blättert.
+ *
+ * Gefragt wird `is_self` aus der Ablage und nicht der Vergleich mit dem
+ * angemeldeten Konto: Das wäre eine zweite Fassung derselben Regel, und die
+ * zweite ist die, die veraltet.
+ */
+const eigeneZeile = computed((): boolean => props.accounts.data.some((row) => row.is_self))
 </script>
 
 <template>
@@ -180,8 +194,24 @@ const props = defineProps<{
     -->
     <p v-if="props.operators <= 1" class="hint">
       Es gibt genau einen aktiven Betreiber. Er lässt sich weder herabstufen
-      noch sperren, solange er der letzte ist — sonst käme niemand mehr an die
-      Einstellungen dieses Servers.
+      noch sperren noch löschen, solange er der letzte ist — sonst käme niemand
+      mehr an die Einstellungen dieses Servers.
+    </p>
+
+    <!--
+      **Und der Grund, aus dem die eigene Zeile nie einen Löschknopf hat.**
+
+      Bis zum 10. September stand hier nur der Satz darüber, und der nannte
+      zwei von drei Wegen — herabstufen und sperren. Löschen fehlte, seit es
+      den Weg gibt, und ausgerechnet er ist der, dessen Knopf sichtbar fehlt
+      (`docs/903 §3.2`). Für die eigene Zeile gab es überhaupt keine Auskunft.
+
+      Der Satz ist wörtlich der der Ablehnung. Wer ihn hier liest, liest ihn
+      **bevor** er drückt — genau dafür steht der Hinweis unter der Liste und
+      nicht hinter dem Formular. `AccountHintTest` hält die beiden aneinander.
+    -->
+    <p v-if="eigeneZeile" class="hint">
+      Das eigene Konto lässt sich nicht löschen. Ein zweiter Betreiber kann es tun.
     </p>
 
     <Pager :page="props.accounts.current_page" :pages="props.accounts.last_page" />

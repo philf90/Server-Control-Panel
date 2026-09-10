@@ -37,6 +37,43 @@ use SplFileInfo;
  * hier eine Zeile.
  *
  * > **Ein Rückfall, der lesbar ist, meldet sich nie.**
+ *
+ * ## Wo er blind war — 10. September 2026
+ *
+ * Der Abnahmelauf zu `docs/901` fand beim Anlegen eines Kontos mit vergebener
+ * Adresse den Satz *„The Anmeldeadresse has already been taken."* Dieser
+ * Wächter stand daneben und war grün, und zwar aus **drei** Gründen auf
+ * einmal (`docs/903 §11.1`):
+ *
+ * 1. Er führte eine **eigene Liste** von 58 Regelnamen — und `date_format` und
+ *    `enum` standen nicht darin. Der Absatz darüber begründet, warum eine
+ *    Liste im Test die schlechtere Zusage ist; genau die stand hier trotzdem.
+ * 2. Er suchte nur die Form `'regel'`. `unique`, `enum`, `exists` und
+ *    `required_if` reisen in diesem Panel ausschliesslich als **Objekt**
+ *    (`Rule::unique(…)`), und dafür war er blind.
+ * 3. Seine Gegenprobe verlangte `required`, `string` und `max` — alle drei in
+ *    der Zeichenkettenform. Die zweite Form kam darin nicht vor.
+ *
+ * > **Ein Wächter, der begründet, warum er keine Liste führt, führte eine — und
+ * > sie war es, die ihn blind machte.**
+ *
+ * > **Ein Aufruf, der als Objekt reist, ist für einen Ausdruck über
+ * > Zeichenketten verschwunden — nicht harmlos geworden.**
+ *
+ * > **Eine Untergrenze, die nur die gewohnte Form enthält, belegt die andere
+ * > nicht.**
+ *
+ * Die Grundmenge kommt seitdem aus Laravels **eigener** `en/validation.php`,
+ * gelesen wird über `token_get_all()` statt über einen Ausdruck, und die
+ * Gegenprobe verlangt eine Regel, die es nur als Objekt gibt.
+ *
+ * ## Was er nicht kann
+ *
+ * Er liest die Argumentbereiche der Validierungsaufrufe. Eine Regelliste, die
+ * anderswo entsteht und nur als Variable übergeben wird, sieht er nicht — heute
+ * gibt es keine (gemessen: 48 `->validate(` und ein `Validator::make(`, alle
+ * mit einem Array an Ort und Stelle). Und er sagt nichts darüber, ob der
+ * deutsche Satz **richtig** ist; er sagt, dass es ihn gibt.
  */
 final class ValidationLanguageTest extends TestCase
 {
@@ -64,41 +101,28 @@ final class ValidationLanguageTest extends TestCase
     /**
      * Die Prüfregeln, die `app/` wirklich benutzt.
      *
-     * Gelesen wird die Form `'regel'` und `'regel:…'` innerhalb von
-     * Regellisten. Das ist grob und trifft gelegentlich einen Feldnamen, der
-     * wie eine Regel heisst — der Preis dafür, dass hier Text gelesen wird und
-     * kein Syntaxbaum. Zu viel gefundene Regeln machen den Wächter strenger,
-     * nicht falscher.
+     * Gelesen werden die **Argumentbereiche** der Validierungsaufrufe, und
+     * darin zweierlei: die Regel als Zeichenkette (`'required'`, `'max:255'`)
+     * und die Regel als Objekt (`Rule::unique(…)`). Beides zählt, und die
+     * zweite Form ist der Grund, aus dem dieser Wächter drei Wochen lang zu
+     * einem englischen Satz geschwiegen hat.
+     *
+     * **Gelesen wird über `token_get_all()` und nicht über einen Ausdruck.**
+     * Eine Klammer in einem `regex:`-Muster brächte jede Klammerzählung aus dem
+     * Tritt, und Kommentare fielen mit hinein — dieses Repo hält seinen
+     * Vorzustand im Kommentar fest, und der zitiert regelmässig genau die
+     * Zeile, um die es geht.
      *
      * @return list<string>
      */
     private function rulesInUse(): array
     {
-        $bekannt = [
-            'accepted', 'active_url', 'after', 'alpha', 'alpha_dash', 'alpha_num', 'array', 'bail',
-            'before', 'between', 'boolean', 'confirmed', 'date', 'decimal', 'different', 'digits',
-            'distinct', 'email', 'ends_with', 'exists', 'file', 'filled', 'gt', 'gte', 'image', 'in',
-            'integer', 'ip', 'json', 'lowercase', 'lt', 'lte', 'max', 'mimes', 'min', 'multiple_of',
-            'not_in', 'nullable', 'numeric', 'present', 'prohibited', 'regex', 'required',
-            'required_if', 'required_unless', 'required_with', 'required_without', 'same', 'size',
-            'sometimes', 'starts_with', 'string', 'timezone', 'unique', 'uppercase', 'url', 'uuid',
-        ];
-
+        $bekannt = $this->vocabulary();
         $gefunden = [];
-        $wurzel = dirname(__DIR__, 2).'/app';
 
-        /** @var SplFileInfo $file */
-        foreach (new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($wurzel, FilesystemIterator::SKIP_DOTS),
-        ) as $file) {
-            if (! $file->isFile() || $file->getExtension() !== 'php') {
-                continue;
-            }
-
-            $quelle = (string) file_get_contents($file->getPathname());
-
-            foreach ($bekannt as $regel) {
-                if (preg_match("/'".preg_quote($regel, '/')."(:[^']*)?'/", $quelle) === 1) {
+        foreach ($this->sources() as $quelle) {
+            foreach ($this->rulesIn($quelle) as $regel) {
+                if (in_array($regel, $bekannt, true)) {
                     $gefunden[$regel] = true;
                 }
             }
@@ -107,6 +131,273 @@ final class ValidationLanguageTest extends TestCase
         ksort($gefunden);
 
         return array_keys($gefunden);
+    }
+
+    /**
+     * Die Namen, die Laravel überhaupt als Prüfregel kennt.
+     *
+     * **Aus seiner eigenen Datei und nicht aus einer Liste hier.** Eine Liste
+     * im Test fällt zurück, sobald jemand eine Regel benutzt, an die niemand
+     * gedacht hat — und zwar lautlos, weil eine unbekannte Regel hier einfach
+     * nicht mitgezählt wird.
+     *
+     * Sie ist die **Grundmenge**, nicht die Anforderung: Verlangt wird ein
+     * deutscher Satz nur für die Regeln, die `app/` wirklich benutzt.
+     *
+     * @return list<string>
+     */
+    private function vocabulary(): array
+    {
+        $pfad = dirname(__DIR__, 2)
+            .'/vendor/laravel/framework/src/Illuminate/Translation/lang/en/validation.php';
+
+        $this->assertFileExists(
+            $pfad,
+            'Laravels eigene Regelliste ist nicht da. Ohne sie kennt dieser Wächter keinen '.
+            'einzigen Regelnamen und wäre grün, ohne etwas gemessen zu haben.',
+        );
+
+        /** @var array<string, mixed> $englisch */
+        $englisch = require $pfad;
+
+        return array_values(array_diff(
+            array_keys($englisch),
+            // Keine Regeln, sondern die Ablagen für eigene Sätze und Feldnamen.
+            ['custom', 'attributes', 'values'],
+        ));
+    }
+
+    /**
+     * Der Quelltext jeder PHP-Datei unter `app/`.
+     *
+     * @return list<string>
+     */
+    private function sources(): array
+    {
+        $quellen = [];
+        $wurzel = dirname(__DIR__, 2).'/app';
+
+        /** @var SplFileInfo $file */
+        foreach (new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($wurzel, FilesystemIterator::SKIP_DOTS),
+        ) as $file) {
+            if ($file->isFile() && $file->getExtension() === 'php') {
+                $quellen[] = (string) file_get_contents($file->getPathname());
+            }
+        }
+
+        return $quellen;
+    }
+
+    /**
+     * Die Regelnamen in den Validierungsaufrufen einer Datei.
+     *
+     * @return list<string>
+     */
+    private function rulesIn(string $quelle): array
+    {
+        $tokens = token_get_all($quelle);
+        $anzahl = count($tokens);
+        $regeln = [];
+
+        for ($i = 0; $i < $anzahl; $i++) {
+            $klammer = $this->validationCallAt($tokens, $i);
+
+            if ($klammer === null) {
+                continue;
+            }
+
+            $ende = $this->closingParenthesis($tokens, $klammer);
+
+            for ($j = $klammer + 1; $j < $ende; $j++) {
+                $objekt = $this->ruleObjectAt($tokens, $j);
+
+                if ($objekt !== null) {
+                    [$name, $auf] = $objekt;
+                    $regeln[] = $this->snake($name);
+
+                    // Der Inhalt zählt nicht: Dort stehen Tabellen und Spalten,
+                    // und `accounts` ist keine Prüfregel.
+                    $j = $this->closingParenthesis($tokens, $auf);
+
+                    continue;
+                }
+
+                $token = $tokens[$j];
+
+                if (! is_array($token) || $token[0] !== T_CONSTANT_ENCAPSED_STRING) {
+                    continue;
+                }
+
+                // Ein Schlüssel ist der Feldname und keine Regel. Genau daran
+                // ist die Suche nach `current_password` einmal hängengeblieben.
+                $naechstes = $this->nextSignificant($tokens, $j, $ende);
+
+                if ($naechstes !== null && is_array($tokens[$naechstes]) && $tokens[$naechstes][0] === T_DOUBLE_ARROW) {
+                    continue;
+                }
+
+                $wert = trim($token[1], "'\"");
+                $doppelpunkt = strpos($wert, ':');
+
+                $regeln[] = $doppelpunkt === false ? $wert : substr($wert, 0, $doppelpunkt);
+            }
+
+            $i = $ende;
+        }
+
+        return array_values(array_unique($regeln));
+    }
+
+    /**
+     * Beginnt hier `->validate(` oder `Validator::make(`? Dann die Stelle der
+     * öffnenden Klammer.
+     *
+     * @param  list<array{0: int, 1: string, 2: int}|string>  $tokens
+     */
+    private function validationCallAt(array $tokens, int $i): ?int
+    {
+        $token = $tokens[$i];
+
+        if (! is_array($token) || $token[0] !== T_STRING) {
+            return null;
+        }
+
+        $davor = $this->previousSignificant($tokens, $i);
+
+        if ($davor === null || ! is_array($tokens[$davor])) {
+            return null;
+        }
+
+        $passt = false;
+
+        if ($token[1] === 'validate' && $tokens[$davor][0] === T_OBJECT_OPERATOR) {
+            $passt = true;
+        }
+
+        if ($token[1] === 'make' && $tokens[$davor][0] === T_DOUBLE_COLON) {
+            $klasse = $this->previousSignificant($tokens, $davor);
+
+            $passt = $klasse !== null
+                && is_array($tokens[$klasse])
+                && $tokens[$klasse][0] === T_STRING
+                && $tokens[$klasse][1] === 'Validator';
+        }
+
+        if (! $passt) {
+            return null;
+        }
+
+        $auf = $this->nextSignificant($tokens, $i, count($tokens));
+
+        return $auf !== null && $tokens[$auf] === '(' ? $auf : null;
+    }
+
+    /**
+     * Steht hier `Rule::name(`? Dann der Name und die Stelle seiner Klammer.
+     *
+     * @param  list<array{0: int, 1: string, 2: int}|string>  $tokens
+     * @return array{0: string, 1: int}|null
+     */
+    private function ruleObjectAt(array $tokens, int $i): ?array
+    {
+        $token = $tokens[$i];
+
+        if (! is_array($token) || $token[0] !== T_STRING || $token[1] !== 'Rule') {
+            return null;
+        }
+
+        $doppel = $this->nextSignificant($tokens, $i, count($tokens));
+
+        if ($doppel === null || ! is_array($tokens[$doppel]) || $tokens[$doppel][0] !== T_DOUBLE_COLON) {
+            return null;
+        }
+
+        $name = $this->nextSignificant($tokens, $doppel, count($tokens));
+
+        if ($name === null || ! is_array($tokens[$name]) || $tokens[$name][0] !== T_STRING) {
+            return null;
+        }
+
+        $auf = $this->nextSignificant($tokens, $name, count($tokens));
+
+        if ($auf === null || $tokens[$auf] !== '(') {
+            return null;
+        }
+
+        return [$tokens[$name][1], $auf];
+    }
+
+    /**
+     * Die Stelle der Klammer, die die bei `$auf` wieder schliesst.
+     *
+     * @param  list<array{0: int, 1: string, 2: int}|string>  $tokens
+     */
+    private function closingParenthesis(array $tokens, int $auf): int
+    {
+        $tiefe = 0;
+        $anzahl = count($tokens);
+
+        for ($i = $auf; $i < $anzahl; $i++) {
+            if ($tokens[$i] === '(') {
+                $tiefe++;
+            } elseif ($tokens[$i] === ')') {
+                $tiefe--;
+
+                if ($tiefe === 0) {
+                    return $i;
+                }
+            }
+        }
+
+        return $anzahl - 1;
+    }
+
+    /**
+     * Das nächste Token, das kein Leerraum und kein Kommentar ist.
+     *
+     * @param  list<array{0: int, 1: string, 2: int}|string>  $tokens
+     */
+    private function nextSignificant(array $tokens, int $i, int $ende): ?int
+    {
+        for ($j = $i + 1; $j < min($ende, count($tokens)); $j++) {
+            if (! $this->isNoise($tokens[$j])) {
+                return $j;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Das vorige Token, das kein Leerraum und kein Kommentar ist.
+     *
+     * @param  list<array{0: int, 1: string, 2: int}|string>  $tokens
+     */
+    private function previousSignificant(array $tokens, int $i): ?int
+    {
+        for ($j = $i - 1; $j >= 0; $j--) {
+            if (! $this->isNoise($tokens[$j])) {
+                return $j;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array{0: int, 1: string, 2: int}|string  $token
+     */
+    private function isNoise(array|string $token): bool
+    {
+        return is_array($token)
+            && in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true);
+    }
+
+    /** `requiredIf` heisst als Meldungsschlüssel `required_if`. */
+    private function snake(string $name): string
+    {
+        return strtolower((string) preg_replace('/(?<!^)([A-Z])/', '_$1', $name));
     }
 
     /** @return array<string, mixed> */
@@ -238,6 +529,53 @@ final class ValidationLanguageTest extends TestCase
                 $muss,
                 $regeln,
                 sprintf('`%s` steht in jedem zweiten Formular und wird nicht gefunden.', $muss),
+            );
+        }
+
+        // **Und die zweite Form.** `unique` steht in diesem Panel an fünf
+        // Stellen und an keiner als `'unique'` — es reist ausschliesslich als
+        // `Rule::unique(…)`. Genau daran war dieser Wächter blind, und genau
+        // deshalb steht es hier: Eine Untergrenze aus drei Zeichenketten hätte
+        // den Fehler nicht bemerkt.
+        foreach (['unique', 'enum'] as $objekt) {
+            $this->assertContains(
+                $objekt,
+                $regeln,
+                sprintf(
+                    '`%s` wird in `app/` nur als `Rule::…()` benutzt und nicht gefunden. Dann liest '.
+                    'dieser Wächter wieder nur Zeichenketten, und die Objektform ist ihm unsichtbar.',
+                    $objekt,
+                ),
+            );
+        }
+    }
+
+    /**
+     * Die Grundmenge kommt aus Laravels eigener Datei.
+     *
+     * **Ohne diese Prüfung wäre der Rückfall auf eine Liste im Test nicht zu
+     * sehen.** Sie war der erste der drei Gründe, aus denen dieser Wächter zu
+     * `date_format` und `enum` geschwiegen hat: Beide standen nicht darin.
+     */
+    public function test_the_vocabulary_is_not_a_list_in_this_test(): void
+    {
+        $bekannt = $this->vocabulary();
+
+        $this->assertGreaterThan(
+            100,
+            count($bekannt),
+            sprintf(
+                'Laravel kennt über hundert Prüfregeln, gefunden sind %d. Dann kommt die Grundmenge '.
+                'nicht mehr aus seiner Datei, und was sie nicht kennt, zählt dieser Wächter nicht mit.',
+                count($bekannt),
+            ),
+        );
+
+        foreach (['date_format', 'enum', 'unique'] as $regel) {
+            $this->assertContains(
+                $regel,
+                $bekannt,
+                sprintf('`%s` fehlt in der Grundmenge — und dann fehlt es auch im Befund.', $regel),
             );
         }
     }

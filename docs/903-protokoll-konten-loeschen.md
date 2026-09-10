@@ -761,14 +761,33 @@ gelöscht worden.
 das ist wörtlich der benannte Rest aus `docs/901 §9`: Ihre Protokollzeilen sind
 über `account_name` nicht mehr auseinanderzuhalten.
 
-**Hier bleibt es folgenlos, und der Grund ist messbar:** Das zweite „Wegwerf"
-hat sich nie angemeldet — es trägt keine einzige Zeile als Handelnder. Die sechs
-Zeilen unter diesem Namen gehören alle dem ersten.
+**Hier bleibt es folgenlos, und das ist gemessen und nicht hergeleitet:**
 
-**Und die Bindung hält, wo `docs/901 §9` sie verspricht:** Es gibt **zwei**
-Einträge `account.deleted`, jeder mit eigenem `target_id` und eigenem
-Zusammenhang aus Name, Adresse und Rolle. Was der Abschrift auf den übrigen
-Zeilen fehlt, steht dort einmal pro Konto.
+```
+Zeilen unter dem Namen: 6
+2026-09-10 18:40:12  ziel=11  {"name":"Wegwerf","email":"wegwerf@cloudlab24.de","role":"administrator"}
+2026-09-10 18:36:50  ziel=8   {"name":"Wegwerf","email":"wegwerf@cloudlab24.de","role":"operator"}
+```
+
+Weiterhin **sechs** — das zweite „Wegwerf" hat sich nie angemeldet und keine
+einzige Zeile als Handelnder hinterlassen. Die sechs gehören alle dem ersten.
+Der erste Wurf dieses Absatzes hat das aus der Spalte „letzte Anmeldung"
+geschlossen; die Zahl sagt es.
+
+> **Eine Herleitung, die stimmt, ist trotzdem keine Messung — und welche von
+> beiden dasteht, sieht man ihr später nicht an.**
+
+**Und die Bindung hält, wo `docs/901 §9` sie verspricht:** zwei Einträge
+`account.deleted`, **verschiedenes `ziel`** (11 und 8), gleicher Name, gleiche
+Adresse — und **verschiedene Rolle**. Das erste „Wegwerf" war `operator`, das
+zweite `administrator`.
+
+> **Derselbe Name und dieselbe Adresse bedeuten nicht dieselben Rechte — und
+> was sie zum Zeitpunkt der Handlung waren, steht an genau einer Stelle.**
+
+Damit ist der Rest aus `docs/901 §9` nicht nur hergestellt, sondern auch seine
+Gegenseite: Über `account_name` sind die beiden ununterscheidbar, über ihren
+Löscheintrag sind sie es nicht.
 
 > **Eine Grenze, die man beim Aufräumen selbst herstellt, ist besser belegt als
 > eine, die man beim Planen aufschreibt.**

@@ -705,7 +705,47 @@ für A14 dasselbe Verhältnis notiert.
 
 ---
 
-### 11.2 Die Reihenfolge für den Rest — neu, gegen den vollständigen Bestand
+## 12. Punkt 4 — erfüllt, und die Spaltenzahl ist gemessen und nicht angenommen
+
+```
+"Zeitpunkt (UTC)",Aktion,Ergebnis,Wer,"Im Kontext von",Abonnement,Ziel,Einzelheiten,IP
+grep -c 'Wegwerf (gelöscht)'  →  6
+```
+
+**Die vierte Spalte heisst `Wer`.** Dass sie eine **Umbenennung** ist und keine
+zusätzliche Spalte, steht nicht in einer Erinnerung, sondern im Vergleich gegen
+den Stand vor dem Zweig (`08a0b555`):
+
+```
+vorher:  'Zeitpunkt (UTC)', 'Aktion', 'Ergebnis', 'Konto', 'Im Kontext von', …
+jetzt:   'Zeitpunkt (UTC)', 'Aktion', 'Ergebnis', 'Wer',   'Im Kontext von', …
+```
+
+**Neun Spalten vorher, neun nachher.** Der Unterschied ist ihr Inhalt: Dort
+stand die nackte Kennung, hier steht der Name. Wer die CSV weiterverarbeitet,
+muss genau das wissen — eine Spalte mehr bräche jeden Leser, eine umbenannte
+mit anderem Inhalt bricht ihn stiller.
+
+> **Eine Zusage über eine Spaltenzahl, die man nicht gezählt hat, ist eine
+> Vermutung mit Anspruch.**
+
+**Die Sechs ist dieselbe Sechs wie in §9 und auf der Seite** — die sechs Zeilen,
+in denen das gelöschte Konto der **Handelnde** war. Der siebte Ort, an dem es
+vorkommt, ist der Eintrag `account.deleted`: Dort steht es als **Ziel**
+(`Account#8`) und sein Name in den Einzelheiten, ohne den Zusatz. Der Zusatz
+gehört zur Spalte „Wer" und nicht zum Namen.
+
+**Und die Kopfzeile nennt die Zone.** `"Zeitpunkt (UTC)"` — die Ausfuhr bleibt
+UTC, während die Seite in der Anzeigezone rechnet (`docs/40`, §8.1 dieses
+Protokolls). Dass die **Werte** der Kopfzeile folgen, ist hier nicht mitgemessen
+worden; der Block in §9 zeigt dieselben Zeilen in UTC.
+
+> **Eine Kopfzeile, die eine Zone nennt, ist eine Zusage über die Spalte — kein
+> Beleg für den Wert darin.**
+
+---
+
+### 12.1 Die Reihenfolge für den Rest — neu, gegen den vollständigen Bestand
 
 Die erste Fassung dieser Reihenfolge stand gegen einen Bestand aus zwei Konten
 und wollte „Dritte Verwaltung" zum Betreiber heben. Gegen fünf Konten gerechnet

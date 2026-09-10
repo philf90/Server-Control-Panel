@@ -123,3 +123,56 @@ zwei Spalten nicht unterscheiden — die Handlung weiss es, nicht der Handelnde.
 Wo die Behebung hingehört, entscheidet der Betreiber nach dem Lauf; ein
 Abnahmelauf, der seinen Prüfling während des Fahrens ändert, misst danach einen
 anderen.
+
+---
+
+## 3. Punkt 6a — erfüllt, mit der Gegenprobe im selben Bild
+
+Gemessen auf `/accounts` am Telefon, dunkles Thema:
+
+| Konto | Rolle | Marke | Knöpfe |
+|---|---|---|---|
+| Administrator (`philipp@netzhost24.de`) | Betreiber | **letzter** | nur *Bearbeiten* |
+| Dritte Verwaltung (`test@homesrv24.de`) | Administrator | — | *Bearbeiten*, **Löschen** |
+
+**Die zweite Zeile ist das, was die erste zu einer Messung macht.** „Kein
+Löschknopf" allein liesse offen, ob die Regel greift oder ob der Knopf
+überhaupt nirgends steht — etwa nach einem halben Bau. Beide Zustände auf
+demselben Bildschirm schliessen das aus.
+
+> **Eine Abwesenheit ist nur dann ein Befund, wenn die Anwesenheit im
+> Erfolgsfall daneben steht.**
+
+Nebenbei belegt: `is_last_operator` folgt der **Rolle** und nicht dem Kontotyp.
+„Dritte Verwaltung" ist aktiv und Admin, aber kein Betreiber, zählt also nicht
+in `LastOperator::active()` — und trägt deshalb zu Recht weder die Marke noch
+den fehlenden Knopf.
+
+### 3.1 Die Reihenfolge für den Rest — und die eine Falle darin
+
+**Punkt 6b und 6c gehören vor alles andere.** Sie brauchen den Zustand „ein
+einziger aktiver Betreiber", und der steht **jetzt** da. Wird „Dritte
+Verwaltung" vorher zum Betreiber gemacht, ist er fort und müsste hergestellt
+werden.
+
+**Und die Falle, die nach dem Löschen nicht mehr zu beheben ist:** „Dritte
+Verwaltung" hat `letzte Anmeldung: noch nie` und `zweiter Faktor: noch nicht`.
+Damit trägt sie **keine einzige Protokollzeile als Handelnde** — die Zeile ihrer
+Anlage gehört dem Betreiber, der sie angelegt hat.
+
+> **Punkt 2 misst die Zeilen des gelöschten Kontos. Hat es keine, ist er nach
+> dem Löschen nicht offen, sondern für dieses Konto für immer unmessbar.**
+
+Die Reihenfolge daraus:
+
+1. **Punkt 6b/6c** im Ist-Zustand (ein Betreiber).
+2. „Dritte Verwaltung" auf **Betreiber** heben → zwei aktive Betreiber.
+3. **Punkt 7b/7c** — das eigene Konto bei zweien.
+4. Als „Dritte Verwaltung" **anmelden**, zweiten Faktor einrichten, eine Seite
+   aufrufen. Das erzeugt die Zeilen für Punkt 2. Eine **zweite** Sitzung offen
+   lassen (Punkt 9).
+5. **Vor** dem Löschen messen: Punkt 1 (`= 1`), Punkt 2 (Kennung **und** Name),
+   Punkt 9 (`>= 1`), Punkt 8 als Gegenprobe (die Adresse ist vergeben).
+6. Löschen.
+7. **Nach** dem Löschen: dieselben vier, dazu Punkt 3, 4 und 10.
+8. **Punkt 11**, die Bilderrunde.

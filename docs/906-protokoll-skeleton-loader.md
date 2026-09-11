@@ -517,6 +517,42 @@ Vorgang an, und damit liest sie niemand. Jetzt ist es gemessen.
 
 ---
 
+## §10a Befund 3 — die Begründung von Punkt 10 nannte eine Sperre, die es nicht gibt
+
+**Gefunden vor dem Fahren, am Quelltext.** `docs/905 §12` begründete Punkt 10
+mit der **Sitzungssperre**: Die nachgereichte Anfrage halte die Sitzung so
+lange, wie der synchrone Aufruf sie vorher gehalten habe. Nachgesehen gibt es
+diese Sperre in diesem Panel nicht.
+
+| Quelle | gemessen |
+|---|---|
+| `Ops/PanelProvision.php:104` | schreibt `SESSION_DRIVER => 'database'` nach `/etc/srvpanel/panel.env` |
+| `config/session.php:21` | `env('SESSION_DRIVER', 'database')` — dieselbe Vorgabe |
+| `Illuminate\Session\DatabaseSessionHandler::read()` | kein `lockForUpdate`, keine Sperre |
+| `packaging/etc/fpm.conf` | `pm = dynamic`, `pm.max_children = 12`, `pm.start_servers = 2` |
+
+Gesperrt hätte der **Dateitreiber**, und den benutzt hier niemand.
+
+**Der Punkt selbst bleibt und ist unverändert wertvoll** — er fragt die
+**Wirkung** und nicht den Riegel. Was die falsche Begründung angerichtet hätte,
+ist die Lesart: Ein schneller Wechsel wäre als „die Sperre ist kurz" ins
+Protokoll gegangen, also als Messung eines Mechanismus, den es nicht gibt.
+
+> **Ein Abnahmelauf, der eine ungeprüfte Annahme als Anweisung führt, prüft sie
+> nicht — er führt sie aus.**
+
+**Und der Prüfkörper hat dabei seine Gegenprobe bekommen.** Er druckte nur die
+Dauer des Wechsels. Ob die Nachreichung im Augenblick des Klicks überhaupt noch
+lief, stand nirgends — und ein Wechsel, der stattfindet, nachdem die drei
+Sekunden vorbei sind, misst nichts. Er druckt jetzt `beim_klick` mit der Seite
+und `nachreichung_offen` mit.
+
+> **Eine Messung, die ihren Zustand nicht mitdruckt, ist von einer, die ihn
+> nicht hatte, nicht zu unterscheiden.** Zum zweiten Mal in diesem Lauf nach
+> Befund 1 (§1.1) — dort hat derselbe Satz den falschen Unitnamen überführt.
+
+---
+
 ## §11 und §12 — offen
 
 | Punkt | Stand |

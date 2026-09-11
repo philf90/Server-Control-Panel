@@ -126,8 +126,9 @@ sie ungemessen ausgeliefert.
 **Punkt 10** fragt, ob das Panel während der drei Sekunden bedienbar bleibt.
 **Der Container kann das grundsätzlich nicht beantworten:** `artisan serve`
 bedient eine Anfrage gleichzeitig, dort steht jede Navigation ohnehin an. Auf
-php-fpm entscheidet die Sitzungssperre, und die ist eine Eigenschaft des
-Servers.
+php-fpm entscheidet die Nebenläufigkeit des Servers — **und nicht die
+Sitzungssperre, wie hier zuerst stand**; die Berichtigung samt dem, was im
+Quelltext nachgesehen wurde, steht bei dem Punkt selbst (§12).
 
 > **Eine Frage, die das Prüfmittel selbst beantwortet, ist an ihm nicht
 > messbar.**
@@ -536,28 +537,56 @@ Gewollte und ein Hinweis, kein Urteil.
 *(darf ausfallen)*
 
 **Der Container kann das nicht beantworten** (§0), und deshalb steht es hier.
-Die nachgereichte Anfrage hält die Sitzung so lange, wie der synchrone Aufruf
-sie vorher gehalten hat — das ist die Erwartung und keine Messung.
+
+**Die Begründung dieses Punktes war beim Ausschreiben falsch, und sie ist vor
+dem Fahren berichtigt worden.** Dort stand, die nachgereichte Anfrage halte „die
+Sitzung" so lange wie der synchrone Aufruf vorher — eine **Sitzungssperre** gibt
+es in diesem Panel aber gar nicht. `PanelProvision` schreibt
+`SESSION_DRIVER=database` nach `/etc/srvpanel/panel.env`, und Laravels
+`DatabaseSessionHandler::read()` nimmt keine Sperre (kein `lockForUpdate`, im
+Quelltext nachgesehen); gesperrt hätte der Dateitreiber, und den benutzt hier
+niemand. Der zweite denkbare Riegel ist die Arbeiterzahl von php-fpm, und
+`packaging/etc/fpm.conf` führt `pm.max_children = 12` bei `pm = dynamic`.
+
+> **Ein Abnahmelauf, der eine ungeprüfte Annahme als Anweisung führt, prüft sie
+> nicht — er führt sie aus.**
+
+Die Frage bleibt trotzdem stehen, denn sie gilt der **Wirkung** und nicht dem
+Riegel: Kommt eine zweite Anfrage durch, während die erste noch läuft? Was sich
+ändert, ist die Lesart des Ergebnisses — ein schneller Wechsel belegt dann nicht
+eine kurze Sperre, sondern dass keine im Weg steht.
 
 Auf `/updates` navigieren und **während** der drei Sekunden auf einen anderen
 Menüpunkt klicken:
 
 ```js
 const g = document.getElementById('app').__vue_app__.config.globalProperties
-const t0 = performance.now()
 g.$inertia.visit('/updates')
 setTimeout(() => {
+  const vorher = { seite: g.$page.url, nachreichung_offen: g.$page.props.packages === undefined }
   const t1 = performance.now()
   g.$inertia.visit('/services', {
-    onSuccess: () => console.log('Wechsel nach', Math.round(performance.now() - t1), 'ms'),
+    onFinish: () => console.log(JSON.stringify({
+      beim_klick: vorher,
+      danach: g.$page.url,
+      wechsel_ms: Math.round(performance.now() - t1),
+    })),
   })
 }, 800)
 ```
 
-**Erfüllt, wenn** der Wechsel in unter **1500 ms** durchkommt. Dauert er so
-lange wie der Rest der nachgereichten Anfrage, hält die Sitzungssperre den
-Betreiber fest — dann ist es ein Befund und gehört ins Protokoll, samt der
-Frage, ob dieselbe Sperre vorher genauso lange stand.
+**`beim_klick` ist die Gegenprobe und keine Beigabe.** Steht dort
+`nachreichung_offen: false`, war die Nachreichung schon zurück, und der Wechsel
+hat nichts gemessen — dann wird der Abstand verkürzt und noch einmal gefahren.
+Steht dort eine andere Seite als `/updates`, war die erste Fahrt noch unterwegs.
+
+> **Eine Messung, die ihren Zustand nicht mitdruckt, ist von einer, die ihn
+> nicht hatte, nicht zu unterscheiden.**
+
+**Erfüllt, wenn** `nachreichung_offen: true` ist **und** der Wechsel in unter
+**1500 ms** durchkommt. Dauert er so lange wie der Rest der nachgereichten
+Anfrage, hält etwas den Betreiber fest — dann ist es ein Befund und gehört ins
+Protokoll, samt der Frage, was es ist.
 
 ---
 

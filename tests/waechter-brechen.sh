@@ -27439,6 +27439,47 @@ pruefe "  … zurückgesetzt wieder grün" UnitNameReachTest passed
 
 
 echo
+echo "── NavBadgeTest: eine Zustandsfarbe im Navigationsstreifen ──"
+#
+# Der Anlass ist gemessen: `.badge.warn` im Streifen ergibt **2,67:1** im
+# hellen Thema, weil die Farbe gegen den Seitengrund gerechnet ist und der
+# Streifen in beiden Themen dunkel steht (`docs/907 §1.2`).
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'class="badge count"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'class="badge warn"', 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Zustandsfarbe im Streifen" &&
+pruefe "Zustandsfarbe im Streifen" \
+  NavBadgeTest::test_no_badge_in_the_rail_carries_a_state_colour failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavBadgeTest passed
+
+echo
+echo "── NavBadgeTest: die Marke der Seite statt der des Streifens ──"
+#
+# Die zweite Haelfte derselben Regel, und die gefaehrlichere: Hier steht im
+# Markup weiterhin `count`, und nur die Regel dahinter liest die falsche
+# Marke. Im Browser sieht das aus wie ein Abzeichen — nur unlesbar.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.badge.count {\n  padding: 0 8px;\n  color: var(--accent);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace('var(--accent)', 'var(--warn)'), 1))
+PY2
+griff_datei resources/css/app.css "Marke der Seite im Streifen" &&
+pruefe "Marke der Seite im Streifen" \
+  NavBadgeTest::test_the_count_badge_reads_only_tokens_the_rail_redefines failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavBadgeTest passed
+
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

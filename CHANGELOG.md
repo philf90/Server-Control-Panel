@@ -27388,3 +27388,101 @@ Anfrage je Gruppe). Sie wählt nur zwischen zwei Slots — und dafür müssten
 > **Ein Wächter, der ein Werkzeug verlangt, prüft das Werkzeug. Der Zustand
 > darunter ist die Regel** — `DeferredPropTest` hält deshalb `undefined` und
 > liest `<Deferred>` trotzdem mit.
+
+## Ein Abzeichen am Menüpunkt „Updates"
+
+Der Betreiber hat gefragt, ob die Zahl der offenen Aktualisierungen in die
+Navigation kann. **Der Plan dazu ist `docs/907`, und er steht nach der
+Messrunde** — vier der fünf Messungen haben den Entwurf verändert, bevor eine
+Zeile Code entstand.
+
+### Was die Messung entschieden hat
+
+**Die Zahl live zu holen ist um Grössenordnungen ausgeschlossen.**
+`system.packages.list` kostet gemessen 2954–3644 ms auf `cloudsrv24`, ein
+abgelegtes Lesen **0,104 ms** (SQLite) und **0,279 ms** (MariaDB 10.11.14, die
+Fassung des Servers). Die Navigation steht auf jeder Seite; ein Abzeichen, das
+fragt, machte jede Seite des Panels drei Sekunden langsam. Auch ein Nachreichen
+über `Inertia::defer()` in `share()` fällt aus — es setzte bei jedem
+Seitenaufruf einen apt-Lauf ab.
+
+Geschrieben wird die Zahl deshalb dort, wo sie **ohnehin anfällt**: Wer
+`/updates` öffnet, bezahlt den Aufruf, und das Ergebnis wird festgehalten statt
+weggeworfen. `srvpanel packages` samt stündlichem Timer ist der Rückfall für
+das, was ausserhalb des Panels geschieht — `unattended-upgrades` und
+`apt-daily` arbeiten auf eigenem Takt.
+
+**`null` heisst „nicht nachgesehen" und nicht „nichts zu tun".** Hätte die
+Ablage eine `0` für den ungemessenen Fall, stünde am Menüpunkt eine Auskunft,
+die niemand erhoben hat — derselbe Fehler, mit dem P7b angefangen hat.
+
+### Was vorher falsch gewesen wäre
+
+**Eine Zustandsfarbe im Navigationsstreifen.** `.rail` und `.topbar` führen
+einen eigenen Markensatz; `--nav-bg` ist in **beiden** Themen `#1a0b2e`, also
+dunkel, während die Seite daneben im hellen Thema hell ist. Gemessen:
+
+| Fassung | hell | dunkel |
+|---|---|---|
+| `.badge.warn` im Streifen | **2,67:1** — fällt durch | 7,04:1 |
+| `.badge.count` aus den Marken des Streifens | **8,42:1** | **8,42:1** |
+
+Die 8,42 stehen zweimal unabhängig da: einmal gemessen, einmal im Kommentar
+über `.rail`, der sie für die Fläche des aktiven Menüpunkts längst nennt. Und
+`app.css` sagt die Regel selbst:
+
+> **Eine Markenfläche endet dort, wo eine Zustandsfarbe anfängt — sonst ist sie
+> keine Fläche, sondern ein zweites Theme.**
+
+**Eine Regel genügt für beide Orte**, weil Marken kaskadieren: `.badge.count`
+liest `var(--accent)`, und das löst im Streifen auf dessen Peach auf, auf einer
+Seite auf den Akzent der Seite. Eine zweite Regel für den Streifen wäre die,
+die veraltet. `NavBadgeTest` hält beide Hälften — kein `.badge` im Streifen
+trägt eine Zustandsvariante, und `.badge.count` liest ausschliesslich Marken,
+die der Streifen selbst neu setzt.
+
+### Die breite Ansicht war die engere
+
+| Breite | Schiene | je Eintrag frei |
+|---|---|---|
+| 1440 px | 236 px | **203 px** |
+| 390 px | 272 px | 239 px |
+
+Bei 390 px ist das Abzeichen gratis — der Eintrag liegt dort schon auf dem
+Mindestmass von `--tap`. Bei 1440 px hätte `.badge` in ihrer heutigen Form
+**5 px Höhe** gekostet, an genau einem Eintrag: `::before` ist ein 6-px-Kreis
+mit `gap: 6px`, und `padding: 3px 10px` macht die Marke 26 px hoch gegen eine
+Zeilenhöhe von 21. Ohne Punkt und mit `padding: 0 8px` misst sie **34 × 20 px**,
+und der Eintrag bleibt bei 39 — kein Layoutunterschied zu seinen siebzehn
+Nachbarn.
+
+> **Ein Fehler, den nur die breite Ansicht hat, entgeht einer Prüfung, die auf
+> die schmale zielt.** Zum dritten Mal nach dem A9-Lauf und A14.
+
+### Was die Messung über sich selbst gelernt hat
+
+**Zwei eigene Prüfkörper haben je die Hälfte gesehen.** Die Breitenmessung
+meldete für jeden Eintrag `0` — `.nav-item` ist eine Flexzeile, und der Text
+bricht um statt überzulaufen; der Schaden hätte keine Breite gehabt, sondern
+eine Höhe. Die Höhenmessung gab für ein zwölfstelliges Abzeichen denselben Wert
+wie für ein zweistelliges — das bricht nicht um, es läuft über. Erst beide
+nebeneinander zeigen 39 → 44 **und** 28 px Überlauf.
+
+> **Zwei Messungen, von denen die eine den Schaden manchmal sieht, ersetzen
+> einander nicht.**
+
+**Und der Aufsatz brauchte das `data-v`-Attribut.** `.nav-item` steht in einem
+`<style scoped>`; Vite übersetzt das zu `.nav-item[data-v-219b02fc]`. Ohne das
+Attribut am handgeschriebenen Markup hätte der Aufsatz **keine einzige**
+Navigationsregel getroffen und trotzdem Zahlen geliefert.
+
+### Ein Fund am eigenen Plan
+
+`docs/907 §3.2` verlangte, der stündliche Lauf solle vor dem Aufruf `AptLock`
+fragen. Im Quelltext steht begründet das Gegenteil: `system.packages.list` ist
+die **eine** Operation, die die Sperre nicht braucht, weil `apt-get -s` bei
+gehaltener Sperre läuft — `AptLockReachTest::EXCEPTIONS` trägt sie mit genau
+diesem gemessenen Grund.
+
+> **Ein Plan, der eine Vorkehrung verlangt, die der Prüfling begründet nicht
+> braucht, prüft den Verfasser.**

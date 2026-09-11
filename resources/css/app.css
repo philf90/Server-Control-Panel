@@ -4954,6 +4954,42 @@ p:not([class]) {
   background: var(--accent-surface);
 }
 
+/*
+ * Eine Zahl an einem Menüpunkt — die Marke der Fläche, auf der sie steht, und
+ * keine Zustandsfarbe.
+ *
+ * **Warum keine der fünf Varianten darüber.** `.rail` und `.topbar` führen
+ * acht eigene Marken; `--warn` gehört nicht dazu. Gemessen ergibt
+ * `.badge.warn` im Streifen **2,67:1** im hellen Thema — die Farbe ist gegen
+ * den Seitengrund gerechnet, und der Streifen ist in beiden Themen dunkel
+ * (`#1a0b2e`). Mit `--accent` sind es **8,42:1 in beiden**, und das ist genau
+ * die Zahl, die der Kommentar über `.rail` für die Fläche des aktiven Punktes
+ * schon nennt (`docs/907 §1.2`).
+ *
+ * > **Eine Markenfläche endet dort, wo eine Zustandsfarbe anfängt.**
+ *
+ * **Und deshalb genügt eine Regel für beide Orte.** Marken kaskadieren: Steht
+ * die Zahl im Streifen, löst `var(--accent)` auf dessen Peach auf; stünde sie
+ * auf einer Seite, auf den Akzent der Seite. Eine zweite Regel für den
+ * Streifen wäre die, die veraltet.
+ *
+ * **Ohne Punkt und mit engerem Polster, und das ist gemessen.** `::before` ist
+ * ein 6-px-Kreis mit `gap: 6px`, und `padding: 3px 10px` macht die Marke 26 px
+ * hoch gegen eine Zeilenhöhe von 21 — der Menüpunkt wüchse damit bei 1440 px
+ * von 39 auf 44 px und stünde höher als seine siebzehn Nachbarn. So misst sie
+ * **34 × 20 px**, und der Eintrag bleibt bei 39.
+ */
+.badge.count {
+  padding: 0 8px;
+  color: var(--accent);
+  background: var(--accent-surface);
+}
+
+/* Der Punkt sagt „ein Zustand"; hier steht eine Anzahl, und die sagt es selbst. */
+.badge.count::before {
+  display: none;
+}
+
 /* Ein Vorgang, der läuft. Der Punkt pulst — und hält an, wenn das
    Betriebssystem weniger Bewegung verlangt (siehe ganz unten). */
 .badge.running::before {

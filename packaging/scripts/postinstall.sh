@@ -191,6 +191,7 @@ restart_services() {
     # `enable --now` auf den *Timer*: Ein `restart` auf srvpanel-usage.service
     # führte die Messung sofort aus und stellte den Takt trotzdem nicht an.
     systemctl enable --now srvpanel-usage.timer >/dev/null 2>&1 || true
+    systemctl enable --now srvpanel-packages.timer >/dev/null 2>&1 || true
     systemctl enable --now srvpanel-tls.timer >/dev/null 2>&1 || true
     systemctl enable --now srvpanel-cron.timer >/dev/null 2>&1 || true
     systemctl enable --now srvpanel-dns.timer >/dev/null 2>&1 || true

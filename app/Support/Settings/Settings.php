@@ -112,6 +112,24 @@ final class Settings
      */
     private const MAINTENANCE = 'maintenance';
 
+    /**
+     * Die Zahl der aktualisierbaren Pakete — für das Abzeichen in der
+     * Navigation.
+     *
+     * **Sie steht hier und nicht in der Leiste, weil sie 3033 ms kostet.**
+     * `system.packages.list` zu fragen ist gemessen dreitausendmal teurer als
+     * diese Zeile zu lesen (`docs/907 §1.1`), und die Navigation steht auf
+     * jeder Seite. Ein Abzeichen, das live fragt, macht jede Seite des Panels
+     * drei Sekunden langsam.
+     *
+     * **Und der Zeitpunkt steht daneben, nicht weil er schön ist.** Ein
+     * abgelegter Wert, der aus „jetzt" folgt, ist ab dem nächsten Augenblick
+     * falsch; `next_due` hat so einen Wert ein Jahr lang über eine Behebung
+     * hinweggetragen (`docs/108`). Wer die Zahl zeigt, entscheidet vorher, was
+     * er bei einer alten tut.
+     */
+    private const PENDING_UPDATES = 'packages.pending';
+
     private ?MailSettings $mail = null;
 
     /** @var list<string>|null */
@@ -414,6 +432,51 @@ final class Settings
             // stünde neben einer Zeile von 03:00:07 ein „zuletzt gemessen
             // 03:00:09", und die beiden wären dieselbe Messung.
             ['value' => ['ran_at' => $ranAt]],
+        );
+    }
+
+    /**
+     * Wie viele Pakete aktualisierbar sind — `null`, wenn es niemand gemessen
+     * hat.
+     *
+     * **`null` und nicht `0`, und das ist der ganze Punkt.** Eine Null hiesse
+     * „nichts zu tun"; „nicht nachgesehen" sieht genauso aus und bedeutet das
+     * Gegenteil. Derselbe Fehler wie M5, mit dem P7b angefangen hat:
+     *
+     * > **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts
+     * > zu tun".**
+     */
+    public function pendingUpdates(): ?int
+    {
+        $zahl = $this->read(self::PENDING_UPDATES)['upgradable'] ?? null;
+
+        return is_int($zahl) ? $zahl : null;
+    }
+
+    /** Wann zuletzt gezählt wurde — `null`, wenn noch nie. */
+    public function pendingUpdatesCheckedAt(): ?string
+    {
+        $at = $this->read(self::PENDING_UPDATES)['checked_at'] ?? null;
+
+        return is_string($at) ? $at : null;
+    }
+
+    /**
+     * Die Zahl festhalten, zusammen mit dem Zeitpunkt.
+     *
+     * Geschrieben wird sie von jeder Stelle, die den Paketstand ohnehin gerade
+     * gelesen hat — die Updates-Seite zahlt den Aufruf bereits, und der
+     * stündliche Lauf ist der Rückfall für das, was ausserhalb des Panels
+     * geschieht.
+     */
+    public function savePendingUpdates(int $upgradable): void
+    {
+        Setting::query()->updateOrCreate(
+            ['key' => self::PENDING_UPDATES],
+            // `toDateTimeString` wie bei den PHP-Versionen: Die Angabe kann in
+            // der Oberfläche stehen, und dort sieht sie aus wie jeder andere
+            // Zeitpunkt im Panel.
+            ['value' => ['upgradable' => $upgradable, 'checked_at' => now()->toDateTimeString()]],
         );
     }
 

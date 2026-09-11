@@ -135,12 +135,20 @@ einem partiellen Nachladen, das ihn gar nicht mitschickt; ein **Verschluss**
 nicht. Bei 2,7 ms für ein partielles Nachladen wäre eine zusätzliche Abfrage
 rund vier Prozent — vermeidbar, also vermieden.
 
-**Die Grenze dieser Zahlen:** Sie sind gegen **SQLite** im Container gemessen,
-der Server läuft MariaDB. Es sind Untergrenzen und keine Serverwerte. Was sie
-tragen, ist das Verhältnis — und das ist vierstellig.
+**Und die Zahl ist gegen beide Treiber gemessen**, weil eine gegen SQLite
+allein die Grenzen der falschen Datenbank prüft:
+
+| `Setting::find()` | je Aufruf |
+|---|---|
+| SQLite (der Container) | **0,104 ms** |
+| **MariaDB 10.11.14** (die Fassung von `cloudsrv24`) | **0,279 ms** |
+
+Faktor 2,7 zwischen den beiden — und die MariaDB-Zahl steht damit immer noch
+rund **zehntausendmal** unter den 2954 ms, die sie ersetzt.
 
 > **Ein Test, der gegen eine andere Datenbank läuft als der Server, prüft die
-> Grenzen der falschen.**
+> Grenzen der falschen.** Die Abfragezahlen oben (voll 3, partiell 2) sind
+> treiberunabhängig; die Millisekunden waren es nicht.
 
 ---
 
@@ -180,9 +188,15 @@ nicht am Knopf — `AwaitDispatchedRun` gibt es seit A1 genau dafür. Am Knopf
 gehängt schriebe er die alte Zahl in dem Augenblick fest, in dem sie sich
 gerade ändert.
 
-Dazu ein stündlicher Timer. **Er fragt vor dem Lauf `AptLock`** — er ruft apt,
-und ein Lauf, der in ein laufendes Upgrade fährt, ist genau die Kollision, die
-A1 Schritt 2 beseitigt hat.
+Dazu ein stündlicher Timer. **Er fragt `AptLock` nicht, und das stand hier
+zuerst falsch.** Der Plan verlangte die Frage, weil der Lauf apt ruft — im
+Quelltext steht begründet das Gegenteil: `system.packages.list` ist die **eine**
+Operation, die die Sperre nicht braucht, weil `apt-get -s` bei gehaltener
+Sperre läuft. `AptLockReachTest::EXCEPTIONS` trägt sie mit genau diesem
+gemessenen Grund.
+
+> **Ein Plan, der eine Vorkehrung verlangt, die der Prüfling begründet nicht
+> braucht, prüft den Verfasser.**
 
 ### 3.3 Was die Navigation liest
 
@@ -203,7 +217,6 @@ drittes Kind klebte sonst am Wort.
 
 ## §4 Was benannt offen bleibt
 
-- **Der Wert gegen MariaDB.** §1.5 ist gegen SQLite gemessen.
 - **Was das Abzeichen tut, wenn der Wert alt ist.** Die Frage ist gestellt und
   nicht beantwortet; ein Vorschlag steht in §3.1 (Zeitpunkt daneben), die
   Entscheidung nicht.

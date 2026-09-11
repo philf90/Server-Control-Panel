@@ -63,6 +63,20 @@ const announcements = computed(
 )
 
 /*
+ * Die Zahl der aktualisierbaren Pakete fürs Abzeichen am Menüpunkt (`docs/907`).
+ *
+ * **`null` heisst „nicht nachgesehen" und nicht „nichts zu tun".** Der Server
+ * legt die Zahl ab, wenn jemand `/updates` öffnet oder der stündliche Lauf sie
+ * holt; vorher gibt es sie nicht, und ein Abzeichen mit `0` behauptete dann
+ * einen Zustand, den niemand gemessen hat.
+ *
+ * **Derselbe Rückfall wie oben und aus demselben Grund:** Beim partiellen
+ * Nachladen schickt der Server geteilte Eigenschaften gar nicht mit, und der
+ * Klient hält die vorige.
+ */
+const pendingUpdates = computed(() => (page.props.pendingUpdates ?? null) as number | null)
+
+/*
  * Die Erfolgsmeldung steht hier und nicht auf jeder Seite.
  *
  * Bis August 2026 brachte sie jede Seite selbst mit — drei Seiten taten es,
@@ -144,13 +158,33 @@ interface NavItem {
   href: string
   icon: string
   ability?: string
+
+  /*
+   * Eine Zahl am Eintrag — heute genau eine, und das ist eine Entscheidung
+   * und keine Sparsamkeit: Der Streifen trägt keine Zustandsfarbe, und wer
+   * dort eine zweite Zahl unterbringen will, misst sie vorher
+   * (`docs/907 §5`).
+   *
+   * `null` heisst „nicht nachgesehen", `0` heisst „nichts offen". Gezeigt
+   * wird nur, was grösser als null ist — beide anderen Fälle sagen dasselbe:
+   * hier gibt es nichts zu holen.
+   */
+  badge?: number | null
 }
 
 function darf(item: NavItem): boolean {
   return item.ability === undefined || abilities.value[item.ability] === true
 }
 
-const navigation = computed(() => {
+/*
+ * **Der Rückgabetyp steht ausdrücklich da, und das ist kein Formalismus.** Die
+ * beiden Zweige schreiben verschiedene Literale — die Kundennavigation trägt
+ * kein `ability` und kein `badge` —, und ohne die Angabe leitet TypeScript
+ * daraus eine Vereinigung ab, in der jedes Feld fehlt, das nicht beide Zweige
+ * schreiben. Die Vorlage bekäme dann einen Fehler für ein Feld, das es sehr
+ * wohl gibt.
+ */
+const navigation = computed<{ group: string | null; items: NavItem[] }[]>(() => {
   if (account.value?.is_admin === false) {
     return [
       { group: null, items: [{ name: 'Übersicht', href: '/', icon: 'overview' }] },
@@ -426,7 +460,7 @@ const navigation = computed(() => {
        * Dieses Projekt hat den Ort eines Menüpunkts dreimal falsch gehabt, und
        * jedes Mal hat es der Betreiber gemeldet und kein Test.
        */
-      { name: 'Updates', href: '/updates', icon: 'updates', ability: 'inspect-server' },
+      { name: 'Updates', href: '/updates', icon: 'updates', ability: 'inspect-server', badge: pendingUpdates.value },
 
       /*
        * **„Diagnose" steht hinter „Updates" und schliesst die Reihe über den
@@ -682,6 +716,7 @@ onBeforeUnmount(() => {
           >
             <NavIcon :name="item.icon" />
             {{ item.name }}
+            <span v-if="(item.badge ?? 0) > 0" class="badge count">{{ item.badge }}</span>
           </Link>
         </template>
       </nav>
@@ -910,6 +945,18 @@ onBeforeUnmount(() => {
 
 .nav-item:hover {
   background: var(--accent-surface);
+}
+
+/*
+ * Die Zahl steht am Zeilenende und nicht neben dem Wort.
+ *
+ * `.nav-item` ist eine Flexzeile mit `gap: 10px` und **ohne**
+ * `justify-content: space-between` — ein drittes Kind bekäme sonst denselben
+ * Abstand wie das Zeichen zum Wort und läse sich als Teil des Namens. Die
+ * Gestalt der Marke selbst steht in `app.css`; hier steht nur, wo sie liegt.
+ */
+.nav-item .badge {
+  margin-left: auto;
 }
 
 /*

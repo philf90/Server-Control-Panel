@@ -8,6 +8,7 @@ use App\Models\Account;
 use App\Support\Audit\Audit;
 use App\Support\Authorization\AdminAbility;
 use App\Support\Operations\Operations;
+use App\Support\Settings\Settings;
 use App\Support\Time\Clock;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -101,7 +102,7 @@ final class UpdatesController extends Controller
      * daneben liest den Agenten nur einmal, weil beide auf dasselbe Ergebnis
      * greifen.
      */
-    public function show(Request $request, Client $agent): Response
+    public function show(Request $request, Client $agent, Settings $settings): Response
     {
         $account = $request->user();
         $operator = $account instanceof Account && $account->can(AdminAbility::OPERATE_SERVER);
@@ -112,8 +113,8 @@ final class UpdatesController extends Controller
          * sechs Sekunden statt drei, und der Fehlerfall zweimal gefangen.
          */
         $stand = null;
-        $lesen = function () use ($agent, &$stand): array {
-            return $stand ??= $this->packages($agent);
+        $lesen = function () use ($agent, $settings, &$stand): array {
+            return $stand ??= $this->packages($agent, $settings);
         };
 
         /*
@@ -398,7 +399,7 @@ final class UpdatesController extends Controller
      *
      * @return array{data: array<string, mixed>|null, error: string|null}
      */
-    private function packages(Client $agent): array
+    private function packages(Client $agent, Settings $settings): array
     {
         try {
             /** @var array<string, mixed> $antwort */
@@ -422,6 +423,23 @@ final class UpdatesController extends Controller
                     ? Clock::display(Carbon::createFromTimestampUTC($zeit))
                     : null;
             }
+        }
+
+        /*
+         * **Die Zahl fürs Abzeichen fällt hier ab und kostet nichts.**
+         * Dieser Aufruf ist der teure (gemessen 2954–3644 ms auf
+         * `cloudsrv24`); wer ihn ohnehin bezahlt hat, schreibt das Ergebnis
+         * fest, statt es wegzuwerfen. Der stündliche Lauf ist danach nur noch
+         * der Rückfall für das, was ausserhalb des Panels geschieht.
+         *
+         * **Gesehen wird die neue Zahl erst auf der nächsten Seite.** Diese
+         * Antwort ist die nachgereichte; die Leiste daneben hat ihren Wert
+         * beim Aufbau der Hülle gelesen. Das ist keine Verzögerung, die man
+         * beheben müsste — die Seite, auf der man gerade steht, nennt die Zahl
+         * ja gross.
+         */
+        if (is_array($antwort['upgradable'] ?? null)) {
+            $settings->savePendingUpdates(count($antwort['upgradable']));
         }
 
         return ['data' => $antwort, 'error' => null];

@@ -515,6 +515,21 @@ Regel hier und nicht in `tests/`:
 > **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
 > als Zusage.**
 
+**Und dieselbe Frage noch einmal fürs Zeigen, am 11. September 2026.** Das
+Abzeichen am Menüpunkt „Updates" war für erhöhte Aufmerksamkeit bestellt und ist
+in allen vier Lagen richtig gebaut — gemessen 8,42:1, `dokument = 0`. Unter
+720 px ist die Leiste aber eine Schublade, und zugeklappt steht das Abzeichen
+bei **x = −63 px**. Auf dem Telefon sieht es also niemand, bis er das Menü
+ohnehin öffnet.
+
+> **Ein Hinweis, der in einer Schublade liegt, erreicht nur den, der die
+> Schublade ohnehin öffnet — und der wusste es schon.**
+
+Die Schwesterfrage zur Regel darüber, und sie gilt für jedes künftige Merkmal,
+das Aufmerksamkeit erzeugen soll: **Wo sieht jemand diesen Hinweis, ohne ihn zu
+suchen — und steht er dort?** Kein Wächter kann sie halten; sie hängt daran, was
+ein Betrachter erwartet.
+
 **Was offen bleibt und benannt ist:** Wand 2 aus Punkt 11 und die vier Zeilen zu
 den Befunden 20 und 21 gegen die nächste Fassung. Wer sie anfasst, fängt bei
 `docs/59` an und nicht bei null.

@@ -27486,3 +27486,27 @@ diesem gemessenen Grund.
 
 > **Ein Plan, der eine Vorkehrung verlangt, die der Prüfling begründet nicht
 > braucht, prüft den Verfasser.**
+
+### Nachgemessen an der gebauten Seite
+
+Alles davor ist an einem **handgeschriebenen** Aufsatz gemessen. Gegen die
+fertige Seite wiederholt — vier Lagen, Abzeichen mit dem Wert 32 — stehen
+dieselben Zahlen da: Fläche `rgba(255,183,165,.14)`, Schrift
+`rgb(255,183,165)`, Grund `26,11,46`, **8,42:1 in allen vier**, 34,09 × 19,5 px,
+`dokument = 0`, Gegenprobe 200/200. Die Kontrastrechnung trägt ihre eigene
+Gegenprobe mit zwei bekannten Paaren (21,00 und 1,00).
+
+> **Eine Zahl aus einer Rechnung, die man nicht an zwei bekannten Paaren
+> nachgeprüft hat, ist ein Ergebnis der Rechnung und keines über den
+> Gegenstand.**
+
+**Und dabei fiel auf, dass das Abzeichen auf dem Telefon niemand sieht.** Unter
+720 px ist die Leiste eine Schublade; zugeklappt steht das Abzeichen bei
+**x = −63 px**. Aufgeklappt ist es richtig da. Das ist kein Fehler im Bau — die
+Schublade gibt es seit `docs/24` —, sondern einer am Zweck: Bestellt war
+erhöhte Aufmerksamkeit, und die setzt voraus, dass man etwas sieht, ohne es zu
+suchen. Was stattdessen in der Kopfleiste stehen soll, ist eine
+Gestaltungsfrage und steht als solche in `docs/907 §4`.
+
+> **Ein Hinweis, der in einer Schublade liegt, erreicht nur den, der die
+> Schublade ohnehin öffnet — und der wusste es schon.**

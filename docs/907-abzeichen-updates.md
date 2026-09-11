@@ -150,6 +150,60 @@ rund **zehntausendmal** unter den 2954 ms, die sie ersetzt.
 > Grenzen der falschen.** Die Abfragezahlen oben (voll 3, partiell 2) sind
 > treiberunabhängig; die Millisekunden waren es nicht.
 
+### 1.6 Nachgemessen an der gebauten Seite — und ein Befund dabei
+
+Alles über dieser Zeile ist an einem **handgeschriebenen** Aufsatz gemessen
+worden: das Markup der Leiste nachgebaut, das gebaute Stylesheet daneben. Am
+11. September steht die Seite wirklich da, und die Messung ist wiederholt
+worden — vier Lagen, `/accounts`, Abzeichen mit dem Wert 32:
+
+| gemessen | hell 390 | hell 1440 | dunkel 390 | dunkel 1440 |
+|---|---|---|---|---|
+| Fläche | `rgba(255,183,165,.14)` | dieselbe | dieselbe | dieselbe |
+| Schrift | `rgb(255,183,165)` | dieselbe | dieselbe | dieselbe |
+| Grund darunter | `26,11,46` | `26,11,46` | `26,11,46` | `26,11,46` |
+| **Kontrast** | **8,42:1** | **8,42:1** | **8,42:1** | **8,42:1** |
+| Grösse | 34,09 × 19,5 px | dieselbe | dieselbe | dieselbe |
+| `dokument` | 0 | 0 | 0 | 0 |
+| Gegenprobe | 200/200 | 200/200 | 200/200 | 200/200 |
+
+Dass in drei Spalten „dieselbe" steht, ist die Aussage und keine Auslassung:
+Die Leiste setzt `--nav-bg` in **beiden** Themen auf `#1a0b2e`, und deshalb
+ändert das Umschalten dort nichts (§1.2).
+
+Der Aufsatz hat also nicht ungefähr gestimmt, sondern **auf zwei
+Nachkommastellen** — dieselbe Erfahrung wie am 16. August, als die
+Kärtchenhöhen des Dateimanagers im Container und auf `cloudsrv24` dieselben
+vier Zahlen ergaben.
+
+**Die Kontrastrechnung trägt ihre eigene Gegenprobe**: Sie rechnet im selben
+Lauf schwarz auf weiss (**21,00**) und weiss auf weiss (**1,00**). Ohne die
+beiden wäre „8,42" eine Zahl und keine Messung.
+
+> **Eine Zahl aus einer Rechnung, die man nicht an zwei bekannten Paaren
+> nachgeprüft hat, ist ein Ergebnis der Rechnung und keines über den
+> Gegenstand.**
+
+**Und der Befund steht in der Zeile daneben: Auf dem Telefon sieht das
+Abzeichen niemand.** Unter 720 px ist die Leiste eine Schublade
+(`transform: translateX(-100%)`), und zugeklappt steht das Abzeichen bei
+**x = −63 px**, also ganz ausserhalb des Bildes. Aufgeklappt ist es da und
+richtig — gemessen sind dieselben 8,42:1 und dieselben 34,09 × 19,5 px.
+
+Das ist kein Fehler im Bau: Die Schublade gibt es seit `docs/24`, und ein
+Menüpunkt ist dort für jeden Zweck unsichtbar, bis jemand das Menü öffnet.
+Es ist ein Fehler am **Zweck**. Bestellt war „erhöhte Aufmerksamkeit auf die
+Updates", und Aufmerksamkeit setzt voraus, dass man etwas sieht, ohne es zu
+suchen.
+
+> **Ein Hinweis, der in einer Schublade liegt, erreicht nur den, der die
+> Schublade ohnehin öffnet — und der wusste es schon.**
+
+Gemessen und nicht behoben: Was in der Kopfleiste eines Telefons stehen darf,
+ist eine Gestaltungsfrage und keine Messfrage. Sie steht in §4.
+
+---
+
 ---
 
 ## §2 Die drei Entscheidungen des Betreibers
@@ -220,9 +274,12 @@ drittes Kind klebte sonst am Wort.
 - **Was das Abzeichen tut, wenn der Wert alt ist.** Die Frage ist gestellt und
   nicht beantwortet; ein Vorschlag steht in §3.1 (Zeitpunkt daneben), die
   Entscheidung nicht.
-- **Ob der Einsammler eine eigene Unit bekommt** oder an einer bestehenden
-  hängt. `srvpanel-diagnose.timer` läuft `daily` und ist damit zu grob;
-  `srvpanel-usage.timer` läuft `*:0/15` und wäre für apt zu dicht.
+- **Dass das Abzeichen auf dem Telefon niemand sieht** (§1.6). Die Leiste ist
+  dort eine Schublade; zugeklappt steht es bei x = −63 px. Was stattdessen in
+  der Kopfleiste stehen könnte — ein Punkt am Menüknopf, die Zahl daneben, oder
+  gar nichts —, ist nicht entschieden. Wer es anfasst, misst zuerst: Die
+  Kopfleiste trägt denselben Markensatz wie die Leiste, also gilt §1.2 dort
+  wörtlich.
 
 ---
 

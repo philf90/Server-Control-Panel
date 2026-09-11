@@ -4,9 +4,9 @@ Der Lauf ist `docs/908`, der Plan des Merkmals `docs/907`. Gefahren am
 **11. September 2026** ab 19:27 CEST auf `cloudsrv24`, `srvpanel version` →
 `0.7.4-rc.4`.
 
-**Stand: Punkte 1, 2 und 3 erfüllt, darunter beide, die nicht ausfallen
-durften** (2 und 3). Punkt 8 — das Ausschlusskriterium, das eine Stunde kostet
-— steht aus.
+**Stand: Punkte 1 bis 7 erfüllt**, darunter die beiden, die nicht ausfallen
+durften (2 und 3). **Punkt 8 — das dritte Ausschlusskriterium — steht aus**;
+es kostet Wartezeit und lässt sich nicht abkürzen.
 
 ---
 
@@ -107,9 +107,79 @@ Der Server steht wieder wie vorher.
 
 ---
 
-## §4 Zwei Beobachtungen, beide am Prüfmittel und keine am Prüfling
+## §4 Punkte 4 bis 6 — was man sieht · **alle drei erfüllt**
 
-### §4a `RandomizedDelaySec` hat nichts gedruckt
+Gemessen im Browser gegen die laufende Instanz, mit der **lebenden**
+Inertia-Ablage (`__vue_app__…$page`) und nicht mit dem Script-Element des
+Ladevorgangs. Jede Messung druckt `seite` und `breite` mit.
+
+| | Punkt 4 | Punkt 5 | Punkt 6 |
+|---|---|---|---|
+| `seite` / `breite` | `/` · 1440 | `/` · 390, zugeklappt | `/updates` · 1440 |
+| `ablage` | 32 | 32 | 32 |
+| Abzeichen | `"32"`, x=174, **imBild: true** | `"32"`, **x = −62**, imBild: false | `"32"`, imBild: true |
+| Punkt | 0×0, imBild: false | **6×6, x=42, y=18, imBild: true** | 0×0 |
+| `knopfName` | `Navigation, 32 Aktualisierungen stehen an` | dito | dito |
+| Satz | `null` | `null` | **steht** |
+
+**Punkt 4.** Das Abzeichen trägt die Zahl aus der Ablage, und die Ablage trägt
+die Zahl von apt. Damit ist die Kette geschlossen: Bis §2 war belegt, dass der
+Dienst *schreibt*; jetzt ist belegt, dass die Navigation *liest*, was er
+geschrieben hat.
+
+**Punkt 5 bestätigt den Befund, für den es den Punkt am Menüknopf gibt.** Bei
+390 px und zugeklappter Schublade steht das Abzeichen bei **x = −62** —
+ausserhalb des Bildes, wie gemeldet. Der Punkt steht bei x=42, y=18 und ist
+sichtbar, ohne dass jemand das Menü öffnet.
+
+**Und die Containermessung war auf ein Pixel genau.** `docs/907` hat im
+Nachbau **−63** gemessen, der echte Server sagt **−62**.
+
+> **Ein Aufsatz, der das echte Markup und das gebaute Stylesheet benutzt, misst
+> die echte Seite — und nicht etwas Ähnliches.**
+
+**Punkt 6 misst nebenbei die Umrechnung.** Der Satz lautet „Am Menüpunkt
+„Updates" steht die Zahl vom **2026-09-11 19:36:24**." In der Ablage steht
+derselbe Augenblick als **17:36:24** UTC. `Clock::displayText()` rechnet also
+auf dem Server um, und nicht nur im Test.
+
+Dass der Zeitpunkt nicht mehr der aus §2 ist (19:27:33), ist der Entwurf und
+kein Befund: Jeder Aufruf von `/updates` zahlt den Agentenaufruf ohnehin und
+hält das Ergebnis fest. Der Wert ist beim Öffnen der Seite entstanden.
+
+**Der `knopfName` trägt die Einzahlregel mit.** Gemessen ist hier nur die
+Mehrzahl (32); der Einzahlfall steht als Wächter in `NavDotTest` und ist auf
+dem Server nicht ausgelöst worden.
+
+> **Ein Mechanismus, der an einer Stelle belegt ist, trägt die anderen Stellen
+> — ihre Texte trägt er nicht.**
+
+---
+
+## §5 Punkt 7 — die Bestandsdiagnose · **erfüllt**
+
+| Zustand | Lauf | `unit.*`-Befunde |
+|---|---|---|
+| ohne Eingriff | 7 Prüfungen, `Auffällig: 2` | **keine** |
+| Timer angehalten | 7 Prüfungen, `Auffällig: 2`, **`Kaputt: 1`** | `unit.schedule  srvpanel-packages.timer  no_next` |
+| wieder eingeschaltet | 7 Prüfungen, `Auffällig: 2` | **keine** |
+
+Die Gegenprobe nennt die Unit beim Namen und verschwindet wieder. Damit ist
+belegt, dass die Diagnose sie **ansieht** und nicht bloss schweigt.
+
+> **Eine Abwesenheit ist nur dann ein Befund, wenn die Anwesenheit im
+> Erfolgsfall belegt ist.**
+
+`Auffällig: 2` steht in allen drei Zuständen — zwei Befunde, die mit dieser
+Stufe nichts zu tun haben. Gerade weil die Zahl gleich bleibt, bedeutet die
+`Kaputt: 1` daneben etwas: Sie ist die Wirkung des Eingriffs und nicht das
+Rauschen des Bestands.
+
+---
+
+## §6 Zwei Beobachtungen, beide am Prüfmittel und keine am Prüfling
+
+### §6a `RandomizedDelaySec` hat nichts gedruckt
 
 `systemctl show … -p Triggers -p Persistent -p RandomizedDelaySec -p
 NextElapseUSecRealtime` gab **drei** Zeilen und nicht vier. `Persistent` und
@@ -129,10 +199,16 @@ dort nicht gibt, erzeugt **keine Fehlermeldung, sondern keine Zeile** — und
 eine fehlende Zeile liest sich wie „nicht gesetzt".
 
 Der Wert deckt sich mit der Datei (300 s = 5 min) und mit der Wirkung aus §1
-(4 min 44 s). **Und `FixedRandomDelay=no` sagt, dass die Streuung bei jedem
-Termin neu gewürfelt wird** — der Versatz von heute sagt über den von morgen
-nichts, und ein Lauf, der ihn als feste Grösse nachrechnete, läge früher oder
-später daneben.
+(4 min 44 s).
+
+**Und `FixedRandomDelay=no` ist im selben Lauf an seiner Wirkung belegt
+worden.** Das Anhalten und Wiedereinschalten des Timers in §5 hat den Versatz
+**neu gewürfelt**: `NEXT` stand vorher auf `20:04:44` und danach auf
+`20:02:35`. Die Angabe und ihre Wirkung sagen dasselbe.
+
+> **Ein Versatz, der bei jedem Termin neu gewürfelt wird, ist keine Grösse, die
+> man einmal abliest und danach nachrechnet.** Ein Lauf, der 20:04:44
+> weitergeschrieben hätte, hätte zwei Minuten zu spät nachgesehen.
 
 > **Ein Eigenschaftsname, den es nicht gibt, druckt nichts — und nichts sieht
 > aus wie „nicht gesetzt".** Dieselbe Familie wie `systemctl is-active` für
@@ -143,7 +219,7 @@ Gefunden hat es nicht das Raten eines zweiten Namens, sondern die Frage an die
 Namen probiert hätte, hätte bei einem dritten Fehlversuch wieder nichts
 gewusst.
 
-### §4b `LAST` war abgeschnitten — und der Timer hat schon einmal gefeuert
+### §6b `LAST` war abgeschnitten — und der Timer hat schon einmal gefeuert
 
 `list-timers` zeigte `LAST  Fri 2026-09-11 19:…`; der Rest lag hinter dem
 Bildrand. Geschlossen wurde daraus nichts; geholt wurde der Wert dort, wo er
@@ -169,6 +245,22 @@ von beiden, ist nicht gemessen**, und für diesen Punkt trägt es nichts: Beide
 sagen „der Timer wurde eingeschaltet", keiner sagt „die Stunde ist
 vergangen".
 
+**Das Anhalten und Wiedereinschalten in §5 hat die Erklärung eingegrenzt.**
+`LAST` stand danach unverändert auf `19:09:04` — der Neustart des Timers hat
+**keinen** Lauf ausgelöst. Das passt zum Nachholer von `Persistent=true`: Beim
+ersten Einschalten gab es keine Marke, also war der Kalendertermin von 19:00
+offen und wurde sofort nachgeholt; danach steht die Marke auf 19:09:04, und es
+gibt nichts mehr nachzuholen. Zu einem verstrichenen `OnBootSec=10min` passt es
+schlechter — der Rechner läuft seit sechs Tagen, und dann hätte auch der
+Neustart des Timers feuern müssen.
+
+**Das ist eine Eingrenzung und keine Messung.** Sie stützt sich auf eine
+einzige Beobachtung, und ein Lauf, der sie als Befund führte, schriebe eine
+Vermutung als Ergebnis. Gemessen wäre sie an der Marke selbst:
+`ls -l --time-style=full-iso /var/lib/systemd/timers/stamp-srvpanel-packages.timer`.
+Für Punkt 8 trägt sie nichts — beide Erklärungen sagen „der Timer wurde
+eingeschaltet", keine sagt „die Stunde ist vergangen".
+
 Punkt 8 fragt nach der Folge und bleibt offen.
 
 > **Ein Beleg für den Weg ist keiner für das Ziel.**
@@ -176,14 +268,17 @@ Punkt 8 fragt nach der Folge und bleibt offen.
 
 ---
 
-## §5 Was aussteht
+## §7 Was aussteht
 
-- **Punkt 4 bis 6** — was man sieht: das Abzeichen mit **32**, der Punkt am
-  Menüknopf bei 390 px, der Satz auf `/updates` mit dem Zeitpunkt aus §2.
-- **Punkt 7** — die Bestandsdiagnose samt Gegenprobe.
-- **Punkt 8** — das Feuern um **20:04:44 CEST**. Ausschlusskriterium.
+**Nur noch Punkt 8** — das Feuern nach der stündlichen Folge.
 
-**Die beiden Marker für Punkt 8 stehen:** Der letzte Lauf von Hand war
-`ExecMainStartTimestamp = 19:27:30 CEST`, der letzte Auslöser des Timers
-`LastTriggerUSec = 19:09:04 CEST`. Beide müssen gewandert sein, und
-`pendingUpdatesCheckedAt()` muss denselben neuen Zeitpunkt nennen.
+| | Wert |
+|---|---|
+| Termin | **`Fri 2026-09-11 20:02:35 CEST`** (nach dem Wiedereinschalten neu gewürfelt) |
+| letzter Lauf von Hand | `ExecMainStartTimestamp = 19:27:30 CEST` |
+| letzter Auslöser des Timers | `LastTriggerUSec = 19:09:04 CEST` |
+
+Beide Marker müssen gewandert sein, und `pendingUpdatesCheckedAt()` muss
+denselben neuen Zeitpunkt nennen. Der letzte Haken ist der tragende: Die
+anderen belegen, dass etwas lief, nicht dass es das war, was das Abzeichen
+speist.

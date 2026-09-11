@@ -605,7 +605,49 @@ vier Lagen.
 
 ### 11.3 Die vier geladenen Lagen
 
-**Stehen aus.**
+Derselbe Weg, dieselbe Route, dasselbe Dokument — nur **5000 ms** statt 400.
+
+| Lage | `dokument` | `gegenprobe` | `schiebt` | `rollt` | `versteckt` | `platzhalter` | `kacheln` |
+|---|---|---|---|---|---|---|---|
+| 1440 dunkel | **0** | **200** (soll 200) | 0 | 1 | 0 | `false` | **0** |
+| 1440 hell | **0** | **200** (soll 200) | 0 | 1 | 0 | `false` | **0** |
+| 390 dunkel | **0** | **200** (soll 200) | 0 | 0 | 6 | `false` | **0** |
+| 390 hell | **0** | **200** (soll 200) | 0 | 0 | 6 | `false` | **0** |
+
+**Damit ist Punkt 9 erfüllt** — acht Lagen, `dokument = 0` in allen acht,
+Gegenprobe 200/200 in allen acht, `schiebt` überall leer.
+
+### 11.4 Was das Paar sagt, das eine Reihe allein nicht sagen könnte
+
+Die acht Lagen sind **vier Paare** und nicht acht Einzelmessungen — dieselbe
+Breite, dasselbe Thema, derselbe Weg, und zwischen ihnen liegt nichts als die
+Wartezeit. Drei Zahlen bewegen sich darin, und jede sagt etwas:
+
+**`kacheln`: 11 → 0.** Der Platzhalter überlebt die Daten nicht. Das ist die
+Frage, die `docs/905 §11` als Befund geführt hätte, wenn sie anders ausgefallen
+wäre.
+
+**`versteckt` bei 390 px: 2 → 6.** Die geklippten Kästen gehören zu
+`.stacks thead`. Zwei gehören der Quellenliste, die mit der Hülle kommt; die
+vier dazu kommen mit der Pakettabelle, die nachgereicht wird. Die Zahl folgt
+also genau dem, was ankommt.
+
+**`rollt` bei 1440 px: 1 → 1, und zwar mit demselben Wert.** Der Roller ist in
+beiden Zuständen `section.section:2 > div.scrolls:2` mit **1083 px**, byteweise
+dieselbe Zeile.
+
+**Das ist die Gegenprobe zur Zuordnung aus §11.1, und sie kommt ohne ein
+zweites Werkzeug aus.** Wäre der Roller die Pakettabelle, stünde er im
+Platzhalterzustand gar nicht da — dort gibt es keine Tabelle. Dass er in beiden
+Zuständen mit derselben Zahl steht, schliesst das aus: Er gehört zu einem
+Bereich, den die Nachreichung nicht anfasst.
+
+> **Zwei Messungen, die sich nur in einer Bedingung unterscheiden, beantworten
+> eine Frage, die keine von beiden allein stellt.**
+
+**Und die Pakettabelle rollt bei 1440 px nicht** — sie passt. Erst unter 720 px
+stapelt sie, und dann rollt dort nichts mehr: `rollt = 0` in beiden
+390-px-Lagen, im Platzhalterzustand wie geladen.
 
 ---
 
@@ -670,11 +712,11 @@ benannt offen führt — ob es dieselbe ist, sagt dieser Lauf nicht.
 | 6 — die Bewegungsregel ist ausgeliefert | **erfüllt** (§8) |
 | 7 — die Prüfmeldung kommt oben an | **erfüllt** (§9) |
 | 8 — das Nachladen legt nichts an *(Ausschluss)* | **erfüllt** (§10) |
-| 9 — die Bilderrunde | offen |
+| 9 — die Bilderrunde | **erfüllt**, acht Lagen (§11) |
 | 10 — bedienbar in den drei Sekunden | **erfüllt**, 384 ms (§12) |
 
-**Alle drei Ausschlusskriterien sind erfüllt** (3, 4, 8). Offen ist **nur noch
-Punkt 9**, die Bilderrunde.
+**Alle zehn Punkte sind gefahren und erfüllt**, die drei Ausschlusskriterien
+(3, 4, 8) darunter, und keiner ist als „nicht herstellbar" ausgefallen.
 
 **Was dabei nicht vergessen werden darf**, weil es in diesem Lauf schon
 gezählt hat:
@@ -693,3 +735,77 @@ gezählt hat:
   Danach stehen Worker und Metrik ebenfalls still — zurück mit
   `systemctl start srvpanel.target` und nicht mit einem `start` des Agenten
   allein.
+
+---
+
+## §14 Die Bilanz — drei Befunde, keiner im Prüfling
+
+| Befund | wo | was |
+|---|---|---|
+| 1 (§1.1) | **Vorschrift** | `docs/905` nannte dreimal `srvpanel-agent`; die Unit heisst `srvpanel-agentd` |
+| 2 (§7.1) | **Prüfkörper** | fragte nach dem *Element* des Fortschrittsbalkens statt nach seiner Anzeige |
+| 3 (§10a) | **Vorschrift** | begründete Punkt 10 mit einer Sitzungssperre, die es in diesem Panel nicht gibt |
+
+Dazu ein Fund am Bestand, den **der Wächter aus Befund 1 sofort mitgebracht
+hat** (§1.2): `docs/35` wies an, `srvpanel` anzuhalten — eine Unit dieses
+Namens gibt es nicht.
+
+**Und keiner der drei steckt im Prüfling.** Das ist dieselbe Lage wie in P7
+(`docs/78`), und die Erklärung ist dieselbe wie dort und bei A10, A2, A14 und
+A11: Die Vorschrift stand vor dem Lauf ausgeschrieben, und die Messmittel lagen
+als geprüfte Werkzeuge im Repo — `tests/bilder-messen.js` hat in acht Lagen
+keinen einzigen Prüfmittelbefund erzeugt.
+
+**Was hier dazukommt, ist der Bau selbst.** `docs/904 §10a` zählt sieben Stellen
+auf, an denen er anders lief als geplant — darunter der Rand von 2 px, der die
+Seite springen liess, der Fehlerbeutel `errors`, der jede Prüfmeldung dieser
+Seite verdeckte, und die Bilderrunde, die den vorigen Stand gemessen hat. Die
+Befunde dieses Merkmals sind also nicht ausgeblieben; sie sind **früher**
+gefunden worden.
+
+> **Ein Abnahmelauf ohne Fund am Prüfling sagt nicht, dass keiner da war — er
+> sagt, wo sie gefunden wurden.**
+
+**Zwei der drei hätten still durchgehen können, und das ist der Ertrag des
+Laufs.** Befund 1 hätte ein Ausschlusskriterium erfüllt gemeldet, ohne dessen
+Zustand je hergestellt zu haben (`systemctl stop` auf einen unbekannten Namen
+hält nichts an und meldet `inactive`). Befund 2 hätte eine Farbe gemessen, die
+niemand sieht. Beide sind an derselben Stelle aufgefallen — daran, dass die
+Messung ihren Zustand **mitdruckt**.
+
+> **Eine Messung, die ihren Zustand nicht mitdruckt, ist von einer, die ihn
+> nicht hatte, nicht zu unterscheiden.** Dreimal in diesem Lauf: bei Befund 1,
+> bei Befund 3 und in der Bilderrunde, wo `platzhalter` und `kacheln` das
+> Einzige sind, was den gemessenen Zustand festhält (§11.2).
+
+---
+
+## §15 Was benannt offen bleibt
+
+**Aus diesem Lauf:**
+
+- **Die Konsolenmeldung auf `/services` und `/updates`** (§12.1). Sie ist nicht
+  gemessen und wird deshalb nicht erklärt. `docs/114 §12` führt bereits eine
+  ungeklärte; ob es dieselbe ist, sagt dieser Lauf nicht.
+
+**Was der Lauf ausdrücklich nicht geprüft hat**, steht in `docs/905 §13` und ist
+unverändert: dass die drei Sekunden kürzer werden (sie bleiben — der
+Platzhalter verdeckt sie nicht, er macht sie erträglich), die neun übrigen
+Agent-Seiten, die beiden ungemessenen Aufrufe `system.logs.tail` und
+`web.logs.tail`, die Wirkung von `prefers-reduced-motion` auf einem Gerät, und
+der Wortlaut der übrigen Prüfmeldungen.
+
+**Unberührt davon** stehen die benannten Reste früherer Läufe (`docs/113 §13`,
+`docs/114 §12`). Dieser Lauf hat sie nicht gemessen und sagt über sie nichts.
+
+---
+
+## §16 Die Abnahme
+
+**Der Platzhalter für `/updates` ist am 11. September 2026 abgenommen** — auf
+`cloudsrv24` gegen `0.7.4-rc.3`, alle zehn Punkte aus `docs/905`, die drei
+Ausschlusskriterien (3, 4 und 8) darunter, keiner als „nicht herstellbar"
+ausgefallen.
+
+Der Plan ist `docs/904`, der Lauf `docs/905`, dieses Protokoll ist `docs/906`.
+

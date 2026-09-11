@@ -1573,7 +1573,18 @@ Inertias `#29d` auf jeder Seite —, seine Farbe ist eine Marke, die `app.css`
 wirklich führt, und die Kommentare fallen weg, bevor gesucht wird — vorsorglich,
 seit der Einstieg den Vorgabewert nicht mehr zitiert: **Der Schritt
 „Oberfläche" der CI liest `resources/js` roh**, und ein zitierter Hexwert macht
-ihn rot, auch wenn er nur erklärt, welchen Wert eine Zeile ersetzt). Der Bruch selbst steht als
+ihn rot, auch wenn er nur erklärt, welchen Wert eine Zeile ersetzt) und
+`ProcessStateTest` (das Wort des Kernels entsteht im Agenten, reist durch den
+Controller und kommt auf der Seite an — **alle drei in einem Fall**, weil ein
+Feld, das eine Stelle fallen lässt, von aussen dasselbe ist wie eines, das es
+nicht gibt; und der Rückfall nimmt das Wort der **Quelle** und erfindet keines,
+gemessen an der Reihenfolge und nicht am Vorkommen) und `DiagnoseBadgeTest`
+(die **Voraussetzung** des kurzen Weges: Solange kein Grundname zugleich
+auffällig und ruhig ist, darf `PendingFindings::count()` über `reason` allein
+filtern statt über das Paar `(check, reason)` — gemessen 0,073 ms gegen 1,06;
+die Gründe kommen aus `FindingCheck` und nicht aus einer Liste, und die Zahl
+reist als Verschluss, weil ein fertiger Wert in `share()` auch bei einem
+partiellen Nachladen läuft, das ihn gar nicht mitschickt). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 

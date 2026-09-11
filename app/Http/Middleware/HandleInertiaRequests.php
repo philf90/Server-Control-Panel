@@ -10,6 +10,7 @@ use App\Models\Announcement;
 use App\Models\Subscription;
 use App\Support\Audit\Impersonation;
 use App\Support\Authorization\AdminAbility;
+use App\Support\Diagnose\PendingFindings;
 use App\Support\Panel\Source;
 use App\Support\Passwords\Policy;
 use App\Support\Settings\Settings;
@@ -240,6 +241,25 @@ final class HandleInertiaRequests extends Middleware
             'pendingUpdates' => fn (): ?int => $account instanceof Account
                 && $account->can(AdminAbility::INSPECT_SERVER)
                     ? app(Settings::class)->pendingUpdates()
+                    : null,
+
+            /*
+             * Die auffälligen Befunde der Bestandsdiagnose — dieselbe Form wie
+             * oben und eine andere Bauart.
+             *
+             * **Hier wird gezählt und nicht abgelegt**, und das ist gemessen:
+             * Die Zählung kostet warm 0,073 ms, ein abgelegter Wert aus
+             * `settings` 0,211 (`docs/910 §2` M8). Eine Ablage wäre langsamer
+             * als ihre Quelle — und dazu eine zweite Fassung derselben
+             * Wahrheit.
+             *
+             * **Ein Verschluss und kein fertiger Wert**, wie bei allem hier:
+             * Ein fertiger liefe auch bei einem partiellen Nachladen, das ihn
+             * gar nicht mitschickt (`docs/103`).
+             */
+            'pendingFindings' => fn (): ?int => $account instanceof Account
+                && $account->can(AdminAbility::INSPECT_SERVER)
+                    ? app(PendingFindings::class)->count()
                     : null,
 
             // Die Passwortrichtlinie steht auf jeder Seite bereit, weil ein

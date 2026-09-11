@@ -27556,25 +27556,129 @@ pruefe "Menueknopf ohne Auskunft" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NavDotTest passed
 
-echo "── NavDotTest: der Punkt bekommt eine zweite Quelle ──"
+echo "── NavDotTest: der Punkt liest wieder nur eine Quelle ──"
 #
-# Zwei Bedingungen fuer dieselbe Zahl sind zwei Fassungen derselben Regel, und
-# die zweite ist die, die veraltet: Das Telefon zeigte den Punkt, waehrend die
-# breite Ansicht daneben kein Abzeichen haette.
+# Der Zustand vor dem 11. September 2026: Der Punkt hing an den
+# Aktualisierungen allein. Mit einer zweiten Quelle — den Befunden der
+# Bestandsdiagnose — verschweigt er damit genau das, wofuer es ihn gibt: Auf
+# dem Telefon steht deren Abzeichen bei x = -62 px, also ausserhalb des Bildes.
 vorher_datei resources/js/Layouts/PanelLayout.vue
 python3 - <<'PY2'
 p = 'resources/js/Layouts/PanelLayout.vue'
 s = open(p, encoding='utf-8').read()
-alt = '<span v-if="(pendingUpdates ?? 0) > 0" class="nav-dot" aria-hidden="true" />'
+alt = '<span v-if="abzeichen.length > 0" class="nav-dot" aria-hidden="true" />'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-neu = '<span v-if="page.props.packagesWaiting" class="nav-dot" aria-hidden="true" />'
+neu = '<span v-if="(pendingUpdates ?? 0) > 0" class="nav-dot" aria-hidden="true" />'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
 PY2
-griff_datei resources/js/Layouts/PanelLayout.vue "Punkt mit zweiter Quelle" &&
-pruefe "Punkt mit zweiter Quelle" \
-  NavDotTest::test_the_dot_and_the_badge_read_the_same_number failed
+griff_datei resources/js/Layouts/PanelLayout.vue "Punkt mit einer Quelle" &&
+pruefe "Punkt mit einer Quelle" \
+  NavDotTest::test_the_dot_cannot_drift_from_the_badges failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NavDotTest passed
+
+echo "── NavDotTest: die Ableitung zaehlt auch unsichtbare Abzeichen ──"
+#
+# Ohne `sichtbar` zaehlt sie Menuepunkte mit, die `darf()` wegfiltert — also
+# eine Auskunft ueber eine Seite, die der Betrachter gar nicht oeffnen darf.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = '  sichtbar.value\n    .flatMap((block) => block.items)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '  navigation.value\n    .flatMap((block) => block.items)'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Ableitung ohne sichtbar" &&
+pruefe "Ableitung ohne sichtbar" \
+  NavDotTest::test_the_dot_cannot_drift_from_the_badges failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavDotTest passed
+
+echo "── DiagnoseBadgeTest: ein Grundname wird laut und ruhig zugleich ──"
+#
+# Die Voraussetzung des kurzen Weges. `PendingFindings::count()` filtert ueber
+# `reason` allein; kommt derselbe Name mit zwei Zustaenden vor, zaehlt der
+# Filter still falsch. Gemessen kostet die Paarform 1,06 ms statt 0,073 — die
+# Abkuerzung ist die Zahl wert, ihre Voraussetzung aber nicht das Raten.
+vorher_datei app/Enums/FindingCheck.php
+python3 - <<'PY2'
+p = 'app/Enums/FindingCheck.php'
+s = open(p, encoding='utf-8').read()
+# `$unreachable` steht EINMAL da und wird in elf Faelle gespreizt. Ein Eintrag
+# NACH der Spreizung gewinnt in genau diesem einen Fall — und damit traegt der
+# Name `unreachable` zwei Zustaende: laut hier, ruhig in den zehn anderen.
+alt = '                ...$unreachable,\n            ],'
+assert s.count(alt) >= 1, 'Zielstelle nicht gefunden — der Bruch waere blind'
+neu = ("                ...$unreachable,\n"
+       "                self::UNREACHABLE => ['state' => FindingState::Fail, 'text' => 'laut'],\n"
+       "            ],")
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Enums/FindingCheck.php "Grundname laut und ruhig" &&
+pruefe "Grundname laut und ruhig" \
+  DiagnoseBadgeTest::test_no_reason_name_is_both_loud_and_quiet failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseBadgeTest passed
+
+echo "── DiagnoseBadgeTest: die Gruende stehen als Liste statt abgeleitet ──"
+#
+# Eine Liste ist die zweite Fassung dessen, was FindingCheck schon weiss — und
+# ein `unknown`, das niemand nachtraegt, erscheint danach als Befund im
+# Abzeichen.
+vorher_datei app/Support/Diagnose/PendingFindings.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/PendingFindings.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $ruhig = self::quietReasons();'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "        $ruhig = ['unreachable'];"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/PendingFindings.php "Gründe als Liste" &&
+pruefe "Gründe als Liste" \
+  DiagnoseBadgeTest::test_the_reasons_are_derived_and_not_written_down failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseBadgeTest passed
+
+echo "── DiagnoseBadgeTest: die Zahl reist als fertiger Wert ──"
+#
+# Ein fertiger Wert in share() laeuft bei jeder Anfrage — auch bei einem
+# partiellen Nachladen, das ihn gar nicht mitschickt (docs/103).
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY2'
+p = 'app/Http/Middleware/HandleInertiaRequests.php'
+s = open(p, encoding='utf-8').read()
+alt = "'pendingFindings' => fn (): ?int =>"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "'pendingFindings' =>"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "fertiger Wert in share()" &&
+pruefe "fertiger Wert in share()" \
+  DiagnoseBadgeTest::test_the_count_travels_as_a_closure_and_reaches_the_item failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseBadgeTest passed
+
+echo "── DiagnoseBadgeTest: der Menuepunkt verliert sein Wort ──"
+#
+# Ohne `badgeNoun` liest ein Screenreader „2 Hinweise" statt „2 Befunde" — der
+# Rueckfall ist absichtlich unspezifisch, damit ein fehlendes Wort auffaellt
+# und nicht erfunden wird.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = ", badgeNoun: ['Befund', 'Befunde'] }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, ' }', 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Menüpunkt ohne Wort" &&
+pruefe "Menüpunkt ohne Wort" \
+  DiagnoseBadgeTest::test_the_count_travels_as_a_closure_and_reaches_the_item failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseBadgeTest passed
 
 echo "── PendingUpdatesReachTest: der Satz faellt aus der Vorlage ──"
 #

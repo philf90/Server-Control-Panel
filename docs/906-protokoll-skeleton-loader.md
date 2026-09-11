@@ -120,75 +120,139 @@ Maschine und nicht zum Panel.
 
 ---
 
-## §3 Punkt 1 — die Hülle (halb gemessen)
+## §3 Punkt 1 — die Hülle wartet nicht mehr auf apt
+
+**Erfüllt.**
 
 ```
 { huelle: 117, nachgereicht: Array(0) }
 ```
 
-**Die erste Hälfte ist erfüllt:** 117 ms gegen die aus §2 gerechnete Grenze von
-335 (`3 × 45 + 200`). Die Hülle ist damit ungefähr so teuer wie
-`system.sources.list` allein — der teure Aufruf steckt nicht mehr in ihr.
+Die Hülle liegt bei **117 ms** gegen die aus §2 gerechnete Grenze von 335
+(`3 × 45 + 200`). Sie ist damit ungefähr so teuer wie `system.sources.list`
+allein — der teure Aufruf steckt nicht mehr in ihr.
 
-**Die zweite Hälfte fehlt:** `nachgereicht` ist leer, es gibt also keinen
-gemessenen Wert über 2000 ms. Das ist **kein** Befund am Prüfling, sondern
-einer am Prüfkörper: `performance.getEntriesByType('resource')` kennt nur
-Anfragen **dieses Dokuments**. Hat Inertia die Seite aus seinem eigenen
-Zwischenspeicher hergestellt — nach einem Zurück, einem erneuten Besuch mit
-erhaltenem Zustand oder einer Navigation innerhalb der Anwendung —, dann
-**war die Eigenschaft schon da und es gab gar keine nachgereichte Anfrage.**
+**`nachgereicht` kam beim ersten Griff leer zurück, und das war ein Befund am
+Prüfkörper.** `performance.getEntriesByType('resource')` kennt nur Anfragen
+**dieses Dokuments**; stellt Inertia die Seite aus seinem eigenen
+Zwischenspeicher her, war die Eigenschaft schon da und es gab gar keine
+nachgereichte Anfrage.
 
 > **Eine leere Liste sagt „keine Anfrage in diesem Dokument" und nicht „keine
 > Anfrage".**
 
-Nachgemessen wird deshalb mit einem `PerformanceObserver`, der **vor** der
-Navigation steht, statt hinterher eine Liste abzufragen.
+Nachgemessen mit einem `PerformanceObserver`, der **vor** der Navigation steht:
+
+```
+"anfragen": [
+ { "typ": "xmlhttprequest", "ms": 2949 },
+ { "typ": "xmlhttprequest", "ms": 156 },
+ { "typ": "xmlhttprequest", "ms": 3264 }
+]
+```
+
+**Drei Anfragen an dieselbe Adresse, und ihre Verteilung ist der eigentliche
+Beleg.** Die 2949 ms stammen aus dem Dokument, das beim Start des Skripts schon
+geladen war (`buffered: true`). Die beiden anderen gehören zum erzwungenen
+Besuch: **156 ms für die Hülle** und **3264 ms für das Nachreichen**.
+
+> **Dieselbe Adresse, zweimal abgefragt, 156 gegen 3264 ms — die Trennung
+> zwischen „die Seite" und „was sie teuer macht" ist damit nicht hergeleitet,
+> sondern gemessen.**
+
+Beide Werte über 2000 ms liegen weit über der Grenze; die Streuung aus §2
+(2954–3644 ms auf der Kommandozeile) findet sich hier wieder.
 
 ---
 
-## §4 Punkt 2 — die Seite ist da, ein Teil fehlt noch (im Bild belegt)
+## §4 Punkt 2 — die Seite ist da, ein Teil fehlt noch
 
-Eine Aufnahme bei 1440 px im dunklen Thema zeigt den Zustand auf dem Server:
+**Erfüllt.**
 
-- die **Kachelreihe steht** mit ihren fünf Beschriftungen (`AKTUALISIERBAR`,
-  `DAVON SICHERHEIT`, `DAVON NEU`, `ZURÜCKGEHALTEN`, `WÜRDE ENTFERNT`) und
-  grauen Blöcken anstelle der Zahlen,
-- **„Pakete" trägt vier Platzhalterzeilen** unterschiedlicher Länge,
-- **„Paketquellen" ist vollständig gefüllt** — fünf Einträge mit Zustand,
-  Adresse, Suiten und Schlüssel,
-- **„Unbeaufsichtigte Updates"** darunter mit Platzhalter.
+```
+"fenster": "1414–4601 ms",
+"platzhalterMax": 11,
+"kachelnImFenster": [ 5 ],
+"quellenzeilenImFenster": [ 5 ]
+```
 
-Damit ist der Unterschied belegt, um den es geht: *die Seite ist da, ein Teil
-fehlt noch* — und nicht *die Seite lädt*.
+| Erwartet | Gemessen |
+|---|---|
+| Fenster über 1000 ms | **3187 ms** (1414 → 4601) |
+| `platzhalterMax` = 11 | **11** |
+| `kachelnImFenster` = `[5]` | **`[5]`** |
+| `quellenzeilenImFenster` > 0 | **`[5]`** |
 
-Die Zahlen zu Punkt 2 (Fenster, `platzhalterMax`, Kachelzahl) stehen noch aus;
-das Bild allein ist ein Hinweis und kein Urteil.
+Die elf sind genau die entworfenen: fünf Kachelwerte, vier Zeilen unter
+„Pakete", zwei unter „Unbeaufsichtigte Updates".
 
-> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
-> Keines von beiden ersetzt das andere.**
+**`quellenzeilenImFenster: [5]` ist der Punkt, um den es geht.** Während der
+drei Sekunden stehen fünf Quellzeilen fertig da — mit Zustand, Adresse, Suiten
+und Schlüssel. Die Seite ist da, ein Teil fehlt noch.
 
-Nebenbei belegt die Aufnahme den geladenen Zustand: 32 aktualisierbar, davon 1
-Sicherheit und 18 neu, 0 zurückgehalten, 0 würde entfernt — und zwei
-Konfigurationsdateien unter `/etc` warten auf eine Entscheidung.
+Eine Aufnahme bei 1440 px im dunklen Thema zeigt denselben Zustand: die
+Kachelreihe mit ihren fünf Beschriftungen und grauen Blöcken, „Pakete" mit vier
+Platzhalterzeilen, „Paketquellen" vollständig gefüllt.
+
+Nebenbei belegt der geladene Zustand die Zahlen: 32 aktualisierbar, davon 1
+Sicherheit und 18 neu, 0 zurückgehalten, 0 würde entfernt — dazu zwei
+Konfigurationsdateien unter `/etc`, die auf eine Entscheidung warten.
 
 ---
 
-## §5 bis §12 — offen
+## §5 Punkt 3 — kein Sprung *(Ausschlusskriterium)*
 
-Gefahren sind §1 (Ausgangszustand) und §2 (Referenzwert). Es fehlen die zehn
-Punkte selbst; sie laufen in der Browserkonsole und nicht auf der
-Kommandozeile.
+**Bei 1440 px erfüllt. Bei 390 px steht er noch aus.**
 
-**Wo weitergemacht wird:** `docs/905 §3`, Punkt 1 — die Hülle. Von dort der
-Reihe nach. Die Grenzwerte für Punkt 1 stehen am Ende von §2 dieses
-Protokolls, gerechnet aus den gemessenen 45 ms.
+```
+"kachelreiheMit":  [ 95.95 ],
+"kachelreiheOhne": [ 95.95 ]
+```
 
-**Was dabei nicht vergessen werden darf**, weil es zweimal in diesem Lauf
-schon gezählt hat:
+**Derselbe eine Wert vor und nach dem Ersetzen** — der Sprung ist **0 px**, und
+zwar in *einem* Seitenaufbau gemessen, nicht aus zwei Läufen verglichen.
+
+Das ist der Punkt, an dem der Bau einen Fehler hatte: Der erste Wurf trug
+`margin: 2px 0` am Kachelplatzhalter, und die Seite sprang um 4 px bei 1440 und
+**20 px bei 390** — alles darunter zog mit. Die Behebung hatte bis heute keinen
+Server gesehen.
+
+Der Containerwert war 95,94 px, hier sind es 95,95 — dieselbe Zahl bis auf die
+Schriftmetrik.
+
+**Bei 390 px ist zu wiederholen**, und das ist kein Formalismus: Dort stapeln
+sich die fünf Kacheln, und derselbe Fehler wog fünfmal so viel.
+
+---
+
+## §6 bis §12 — offen
+
+| Punkt | Stand |
+|---|---|
+| 1 — die Hülle | **erfüllt** (§3) |
+| 2 — die Seite ist da | **erfüllt** (§4) |
+| 3 — kein Sprung *(Ausschluss)* | **bei 1440 erfüllt**, bei 390 offen (§5) |
+| 4 — toter Agent *(Ausschluss)* | offen |
+| 5 — Farbe des Balkens | offen |
+| 6 — die Bewegungsregel ist ausgeliefert | offen |
+| 7 — die Prüfmeldung kommt oben an | offen |
+| 8 — das Nachladen legt nichts an *(Ausschluss)* | offen |
+| 9 — die Bilderrunde | offen |
+| 10 — bedienbar in den drei Sekunden | offen |
+
+**Als Nächstes:** Punkt 3 bei 390 px wiederholen — dort stapeln sich die
+Kacheln, und derselbe Fehler wog beim Bauen fünfmal so viel. Danach `docs/905
+§6`, Punkt 4.
+
+**Was dabei nicht vergessen werden darf**, weil es in diesem Lauf schon
+gezählt hat:
 
 - Navigiert wird mit `$inertia.visit()` und nicht über die Adresszeile — sonst
   nimmt der Seitenaufbau die Konsole mit, und das Messskript sieht den
   Platzhalterzustand nie von innen.
+- **Ausgegeben wird mit `JSON.stringify(…, null, 1)`.** Die Konsole zeigt fünf
+  Schlüssel und klappt den Rest weg; beim ersten Lauf von §3 bis §5 standen
+  genau die beiden Werte hinter dem `…`, die Punkt 3 entscheiden.
 - Die lebende Ablage steht in
   `document.getElementById('app').__vue_app__.config.globalProperties.$page`;
   das `script[data-page]` trägt die Seite vom Laden und überlebt jede

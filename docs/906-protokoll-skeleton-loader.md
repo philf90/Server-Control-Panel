@@ -553,7 +553,63 @@ und `nachreichung_offen` mit.
 
 ---
 
-## §11 und §12 — offen
+## §11 Punkt 9 — die Bilderrunde
+
+**Steht aus.** Acht Lagen, gemessen mit `tests/bilder-messen.js` aus dem Repo,
+je Aufnahme in einer frisch geladenen Seite.
+
+---
+
+## §12 Punkt 10 — das Panel bleibt in den drei Sekunden bedienbar
+
+Gefahren mit dem berichtigten Prüfkörper aus §10a, in einer Konsole auf
+`cloudsrv24`, 1440 px.
+
+| | gemessen |
+|---|---|
+| Seite beim Klick | `/updates` |
+| Nachreichung offen beim Klick | **`true`** |
+| Seite danach | `/services` |
+| Wechsel | **384 ms** |
+
+**Erfüllt** — unter 1500 ms, und die Gegenprobe sagt, dass der Wert etwas misst:
+Die nachgereichte Anfrage lief noch, als der Klick kam. Ohne diese Zeile wäre
+384 ms auch dann herausgekommen, wenn die drei Sekunden längst vorbei gewesen
+wären.
+
+**Gelesen wird der Wert nach Befund 3 und nicht nach der alten Begründung.** Er
+belegt **nicht** „die Sitzungssperre ist kurz" — eine solche Sperre gibt es
+hier nicht. Er belegt, dass **nichts** im Weg steht: weder ein Sperrmechanismus
+der Sitzung noch die Arbeiterzahl von php-fpm.
+
+**Damit ist der Gewinn des Platzhalters mehr als eine Beruhigung.** Vor dieser
+Fassung hielt `/updates` seine Antwort drei Sekunden zurück — es gab keine
+Seite, von der aus man hätte weggehen können. Jetzt steht sie da, und der
+Betreiber kann sie verlassen, während der teure Aufruf noch läuft.
+
+> **Ein Wartezustand, den man verlassen kann, ist ein anderer Zustand als
+> derselbe Wartezustand ohne Ausgang.**
+
+### 12.1 Eine Konsolenmeldung, die nicht dem Panel gehört
+
+Neben dem Ergebnis stand auf `/services`:
+
+```
+Uncaught (in promise) Error: A listener indicated an asynchronous response by
+returning true, but the message channel closed before a response was received
+```
+
+**Sie ist hier nicht gemessen und wird deshalb nicht erklärt.** Sie steht als
+Beobachtung da, weil `docs/114 §12` bereits eine ungeklärte Konsolenmeldung
+benannt offen führt — ob es dieselbe ist, sagt dieser Lauf nicht.
+
+> **Ein Satz, den die Oberfläche behauptet und den niemand gemessen hat, ist
+> eine Vermutung mit Fussnote.** Das gilt auch für einen Satz über eine
+> Meldung.
+
+---
+
+## §13 Der Stand
 
 | Punkt | Stand |
 |---|---|
@@ -566,10 +622,10 @@ und `nachreichung_offen` mit.
 | 7 — die Prüfmeldung kommt oben an | **erfüllt** (§9) |
 | 8 — das Nachladen legt nichts an *(Ausschluss)* | **erfüllt** (§10) |
 | 9 — die Bilderrunde | offen |
-| 10 — bedienbar in den drei Sekunden | offen |
+| 10 — bedienbar in den drei Sekunden | **erfüllt**, 384 ms (§12) |
 
-**Alle drei Ausschlusskriterien sind erfüllt** (3, 4, 8). Offen sind Punkt 10
-(bedienbar in den drei Sekunden) und Punkt 9 (die Bilderrunde).
+**Alle drei Ausschlusskriterien sind erfüllt** (3, 4, 8). Offen ist **nur noch
+Punkt 9**, die Bilderrunde.
 
 **Was dabei nicht vergessen werden darf**, weil es in diesem Lauf schon
 gezählt hat:

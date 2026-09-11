@@ -58,7 +58,18 @@ interface Entry {
 }
 
 const props = defineProps<{
-  packages: {
+  /**
+   * Der Paketstand — **nachgereicht** und deshalb dreiwertig.
+   *
+   * `undefined` heisst „noch unterwegs", `null` heisst „der Agent hat nicht
+   * geantwortet", ein Objekt heisst „da". Die ersten beiden sehen auf der
+   * Seite verschieden aus, und das ist der Punkt: Ein Platzhalter, der beim
+   * Fehlschlag stehenbliebe, wäre schlimmer als der Fehlschlag.
+   *
+   * > **Eine Anzeige, die zwei verschiedene Zustände gleich aussehen lässt,
+   * > behauptet etwas, das sie nicht weiss.**
+   */
+  packages?: {
     upgradable: Package[]
     removals: string[]
     held: { name: string; reason: 'dependencies' | 'phasing' }[]
@@ -90,12 +101,24 @@ const props = defineProps<{
         }
   } | null
 
+  /**
+   * Die Meldung zum ausgebliebenen Paketstand — in derselben Gruppe
+   * nachgereicht wie er selbst, also in derselben Antwort.
+   *
+   * **Sie hiess bis zum 10. September `errors.packages`**, und das war ein
+   * Befund: Eine eigene Eigenschaft `errors` überschreibt die geteilte, in
+   * der Laravels Prüfmeldungen stehen. Die Zusammenfassung oben auf dieser
+   * Seite hat deshalb nie eine gezeigt.
+   */
+  packagesError?: string | null
+
   sources: {
     targets: { file: string | null; stanza: number | null; fields: Record<string, string> }[]
     files: { path: string; format: string; entries: Entry[] }[]
   } | null
 
-  errors: Record<string, string>
+  /** Die Meldung zu den Quellen — synchron wie die Quellen selbst. */
+  sourcesError: string | null
 
   /** Der Rechnername zum Bestätigen und die Wartezeit — {@see ServerController::prompt()}. */
   /**
@@ -130,10 +153,35 @@ const darfSchalten = computed(
  * Reihe: Wer sie kennt, muss sie neu lesen. Dieselbe Entscheidung wie bei der
  * Spalte „System" in der Datenbankliste.
  */
-const kacheln = computed(() => {
+const kacheln = computed((): { key: string; label: string; value: string | null }[] => {
   const p = props.packages
 
+  /*
+   * **Der Agent hat nicht geantwortet: keine Kacheln.** Das ist der Zustand
+   * von vorher und bleibt — daneben steht der `notice critical`, der ihn
+   * erklärt.
+   */
   if (p === null) return []
+
+  /*
+   * **Noch unterwegs: die Kacheln stehen mit ihrer Beschriftung da und ohne
+   * Zahl.** Die fünf Beschriftungen sind Konstanten — wer die Seite kennt,
+   * liest schon, was gleich dort stehen wird. Ein grauer Kasten anstelle der
+   * ganzen Reihe sagte weniger und wäre gleich gross.
+   *
+   * **Und ohne sie spränge die Seite.** `.tiles` trägt zwei Haarlinien; leer
+   * ist die Reihe 2 px hoch und nach drei Sekunden 79. Genau das verbietet
+   * Punkt 3 des Abnahmelaufs.
+   */
+  if (p === undefined) {
+    return [
+      { key: 'upgradable', label: 'Aktualisierbar', value: null },
+      { key: 'security', label: 'davon Sicherheit', value: null },
+      { key: 'fresh', label: 'davon neu', value: null },
+      { key: 'held', label: 'Zurückgehalten', value: null },
+      { key: 'removals', label: 'Würde entfernt', value: null },
+    ]
+  }
 
   return [
     { key: 'upgradable', label: 'Aktualisierbar', value: String(p.upgradable.length) },
@@ -645,7 +693,15 @@ const neustart = computed(() => {
     <div class="tiles">
       <div v-for="k in kacheln" :key="k.key" class="tile">
         <span class="tile-label">{{ k.label }}</span>
-        <span class="tile-value">{{ k.value }}</span>
+        <span class="tile-value">
+          <!--
+            **Der Platzhalter steht *in* `.tile-value` und nicht an seiner
+            Stelle.** Die Kachel behält damit ihre Höhe, ihre Grundlinie und
+            ihren Abstand; ausgetauscht wird die Zahl und nicht die Kachel.
+          -->
+          <span v-if="k.value === null" class="skeleton value" aria-hidden="true" />
+          <template v-else>{{ k.value }}</template>
+        </span>
       </div>
     </div>
 
@@ -662,8 +718,38 @@ const neustart = computed(() => {
 
     <div class="sections">
       <Section title="Pakete" full>
-        <p v-if="props.errors.packages" class="notice critical">
-          Der Paketstand liess sich nicht ermitteln: {{ props.errors.packages }}
+        <!--
+          **Der Platzhalter für den teuren Aufruf** — gemessen 3033 ms für
+          `system.packages.list`, gegen 35 ms für die Quellen darunter
+          (`docs/904 §1`).
+
+          **Warum ein `v-if` und kein `<Deferred>`.** Die Komponente aus
+          `@inertiajs/vue3` löst das Nachladen **nicht** aus; gemessen im
+          Bündel tut das der Router selbst
+          (`page.set()` → `fireInternalEvent('loadDeferredProps')` →
+          `doReload({ only: … })`, **eine** Anfrage je Gruppe). `<Deferred>`
+          wählt nur zwischen zwei Slots — und dafür müsste dieser Bereich
+          290 Zeilen tiefer eingerückt werden, was die sechs Zeilen Änderung
+          in einem Umbruch ohne Inhalt begraben würde.
+
+          Das `v-if` sagt daneben dasselbe wie die Kachelreihe oben und der
+          Prop-Typ: **`undefined` heisst unterwegs, `null` heisst
+          ausgefallen.** Eine Seite, zwei Sprachen für denselben Zustand wären
+          eine zu viel.
+
+          `DeferredPropTest` hält, dass jede nachgereichte Eigenschaft diesen
+          Zweig hat — die Regel, die `<Deferred>` an dieser einen Stelle
+          durchsetzen würde, gilt so für jede Seite.
+        -->
+        <div v-if="props.packages === undefined" class="skeleton-stack">
+          <span class="skeleton line" aria-hidden="true" />
+          <span class="skeleton line" aria-hidden="true" />
+          <span class="skeleton line" aria-hidden="true" />
+          <span class="skeleton line" aria-hidden="true" />
+        </div>
+
+        <p v-else-if="props.packagesError" class="notice critical">
+          Der Paketstand liess sich nicht ermitteln: {{ props.packagesError }}
         </p>
 
         <template v-else-if="props.packages">
@@ -937,8 +1023,8 @@ const neustart = computed(() => {
       </Section>
 
       <Section title="Paketquellen" full>
-        <p v-if="props.errors.sources" class="notice critical">
-          Die Paketquellen liessen sich nicht ermitteln: {{ props.errors.sources }}
+        <p v-if="props.sourcesError" class="notice critical">
+          Die Paketquellen liessen sich nicht ermitteln: {{ props.sourcesError }}
         </p>
 
         <template v-else-if="props.sources">
@@ -1100,7 +1186,21 @@ const neustart = computed(() => {
         Deshalb steht hier der Satz zuerst und die Zahlen darunter.
       -->
       <Section title="Unbeaufsichtigte Updates" full>
-        <p v-if="props.packages === null" class="empty">
+        <!--
+          **Derselbe Zustand wie oben, derselbe Zweig.** Dieser Bereich hängt
+          am selben nachgereichten Wert; ohne ihn stünde hier drei Sekunden
+          lang „Ohne den Paketstand ist über die Automatik nichts zu sagen" —
+          ein Satz über einen Ausfall, den es nicht gegeben hat.
+
+          > **Eine Anzeige, die zwei verschiedene Zustände gleich aussehen
+          > lässt, behauptet etwas, das sie nicht weiss.**
+        -->
+        <div v-if="props.packages === undefined" class="skeleton-stack">
+          <span class="skeleton line" aria-hidden="true" />
+          <span class="skeleton line" aria-hidden="true" />
+        </div>
+
+        <p v-else-if="props.packages === null" class="empty">
           Ohne den Paketstand ist über die Automatik nichts zu sagen.
         </p>
 

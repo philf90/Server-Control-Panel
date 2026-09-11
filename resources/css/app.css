@@ -4999,6 +4999,136 @@ p:not([class]) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   Der Platzhalter für etwas, das noch unterwegs ist
+
+   **Der Anlass ist eine Messung und keine Mode.** `/updates` fragt beim
+   Rendern `system.packages.list`, und das ist ein echtes `apt-get -s upgrade`
+   über `systemd-run` — auf `cloudsrv24` gemessen **3033 ms**, warm wie kalt.
+   Jeder andere Agentenaufruf dieses Panels liegt unter 104 ms. Der Platzhalter
+   steht deshalb an genau einer Stelle und nicht überall (`docs/904 §2`).
+
+   **Warum keine neue Farbe.** `--line` ist die Marke für „Struktur ohne
+   Inhalt" — genau das ist ein Platzhalter. Gerechnet gegen `--bg`: hell
+   1,33:1, dunkel 1,45:1. Das ist Absicht und kein Mangel: Ein Platzhalter ist
+   kein Text und kein Bedienelement, sondern die Fläche, auf der beides gleich
+   erscheint; mit 4,5:1 stünde ein schwarzer Balken auf der Seite und behauptete
+   Inhalt, den es nicht gibt.
+
+   **Und der Schimmer bekommt hier keine eigene `prefers-reduced-motion`-
+   Ausnahme.** Die Regel ganz unten in dieser Datei hält jede Animation an, und
+   eine zweite hier wäre ihre zweite Fassung — die, die veraltet. Gemessen im
+   Container gegen echtes Chromium, 40 Bilder je Lauf: ohne die Einstellung
+   30 verschiedene Werte, mit ihr **ein** Wert ab dem zweiten Bild und
+   unverändert bis zum vierzigsten. Kein Flackern, sondern Stillstand.
+
+   Die Ruhelage ist dabei **beliebig** — zwei Läufe endeten bei `40%` und bei
+   `-60%`. Deshalb ist der Verlauf flach und breit gehalten: Ein eingefrorenes
+   Bild sieht an jeder Stelle wie derselbe graue Balken aus.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.skeleton {
+  display: block;
+  border-radius: 2px;
+
+  /*
+   * Der Verlauf ist dreimal so breit wie der Balken und wandert von rechts
+   * nach links durch ihn hindurch. `--surface` ist die hellere Stelle; ihr
+   * Abstand zu `--line` beträgt 1,28:1 hell und 1,38:1 dunkel — sichtbar
+   * genug, um Bewegung zu zeigen, und flach genug, dass die eingefrorene
+   * Ruhelage nicht auffällt.
+   */
+  background-color: var(--line);
+  background-image: linear-gradient(
+    90deg,
+    var(--line) 0 42%,
+    var(--surface) 50%,
+    var(--line) 58% 100%
+  );
+  background-size: 300% 100%;
+  animation: platzhalter-wandert 1.6s linear infinite;
+}
+
+@keyframes platzhalter-wandert {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+/*
+ * Die Höhe eines Kachelwerts.
+ *
+ * **Sie steht hier und nicht als `style` an der Kachel.** Eine Komponente, die
+ * ihre eigene Höhe setzt, ist derselbe Fehler wie ein Hexwert in ihr — und die
+ * Zahl muss zu `--text-metric` passen, das ebenfalls nur hier steht.
+ *
+ * **`1.05em` ist die Zeilenhöhe von `.tile-value` und keine hübsche Zahl.**
+ * Gemessen bei 1440 px: Der Textkasten der geladenen Kachel ist 35,69 px hoch,
+ * der Platzhalter mit dieser Höhe ebenso.
+ *
+ * **Und er hat keinen Rand.** Der erste Wurf trug `margin: 2px 0` — aus
+ * Gefühl und ohne Messung. Vier Pixel je Kachel: bei 1440 px stehen die fünf
+ * nebeneinander und die Seite sprang um **4 px**, bei 390 px stapeln sie sich
+ * und es waren **20 px**. Die Höhe stimmte von Anfang an; der Rand war der
+ * ganze Fehler, und auf dem Bild war er nicht zu sehen.
+ *
+ * > **Ein Platzhalter, der nicht genau so hoch ist wie das, was er vertritt,
+ * > verschiebt alles darunter — und auf dem Bild sieht das nach nichts aus.**
+ */
+.skeleton.value {
+  width: 3.2em;
+  height: 1.05em;
+}
+
+/* Eine Zeile Text. */
+.skeleton.line {
+  height: 1em;
+}
+
+/*
+ * Ein Stapel Zeilen als Platzhalter für einen ganzen Bereich.
+ *
+ * Der Abstand kommt aus `gap` und nicht aus `margin` an den Zeilen: Ein
+ * `margin` an der ersten Zeile schöbe den Stapel gegen die
+ * Bereichsüberschrift und liesse ihn zwei Zustände weit von dem entfernt
+ * aussehen, den er vertritt.
+ */
+.skeleton-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+/*
+ * **Die Breiten stehen am Stapel und nicht als Klassen an den Zeilen.**
+ *
+ * Zwei Gründe, und der zweite ist ein Befund. Erstens ist „unterschiedlich
+ * lang" eine Eigenschaft des Absatzes und nicht der einzelnen Zeile — vier
+ * gleich breite Balken untereinander sehen nicht nach Text aus, sondern nach
+ * einer Tabelle. Zweitens hiessen die Klassen beim ersten Wurf `.short` und
+ * `.medium`, und `.short` ist in diesem Stylesheet vergeben: „ein `.code`,
+ * dessen Inhalt eine bekannte Länge hat". Gefunden hat das `StandaloneClassTest`
+ * und nicht das Nachdenken.
+ *
+ * > **Ein Klassenname mit zwei Bedeutungen ist global — und die zweite
+ * > Bedeutung trifft jede Stelle, die die erste meint.**
+ *
+ * Die letzte Zeile ist die kürzeste: So endet der Absatz, wie ein Absatz
+ * endet.
+ */
+.skeleton-stack .skeleton.line:nth-child(2n) {
+  width: 72%;
+}
+
+.skeleton-stack .skeleton.line:last-child {
+  width: 44%;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    Balken
 
    Eine Fassung statt drei — vorher `.bar`, `.bar` und `.fuellung`, je nach

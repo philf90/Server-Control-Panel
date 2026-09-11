@@ -46,6 +46,35 @@ router.on('before', (ereignis) => {
 
 createInertiaApp({
   title: (titel) => (titel ? `${titel} · SrvPanel` : 'SrvPanel'),
+
+  /**
+   * Der Fortschrittsbalken trägt die Farbe dieses Panels.
+   *
+   * **Ohne diese Zeile war er blau, seit es diese Datei gibt.** Inertia hat
+   * eine eigene Voreinstellung für `color`, und die stand damit auf jeder
+   * Seite — in keinem Quelltext, sondern in einem `<style>`, das die
+   * Bibliothek beim Start ins Dokument schreibt.
+   *
+   * > **Ein Wächter über den Quelltext sieht keine Farbe, die das Framework
+   * > zur Laufzeit einsetzt.**
+   *
+   * **`var(--accent)` und kein gelesener Wert:** Die Marke wird in der
+   * eingespritzten Regel **am Element** aufgelöst und folgt damit dem Thema;
+   * ein über `getComputedStyle` gelesener Wert wäre der beim Start und bliebe
+   * beim Umschalten stehen.
+   *
+   * **Die Verzögerung bleibt bei Inertias Vorgabe.** Sie ist der Grund, dass
+   * auf einer schnellen Seite gar nichts blinkt — dieselbe Überlegung wie bei
+   * der Schwelle des Platzhalters in `docs/904 §2`. Und der Balken bleibt
+   * neben dem Platzhalter, weil er eine andere Frage beantwortet: Der sagt
+   * „hier kommt noch etwas", er sagt „überhaupt ist etwas unterwegs".
+   *
+   * **Der gemessene Vorgabewert steht in `docs/904 §6` und nicht hier.** Die
+   * CI prüft `resources/js` auf Farbwerte **ohne die Kommentare abzustreifen**
+   * (`.github/workflows/ci.yml`, Schritt „Oberfläche") — ein zitierter Hexwert
+   * macht sie rot, auch wenn er nur erklärt, welchen Wert diese Zeile ersetzt.
+   */
+  progress: { color: 'var(--accent)' },
   /*
    * Das Muster muss zum Verzeichnis passen — und nichts erzwingt das.
    *

@@ -27279,3 +27279,112 @@ Blick in die Datei, die er ändern sollte, und deren Kopf nennt den bestehenden.
 
 > **Eine Zeile, die eine Abwesenheit behauptet, lässt den Nächsten dasselbe noch
 > einmal bauen.**
+
+## Ein Platzhalter für `/updates` — und die Farbe des Fortschrittsbalkens
+
+Der Betreiber hat gemeldet, dass manche Seiten länger laden, `/updates` voran.
+**Der Plan dazu ist `docs/904`, und er steht nach der Messrunde und nicht
+davor** — die Messung hat den Umfang von „alle Seiten" auf **eine Eigenschaft
+auf einer Seite** zusammengezogen.
+
+Zehn Inertia-Seiten fragen beim Rendern den Agenten. Je Aufruf zweimal gemessen
+auf `cloudsrv24`: `system.packages.list` kostet **3033 ms**, der zweitteuerste
+Aufruf 104 ms, dazwischen liegt nichts. Der teure ist ein echtes
+`apt-get -s upgrade` über `systemd-run` — warm ist er nicht schneller, sondern
+eine Spur langsamer.
+
+> **Zwei Läufe entscheiden nicht nur, ob eine hohe Zahl ein Zwischenspeicher war
+> — sie entscheiden auch, dass sie bleibt.**
+
+`packages` wird deshalb über `Inertia::defer()` nachgereicht, `sources` (35 ms)
+bleibt synchron. Die Seite kommt damit sofort, mit einem fertigen Bereich und
+drei Stellen, an denen ein Platzhalter steht: der Kachelreihe, „Pakete" und
+„Unbeaufsichtigte Updates".
+
+**Die Schwelle von 300 ms steht im Plan, obwohl heute nichts an ihr hängt.** Ein
+Platzhalter, der nach 100 ms verschwindet, ist ein Flackern und kein Hinweis —
+dieselbe Überlegung, aus der Inertias 250 ms Verzögerung am Balken stehen
+bleiben.
+
+### Was vorher falsch war
+
+**Der Fortschrittsbalken war blau.** Ohne Angabe gilt Inertias Voreinstellung
+`#29d`; damit stand auf jeder Seite dieses Panels eine Farbe, die `app.css`
+nicht kennt.
+
+> **Ein Wächter über den Quelltext sieht keine Farbe, die das Framework zur
+> Laufzeit einsetzt.**
+
+Sie kommt aus einem `<style>`, das die Bibliothek beim Start ins Dokument
+schreibt — kein Ausdruck über `resources/` hätte sie gefunden. Der Balken
+bekommt jetzt `var(--accent)` durchgereicht und nicht einen gelesenen Wert: Die
+Marke wird am Element aufgelöst und folgt damit dem Thema.
+
+**Und `/updates` hat die Prüfmeldungen dieses Panels verdeckt.** Die Seite
+schickte einen eigenen Fehlerbeutel `errors`, und Inertia lässt Seitenwerte
+geteilte überschreiben. Die Zusammenfassung oben — die genau dafür dasteht —
+hat auf dieser Seite nie eine Prüfmeldung gezeigt.
+
+> **Ein geteilter Schlüssel, den eine Seite auch benutzt, ist auf genau dieser
+> Seite fort — und der Ausfall liest sich wie ein Rechteproblem.**
+
+Derselbe Satz steht seit `docs/82` Schritt 5 über `can` gegen `abilities`; hier
+war es `errors`. Behoben nebenbei, weil die Umstellung den Beutel ohnehin
+auftrennen musste.
+
+### Was der Bau gekostet hat
+
+**Die Seite ist gesprungen**, und Punkt 3 des Abnahmekriteriums verbietet genau
+das: 20 px bei 390, 4 px bei 1440, und alles darunter zog mit. Ursache war ein
+`margin: 2px 0` am Kachelplatzhalter — aus Gefühl gesetzt. Seine **Höhe**
+stimmte von Anfang an aufs Hundertstel.
+
+> **Ein Platzhalter, der nicht genau so hoch ist wie das, was er vertritt,
+> verschiebt alles darunter — und auf dem Bild sieht das nach nichts aus.**
+
+**Die erste Bilderrunde hat den vorigen Stand gemessen**, weil `artisan serve`
+aus `public/build` liefert und der Bau vor der letzten CSS-Änderung lag. Das
+Bild verriet es nicht — es zeigte vier Balken verschiedener Länge, also das
+Gewollte. Gefunden hat es der Blick auf die Klassennamen im DOM.
+
+> **Ein Bild, das plausibel aussieht, belegt nicht, dass es den gebauten Stand
+> zeigt. Die Klassennamen im DOM sagen es, die Pixel nicht.**
+
+**`AgentMessageTest` war blind, und nicht erst seit heute.** Sein Filter
+`\berrors?\b` findet in `packagesError` nichts — zwischen `s` und `E` steht
+keine Wortgrenze. Gemeldet hat es die Untergrenze. Nachgemessen erreicht
+`/errors?\b/i` **zwölf** Einbettungen statt acht, und nur zwei davon sind an
+diesem Tag entstanden; `dump.last_error` und `fieldError('plan')` standen längst
+da und waren nie im Blick des Wächters.
+
+> **Eine Untergrenze ist kein Formalismus — sie ist die einzige Stelle, an der
+> ein Wächter merkt, dass sein Ausdruck ins Leere greift.**
+
+**`StandaloneClassTest` hat einen Klassennamen abgefangen, den es schon gibt.**
+Der erste Wurf hiess `.skeleton.line.short`, und `.short` bedeutet hier „ein
+`.code`, dessen Inhalt eine bekannte Länge hat".
+
+> **Ein Klassenname mit zwei Bedeutungen ist global — und die zweite Bedeutung
+> trifft jede Stelle, die die erste meint.**
+
+### Was der Plan nicht bekommen hat
+
+Eine eigene `prefers-reduced-motion`-Ausnahme für den Schimmer. **Es gibt sie
+schon, und zwar für alle** — ganz unten in `app.css` steht eine `*`-Regel. Ob
+sie wirklich anhält, war bis heute eine Vermutung: `animation-duration: 0.01ms`
+bei `infinite` könnte auch jedes Bild eine andere Phase bedeuten. Gemessen gegen
+echtes Chromium, 40 Bilder je Lauf: ohne die Einstellung **30** verschiedene
+Werte, mit ihr **einer** ab dem zweiten Bild.
+
+> **Eine Regel, die die Bewegung anhält, sagt nichts darüber, in welchem Bild
+> sie stehenbleibt.** Die Ruhelage ist beliebig — zwei Läufe endeten bei `40%`
+> und bei `-60%` —, und deshalb ist der Verlauf flach und breit gehalten.
+
+Und `<Deferred>` aus `@inertiajs/vue3`: Die Komponente löst das Nachladen
+**nicht** aus, das tut der Router (`loadDeferredProps` → `doReload`, eine
+Anfrage je Gruppe). Sie wählt nur zwischen zwei Slots — und dafür müssten
+290 Zeilen zwei Stellen tiefer eingerückt werden.
+
+> **Ein Wächter, der ein Werkzeug verlangt, prüft das Werkzeug. Der Zustand
+> darunter ist die Regel** — `DeferredPropTest` hält deshalb `undefined` und
+> liest `<Deferred>` trotzdem mit.

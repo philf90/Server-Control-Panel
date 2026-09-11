@@ -52,14 +52,102 @@ use SrvPanel\Agent\Ops\SystemPackagesUpgrade;
  */
 final class UpdatesController extends Controller
 {
+    /**
+     * Die Seite — und der teure Teil kommt nach.
+     *
+     * ## Warum überhaupt
+     *
+     * Gemessen auf `cloudsrv24` am 10. September 2026, je Aufruf zweimal:
+     * `system.packages.list` kostet **3033 ms**, `system.sources.list` 35 ms,
+     * und jeder andere Agentenaufruf dieses Panels liegt unter 104 ms. Der
+     * teure ist ein echtes `apt-get -s upgrade` über `systemd-run` — warm ist
+     * er nicht schneller, sondern eine Spur langsamer. Es ist kein
+     * Zwischenspeicher, den ein zweiter Lauf wegwischt.
+     *
+     * > **Zwei Läufe entscheiden nicht nur, ob eine hohe Zahl ein
+     * > Zwischenspeicher war — sie entscheiden auch, dass sie bleibt.**
+     *
+     * ## Warum `defer` und nicht ein Ladezustand im Browser
+     *
+     * Weil ein Ladezustand voraussetzt, dass die Seite schon da ist. Solange
+     * die teure Frage im Renderweg steht, schickt Inertia gar nichts, und der
+     * Browser steht auf der **vorigen** Seite — ein Platzhalter hätte dort
+     * nichts, worauf er sich malen liesse.
+     *
+     * ## Warum die Meldung mitreist und nicht in `errors` bleibt
+     *
+     * Zwei Gründe, und der zweite ist ein Befund. Erstens gehört sie zu dem,
+     * was hier gefragt wird: Käme sie synchron, müsste der Aufruf synchron
+     * sein, den sie beschreibt. Zweitens hat die Seite ihren Fehlerbeutel
+     * `errors` als **eigene** Eigenschaft geschickt — und Inertia lässt
+     * Seitenwerte geteilte überschreiben
+     * (`Inertia\Response::toResponse()` löst geteilt zuerst auf). Damit war
+     * `HandleInertiaRequests::resolveValidationErrors()` auf dieser einen
+     * Seite verdeckt, und die Zusammenfassung oben zeigte nie
+     * eine Prüfmeldung — genau das, was sie verhindern soll.
+     *
+     * > **Ein geteilter Schlüssel, den eine Seite auch benutzt, ist auf genau
+     * > dieser Seite fort — und der Ausfall liest sich wie ein Rechteproblem.**
+     *
+     * Derselbe Satz steht seit `docs/82` Schritt 5 über `can` gegen
+     * `abilities`; hier ist es `errors`.
+     *
+     * ## Warum zwei nachgereichte Eigenschaften und nicht eine
+     *
+     * Weil `packages` sonst `{data, error}` hiesse und jede der
+     * fünfundzwanzig Lesestellen der Vorlage eine Ebene tiefer griffe. Beide
+     * stehen in derselben Gruppe (`defer` ohne zweites Argument ist
+     * `'default'`), reisen also in **einer** Nachfrage — und der Rückruf
+     * daneben liest den Agenten nur einmal, weil beide auf dasselbe Ergebnis
+     * greifen.
+     */
     public function show(Request $request, Client $agent): Response
     {
         $account = $request->user();
+        $operator = $account instanceof Account && $account->can(AdminAbility::OPERATE_SERVER);
 
-        return Inertia::render('Updates/Index', $this->read(
-            $agent,
-            $account instanceof Account && $account->can(AdminAbility::OPERATE_SERVER),
-        ));
+        /*
+         * **Einmal gefragt, zweimal gelesen.** Ohne diesen Merker liefe
+         * `system.packages.list` je nachgereichter Eigenschaft einmal — also
+         * sechs Sekunden statt drei, und der Fehlerfall zweimal gefangen.
+         */
+        $stand = null;
+        $lesen = function () use ($agent, &$stand): array {
+            return $stand ??= $this->packages($agent);
+        };
+
+        /*
+         * **Die Schlüssel stehen ausgeschrieben und nicht als `...`-Streuung.**
+         * `InertiaPropsTest` liest die oberste Ebene dieses Feldes, um zu
+         * halten, dass keine Seite eine Eigenschaft liest, die ihr niemand
+         * schickt; eine Streuung ist für ihn keine. Er hat das beim ersten
+         * Wurf gemeldet — als **fehlend** und nicht als „nicht nachgesehen",
+         * also zur sicheren Seite.
+         *
+         * Und er hat damit recht: Wer hier steht, will sehen, was die Seite
+         * bekommt.
+         */
+        $quellen = $this->sources($agent, $operator);
+
+        return Inertia::render('Updates/Index', [
+            'sources' => $quellen['sources'],
+            'sourcesError' => $quellen['sourcesError'],
+
+            /*
+             * **Der Neustart-Knopf steht am zweiten seiner beiden Anlässe**
+             * (`docs/81 §6`). Hier ist er `/run/reboot-required`, auf der
+             * Übersicht der neuere Kernel in `/boot` — zwei Fragen an zwei
+             * Quellen, eine Handlung, und beide Male steht sie neben ihrem
+             * Anlass statt in einem Menü.
+             *
+             * Er bleibt synchron: {@see ServerController::prompt()} fragt den
+             * Rechnernamen und eine Konstante, keinen Agenten.
+             */
+            'reboot' => $operator ? ServerController::prompt() : null,
+
+            'packages' => Inertia::defer(fn (): ?array => $lesen()['data']),
+            'packagesError' => Inertia::defer(fn (): ?string => $lesen()['error']),
+        ]);
     }
 
     /**
@@ -293,57 +381,30 @@ final class UpdatesController extends Controller
     }
 
     /**
-     * Beide Operationen, und ein Ausfall trägt die Seite trotzdem.
+     * Der Paketstand — und die Meldung, falls er ausbleibt.
      *
-     * **Getrennt gefangen und nicht zusammen.** Die Quellen sind die
-     * Erklärung für den Paketstand — fällt der Paketstand aus, ist die
-     * Quellenliste die Auskunft, die weiterhilft. Ein gemeinsamer `try` gäbe
-     * dem Betreiber im häufigsten Fehlerfall genau die Hälfte weg, die den
-     * Fehler erklärt.
+     * **Der `try`/`catch` steht hier und nicht mehr in einem gemeinsamen
+     * Rumpf mit den Quellen.** Die alte Fassung fing beide Aufrufe getrennt
+     * und legte beide Sätze in denselben Beutel; getrennt gefangen waren sie
+     * schon damals, und die Begründung gilt weiter:
      *
      * > **Zwei Fragen, die einander erklären, dürfen nicht an derselben
      * > Antwort scheitern.**
      *
-     * **Und seit dem 27. August 2026 hängt am Payload die Rollenteilung**
-     * (`docs/81 §3` Frage 2). Zwei Stellen fallen für den Administrator weg,
-     * beide gemessen (`docs/81 §2.3l`); alles Übrige bleibt — Zahlen,
-     * Paketliste, zurückgehaltene samt Grund, Conffiles und der Zustand der
-     * Automatik gehören ausdrücklich auch ihm.
+     * Steht dort „0 Aktualisierungen", gibt es dafür zwei sehr verschiedene
+     * Gründe — der Server ist aktuell, oder apt kommt an seine Quellen nicht
+     * heran. Fällt der Paketstand aus, ist die Quellenliste die Auskunft, die
+     * weiterhilft; sie kommt deshalb synchron und ohne ihn.
      *
-     * **1. Die Schlüssel je Quelle.** Entschieden vom Betreiber, und nicht,
-     * weil ein Fingerabdruck geheim wäre — er steht in der Dokumentation
-     * jeder Distribution und auf Schlüsselservern. Ein Vertrauensanker ist
-     * nicht der Gegenstand des Administrators; wer ihn nicht schalten darf,
-     * muss ihn auch nicht lesen.
-     *
-     * > **Eine Angabe, die man weder braucht noch ändern darf, ist keine
-     * > Auskunft — sie ist eine Einladung, sie doch zu benutzen.**
-     *
-     * **2. Der Anteil für den Neustart.** `/server/reboot` bleibt beim
-     * Betreiber, also darf der Knopf gar nicht erst erscheinen
-     * (`AbilityReachTest`). Der Rechnername darin ist kein Geheimnis — er
-     * steht im Zertifikat und in der Adresszeile —, aber ein Wert, der nur da
-     * ist, weil ein Knopf ihn braucht, geht mit dem Knopf.
-     *
-     * @param  bool  $operator  Darf der Betrachter am Server drehen?
-     * @return array<string, mixed>
+     * @return array{data: array<string, mixed>|null, error: string|null}
      */
-    private function read(Client $agent, bool $operator): array
+    private function packages(Client $agent): array
     {
-        $packages = null;
-        $sources = null;
-        $errors = [];
-
         try {
-            $packages = $agent->call('system.packages.list', []);
+            /** @var array<string, mixed> $antwort */
+            $antwort = $agent->call('system.packages.list', []);
         } catch (AgentException $exception) {
-            $errors['packages'] = $exception->getMessage();
-        }
-
-        try {
-            $sources = $agent->call('system.sources.list', []);
-        } catch (AgentException $exception) {
-            $errors['sources'] = $exception->getMessage();
+            return ['data' => null, 'error' => $exception->getMessage()];
         }
 
         /*
@@ -355,46 +416,50 @@ final class UpdatesController extends Controller
          * Angaben in zwei Zonen nebeneinander, und niemand sieht es, solange
          * beide zufällig dieselbe haben (`docs/40`).
          */
-        if (is_array($packages) && isset($packages['unattended']['last']) && is_array($packages['unattended']['last'])) {
-            foreach ($packages['unattended']['last'] as $name => $zeit) {
-                $packages['unattended']['last'][$name] = is_int($zeit)
+        if (isset($antwort['unattended']['last']) && is_array($antwort['unattended']['last'])) {
+            foreach ($antwort['unattended']['last'] as $name => $zeit) {
+                $antwort['unattended']['last'][$name] = is_int($zeit)
                     ? Clock::display(Carbon::createFromTimestampUTC($zeit))
                     : null;
             }
         }
 
-        if (! $operator && is_array($sources)) {
-            $sources = self::withoutKeys($sources);
+        return ['data' => $antwort, 'error' => null];
+    }
+
+    /**
+     * Die Quellen — synchron, weil sie 35 ms kosten.
+     *
+     * **Und weil sie die Seite tragen, solange die Pakete unterwegs sind.**
+     * Käme sie mit, stünde `/updates` drei Sekunden lang als Gerüst ohne einen
+     * einzigen fertigen Bereich da. So kommt die Seite mit ihrer Überschrift,
+     * ihrer Navigation und einem gefüllten Bereich — das ist der Unterschied
+     * zwischen „die Seite lädt" und „die Seite ist da, ein Teil fehlt noch".
+     *
+     * **Der Anteil für den Administrator fällt hier weg** (`docs/81 §3`
+     * Frage 2), und zwar nicht, weil ein Fingerabdruck geheim wäre — er steht
+     * in der Dokumentation jeder Distribution und auf Schlüsselservern. Ein
+     * Vertrauensanker ist nicht der Gegenstand des Administrators; wer ihn
+     * nicht schalten darf, muss ihn auch nicht lesen.
+     *
+     * > **Eine Angabe, die man weder braucht noch ändern darf, ist keine
+     * > Auskunft — sie ist eine Einladung, sie doch zu benutzen.**
+     *
+     * @param  bool  $operator  Darf der Betrachter am Server drehen?
+     * @return array{sources: array<string, mixed>|null, sourcesError: string|null}
+     */
+    private function sources(Client $agent, bool $operator): array
+    {
+        try {
+            /** @var array<string, mixed> $antwort */
+            $antwort = $agent->call('system.sources.list', []);
+        } catch (AgentException $exception) {
+            return ['sources' => null, 'sourcesError' => $exception->getMessage()];
         }
 
         return [
-            'packages' => $packages,
-            'sources' => $sources,
-            'errors' => $errors,
-
-            /*
-             * **Der Neustart-Knopf steht am zweiten seiner beiden Anlässe**
-             * (`docs/81 §6`). Hier ist er `/run/reboot-required`, auf der
-             * Übersicht der neuere Kernel in `/boot` — zwei Fragen an zwei
-             * Quellen, eine Handlung, und beide Male steht sie neben ihrem
-             * Anlass statt in einem Menü.
-             */
-            'reboot' => $operator ? ServerController::prompt() : null,
-
-            /*
-             * **Hier stand eine `page_size` aus {@see Page::SIZE}, und sie ist
-             * wieder fort.** Die Begründung lautete „eine Zahl, eine Stelle" —
-             * und war falsch: `Page::SIZE` ist die Seitengrösse der
-             * blätternden **Tabellen** dieses Panels, in denen eine Zeile eine
-             * Zeile ist. Hier ist eine Zeile bei 390 px ein Kärtchen von
-             * 179 px, und dieselbe 50 ergibt vierzehn Bildschirme statt drei.
-             *
-             * > **Zwei Zahlen, die zufällig gleich sind, sind keine
-             * > gemeinsame Zahl.**
-             *
-             * Die Seitengrösse dieser Liste steht deshalb in der Vorlage, dort
-             * gemessen und begründet.
-             */
+            'sources' => $operator ? $antwort : self::withoutKeys($antwort),
+            'sourcesError' => null,
         ];
     }
 }

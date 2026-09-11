@@ -314,9 +314,10 @@ liesse Worker und Metrik liegen, und dann bliebe jeder Vorgang wortlos auf
 
 ---
 
-## §7 Punkt 5 — die Farbe des Balkens (Befund am Prüfmittel)
+## §7 Punkt 5 — die Farbe des Fortschrittsbalkens
 
-**Der erste Griff hat nichts gemessen**, und der Fehler ist meiner.
+**Erfüllt** — beim zweiten Griff. Der erste hat nichts gemessen, und der Fehler
+war meiner.
 
 ```
 { "gesehen": 0, "farben": [], "marke": "#ff7fec", "thema": "dark"  }
@@ -372,6 +373,31 @@ den Balken gibt.
 `docs/905 §7` ist entsprechend neu gefasst; der Prüfkörper fragt seitdem die
 **Sichtbarkeit** mit.
 
+### 7.3 Die Messung
+
+Mit gedrosselter Leitung („Slow 4G") an einer gewöhnlichen Navigation:
+
+| Thema | `gesehen` | `regel` | `farben` | `marke` |
+|---|---|---|---|---|
+| dunkel | 13 | `var(--accent)` | `rgb(255, 127, 236)` | `#ff7fec` |
+| hell | 13 | `var(--accent)` | `rgb(55, 48, 163)` | `#3730a3` |
+
+**Beide Male dieselbe eingespritzte Regel, beide Male eine andere Farbe.** Das
+ist der Beleg, und nicht die Farbe selbst: Ein gelesener und eingebackener Wert
+stünde in beiden Themen gleich da.
+
+> **Eine Farbe, die in beiden Themen dieselbe ist, wurde gelesen und nicht
+> durchgereicht.**
+
+Die Umrechnung stimmt auf die Stelle: `#ff7fec` ist `rgb(255, 127, 236)`,
+`#3730a3` ist `rgb(55, 48, 163)`. `farben` trägt je genau **einen** Wert — der
+Balken wechselt seine Farbe während des Laufs nicht.
+
+Damit ist der Befund aus `docs/904 §10a` auf dem Server geschlossen: Der
+Fortschrittsbalken trug seit jeher Inertias blaue Voreinstellung, und kein
+Wächter über Quelltext konnte das sehen, weil die Bibliothek sie zur Laufzeit
+ins Dokument schreibt.
+
 ---
 
 ## §8 bis §12 — offen
@@ -382,15 +408,15 @@ den Balken gibt.
 | 2 — die Seite ist da | **erfüllt**, 1440 und 390 px (§4, §5.1) |
 | 3 — kein Sprung *(Ausschluss)* | **erfüllt**, 1440 und 390 px (§5) |
 | 4 — toter Agent *(Ausschluss)* | **erfüllt** (§6) |
-| 5 — Farbe des Balkens | Prüfkörper berichtigt, Messung offen (§7) |
+| 5 — Farbe des Balkens | **erfüllt**, beide Themen (§7.3) |
 | 6 — die Bewegungsregel ist ausgeliefert | offen |
 | 7 — die Prüfmeldung kommt oben an | offen |
 | 8 — das Nachladen legt nichts an *(Ausschluss)* | offen |
 | 9 — die Bilderrunde | offen |
 | 10 — bedienbar in den drei Sekunden | offen |
 
-**Als Nächstes:** Punkt 5 mit gedrosselter Leitung und gefragter Sichtbarkeit
-(`docs/905 §7`, neu gefasst). Von den drei Ausschlusskriterien steht nur noch
+**Als Nächstes:** `docs/905 §8`, Punkt 6 — ob die ausgelieferte Fassung die
+eine Bewegungsregel mitbringt. Von den drei Ausschlusskriterien steht nur noch
 Punkt 8 aus.
 
 **Was dabei nicht vergessen werden darf**, weil es in diesem Lauf schon

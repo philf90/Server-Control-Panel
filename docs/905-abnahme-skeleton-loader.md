@@ -13,7 +13,8 @@ gelesen (`docs/900`).
 ## §0 Was beim Ausschreiben umgefallen ist
 
 **Drei Punkte aus `docs/904 §10` haben sich beim Hinschreiben als nicht fahrbar
-erwiesen, einer ist ersetzt und einer neu.** Das ist der übliche Ertrag dieses
+erwiesen, einer ist ersetzt und einer neu — und ein vierter ist beim Fahren
+umgefallen.** Das ist der übliche Ertrag dieses
 Schritts; er ist billiger als ein falsches Rot im Lauf.
 
 ### 1. Die 300 ms von Punkt 1 waren nie gemessen
@@ -58,6 +59,31 @@ dass Inertias Verzögerung von 250 ms ihn dort gar nicht zeigt. Ob eine
 Gemessen: **ja.** Erstes Bild bei `t = 240 ms`, sichtbar über die ganzen drei
 Sekunden. Damit ist `/updates` selbst der Ort, an dem sich Punkt 5 messen
 lässt — und das ist gut, denn ein zweiter Gegenstand wäre ein zweiter Prüfkörper.
+
+### 4. Der Agent heisst nicht, wie hier dreimal stand
+
+**Gefunden beim Fahren, nicht beim Ausschreiben.** Die Unit heisst
+`srvpanel-agentd.service`; dieses Dokument nannte an drei Stellen
+`srvpanel-agent`, darunter **§6 — ein Ausschlusskriterium**.
+
+Der Schaden wäre still gewesen: `systemctl stop srvpanel-agent` hält nichts an
+und gibt keinen Fehler, der auffällt. `/updates` hätte danach ganz normal
+geladen, ohne Platzhalter und ohne Streifen — und genau das ist die Anzeige,
+die Punkt 4 als „erfüllt" wertet. Ein Kriterium, das den Zustand nie
+hergestellt hat, den es prüfen soll.
+
+> **`systemctl is-active` meldet für eine Unit, die es nicht gibt, `inactive` —
+> ununterscheidbar von einer, die angehalten ist.**
+
+Aufgefallen ist es nur, weil §2 den Zustand **mitdruckt**: Dort stand
+`inactive` für den Agenten, während zwei Agentenaufruf in derselben Minute
+antworteten. Ein Widerspruch in zwei nebeneinanderstehenden Zeilen.
+
+> **Eine Messung, die ihren Zustand nicht mitdruckt, ist von einer, die ihn
+> nicht hatte, nicht zu unterscheiden.**
+
+`UnitNameReachTest` hält seitdem, dass ein `srvpanel-*`-Unitname in einer
+Vorschrift oder einem Skript auf eine paketierte Unit zeigt.
 
 ### Ein Punkt ist ersetzt, einer ist neu
 
@@ -118,7 +144,7 @@ und sieht den Platzhalterzustand von innen. Gemessen im Container: 90 Proben
 
 ```
 srvpanel version
-systemctl is-active srvpanel-agent srvpanel-worker
+systemctl is-active srvpanel-agentd srvpanel-worker
 ```
 
 Notiert wird die Fassung. Angemeldet wird als **Betreiber** — die Seite gehört
@@ -266,7 +292,7 @@ Ein Platzhalter, der bei einem Fehler stehenbleibt, ist schlimmer als der
 Fehler: Er sagt „gleich", und das wird nie wahr.
 
 ```
-systemctl stop srvpanel-agent
+systemctl stop srvpanel-agentd
 ```
 
 **Danach stehen `srvpanel-worker` und `srvpanel-metrics` ebenfalls still** —
@@ -293,7 +319,7 @@ Danach:
 
 ```
 systemctl start srvpanel.target
-systemctl is-active srvpanel-agent srvpanel-worker srvpanel-metrics
+systemctl is-active srvpanel-agentd srvpanel-worker srvpanel-metrics
 ```
 
 ---

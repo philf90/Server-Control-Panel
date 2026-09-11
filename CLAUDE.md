@@ -1521,7 +1521,12 @@ Seite: Route und Menüpunkt tragen dieselbe Fähigkeit, `/schedules` trägt gena
 ein `GET`, das Präfix der eigenen Dateien kommt aus `CronFile` — und **wo
 nichts feststeht, steht keine Tabelle**: Streifen und Bereiche werden
 aneinander gehalten und nicht auf das Vorhandensein eines `v-if` geprüft, weil
-der grün bliebe, sobald dort irgendeine Bedingung steht) und `DeferredPropTest`
+der grün bliebe, sobald dort irgendeine Bedingung steht) und `UnitNameReachTest`
+(ein `srvpanel-*`-Unitname in einem Codeblock eines Dokuments oder in einem
+Skript zeigt auf eine paketierte Unit — oder auf eine transiente, deren Namen
+er **aus dem Agenten liest** und nicht aus einer Liste in sich selbst; gelesen
+werden nur Codeblöcke und in Skripten der Text ohne Kommentare, weil der
+Fliesstext daneben den falschen Namen erklärt und dabei zitiert) und `DeferredPropTest`
 (was ein Controller über `Inertia::defer()` nachreicht, hat auf seiner Seite
 einen Zweig für „noch unterwegs" — **je Gruppe und nicht je Eigenschaft**, weil
 Inertia eine Gruppe in *einer* Anfrage nachlädt; dazu ist jede nachgereichte

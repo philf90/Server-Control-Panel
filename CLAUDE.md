@@ -3352,6 +3352,77 @@ zwei Zustände derselben.
 
 ---
 
+## Das Abzeichen ist abgenommen — 11. September 2026
+
+Auf `cloudsrv24` gegen `0.7.4-rc.4`, **alle acht Punkte aus `docs/908`**, alle
+drei Ausschlusskriterien (2, 3 und 8) darunter, keiner als „nicht herstellbar"
+ausgefallen. Der Lauf ist `docs/908`, das Protokoll **`docs/909`**.
+
+**Die Kette ist Glied für Glied gemessen:** Timer → Dienst → Ablage →
+Navigation. Der Timer löste um `20:02:35` aus, der Dienst lief in derselben
+Sekunde an, die Ablage trägt `20:02:38` — also genau die Zeile im Journal —,
+und das Abzeichen zeigt die Zahl daraus.
+
+**Kein Befund am Prüfling.** Was der Lauf fand, steckte durchweg im Prüfmittel
+oder in der Vorschrift — wie in P7, bei A10 und beim Platzhalter, und aus
+demselben Grund: Vorschrift vorher ausgeschrieben, Messmittel als geprüfte
+Werkzeuge im Repo.
+
+**Drei Dinge hätten etwas gekostet, und zwei davon fand das Nachlesen am
+Quelltext vor dem Fahren.**
+
+Der teuerste wäre ein **falsches Grün am Ausschlusskriterium** gewesen. Das
+Protokoll hatte die Marker für Punkt 8 **aufgeschrieben statt gemessen**:
+`ExecMainStartTimestamp = 19:27:30`. Das war der *erste* Lauf von Hand — der
+freiwillige Griff mit `apt-mark hold` hat danach zwei weitere abgesetzt, den
+letzten um `19:29:08`. Ohne frische Vormessung wäre ein Lauf von Hand als
+Feuern des Timers durchgegangen.
+
+> **Ein Marker, den man aufschreibt statt ihn zu messen, altert zwischen dem
+> Aufschreiben und dem Messen — und ein Marker, der zu früh steht, macht aus
+> einem fremden Lauf einen Beleg.**
+
+Der zweite ist eine Zahl: **`apt-get -s dist-upgrade` sagt 32, `apt-get -s
+upgrade` sagt 13.** `Packages::read()` baut `upgradable` allein aus dem
+`dist-upgrade`-Lauf; aus `upgrade` kommen nur die zurückgehaltenen Pakete für
+ein anderes Feld. Der erste Entwurf der Gegenprobe hätte gegen `upgrade`
+gemessen und eine Abweichung von 19 Paketen am Prüfling gemeldet, der zu Recht
+so rechnet.
+
+Der dritte war die Form des Kriteriums selbst: **„Der Timer feuert stündlich"
+ist als *ein* Punkt nicht fahrbar** — entweder dauert der Lauf Stunden, oder
+jemand liest beim Abhaken weicher, als dasteht. Es zerfällt in den Termin
+(jetzt ablesbar) und das Feuern (eine Stunde Wartezeit).
+
+**Und zwei Sätze über `systemctl`, beide an einem Prüfkörper bezahlt.**
+
+> **Ein Eigenschaftsname, den es nicht gibt, druckt nichts — und nichts sieht
+> aus wie „nicht gesetzt".** In der Unit-Datei heisst es `RandomizedDelaySec`,
+> über den Bus `RandomizedDelayUSec`, und `systemctl show -p` fragt den Bus.
+> Gefunden hat es nicht das Raten eines zweiten Namens, sondern die Frage an
+> die **volle** Liste.
+
+> **Ein Versatz, der bei jedem Termin neu gewürfelt wird, ist keine Grösse, die
+> man einmal abliest und danach nachrechnet.** `FixedRandomDelay=no`, gemessen
+> an drei Ziehungen (4:44, 2:35, 2:37). Ein Anhalten des Timers würfelt neu —
+> wer die erste Zahl weitergeschrieben hätte, hätte zwei Minuten zu spät
+> nachgesehen.
+
+**Die Containermessung war dabei auf ein Pixel genau.** `docs/907` hat im
+Nachbau **−63 px** für das verdeckte Abzeichen bei 390 px gemessen, der echte
+Server sagt **−62**.
+
+> **Ein Aufsatz, der das echte Markup und das gebaute Stylesheet benutzt, misst
+> die echte Seite — und nicht etwas Ähnliches.**
+
+**Was benannt offen bleibt** (`docs/909 §9b`): ob der Timer einen Neustart
+übersteht (`OnBootSec` und `Persistent` sind gelesen und nicht gefahren), ob
+die Folge über viele Stunden trägt, der Einzahlfall der Knopfbeschriftung, und
+welcher Sockel den Lauf beim Einschalten ausgelöst hat — eingegrenzt, nicht
+gemessen, und für keinen Punkt tragend.
+
+---
+
 ## Zwei Befunde an einem Feld — 4. September 2026
 
 Gemeldet hat den ersten der Betreiber, beim ersten Versuch, den Wartungsmodus

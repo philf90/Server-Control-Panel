@@ -4,9 +4,9 @@ Der Lauf ist `docs/908`, der Plan des Merkmals `docs/907`. Gefahren am
 **11. September 2026** ab 19:27 CEST auf `cloudsrv24`, `srvpanel version` →
 `0.7.4-rc.4`.
 
-**Stand: Punkte 1 bis 7 erfüllt**, darunter die beiden, die nicht ausfallen
-durften (2 und 3). **Punkt 8 — das dritte Ausschlusskriterium — steht aus**;
-es kostet Wartezeit und lässt sich nicht abkürzen.
+**Stand: alle acht Punkte erfüllt**, darunter alle drei, die nicht ausfallen
+durften (2, 3 und 8). Kein Befund am Prüfling; die Bilanz steht in §9.
+
 
 ---
 
@@ -314,17 +314,90 @@ Agentenaufruf ohnehin, und das Ergebnis wird festgehalten.
 
 ---
 
-## §8 Was aussteht
+## §8 Punkt 8 — der Timer hat gefeuert · **erfüllt** *(Ausschlusskriterium)*
 
-**Nur noch Punkt 8** — das Feuern um `20:02:35 CEST`. Die Marker, gegen die
-gemessen wird, sind jetzt **gemessen und nicht erinnert**:
+Gemessen um **20:04:20 CEST**, eine Minute und 45 Sekunden nach dem Termin.
 
-| | Wert, der wandern muss |
-|---|---|
-| `LastTriggerUSec` | von `19:09:04` |
-| `ExecMainStartTimestamp` | von `19:29:08` |
-| `checked_at` | von `17:49:21` UTC |
+| | vorher | nachher |
+|---|---|---|
+| `LastTriggerUSec` | `19:09:04` | **`20:02:35 CEST`** |
+| `ExecMainStartTimestamp` | `19:29:08` | **`20:02:35 CEST`** |
+| `checked_at` (UTC) | `17:49:21` | **`18:02:38`** = `20:02:38 CEST` |
+| `Result` / `ExecMainStatus` | — | `success` / `0` |
+| `NextElapseUSecRealtime` | `20:02:35` | `21:02:37 CEST` |
 
-Alle drei müssen auf denselben neuen Augenblick zeigen, und `Result` muss
-`success` sein. Der dritte Haken ist der tragende: Die ersten beiden belegen,
-dass etwas lief, nicht dass es das war, was das Abzeichen speist.
+Das Journal daneben:
+
+```
+20:02:35  Starting srvpanel-packages.service …
+20:02:38  php[458138]: 32 aktualisierbare Pakete festgehalten.
+20:02:38  Deactivated successfully.
+20:02:38  Finished srvpanel-packages.service …
+```
+
+**Alle drei Marker sind gewandert, und sie zeigen auf denselben Vorgang.**
+Der Timer hat um `20:02:35` ausgelöst — auf die Sekunde der Termin, der in §7
+vorhergesagt stand —, der Dienst ist in derselben Sekunde angelaufen, und die
+Ablage trägt `20:02:38`, also genau den Augenblick der Zeile im Journal.
+
+**Der dritte Marker ist der tragende.** Die ersten beiden belegen, dass der
+Timer einen Dienst gestartet hat. Erst `checked_at` verbindet ihn mit der
+Ablage, aus der das Abzeichen liest — und damit ist die Kette geschlossen:
+**Timer → Dienst → Ablage → Navigation**, jedes Glied einzeln gemessen.
+
+> **Ein Beleg für den Weg ist keiner für das Ziel.**
+
+Und `NEXT` steht wieder auf einem Datum, nicht auf `-`: **`21:02:37`**, mit
+neu gewürfeltem Versatz.
+
+**Die drei gemessenen Versätze der stündlichen Folge** waren 4 min 44 s,
+2 min 35 s und 2 min 37 s. Dass die letzten beiden zwei Sekunden auseinander
+liegen, ist bei drei Ziehungen aus einem Fenster von fünf Minuten ein Zufall
+und kein Muster — drei Werte können weder das eine noch das andere belegen,
+und mehr als „es wird gewürfelt" sagt dieser Lauf dazu nicht.
+
+---
+
+## §9 Bilanz
+
+**Alle acht Punkte erfüllt**, **alle drei Ausschlusskriterien** (2, 3 und 8)
+darunter, keiner als „nicht herstellbar" ausgefallen. Die beiden Dinge, die der
+PR zum Abzeichen ausdrücklich als ungemessen benannt hatte, sind es nicht mehr:
+
+1. **Der Timer feuert stündlich** — belegt in §1 (Termin), §8 (das Feuern
+   selbst) und durch den neuen Termin danach.
+2. **Die Zahl kommt aus einem echten `system.packages.list`** — belegt in §3,
+   und in §3b sogar ursächlich: Mit einem gehaltenen Paket geht sie mit hinunter
+   und wieder herauf.
+
+**Befunde am Prüfling: keiner.** Was der Lauf gefunden hat, steckte durchweg im
+Prüfmittel oder in der Vorschrift — dieselbe Lage wie in P7, bei A10 und beim
+Platzhalter, und aus demselben Grund: Die Vorschrift war vor dem Fahren
+ausgeschrieben, die Messmittel lagen als geprüfte Werkzeuge im Repo.
+
+> **Ein Abnahmelauf ohne Fund am Prüfling sagt nicht, dass keiner da war — er
+> sagt, wo sie gefunden wurden.**
+
+### §9a Die drei, die etwas gekostet hätten
+
+| | wo | was es gekostet hätte |
+|---|---|---|
+| `apt-get -s upgrade` statt `dist-upgrade` | §0 Nr. 3, gemessen in §3a | Eine gemeldete Abweichung von **19 Paketen** am Prüfling, der zu Recht so rechnet |
+| Der Marker aus dem Gedächtnis | §7a | Ein Lauf von Hand (`19:29:08`) wäre als Feuern des Timers durchgegangen — **ein falsches Grün am Ausschlusskriterium** |
+| „Der Timer feuert stündlich" als **ein** Punkt | §0 Nr. 1 | Entweder unfahrbar oder beim Abhaken weicher gelesen als geschrieben |
+
+Zwei davon hat das Nachlesen am Quelltext **vor** dem Fahren gefunden, einen
+der Vorher-Block **während** des Fahrens. Keinen das Nachdenken.
+
+### §9b Was benannt offen bleibt
+
+- **Ob der Timer einen Neustart übersteht.** `OnBootSec=10min` und
+  `Persistent=true` sind gelesen und nicht gefahren (`docs/908 §9`).
+- **Ob die Folge über viele Stunden trägt.** Ein Feuern belegt den Mechanismus,
+  `NEXT` den Plan; über den zwölften Lauf sagt keiner von beiden etwas.
+- **Der Einzahlfall der Knopfbeschriftung** ist auf dem Server nicht ausgelöst
+  worden (§4); er steht als Wächter in `NavDotTest`.
+- **Welcher Sockel den Lauf um 19:09:04 ausgelöst hat** (§6b) — eingegrenzt,
+  nicht gemessen, und für keinen Punkt tragend.
+- Der Rest aus P7 (`orphan.row` für `tls.cloudlab24.de`), der zu dieser Stufe
+  nicht gehört.

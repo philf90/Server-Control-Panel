@@ -50,15 +50,36 @@ Punkt 6 fragt das.
 
 > **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
 
-### 3. Punkt 5 setzte voraus, dass der Balken überhaupt erscheint
+### 3. Punkt 5 lässt sich auf `/updates` gar nicht messen
 
 Er misst die Farbe des Fortschrittsbalkens — und die Hülle kommt so schnell,
-dass Inertias Verzögerung von 250 ms ihn dort gar nicht zeigt. Ob eine
+dass Inertias Verzögerung von 250 ms ihn dort nicht zeigt. Ob eine
 **nachgereichte** Anfrage ihn auslöst, stand nirgends.
 
-Gemessen: **ja.** Erstes Bild bei `t = 240 ms`, sichtbar über die ganzen drei
-Sekunden. Damit ist `/updates` selbst der Ort, an dem sich Punkt 5 messen
-lässt — und das ist gut, denn ein zweiter Gegenstand wäre ein zweiter Prüfkörper.
+**Hier stand „gemessen: ja, erstes Bild bei t = 240 ms". Das war falsch, und
+der Fehler steckte im Prüfkörper.** Er fragte
+`document.querySelector('#nprogress .bar')` — also nach dem **Element**. Im
+Bündel gemessen:
+
+- `doReload()` setzt **`async: true`**, und `showProgress` ist
+  `options.showProgress ?? (!options.async || !!options.optimistic)` — für jede
+  nachgereichte Anfrage also **`false`**.
+- `hide()` setzt `display: none` und **lässt das Element im DOM**.
+
+Der Prüfkörper fand damit ein unsichtbares Element und las seine Farbe.
+
+> **Ein Prüfkörper, der nach dem Element fragt, hat nicht nach der Anzeige
+> gefragt.**
+
+Auf dem Server fiel es auf, weil dort gar nichts gestartet war: `gesehen: 0`,
+`farben: []`, in beiden Themen — bei korrekten Marken (`#3730a3` hell,
+`#ff7fec` dunkel).
+
+**Dass der Balken beim Nachreichen schweigt, ist richtig** und kein Mangel: Ein
+Nachladen im Hintergrund soll nicht blinken. Gemessen wird er deshalb an einer
+**gewöhnlichen** Navigation, und damit die über 250 ms dauert, wird die Leitung
+gedrosselt. Die Drosselung ändert am Prüfling nichts — sie stellt die
+Bedingung her, für die es den Balken gibt.
 
 ### 4. Der Agent heisst nicht, wie hier dreimal stand
 
@@ -328,42 +349,60 @@ systemctl is-active srvpanel-agentd srvpanel-worker srvpanel-metrics
 
 *(darf ausfallen)*
 
-Bis zu dieser Fassung war der Balken blau (`#29d`), und kein Wächter über
-Quelltext konnte das sehen: Die Bibliothek schreibt die Farbe zur Laufzeit ins
-Dokument.
+Bis zu dieser Fassung war der Balken blau, und kein Wächter über Quelltext
+konnte das sehen: Die Bibliothek schreibt die Farbe zur Laufzeit ins Dokument.
 
-Von einer anderen Seite aus, damit die nachgereichte Anfrage den Balken zeigt:
+**Gemessen wird an einer gewöhnlichen Navigation und nicht am Nachreichen**
+(§0, Punkt 3). Damit sie die 250 ms überschreitet, wird in den Entwicklerwerkzeugen
+die Leitung gedrosselt — „Slow 4G" genügt.
 
 ```js
 const g = document.getElementById('app').__vue_app__.config.globalProperties
 const proben = []
 const takt = setInterval(() => {
   const bar = document.querySelector('#nprogress .bar')
-  if (bar) proben.push(getComputedStyle(bar).backgroundColor)
+  if (bar && getComputedStyle(bar.parentElement).display !== 'none') {
+    proben.push(getComputedStyle(bar).backgroundColor)
+  }
 }, 60)
-g.$inertia.visit('/updates')
+g.$inertia.visit('/services')
 setTimeout(() => {
   clearInterval(takt)
-  console.log({
+  console.log(JSON.stringify({
     gesehen: proben.length,
     farben: [...new Set(proben)],
     marke: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
-  })
-}, 6000)
+    thema: document.documentElement.getAttribute('data-theme'),
+    regel: (() => {
+      for (const sheet of document.styleSheets) {
+        let regeln; try { regeln = sheet.cssRules } catch { continue }
+        for (const r of regeln ?? []) {
+          if (r.selectorText?.includes('nprogress') && r.selectorText.includes('.bar')) {
+            return r.style.background || r.style.backgroundColor
+          }
+        }
+      }
+      return null
+    })(),
+  }, null, 1))
+}, 8000)
 ```
+
+**Die Sichtbarkeit wird mitgefragt** (`display !== 'none'`) — das ist der
+Unterschied, an dem die erste Fassung dieses Punktes gescheitert ist.
 
 **Erfüllt, wenn** `gesehen` grösser als 0 ist und `farben` **genau einen** Wert
 enthält, der die Marke `--accent` ist.
 
 **Und beide Themen**, denn der Beleg ist nicht die Farbe, sondern dass sie
-*folgt*: Dieselbe eingespritzte Regel muss im hellen und im dunklen Thema zwei
-verschiedene Werte ergeben. Gemessen im Container: `rgb(55, 48, 163)` hell,
-`rgb(255, 127, 236)` dunkel — bei identischer Regel `var(--accent)`.
+*folgt*: `regel` muss in beiden Fällen wörtlich `var(--accent)` lauten und
+`farben` zwei verschiedene Werte ergeben. Gemessen im Container:
+`rgb(55, 48, 163)` hell, `rgb(255, 127, 236)` dunkel.
 
 > **Eine Farbe, die in beiden Themen dieselbe ist, wurde gelesen und nicht
 > durchgereicht.**
 
----
+Danach die Drosselung wieder abschalten.
 
 ## §8 Punkt 6 — die Regel, die jede Bewegung anhält, ist ausgeliefert
 

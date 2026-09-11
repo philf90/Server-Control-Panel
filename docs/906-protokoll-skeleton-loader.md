@@ -314,7 +314,67 @@ liesse Worker und Metrik liegen, und dann bliebe jeder Vorgang wortlos auf
 
 ---
 
-## §7 bis §12 — offen
+## §7 Punkt 5 — die Farbe des Balkens (Befund am Prüfmittel)
+
+**Der erste Griff hat nichts gemessen**, und der Fehler ist meiner.
+
+```
+{ "gesehen": 0, "farben": [], "marke": "#ff7fec", "thema": "dark"  }
+{ "gesehen": 0, "farben": [], "marke": "#3730a3", "thema": "light" }
+```
+
+Die Marken stimmen in beiden Themen. Der Balken war nie da — und zwar **zu
+Recht**, was die Vorschrift nicht wusste.
+
+### 7.1 Befund 2 — der Prüfkörper fragte nach dem Element
+
+*(im Prüfmittel; er hat eine falsche Zusage in `docs/905 §0` erzeugt)*
+
+`docs/905 §0` behauptete, eine nachgereichte Anfrage löse den Balken aus, und
+nannte das **gemessen** — „erstes Bild bei t = 240 ms". Im Bündel nachgesehen
+stimmt das nicht:
+
+- `doReload()` setzt **`async: true`**, und `showProgress` ist
+  `options.showProgress ?? (!options.async || !!options.optimistic)` — für jede
+  nachgereichte Anfrage also **`false`**.
+- `hide()` setzt `display: none` und **lässt das Element im DOM**.
+
+Der Prüfkörper fragte `document.querySelector('#nprogress .bar')`, fand das
+unsichtbare Element und las dessen Farbe. Er hat damit belegt, dass es die
+Regel gibt — nicht, dass ein Balken erscheint.
+
+> **Ein Prüfkörper, der nach dem Element fragt, hat nicht nach der Anzeige
+> gefragt.**
+
+**Aufgefallen ist es nur auf dem Server**, wo gar nichts gestartet war und
+`gesehen` deshalb auf `0` stand. Im Container stand dort eine Zahl, und eine
+Zahl sieht aus wie eine Messung.
+
+> **Eine Zahl, die aus einem unsichtbaren Element kommt, ist von einer aus einem
+> sichtbaren nicht zu unterscheiden — wenn man nicht nach der Sichtbarkeit
+> fragt.**
+
+### 7.2 Und das Schweigen ist richtig
+
+Ein Nachladen im Hintergrund soll nicht blinken. Dass Inertia den Balken für
+`async`-Anfragen ausdrücklich abschaltet, ist ein Entwurf und kein Versehen —
+und es passt zu der Überlegung, aus der die 250 ms Verzögerung stehen bleiben:
+
+> **Ein Ladezustand, der kürzer steht als der Blick braucht, ist kein Hinweis —
+> er ist eine Bewegung ohne Aussage.**
+
+Der Balken bedient damit alles **ausser** dem Nachreichen: jede gewöhnliche
+Navigation und jedes abgesendete Formular. Dort gehört er gemessen, und damit
+eine Navigation die 250 ms überschreitet, wird die Leitung gedrosselt. Die
+Drosselung ändert am Prüfling nichts — sie stellt die Bedingung her, für die es
+den Balken gibt.
+
+`docs/905 §7` ist entsprechend neu gefasst; der Prüfkörper fragt seitdem die
+**Sichtbarkeit** mit.
+
+---
+
+## §8 bis §12 — offen
 
 | Punkt | Stand |
 |---|---|
@@ -322,15 +382,16 @@ liesse Worker und Metrik liegen, und dann bliebe jeder Vorgang wortlos auf
 | 2 — die Seite ist da | **erfüllt**, 1440 und 390 px (§4, §5.1) |
 | 3 — kein Sprung *(Ausschluss)* | **erfüllt**, 1440 und 390 px (§5) |
 | 4 — toter Agent *(Ausschluss)* | **erfüllt** (§6) |
-| 5 — Farbe des Balkens | offen |
+| 5 — Farbe des Balkens | Prüfkörper berichtigt, Messung offen (§7) |
 | 6 — die Bewegungsregel ist ausgeliefert | offen |
 | 7 — die Prüfmeldung kommt oben an | offen |
 | 8 — das Nachladen legt nichts an *(Ausschluss)* | offen |
 | 9 — die Bilderrunde | offen |
 | 10 — bedienbar in den drei Sekunden | offen |
 
-**Als Nächstes:** `docs/905 §7`, Punkt 5 — die Farbe des Fortschrittsbalkens.
-Von den drei Ausschlusskriterien steht nur noch Punkt 8 aus.
+**Als Nächstes:** Punkt 5 mit gedrosselter Leitung und gefragter Sichtbarkeit
+(`docs/905 §7`, neu gefasst). Von den drei Ausschlusskriterien steht nur noch
+Punkt 8 aus.
 
 **Was dabei nicht vergessen werden darf**, weil es in diesem Lauf schon
 gezählt hat:

@@ -427,7 +427,60 @@ gemessen (40 Bilder, 30 Werte ohne die Einstellung, einer mit ihr).
 
 ---
 
-## §9 bis §12 — offen
+## §9 Punkt 7 — die Prüfmeldung kommt oben an
+
+**Erfüllt**, und er belegt zwei Dinge auf einmal.
+
+```
+onError: { "stanza": "Das Feld Eintrag muss mindestens 1 sein." }
+
+{
+ "url": "/updates",
+ "meldungen": [
+  "Das Formular wurde nicht gespeichert.Das Feld Eintrag muss mindestens 1 sein."
+ ]
+}
+```
+
+**Die Behebung am Fehlerbeutel.** Bis zu dieser Fassung schickte `/updates`
+eine eigene Eigenschaft `errors` und überschrieb damit die geteilte Ablage, in
+der Laravels Prüfmeldungen stehen. Die Zusammenfassung oben auf der Seite — die
+es genau dafür gibt — hat dort **nie** eine gezeigt. Jetzt steht sie da:
+
+> **Das Formular wurde nicht gespeichert.**
+> Das Feld Eintrag muss mindestens 1 sein.
+
+**Und der Rückweg.** `url` steht auf `/updates`. `back()->withErrors()` landet
+nur dann hier, wenn die nachgereichte Anfrage `_previous.url` nicht verdorben
+hat — der Punkt, der im Plan noch „Der Weg zurück lebt" hiess und beim
+Ausschreiben in diesen aufgegangen ist (`docs/905 §0`).
+
+> **Zwei Fragen, von denen die eine die andere einschliesst, sind ein Punkt und
+> nicht zwei — und der Punkt ist die engere.**
+
+**Der Satz ist deutsch**, und das ist nicht selbstverständlich: `min` steht in
+`lang/de/validation.php`, und am 10. September fehlten dort 98 von 138
+Regelschlüsseln (`docs/903 §11.1`). Ein englischer Satz wäre ein eigener Befund
+gewesen.
+
+**Nichts wurde geschaltet.** `stanza: 0` verletzt `min:1`; die Prüfung weist ab,
+bevor irgendetwas den Agenten erreicht, und `toggle()` schreibt sein
+Protokoll erst nach dem Absetzen.
+
+### 9.1 Und eine zusammengelaufene Zeile ist kein Befund
+
+`meldungen` zeigt *„…nicht gespeichert.Das Feld…"* ohne Leerzeichen. Das ist
+der `textContent` eines Elements mit zwei Kindern und sagt über die Anzeige
+nichts — die Aufnahme zeigt zwei Zeilen, Überschrift und Satz.
+
+> **Ein Rohdruck, der Kinder ohne Trenner aneinandersetzt, sieht kaputt aus und
+> misst nichts über die Anzeige.**
+
+Derselbe Satz wie in `docs/114` an einer Tabelle, hier an einem Streifen.
+
+---
+
+## §10 bis §12 — offen
 
 | Punkt | Stand |
 |---|---|
@@ -437,13 +490,13 @@ gemessen (40 Bilder, 30 Werte ohne die Einstellung, einer mit ihr).
 | 4 — toter Agent *(Ausschluss)* | **erfüllt** (§6) |
 | 5 — Farbe des Balkens | **erfüllt**, beide Themen (§7.3) |
 | 6 — die Bewegungsregel ist ausgeliefert | **erfüllt** (§8) |
-| 7 — die Prüfmeldung kommt oben an | offen |
+| 7 — die Prüfmeldung kommt oben an | **erfüllt** (§9) |
 | 8 — das Nachladen legt nichts an *(Ausschluss)* | offen |
 | 9 — die Bilderrunde | offen |
 | 10 — bedienbar in den drei Sekunden | offen |
 
-**Als Nächstes:** `docs/905 §9`, Punkt 7 — die Prüfmeldung oben auf der Seite.
-Von den drei Ausschlusskriterien steht nur noch Punkt 8 aus.
+**Als Nächstes:** `docs/905 §10`, Punkt 8 — das letzte der drei
+Ausschlusskriterien: Das Nachladen legt nichts an.
 
 **Was dabei nicht vergessen werden darf**, weil es in diesem Lauf schon
 gezählt hat:

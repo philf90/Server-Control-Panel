@@ -530,6 +530,20 @@ das Aufmerksamkeit erzeugen soll: **Wo sieht jemand diesen Hinweis, ohne ihn zu
 suchen — und steht er dort?** Kein Wächter kann sie halten; sie hängt daran, was
 ein Betrachter erwartet.
 
+**Behoben am selben Tag** (`docs/907 §6`): Ein Punkt am Menüknopf der
+Kopfleiste, gemessen 11,11:1 gegen `#1a0b2e` in beiden Themen. Zwei Dinge daraus
+gelten über ihn hinaus. Erstens ist `.nav-toggle` ein Raster mit
+`place-items: center` und **einem** Kind — ein zweites im Fluss schiebt das
+Zeichen um 6,5 px nach oben, während die Kopfleiste in beiden Fällen 65 px hoch
+bleibt; der Schaden sitzt im Knopf, und auf Seitenebene beschwert sich keine
+Zahl. Zweitens ist der Kasten eines Zeichens nicht sein Bild: 24 × 24 px Kasten
+gegen **16 × 10 px Tinte**, und gegen den Kasten gemessen sähe die richtige Lage
+nach einer Überlappung aus.
+
+> **Ein Hinweis, der nur eine Farbe ist, erreicht niemanden, der die Farbe nicht
+> sieht.** Der Punkt trägt `aria-hidden`; seinen Namen bekommt er vom Knopf,
+> dessen Beschriftung die Zahl nennt — mit Einzahl.
+
 **Was offen bleibt und benannt ist:** Wand 2 aus Punkt 11 und die vier Zeilen zu
 den Befunden 20 und 21 gegen die nächste Fassung. Wer sie anfasst, fängt bei
 `docs/59` an und nicht bei null.

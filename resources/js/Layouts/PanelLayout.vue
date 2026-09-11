@@ -77,6 +77,30 @@ const announcements = computed(
 const pendingUpdates = computed(() => (page.props.pendingUpdates ?? null) as number | null)
 
 /*
+ * **Der Punkt am Menüknopf braucht einen Satz, sonst sagt er einem
+ * Screenreader nichts.**
+ *
+ * Unter 720 px ist die Leiste eine Schublade; zugeklappt steht das Abzeichen
+ * am Menüpunkt „Updates" bei x = −63 px, also ausserhalb des Bildes (gemessen
+ * am 11. September 2026). Der Punkt hier ist die Antwort darauf — und er ist
+ * eine rein sichtbare Auskunft. Wer den Bildschirm nicht sieht, hörte ohne
+ * diesen Satz weiterhin nur „Navigation".
+ *
+ * Der Wortlaut ist abgeschrieben und nicht erfunden: `/updates` sagt „Es steht
+ * keine Aktualisierung an", also lautet die Gegenrichtung „… stehen an". Und
+ * die Einzahl steht ausdrücklich da — „1 Aktualisierungen" ist genau der
+ * Befund, für den es `CountedNounTest` gibt.
+ */
+const navLabel = computed(() => {
+  const offen = pendingUpdates.value ?? 0
+  if (offen < 1) return 'Navigation'
+
+  return offen === 1
+    ? 'Navigation, 1 Aktualisierung steht an'
+    : `Navigation, ${offen} Aktualisierungen stehen an`
+})
+
+/*
  * Die Erfolgsmeldung steht hier und nicht auf jeder Seite.
  *
  * Bis August 2026 brachte sie jede Seite selbst mit — drei Seiten taten es,
@@ -650,7 +674,7 @@ onBeforeUnmount(() => {
         class="nav-toggle"
         :aria-expanded="menuOpen"
         aria-controls="hauptnavigation"
-        aria-label="Navigation"
+        :aria-label="navLabel"
         @click="menuOpen = !menuOpen"
       >
         <!-- Drei Striche als SVG und nicht als „☰": Das Zeichen ist ein Emoji
@@ -658,6 +682,21 @@ onBeforeUnmount(() => {
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M4 7h16M4 12h16M4 17h16" />
         </svg>
+
+        <!--
+          **Der Punkt steht ausserhalb des Flusses, und das ist gemessen.**
+
+          `.nav-toggle` ist ein Raster mit `place-items: center` und **einem**
+          Kind. Ein zweites Kind im Fluss macht daraus zwei Zellen: Das Zeichen
+          rutscht um **6,5 px** nach oben, während die Kopfleiste in beiden
+          Fällen 65 px hoch bleibt (gemessen am 11. September 2026). Der Schaden
+          sitzt also im Knopf, und keine Zahl auf Seitenebene beschwert sich —
+          dieselbe Familie wie die gestapelte Zelle, die genau ein Kind verträgt.
+
+          `aria-hidden`, weil die Auskunft im `aria-label` des Knopfes steht:
+          Ein Punkt ohne Text hat keinen Namen, den man vorlesen könnte.
+        -->
+        <span v-if="(pendingUpdates ?? 0) > 0" class="nav-dot" aria-hidden="true" />
       </button>
 
       <span class="title">{{ title }}</span>
@@ -1095,6 +1134,12 @@ onBeforeUnmount(() => {
   }
 
   .nav-toggle {
+    /*
+     * `position: relative` trägt den Punkt und sonst nichts — er ist das
+     * einzige absolut gesetzte Kind. Ohne diese Zeile bezöge er sich auf das
+     * nächste positionierte Element weiter oben und landete irgendwo.
+     */
+    position: relative;
     display: grid;
     place-items: center;
     flex: none;
@@ -1106,6 +1151,39 @@ onBeforeUnmount(() => {
     border: 0;
     border-radius: var(--radius);
     cursor: pointer;
+  }
+
+  /*
+   * **Der Punkt, der sagt, dass etwas ansteht.**
+   *
+   * Das Abzeichen am Menüpunkt „Updates" deckt die breite Ansicht; die
+   * Kopfleiste gibt es nur unter 720 px, und dort ist die Leiste eine
+   * Schublade. Zugeklappt stand das Abzeichen bei x = −63 px — auf dem Telefon
+   * sah es niemand (gemessen am 11. September 2026).
+   *
+   * **Die Lage ist gemessen und nicht geschätzt.** Der Kasten des Zeichens ist
+   * 24 × 24 und zu zwei Dritteln leer: Die Tinte der drei Striche misst
+   * **16 × 10** und sitzt 17 px unter der Knopfkante. Bei `top/right: 8px`
+   * steht der Punkt genau an der rechten Kante dieser Tinte und **3 px** über
+   * ihr — angeheftet, ohne sie zu berühren. Gegen den *Kasten* gemessen sähe
+   * dieselbe Lage nach einer Überlappung von 4 px aus.
+   *
+   * **6 px ist das Hausmass**, und zwar aus `.badge::before`. Eine zweite
+   * Grösse daneben wäre die, die veraltet.
+   *
+   * Die Farbe ist `--accent` der Kopfleiste selbst und keine Zustandsfarbe:
+   * Der Streifen führt einen eigenen Markensatz, `--nav-bg` ist in **beiden**
+   * Themen `#1a0b2e`. Gemessen ergibt der Punkt darauf **11,11:1** — verlangt
+   * sind 3:1 (WCAG 1.4.11, kein Text).
+   */
+  .nav-dot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 999px;
   }
 
   .nav-toggle svg {

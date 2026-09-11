@@ -17605,12 +17605,18 @@ echo "── PackagingTest: die Wrapper-Liste faellt auf einen Eintrag zusammen 
 # Null, die wie „nichts zu beanstanden" aussieht und „nicht nachgesehen" heisst.
 vorher_datei packaging/bin/srvpanel
 python3 - <<'PY2'
+import re
+# Gesucht wird die Zeile ihrer FORM nach und nicht ihrem Wortlaut nach: Der
+# Eingriff trug die Kommandoliste wörtlich, und der Zweig, der `packages`
+# hinzufuegte, machte ihn damit stumpf — der volle Lauf vom 11. September 2026
+# meldete „Eingriff hat nichts geaendert". Ein Eingriff, der jedes neue
+# Kommando nachgetragen haben will, wird beim naechsten wieder blind.
 p = 'packaging/bin/srvpanel'
 s = open(p, encoding='utf-8').read()
-alt = ('setup|update|metrics|usage|cron-runs|tls|dns|dns-check|db|vhost|'
-       'acceptance|acceptance-web|acceptance-db|admin|access|version|diagnose)')
-assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, 'setup)', 1))
+m = re.findall(r'^[ \t]*[a-z][a-z-]*(?:\|[a-z][a-z-]*){5,}\)$', s, re.M)
+assert len(m) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+assert m[0].count('|') >= 5, 'Liste schon kurz — der Bruch wuerde nichts zusammenfalten'
+open(p, 'w', encoding='utf-8').write(s.replace(m[0], m[0][:len(m[0]) - len(m[0].lstrip())] + 'setup)', 1))
 PY2
 griff_datei packaging/bin/srvpanel "Wrapper-Liste zusammengefallen" &&
 pruefe "Wrapper-Liste zusammengefallen" \
@@ -27477,6 +27483,98 @@ pruefe "Marke der Seite im Streifen" \
   NavBadgeTest::test_the_count_badge_reads_only_tokens_the_rail_redefines failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NavBadgeTest passed
+
+echo "── NavDotTest: der Punkt faellt in den Fluss des Rasters ──"
+#
+# Gemessen am 11. September 2026: `.nav-toggle` ist ein Raster mit
+# `place-items: center` und EINEM Kind. Nimmt man dem Punkt sein `absolute`,
+# wird er das zweite — und das Zeichen rutscht um 6,5 px nach oben, waehrend
+# die Kopfleiste in beiden Faellen 65 px hoch bleibt. Der Schaden sitzt im
+# Knopf, und auf Seitenebene beschwert sich keine Zahl.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = '''  .nav-dot {
+    position: absolute;
+'''
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '  .nav-dot {\n', 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Punkt im Fluss des Rasters" &&
+pruefe "Punkt im Fluss des Rasters" \
+  NavDotTest::test_the_dot_stands_outside_the_grid_flow failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavDotTest passed
+
+echo "── NavDotTest: der Knopf verliert seinen Bezug ──"
+#
+# Der Eingriff, der den Kommentarabtaster belegt: Der Absatz ueber
+# `.nav-toggle` schreibt `position: relative` woertlich hin. Ohne
+# `withoutMarkupComments()` bliebe der Waechter hier gruen, obwohl die
+# Deklaration fort ist — und der Punkt bezoege sich auf irgendein Element
+# weiter oben.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = '''    position: relative;
+    display: grid;
+    place-items: center;
+'''
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '''    display: grid;
+    place-items: center;
+'''
+s = s.replace(alt, neu, 1)
+assert 'position: relative' in s, 'Der Kommentar zitiert die Zeile nicht mehr — der Eingriff belegt den Abtaster nicht'
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Knopf ohne Bezug" &&
+pruefe "Knopf ohne Bezug" \
+  NavDotTest::test_the_dot_stands_outside_the_grid_flow failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavDotTest passed
+
+echo "── NavDotTest: der Menueknopf sagt nicht, was der Punkt zeigt ──"
+#
+# Der Punkt ist `aria-hidden` und hat keinen Namen. Faellt die gebundene
+# Beschriftung auf die feste Zeichenkette zurueck, ist die Auskunft rein
+# sichtbar — und es gibt den Punkt gerade deshalb, weil sie jemanden
+# erreichen soll.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = ':aria-label="navLabel"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'aria-label="Navigation"', 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Menueknopf ohne Auskunft" &&
+pruefe "Menueknopf ohne Auskunft" \
+  NavDotTest::test_the_button_says_what_the_dot_shows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavDotTest passed
+
+echo "── NavDotTest: der Punkt bekommt eine zweite Quelle ──"
+#
+# Zwei Bedingungen fuer dieselbe Zahl sind zwei Fassungen derselben Regel, und
+# die zweite ist die, die veraltet: Das Telefon zeigte den Punkt, waehrend die
+# breite Ansicht daneben kein Abzeichen haette.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<span v-if="(pendingUpdates ?? 0) > 0" class="nav-dot" aria-hidden="true" />'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '<span v-if="page.props.packagesWaiting" class="nav-dot" aria-hidden="true" />'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Punkt mit zweiter Quelle" &&
+pruefe "Punkt mit zweiter Quelle" \
+  NavDotTest::test_the_dot_and_the_badge_read_the_same_number failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavDotTest passed
 
 
 echo

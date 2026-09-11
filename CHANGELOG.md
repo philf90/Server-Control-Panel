@@ -27510,3 +27510,68 @@ Gestaltungsfrage und steht als solche in `docs/907 §4`.
 
 > **Ein Hinweis, der in einer Schublade liegt, erreicht nur den, der die
 > Schublade ohnehin öffnet — und der wusste es schon.**
+
+### Ein Punkt am Menüknopf, für das, was die Schublade verdeckt
+
+Der Befund darüber ist behoben: Unter 720 px sitzt am Menüknopf der Kopfleiste
+ein Punkt, sobald etwas ansteht. Das Abzeichen deckt die breite Ansicht, der
+Punkt die schmale — bei 1440 px ist die Kopfleiste `display: none` und der Knopf
+0 px hoch.
+
+**Die Bauform ist gemessen und nicht überlegt.** `.nav-toggle` ist ein Raster
+mit `place-items: center` und **einem** Kind. Als zweites Kind im Fluss schiebt
+der Punkt das Zeichen um **6,5 px** nach oben, und die Kopfleiste bleibt dabei
+in beiden Fällen 65 px hoch:
+
+> **Ein Schaden, der innerhalb eines Knopfes sitzt, hat auf Seitenebene keine
+> Zahl, die sich beschwert.**
+
+Er steht deshalb ausserhalb des Flusses. Dieselbe Familie wie die gestapelte
+Zelle aus dem A6-Lauf, die genau ein Kind verträgt.
+
+**Und seine Lage kommt von der Tinte und nicht vom Kasten.** Der Kasten des
+Zeichens ist 24 × 24 und zu zwei Dritteln leer; die Tinte der drei Striche misst
+**16 × 10**. Gegen den Kasten gemessen sähe `top/right: 8px` nach einer
+Überlappung von 4 px aus — gegen die Tinte sind es **3 px Luft**. Die
+Gegenprobe, ein Prüfkörper über den ganzen Knopf, trifft sie; ohne die hiesse
+„trifft nicht" nur, dass der Test nichts misst.
+
+Gemessen am gebauten Punkt: **11,11:1 in beiden Themen** (verlangt sind 3:1 —
+er ist kein Text), `dokument = 0`, Gegenprobe 200/200, und das Zeichen steht
+weiterhin exakt mittig.
+
+**Der Punkt trägt `aria-hidden` und bekommt seinen Namen vom Knopf**, dessen
+Beschriftung jetzt „Navigation, 32 Aktualisierungen stehen an" lautet — mit
+Einzahl, denn „1 Aktualisierungen" ist der Befund, für den es `CountedNounTest`
+gibt.
+
+> **Ein Hinweis, der nur eine Farbe ist, erreicht niemanden, der die Farbe nicht
+> sieht.**
+
+`NavDotTest` hält vier Dinge: den Punkt ausserhalb des Flusses, den Bezug am
+Knopf, eine Quelle für Punkt und Abzeichen, und die gebundene Beschriftung. Er
+streift die Kommentare ab, bevor er sucht — und das ist hier kein Formalismus,
+sondern belegt: Der Absatz, der `position: relative` *begründet*, schreibt die
+Zeile wörtlich hin. Ohne Abtaster bliebe der Wächter grün, nachdem jemand die
+Deklaration entfernt hat.
+
+### Was die Messung über sich selbst gelernt hat
+
+**Zweimal an einem Tag hat ein kaputter Leser ein plausibles Ergebnis
+geliefert** — einmal, weil eine Marke als Text gelesen `#ffb7a5` ist und keine
+Farbe, einmal, weil eine Rechnung per Regex aus einer Datei gelesen wurde und
+die Maskierung eines Template-Literals erst beim Auswerten geschieht. Beide Male
+stand die Gegenprobe auf Grün: Sie rechnet schwarz auf weiss (21,00) und weiss
+auf weiss (1,00), mit fest hingeschriebenen Zahlen, die keinen Leser brauchen.
+
+> **Eine Gegenprobe an der Rechnung sagt nichts über den Wert, der in sie
+> hineingeht.**
+
+**Und der volle Bruchlauf hat einen Eingriff gemeldet, den dieser Zweig selbst
+stumpf gemacht hatte:** 2346 Prüfungen beissen, eine nicht. Sie trug die
+Kommandoliste von `packaging/bin/srvpanel` wörtlich, und das Abzeichen hat
+`packages` hineingeschrieben. Der Eingriff sucht seine Zielstelle seitdem ihrer
+**Form** nach und nicht ihrem Wortlaut nach.
+
+> **Ein Eingriff misst nicht nur die Datei, die er anfasst — er misst jede, die
+> sein Wächter liest.**

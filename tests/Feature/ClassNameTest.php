@@ -49,7 +49,7 @@ final class ClassNameTest extends TestCase
         'block', 'branch', 'breadcrumb', 'button', 'cell', 'check', 'choice', 'choices', 'codes',
         'clamped', 'code', 'command', 'comment', 'confirmation', 'content', 'count', 'critical', 'info', 'crumbs', 'cursor', 'danger',
         'dependent',
-        'description', 'detail',
+        'description', 'detail', 'dot',
         'place',
         'finding',
         'done', 'editor', 'empty', 'end', 'error', 'explains', 'eye', 'facts', 'failure', 'field', 'file',

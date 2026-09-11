@@ -274,12 +274,129 @@ drittes Kind klebte sonst am Wort.
 - **Was das Abzeichen tut, wenn der Wert alt ist.** Die Frage ist gestellt und
   nicht beantwortet; ein Vorschlag steht in §3.1 (Zeitpunkt daneben), die
   Entscheidung nicht.
-- **Dass das Abzeichen auf dem Telefon niemand sieht** (§1.6). Die Leiste ist
-  dort eine Schublade; zugeklappt steht es bei x = −63 px. Was stattdessen in
-  der Kopfleiste stehen könnte — ein Punkt am Menüknopf, die Zahl daneben, oder
-  gar nichts —, ist nicht entschieden. Wer es anfasst, misst zuerst: Die
-  Kopfleiste trägt denselben Markensatz wie die Leiste, also gilt §1.2 dort
-  wörtlich.
+- *(Beantwortet am 11. September — §6.)* Dass das Abzeichen auf dem Telefon
+  niemand sieht, ist mit einem Punkt am Menüknopf behoben.
+
+---
+
+## §6 Der Punkt am Menüknopf — gemessen am 11. September 2026
+
+Der Betreiber hat ihn nach dem Befund aus §1.6 bestellt: „Punkt am Menüknopf in
+der Kopfleiste, bitte messen und bauen." Gemessen wurde **vor** dem Bau, mit
+einem Prüfkörper in der lebenden Seite; gebaut wurde danach die Form, die
+gewonnen hat.
+
+### 6.1 Die tragende Messung hat die Bauform entschieden
+
+`.nav-toggle` ist ein Raster mit `place-items: center` und **einem** Kind. Was
+ein zweites Kind anrichtet, stand nicht zur Vermutung:
+
+| | Verschiebung des Zeichens | Höhe der Kopfleiste |
+|---|---|---|
+| ohne Punkt | — | 65 px |
+| Punkt **im Fluss** | **y = −6,5 px** | 65 px |
+| Punkt **absolut** | 0 | 65 px |
+| Prüfkörper entfernt | 0 | 65 px |
+
+> **Ein Schaden, der innerhalb eines Knopfes sitzt, hat auf Seitenebene keine
+> Zahl, die sich beschwert.**
+
+Dieselbe Familie wie die gestapelte Zelle aus dem A6-Lauf, die genau ein Kind
+verträgt — dort zog `space-between` den Inhalt auseinander, hier zieht
+`place-items` ihn nach oben. Der Punkt sitzt deshalb `absolute`, und
+`.nav-toggle` trägt dafür `position: relative`.
+
+### 6.2 Die Lage kommt von der Tinte und nicht vom Kasten
+
+| | oben | rechts | Grösse |
+|---|---|---|---|
+| Kasten des `<svg>` | 10 px | 10 px | 24 × 24 |
+| **Tinte der drei Striche** | **17 px** | **14 px** | **16 × 10** |
+
+Der Kasten ist zu zwei Dritteln leer. Gegen ihn gemessen sähe `top/right: 8px`
+nach einer Überlappung von 4 px aus; gegen die **Tinte** gemessen sind es 3 px
+Luft. Drei Lagen durchprobiert (8, 6 und 4 px), alle drei frei — und die
+Gegenprobe, ein Prüfkörper über den ganzen Knopf, **trifft** die Tinte. Ohne
+sie hiesse „trifft nicht" nur, dass der Test nichts misst.
+
+`top/right: 8px` gewinnt: Dort steht der Punkt genau an der rechten Kante der
+Tinte und 3 px über ihr — angeheftet, ohne sie zu berühren. **6 px Durchmesser**
+ist das Hausmass aus `.badge::before`; eine zweite Grösse daneben wäre die, die
+veraltet.
+
+### 6.3 Farbe, Überlauf und die breite Ansicht
+
+| gemessen | hell | dunkel |
+|---|---|---|
+| gemalt | `rgb(255,183,165)` | dieselbe |
+| Grund | `26,11,46` | `26,11,46` |
+| **Kontrast** | **11,11:1** | **11,11:1** |
+| `dokument` | 0 | 0 |
+| Gegenprobe | 200/200 | 200/200 |
+
+Verlangt sind **3:1** (WCAG 1.4.11) — der Punkt ist kein Text. Und bei 1440 px
+ist die Kopfleiste `display: none`, der Knopf 0 px hoch: Der Punkt ist
+ausschliesslich ein Telefon-Merkmal, während das Abzeichen die breite Ansicht
+deckt. Zusammen schliessen sie die Lücke aus §1.6.
+
+### 6.4 Der Punkt bekommt seinen Namen vom Knopf
+
+Er trägt `aria-hidden` und hat keinen Namen, den man vorlesen könnte. Die
+Beschriftung des Knopfes ist deshalb gebunden und lautet gemessen
+**„Navigation, 32 Aktualisierungen stehen an"**. Der Wortlaut ist abgeschrieben
+und nicht erfunden: `/updates` sagt „Es steht keine Aktualisierung an". Die
+Einzahl steht ausdrücklich da — „1 Aktualisierungen" ist genau der Befund, für
+den es `CountedNounTest` gibt.
+
+> **Ein Hinweis, der nur eine Farbe ist, erreicht niemanden, der die Farbe nicht
+> sieht.**
+
+### 6.5 Zwei Befunde am Prüfmittel, und beide hat dieselbe Gegenprobe verfehlt
+
+**Der erste:** Die Farbe wurde zuerst über
+`getComputedStyle(el).getPropertyValue('--accent')` geholt und kam als
+**`#ffb7a5`** zurück — eine Marke ist die Zeichenkette, die in der Datei steht,
+und keine berechnete Farbe. Der Ausdruck `[\d.]+` fand darin „7" und „5", und
+heraus kam `NaN`.
+
+> **Eine Marke, die man als Text ausliest, ist nicht die Farbe, die gemalt wird.**
+
+**Der zweite:** Die Nachmessung am gebauten Punkt las ihre Rechnung per Regex
+**aus einer Datei**. Dort steht `[\\d.]+`; die Verdopplung löst das
+Template-Literal erst beim Auswerten auf. Als Dateitext gelesen blieb sie
+stehen, die Zeichenklasse traf danach Backslashes und Punkte — **keine
+Ziffern**. `grund()` fiel auf sein Weiss zurück und meldete `1,00:1` für einen
+Punkt mit 11,11:1.
+
+> **Eine Zeichenkette, die ein Template-Literal erzeugt, ist nicht die
+> Zeichenkette, die in der Datei steht — die Maskierung geschieht beim Auswerten
+> und nicht beim Lesen.**
+
+**Und beide Male stand die Gegenprobe auf Grün.** Sie rechnet schwarz auf weiss
+(21,00) und weiss auf weiss (1,00) — beides mit fest hingeschriebenen Zahlen,
+die keinen Leser brauchen.
+
+> **Eine Gegenprobe an der Rechnung sagt nichts über den Wert, der in sie
+> hineingeht.**
+
+Die Messung trägt seitdem eine Gegenprobe am **Leser**: `parse('rgb(26, 11, 46)')`
+muss `26,11,46,1` ergeben. Sie hätte beide Fehler gefangen.
+
+### 6.6 Ein Eingriff, den dieser Zweig stumpf gemacht hat
+
+Der volle Bruchlauf meldete **2346 beissende Prüfungen und eine ohne Biss**:
+„Wrapper-Liste zusammengefallen — Eingriff hat nichts geändert". Er trug die
+Kommandoliste von `packaging/bin/srvpanel` **wörtlich**, und der Bau des
+Abzeichens hat `packages` hineingeschrieben.
+
+> **Ein Eingriff misst nicht nur die Datei, die er anfasst — er misst jede, die
+> sein Wächter liest.**
+
+Gefangen hat es die Zusicherung im Eingriff selbst (`s.count(alt) == 1`): Er hat
+sich geweigert, blind zu messen, statt still nichts zu tun. Er sucht seine
+Zielstelle seitdem **ihrer Form nach** — eine Zeile aus mindestens sechs
+`|`-getrennten Namen, die auf `)` endet — und nicht ihrem Wortlaut nach; sonst
+wäre er beim nächsten Kommando wieder blind.
 
 ---
 

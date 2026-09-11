@@ -4458,6 +4458,30 @@ Testen berücksichtigen:
     „leer" auch wirklich leer, und ein `LEER` ohne Zerlegen ist eine Frage und
     kein Ergebnis.
 
+    **Und ein Lauf über eine einzelne Datei kann wortlos nichts melden —
+    gemessen am 11. September 2026.** Derselbe Prüfkörper (`strlen(42)` als
+    freistehende Anweisung) ergibt, in eine Datei unter `app/` gesetzt:
+
+    | Aufruf | gemeldet |
+    |---|---|
+    | `analyse … <eine Datei>` | **nichts** |
+    | `analyse … <dieselbe Datei> <zweite Datei>` | **beide** |
+
+    Gemessen in dieser Reihenfolge, mit geleertem `/tmp/phpstan` dazwischen und
+    mit `grep -c` als Beleg, dass der Eingriff wirklich in der Datei stand. Eine
+    **neu angelegte** Datei wird auch einzeln gemeldet — es trifft also die
+    Dateien, die es schon gab.
+
+    > **Ein Prüfer, der über eine einzelne Datei schweigt und über dieselbe
+    > Datei neben einer zweiten redet, hat beim ersten Mal nicht gemessen.**
+
+    Der Griff ist derselbe wie überall hier, nur an einer neuen Stelle: **Der
+    Prüfkörper gehört in denselben Aufruf** wie die Frage. Eine Wegwerfdatei mit
+    einem absichtlich falschen Typ unter `app/`, im selben `analyse` mitgegeben,
+    und danach zählen: Meldet sie nichts, war der ganze Lauf keine Messung.
+    So gefahren über die elf geänderten Dateien dieses Zweiges: Prüfkörper vier
+    Zeilen, geänderte Dateien null.
+
     **Und das Zerlegen genügt auch nicht — gemessen am 30. August 2026.** In
     einer Agentensitzung verpackt das Gestell die Ausgabe von PHPStan und
     ersetzt sie durch `{"tool":"phpstan","result":"passed","errors":0}` —

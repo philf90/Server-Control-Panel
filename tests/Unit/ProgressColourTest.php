@@ -148,12 +148,24 @@ final class ProgressColourTest extends TestCase
         $roh = (string) file_get_contents(dirname(__DIR__, 2).'/'.self::ENTRY);
 
         /*
-         * **Die Kommentare fallen weg, bevor gesucht wird.** Der Block über
-         * `progress:` schreibt Inertias Voreinstellung `#29d` wörtlich hin —
-         * roh gelesen meldete der Wächter oben einen Hexwert, den es im Code
-         * nicht gibt. Derselbe Fall wie bei `OutcomeTest` am 1. September, nur
-         * andersherum: Dort hielt ein Kommentar einen Wächter fälschlich grün,
-         * hier machte er ihn fälschlich rot.
+         * **Die Kommentare fallen weg, bevor gesucht wird** — vorsorglich, und
+         * die Vorsorge ist bezahlt.
+         *
+         * Der Block über `progress:` hat Inertias Vorgabewert einmal wörtlich
+         * zitiert, um zu erklären, welchen Wert die Zeile darunter ersetzt.
+         * Dieser Wächter blieb davon unbeeindruckt; **rot wurde die CI**, denn
+         * ihr Schritt „Oberfläche" liest `resources/js` roh
+         * (`.github/workflows/ci.yml`). Das Zitat steht seitdem in
+         * `docs/904 §6`, und im Einstieg steht ein Satz, der vor der Falle
+         * warnt.
+         *
+         * > **Derselbe Kommentar, der einen Wächter fälschlich grün hält,
+         * > macht eine Messung fälschlich rot.**
+         *
+         * Das Abstreifen bleibt deshalb, obwohl es heute nichts abzustreifen
+         * gibt: Die nächste Erklärung, die den Wert nennt, ist wahrscheinlicher
+         * als keine — und dieser Wächter soll dann den Code melden und nicht
+         * den Satz darüber.
          *
          * `WithoutPhpComments` fragt den PHP-Parser und taugt für `.ts` nicht;
          * TypeScript kennt aber dieselben zwei Formen, und mehr braucht es

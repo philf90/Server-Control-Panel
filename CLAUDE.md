@@ -1536,8 +1536,10 @@ die Spezifität, und eine solche Zeile sieht auf einem Gerät ohne die Einstellu
 völlig richtig aus) und `ProgressColourTest` (der Fortschrittsbalken bekommt
 überhaupt eine Angabe — **das Fehlen ist der Fehler**, denn ohne sie gilt
 Inertias `#29d` auf jeder Seite —, seine Farbe ist eine Marke, die `app.css`
-wirklich führt, und die Kommentare fallen weg, bevor gesucht wird, weil der
-Block darüber `#29d` wörtlich zitiert). Der Bruch selbst steht als
+wirklich führt, und die Kommentare fallen weg, bevor gesucht wird — vorsorglich,
+seit der Einstieg den Vorgabewert nicht mehr zitiert: **Der Schritt
+„Oberfläche" der CI liest `resources/js` roh**, und ein zitierter Hexwert macht
+ihn rot, auch wenn er nur erklärt, welchen Wert eine Zeile ersetzt). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 

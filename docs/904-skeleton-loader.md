@@ -327,9 +327,8 @@ richtig aus.
 überhaupt (**das Fehlen ist der Fehler**, denn ohne Angabe gilt `#29d`), die
 Farbe ist eine Marke, die `app.css` wirklich führt, im Einstieg steht kein
 Hexwert, und die Verzögerung bleibt bei Inertias 250 ms. Er streift die
-Kommentare ab, bevor er sucht — der Block über der Zeile schreibt `#29d`
-wörtlich hin, und roh gelesen meldete er einen Hexwert, den es im Code nicht
-gibt (in beide Richtungen gemessen).
+Kommentare ab, bevor er sucht — **vorsorglich**, seit der Einstieg den
+Vorgabewert nicht mehr zitiert (§10a).
 
 Was er **nicht** kann, steht in seinem Kopf: Ob die Farbe im Browser wirklich
 ankommt, misst er nicht — das tut Punkt 5 des Abnahmelaufs.
@@ -468,6 +467,30 @@ Er hat sie als **fehlend** gemeldet und nicht als „nicht nachgesehen".
 
 Die Schlüssel stehen seitdem ausgeschrieben, und das ist auch für einen Leser
 besser: Wer im Controller steht, will sehen, was die Seite bekommt.
+
+### Und ein Befund kam aus der CI, nicht von hier
+
+Der Schritt **„Oberfläche"** prüft `resources/js` auf Farbwerte — mit einem
+`grep` und **ohne die Kommentare abzustreifen**. Der Dokumentblock über
+`progress:` zitierte Inertias Vorgabewert wörtlich, um zu erklären, welchen Wert
+die Zeile darunter ersetzt, und damit war die CI rot für einen Hexwert, den es
+im Code nicht gibt.
+
+> **Derselbe Kommentar, der einen Wächter fälschlich grün hält, macht eine
+> Messung fälschlich rot.**
+
+Die Ironie gehört zum Befund: `ProgressColourTest` streift die Kommentare ab —
+genau dafür, und in beide Richtungen gemessen. Blind war nicht der frisch
+gebaute Wächter, sondern der blosse `grep` daneben, an den niemand gedacht hat.
+
+> **Zwei Prüfungen derselben Regel, von denen eine die Kommentare kennt und die
+> andere nicht, widersprechen sich beim ersten Zitat.**
+
+**Behoben ist es an der Prosa und nicht am `grep`.** Der blosse Ausdruck schützt
+jede Komponente dieses Panels; ihn für einen Satz in einem Dokumentblock
+aufzuweichen wäre die teurere Seite des Tauschs. Der gemessene Vorgabewert steht
+seitdem in §6 dieses Dokuments, und im Einstieg steht ein Satz, der vor der
+Falle warnt.
 
 ### Und zwei Fehler des eigenen Prüfmittels
 

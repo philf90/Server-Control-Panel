@@ -50,36 +50,29 @@ createInertiaApp({
   /**
    * Der Fortschrittsbalken trägt die Farbe dieses Panels.
    *
-   * ## Der Befund
-   *
-   * Er war blau, und zwar seit es diese Datei gibt. Ohne diese Angabe gilt
-   * Inertias Voreinstellung — gemessen im Bündel:
-   * `delay = 250, color = "#29d", includeCSS = true, showSpinner = false`.
-   * Damit stand auf **jeder** Seite dieses Panels ein Hexwert, den `app.css`
-   * nicht kennt.
+   * **Ohne diese Zeile war er blau, seit es diese Datei gibt.** Inertia hat
+   * eine eigene Voreinstellung für `color`, und die stand damit auf jeder
+   * Seite — in keinem Quelltext, sondern in einem `<style>`, das die
+   * Bibliothek beim Start ins Dokument schreibt.
    *
    * > **Ein Wächter über den Quelltext sieht keine Farbe, die das Framework
    * > zur Laufzeit einsetzt.**
    *
-   * Sie kommt nicht aus einer `.vue` und nicht aus `app.css`, sondern aus
-   * einem `<style>`, das die Bibliothek beim Start ins Dokument schreibt.
-   * `DesignTokensTest` liest Quelltext und konnte sie nie sehen.
+   * **`var(--accent)` und kein gelesener Wert:** Die Marke wird in der
+   * eingespritzten Regel **am Element** aufgelöst und folgt damit dem Thema;
+   * ein über `getComputedStyle` gelesener Wert wäre der beim Start und bliebe
+   * beim Umschalten stehen.
    *
-   * ## Warum `var(--accent)` und kein gelesener Wert
+   * **Die Verzögerung bleibt bei Inertias Vorgabe.** Sie ist der Grund, dass
+   * auf einer schnellen Seite gar nichts blinkt — dieselbe Überlegung wie bei
+   * der Schwelle des Platzhalters in `docs/904 §2`. Und der Balken bleibt
+   * neben dem Platzhalter, weil er eine andere Frage beantwortet: Der sagt
+   * „hier kommt noch etwas", er sagt „überhaupt ist etwas unterwegs".
    *
-   * Weil `color` in ein `background:` der eingespritzten Regel eingesetzt
-   * wird — dort ist eine Custom Property zulässig und wird **am Element**
-   * aufgelöst. Ein über `getComputedStyle` gelesener Wert wäre der des Themas
-   * zum Zeitpunkt des Starts und bliebe beim Umschalten stehen; dieser folgt
-   * ihm. Eine Quelle, drei Themen, keine Zeile Pflege.
-   *
-   * ## Warum der Balken überhaupt bleibt
-   *
-   * Er beantwortet eine andere Frage als der Platzhalter aus `docs/904`: Der
-   * sagt „hier kommt noch etwas", der Balken sagt „überhaupt ist etwas
-   * unterwegs" — auf jeder Seite ohne Platzhalter und bei jedem abgesendeten
-   * Formular. Die 250 ms bleiben ebenfalls: Sie sind der Grund, dass auf einer
-   * schnellen Seite gar nichts blinkt.
+   * **Der gemessene Vorgabewert steht in `docs/904 §6` und nicht hier.** Die
+   * CI prüft `resources/js` auf Farbwerte **ohne die Kommentare abzustreifen**
+   * (`.github/workflows/ci.yml`, Schritt „Oberfläche") — ein zitierter Hexwert
+   * macht sie rot, auch wenn er nur erklärt, welchen Wert diese Zeile ersetzt.
    */
   progress: { color: 'var(--accent)' },
   /*

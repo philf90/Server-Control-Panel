@@ -1521,7 +1521,12 @@ Seite: Route und Menüpunkt tragen dieselbe Fähigkeit, `/schedules` trägt gena
 ein `GET`, das Präfix der eigenen Dateien kommt aus `CronFile` — und **wo
 nichts feststeht, steht keine Tabelle**: Streifen und Bereiche werden
 aneinander gehalten und nicht auf das Vorhandensein eines `v-if` geprüft, weil
-der grün bliebe, sobald dort irgendeine Bedingung steht) und `DeferredPropTest`
+der grün bliebe, sobald dort irgendeine Bedingung steht) und `UnitNameReachTest`
+(ein `srvpanel-*`-Unitname in einem Codeblock eines Dokuments oder in einem
+Skript zeigt auf eine paketierte Unit — oder auf eine transiente, deren Namen
+er **aus dem Agenten liest** und nicht aus einer Liste in sich selbst; gelesen
+werden nur Codeblöcke und in Skripten der Text ohne Kommentare, weil der
+Fliesstext daneben den falschen Namen erklärt und dabei zitiert) und `DeferredPropTest`
 (was ein Controller über `Inertia::defer()` nachreicht, hat auf seiner Seite
 einen Zweig für „noch unterwegs" — **je Gruppe und nicht je Eigenschaft**, weil
 Inertia eine Gruppe in *einer* Anfrage nachlädt; dazu ist jede nachgereichte
@@ -3163,7 +3168,86 @@ Servers haben kurze, und `rollt` stand auf `0`.
 
 ---
 
-## Ein Platzhalter für `/updates` — 10. September 2026
+## Ein Platzhalter für `/updates` — abgenommen am 11. September 2026
+
+**Abgenommen auf `cloudsrv24` gegen `0.7.4-rc.3`, alle zehn Punkte aus
+`docs/905`**, die drei Ausschlusskriterien (3, 4 und 8) darunter, keiner als
+„nicht herstellbar" ausgefallen. Der Lauf ist `docs/905`, das Protokoll
+**`docs/906`**.
+
+**Drei Befunde, und keiner im Prüfling** — dieselbe Lage wie in P7 (`docs/78`)
+und aus demselben Grund: Vorschrift vorher ausgeschrieben, Messmittel als
+geprüfte Werkzeuge im Repo. `tests/bilder-messen.js` hat in acht Lagen keinen
+einzigen erzeugt. Was hier dazukommt, ist der **Bau**: `docs/904 §10a` zählt
+sieben Stellen auf, an denen er anders lief als geplant.
+
+> **Ein Abnahmelauf ohne Fund am Prüfling sagt nicht, dass keiner da war — er
+> sagt, wo sie gefunden wurden.**
+
+**Zwei der drei hätten still durchgehen können, und beide sind an derselben
+Stelle aufgefallen: daran, dass die Messung ihren Zustand mitdruckt.** Befund 1
+hätte ein Ausschlusskriterium erfüllt gemeldet, ohne dessen Zustand je
+hergestellt zu haben — die Vorschrift schrieb `srvpanel-agent`, und die Unit
+heisst `srvpanel-agentd`.
+
+> **`systemctl is-active` meldet für eine Unit, die es nicht gibt, `inactive` —
+> ununterscheidbar von einer, die angehalten ist.**
+
+`UnitNameReachTest` hält seitdem, dass ein `srvpanel-*`-Unitname in einem
+Codeblock oder Skript auf eine paketierte Unit zeigt — oder auf eine transiente,
+deren Namen er **aus dem Agenten liest**. Sein erster Lauf hat sofort eine
+zweite Stelle gefunden: `docs/35` wies an, `srvpanel` anzuhalten — eine Unit
+dieses Namens gibt es nicht.
+
+**Befund 2 hätte eine Farbe gemessen, die niemand sieht.** Der Prüfkörper
+fragte `document.querySelector('#nprogress .bar')` — also nach dem **Element**.
+Gemessen im Bündel: `doReload()` setzt `async: true`, und `showProgress` ist
+`options.showProgress ?? (!options.async || !!options.optimistic)` — für jede
+nachgereichte Anfrage also `false`; `hide()` lässt das Element im DOM.
+
+> **Ein Prüfkörper, der nach dem Element fragt, hat nicht nach der Anzeige
+> gefragt.**
+
+**Dass der Balken beim Nachreichen schweigt, ist richtig** und kein Mangel.
+Gemessen wird er deshalb an einer gewöhnlichen Navigation mit gedrosselter
+Leitung — die Drosselung ändert am Prüfling nichts, sie stellt die Bedingung
+her, für die es den Balken gibt.
+
+**Befund 3 nannte eine Sperre, die es nicht gibt.** Punkt 10 war mit der
+**Sitzungssperre** begründet. `PanelProvision` schreibt aber
+`SESSION_DRIVER=database`, und Laravels `DatabaseSessionHandler::read()` nimmt
+keine Sperre; gesperrt hätte der Dateitreiber. Gemessen kommt der Wechsel auf
+eine andere Seite in **384 ms** durch, während die Nachreichung noch läuft — das
+belegt nicht „die Sperre ist kurz", sondern dass keine im Weg steht.
+
+> **Ein Abnahmelauf, der eine ungeprüfte Annahme als Anweisung führt, prüft sie
+> nicht — er führt sie aus.**
+
+**Und der Platzhalterzustand liess sich nicht fotografieren, nur messen.** Die
+Vorschrift sagte zuerst „für die vier Aufnahmen bleiben drei Sekunden" — eine
+Bitte ans Tippen und kein Verfahren. Gefahren wurde stattdessen aus der Konsole
+heraus navigiert (`$inertia.visit()` lädt das Dokument nicht neu, das Messmittel
+überlebt), und **beide Zustände nehmen denselben Weg**: dieselbe Route, dasselbe
+Dokument, 400 gegen 5000 ms.
+
+> **Zwei Zustände, die man auf zwei verschiedenen Wegen misst, sind nicht auf
+> ihren Unterschied hin vergleichbar.**
+
+Auf allen vier Platzhalter-Aufnahmen steht trotzdem die **geladene** Seite —
+fotografiert wurde nach der Messung. Festgehalten ist der gemessene Zustand
+allein durch `platzhalter` und `kacheln` im Ausdruck.
+
+> **Ein Bild nach einer Messung zeigt den Zustand danach und nicht den
+> gemessenen.**
+
+**Und die acht Lagen sind vier Paare**, zwischen denen nichts liegt als die
+Wartezeit. Bei 1440 px steht der eine Roller in beiden Zuständen mit
+**denselben 1083 px** — damit ist ohne ein zweites Werkzeug belegt, dass er zur
+Quellenliste gehört und nicht zur Pakettabelle: Die gibt es im
+Platzhalterzustand gar nicht.
+
+> **Zwei Messungen, die sich nur in einer Bedingung unterscheiden, beantworten
+> eine Frage, die keine von beiden allein stellt.**
 
 Gemeldet hat es der Betreiber („manche Seiten haben etwas längere Ladezeiten,
 wie z. B. `/updates`"). Der Plan ist **`docs/904`**, geschrieben **nach** der

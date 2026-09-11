@@ -27397,6 +27397,48 @@ pruefe "  … zurückgesetzt wieder grün" ProgressColourTest passed
 
 
 echo
+echo "── UnitNameReachTest: eine Anweisung nennt eine Unit, die es nicht gibt ──"
+#
+# Der Anlass: `docs/905` schrieb dreimal `srvpanel-agent`, und die Unit heisst
+# `srvpanel-agentd`. Eine der drei Stellen war ein Ausschlusskriterium —
+# `systemctl stop` auf einen unbekannten Namen haelt nichts an und faellt nicht
+# auf.
+vorher_datei docs/905-abnahme-skeleton-loader.md
+python3 - <<'PY2'
+p = 'docs/905-abnahme-skeleton-loader.md'
+s = open(p, encoding='utf-8').read()
+alt = 'systemctl stop srvpanel-agentd'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'systemctl stop srvpanel-agent', 1))
+PY2
+griff_datei docs/905-abnahme-skeleton-loader.md "Unit ohne Datei" &&
+pruefe "Unit ohne Datei" \
+  UnitNameReachTest::test_every_named_unit_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitNameReachTest passed
+
+echo
+echo "── UnitNameReachTest: die transienten Namen kommen nicht mehr aus dem Agenten ──"
+#
+# Ohne diese Haelfte waere der Waechter eine Liste im Test: `srvpanel-reboot`
+# und `srvpanel-update-*` stehen nicht unter packaging/systemd und sind
+# trotzdem echt. Zieht die Konstante um, muss er das merken.
+vorher_datei agent/src/Ops/SystemReboot.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemReboot.php'
+s = open(p, encoding='utf-8').read()
+alt = "public const UNIT = 'srvpanel-reboot';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "public const NAME = 'srvpanel-reboot';", 1))
+PY2
+griff_datei agent/src/Ops/SystemReboot.php "transiente Namen ohne Quelle" &&
+pruefe "transiente Namen ohne Quelle" \
+  UnitNameReachTest::test_every_named_unit_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitNameReachTest passed
+
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

@@ -13,7 +13,8 @@ gelesen (`docs/900`).
 ## §0 Was beim Ausschreiben umgefallen ist
 
 **Drei Punkte aus `docs/904 §10` haben sich beim Hinschreiben als nicht fahrbar
-erwiesen, einer ist ersetzt und einer neu.** Das ist der übliche Ertrag dieses
+erwiesen, einer ist ersetzt und einer neu — und ein vierter ist beim Fahren
+umgefallen.** Das ist der übliche Ertrag dieses
 Schritts; er ist billiger als ein falsches Rot im Lauf.
 
 ### 1. Die 300 ms von Punkt 1 waren nie gemessen
@@ -49,15 +50,61 @@ Punkt 6 fragt das.
 
 > **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
 
-### 3. Punkt 5 setzte voraus, dass der Balken überhaupt erscheint
+### 3. Punkt 5 lässt sich auf `/updates` gar nicht messen
 
 Er misst die Farbe des Fortschrittsbalkens — und die Hülle kommt so schnell,
-dass Inertias Verzögerung von 250 ms ihn dort gar nicht zeigt. Ob eine
+dass Inertias Verzögerung von 250 ms ihn dort nicht zeigt. Ob eine
 **nachgereichte** Anfrage ihn auslöst, stand nirgends.
 
-Gemessen: **ja.** Erstes Bild bei `t = 240 ms`, sichtbar über die ganzen drei
-Sekunden. Damit ist `/updates` selbst der Ort, an dem sich Punkt 5 messen
-lässt — und das ist gut, denn ein zweiter Gegenstand wäre ein zweiter Prüfkörper.
+**Hier stand „gemessen: ja, erstes Bild bei t = 240 ms". Das war falsch, und
+der Fehler steckte im Prüfkörper.** Er fragte
+`document.querySelector('#nprogress .bar')` — also nach dem **Element**. Im
+Bündel gemessen:
+
+- `doReload()` setzt **`async: true`**, und `showProgress` ist
+  `options.showProgress ?? (!options.async || !!options.optimistic)` — für jede
+  nachgereichte Anfrage also **`false`**.
+- `hide()` setzt `display: none` und **lässt das Element im DOM**.
+
+Der Prüfkörper fand damit ein unsichtbares Element und las seine Farbe.
+
+> **Ein Prüfkörper, der nach dem Element fragt, hat nicht nach der Anzeige
+> gefragt.**
+
+Auf dem Server fiel es auf, weil dort gar nichts gestartet war: `gesehen: 0`,
+`farben: []`, in beiden Themen — bei korrekten Marken (`#3730a3` hell,
+`#ff7fec` dunkel).
+
+**Dass der Balken beim Nachreichen schweigt, ist richtig** und kein Mangel: Ein
+Nachladen im Hintergrund soll nicht blinken. Gemessen wird er deshalb an einer
+**gewöhnlichen** Navigation, und damit die über 250 ms dauert, wird die Leitung
+gedrosselt. Die Drosselung ändert am Prüfling nichts — sie stellt die
+Bedingung her, für die es den Balken gibt.
+
+### 4. Der Agent heisst nicht, wie hier dreimal stand
+
+**Gefunden beim Fahren, nicht beim Ausschreiben.** Die Unit heisst
+`srvpanel-agentd.service`; dieses Dokument nannte an drei Stellen
+`srvpanel-agent`, darunter **§6 — ein Ausschlusskriterium**.
+
+Der Schaden wäre still gewesen: `systemctl stop srvpanel-agent` hält nichts an
+und gibt keinen Fehler, der auffällt. `/updates` hätte danach ganz normal
+geladen, ohne Platzhalter und ohne Streifen — und genau das ist die Anzeige,
+die Punkt 4 als „erfüllt" wertet. Ein Kriterium, das den Zustand nie
+hergestellt hat, den es prüfen soll.
+
+> **`systemctl is-active` meldet für eine Unit, die es nicht gibt, `inactive` —
+> ununterscheidbar von einer, die angehalten ist.**
+
+Aufgefallen ist es nur, weil §2 den Zustand **mitdruckt**: Dort stand
+`inactive` für den Agenten, während zwei Agentenaufruf in derselben Minute
+antworteten. Ein Widerspruch in zwei nebeneinanderstehenden Zeilen.
+
+> **Eine Messung, die ihren Zustand nicht mitdruckt, ist von einer, die ihn
+> nicht hatte, nicht zu unterscheiden.**
+
+`UnitNameReachTest` hält seitdem, dass ein `srvpanel-*`-Unitname in einer
+Vorschrift oder einem Skript auf eine paketierte Unit zeigt.
 
 ### Ein Punkt ist ersetzt, einer ist neu
 
@@ -79,8 +126,9 @@ sie ungemessen ausgeliefert.
 **Punkt 10** fragt, ob das Panel während der drei Sekunden bedienbar bleibt.
 **Der Container kann das grundsätzlich nicht beantworten:** `artisan serve`
 bedient eine Anfrage gleichzeitig, dort steht jede Navigation ohnehin an. Auf
-php-fpm entscheidet die Sitzungssperre, und die ist eine Eigenschaft des
-Servers.
+php-fpm entscheidet die Nebenläufigkeit des Servers — **und nicht die
+Sitzungssperre, wie hier zuerst stand**; die Berichtigung samt dem, was im
+Quelltext nachgesehen wurde, steht bei dem Punkt selbst (§12).
 
 > **Eine Frage, die das Prüfmittel selbst beantwortet, ist an ihm nicht
 > messbar.**
@@ -118,7 +166,7 @@ und sieht den Platzhalterzustand von innen. Gemessen im Container: 90 Proben
 
 ```
 srvpanel version
-systemctl is-active srvpanel-agent srvpanel-worker
+systemctl is-active srvpanel-agentd srvpanel-worker
 ```
 
 Notiert wird die Fassung. Angemeldet wird als **Betreiber** — die Seite gehört
@@ -266,7 +314,7 @@ Ein Platzhalter, der bei einem Fehler stehenbleibt, ist schlimmer als der
 Fehler: Er sagt „gleich", und das wird nie wahr.
 
 ```
-systemctl stop srvpanel-agent
+systemctl stop srvpanel-agentd
 ```
 
 **Danach stehen `srvpanel-worker` und `srvpanel-metrics` ebenfalls still** —
@@ -293,7 +341,7 @@ Danach:
 
 ```
 systemctl start srvpanel.target
-systemctl is-active srvpanel-agent srvpanel-worker srvpanel-metrics
+systemctl is-active srvpanel-agentd srvpanel-worker srvpanel-metrics
 ```
 
 ---
@@ -302,42 +350,60 @@ systemctl is-active srvpanel-agent srvpanel-worker srvpanel-metrics
 
 *(darf ausfallen)*
 
-Bis zu dieser Fassung war der Balken blau (`#29d`), und kein Wächter über
-Quelltext konnte das sehen: Die Bibliothek schreibt die Farbe zur Laufzeit ins
-Dokument.
+Bis zu dieser Fassung war der Balken blau, und kein Wächter über Quelltext
+konnte das sehen: Die Bibliothek schreibt die Farbe zur Laufzeit ins Dokument.
 
-Von einer anderen Seite aus, damit die nachgereichte Anfrage den Balken zeigt:
+**Gemessen wird an einer gewöhnlichen Navigation und nicht am Nachreichen**
+(§0, Punkt 3). Damit sie die 250 ms überschreitet, wird in den Entwicklerwerkzeugen
+die Leitung gedrosselt — „Slow 4G" genügt.
 
 ```js
 const g = document.getElementById('app').__vue_app__.config.globalProperties
 const proben = []
 const takt = setInterval(() => {
   const bar = document.querySelector('#nprogress .bar')
-  if (bar) proben.push(getComputedStyle(bar).backgroundColor)
+  if (bar && getComputedStyle(bar.parentElement).display !== 'none') {
+    proben.push(getComputedStyle(bar).backgroundColor)
+  }
 }, 60)
-g.$inertia.visit('/updates')
+g.$inertia.visit('/services')
 setTimeout(() => {
   clearInterval(takt)
-  console.log({
+  console.log(JSON.stringify({
     gesehen: proben.length,
     farben: [...new Set(proben)],
     marke: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
-  })
-}, 6000)
+    thema: document.documentElement.getAttribute('data-theme'),
+    regel: (() => {
+      for (const sheet of document.styleSheets) {
+        let regeln; try { regeln = sheet.cssRules } catch { continue }
+        for (const r of regeln ?? []) {
+          if (r.selectorText?.includes('nprogress') && r.selectorText.includes('.bar')) {
+            return r.style.background || r.style.backgroundColor
+          }
+        }
+      }
+      return null
+    })(),
+  }, null, 1))
+}, 8000)
 ```
+
+**Die Sichtbarkeit wird mitgefragt** (`display !== 'none'`) — das ist der
+Unterschied, an dem die erste Fassung dieses Punktes gescheitert ist.
 
 **Erfüllt, wenn** `gesehen` grösser als 0 ist und `farben` **genau einen** Wert
 enthält, der die Marke `--accent` ist.
 
 **Und beide Themen**, denn der Beleg ist nicht die Farbe, sondern dass sie
-*folgt*: Dieselbe eingespritzte Regel muss im hellen und im dunklen Thema zwei
-verschiedene Werte ergeben. Gemessen im Container: `rgb(55, 48, 163)` hell,
-`rgb(255, 127, 236)` dunkel — bei identischer Regel `var(--accent)`.
+*folgt*: `regel` muss in beiden Fällen wörtlich `var(--accent)` lauten und
+`farben` zwei verschiedene Werte ergeben. Gemessen im Container:
+`rgb(55, 48, 163)` hell, `rgb(255, 127, 236)` dunkel.
 
 > **Eine Farbe, die in beiden Themen dieselbe ist, wurde gelesen und nicht
 > durchgereicht.**
 
----
+Danach die Drosselung wieder abschalten.
 
 ## §8 Punkt 6 — die Regel, die jede Bewegung anhält, ist ausgeliefert
 
@@ -452,12 +518,70 @@ jemand gemessen hat.
 
 Gemessen wird mit `tests/bilder-messen.js` aus dem Repo, **je Aufnahme in einer
 frisch geladenen Seite** — der Prüfkörper bemisst sich am gegenwärtigen Zustand
-und misst beim zweiten Lauf sich selbst.
+und misst beim zweiten Lauf sich selbst. `bilderMessen()` wirft deshalb beim
+zweiten Aufruf, und ein zweites Einfügen scheitert an `STAND`.
 
-Für die vier Aufnahmen im Platzhalterzustand bleiben drei Sekunden. Reicht das
-auf dem Telefon nicht, gilt die Regel aus `docs/108`: **Ein Punkt, der am
-Werkzeug scheitert und nicht am Gegenstand, ist nicht „nicht herstellbar"** — er
-wird am Rechner nachgeholt.
+### Wie der Platzhalterzustand gehalten wird
+
+**Hier stand „für die vier Aufnahmen im Platzhalterzustand bleiben drei
+Sekunden". Das ist eine Bitte ans Tippen und kein Verfahren:** Nach einem
+Neuladen von `/updates` müsste in diesen drei Sekunden das ganze Messmittel
+eingefügt *und* aufgerufen werden.
+
+> **Ein Prüfmittel, das seine eigene Falle nur beschreibt, überlässt sie dem,
+> der sie am wenigsten sehen kann.** Derselbe Satz, den `bilder-messen.js` am
+> 6. September über sich selbst gelernt hat.
+
+Gemessen wird deshalb **aus der Konsole heraus navigiert**: Eine
+Inertia-Navigation lädt das Dokument nicht neu, das eingefügte Messmittel
+überlebt sie, und `onSuccess` feuert genau dann, wenn die Hülle da ist und die
+Nachreichung noch unterwegs.
+
+**Und beide Zustände nehmen denselben Weg** — dieselbe Route, dasselbe Dokument,
+nur eine andere Wartezeit. Sonst wäre ein Unterschied zwischen ihnen nicht dem
+Platzhalter zuzuschreiben, sondern dem Weg dorthin.
+
+> **Zwei Zustände, die man auf zwei verschiedenen Wegen misst, sind nicht auf
+> ihren Unterschied hin vergleichbar.**
+
+Je Lage:
+
+1. Breite und Thema einstellen.
+2. Auf **`/services`** gehen und **neu laden** — eine Messung nach einem Wechsel
+   der Breite ohne Neuladen trägt Reste mit (`docs/68`).
+3. `tests/bilder-messen.js` einfügen.
+4. Den Treiber einfügen, mit **`400`** für den Platzhalterzustand und **`5000`**
+   für den geladenen:
+
+```js
+const g = document.getElementById('app').__vue_app__.config.globalProperties
+g.$inertia.visit('/updates', {
+  onSuccess: () => setTimeout(() => {
+    const m = bilderMessen()
+    console.log(JSON.stringify({
+      seite: g.$page.url,
+      platzhalter: g.$page.props.packages === undefined,
+      kacheln: document.querySelectorAll('.skeleton').length,
+      schiebt: m.schiebt.map((r) => r.pfad),
+      rollt: m.rollt.map((r) => `${r.pfad} (${r.ueberlauf})`),
+    }, null, 1))
+  }, 400),
+})
+```
+
+**`platzhalter` und `kacheln` sind die Gegenprobe und keine Beigabe.** Ohne sie
+sähe eine Aufnahme des geladenen Zustands genauso aus wie eine des
+Platzhalterzustands — und `dokument = 0` stünde in beiden Fällen da. Erwartet
+sind:
+
+| | `platzhalter` | `kacheln` |
+|---|---|---|
+| Platzhalterzustand | `true` | **11** |
+| geladen | `false` | **0** |
+
+Die **11** ist ausgezählt und nicht geschätzt: fünf `.skeleton.value` in den
+Kacheln (`Index.vue` Zeile 702 über die fünf Einträge von `kacheln`), vier
+`.skeleton.line` im ersten Stapel und zwei im zweiten.
 
 **Erfüllt, wenn** in allen acht Lagen `dokument = 0` steht und die Gegenprobe
 mit **200** ausschlägt. Ein `rollt` auf einem Rollbehälter ist erlaubt und
@@ -471,28 +595,56 @@ Gewollte und ein Hinweis, kein Urteil.
 *(darf ausfallen)*
 
 **Der Container kann das nicht beantworten** (§0), und deshalb steht es hier.
-Die nachgereichte Anfrage hält die Sitzung so lange, wie der synchrone Aufruf
-sie vorher gehalten hat — das ist die Erwartung und keine Messung.
+
+**Die Begründung dieses Punktes war beim Ausschreiben falsch, und sie ist vor
+dem Fahren berichtigt worden.** Dort stand, die nachgereichte Anfrage halte „die
+Sitzung" so lange wie der synchrone Aufruf vorher — eine **Sitzungssperre** gibt
+es in diesem Panel aber gar nicht. `PanelProvision` schreibt
+`SESSION_DRIVER=database` nach `/etc/srvpanel/panel.env`, und Laravels
+`DatabaseSessionHandler::read()` nimmt keine Sperre (kein `lockForUpdate`, im
+Quelltext nachgesehen); gesperrt hätte der Dateitreiber, und den benutzt hier
+niemand. Der zweite denkbare Riegel ist die Arbeiterzahl von php-fpm, und
+`packaging/etc/fpm.conf` führt `pm.max_children = 12` bei `pm = dynamic`.
+
+> **Ein Abnahmelauf, der eine ungeprüfte Annahme als Anweisung führt, prüft sie
+> nicht — er führt sie aus.**
+
+Die Frage bleibt trotzdem stehen, denn sie gilt der **Wirkung** und nicht dem
+Riegel: Kommt eine zweite Anfrage durch, während die erste noch läuft? Was sich
+ändert, ist die Lesart des Ergebnisses — ein schneller Wechsel belegt dann nicht
+eine kurze Sperre, sondern dass keine im Weg steht.
 
 Auf `/updates` navigieren und **während** der drei Sekunden auf einen anderen
 Menüpunkt klicken:
 
 ```js
 const g = document.getElementById('app').__vue_app__.config.globalProperties
-const t0 = performance.now()
 g.$inertia.visit('/updates')
 setTimeout(() => {
+  const vorher = { seite: g.$page.url, nachreichung_offen: g.$page.props.packages === undefined }
   const t1 = performance.now()
   g.$inertia.visit('/services', {
-    onSuccess: () => console.log('Wechsel nach', Math.round(performance.now() - t1), 'ms'),
+    onFinish: () => console.log(JSON.stringify({
+      beim_klick: vorher,
+      danach: g.$page.url,
+      wechsel_ms: Math.round(performance.now() - t1),
+    })),
   })
 }, 800)
 ```
 
-**Erfüllt, wenn** der Wechsel in unter **1500 ms** durchkommt. Dauert er so
-lange wie der Rest der nachgereichten Anfrage, hält die Sitzungssperre den
-Betreiber fest — dann ist es ein Befund und gehört ins Protokoll, samt der
-Frage, ob dieselbe Sperre vorher genauso lange stand.
+**`beim_klick` ist die Gegenprobe und keine Beigabe.** Steht dort
+`nachreichung_offen: false`, war die Nachreichung schon zurück, und der Wechsel
+hat nichts gemessen — dann wird der Abstand verkürzt und noch einmal gefahren.
+Steht dort eine andere Seite als `/updates`, war die erste Fahrt noch unterwegs.
+
+> **Eine Messung, die ihren Zustand nicht mitdruckt, ist von einer, die ihn
+> nicht hatte, nicht zu unterscheiden.**
+
+**Erfüllt, wenn** `nachreichung_offen: true` ist **und** der Wechsel in unter
+**1500 ms** durchkommt. Dauert er so lange wie der Rest der nachgereichten
+Anfrage, hält etwas den Betreiber fest — dann ist es ein Befund und gehört ins
+Protokoll, samt der Frage, was es ist.
 
 ---
 

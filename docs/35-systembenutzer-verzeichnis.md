@@ -940,7 +940,7 @@ Behebung des dritten Fundes aus §9.2 hätten alle drei `p1000` bekommen.
 ### 10.5 Wenn etwas schiefgeht
 
 ```bash
-systemctl stop srvpanel-worker srvpanel
+systemctl stop srvpanel-worker srvpanel-web
 mariadb srvpanel < /root/vor-35.sql
 # und dann die vorige Fassung zurückrollen — der Symlink in
 # /opt/srvpanel/releases zeigt auf die Fassung, das postinstall-Skript kennt

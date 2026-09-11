@@ -202,26 +202,48 @@ Konfigurationsdateien unter `/etc`, die auf eine Entscheidung warten.
 
 ## §5 Punkt 3 — kein Sprung *(Ausschlusskriterium)*
 
-**Bei 1440 px erfüllt. Bei 390 px steht er noch aus.**
+**Erfüllt, auf beiden Breiten.**
 
-```
-"kachelreiheMit":  [ 95.95 ],
-"kachelreiheOhne": [ 95.95 ]
-```
+| Breite | `kachelreiheMit` | `kachelreiheOhne` | Sprung |
+|---|---|---|---|
+| 1440 px | `[95.95]` | `[95.95]` | **0 px** |
+| 390 px | `[459.73]` | `[459.73]` | **0 px** |
 
-**Derselbe eine Wert vor und nach dem Ersetzen** — der Sprung ist **0 px**, und
-zwar in *einem* Seitenaufbau gemessen, nicht aus zwei Läufen verglichen.
+**Derselbe eine Wert vor und nach dem Ersetzen** — gemessen in *einem*
+Seitenaufbau und nicht aus zwei Läufen verglichen.
 
 Das ist der Punkt, an dem der Bau einen Fehler hatte: Der erste Wurf trug
-`margin: 2px 0` am Kachelplatzhalter, und die Seite sprang um 4 px bei 1440 und
-**20 px bei 390** — alles darunter zog mit. Die Behebung hatte bis heute keinen
-Server gesehen.
+`margin: 2px 0` am Kachelplatzhalter — vier Pixel je Kachel. Bei 1440 px stehen
+die fünf nebeneinander und die Seite sprang um 4 px, bei 390 px stapeln sie
+sich und es waren **20**. Alles darunter zog mit. Die Behebung hatte bis heute
+keinen Server gesehen; jetzt ist sie an der Breite belegt, an der der Fehler
+fünfmal so schwer wog.
 
-Der Containerwert war 95,94 px, hier sind es 95,95 — dieselbe Zahl bis auf die
-Schriftmetrik.
+> **Ein Platzhalter, der nicht genau so hoch ist wie das, was er vertritt,
+> verschiebt alles darunter — und auf dem Bild sieht das nach nichts aus.**
 
-**Bei 390 px ist zu wiederholen**, und das ist kein Formalismus: Dort stapeln
-sich die fünf Kacheln, und derselbe Fehler wog fünfmal so viel.
+Gegen den Container gehalten: 95,94 gegen 95,95 und 459,69 gegen 459,73 —
+dieselben Zahlen bis auf die Schriftmetrik. Der Messaufsatz des Containers
+trifft die echte Seite damit zum wiederholten Mal aufs Pixel genau.
+
+### 5.1 Und die Punkte 1 und 2 gelten auch bei 390 px
+
+Derselbe Lauf hat sie mitgemessen:
+
+```
+"anfragen": [ 3057 ms, 141 ms, 2941 ms ],
+"fenster": "1403–4301 ms",
+"platzhalterMax": 11,
+"kachelnImFenster": [ 5 ],
+"quellenzeilenImFenster": [ 5 ]
+```
+
+**141 ms für die Hülle gegen 2941 ms für das Nachreichen** — dieselbe Trennung
+wie bei 1440 px (156 gegen 3264). Das Fenster steht 2898 ms, die elf
+Platzhalter und die fünf Kacheln sind dieselben.
+
+> **Ein Wert, der auf zwei Breiten dasselbe sagt, sagt etwas über die Sache und
+> nicht über die Breite.**
 
 ---
 
@@ -229,9 +251,9 @@ sich die fünf Kacheln, und derselbe Fehler wog fünfmal so viel.
 
 | Punkt | Stand |
 |---|---|
-| 1 — die Hülle | **erfüllt** (§3) |
-| 2 — die Seite ist da | **erfüllt** (§4) |
-| 3 — kein Sprung *(Ausschluss)* | **bei 1440 erfüllt**, bei 390 offen (§5) |
+| 1 — die Hülle | **erfüllt**, 1440 und 390 px (§3, §5.1) |
+| 2 — die Seite ist da | **erfüllt**, 1440 und 390 px (§4, §5.1) |
+| 3 — kein Sprung *(Ausschluss)* | **erfüllt**, 1440 und 390 px (§5) |
 | 4 — toter Agent *(Ausschluss)* | offen |
 | 5 — Farbe des Balkens | offen |
 | 6 — die Bewegungsregel ist ausgeliefert | offen |
@@ -240,9 +262,8 @@ sich die fünf Kacheln, und derselbe Fehler wog fünfmal so viel.
 | 9 — die Bilderrunde | offen |
 | 10 — bedienbar in den drei Sekunden | offen |
 
-**Als Nächstes:** Punkt 3 bei 390 px wiederholen — dort stapeln sich die
-Kacheln, und derselbe Fehler wog beim Bauen fünfmal so viel. Danach `docs/905
-§6`, Punkt 4.
+**Als Nächstes:** `docs/905 §6`, Punkt 4 — der tote Agent. Das zweite der drei
+Ausschlusskriterien.
 
 **Was dabei nicht vergessen werden darf**, weil es in diesem Lauf schon
 gezählt hat:

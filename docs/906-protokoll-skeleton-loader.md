@@ -247,14 +247,81 @@ Platzhalter und die fünf Kacheln sind dieselben.
 
 ---
 
-## §6 bis §12 — offen
+## §6 Punkt 4 — bei totem Agenten kein endloser Platzhalter *(Ausschlusskriterium)*
+
+**Erfüllt.**
+
+```
+systemctl stop srvpanel-agentd
+```
+
+```
+{
+ "platzhalter": 0,
+ "kacheln": 0,
+ "kritisch": [
+  "Der Paketstand liess sich nicht ermitteln: Der Agent läuft nicht: Socket ist nic",
+  "Die Paketquellen liessen sich nicht ermitteln: Der Agent läuft nicht: Socket ist"
+ ]
+}
+```
+
+**`platzhalter: 0` ist der ganze Punkt.** Ein Platzhalter, der bei einem Fehler
+stehenbleibt, sagt „gleich", und das wird nie wahr — er wäre schlimmer als der
+Fehler, den er verdeckt.
+
+`kacheln: 0` ist ebenfalls richtig und kein Mangel: Ohne jede Zahl ist die
+Kachelreihe keine Auskunft, und der Streifen daneben erklärt es.
+
+**Zwei Meldungen und nicht eine** — das belegt die Entscheidung im Controller,
+die beiden Aufrufe **getrennt** zu fangen:
+
+> **Zwei Fragen, die einander erklären, dürfen nicht an derselben Antwort
+> scheitern.**
+
+Hier fallen beide aus, weil der Agent ganz fehlt; gemeldet werden sie trotzdem
+einzeln, und beim häufigeren Fall — nur der Paketstand fällt aus — bleibt die
+Quellenliste als die Auskunft stehen, die weiterhilft.
+
+### 6.1 Und die drei Zustände sind an der Anzeige unterscheidbar
+
+Unter „Unbeaufsichtigte Updates" steht **„Ohne den Paketstand ist über die
+Automatik nichts zu sagen"** — also der Zweig für `null` und nicht der für
+`undefined`. Der Bereich zeigt damit nachweislich etwas anderes als während der
+drei Sekunden, in denen dort ein Platzhalter stand (§4).
+
+> **Eine Anzeige, die zwei verschiedene Zustände gleich aussehen lässt,
+> behauptet etwas, das sie nicht weiss.** Hier tut sie es nicht: „noch
+> unterwegs", „ausgefallen" und „da" sind drei Bilder.
+
+Das ist die Dreiwertigkeit aus `docs/904`, an der echten Seite belegt — und
+genau das, was `DeferredPropTest` im Quelltext hält.
+
+### 6.2 Der Rückweg
+
+```
+systemctl start srvpanel.target
+systemctl is-active srvpanel-agentd srvpanel-worker srvpanel-metrics
+active
+active
+active
+```
+
+**Über das Ziel und nicht über den Agenten allein.** `PartOf=` überträgt das
+Anhalten und nicht das Starten (`docs/100 §9.10`); ein `start` des Agenten
+liesse Worker und Metrik liegen, und dann bliebe jeder Vorgang wortlos auf
+„wartet" stehen.
+
+---
+
+## §7 bis §12 — offen
 
 | Punkt | Stand |
 |---|---|
 | 1 — die Hülle | **erfüllt**, 1440 und 390 px (§3, §5.1) |
 | 2 — die Seite ist da | **erfüllt**, 1440 und 390 px (§4, §5.1) |
 | 3 — kein Sprung *(Ausschluss)* | **erfüllt**, 1440 und 390 px (§5) |
-| 4 — toter Agent *(Ausschluss)* | offen |
+| 4 — toter Agent *(Ausschluss)* | **erfüllt** (§6) |
 | 5 — Farbe des Balkens | offen |
 | 6 — die Bewegungsregel ist ausgeliefert | offen |
 | 7 — die Prüfmeldung kommt oben an | offen |
@@ -262,8 +329,8 @@ Platzhalter und die fünf Kacheln sind dieselben.
 | 9 — die Bilderrunde | offen |
 | 10 — bedienbar in den drei Sekunden | offen |
 
-**Als Nächstes:** `docs/905 §6`, Punkt 4 — der tote Agent. Das zweite der drei
-Ausschlusskriterien.
+**Als Nächstes:** `docs/905 §7`, Punkt 5 — die Farbe des Fortschrittsbalkens.
+Von den drei Ausschlusskriterien steht nur noch Punkt 8 aus.
 
 **Was dabei nicht vergessen werden darf**, weil es in diesem Lauf schon
 gezählt hat:

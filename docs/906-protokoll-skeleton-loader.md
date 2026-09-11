@@ -120,7 +120,60 @@ Maschine und nicht zum Panel.
 
 ---
 
-## §3 bis §12 — offen
+## §3 Punkt 1 — die Hülle (halb gemessen)
+
+```
+{ huelle: 117, nachgereicht: Array(0) }
+```
+
+**Die erste Hälfte ist erfüllt:** 117 ms gegen die aus §2 gerechnete Grenze von
+335 (`3 × 45 + 200`). Die Hülle ist damit ungefähr so teuer wie
+`system.sources.list` allein — der teure Aufruf steckt nicht mehr in ihr.
+
+**Die zweite Hälfte fehlt:** `nachgereicht` ist leer, es gibt also keinen
+gemessenen Wert über 2000 ms. Das ist **kein** Befund am Prüfling, sondern
+einer am Prüfkörper: `performance.getEntriesByType('resource')` kennt nur
+Anfragen **dieses Dokuments**. Hat Inertia die Seite aus seinem eigenen
+Zwischenspeicher hergestellt — nach einem Zurück, einem erneuten Besuch mit
+erhaltenem Zustand oder einer Navigation innerhalb der Anwendung —, dann
+**war die Eigenschaft schon da und es gab gar keine nachgereichte Anfrage.**
+
+> **Eine leere Liste sagt „keine Anfrage in diesem Dokument" und nicht „keine
+> Anfrage".**
+
+Nachgemessen wird deshalb mit einem `PerformanceObserver`, der **vor** der
+Navigation steht, statt hinterher eine Liste abzufragen.
+
+---
+
+## §4 Punkt 2 — die Seite ist da, ein Teil fehlt noch (im Bild belegt)
+
+Eine Aufnahme bei 1440 px im dunklen Thema zeigt den Zustand auf dem Server:
+
+- die **Kachelreihe steht** mit ihren fünf Beschriftungen (`AKTUALISIERBAR`,
+  `DAVON SICHERHEIT`, `DAVON NEU`, `ZURÜCKGEHALTEN`, `WÜRDE ENTFERNT`) und
+  grauen Blöcken anstelle der Zahlen,
+- **„Pakete" trägt vier Platzhalterzeilen** unterschiedlicher Länge,
+- **„Paketquellen" ist vollständig gefüllt** — fünf Einträge mit Zustand,
+  Adresse, Suiten und Schlüssel,
+- **„Unbeaufsichtigte Updates"** darunter mit Platzhalter.
+
+Damit ist der Unterschied belegt, um den es geht: *die Seite ist da, ein Teil
+fehlt noch* — und nicht *die Seite lädt*.
+
+Die Zahlen zu Punkt 2 (Fenster, `platzhalterMax`, Kachelzahl) stehen noch aus;
+das Bild allein ist ein Hinweis und kein Urteil.
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
+> Keines von beiden ersetzt das andere.**
+
+Nebenbei belegt die Aufnahme den geladenen Zustand: 32 aktualisierbar, davon 1
+Sicherheit und 18 neu, 0 zurückgehalten, 0 würde entfernt — und zwei
+Konfigurationsdateien unter `/etc` warten auf eine Entscheidung.
+
+---
+
+## §5 bis §12 — offen
 
 Gefahren sind §1 (Ausgangszustand) und §2 (Referenzwert). Es fehlen die zehn
 Punkte selbst; sie laufen in der Browserkonsole und nicht auf der

@@ -115,47 +115,64 @@ Der Server steht wieder wie vorher.
 NextElapseUSecRealtime` gab **drei** Zeilen und nicht vier. `Persistent` und
 `Triggers` standen da, `RandomizedDelaySec` nicht.
 
-Der wahrscheinliche Grund ist eine Verwechslung von **Direktive** und
-**Eigenschaft**: In der Unit-Datei heisst es `RandomizedDelaySec=300`, über den
-Bus heisst dieselbe Grösse `RandomizedDelayUSec`. `systemctl show` fragt den
-Bus. Ein Name, den es dort nicht gibt, erzeugt **keine Fehlermeldung, sondern
-keine Zeile** — und eine fehlende Zeile liest sich wie „nicht gesetzt".
+**Nachgemessen über die volle Liste, und die Vermutung stimmt:**
+
+```
+RandomizedDelayUSec=5min
+FixedRandomDelay=no
+```
+
+Es ist eine Verwechslung von **Direktive** und **Eigenschaft**: In der
+Unit-Datei heisst es `RandomizedDelaySec=300`, über den Bus heisst dieselbe
+Grösse `RandomizedDelayUSec`. `systemctl show` fragt den Bus. Ein Name, den es
+dort nicht gibt, erzeugt **keine Fehlermeldung, sondern keine Zeile** — und
+eine fehlende Zeile liest sich wie „nicht gesetzt".
+
+Der Wert deckt sich mit der Datei (300 s = 5 min) und mit der Wirkung aus §1
+(4 min 44 s). **Und `FixedRandomDelay=no` sagt, dass die Streuung bei jedem
+Termin neu gewürfelt wird** — der Versatz von heute sagt über den von morgen
+nichts, und ein Lauf, der ihn als feste Grösse nachrechnete, läge früher oder
+später daneben.
 
 > **Ein Eigenschaftsname, den es nicht gibt, druckt nichts — und nichts sieht
 > aus wie „nicht gesetzt".** Dieselbe Familie wie `systemctl is-active` für
 > eine Unit, die es nicht gibt.
 
-Der Punkt hängt nicht daran: Die Streuung ist über §1 an ihrer **Wirkung**
-belegt. Offen ist allein der Grund des Schweigens, und er wird mit
-`systemctl show srvpanel-packages.timer | grep -i random` beantwortet — also
-ohne Namensraten, über die volle Liste.
+Gefunden hat es nicht das Raten eines zweiten Namens, sondern die Frage an die
+**volle** Liste: `systemctl show <unit> | grep -i random`. Wer einen zweiten
+Namen probiert hätte, hätte bei einem dritten Fehlversuch wieder nichts
+gewusst.
 
-### §4b `LAST` war abgeschnitten, und dahinter steckt mehr als eine Spaltenbreite
+### §4b `LAST` war abgeschnitten — und der Timer hat schon einmal gefeuert
 
 `list-timers` zeigte `LAST  Fri 2026-09-11 19:…`; der Rest lag hinter dem
-Bildrand. Das Journal daneben trägt eine Zeile, die dazugehört:
-
-```
-Sep 11 19:09:07 cloudsrv24 systemd[1]: Finished srvpanel-packages.service
-```
-
-**Dieser Lauf war keiner von Hand.** Die Messung von Punkt 1 lief um 19:27,
-also **vor** dem ersten `systemctl start` dieses Laufs — was `LAST` dort
-nannte, hat der Timer ausgelöst und niemand sonst. Wahrscheinlich ist es der
-Nachholer, den `Persistent=true` beim `enable --now` des postinstall-Skripts
-auslöst: Es gab keinen vorigen Lauf, also feuert er sofort.
-
-Damit ist der Weg Timer → Dienst → Ablage auf dieser Maschine **schon einmal
-gegangen worden** — nur eben über `Persistent` und nicht über die stündliche
-Folge. Punkt 8 fragt nach der Folge und bleibt offen.
-
-> **Ein Beleg für den Weg ist keiner für das Ziel.**
-
-Der genaue Zeitpunkt steht in `LastTriggerUSec` und wird dort geholt, statt aus
-einer abgeschnittenen Spalte geschlossen zu werden.
+Bildrand. Geschlossen wurde daraus nichts; geholt wurde der Wert dort, wo er
+ungekürzt steht.
 
 > **Eine abgeschnittene Liste sieht aus wie eine vollständige — sie sagt nicht,
 > wo sie aufhört.**
+
+**Gemessen:** `LastTriggerUSec=Fri 2026-09-11 19:09:04 CEST`. Daneben im
+Journal: `Finished srvpanel-packages.service` um **19:09:07** — drei Sekunden
+Laufzeit, dieselbe Dauer wie der Lauf von Hand (19:27:30 → 19:27:33).
+
+**Dieser Lauf war keiner von Hand.** Die Messung von Punkt 1 lief um 19:27,
+also **vor** dem ersten `systemctl start` dieses Laufs. Damit ist der Weg
+Timer → Dienst → Ablage auf dieser Maschine belegt.
+
+**Die stündliche Folge war es trotzdem nicht.** Ein Kalendertermin um 19:00
+läge mit `RandomizedDelayUSec=5min` spätestens bei 19:05:00, und 19:09:04 liegt
+danach. Ausgelöst hat also einer der beiden anderen Sockel beim Einschalten
+durch `enable --now` im postinstall-Skript — der Nachholer von
+`Persistent=true` oder das längst verstrichene `OnBootSec=10min`. **Welcher
+von beiden, ist nicht gemessen**, und für diesen Punkt trägt es nichts: Beide
+sagen „der Timer wurde eingeschaltet", keiner sagt „die Stunde ist
+vergangen".
+
+Punkt 8 fragt nach der Folge und bleibt offen.
+
+> **Ein Beleg für den Weg ist keiner für das Ziel.**
+
 
 ---
 
@@ -166,5 +183,7 @@ einer abgeschnittenen Spalte geschlossen zu werden.
 - **Punkt 7** — die Bestandsdiagnose samt Gegenprobe.
 - **Punkt 8** — das Feuern um **20:04:44 CEST**. Ausschlusskriterium.
 
-Der Marker für Punkt 8 ist gesetzt: Der letzte Lauf von Hand war
-**19:27:30 CEST**. Jeder spätere `ExecMainStartTimestamp` gehört dem Timer.
+**Die beiden Marker für Punkt 8 stehen:** Der letzte Lauf von Hand war
+`ExecMainStartTimestamp = 19:27:30 CEST`, der letzte Auslöser des Timers
+`LastTriggerUSec = 19:09:04 CEST`. Beide müssen gewandert sein, und
+`pendingUpdatesCheckedAt()` muss denselben neuen Zeitpunkt nennen.

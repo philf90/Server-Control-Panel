@@ -555,8 +555,57 @@ und `nachreichung_offen` mit.
 
 ## §11 Punkt 9 — die Bilderrunde
 
-**Steht aus.** Acht Lagen, gemessen mit `tests/bilder-messen.js` aus dem Repo,
-je Aufnahme in einer frisch geladenen Seite.
+Gefahren nach dem berichtigten Verfahren aus `docs/905 §11`: je Lage Breite und
+Thema einstellen, auf `/services` neu laden, `tests/bilder-messen.js` einfügen,
+dann aus der Konsole nach `/updates` navigieren und bei **400 ms** messen.
+
+### 11.1 Die vier Lagen im Platzhalterzustand
+
+| Lage | `dokument` | `gegenprobe` | `schiebt` | `rollt` | `versteckt` | `platzhalter` | `kacheln` |
+|---|---|---|---|---|---|---|---|
+| 1440 dunkel | **0** | **200** (soll 200) | 0 | 1 | 0 | `true` | **11** |
+| 1440 hell | **0** | **200** (soll 200) | 0 | 1 | 0 | `true` | **11** |
+| 390 dunkel | **0** | **200** (soll 200) | 0 | 0 | 2 | `true` | **11** |
+| 390 hell | **0** | **200** (soll 200) | 0 | 0 | 2 | `true` | **11** |
+
+Alle vier mit `stand=2026-09-06`, also dem Messmittel aus dem Repo und nicht
+einer gekürzten Fassung aus der Zwischenablage.
+
+**Der eine Roller bei 1440 px ist benannt und gewollt:**
+
+```
+div > div.frame > main.content > div.sections:3 > section.section:2 > div.scrolls:2 (1083)
+```
+
+`section.section:2` ist **„Paketquellen"** (`Index.vue` 1025, ihr `.scrolls` in
+1059). Die Quellenliste ist **nicht** nachgereicht — sie kommt mit der Hülle
+(§3) und rollt bei 400 ms deshalb zu Recht schon. Unter 720 px stapelt sie, und
+genau dort steht `rollt=0`.
+
+Dieselbe Grenze erklärt `versteckt`: Die geklippten Kästen für die
+Vorlesesoftware gehören zu `.stacks thead`, den es nur in der gestapelten
+Ansicht gibt — **0** bei 1440 px, **2** bei 390 px.
+
+### 11.2 Und die vier Bilder zeigen nicht, was gemessen wurde
+
+**Auf allen vier Aufnahmen steht die geladene Seite** — die Kacheln mit
+`32 · 1 · 18 · 0 · 0` und die Pakettabelle. Der Platzhalter war zum Zeitpunkt
+der Aufnahme längst ersetzt; gemessen wurde bei 400 ms, fotografiert wurde
+danach.
+
+> **Ein Bild nach einer Messung zeigt den Zustand danach und nicht den
+> gemessenen.** Derselbe Satz wie in `docs/113 §12`, dort an einer Gegenprobe.
+
+**Genau dafür stehen `platzhalter` und `kacheln` im Ausdruck.** Ohne sie wären
+diese vier Lagen von vier Aufnahmen des geladenen Zustands nicht zu
+unterscheiden — `dokument = 0` steht in beiden Fällen da, und die Bilder sagen
+das Gegenteil dessen, was gemessen wurde. Die **11** ist dabei kein Nebenwert:
+Sie ist ausgezählt (fünf Kacheln, vier Zeilen, zwei Zeilen) und trifft in allen
+vier Lagen.
+
+### 11.3 Die vier geladenen Lagen
+
+**Stehen aus.**
 
 ---
 

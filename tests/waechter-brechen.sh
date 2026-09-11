@@ -27576,6 +27576,69 @@ pruefe "Punkt mit zweiter Quelle" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NavDotTest passed
 
+echo "── PendingUpdatesReachTest: der Satz faellt aus der Vorlage ──"
+#
+# Der Eingriff, der den Waechter ueberhaupt geschaerft hat: Sein erster Wurf
+# las die `.vue` im Ganzen und blieb hier GRUEN, weil die Prop-Deklaration im
+# `<script setup>` denselben Namen traegt. Gesucht wird seitdem im
+# Vorlagenblock — eine Deklaration ist keine Anzeige.
+vorher_datei resources/js/Pages/Updates/Index.vue
+python3 - <<'PY2'
+import re
+p = 'resources/js/Pages/Updates/Index.vue'
+s = open(p, encoding='utf-8').read()
+m = re.search(r'\n        <p class="quiet">.*?</p>\n', s, re.S)
+assert m, 'Zielstelle nicht gefunden — der Bruch waere blind'
+rest = s[:m.start()] + '\n' + s[m.end():]
+assert 'pendingUpdatesCheckedAt' in rest, 'Die Deklaration ist mit fort — der Eingriff misst dann etwas anderes'
+open(p, 'w', encoding='utf-8').write(rest)
+PY2
+griff_datei resources/js/Pages/Updates/Index.vue "Zeitpunkt ohne Anzeige" &&
+pruefe "Zeitpunkt ohne Anzeige" \
+  PendingUpdatesReachTest::test_every_reader_of_the_store_reaches_a_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PendingUpdatesReachTest passed
+
+echo "── PendingUpdatesReachTest: der Leser verliert seinen Aufrufer ──"
+#
+# Ein Leser, den niemand ruft, ist von einem Feld, das es nicht gibt, von
+# aussen nicht zu unterscheiden — und genau das war dieser Zeitpunkt an dem
+# Tag, an dem er entstand.
+vorher_datei app/Http/Controllers/UpdatesController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/UpdatesController.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'pendingUpdatesCheckedAt' => Clock::displayText($settings->pendingUpdatesCheckedAt()),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/UpdatesController.php "Leser ohne Aufrufer" &&
+pruefe "Leser ohne Aufrufer" \
+  PendingUpdatesReachTest::test_every_reader_of_the_store_reaches_a_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PendingUpdatesReachTest passed
+
+echo "── PendingUpdatesReachTest: ein abgelegtes Feld ohne Leser ──"
+#
+# Die Gegenrichtung, eine Ebene frueher: Ein drittes Feld im Schreiber, das
+# kein Leser holt, faellt dem Fall darueber gar nicht auf — er kennt nur die
+# Leser, die es gibt.
+vorher_datei app/Support/Settings/Settings.php
+python3 - <<'PY2'
+p = 'app/Support/Settings/Settings.php'
+s = open(p, encoding='utf-8').read()
+alt = "['value' => ['upgradable' => $upgradable, 'checked_at' => now()->toDateTimeString()]],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = ("['value' => ['upgradable' => $upgradable, 'checked_at' => now()->toDateTimeString(), "
+       "'source' => 'agent']],")
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Settings/Settings.php "abgelegtes Feld ohne Leser" &&
+pruefe "abgelegtes Feld ohne Leser" \
+  PendingUpdatesReachTest::test_the_writer_stores_nothing_that_nobody_reads failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PendingUpdatesReachTest passed
+
 
 echo
 if [ "$fehler" -eq 0 ]; then

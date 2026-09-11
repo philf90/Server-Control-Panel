@@ -271,9 +271,8 @@ drittes Kind klebte sonst am Wort.
 
 ## §4 Was benannt offen bleibt
 
-- **Was das Abzeichen tut, wenn der Wert alt ist.** Die Frage ist gestellt und
-  nicht beantwortet; ein Vorschlag steht in §3.1 (Zeitpunkt daneben), die
-  Entscheidung nicht.
+- *(Beantwortet am 11. September — §7.)* Was das Abzeichen tut, wenn der Wert
+  alt ist: **nichts**, und der Zeitpunkt steht auf `/updates`.
 - *(Beantwortet am 11. September — §6.)* Dass das Abzeichen auf dem Telefon
   niemand sieht, ist mit einem Punkt am Menüknopf behoben.
 
@@ -397,6 +396,113 @@ sich geweigert, blind zu messen, statt still nichts zu tun. Er sucht seine
 Zielstelle seitdem **ihrer Form nach** — eine Zeile aus mindestens sechs
 `|`-getrennten Namen, die auf `)` endet — und nicht ihrem Wortlaut nach; sonst
 wäre er beim nächsten Kommando wieder blind.
+
+---
+
+## §7 Was das Abzeichen tut, wenn die Zahl alt ist — entschieden am 11. September
+
+Die Frage aus §4. Vier Formen standen zur Wahl, und **zwei fallen an einer
+Messung aus, die schon vorlag**:
+
+| | was es tut | warum nicht |
+|---|---|---|
+| A | nichts, Zahl ohne Alter | zwei Zustände sehen gleich aus |
+| B | Abzeichen verschwindet ab einer Schwelle | **Stille heisst „nichts zu tun"** |
+| C | Abzeichen wird grau | der Streifen führt **keine** Zustandsfarbe (2,67:1, §1.2) |
+| **D** | **Zahl bleibt, das Alter steht, wo Platz ist** | gebaut |
+
+B ist nicht Geschmackssache: Es ist derselbe Fehler wie eine `0`, die „nicht
+nachgesehen" bedeutet, nur in der Navigation. Und die Richtungen sind nicht
+gleich teuer:
+
+> **Ein Zeiger, der etwas zu viel behauptet, kostet einen Klick. Einer, der
+> schweigt, kostet den Weg.**
+
+### 7.1 Drei Viertel der Antwort standen schon da
+
+**`/updates` stellt diese Frage seit P7b und beantwortet sie.** Im Kopf der
+Seite steht wörtlich, dass „0 Aktualisierungen" zwei sehr verschiedene Gründe
+hat — der Server ist aktuell, oder apt kommt an seine Quellen nicht heran —,
+und die Antwort dort ist die **Quellenliste neben der Zahl**.
+
+**Der Einsammler wird bewacht.** `srvpanel-packages.timer` steht im Katalog
+(`agent/src/Catalog.php`); `/services` zeigt ihn, und der Nachtlauf meldet ihn
+über `unit.schedule / no_next` — *ein Timer ohne Termin ist ein Befund*. Die
+**Ursache** einer alten Zahl ist also schon sichtbar.
+
+**Und der Gegenstand des Zeigers ist frisch:** `/updates` holt live (3033 ms).
+
+> **Eine zweite Fassung einer Auskunft, die es schon gibt, ist die, die
+> veraltet.**
+
+### 7.2 Was wirklich fehlte, war ein Leser
+
+`Settings::pendingUpdatesCheckedAt()` stand seit dem Vormittag da und wurde von
+**niemandem** gerufen — ausgezählt über `app/` und `resources/js`.
+
+> **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
+> einem zu unterscheiden, das es nicht gibt.**
+
+Gebaut ist ein Satz auf `/updates`: *„Am Menüpunkt „Updates" steht die Zahl vom
+…"* — und für `null` der andere Satz, denn „noch nie" ist etwas anderes als
+„vor langer Zeit".
+
+**Zwei Entscheidungen daran sind gemessen und nicht geraten.**
+
+Der Zeitpunkt wird in `show()` gelesen und **nicht** in `packages()`: `show()`
+läuft vor dem Nachreichen, der Wert ist also der von **vor** diesem Besuch.
+Stünde er im nachgereichten Teil, schriebe ihn derselbe Aufruf, der ihn zeigt —
+und die Antwort wäre immer „gerade eben".
+
+Und der Satz steht **über** dem dreiwertigen Zweig: Sein nützlichster
+Augenblick ist der Platzhalter, in dem die Zahl am Menüpunkt das Einzige ist,
+was dasteht. Im nachgereichten Teil fehlte er genau dann.
+
+**Keine Schwelle in Stunden** — sie wäre eine Zahl, die niemand gemessen hat,
+und sie müsste raten, ab wann ein Betreiber eine Auskunft nicht mehr glauben
+soll.
+
+### 7.3 Und der Wächter dazu hat sich beim Gegenprüfen selbst korrigiert
+
+`PendingUpdatesReachTest` hält beide Richtungen: Jeder Leser der Ablage wird
+gerufen **und** kommt auf einer Seite an, und der Schreiber legt nichts ab, das
+kein Leser holt. Die Leser kommen aus der Klasse und nicht aus einer Liste im
+Test.
+
+**Sein erster Wurf las die `.vue` im Ganzen — und blieb grün**, als der
+gerenderte Satz entfernt wurde: Die Prop-Deklaration im `<script setup>` trägt
+denselben Namen. Gemessen, nicht überlegt; gesucht wird seitdem im
+Vorlagenblock.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht — und eine Deklaration ist keine Anzeige.**
+
+Drei Eingriffe, alle gefahren, alle rot: der Satz fort (Deklaration bleibt), der
+Aufrufer fort, ein drittes Feld ohne Leser.
+
+### 7.4 Und ein bestehender Wächter hat den Satz gemeldet, bevor ihn ein Auge sah
+
+`BlockSpacingTest` wurde beim vollen Lauf rot: Der neue `<p class="quiet">`
+steht unmittelbar über `.skeleton-stack`, und `app.css` kannte diese
+Nachbarschaft nicht. Behoben ist es **im Stylesheet** und nicht mit einem Rand
+auf der Seite — ein Abstand in der Vorlage wäre derselbe Fehler wie ein Hexwert
+in einer Komponente.
+
+**Gemessen im Platzhalterzustand**, festgehalten durch Anhalten der
+nachgereichten Anfrage (`X-Inertia-Partial-Data`, `docs/906`):
+
+| | Fuge `.quiet` → `.skeleton-stack` |
+|---|---|
+| **mit** der Regel | **24 px** |
+| ohne die Regel (Gegenprobe) | **0 px** |
+
+Derselbe Lauf belegt nebenbei, wofür der Satz an dieser Stelle steht: Im
+Platzhalter ist er da und lesbar — *„Am Menüpunkt „Updates" steht die Zahl vom
+2026-09-11 13:55:29."* — während vom Paketstand noch nichts dasteht.
+
+> **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit der
+> nächsten Ergänzung.** Zum zehnten Mal an derselben Regelkette, und zum ersten
+> Mal, bevor eine Aufnahme entstanden ist.
 
 ---
 

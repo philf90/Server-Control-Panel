@@ -112,6 +112,20 @@ const props = defineProps<{
    */
   packagesError?: string | null
 
+  /**
+   * Wann die Zahl am Menüpunkt „Updates" eingesammelt wurde — schon als Text,
+   * {@see Clock::displayText()} im Controller und nicht im Browser.
+   *
+   * **`null` heisst „noch nie" und nicht „vor langer Zeit".** Die beiden
+   * Zustände tragen verschiedene Sätze, weil sie verschiedene Dinge sagen:
+   * Der eine heisst „gleich", der andere „hier stimmt etwas nicht".
+   *
+   * Sie ist **nicht** nachgereicht und deshalb zweiwertig statt dreiwertig —
+   * der Wert steht schon in der Ablage, und ihn zu lesen kostet gemessen
+   * 0,279 ms gegen MariaDB (`docs/907 §1.5`).
+   */
+  pendingUpdatesCheckedAt: string | null
+
   sources: {
     targets: { file: string | null; stanza: number | null; fields: Record<string, string> }[]
     files: { path: string; format: string; entries: Entry[] }[]
@@ -741,6 +755,33 @@ const neustart = computed(() => {
           Zweig hat — die Regel, die `<Deferred>` an dieser einen Stelle
           durchsetzen würde, gilt so für jede Seite.
         -->
+        <!--
+          **Der Satz steht über dem dreiwertigen Zweig und nicht darin.**
+
+          Sein nützlichster Augenblick ist der **Platzhalter**: Solange der
+          Paketstand unterwegs ist, ist die Zahl am Menüpunkt das Einzige, was
+          dasteht — und dann gehört dazu, wann sie entstanden ist. Im
+          nachgereichten Teil stünde er in genau diesem Augenblick nicht.
+
+          **Er erklärt den Marker und nicht diese Seite.** Was unten steht,
+          kommt live vom Agenten; die Zahl in der Navigation ist eine
+          Abschrift. Beide nebeneinander zu zeigen, ohne zu sagen, welche wie
+          alt ist, wäre die Anzeige, die zwei Zustände gleich aussehen lässt.
+
+          Bis zum 11. September 2026 wurde der Zeitpunkt **geschrieben und von
+          niemandem gelesen** — von aussen nicht von einem zu unterscheiden,
+          den es nicht gibt. `PendingUpdatesReachTest` hält ihn seitdem hier.
+        -->
+        <p class="quiet">
+          <template v-if="props.pendingUpdatesCheckedAt">
+            Am Menüpunkt „Updates" steht die Zahl vom {{ props.pendingUpdatesCheckedAt }}.
+          </template>
+          <template v-else>
+            Am Menüpunkt „Updates" steht noch keine Zahl — sie entsteht beim
+            ersten Blick auf diese Seite und danach stündlich.
+          </template>
+        </p>
+
         <div v-if="props.packages === undefined" class="skeleton-stack">
           <span class="skeleton line" aria-hidden="true" />
           <span class="skeleton line" aria-hidden="true" />

@@ -3323,6 +3323,19 @@ tr:has(td.multiline) > td {
 .scrolls + .quiet,
 
 /*
+ * **Und beim zehnten Mal steht ein Platzhalter unter einem leisen Satz.**
+ *
+ * Auf der Updates-Seite sagt seit dem 11. September ein Satz, von wann die Zahl
+ * am Menüpunkt stammt — und darunter folgt der Platzhalter für den teuren
+ * Aufruf. Gemeldet hat es wieder der Wächter und nicht das Auge, und zwar
+ * **bevor** eine Aufnahme entstanden ist.
+ *
+ * > **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit
+ * > der nächsten Ergänzung.**
+ */
+.quiet + .skeleton-stack,
+
+/*
  * **Und beim siebten Mal war es die Automatik.**
  *
  * Auf der Updates-Seite steht seit dem 26. August eine Tabelle unmittelbar

@@ -27575,3 +27575,47 @@ Kommandoliste von `packaging/bin/srvpanel` wörtlich, und das Abzeichen hat
 
 > **Ein Eingriff misst nicht nur die Datei, die er anfasst — er misst jede, die
 > sein Wächter liest.**
+
+### Und der Zeitpunkt bekommt einen Leser
+
+Die Frage „was tut das Abzeichen, wenn die Zahl alt ist?" ist entschieden:
+**nichts.** Weder verschwindet es ab einer Schwelle — Stille in der Navigation
+heisst „nichts zu tun", also derselbe Fehler wie eine `0`, die „nicht
+nachgesehen" bedeutet — noch ändert es seine Farbe, denn der Streifen führt
+keine Zustandsfarbe (2,67:1 gemessen).
+
+> **Ein Zeiger, der etwas zu viel behauptet, kostet einen Klick. Einer, der
+> schweigt, kostet den Weg.**
+
+**Drei Viertel der Antwort standen schon da.** `/updates` stellt diese Frage
+seit P7b im Kopf der Seite und beantwortet sie mit der Quellenliste neben der
+Zahl; `srvpanel-packages.timer` steht im Katalog, also meldet der Nachtlauf ihn
+über `unit.schedule / no_next`, sobald er keinen Termin mehr hat; und die Seite
+selbst holt live. Eine zweite Fassung davon am Abzeichen wäre die, die veraltet.
+
+**Was fehlte, war ein Leser.** `Settings::pendingUpdatesCheckedAt()` stand seit
+demselben Vormittag da und wurde von niemandem gerufen. `/updates` sagt jetzt,
+von wann die Zahl am Menüpunkt stammt — und für `null` den anderen Satz, weil
+„noch nie" etwas anderes ist als „vor langer Zeit".
+
+Zwei Entscheidungen daran sind gemessen: Der Zeitpunkt wird in `show()` gelesen
+und nicht im nachgereichten Teil — sonst schriebe ihn derselbe Aufruf, der ihn
+zeigt, und die Antwort wäre immer „gerade eben". Und der Satz steht über dem
+dreiwertigen Zweig, weil sein nützlichster Augenblick der Platzhalter ist.
+
+**`PendingUpdatesReachTest` hat sich beim Gegenprüfen selbst korrigiert.** Sein
+erster Wurf las die `.vue` im Ganzen und blieb **grün**, als der gerenderte Satz
+entfernt wurde — die Prop-Deklaration im `<script setup>` trägt denselben Namen.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht — und eine Deklaration ist keine Anzeige.**
+
+**Und ein bestehender Wächter hat den Satz gemeldet, bevor ihn ein Auge sah.**
+`BlockSpacingTest` wurde rot: Der neue leise Satz steht unmittelbar über dem
+Platzhalter, und `app.css` kannte diese Nachbarschaft nicht. Gemessen im
+Platzhalterzustand — festgehalten durch Anhalten der nachgereichten Anfrage —
+sind es **24 px** mit der Regel und **0 px** ohne sie. Behoben ist es im
+Stylesheet und nicht mit einem Rand auf der Seite.
+
+> **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit der
+> nächsten Ergänzung.**

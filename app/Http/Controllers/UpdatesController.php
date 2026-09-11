@@ -135,6 +135,30 @@ final class UpdatesController extends Controller
             'sourcesError' => $quellen['sourcesError'],
 
             /*
+             * **Wann die Zahl am Menüpunkt eingesammelt wurde.**
+             *
+             * Sie ist eine Abschrift und kein Messwert: Das Abzeichen in der
+             * Navigation steht auf jeder Seite, und `system.packages.list`
+             * kostet gemessen 3033 ms — live geholt machte es jede Seite
+             * dieses Panels drei Sekunden langsam (`docs/907 §1.1`).
+             *
+             * **Gelesen wird hier und nicht in `packages()`**, und das ist der
+             * Punkt: `show()` läuft vor dem Nachreichen, der Wert ist also der
+             * von **vor** diesem Besuch. Stünde er im nachgereichten Teil,
+             * schriebe ihn derselbe Aufruf, der ihn zeigt — und die Antwort
+             * wäre immer „gerade eben".
+             *
+             * Er ändert sich während des Besuchs auch nicht: Das partielle
+             * Nachladen schickt nur `packages`, das Abzeichen behält seine
+             * Zahl bis zur nächsten vollen Navigation. Der Satz auf der Seite
+             * bleibt damit die ganze Zeit wahr.
+             *
+             * `null` heisst „noch nie eingesammelt" und nicht „vor langer
+             * Zeit" — {@see Clock::displayText()} lässt es deshalb stehen.
+             */
+            'pendingUpdatesCheckedAt' => Clock::displayText($settings->pendingUpdatesCheckedAt()),
+
+            /*
              * **Der Neustart-Knopf steht am zweiten seiner beiden Anlässe**
              * (`docs/81 §6`). Hier ist er `/run/reboot-required`, auf der
              * Übersicht der neuere Kernel in `/boot` — zwei Fragen an zwei

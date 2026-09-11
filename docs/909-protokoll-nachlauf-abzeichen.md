@@ -268,17 +268,63 @@ Punkt 8 fragt nach der Folge und bleibt offen.
 
 ---
 
-## §7 Was aussteht
+## §7 Punkt 8 — der Zustand unmittelbar davor
 
-**Nur noch Punkt 8** — das Feuern nach der stündlichen Folge.
+Gemessen um **19:55:02 CEST**, also sieben Minuten vor dem Termin.
 
-| | Wert |
+| | gemessen |
 |---|---|
-| Termin | **`Fri 2026-09-11 20:02:35 CEST`** (nach dem Wiedereinschalten neu gewürfelt) |
-| letzter Lauf von Hand | `ExecMainStartTimestamp = 19:27:30 CEST` |
-| letzter Auslöser des Timers | `LastTriggerUSec = 19:09:04 CEST` |
+| `NextElapseUSecRealtime` | `Fri 2026-09-11 20:02:35 CEST` |
+| `LastTriggerUSec` | `Fri 2026-09-11 19:09:04 CEST` |
+| `ExecMainStartTimestamp` | `Fri 2026-09-11 19:29:08 CEST` |
+| `checked_at` (UTC) | `2026-09-11 17:49:21` |
 
-Beide Marker müssen gewandert sein, und `pendingUpdatesCheckedAt()` muss
-denselben neuen Zeitpunkt nennen. Der letzte Haken ist der tragende: Die
-anderen belegen, dass etwas lief, nicht dass es das war, was das Abzeichen
-speist.
+### §7a Zwei Marker waren veraltet, und einer hätte den Punkt gefälscht
+
+Dieses Protokoll hat die Marker für Punkt 8 **aufgeschrieben statt gemessen**:
+`ExecMainStartTimestamp = 19:27:30` und `checked_at = 17:36:24`. Beide stimmten
+zum Zeitpunkt des Aufschreibens und waren es sieben Minuten später nicht mehr.
+
+**Der erste ist der gefährliche.** `19:27:30` war der erste Lauf von Hand — der
+freiwillige Griff aus §3b hat danach **zwei weitere** abgesetzt, der letzte um
+`19:29:08`. Wäre Punkt 8 ohne frische Vormessung gefahren worden, stünde
+nachher `19:29:08` gegen einen Marker von `19:27:30`, und das läse sich als
+„gewandert" — **ein Beleg für das Feuern des Timers, der in Wahrheit ein Lauf
+von Hand war.**
+
+> **Ein Marker, den man aufschreibt statt ihn zu messen, altert zwischen dem
+> Aufschreiben und dem Messen — und ein Marker, der zu früh steht, macht aus
+> einem fremden Lauf einen Beleg.**
+
+Gefangen hat es der Vorher-Block, und er hat nichts gekostet als zwei Sekunden.
+
+### §7b Wer die Zahl um 19:49:21 geschrieben hat, ist abgeleitet und nicht geraten
+
+`checked_at` stand auf `17:49:21` UTC, also `19:49:21` CEST — nach der
+Browsermessung aus §4 (`19:36:24`) und vor der Diagnose aus §5 (`19:49:44`).
+
+Ausgezählt hat die Ablage genau **zwei** Schreiber: `UpdatesController` beim
+Holen des Paketstands und `CollectPendingUpdates` im Dienst. Die Diagnose
+gehört nicht dazu. Und der Dienst kann es nicht gewesen sein — sein
+`ExecMainStartTimestamp` steht auf `19:29:08`. **Es bleibt der Controller**,
+also ein weiterer Aufruf von `/updates`.
+
+Das ist der Entwurf und kein Befund: Wer die Seite öffnet, bezahlt den
+Agentenaufruf ohnehin, und das Ergebnis wird festgehalten.
+
+---
+
+## §8 Was aussteht
+
+**Nur noch Punkt 8** — das Feuern um `20:02:35 CEST`. Die Marker, gegen die
+gemessen wird, sind jetzt **gemessen und nicht erinnert**:
+
+| | Wert, der wandern muss |
+|---|---|
+| `LastTriggerUSec` | von `19:09:04` |
+| `ExecMainStartTimestamp` | von `19:29:08` |
+| `checked_at` | von `17:49:21` UTC |
+
+Alle drei müssen auf denselben neuen Augenblick zeigen, und `Result` muss
+`success` sein. Der dritte Haken ist der tragende: Die ersten beiden belegen,
+dass etwas lief, nicht dass es das war, was das Abzeichen speist.

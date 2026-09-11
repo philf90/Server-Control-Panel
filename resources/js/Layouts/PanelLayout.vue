@@ -1172,9 +1172,15 @@ onBeforeUnmount(() => {
    * Grösse daneben wäre die, die veraltet.
    *
    * Die Farbe ist `--accent` der Kopfleiste selbst und keine Zustandsfarbe:
-   * Der Streifen führt einen eigenen Markensatz, `--nav-bg` ist in **beiden**
-   * Themen `#1a0b2e`. Gemessen ergibt der Punkt darauf **11,11:1** — verlangt
-   * sind 3:1 (WCAG 1.4.11, kein Text).
+   * Der Streifen führt einen eigenen Markensatz, und `--nav-bg` trägt in
+   * **beiden** Themen denselben dunklen Wert. Gemessen ergibt der Punkt darauf
+   * **11,11:1** — verlangt sind 3:1 (WCAG 1.4.11, kein Text).
+   *
+   * **Der Wert steht hier absichtlich nicht ausgeschrieben.** Der Schritt
+   * „Oberfläche" der CI greppt `resources/js` **roh**, Kommentare
+   * eingeschlossen; ein zitierter Farbwert macht ihn rot, auch wenn er nur
+   * erklärt. Wer die Zahl braucht, liest sie in `app.css` — dort gehört sie
+   * hin, und dort steht sie einmal.
    */
   .nav-dot {
     position: absolute;

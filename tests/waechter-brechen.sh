@@ -27659,3 +27659,132 @@ else
 fi
 
 exit "$fehler"
+
+echo "── ProcessStateTest: der Agent wirft das Wort des Kernels wieder weg ──"
+#
+# Der Ausgangszustand des Befundes vom 11. September 2026: `/proc/<pid>/status`
+# schreibt `State:\tS (sleeping)`, und `substr(…, 0, 1)` behielt davon den
+# Buchstaben. Die Erklaerung war da und fiel eine Zeile vor der Anzeige weg.
+vorher_datei agent/src/Ops/SystemInfo.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemInfo.php'
+s = open(p, encoding='utf-8').read()
+alt = "                'state_text' => $this->stateText($state),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Ops/SystemInfo.php "Agent ohne state_text" &&
+pruefe "Agent ohne state_text" \
+  ProcessStateTest::test_the_kernel_word_travels_from_proc_to_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ProcessStateTest passed
+
+echo "── ProcessStateTest: der Controller laesst das Wort fallen ──"
+#
+# Die mittlere Stelle der Naht. Agent und Vorlage saehen weiter richtig aus;
+# der Rueckfall der Abbildung bekaeme nur nichts mehr zu lesen.
+vorher_datei app/Http/Controllers/OverviewController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/OverviewController.php'
+s = open(p, encoding='utf-8').read()
+alt = "                'state_text' => (string) ($row['state_text'] ?? ''),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/OverviewController.php "Controller ohne state_text" &&
+pruefe "Controller ohne state_text" \
+  ProcessStateTest::test_the_kernel_word_travels_from_proc_to_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ProcessStateTest passed
+
+echo "── ProcessStateTest: state_text nur noch im Kommentar ──"
+#
+# Der Eingriff, der den Kommentarabtaster belegt. Die Zeile wird auskommentiert
+# statt entfernt — roh gelesen bliebe der Waechter gruen, obwohl der Agent das
+# Feld nicht mehr schickt.
+vorher_datei agent/src/Ops/SystemInfo.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemInfo.php'
+s = open(p, encoding='utf-8').read()
+alt = "                'state_text' => $this->stateText($state),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '                // ' + alt.strip(), 1))
+PY2
+griff_datei agent/src/Ops/SystemInfo.php "state_text nur im Kommentar" &&
+pruefe "state_text nur im Kommentar" \
+  ProcessStateTest::test_the_kernel_word_travels_from_proc_to_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ProcessStateTest passed
+
+echo "── ProcessStateTest: die Zelle druckt den Buchstaben roh ──"
+#
+# Genau der Zustand, den der Betreiber gemeldet hat: ein nacktes „S" in der
+# Spalte, ohne dass irgendwo stuende, wofuer es steht.
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+alt = '{{ prozessZustand(process) }}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '{{ process.state }}', 1))
+PY2
+griff_datei resources/js/Pages/Overview.vue "Rohwert in der Zustandsspalte" &&
+pruefe "Rohwert in der Zustandsspalte" \
+  ProcessStateTest::test_no_page_prints_a_raw_process_state failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ProcessStateTest passed
+
+echo "── ProcessStateTest: der Rueckfall auf das Wort der Quelle faellt weg ──"
+#
+# Ohne ihn bleibt einem Buchstaben, den die Abbildung nicht kennt, nur er
+# selbst — und der Kernel hat sein Wort mitgeschickt.
+vorher_datei resources/js/Composables/useProcessState.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/useProcessState.ts'
+s = open(p, encoding='utf-8').read()
+alt = "  return process.state_text !== '' ? process.state_text : process.state\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '  return process.state\n', 1))
+PY2
+griff_datei resources/js/Composables/useProcessState.ts "Rückfall ohne das Wort der Quelle" &&
+pruefe "Rückfall ohne das Wort der Quelle" \
+  ProcessStateTest::test_the_fallback_takes_the_word_of_the_source failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ProcessStateTest passed
+
+echo "── ProcessStateTest: ein erfundenes Wort als Rueckfall ──"
+#
+# „unbekannt" sagt dem Leser weniger als der Buchstabe und behauptet dabei
+# mehr — und es verdeckt das Wort, das der Kernel geschrieben hat.
+vorher_datei resources/js/Composables/useProcessState.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/useProcessState.ts'
+s = open(p, encoding='utf-8').read()
+alt = "? process.state_text : process.state\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "? process.state_text : 'unbekannt'\n", 1))
+PY2
+griff_datei resources/js/Composables/useProcessState.ts "erfundener Rückfall" &&
+pruefe "erfundener Rückfall" \
+  ProcessStateTest::test_the_fallback_takes_the_word_of_the_source failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ProcessStateTest passed
+
+echo "── ProcessStateTest: der haeufigste Zustand faellt aus der Abbildung ──"
+#
+# Die Untergrenze. `S` ist gemessen und nicht angenommen; ohne den Eintrag
+# zeigt die Tabelle fuer den haeufigsten Fall das englische Wort des Kernels,
+# und die Faelle darueber blieben davon gruen.
+vorher_datei resources/js/Composables/useProcessState.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/useProcessState.ts'
+s = open(p, encoding='utf-8').read()
+alt = "  S: 'schläft',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Composables/useProcessState.ts "gemessener Zustand fehlt" &&
+pruefe "gemessener Zustand fehlt" \
+  ProcessStateTest::test_the_measured_states_are_mapped failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ProcessStateTest passed

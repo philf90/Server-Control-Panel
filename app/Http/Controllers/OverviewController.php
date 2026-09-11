@@ -500,6 +500,10 @@ final class OverviewController extends Controller
                 'name' => (string) ($row['name'] ?? ''),
                 'rss' => $this->bytes((int) ($row['rss'] ?? 0)),
                 'state' => (string) ($row['state'] ?? ''),
+
+                // Der Rückfall der Oberfläche für einen Buchstaben, den ihre
+                // Abbildung nicht kennt — siehe `useProcessState.ts`.
+                'state_text' => (string) ($row['state_text'] ?? ''),
                 'user' => (int) ($row['user'] ?? 0),
             ];
         }

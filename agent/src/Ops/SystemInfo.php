@@ -258,7 +258,7 @@ final class SystemInfo implements Op
      * ein Augenblickswert und beantwortet die Frage, die man auf einem vollen
      * Server tatsächlich hat.
      *
-     * @return list<array{pid:int,name:string,rss:int,state:string,user:int}>
+     * @return list<array{pid:int,name:string,rss:int,state:string,state_text:string,user:int}>
      */
     private function processes(int $limit = 15): array
     {
@@ -285,12 +285,19 @@ final class SystemInfo implements Op
             }
 
             $name = $this->statusField($status, 'Name');
+            $state = $this->statusField($status, 'State');
 
             $rows[] = [
                 'pid' => (int) $entry,
                 'name' => $name,
                 'rss' => (int) $this->statusField($status, 'VmRSS') * 1024,
-                'state' => substr($this->statusField($status, 'State'), 0, 1),
+                'state' => substr($state, 0, 1),
+
+                // Das Wort des Kernels wandert mit. Bis zum 11. September 2026
+                // stand hier nur `substr(…, 0, 1)`, und damit war die Erklärung
+                // eine Zeile vor der Anzeige fort — gefragt hat danach der
+                // Betreiber, dem in der Tabelle ein nacktes „S" gegenüberstand.
+                'state_text' => $this->stateText($state),
                 'user' => (int) strtok($this->statusField($status, 'Uid'), " \t"),
             ];
         }
@@ -298,6 +305,27 @@ final class SystemInfo implements Op
         usort($rows, static fn (array $a, array $b): int => $b['rss'] <=> $a['rss']);
 
         return array_slice($rows, 0, $limit);
+    }
+
+    /**
+     * Das Wort, das der Kernel selbst zu einem Zustandsbuchstaben schreibt.
+     *
+     * `/proc/<pid>/status` führt die Zeile als `State:	S (sleeping)` — der
+     * Buchstabe **und** seine Erklärung, gemessen am 11. September 2026 gegen
+     * Linux 6.18. Hier wird die Klammer herausgeschnitten und sonst nichts
+     * gedeutet: Welches deutsche Wort daraus wird, entscheidet die Oberfläche,
+     * und für einen Buchstaben, den sie nicht kennt, ist dieses hier der
+     * Rückfall.
+     *
+     * > **Ein Rückfall, der das Wort der Quelle nimmt, erfindet nichts — und
+     * > sagt mehr als ein nackter Buchstabe.**
+     *
+     * Leer, wenn die Zeile keine Klammer trägt. Dann bleibt der Oberfläche der
+     * Buchstabe, und auch der ist wahr.
+     */
+    private function stateText(string $state): string
+    {
+        return preg_match('/\(([^)]*)\)/', $state, $match) === 1 ? $match[1] : '';
     }
 
     private function statusField(string $status, string $field): string

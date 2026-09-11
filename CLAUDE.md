@@ -4040,6 +4040,27 @@ Testen berücksichtigen:
 
   > **Eine Messung, die nie etwas anderes als Null liefern kann, ist keine.**
 
+  **Und die Gegenprobe allein genügt nicht — am 11. September 2026 zum zweiten
+  Mal bezahlt.** Ein Aufsatz für die Prozesstabelle lud die Stylesheets als
+  `href="/build/…"`; unter `file://` zeigt der führende Schrägstrich auf die
+  Wurzel des Dateisystems, und die Seite war ungestaltet. Die Gegenprobe schlug
+  trotzdem mit 208 an, `dokument` stand auf 0, und beides sah nach einem
+  Ergebnis aus. Genau dieselbe Falle steht seit dem 31. August weiter unten
+  beschrieben — sie zu kennen hat nicht gereicht.
+
+  > **Eine Messung, bei der der Prüfling gar nicht geladen wurde, sieht aus wie
+  > ein Ergebnis — die Gegenprobe belegt nur, dass die Messung rechnet, nicht
+  > dass sie ihren Gegenstand hat.**
+
+  Aufgefallen ist es nicht am Bild und nicht an der Null, sondern an einer
+  Zahl, die nicht passte: Bei 390 px waren alle Zellen 118 px breit und die
+  Höhen folgten der **Zeile** — das ist eine gewöhnliche Tabelle, und `.stacks`
+  stapelt dort. Der Handgriff dagegen kostet eine Zeile: **Die Messung druckt
+  mit, dass der Prüfling geladen ist** — hier `getComputedStyle(td).display`,
+  das unter 720 px `flex` sein muss und ohne Stylesheet `table-cell` ist.
+
+  > **Ein Ladebeleg gehört in die Messung und nicht in die Erinnerung.**
+
   **Und am 16. August ist gemessen worden, wie genau dieser Aufsatz ist: aufs
   Pixel.** Die Kärtchenhöhen des Dateimanagers standen hier auf 236/54
   zugeklappt und 396/214 aufgeklappt; auf `cloudsrv24` gegen `v0.6.0-rc.8`

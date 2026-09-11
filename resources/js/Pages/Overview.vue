@@ -5,6 +5,7 @@ import ActionIcon from '../Components/ActionIcon.vue'
 import Bar from '../Components/Bar.vue'
 import Section from '../Components/Section.vue'
 import { rang, zustand } from '../Composables/useUnitState'
+import { zustand as prozessZustand } from '../Composables/useProcessState'
 import Badge from '../Components/Badge.vue'
 import FormErrors from '../Components/FormErrors.vue'
 import RebootButton from '../Components/RebootButton.vue'
@@ -44,7 +45,11 @@ interface Process {
   pid: number
   name: string
   rss: string
+
+  /* Buchstabe und Wort des Kernels — gezeigt wird keines von beiden roh,
+     sondern was `prozessZustand()` daraus macht. */
   state: string
+  state_text: string
   user: number
 }
 
@@ -744,7 +749,7 @@ const headline = props.server.reachable
               <tr v-for="process in processes" :key="process.pid">
                 <td data-column="PID" class="right ident">{{ process.pid }}</td>
                 <td data-column="Name" class="ident name">{{ process.name }}</td>
-                <td data-column="Zustand" class="quiet">{{ process.state }}</td>
+                <td data-column="Zustand" class="quiet">{{ prozessZustand(process) }}</td>
                 <td data-column="UID" class="right ident">{{ process.user }}</td>
                 <td data-column="Speicher" class="right">{{ process.rss }}</td>
               </tr>

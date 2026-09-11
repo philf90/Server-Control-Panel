@@ -518,12 +518,70 @@ jemand gemessen hat.
 
 Gemessen wird mit `tests/bilder-messen.js` aus dem Repo, **je Aufnahme in einer
 frisch geladenen Seite** — der Prüfkörper bemisst sich am gegenwärtigen Zustand
-und misst beim zweiten Lauf sich selbst.
+und misst beim zweiten Lauf sich selbst. `bilderMessen()` wirft deshalb beim
+zweiten Aufruf, und ein zweites Einfügen scheitert an `STAND`.
 
-Für die vier Aufnahmen im Platzhalterzustand bleiben drei Sekunden. Reicht das
-auf dem Telefon nicht, gilt die Regel aus `docs/108`: **Ein Punkt, der am
-Werkzeug scheitert und nicht am Gegenstand, ist nicht „nicht herstellbar"** — er
-wird am Rechner nachgeholt.
+### Wie der Platzhalterzustand gehalten wird
+
+**Hier stand „für die vier Aufnahmen im Platzhalterzustand bleiben drei
+Sekunden". Das ist eine Bitte ans Tippen und kein Verfahren:** Nach einem
+Neuladen von `/updates` müsste in diesen drei Sekunden das ganze Messmittel
+eingefügt *und* aufgerufen werden.
+
+> **Ein Prüfmittel, das seine eigene Falle nur beschreibt, überlässt sie dem,
+> der sie am wenigsten sehen kann.** Derselbe Satz, den `bilder-messen.js` am
+> 6. September über sich selbst gelernt hat.
+
+Gemessen wird deshalb **aus der Konsole heraus navigiert**: Eine
+Inertia-Navigation lädt das Dokument nicht neu, das eingefügte Messmittel
+überlebt sie, und `onSuccess` feuert genau dann, wenn die Hülle da ist und die
+Nachreichung noch unterwegs.
+
+**Und beide Zustände nehmen denselben Weg** — dieselbe Route, dasselbe Dokument,
+nur eine andere Wartezeit. Sonst wäre ein Unterschied zwischen ihnen nicht dem
+Platzhalter zuzuschreiben, sondern dem Weg dorthin.
+
+> **Zwei Zustände, die man auf zwei verschiedenen Wegen misst, sind nicht auf
+> ihren Unterschied hin vergleichbar.**
+
+Je Lage:
+
+1. Breite und Thema einstellen.
+2. Auf **`/services`** gehen und **neu laden** — eine Messung nach einem Wechsel
+   der Breite ohne Neuladen trägt Reste mit (`docs/68`).
+3. `tests/bilder-messen.js` einfügen.
+4. Den Treiber einfügen, mit **`400`** für den Platzhalterzustand und **`5000`**
+   für den geladenen:
+
+```js
+const g = document.getElementById('app').__vue_app__.config.globalProperties
+g.$inertia.visit('/updates', {
+  onSuccess: () => setTimeout(() => {
+    const m = bilderMessen()
+    console.log(JSON.stringify({
+      seite: g.$page.url,
+      platzhalter: g.$page.props.packages === undefined,
+      kacheln: document.querySelectorAll('.skeleton').length,
+      schiebt: m.schiebt.map((r) => r.pfad),
+      rollt: m.rollt.map((r) => `${r.pfad} (${r.ueberlauf})`),
+    }, null, 1))
+  }, 400),
+})
+```
+
+**`platzhalter` und `kacheln` sind die Gegenprobe und keine Beigabe.** Ohne sie
+sähe eine Aufnahme des geladenen Zustands genauso aus wie eine des
+Platzhalterzustands — und `dokument = 0` stünde in beiden Fällen da. Erwartet
+sind:
+
+| | `platzhalter` | `kacheln` |
+|---|---|---|
+| Platzhalterzustand | `true` | **11** |
+| geladen | `false` | **0** |
+
+Die **11** ist ausgezählt und nicht geschätzt: fünf `.skeleton.value` in den
+Kacheln (`Index.vue` Zeile 702 über die fünf Einträge von `kacheln`), vier
+`.skeleton.line` im ersten Stapel und zwei im zweiten.
 
 **Erfüllt, wenn** in allen acht Lagen `dokument = 0` steht und die Gegenprobe
 mit **200** ausschlägt. Ein `rollt` auf einem Rollbehälter ist erlaubt und

@@ -480,7 +480,44 @@ Derselbe Satz wie in `docs/114` an einer Tabelle, hier an einem Streifen.
 
 ---
 
-## §10 bis §12 — offen
+## §10 Punkt 8 — das Nachladen legt nichts an *(Ausschlusskriterium)*
+
+**Erfüllt.**
+
+| | Vorgänge | Protokoll |
+|---|---|---|
+| Ausgangsstand | 849 | 1302 |
+| nach **fünf** Aufrufen von `/updates` | **849** | **1302** |
+| nach **einem** Klick auf „Jetzt nachsehen" | **850** | **1303** |
+
+Fünf Seitenaufrufe, jeder mit seiner nachgereichten Anfrage — und keine einzige
+Zeile mehr. Eine zweite Anfrage je Seitenaufruf, die ins Protokoll schriebe,
+verdoppelte den Bestand; sie schreibt nicht.
+
+**Die Gegenprobe ist der Teil, der die Null zu einer Messung macht.** Ein Klick
+auf „Jetzt nachsehen" bewegt **beide** Zahlen um genau 1 — der Vorgang und die
+Zeile `packages.refreshed`, die `refresh()` dazu schreibt. Ohne sie wäre
+„unverändert" von „die Abfrage zählt nichts" nicht zu unterscheiden.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+**Und `withoutGlobalScopes()` ist kein Zierrat:** `Operation` trägt
+`BelongsToSubscription`, und `srvpanel tinker` läuft ohne angemeldetes Konto.
+Ohne die Klammer käme wortlos immer 0 zurück, und die Differenz wäre in jedem
+Fall 0 — eine Messung, die gar nicht scheitern kann.
+
+Damit ist auch die Frage aus `docs/904 §7` beantwortet, die dort als
+**hergeleitet** und nicht als gemessen stand: `Origin::current()` liest die
+Kopfzeile aus der laufenden Anfrage und legt nichts ab; ein `GET` legt keinen
+Vorgang an, und damit liest sie niemand. Jetzt ist es gemessen.
+
+> **Eine Herleitung, die stimmt, ist keine Messung — und welche von beiden
+> dasteht, sieht man ihr später nicht an.**
+
+---
+
+## §11 und §12 — offen
 
 | Punkt | Stand |
 |---|---|
@@ -491,12 +528,12 @@ Derselbe Satz wie in `docs/114` an einer Tabelle, hier an einem Streifen.
 | 5 — Farbe des Balkens | **erfüllt**, beide Themen (§7.3) |
 | 6 — die Bewegungsregel ist ausgeliefert | **erfüllt** (§8) |
 | 7 — die Prüfmeldung kommt oben an | **erfüllt** (§9) |
-| 8 — das Nachladen legt nichts an *(Ausschluss)* | offen |
+| 8 — das Nachladen legt nichts an *(Ausschluss)* | **erfüllt** (§10) |
 | 9 — die Bilderrunde | offen |
 | 10 — bedienbar in den drei Sekunden | offen |
 
-**Als Nächstes:** `docs/905 §10`, Punkt 8 — das letzte der drei
-Ausschlusskriterien: Das Nachladen legt nichts an.
+**Alle drei Ausschlusskriterien sind erfüllt** (3, 4, 8). Offen sind Punkt 10
+(bedienbar in den drei Sekunden) und Punkt 9 (die Bilderrunde).
 
 **Was dabei nicht vergessen werden darf**, weil es in diesem Lauf schon
 gezählt hat:

@@ -400,7 +400,34 @@ ins Dokument schreibt.
 
 ---
 
-## §8 bis §12 — offen
+## §8 Punkt 6 — die Bewegungsregel ist ausgeliefert
+
+**Erfüllt.**
+
+```
+{ "bewegungsregeln": 1, "wichtig": [] }
+```
+
+**Genau ein** `prefers-reduced-motion`-Block im ausgelieferten Stylesheet, und
+keine Animation stellt sich mit `!important` darüber.
+
+Zwei wäre schlimmer als keiner: Zwei Blöcke laufen auseinander, und welcher
+gilt, entscheidet die Reihenfolge in der Datei — wer den zweiten schreibt,
+glaubt den ersten zu ersetzen. Genau deshalb hat der Platzhalter **keine**
+eigene Ausnahme bekommen, obwohl `docs/904 §5` sie im ersten Wurf verlangte.
+
+**Die leere Liste ist die stille Hälfte.** `!important` schlägt `!important`
+über die Spezifität, und die einer Klasse ist höher als die von `*` — eine
+einzige solche Zeile nähme die Regel für genau ihr Element zurück, und auf
+einem Gerät ohne die Einstellung sähe das völlig richtig aus.
+
+Was hier **nicht** gemessen wird, steht in `docs/905 §0`: ob die Einstellung auf
+einem Gerät wirkt, ist eine Eigenschaft des Geräts und gegen echtes Chromium
+gemessen (40 Bilder, 30 Werte ohne die Einstellung, einer mit ihr).
+
+---
+
+## §9 bis §12 — offen
 
 | Punkt | Stand |
 |---|---|
@@ -409,15 +436,14 @@ ins Dokument schreibt.
 | 3 — kein Sprung *(Ausschluss)* | **erfüllt**, 1440 und 390 px (§5) |
 | 4 — toter Agent *(Ausschluss)* | **erfüllt** (§6) |
 | 5 — Farbe des Balkens | **erfüllt**, beide Themen (§7.3) |
-| 6 — die Bewegungsregel ist ausgeliefert | offen |
+| 6 — die Bewegungsregel ist ausgeliefert | **erfüllt** (§8) |
 | 7 — die Prüfmeldung kommt oben an | offen |
 | 8 — das Nachladen legt nichts an *(Ausschluss)* | offen |
 | 9 — die Bilderrunde | offen |
 | 10 — bedienbar in den drei Sekunden | offen |
 
-**Als Nächstes:** `docs/905 §8`, Punkt 6 — ob die ausgelieferte Fassung die
-eine Bewegungsregel mitbringt. Von den drei Ausschlusskriterien steht nur noch
-Punkt 8 aus.
+**Als Nächstes:** `docs/905 §9`, Punkt 7 — die Prüfmeldung oben auf der Seite.
+Von den drei Ausschlusskriterien steht nur noch Punkt 8 aus.
 
 **Was dabei nicht vergessen werden darf**, weil es in diesem Lauf schon
 gezählt hat:

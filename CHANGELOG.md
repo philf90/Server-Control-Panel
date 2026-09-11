@@ -27388,3 +27388,234 @@ Anfrage je Gruppe). Sie wählt nur zwischen zwei Slots — und dafür müssten
 > **Ein Wächter, der ein Werkzeug verlangt, prüft das Werkzeug. Der Zustand
 > darunter ist die Regel** — `DeferredPropTest` hält deshalb `undefined` und
 > liest `<Deferred>` trotzdem mit.
+
+## Ein Abzeichen am Menüpunkt „Updates"
+
+Der Betreiber hat gefragt, ob die Zahl der offenen Aktualisierungen in die
+Navigation kann. **Der Plan dazu ist `docs/907`, und er steht nach der
+Messrunde** — vier der fünf Messungen haben den Entwurf verändert, bevor eine
+Zeile Code entstand.
+
+### Was die Messung entschieden hat
+
+**Die Zahl live zu holen ist um Grössenordnungen ausgeschlossen.**
+`system.packages.list` kostet gemessen 2954–3644 ms auf `cloudsrv24`, ein
+abgelegtes Lesen **0,104 ms** (SQLite) und **0,279 ms** (MariaDB 10.11.14, die
+Fassung des Servers). Die Navigation steht auf jeder Seite; ein Abzeichen, das
+fragt, machte jede Seite des Panels drei Sekunden langsam. Auch ein Nachreichen
+über `Inertia::defer()` in `share()` fällt aus — es setzte bei jedem
+Seitenaufruf einen apt-Lauf ab.
+
+Geschrieben wird die Zahl deshalb dort, wo sie **ohnehin anfällt**: Wer
+`/updates` öffnet, bezahlt den Aufruf, und das Ergebnis wird festgehalten statt
+weggeworfen. `srvpanel packages` samt stündlichem Timer ist der Rückfall für
+das, was ausserhalb des Panels geschieht — `unattended-upgrades` und
+`apt-daily` arbeiten auf eigenem Takt.
+
+**`null` heisst „nicht nachgesehen" und nicht „nichts zu tun".** Hätte die
+Ablage eine `0` für den ungemessenen Fall, stünde am Menüpunkt eine Auskunft,
+die niemand erhoben hat — derselbe Fehler, mit dem P7b angefangen hat.
+
+### Was vorher falsch gewesen wäre
+
+**Eine Zustandsfarbe im Navigationsstreifen.** `.rail` und `.topbar` führen
+einen eigenen Markensatz; `--nav-bg` ist in **beiden** Themen `#1a0b2e`, also
+dunkel, während die Seite daneben im hellen Thema hell ist. Gemessen:
+
+| Fassung | hell | dunkel |
+|---|---|---|
+| `.badge.warn` im Streifen | **2,67:1** — fällt durch | 7,04:1 |
+| `.badge.count` aus den Marken des Streifens | **8,42:1** | **8,42:1** |
+
+Die 8,42 stehen zweimal unabhängig da: einmal gemessen, einmal im Kommentar
+über `.rail`, der sie für die Fläche des aktiven Menüpunkts längst nennt. Und
+`app.css` sagt die Regel selbst:
+
+> **Eine Markenfläche endet dort, wo eine Zustandsfarbe anfängt — sonst ist sie
+> keine Fläche, sondern ein zweites Theme.**
+
+**Eine Regel genügt für beide Orte**, weil Marken kaskadieren: `.badge.count`
+liest `var(--accent)`, und das löst im Streifen auf dessen Peach auf, auf einer
+Seite auf den Akzent der Seite. Eine zweite Regel für den Streifen wäre die,
+die veraltet. `NavBadgeTest` hält beide Hälften — kein `.badge` im Streifen
+trägt eine Zustandsvariante, und `.badge.count` liest ausschliesslich Marken,
+die der Streifen selbst neu setzt.
+
+### Die breite Ansicht war die engere
+
+| Breite | Schiene | je Eintrag frei |
+|---|---|---|
+| 1440 px | 236 px | **203 px** |
+| 390 px | 272 px | 239 px |
+
+Bei 390 px ist das Abzeichen gratis — der Eintrag liegt dort schon auf dem
+Mindestmass von `--tap`. Bei 1440 px hätte `.badge` in ihrer heutigen Form
+**5 px Höhe** gekostet, an genau einem Eintrag: `::before` ist ein 6-px-Kreis
+mit `gap: 6px`, und `padding: 3px 10px` macht die Marke 26 px hoch gegen eine
+Zeilenhöhe von 21. Ohne Punkt und mit `padding: 0 8px` misst sie **34 × 20 px**,
+und der Eintrag bleibt bei 39 — kein Layoutunterschied zu seinen siebzehn
+Nachbarn.
+
+> **Ein Fehler, den nur die breite Ansicht hat, entgeht einer Prüfung, die auf
+> die schmale zielt.** Zum dritten Mal nach dem A9-Lauf und A14.
+
+### Was die Messung über sich selbst gelernt hat
+
+**Zwei eigene Prüfkörper haben je die Hälfte gesehen.** Die Breitenmessung
+meldete für jeden Eintrag `0` — `.nav-item` ist eine Flexzeile, und der Text
+bricht um statt überzulaufen; der Schaden hätte keine Breite gehabt, sondern
+eine Höhe. Die Höhenmessung gab für ein zwölfstelliges Abzeichen denselben Wert
+wie für ein zweistelliges — das bricht nicht um, es läuft über. Erst beide
+nebeneinander zeigen 39 → 44 **und** 28 px Überlauf.
+
+> **Zwei Messungen, von denen die eine den Schaden manchmal sieht, ersetzen
+> einander nicht.**
+
+**Und der Aufsatz brauchte das `data-v`-Attribut.** `.nav-item` steht in einem
+`<style scoped>`; Vite übersetzt das zu `.nav-item[data-v-219b02fc]`. Ohne das
+Attribut am handgeschriebenen Markup hätte der Aufsatz **keine einzige**
+Navigationsregel getroffen und trotzdem Zahlen geliefert.
+
+### Ein Fund am eigenen Plan
+
+`docs/907 §3.2` verlangte, der stündliche Lauf solle vor dem Aufruf `AptLock`
+fragen. Im Quelltext steht begründet das Gegenteil: `system.packages.list` ist
+die **eine** Operation, die die Sperre nicht braucht, weil `apt-get -s` bei
+gehaltener Sperre läuft — `AptLockReachTest::EXCEPTIONS` trägt sie mit genau
+diesem gemessenen Grund.
+
+> **Ein Plan, der eine Vorkehrung verlangt, die der Prüfling begründet nicht
+> braucht, prüft den Verfasser.**
+
+### Nachgemessen an der gebauten Seite
+
+Alles davor ist an einem **handgeschriebenen** Aufsatz gemessen. Gegen die
+fertige Seite wiederholt — vier Lagen, Abzeichen mit dem Wert 32 — stehen
+dieselben Zahlen da: Fläche `rgba(255,183,165,.14)`, Schrift
+`rgb(255,183,165)`, Grund `26,11,46`, **8,42:1 in allen vier**, 34,09 × 19,5 px,
+`dokument = 0`, Gegenprobe 200/200. Die Kontrastrechnung trägt ihre eigene
+Gegenprobe mit zwei bekannten Paaren (21,00 und 1,00).
+
+> **Eine Zahl aus einer Rechnung, die man nicht an zwei bekannten Paaren
+> nachgeprüft hat, ist ein Ergebnis der Rechnung und keines über den
+> Gegenstand.**
+
+**Und dabei fiel auf, dass das Abzeichen auf dem Telefon niemand sieht.** Unter
+720 px ist die Leiste eine Schublade; zugeklappt steht das Abzeichen bei
+**x = −63 px**. Aufgeklappt ist es richtig da. Das ist kein Fehler im Bau — die
+Schublade gibt es seit `docs/24` —, sondern einer am Zweck: Bestellt war
+erhöhte Aufmerksamkeit, und die setzt voraus, dass man etwas sieht, ohne es zu
+suchen. Was stattdessen in der Kopfleiste stehen soll, ist eine
+Gestaltungsfrage und steht als solche in `docs/907 §4`.
+
+> **Ein Hinweis, der in einer Schublade liegt, erreicht nur den, der die
+> Schublade ohnehin öffnet — und der wusste es schon.**
+
+### Ein Punkt am Menüknopf, für das, was die Schublade verdeckt
+
+Der Befund darüber ist behoben: Unter 720 px sitzt am Menüknopf der Kopfleiste
+ein Punkt, sobald etwas ansteht. Das Abzeichen deckt die breite Ansicht, der
+Punkt die schmale — bei 1440 px ist die Kopfleiste `display: none` und der Knopf
+0 px hoch.
+
+**Die Bauform ist gemessen und nicht überlegt.** `.nav-toggle` ist ein Raster
+mit `place-items: center` und **einem** Kind. Als zweites Kind im Fluss schiebt
+der Punkt das Zeichen um **6,5 px** nach oben, und die Kopfleiste bleibt dabei
+in beiden Fällen 65 px hoch:
+
+> **Ein Schaden, der innerhalb eines Knopfes sitzt, hat auf Seitenebene keine
+> Zahl, die sich beschwert.**
+
+Er steht deshalb ausserhalb des Flusses. Dieselbe Familie wie die gestapelte
+Zelle aus dem A6-Lauf, die genau ein Kind verträgt.
+
+**Und seine Lage kommt von der Tinte und nicht vom Kasten.** Der Kasten des
+Zeichens ist 24 × 24 und zu zwei Dritteln leer; die Tinte der drei Striche misst
+**16 × 10**. Gegen den Kasten gemessen sähe `top/right: 8px` nach einer
+Überlappung von 4 px aus — gegen die Tinte sind es **3 px Luft**. Die
+Gegenprobe, ein Prüfkörper über den ganzen Knopf, trifft sie; ohne die hiesse
+„trifft nicht" nur, dass der Test nichts misst.
+
+Gemessen am gebauten Punkt: **11,11:1 in beiden Themen** (verlangt sind 3:1 —
+er ist kein Text), `dokument = 0`, Gegenprobe 200/200, und das Zeichen steht
+weiterhin exakt mittig.
+
+**Der Punkt trägt `aria-hidden` und bekommt seinen Namen vom Knopf**, dessen
+Beschriftung jetzt „Navigation, 32 Aktualisierungen stehen an" lautet — mit
+Einzahl, denn „1 Aktualisierungen" ist der Befund, für den es `CountedNounTest`
+gibt.
+
+> **Ein Hinweis, der nur eine Farbe ist, erreicht niemanden, der die Farbe nicht
+> sieht.**
+
+`NavDotTest` hält vier Dinge: den Punkt ausserhalb des Flusses, den Bezug am
+Knopf, eine Quelle für Punkt und Abzeichen, und die gebundene Beschriftung. Er
+streift die Kommentare ab, bevor er sucht — und das ist hier kein Formalismus,
+sondern belegt: Der Absatz, der `position: relative` *begründet*, schreibt die
+Zeile wörtlich hin. Ohne Abtaster bliebe der Wächter grün, nachdem jemand die
+Deklaration entfernt hat.
+
+### Was die Messung über sich selbst gelernt hat
+
+**Zweimal an einem Tag hat ein kaputter Leser ein plausibles Ergebnis
+geliefert** — einmal, weil eine Marke als Text gelesen `#ffb7a5` ist und keine
+Farbe, einmal, weil eine Rechnung per Regex aus einer Datei gelesen wurde und
+die Maskierung eines Template-Literals erst beim Auswerten geschieht. Beide Male
+stand die Gegenprobe auf Grün: Sie rechnet schwarz auf weiss (21,00) und weiss
+auf weiss (1,00), mit fest hingeschriebenen Zahlen, die keinen Leser brauchen.
+
+> **Eine Gegenprobe an der Rechnung sagt nichts über den Wert, der in sie
+> hineingeht.**
+
+**Und der volle Bruchlauf hat einen Eingriff gemeldet, den dieser Zweig selbst
+stumpf gemacht hatte:** 2346 Prüfungen beissen, eine nicht. Sie trug die
+Kommandoliste von `packaging/bin/srvpanel` wörtlich, und das Abzeichen hat
+`packages` hineingeschrieben. Der Eingriff sucht seine Zielstelle seitdem ihrer
+**Form** nach und nicht ihrem Wortlaut nach.
+
+> **Ein Eingriff misst nicht nur die Datei, die er anfasst — er misst jede, die
+> sein Wächter liest.**
+
+### Und der Zeitpunkt bekommt einen Leser
+
+Die Frage „was tut das Abzeichen, wenn die Zahl alt ist?" ist entschieden:
+**nichts.** Weder verschwindet es ab einer Schwelle — Stille in der Navigation
+heisst „nichts zu tun", also derselbe Fehler wie eine `0`, die „nicht
+nachgesehen" bedeutet — noch ändert es seine Farbe, denn der Streifen führt
+keine Zustandsfarbe (2,67:1 gemessen).
+
+> **Ein Zeiger, der etwas zu viel behauptet, kostet einen Klick. Einer, der
+> schweigt, kostet den Weg.**
+
+**Drei Viertel der Antwort standen schon da.** `/updates` stellt diese Frage
+seit P7b im Kopf der Seite und beantwortet sie mit der Quellenliste neben der
+Zahl; `srvpanel-packages.timer` steht im Katalog, also meldet der Nachtlauf ihn
+über `unit.schedule / no_next`, sobald er keinen Termin mehr hat; und die Seite
+selbst holt live. Eine zweite Fassung davon am Abzeichen wäre die, die veraltet.
+
+**Was fehlte, war ein Leser.** `Settings::pendingUpdatesCheckedAt()` stand seit
+demselben Vormittag da und wurde von niemandem gerufen. `/updates` sagt jetzt,
+von wann die Zahl am Menüpunkt stammt — und für `null` den anderen Satz, weil
+„noch nie" etwas anderes ist als „vor langer Zeit".
+
+Zwei Entscheidungen daran sind gemessen: Der Zeitpunkt wird in `show()` gelesen
+und nicht im nachgereichten Teil — sonst schriebe ihn derselbe Aufruf, der ihn
+zeigt, und die Antwort wäre immer „gerade eben". Und der Satz steht über dem
+dreiwertigen Zweig, weil sein nützlichster Augenblick der Platzhalter ist.
+
+**`PendingUpdatesReachTest` hat sich beim Gegenprüfen selbst korrigiert.** Sein
+erster Wurf las die `.vue` im Ganzen und blieb **grün**, als der gerenderte Satz
+entfernt wurde — die Prop-Deklaration im `<script setup>` trägt denselben Namen.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht — und eine Deklaration ist keine Anzeige.**
+
+**Und ein bestehender Wächter hat den Satz gemeldet, bevor ihn ein Auge sah.**
+`BlockSpacingTest` wurde rot: Der neue leise Satz steht unmittelbar über dem
+Platzhalter, und `app.css` kannte diese Nachbarschaft nicht. Gemessen im
+Platzhalterzustand — festgehalten durch Anhalten der nachgereichten Anfrage —
+sind es **24 px** mit der Regel und **0 px** ohne sie. Behoben ist es im
+Stylesheet und nicht mit einem Rand auf der Seite.
+
+> **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit der
+> nächsten Ergänzung.**

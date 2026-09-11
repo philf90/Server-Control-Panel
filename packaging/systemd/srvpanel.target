@@ -43,6 +43,7 @@ Wants=srvpanel-metrics.service
 # `systemctl start srvpanel.target` sofort los — fünf Läufe auf einen Schlag,
 # von denen keiner fällig war. Was ein Timer startet, startet der Timer.
 Wants=srvpanel-usage.timer
+Wants=srvpanel-packages.timer
 Wants=srvpanel-tls.timer
 Wants=srvpanel-cron.timer
 Wants=srvpanel-dns.timer

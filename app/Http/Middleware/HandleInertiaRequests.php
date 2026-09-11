@@ -12,6 +12,7 @@ use App\Support\Audit\Impersonation;
 use App\Support\Authorization\AdminAbility;
 use App\Support\Panel\Source;
 use App\Support\Passwords\Policy;
+use App\Support\Settings\Settings;
 use Illuminate\Http\Request;
 use Illuminate\Support\ViewErrorBag;
 use Inertia\Middleware;
@@ -218,6 +219,28 @@ final class HandleInertiaRequests extends Middleware
             'announcements' => fn (): array => $account instanceof Account
                 ? Announcement::bannerRows(Announcement::visibleTo($account))
                 : [],
+
+            /*
+             * Die Zahl fürs Abzeichen am Menüpunkt „Updates" (`docs/907`).
+             *
+             * **Ein Verschluss aus demselben Grund wie die Ankündigungen
+             * darüber** — gemessen an `/services`: voller Aufbau 3 Abfragen,
+             * partielles Nachladen 2. Ein fertiger Wert liefe auch bei dem
+             * partiellen mit, und das kostet dort 2,7 ms insgesamt.
+             *
+             * **Und er trägt die Fähigkeit seiner Route.** Der Menüpunkt steht
+             * auf `inspect-server`; ein Abzeichen, das weiter reicht als die
+             * Seite dahinter, wäre eine Auskunft an jemanden, der sie nicht
+             * nachsehen darf.
+             *
+             * **`null` heisst „nicht nachgesehen" und nicht „nichts zu tun".**
+             * {@see Settings::pendingUpdates()} begründet den Unterschied; die
+             * Leiste zeigt bei `null` kein Abzeichen.
+             */
+            'pendingUpdates' => fn (): ?int => $account instanceof Account
+                && $account->can(AdminAbility::INSPECT_SERVER)
+                    ? app(Settings::class)->pendingUpdates()
+                    : null,
 
             // Die Passwortrichtlinie steht auf jeder Seite bereit, weil ein
             // Passwortfeld überall auftauchen kann — beim Anlegen eines

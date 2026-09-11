@@ -1,0 +1,37 @@
+[Unit]
+Description=SrvPanel — den Paketstand stündlich nachzählen
+Documentation=https://repo.cloudsrv24.de/
+
+# Gehört zu `srvpanel.target`: Ein `stop` oder `restart` des Ziels nimmt
+# diese Unit mit. Ohne diese Zeile wäre das Ziel ein Griff, der nur
+# anschaltet — und das ist ein halber Griff.
+PartOf=srvpanel.target
+
+[Timer]
+# Zehn Minuten nach dem Start und danach stündlich. Der Versatz nach dem
+# Booten ist Absicht und grösser als bei den übrigen Läufen: Dieser hier ruft
+# apt, und in den ersten Minuten nach dem Einschalten arbeiten `apt-daily` und
+# `unattended-upgrades` selbst.
+OnBootSec=10min
+
+# **`OnCalendar` und nicht nur ein monotoner Sockel.** Ein Timer mit
+# ausschliesslich monotonen Sockeln kann seinen nächsten Termin verlieren und
+# bleibt danach `active`, ohne je wieder zu laufen — gemessen am 19. August
+# 2026 an `srvpanel-cron.timer`, wo der letzte Lauf 22 Stunden zurücklag.
+#
+#   Ein Dienst, der „active" meldet und keinen nächsten Termin hat, ist
+#   abgeschaltet und sieht aus wie eingeschaltet.
+OnCalendar=hourly
+
+# Ein Server, der über Nacht ausgeschaltet war, zählt nach dem Einschalten
+# einmal nach, statt bis zur nächsten vollen Stunde mit der Zahl von gestern
+# dazustehen.
+Persistent=true
+
+# Fünf Minuten Streuung. Dieser Lauf ist teurer als die übrigen — gemessen
+# 2954–3644 ms auf `cloudsrv24` —, und zwanzig gleichzeitig eingerichtete
+# Server sollen ihn nicht in derselben Sekunde starten.
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

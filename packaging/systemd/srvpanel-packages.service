@@ -1,0 +1,46 @@
+[Unit]
+Description=SrvPanel — die aktualisierbaren Pakete zählen
+Documentation=https://repo.cloudsrv24.de/
+After=srvpanel-agentd.service
+Requires=srvpanel-agentd.service
+
+[Service]
+# Type=oneshot und kein Restart: Der Timer startet den nächsten Lauf.
+Type=oneshot
+User=srvpanel
+Group=srvpanel
+WorkingDirectory=/opt/srvpanel/current
+ExecStart=/opt/srvpanel/bin/php artisan srvpanel:packages
+
+# **Stündlicher Takt, also zehn Minuten Frist.**
+#
+# Ein `Type=oneshot` ohne eigene Angabe läuft ohne Frist (gemessen, `docs/74`
+# Befund 4). Hängt so ein Lauf, bleibt die Unit in `activating`, und systemd
+# startet sie beim nächsten Termin **nicht noch einmal** — ein einziger Hänger
+# nimmt alle folgenden mit.
+#
+# Der Deckel ist grosszügig und nicht knapp: Der Aufruf kostet gemessen unter
+# vier Sekunden, und die Frist soll ein Hängenbleiben beenden und keine
+# Pünktlichkeit erzwingen. Sie liegt unter dem Takt des Timers, damit ein
+# Hänger höchstens einen Termin kostet.
+TimeoutStartSec=600
+
+# Dieser Lauf fragt den Agenten und schreibt eine Zeile in die Datenbank. Mehr
+# braucht er nicht — und mehr bekommt er nicht.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/srvpanel /var/log/srvpanel
+
+MemoryMax=192M
+TasksMax=32

@@ -8,6 +8,7 @@ use App\Models\Account;
 use App\Support\Audit\Audit;
 use App\Support\Authorization\AdminAbility;
 use App\Support\Operations\Operations;
+use App\Support\Settings\Settings;
 use App\Support\Time\Clock;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -101,7 +102,7 @@ final class UpdatesController extends Controller
      * daneben liest den Agenten nur einmal, weil beide auf dasselbe Ergebnis
      * greifen.
      */
-    public function show(Request $request, Client $agent): Response
+    public function show(Request $request, Client $agent, Settings $settings): Response
     {
         $account = $request->user();
         $operator = $account instanceof Account && $account->can(AdminAbility::OPERATE_SERVER);
@@ -112,8 +113,8 @@ final class UpdatesController extends Controller
          * sechs Sekunden statt drei, und der Fehlerfall zweimal gefangen.
          */
         $stand = null;
-        $lesen = function () use ($agent, &$stand): array {
-            return $stand ??= $this->packages($agent);
+        $lesen = function () use ($agent, $settings, &$stand): array {
+            return $stand ??= $this->packages($agent, $settings);
         };
 
         /*
@@ -132,6 +133,30 @@ final class UpdatesController extends Controller
         return Inertia::render('Updates/Index', [
             'sources' => $quellen['sources'],
             'sourcesError' => $quellen['sourcesError'],
+
+            /*
+             * **Wann die Zahl am Menüpunkt eingesammelt wurde.**
+             *
+             * Sie ist eine Abschrift und kein Messwert: Das Abzeichen in der
+             * Navigation steht auf jeder Seite, und `system.packages.list`
+             * kostet gemessen 3033 ms — live geholt machte es jede Seite
+             * dieses Panels drei Sekunden langsam (`docs/907 §1.1`).
+             *
+             * **Gelesen wird hier und nicht in `packages()`**, und das ist der
+             * Punkt: `show()` läuft vor dem Nachreichen, der Wert ist also der
+             * von **vor** diesem Besuch. Stünde er im nachgereichten Teil,
+             * schriebe ihn derselbe Aufruf, der ihn zeigt — und die Antwort
+             * wäre immer „gerade eben".
+             *
+             * Er ändert sich während des Besuchs auch nicht: Das partielle
+             * Nachladen schickt nur `packages`, das Abzeichen behält seine
+             * Zahl bis zur nächsten vollen Navigation. Der Satz auf der Seite
+             * bleibt damit die ganze Zeit wahr.
+             *
+             * `null` heisst „noch nie eingesammelt" und nicht „vor langer
+             * Zeit" — {@see Clock::displayText()} lässt es deshalb stehen.
+             */
+            'pendingUpdatesCheckedAt' => Clock::displayText($settings->pendingUpdatesCheckedAt()),
 
             /*
              * **Der Neustart-Knopf steht am zweiten seiner beiden Anlässe**
@@ -398,7 +423,7 @@ final class UpdatesController extends Controller
      *
      * @return array{data: array<string, mixed>|null, error: string|null}
      */
-    private function packages(Client $agent): array
+    private function packages(Client $agent, Settings $settings): array
     {
         try {
             /** @var array<string, mixed> $antwort */
@@ -422,6 +447,23 @@ final class UpdatesController extends Controller
                     ? Clock::display(Carbon::createFromTimestampUTC($zeit))
                     : null;
             }
+        }
+
+        /*
+         * **Die Zahl fürs Abzeichen fällt hier ab und kostet nichts.**
+         * Dieser Aufruf ist der teure (gemessen 2954–3644 ms auf
+         * `cloudsrv24`); wer ihn ohnehin bezahlt hat, schreibt das Ergebnis
+         * fest, statt es wegzuwerfen. Der stündliche Lauf ist danach nur noch
+         * der Rückfall für das, was ausserhalb des Panels geschieht.
+         *
+         * **Gesehen wird die neue Zahl erst auf der nächsten Seite.** Diese
+         * Antwort ist die nachgereichte; die Leiste daneben hat ihren Wert
+         * beim Aufbau der Hülle gelesen. Das ist keine Verzögerung, die man
+         * beheben müsste — die Seite, auf der man gerade steht, nennt die Zahl
+         * ja gross.
+         */
+        if (is_array($antwort['upgradable'] ?? null)) {
+            $settings->savePendingUpdates(count($antwort['upgradable']));
         }
 
         return ['data' => $antwort, 'error' => null];

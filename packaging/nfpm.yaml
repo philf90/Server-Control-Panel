@@ -114,6 +114,10 @@ contents:
     dst: /lib/systemd/system/srvpanel-usage.service
   - src: ./packaging/systemd/srvpanel-usage.timer
     dst: /lib/systemd/system/srvpanel-usage.timer
+  - src: ./packaging/systemd/srvpanel-packages.service
+    dst: /lib/systemd/system/srvpanel-packages.service
+  - src: ./packaging/systemd/srvpanel-packages.timer
+    dst: /lib/systemd/system/srvpanel-packages.timer
 
   # Dasselbe für das Zertifikat der Oberfläche: Die Prüfung, ob es noch lange
   # genug gilt, gab es von Anfang an — sie lief nur nie, weil niemand sie

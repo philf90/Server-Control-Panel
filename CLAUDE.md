@@ -515,6 +515,35 @@ Regel hier und nicht in `tests/`:
 > **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
 > als Zusage.**
 
+**Und dieselbe Frage noch einmal fürs Zeigen, am 11. September 2026.** Das
+Abzeichen am Menüpunkt „Updates" war für erhöhte Aufmerksamkeit bestellt und ist
+in allen vier Lagen richtig gebaut — gemessen 8,42:1, `dokument = 0`. Unter
+720 px ist die Leiste aber eine Schublade, und zugeklappt steht das Abzeichen
+bei **x = −63 px**. Auf dem Telefon sieht es also niemand, bis er das Menü
+ohnehin öffnet.
+
+> **Ein Hinweis, der in einer Schublade liegt, erreicht nur den, der die
+> Schublade ohnehin öffnet — und der wusste es schon.**
+
+Die Schwesterfrage zur Regel darüber, und sie gilt für jedes künftige Merkmal,
+das Aufmerksamkeit erzeugen soll: **Wo sieht jemand diesen Hinweis, ohne ihn zu
+suchen — und steht er dort?** Kein Wächter kann sie halten; sie hängt daran, was
+ein Betrachter erwartet.
+
+**Behoben am selben Tag** (`docs/907 §6`): Ein Punkt am Menüknopf der
+Kopfleiste, gemessen 11,11:1 gegen `#1a0b2e` in beiden Themen. Zwei Dinge daraus
+gelten über ihn hinaus. Erstens ist `.nav-toggle` ein Raster mit
+`place-items: center` und **einem** Kind — ein zweites im Fluss schiebt das
+Zeichen um 6,5 px nach oben, während die Kopfleiste in beiden Fällen 65 px hoch
+bleibt; der Schaden sitzt im Knopf, und auf Seitenebene beschwert sich keine
+Zahl. Zweitens ist der Kasten eines Zeichens nicht sein Bild: 24 × 24 px Kasten
+gegen **16 × 10 px Tinte**, und gegen den Kasten gemessen sähe die richtige Lage
+nach einer Überlappung aus.
+
+> **Ein Hinweis, der nur eine Farbe ist, erreicht niemanden, der die Farbe nicht
+> sieht.** Der Punkt trägt `aria-hidden`; seinen Namen bekommt er vom Knopf,
+> dessen Beschriftung die Zahl nennt — mit Einzahl.
+
 **Was offen bleibt und benannt ist:** Wand 2 aus Punkt 11 und die vier Zeilen zu
 den Befunden 20 und 21 gegen die nächste Fassung. Wer sie anfasst, fängt bei
 `docs/59` an und nicht bei null.
@@ -4428,6 +4457,30 @@ Testen berücksichtigen:
     auf die Ausgabe, dann je Meldung über `identifier` entscheiden. Dann ist
     „leer" auch wirklich leer, und ein `LEER` ohne Zerlegen ist eine Frage und
     kein Ergebnis.
+
+    **Und ein Lauf über eine einzelne Datei kann wortlos nichts melden —
+    gemessen am 11. September 2026.** Derselbe Prüfkörper (`strlen(42)` als
+    freistehende Anweisung) ergibt, in eine Datei unter `app/` gesetzt:
+
+    | Aufruf | gemeldet |
+    |---|---|
+    | `analyse … <eine Datei>` | **nichts** |
+    | `analyse … <dieselbe Datei> <zweite Datei>` | **beide** |
+
+    Gemessen in dieser Reihenfolge, mit geleertem `/tmp/phpstan` dazwischen und
+    mit `grep -c` als Beleg, dass der Eingriff wirklich in der Datei stand. Eine
+    **neu angelegte** Datei wird auch einzeln gemeldet — es trifft also die
+    Dateien, die es schon gab.
+
+    > **Ein Prüfer, der über eine einzelne Datei schweigt und über dieselbe
+    > Datei neben einer zweiten redet, hat beim ersten Mal nicht gemessen.**
+
+    Der Griff ist derselbe wie überall hier, nur an einer neuen Stelle: **Der
+    Prüfkörper gehört in denselben Aufruf** wie die Frage. Eine Wegwerfdatei mit
+    einem absichtlich falschen Typ unter `app/`, im selben `analyse` mitgegeben,
+    und danach zählen: Meldet sie nichts, war der ganze Lauf keine Messung.
+    So gefahren über die elf geänderten Dateien dieses Zweiges: Prüfkörper vier
+    Zeilen, geänderte Dateien null.
 
     **Und das Zerlegen genügt auch nicht — gemessen am 30. August 2026.** In
     einer Agentensitzung verpackt das Gestell die Ausgabe von PHPStan und

@@ -81,6 +81,8 @@ final class Catalog
         'srvpanel-metrics.service',
         'srvpanel-usage.service',
         'srvpanel-usage.timer',
+        'srvpanel-packages.service',
+        'srvpanel-packages.timer',
         'srvpanel-tls.service',
         'srvpanel-tls.timer',
         'srvpanel-cron.service',

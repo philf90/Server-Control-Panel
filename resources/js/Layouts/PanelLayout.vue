@@ -63,6 +63,44 @@ const announcements = computed(
 )
 
 /*
+ * Die Zahl der aktualisierbaren Pakete fürs Abzeichen am Menüpunkt (`docs/907`).
+ *
+ * **`null` heisst „nicht nachgesehen" und nicht „nichts zu tun".** Der Server
+ * legt die Zahl ab, wenn jemand `/updates` öffnet oder der stündliche Lauf sie
+ * holt; vorher gibt es sie nicht, und ein Abzeichen mit `0` behauptete dann
+ * einen Zustand, den niemand gemessen hat.
+ *
+ * **Derselbe Rückfall wie oben und aus demselben Grund:** Beim partiellen
+ * Nachladen schickt der Server geteilte Eigenschaften gar nicht mit, und der
+ * Klient hält die vorige.
+ */
+const pendingUpdates = computed(() => (page.props.pendingUpdates ?? null) as number | null)
+
+/*
+ * **Der Punkt am Menüknopf braucht einen Satz, sonst sagt er einem
+ * Screenreader nichts.**
+ *
+ * Unter 720 px ist die Leiste eine Schublade; zugeklappt steht das Abzeichen
+ * am Menüpunkt „Updates" bei x = −63 px, also ausserhalb des Bildes (gemessen
+ * am 11. September 2026). Der Punkt hier ist die Antwort darauf — und er ist
+ * eine rein sichtbare Auskunft. Wer den Bildschirm nicht sieht, hörte ohne
+ * diesen Satz weiterhin nur „Navigation".
+ *
+ * Der Wortlaut ist abgeschrieben und nicht erfunden: `/updates` sagt „Es steht
+ * keine Aktualisierung an", also lautet die Gegenrichtung „… stehen an". Und
+ * die Einzahl steht ausdrücklich da — „1 Aktualisierungen" ist genau der
+ * Befund, für den es `CountedNounTest` gibt.
+ */
+const navLabel = computed(() => {
+  const offen = pendingUpdates.value ?? 0
+  if (offen < 1) return 'Navigation'
+
+  return offen === 1
+    ? 'Navigation, 1 Aktualisierung steht an'
+    : `Navigation, ${offen} Aktualisierungen stehen an`
+})
+
+/*
  * Die Erfolgsmeldung steht hier und nicht auf jeder Seite.
  *
  * Bis August 2026 brachte sie jede Seite selbst mit — drei Seiten taten es,
@@ -144,13 +182,33 @@ interface NavItem {
   href: string
   icon: string
   ability?: string
+
+  /*
+   * Eine Zahl am Eintrag — heute genau eine, und das ist eine Entscheidung
+   * und keine Sparsamkeit: Der Streifen trägt keine Zustandsfarbe, und wer
+   * dort eine zweite Zahl unterbringen will, misst sie vorher
+   * (`docs/907 §5`).
+   *
+   * `null` heisst „nicht nachgesehen", `0` heisst „nichts offen". Gezeigt
+   * wird nur, was grösser als null ist — beide anderen Fälle sagen dasselbe:
+   * hier gibt es nichts zu holen.
+   */
+  badge?: number | null
 }
 
 function darf(item: NavItem): boolean {
   return item.ability === undefined || abilities.value[item.ability] === true
 }
 
-const navigation = computed(() => {
+/*
+ * **Der Rückgabetyp steht ausdrücklich da, und das ist kein Formalismus.** Die
+ * beiden Zweige schreiben verschiedene Literale — die Kundennavigation trägt
+ * kein `ability` und kein `badge` —, und ohne die Angabe leitet TypeScript
+ * daraus eine Vereinigung ab, in der jedes Feld fehlt, das nicht beide Zweige
+ * schreiben. Die Vorlage bekäme dann einen Fehler für ein Feld, das es sehr
+ * wohl gibt.
+ */
+const navigation = computed<{ group: string | null; items: NavItem[] }[]>(() => {
   if (account.value?.is_admin === false) {
     return [
       { group: null, items: [{ name: 'Übersicht', href: '/', icon: 'overview' }] },
@@ -426,7 +484,7 @@ const navigation = computed(() => {
        * Dieses Projekt hat den Ort eines Menüpunkts dreimal falsch gehabt, und
        * jedes Mal hat es der Betreiber gemeldet und kein Test.
        */
-      { name: 'Updates', href: '/updates', icon: 'updates', ability: 'inspect-server' },
+      { name: 'Updates', href: '/updates', icon: 'updates', ability: 'inspect-server', badge: pendingUpdates.value },
 
       /*
        * **„Diagnose" steht hinter „Updates" und schliesst die Reihe über den
@@ -616,7 +674,7 @@ onBeforeUnmount(() => {
         class="nav-toggle"
         :aria-expanded="menuOpen"
         aria-controls="hauptnavigation"
-        aria-label="Navigation"
+        :aria-label="navLabel"
         @click="menuOpen = !menuOpen"
       >
         <!-- Drei Striche als SVG und nicht als „☰": Das Zeichen ist ein Emoji
@@ -624,6 +682,21 @@ onBeforeUnmount(() => {
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M4 7h16M4 12h16M4 17h16" />
         </svg>
+
+        <!--
+          **Der Punkt steht ausserhalb des Flusses, und das ist gemessen.**
+
+          `.nav-toggle` ist ein Raster mit `place-items: center` und **einem**
+          Kind. Ein zweites Kind im Fluss macht daraus zwei Zellen: Das Zeichen
+          rutscht um **6,5 px** nach oben, während die Kopfleiste in beiden
+          Fällen 65 px hoch bleibt (gemessen am 11. September 2026). Der Schaden
+          sitzt also im Knopf, und keine Zahl auf Seitenebene beschwert sich —
+          dieselbe Familie wie die gestapelte Zelle, die genau ein Kind verträgt.
+
+          `aria-hidden`, weil die Auskunft im `aria-label` des Knopfes steht:
+          Ein Punkt ohne Text hat keinen Namen, den man vorlesen könnte.
+        -->
+        <span v-if="(pendingUpdates ?? 0) > 0" class="nav-dot" aria-hidden="true" />
       </button>
 
       <span class="title">{{ title }}</span>
@@ -682,6 +755,7 @@ onBeforeUnmount(() => {
           >
             <NavIcon :name="item.icon" />
             {{ item.name }}
+            <span v-if="(item.badge ?? 0) > 0" class="badge count">{{ item.badge }}</span>
           </Link>
         </template>
       </nav>
@@ -913,6 +987,18 @@ onBeforeUnmount(() => {
 }
 
 /*
+ * Die Zahl steht am Zeilenende und nicht neben dem Wort.
+ *
+ * `.nav-item` ist eine Flexzeile mit `gap: 10px` und **ohne**
+ * `justify-content: space-between` — ein drittes Kind bekäme sonst denselben
+ * Abstand wie das Zeichen zum Wort und läse sich als Teil des Namens. Die
+ * Gestalt der Marke selbst steht in `app.css`; hier steht nur, wo sie liegt.
+ */
+.nav-item .badge {
+  margin-left: auto;
+}
+
+/*
  * Der aktive Eintrag ist eine gefüllte Pille und kein Balken am Rand.
  *
  * „Leitstand" markierte ihn mit `box-shadow: inset 2px 0 0` — einem Strich,
@@ -1048,6 +1134,12 @@ onBeforeUnmount(() => {
   }
 
   .nav-toggle {
+    /*
+     * `position: relative` trägt den Punkt und sonst nichts — er ist das
+     * einzige absolut gesetzte Kind. Ohne diese Zeile bezöge er sich auf das
+     * nächste positionierte Element weiter oben und landete irgendwo.
+     */
+    position: relative;
     display: grid;
     place-items: center;
     flex: none;
@@ -1059,6 +1151,45 @@ onBeforeUnmount(() => {
     border: 0;
     border-radius: var(--radius);
     cursor: pointer;
+  }
+
+  /*
+   * **Der Punkt, der sagt, dass etwas ansteht.**
+   *
+   * Das Abzeichen am Menüpunkt „Updates" deckt die breite Ansicht; die
+   * Kopfleiste gibt es nur unter 720 px, und dort ist die Leiste eine
+   * Schublade. Zugeklappt stand das Abzeichen bei x = −63 px — auf dem Telefon
+   * sah es niemand (gemessen am 11. September 2026).
+   *
+   * **Die Lage ist gemessen und nicht geschätzt.** Der Kasten des Zeichens ist
+   * 24 × 24 und zu zwei Dritteln leer: Die Tinte der drei Striche misst
+   * **16 × 10** und sitzt 17 px unter der Knopfkante. Bei `top/right: 8px`
+   * steht der Punkt genau an der rechten Kante dieser Tinte und **3 px** über
+   * ihr — angeheftet, ohne sie zu berühren. Gegen den *Kasten* gemessen sähe
+   * dieselbe Lage nach einer Überlappung von 4 px aus.
+   *
+   * **6 px ist das Hausmass**, und zwar aus `.badge::before`. Eine zweite
+   * Grösse daneben wäre die, die veraltet.
+   *
+   * Die Farbe ist `--accent` der Kopfleiste selbst und keine Zustandsfarbe:
+   * Der Streifen führt einen eigenen Markensatz, und `--nav-bg` trägt in
+   * **beiden** Themen denselben dunklen Wert. Gemessen ergibt der Punkt darauf
+   * **11,11:1** — verlangt sind 3:1 (WCAG 1.4.11, kein Text).
+   *
+   * **Der Wert steht hier absichtlich nicht ausgeschrieben.** Der Schritt
+   * „Oberfläche" der CI greppt `resources/js` **roh**, Kommentare
+   * eingeschlossen; ein zitierter Farbwert macht ihn rot, auch wenn er nur
+   * erklärt. Wer die Zahl braucht, liest sie in `app.css` — dort gehört sie
+   * hin, und dort steht sie einmal.
+   */
+  .nav-dot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 999px;
   }
 
   .nav-toggle svg {

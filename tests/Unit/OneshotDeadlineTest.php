@@ -140,7 +140,7 @@ final class OneshotDeadlineTest extends TestCase
             $takt,
             implode("\n", [
                 sprintf('Der Takt von %s ist nicht zu lesen.', basename($timer)),
-                'Bekannt sind `OnCalendar=*:0/N` und `OnCalendar=daily`. Eine neue',
+                'Bekannt sind `OnCalendar=*:0/N`, `OnCalendar=hourly` und `OnCalendar=daily`. Eine neue',
                 'Schreibweise gehoert in self::period() — stillschweigend durchgehen',
                 'darf sie nicht, sonst misst dieser Fall nichts.',
             ]),
@@ -169,6 +169,10 @@ final class OneshotDeadlineTest extends TestCase
     {
         if (preg_match('/^OnCalendar=\*:0\/(\d+)$/m', $unit, $treffer) === 1) {
             return (int) $treffer[1] * 60;
+        }
+
+        if (preg_match('/^OnCalendar=hourly$/m', $unit) === 1) {
+            return 60 * 60;
         }
 
         if (preg_match('/^OnCalendar=daily$/m', $unit) === 1) {

@@ -83,43 +83,61 @@ final class NavDotTest extends TestCase
     }
 
     /**
-     * Punkt und Abzeichen lesen dieselbe Zahl.
+     * Punkt und Abzeichen können nicht auseinanderlaufen.
      *
-     * Zwei Bedingungen nebeneinander wären zwei Fassungen derselben Regel, und
-     * die zweite ist die, die veraltet: Ein Telefon zeigte den Punkt, während
-     * die breite Ansicht daneben kein Abzeichen hätte — oder umgekehrt.
+     * **Die Regel ist dieselbe geblieben, ihr Mechanismus ist ein anderer.**
+     * Bis zum 11. September 2026 las der Punkt `pendingUpdates` selbst, und
+     * dieser Fall hielt, dass er dieselbe Zahl liest wie das Abzeichen. Mit
+     * einer **zweiten** Quelle — den Befunden der Bestandsdiagnose — trägt das
+     * nicht mehr: Ein Punkt, der nur die Aktualisierungen liest, verschwiege
+     * genau das, wofür es ihn gibt.
+     *
+     * Er liest jetzt `abzeichen`, und das wird aus den **sichtbaren**
+     * Menüpunkten mit Abzeichen gebaut. Damit ist die alte Frage nicht mehr zu
+     * stellen: Punkt und Abzeichen sind nicht zwei Leser derselben Zahl,
+     * sondern einer liest den anderen.
+     *
+     * > **Zwei Fassungen laufen auseinander; eine Ableitung kann es nicht.**
+     *
+     * Geprüft wird deshalb die Ableitung selbst — und dass keine Zahl mehr als
+     * eine Quelle in dieser Datei hat.
      */
-    public function test_the_dot_and_the_badge_read_the_same_number(): void
+    public function test_the_dot_cannot_drift_from_the_badges(): void
     {
         $quelle = $this->withoutMarkupComments($this->source());
 
-        $this->assertSame(
-            1,
-            substr_count($quelle, 'const pendingUpdates'),
-            'Die Zahl der offenen Aktualisierungen hat mehr als eine Quelle in dieser Datei.',
-        );
+        foreach (['pendingUpdates', 'pendingFindings'] as $zahl) {
+            $this->assertSame(1, substr_count($quelle, 'const '.$zahl), sprintf(
+                'Die Zahl `%s` hat mehr als eine Quelle in dieser Datei.',
+                $zahl,
+            ));
+        }
+
+        $bei = strpos($quelle, 'class="nav-dot"');
+        $this->assertNotFalse($bei, 'Der Punkt steht nicht mehr in der Vorlage.');
+
+        $this->assertStringContainsString('abzeichen.length', $this->lineAt($quelle, $bei), implode("\n", [
+            'Der Punkt hängt nicht an `abzeichen`.',
+            '',
+            'Liest er eine einzelne Zahl, verschweigt er jede andere Quelle — und auf',
+            'dem Telefon ist die Leiste eine Schublade, in der ihr Abzeichen bei',
+            'x = −62 px steht.',
+        ]));
 
         /*
-         * Der Menüeintrag wird über seinen **Namen** gesucht und nicht über
-         * `badge:`. Der erste Wurf tat das — und traf das Typfeld der
-         * Ankündigungen, das ebenso heisst. Dieselbe Familie wie ein Regelname
-         * als Zeichenkette, der jeden gleichnamigen Feldnamen mitfindet.
+         * Die Ableitung selbst: aus den sichtbaren Einträgen und aus `badge`.
+         * Ohne `sichtbar` zählte sie Abzeichen mit, die `darf()` wegfiltert —
+         * also eine Auskunft über eine Seite, die der Betrachter nicht öffnen
+         * darf.
          */
-        $stellen = [
-            'class="nav-dot"' => 'Der Punkt',
-            "name: 'Updates'" => 'Der Menüeintrag „Updates"',
-        ];
+        $rumpf = $this->body($quelle, 'const abzeichen = computed(');
 
-        foreach ($stellen as $stelle => $was) {
-            $bei = strpos($quelle, $stelle);
-            $this->assertNotFalse($bei, sprintf('%s steht nicht mehr in der Vorlage (`%s`).', $was, $stelle));
-
-            $zeile = $this->lineAt($quelle, $bei);
-            $this->assertStringContainsString('pendingUpdates', $zeile, sprintf(
-                "%s liest nicht `pendingUpdates`:\n  %s\n\n".
-                'Zwei Quellen für dieselbe Zahl laufen auseinander — und die zweite ist die, die veraltet.',
-                $was,
-                trim($zeile),
+        foreach (['sichtbar.value', 'item.badge'] as $teil) {
+            $this->assertStringContainsString($teil, $rumpf, sprintf(
+                "`abzeichen` liest `%s` nicht.\n\n".
+                'Es soll aus den sichtbaren Menüpunkten und ihren Abzeichen entstehen und '.
+                'nicht aus einer zweiten Liste daneben.',
+                $teil,
             ));
         }
     }
@@ -145,7 +163,7 @@ final class NavDotTest extends TestCase
         ]));
 
         $this->assertMatchesRegularExpression(
-            '/offen === 1\s*\r?\n?\s*\?/D',
+            '/zahl === 1\s*\r?\n?\s*\?/D',
             $quelle,
             implode("\n", [
                 'Die Beschriftung entscheidet die Einzahl nicht.',
@@ -181,6 +199,31 @@ final class NavDotTest extends TestCase
                 'nicht. Im zweiten Fall messen die Prüfungen darüber nichts.',
             ]),
         );
+    }
+
+    /**
+     * Der Rumpf einer Deklaration bis zu ihrer schliessenden Klammer.
+     *
+     * Über Klammern gezählt und nicht bis zur nächsten `)` gelesen: In
+     * `computed(() => …)` steht die erste schliessende Klammer mitten im
+     * Ausdruck.
+     */
+    private function body(string $quelle, string $beginn): string
+    {
+        $von = strpos($quelle, $beginn);
+        $this->assertNotFalse($von, sprintf('`%s` steht nicht in der Datei.', $beginn));
+
+        $tiefe = 0;
+
+        for ($i = $von + strlen($beginn) - 1; $i < strlen($quelle); $i++) {
+            $tiefe += $quelle[$i] === '(' ? 1 : ($quelle[$i] === ')' ? -1 : 0);
+
+            if ($tiefe === 0) {
+                return substr($quelle, $von, $i - $von);
+            }
+        }
+
+        $this->fail(sprintf('`%s` ist nicht geschlossen.', $beginn));
     }
 
     /** Die Datei, roh. */

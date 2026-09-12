@@ -27619,3 +27619,107 @@ Stylesheet und nicht mit einem Rand auf der Seite.
 
 > **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit der
 > nächsten Ergänzung.**
+
+### Der Prozesszustand steht in Worten da — die Erklärung war schon gelesen
+
+Gefragt hat der Betreiber nach einer **Legende**: In der Prozesstabelle der
+Übersicht stand ein nacktes `S`, und nirgends stand, wofür es steht. Gemessen
+war die Antwort eine andere. `/proc/<pid>/status` schreibt die Zeile als
+`State:\tS (sleeping)`, und `SystemInfo::processes()` behielt davon
+`substr(…, 0, 1)`. Das Wort, nach dem gefragt wurde, las der Agent bereits und
+schnitt es eine Zeile vor der Anzeige ab.
+
+> **Ein Feld, das gelesen und dann gekürzt wird, ist von einem, das es nicht
+> gibt, für den Leser nicht zu unterscheiden.**
+
+**Es ist dieselbe Familie wie Befund 5 des A2-Nachlaufs.** Dort druckte die
+Übersicht `active_state` roh — „active", wo die Dienste-Seite „läuft" sagt.
+`ServicesViewTest` hält seitdem, dass kein Rohwert **von systemd** auf einer
+Seite steht; für den Rohwert vom **Kernel** gab es nichts, und der stand auf
+derselben Seite.
+
+Gebaut ist keine Legende, sondern eine Abbildung (`useProcessState.ts`): Eine
+Legende unter der Tabelle wäre eine zweite Stelle, die veraltet, sobald der
+Kernel einen Zustand dazubekommt — und bei 390 px stünde sie Bildschirme
+entfernt von dem Wert, den sie erklärt. Ein `title` erreicht auf dem Telefon
+niemanden.
+
+**Der Rückfall erfindet nichts.** Kennt die Abbildung einen Buchstaben nicht,
+steht das Wort da, das der Kernel selbst dazu schreibt, und erst wenn auch das
+fehlt, der Buchstabe. Kein „unbekannt", kein geratenes Wort — `ProcessStateTest`
+prüft die Reihenfolge und misst die Naht in **einem** Fall über alle drei
+Stellen, weil ein Feld, das der Agent schreibt und der Controller fallen lässt,
+von aussen dasselbe ist wie eines, das es nicht gibt.
+
+Gemessen sind `S (sleeping)` 37×, `I (idle)` 38× und `R (running)` 2×; die
+übrigen Buchstaben stammen aus `task_state_array` und sind **nicht** beobachtet
+worden. Genau dafür ist der Rückfall da.
+
+### Ein Abzeichen am Menüpunkt „Diagnose"
+
+Die Bestandsdiagnose schreibt ihre Befunde nachts in eine Tabelle, und niemand
+sieht sie, der nicht hingeht. Am 11. September standen auf `cloudsrv24` zwei
+Befunde seit Tagen da; gefunden hat sie ein Abnahmelauf, der zufällig
+vorbeikam.
+
+> **Ein Befund, der niemanden erreicht, ist eine Zeile in einer Tabelle.**
+
+Die **Form** ist die des Updates-Abzeichens, die **Bauart** ist es nicht — und
+das ist gemessen (`docs/910 §2`). Dort muss die Zahl abgelegt werden, weil ihre
+Quelle 3033 ms kostet. Hier kostet die Zählung **0,073 ms**, während der
+abgelegte Wert der Updates 0,211 ms braucht.
+
+> **Eine Ablage, die einen Wert schneller liefern sollte als seine Quelle, ist
+> hier langsamer als sie** — und dazu eine zweite Fassung derselben Wahrheit.
+
+**Die Messrunde hat den naheliegenden Entwurf zweimal umgeworfen.** `findings`
+führt **keine Zustandsspalte**: Der Zustand kommt aus `FindingCheck::state()`,
+einer Abbildung über das Paar `(check, reason)`. „Zähle alle mit `fail` oder
+`warn`" ist damit keine SQL-Frage — über die 38 Paare gefragt kostet sie
+1,06 ms. Der kurze Weg filtert über `reason` allein und ist **nur dann**
+gleichwertig, wenn kein Grundname zugleich auffällig und ruhig ist; gemessen
+sind es 28 gegen einen (`unreachable`), Überschneidung leer.
+
+> **Eine Abkürzung, deren Voraussetzung ein Wächter hält, ist keine Abkürzung
+> mehr — sie ist ein Sonderfall mit Beleg.** `DiagnoseBadgeTest` hält genau
+> diese Bedingung; überschneiden sich die Namen je, wird er rot, und dann baut
+> jemand die Paarform.
+
+**Und die erste Zählung der Paare war falsch.** Ein `grep -o
+'FindingState::[A-Za-z]*'` ergab 28 / 8 / 2 statt 30 / 8 / 11: `$unreachable`
+steht **einmal** da und wird mit `...$unreachable` in elf Fälle gespreizt.
+
+> **Ein Ausdruck, der einen Wert als Literal sucht, zählt die Stellen, an denen
+> ihn jemand hingeschrieben hat — und nicht die, an denen er gilt.**
+
+**`unknown` zählt nicht mit**, entschieden vom Betreiber: „der Agent hat nicht
+geantwortet" ist keine Aussage über den Server, und dass er schweigt, sagt
+ohnehin jede Seite.
+
+**Der Punkt am Menüknopf zählt jetzt beide Quellen.** Er war für *eine* Zahl
+gebaut; bliebe er bei ihr, wären die Befunde auf dem Telefon wieder unsichtbar —
+genau der Befund, für den es ihn gibt. Und die Beschriftung des Knopfes wird aus
+den **sichtbaren** Menüpunkten mit Abzeichen gebaut statt aus festen Sätzen: Eine
+dritte Quelle trägt sich damit von selbst ein, und ein Abzeichen, das der
+Betrachter nicht sehen darf, wird auch nicht vorgelesen.
+
+### Die Messung an der echten Seite, und was sie über sich selbst gesagt hat
+
+Sechs Lagen gegen `artisan serve` mit echten Daten: beide Themen, 1440 px,
+390 px zugeklappt und 390 px mit offener Schublade. `dokument = 0` und
+Gegenprobe 200 in allen sechs; die Beschriftung lautet überall „Navigation,
+32 Aktualisierungen und 2 Befunde".
+
+**Der Prüfkörper war die Zahl selbst.** Angelegt waren **drei** Befunde — zwei
+`fail` und einer `unreachable`. Das Abzeichen zeigt **2**. Stünde dort 3, wäre
+der Filter wirkungslos, und zwar lautlos.
+
+> **Eine Zählung, die filtert, wird an einer Zeile gemessen, die herausfallen
+> muss — sonst misst man, dass sie zählen kann.**
+
+**Der erste Lauf war nicht auszuwerten.** Vier Zeilen, Zeichen für Zeichen
+gleich, und keine sagte, welches Thema sie gemessen hatte. Gedruckt wird seitdem
+das gesetzte Attribut **und die Farbe, die daraus folgt**.
+
+> **Eine Messung, die ihren Zustand nicht mitdruckt, ist von einer, die ihn
+> nicht hatte, nicht zu unterscheiden.**

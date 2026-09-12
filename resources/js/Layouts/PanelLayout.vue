@@ -75,30 +75,7 @@ const announcements = computed(
  * Klient hält die vorige.
  */
 const pendingUpdates = computed(() => (page.props.pendingUpdates ?? null) as number | null)
-
-/*
- * **Der Punkt am Menüknopf braucht einen Satz, sonst sagt er einem
- * Screenreader nichts.**
- *
- * Unter 720 px ist die Leiste eine Schublade; zugeklappt steht das Abzeichen
- * am Menüpunkt „Updates" bei x = −63 px, also ausserhalb des Bildes (gemessen
- * am 11. September 2026). Der Punkt hier ist die Antwort darauf — und er ist
- * eine rein sichtbare Auskunft. Wer den Bildschirm nicht sieht, hörte ohne
- * diesen Satz weiterhin nur „Navigation".
- *
- * Der Wortlaut ist abgeschrieben und nicht erfunden: `/updates` sagt „Es steht
- * keine Aktualisierung an", also lautet die Gegenrichtung „… stehen an". Und
- * die Einzahl steht ausdrücklich da — „1 Aktualisierungen" ist genau der
- * Befund, für den es `CountedNounTest` gibt.
- */
-const navLabel = computed(() => {
-  const offen = pendingUpdates.value ?? 0
-  if (offen < 1) return 'Navigation'
-
-  return offen === 1
-    ? 'Navigation, 1 Aktualisierung steht an'
-    : `Navigation, ${offen} Aktualisierungen stehen an`
-})
+const pendingFindings = computed(() => (page.props.pendingFindings ?? null) as number | null)
 
 /*
  * Die Erfolgsmeldung steht hier und nicht auf jeder Seite.
@@ -194,6 +171,16 @@ interface NavItem {
    * hier gibt es nichts zu holen.
    */
   badge?: number | null
+
+  /**
+   * Wie das Abzeichen vorgelesen wird — Einzahl und Mehrzahl.
+   *
+   * Es steht am Eintrag und nicht in `navLabel`: Die Beschriftung des
+   * Menüknopfs wird aus den **sichtbaren** Einträgen gebaut, und eine
+   * Zuordnung „Menüpunkt → Wort" dort wäre eine zweite Liste, die man beim
+   * dritten Abzeichen zu pflegen vergisst.
+   */
+  badgeNoun?: [string, string]
 }
 
 function darf(item: NavItem): boolean {
@@ -484,7 +471,8 @@ const navigation = computed<{ group: string | null; items: NavItem[] }[]>(() => 
        * Dieses Projekt hat den Ort eines Menüpunkts dreimal falsch gehabt, und
        * jedes Mal hat es der Betreiber gemeldet und kein Test.
        */
-      { name: 'Updates', href: '/updates', icon: 'updates', ability: 'inspect-server', badge: pendingUpdates.value },
+      { name: 'Updates', href: '/updates', icon: 'updates', ability: 'inspect-server',
+        badge: pendingUpdates.value, badgeNoun: ['Aktualisierung', 'Aktualisierungen'] },
 
       /*
        * **„Diagnose" steht hinter „Updates" und schliesst die Reihe über den
@@ -503,7 +491,8 @@ const navigation = computed<{ group: string | null; items: NavItem[] }[]>(() => 
        * Dieses Projekt hat den Ort eines Menüpunkts dreimal falsch gehabt, und
        * jedes Mal hat es der Betreiber gemeldet und kein Test.
        */
-      { name: 'Diagnose', href: '/diagnose', icon: 'diagnose', ability: 'inspect-server' },
+      { name: 'Diagnose', href: '/diagnose', icon: 'diagnose', ability: 'inspect-server',
+        badge: pendingFindings.value, badgeNoun: ['Befund', 'Befunde'] },
 
       /*
        * **Konten steht bei „Server" und nicht bei „Verwaltung".** Wer hier
@@ -586,6 +575,54 @@ const sichtbar = computed(() =>
     .map((block) => ({ ...block, items: block.items.filter(darf) }))
     .filter((block) => block.items.length > 0),
 )
+
+/*
+ * **Die Abzeichen, die dieser Betrachter wirklich sieht.**
+ *
+ * Gelesen wird `sichtbar` und nicht `navigation`: Ein Abzeichen an einem
+ * Menüpunkt, den `darf()` wegfiltert, gehört zu einer Seite, die der
+ * Betrachter nicht öffnen darf — es anzusagen wäre eine Auskunft über etwas,
+ * das er nicht sehen soll.
+ *
+ * Die Liste trägt sich selbst fort: Ein drittes Abzeichen braucht hier keine
+ * Zeile, nur ein `badge` und ein `badgeNoun` an seinem Eintrag.
+ */
+const abzeichen = computed(() =>
+  sichtbar.value
+    .flatMap((block) => block.items)
+    .filter((item) => (item.badge ?? 0) > 0)
+    .map((item) => ({ zahl: item.badge as number, wort: item.badgeNoun ?? ['Hinweis', 'Hinweise'] })),
+)
+
+/*
+ * **Der Punkt am Menüknopf braucht einen Satz, sonst sagt er einem
+ * Screenreader nichts.**
+ *
+ * Unter 720 px ist die Leiste eine Schublade; zugeklappt steht das Abzeichen
+ * am Menüpunkt „Updates" bei x = −62 px, also ausserhalb des Bildes (gemessen
+ * am 11. September 2026 auf `cloudsrv24`, `docs/909 §4`). Der Punkt hier ist
+ * die Antwort darauf — und er ist eine rein sichtbare Auskunft. Wer den
+ * Bildschirm nicht sieht, hörte ohne diesen Satz weiterhin nur „Navigation".
+ *
+ * **Er nennt seit dem 11. September jede Quelle und nicht nur die
+ * Aktualisierungen.** Bliebe er bei einer, wären die Befunde der
+ * Bestandsdiagnose auf dem Telefon wieder unsichtbar — genau der Befund, für
+ * den es den Punkt gibt.
+ *
+ * **Und das Verb ist dabei weggefallen.** Vorher stand hier „… stehen an",
+ * abgeschrieben von `/updates`. Über zwei Quellen hinweg trägt das nicht: Für
+ * „1 Aktualisierung und 2 Befunde" gibt es keine Form, die für beide
+ * Zahlwörter zugleich stimmt, und zwei Formen nebeneinander wären die, die
+ * auseinanderlaufen. Das gezählte Substantiv bleibt — „1 Aktualisierungen"
+ * ist genau der Befund, für den es `CountedNounTest` gibt.
+ */
+const navLabel = computed(() => {
+  const teile = abzeichen.value.map(
+    ({ zahl, wort }) => `${zahl} ${zahl === 1 ? wort[0] : wort[1]}`,
+  )
+
+  return teile.length === 0 ? 'Navigation' : `Navigation, ${teile.join(' und ')}`
+})
 
 function signOut(): void {
   router.post('/logout')
@@ -696,7 +733,7 @@ onBeforeUnmount(() => {
           `aria-hidden`, weil die Auskunft im `aria-label` des Knopfes steht:
           Ein Punkt ohne Text hat keinen Namen, den man vorlesen könnte.
         -->
-        <span v-if="(pendingUpdates ?? 0) > 0" class="nav-dot" aria-hidden="true" />
+        <span v-if="abzeichen.length > 0" class="nav-dot" aria-hidden="true" />
       </button>
 
       <span class="title">{{ title }}</span>

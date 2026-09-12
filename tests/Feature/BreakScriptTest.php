@@ -468,6 +468,52 @@ final class BreakScriptTest extends TestCase
      * > **Ein Bruchskript, das sich nicht einliest, prüft keine einzige
      * > Regel — und jede Prüfung darüber bleibt grün.**
      */
+    /**
+     * Hinter dem `exit` des Skripts steht kein Eingriff mehr.
+     *
+     * **Gefunden am 12. September 2026, und zwar nicht von einem Werkzeug.**
+     * Zwei volle Läufe hintereinander meldeten dieselben 940 Eingriffe und
+     * dieselben 2371 Zeilen — nachdem dreizehn dazugekommen waren. Sie standen
+     * hinter `exit "$fehler"`: in der Datei, im Bruchskript gezählt, und nie
+     * gelaufen. Die ältesten davon seit der Runde zum Prozesszustand.
+     *
+     * > **Zwei Läufe mit derselben Zahl nach einer Erweiterung sind kein
+     * > Beleg, sondern ein Verdacht.**
+     *
+     * **Kein anderes Mittel hätte es gesehen.** `bash -n` parst die Zeilen und
+     * sagt über Erreichbarkeit nichts; shellcheck meldete über dieselbe Datei
+     * **null** `SC2317`; und die CI fährt shellcheck ohnehin nur über
+     * `packaging/`. Die übrigen Fälle dieser Klasse lesen den **Text** des
+     * Skripts — für sie sah ein toter Eingriff aus wie ein lebender.
+     *
+     * > **Ein Wächter, der den Text eines Skripts liest, sagt nichts darüber,
+     * > ob die Zeile jemals an die Reihe kommt.**
+     */
+    public function test_nothing_stands_behind_the_exit(): void
+    {
+        $quelle = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');
+
+        $bei = strpos($quelle, "\nexit \"\$fehler\"");
+        $this->assertNotFalse($bei, implode("\n", [
+            'Das Bruchskript endet nicht mehr auf `exit "$fehler"`.',
+            '',
+            'Ohne diesen Anker misst dieser Fall nichts — und er ist der einzige, der',
+            'einen Eingriff hinter dem Ende überhaupt sehen kann.',
+        ]));
+
+        $danach = trim(substr($quelle, $bei + strlen("\nexit \"\$fehler\"")));
+
+        $this->assertSame('', $danach, implode("\n", [
+            'Hinter dem `exit` des Bruchskripts steht noch etwas:',
+            '',
+            substr($danach, 0, 400),
+            '',
+            'Diese Zeilen laufen nie. Ein Eingriff dort ist in der Datei, wird von den',
+            'übrigen Fällen dieser Klasse mitgezählt — und hat noch nie eine Regel',
+            'gebrochen. Angehängt wird deshalb **vor** der Bilanz und nicht ans Dateiende.',
+        ]));
+    }
+
     public function test_the_script_itself_parses(): void
     {
         $pfad = $this->root().'/tests/waechter-brechen.sh';

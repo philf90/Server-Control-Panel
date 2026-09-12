@@ -27865,3 +27865,32 @@ steht vorn — sie ist der Grund, aus dem jemand hinsieht. Gemessen danach: 83 p
 ohne Endzeit, 104 px mit ihr, 41 px bei 1440 px, `dokument = 0` in allen vier
 Lagen — und **kein Band**, wenn der Modus aus ist. Das ist der Prüfkörper, ohne
 den die anderen drei nichts sagen.
+
+### Dreizehn Eingriffe standen hinter dem `exit` und sind nie gelaufen
+
+Gefunden hat es keine Prüfung, sondern eine Zahl, die sich nicht bewegt hat:
+Zwei volle Läufe des Bruchskripts hintereinander meldeten dieselben **940**
+Eingriffe und dieselben **2371** Zeilen — nachdem dreizehn dazugekommen waren.
+
+> **Zwei Läufe mit derselben Zahl nach einer Erweiterung sind kein Beleg,
+> sondern ein Verdacht.**
+
+`tests/waechter-brechen.sh` endet auf eine Bilanz und `exit "$fehler"`. Wer
+anhängt, hängt dahinter an — und dort steht Text, den keine Schale je ausführt.
+Die ältesten der dreizehn stammen aus der Runde zum Prozesszustand und haben
+damit **nie** eine Regel gebrochen, obwohl sie beim Bauen einzeln geprüft worden
+waren: Einzeln gefahren wird der Python-Block, im Lauf die Datei.
+
+**Kein Werkzeug hätte es gesehen.** `bash -n` parst die Zeilen und sagt über
+Erreichbarkeit nichts. shellcheck meldet über dieselbe Datei **null** `SC2317`
+(gemessen, 0.9.0) — und die CI fährt shellcheck ohnehin nur über `packaging/`.
+Die zwölf Fälle von `BreakScriptTest` lesen den **Text** des Skripts; für sie
+sah ein toter Eingriff aus wie ein lebender, und `test_every_check_names_a_test_that_exists`
+zählte ihn mit.
+
+> **Ein Wächter, der den Text eines Skripts liest, sagt nichts darüber, ob die
+> Zeile jemals an die Reihe kommt.**
+
+Die dreizehn stehen jetzt vor der Bilanz, und `test_nothing_stands_behind_the_exit`
+hält die Stelle. Gegengeprüft von Hand — das Bruchskript darf sich selbst nicht
+brechen.

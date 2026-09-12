@@ -1604,6 +1604,27 @@ Fähigkeitsprüfung, findet der für die Datei keine Wächtervariable mehr und
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
+**Und angehängt wird davor und nicht ans Dateiende.** Das Skript schliesst mit
+einer Bilanz und `exit "$fehler"`; dreizehn Eingriffe standen am 12. September
+2026 dahinter und sind **nie** gelaufen — die ältesten seit der Runde zum
+Prozesszustand. Gefunden hat es keine Prüfung, sondern eine Zahl, die sich nach
+einer Erweiterung nicht bewegt hat.
+
+> **Zwei Läufe mit derselben Zahl nach einer Erweiterung sind kein Beleg,
+> sondern ein Verdacht.**
+
+`bash -n` sagt über Erreichbarkeit nichts, shellcheck meldet dazu **null**
+`SC2317` (gemessen), und die CI fährt es nur über `packaging/`. Die zwölf Fälle
+von `BreakScriptTest` lesen den **Text** — für sie sah ein toter Eingriff aus
+wie ein lebender. `test_nothing_stands_behind_the_exit` hält die Stelle
+seitdem.
+
+> **Ein Wächter, der den Text eines Skripts liest, sagt nichts darüber, ob die
+> Zeile jemals an die Reihe kommt.**
+
+**Und ein einzeln geprüfter Eingriff ist damit nicht belegt:** Einzeln fährt man
+den Python-Block, im Lauf die Datei. Die dreizehn bissen einzeln alle.
+
 **Die Falle, in die dieses Vorgehen selbst dreimal gelaufen ist.** Ein Wächter
 zählt seine Treffer, damit er merkt, wenn sein Ausdruck ins Leere läuft — und
 zählt sie dort, wo die Regel gerade eingehalten wird. Zieht die Regel um, steht

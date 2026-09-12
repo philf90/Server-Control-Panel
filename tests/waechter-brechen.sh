@@ -27743,27 +27743,6 @@ pruefe "abgelegtes Feld ohne Leser" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PendingUpdatesReachTest passed
 
-
-echo
-if [ "$fehler" -eq 0 ]; then
-  echo "Alle Wächter beissen."
-elif [ "$stumm" -eq "$fehler" ]; then
-  # **Die Unterscheidung, die dem ersten vollstaendigen Lauf gefehlt hat.**
-  # Steht hinter jedem Fehlschlag ein vertippter Filter oder eine unlesbare
-  # Ausgabe, ist nicht eine einzige Regel gebrochen — dieses Skript hat nur
-  # nichts gemessen. Wer das verwechselt, sucht den Fehler an 473 Stellen, an
-  # denen keiner ist.
-  echo "$fehler Prüfung(en) ohne Messung — dieses Skript hat nichts gemessen," >&2
-  echo "und über die Wächter ist damit nichts gesagt." >&2
-  printf '%s' "$gefallen" >&2
-else
-  echo "$fehler Prüfung(en) ohne Biss, davon $stumm ohne Messung." >&2
-  printf '%s' "$gefallen" >&2
-  echo "Die übrigen sind Wächter, die ihre Regel nicht halten." >&2
-fi
-
-exit "$fehler"
-
 echo "── ProcessStateTest: der Agent wirft das Wort des Kernels wieder weg ──"
 #
 # Der Ausgangszustand des Befundes vom 11. September 2026: `/proc/<pid>/status`
@@ -28035,3 +28014,24 @@ pruefe "Klammerzähler rät das Ende" \
   OperatorControlTest::test_a_one_line_computed_does_not_swallow_what_follows failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperatorControlTest passed
+
+
+echo
+if [ "$fehler" -eq 0 ]; then
+  echo "Alle Wächter beissen."
+elif [ "$stumm" -eq "$fehler" ]; then
+  # **Die Unterscheidung, die dem ersten vollstaendigen Lauf gefehlt hat.**
+  # Steht hinter jedem Fehlschlag ein vertippter Filter oder eine unlesbare
+  # Ausgabe, ist nicht eine einzige Regel gebrochen — dieses Skript hat nur
+  # nichts gemessen. Wer das verwechselt, sucht den Fehler an 473 Stellen, an
+  # denen keiner ist.
+  echo "$fehler Prüfung(en) ohne Messung — dieses Skript hat nichts gemessen," >&2
+  echo "und über die Wächter ist damit nichts gesagt." >&2
+  printf '%s' "$gefallen" >&2
+else
+  echo "$fehler Prüfung(en) ohne Biss, davon $stumm ohne Messung." >&2
+  printf '%s' "$gefallen" >&2
+  echo "Die übrigen sind Wächter, die ihre Regel nicht halten." >&2
+fi
+
+exit "$fehler"

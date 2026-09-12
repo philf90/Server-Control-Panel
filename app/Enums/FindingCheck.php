@@ -113,6 +113,16 @@ enum FindingCheck: string
      */
     case MaintenanceWindow = 'maintenance.window';
 
+    /**
+     * Ob die Flagdatei wirklich das sagt, was das Panel anzeigt
+     * (`docs/911 §2`, M8).
+     *
+     * Getrennt von {@see self::MaintenanceWindow}, weil die Frage eine andere
+     * ist und einen anderen Weg nimmt: Jene vergleicht zwei abgelegte Werte
+     * miteinander und kommt ohne den Agenten aus, diese fragt die Datei.
+     */
+    case MaintenanceFlag = 'maintenance.flag';
+
     /** Der Grund, der überall „die Prüfung lief nicht" heisst. */
     public const UNREACHABLE = 'unreachable';
 
@@ -134,6 +144,7 @@ enum FindingCheck: string
             self::OrphanRow => 'Zeile ohne Gegenstand',
             self::AptKey => 'Signaturschlüssel der Paketquelle',
             self::MaintenanceWindow => 'Wartungsmodus',
+            self::MaintenanceFlag => 'Schalter des Wartungsmodus',
         };
     }
 
@@ -156,6 +167,7 @@ enum FindingCheck: string
             self::OrphanRow => 'Zeile',
             self::AptKey => 'Schlüssel',
             self::MaintenanceWindow => 'Server',
+            self::MaintenanceFlag => 'Datei',
         };
     }
 
@@ -454,6 +466,34 @@ enum FindingCheck: string
                  * den niemand ausspricht, ist ein toter Eintrag;
                  * `DiagnoseSeamTest` hat ihn gemeldet, als er hier stand.
                  */
+            ],
+
+            /*
+             * **Die Richtung entscheidet die Schwere, und nicht die Grösse der
+             * Abweichung.** Beide Befunde sagen „Ablage und Datei gehen
+             * auseinander", und ihre Folgen sind sehr verschieden:
+             *
+             * - Fehlt die Datei, während das Panel „an" sagt, sind die
+             *   Kundenwebsites **erreichbar**. Falsch ist nur, was der
+             *   Betreiber liest — unangenehm, aber niemand sitzt im Dunkeln.
+             * - Liegt die Datei, während das Panel „aus" sagt, antwortet
+             *   **jede Kundenwebsite mit 503**, und niemand weiss davon. Das
+             *   ist ein Ausfall, den niemand gewollt hat und den keine Anzeige
+             *   nennt.
+             *
+             * > **Zwei Fälle derselben Abweichung sind nicht derselbe Befund,
+             * > wenn nur einer den Dienst einstellt.**
+             */
+            self::MaintenanceFlag => [
+                'missing' => [
+                    'state' => FindingState::Warn,
+                    'text' => 'Das Panel führt den Wartungsmodus als eingeschaltet, aber die Datei liegt nicht.',
+                ],
+                'unexpected' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Die Datei liegt, obwohl der Wartungsmodus als ausgeschaltet geführt wird — alle Kundenwebsites antworten mit 503.',
+                ],
+                ...$unreachable,
             ],
         };
     }

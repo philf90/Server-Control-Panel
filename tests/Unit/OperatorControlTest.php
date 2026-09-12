@@ -112,33 +112,146 @@ final class OperatorControlTest extends TestCase
     }
 
     /**
-     * Die Wächtervariablen einer Seite: Fähigkeit => Name der Variablen.
+     * Die Wächtervariablen einer Vorlage: Fähigkeit => Namen der Variablen.
      *
-     * Gesucht wird ein `const <name> = computed(...)`, in dessen Rumpf der
-     * Name der Fähigkeit als Zeichenkette steht.
+     * Zwei Quellen, und beide sind nötig:
      *
-     * @return array<string, string>
+     * 1. Ein `computed`, in dessen Rumpf der Name der Fähigkeit als
+     *    Zeichenkette steht — der gewöhnliche Fall, `abilities['…']`.
+     * 2. Ein `computed`, das eine **geteilte Eigenschaft** liest, die die
+     *    Mittelschicht nur unter dieser Fähigkeit herausgibt
+     *    ({@see self::propGuards()}). Der Wert ist dann `null`, wenn der
+     *    Betrachter sie nicht haben darf, und ein `v-if` darauf ist dieselbe
+     *    Grenze — nur einen Schritt früher gezogen.
+     *
+     * **Die zweite Quelle ist keine Nachsicht, sondern die Vermeidung einer
+     * zweiten Fassung.** Verlangte dieser Wächter auch dort die Fähigkeit im
+     * Rumpf, stünde die Entscheidung zweimal da: einmal in `share()` und
+     * einmal in der Vorlage — und die zweite ist die, die veraltet.
+     *
+     * **Die Klammern werden gezählt und nicht gesucht.** Bis zum
+     * 12. September 2026 endete der Ausdruck hier auf `\n)`, und ein
+     * einzeiliges `const x = computed(() => …)` hat kein solches Ende: Der
+     * Treffer lief bis zur nächsten mehrzeiligen Klammer weiter und schrieb
+     * die Fähigkeit einer Variablen zu, die damit nichts zu tun hat. Gemessen
+     * an `PanelLayout.vue`, wo `fehler` auf diese Weise zum Wächter für
+     * `operate-server` wurde.
+     *
+     * > **Ein Wächter, der einen Ausdruck nicht auflösen kann, hat nicht wenig
+     * > gemessen — er hat an dieser Stelle etwas Falsches gemessen.**
+     *
+     * @return array<string, list<string>>
      */
     private function guardsIn(string $sfc): array
     {
-        preg_match_all(
-            "/const\s+(\w+)\s*=\s*computed\((.*?)\n\)/s",
-            $sfc,
-            $treffer,
-            PREG_SET_ORDER,
-        );
-
+        $props = $this->propGuards();
         $waechter = [];
 
-        foreach ($treffer as $t) {
+        foreach ($this->computedIn($sfc) as $name => $rumpf) {
             foreach (array_keys(AdminAbility::abilities()) as $ability) {
-                if (str_contains($t[2], "'".$ability."'")) {
-                    $waechter[$ability] = $t[1];
+                if (str_contains($rumpf, "'".$ability."'")) {
+                    $waechter[$ability][] = $name;
+                }
+            }
+
+            foreach ($props as $prop => $ability) {
+                if (preg_match('/\bprops\.'.preg_quote($prop, '/').'\b/', $rumpf) === 1) {
+                    $waechter[$ability][] = $name;
                 }
             }
         }
 
-        return $waechter;
+        return array_map(
+            static fn (array $namen): array => array_values(array_unique($namen)),
+            $waechter,
+        );
+    }
+
+    /**
+     * Jedes `const <name> = computed(…)` einer Vorlage: Name => Rumpf.
+     *
+     * Die Klammern werden gezählt, statt ein Ende zu erraten. Zeichenketten
+     * bleiben dabei unangetastet — eine Klammer in `'…)…'` zählte sonst mit
+     * und schnitte den Rumpf an der falschen Stelle ab.
+     *
+     * @return array<string, string>
+     */
+    private function computedIn(string $sfc): array
+    {
+        $gefunden = [];
+
+        if (preg_match_all('/const\s+(\w+)\s*=\s*computed\(/', $sfc, $treffer, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) === 0) {
+            return $gefunden;
+        }
+
+        foreach ($treffer as $t) {
+            $von = $t[0][1] + strlen($t[0][0]);
+            $tiefe = 1;
+            $i = $von;
+            $laenge = strlen($sfc);
+            $zeichen = null;
+
+            while ($i < $laenge && $tiefe > 0) {
+                $c = $sfc[$i];
+
+                if ($zeichen !== null) {
+                    if ($c === '\\') {
+                        $i += 2;
+
+                        continue;
+                    }
+
+                    if ($c === $zeichen) {
+                        $zeichen = null;
+                    }
+                } elseif ($c === "'" || $c === '"' || $c === '`') {
+                    $zeichen = $c;
+                } elseif ($c === '(') {
+                    $tiefe++;
+                } elseif ($c === ')') {
+                    $tiefe--;
+                }
+
+                $i++;
+            }
+
+            $gefunden[$t[1][0]] = substr($sfc, $von, $i - $von - 1);
+        }
+
+        return $gefunden;
+    }
+
+    /**
+     * Geteilte Eigenschaften, die die Mittelschicht an eine Fähigkeit bindet:
+     * Name der Eigenschaft => Fähigkeit.
+     *
+     * Gelesen wird `HandleInertiaRequests` und nicht eine Liste in diesem
+     * Test: Eine Liste hier wäre die zweite Fassung dessen, was `share()`
+     * entscheidet.
+     *
+     * @return array<string, string>
+     */
+    private function propGuards(): array
+    {
+        $quelle = (string) file_get_contents($this->repo().'/app/Http/Middleware/HandleInertiaRequests.php');
+
+        preg_match_all(
+            "/'(\w+)'\s*=>\s*fn\s*\([^)]*\)[^=]*=>.*?AdminAbility::(\w+)/s",
+            $quelle,
+            $treffer,
+            PREG_SET_ORDER,
+        );
+
+        $karte = [];
+        $konstanten = ['OPERATE_SERVER' => 'operate-server', 'INSPECT_SERVER' => 'inspect-server', 'MANAGE_SETTINGS' => 'manage-settings'];
+
+        foreach ($treffer as $t) {
+            if (isset($konstanten[$t[2]])) {
+                $karte[$t[1]] = $konstanten[$t[2]];
+            }
+        }
+
+        return $karte;
     }
 
     /**
@@ -203,6 +316,27 @@ final class OperatorControlTest extends TestCase
      * offene Element bekannt, wenn die Fundstelle kommt; rückwärts müsste man
      * raten, welches `<div>` zu welchem `</div>` gehört.
      */
+    /**
+     * Steht diese Stelle in **einem** der Wächter dieser Fähigkeit?
+     *
+     * Mehrere sind der Normalfall, seit eine Fähigkeit über zwei Wege sichtbar
+     * wird: als Zeichenkette in einem `computed` und als geteilte Eigenschaft,
+     * die die Mittelschicht daran bindet. Es genügt einer — sie ziehen
+     * dieselbe Grenze.
+     *
+     * @param  list<string>  $guards
+     */
+    private function guardedByAny(string $template, int $offset, array $guards): bool
+    {
+        foreach ($guards as $guard) {
+            if ($this->guarded($template, $offset, $guard)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function guarded(string $template, int $offset, string $guard): bool
     {
         $leer = ['input', 'img', 'br', 'hr', 'meta', 'link', 'source', 'col'];
@@ -249,10 +383,61 @@ final class OperatorControlTest extends TestCase
     }
 
     /**
-     * Jede `.vue` unter `resources/js` — Seiten wie Komponenten.
+     * Ein einzeiliges `computed` verschluckt nicht, was hinter ihm steht.
      *
-     * Weiter als {@see self::pages()}, und mit Grund: `RebootButton.vue` liest
-     * die geteilte Ablage und ist keine Seite.
+     * **Der Fall, der den Klammerzähler trägt.** Bis zum 12. September 2026
+     * endete der Ausdruck hier auf `\n)`, und ein
+     * `const x = computed(() => …)` hat kein solches Ende: Der Treffer lief
+     * bis zur nächsten mehrzeiligen Klammer weiter. Gemessen an
+     * `PanelLayout.vue`, wo `fehler` — ein Leser der Fehlermeldung — auf diese
+     * Weise zum Wächter für `operate-server` wurde.
+     *
+     * > **Ein Wächter, der einen Ausdruck nicht auflösen kann, hat nicht wenig
+     * > gemessen — er hat an dieser Stelle etwas Falsches gemessen.**
+     *
+     * Die gefährliche Richtung ist dabei nicht das falsche Rot, das der Fund
+     * ausgelöst hat, sondern das falsche Grün daneben: Ein Bedienelement, das
+     * in einem `v-if` auf die **unbeteiligte** Variable steht, käme damit
+     * durch.
+     *
+     * Der Prüfkörper ist hier selbst geschrieben und keine Datei des Repos —
+     * eine Datei, die zufällig heute so aussieht, sieht morgen anders aus.
+     */
+    public function test_a_one_line_computed_does_not_swallow_what_follows(): void
+    {
+        $sfc = <<<'VUE'
+            const fehler = computed(() => page.props.flash?.error)
+
+            const liste = computed(() => [
+              { name: 'Updates', ability: 'operate-server' },
+            ])
+            VUE;
+
+        $waechter = $this->guardsIn($sfc);
+
+        $this->assertSame(
+            ['liste'],
+            $waechter['operate-server'] ?? [],
+            implode("\n", [
+                'Der Ausdruck über `computed(…)` greift über sein eigenes Ende hinaus.',
+                '',
+                'Er schreibt die Fähigkeit damit einer Variablen zu, die nichts mit ihr zu',
+                'tun hat — und ein Bedienelement in einem `v-if` auf diese Variable käme',
+                'durch, obwohl niemand es versteckt.',
+            ]),
+        );
+    }
+
+    /**
+     * Jede `.vue` unter `resources/js` — Seiten, Komponenten und die Hülle.
+     *
+     * **Hier stand einmal ein zweiter Sammler nur über `Pages`**, und die
+     * tragende Regel benutzte ihn. `PanelLayout.vue` liegt unter `Layouts` und
+     * war damit von ihr nicht erreichbar — obwohl es die Hülle **jeder** Seite
+     * ist und seit dem 12. September einen Verweis auf eine Adminroute trägt.
+     *
+     * > **Ein Wächter, der die geschriebenen Seiten prüft, sagt nichts über
+     * > die Datei, die niemand in diesen Ordner gelegt hat.**
      *
      * @return list<string>
      */
@@ -261,25 +446,6 @@ final class OperatorControlTest extends TestCase
         $treffer = [];
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($this->repo().'/resources/js'),
-        );
-
-        foreach ($iterator as $datei) {
-            if ($datei->isFile() && $datei->getExtension() === 'vue') {
-                $treffer[] = $datei->getPathname();
-            }
-        }
-
-        sort($treffer);
-
-        return $treffer;
-    }
-
-    /** @return list<string> */
-    private function pages(): array
-    {
-        $treffer = [];
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($this->repo().'/resources/js/Pages'),
         );
 
         foreach ($iterator as $datei) {
@@ -368,7 +534,7 @@ final class OperatorControlTest extends TestCase
         $offen = [];
         $geprueft = 0;
 
-        foreach ($this->pages() as $pfad) {
+        foreach ($this->templates() as $pfad) {
             $sfc = (string) file_get_contents($pfad);
             $griffe = $this->handlersIn($sfc);
             $waechter = $this->guardsIn($sfc);
@@ -399,14 +565,14 @@ final class OperatorControlTest extends TestCase
                 $geprueft++;
 
                 foreach ($this->occurrences($template, $name) as $offset) {
-                    if (! $this->guarded($template, $offset, $waechter[$noetig])) {
+                    if (! $this->guardedByAny($template, $offset, $waechter[$noetig])) {
                         $offen[] = sprintf(
-                            '%s: %s() ruft %s (%s) und steht nicht in `v-if="%s"`',
+                            '%s: %s() ruft %s (%s) und steht in keinem `v-if` auf %s',
                             basename(dirname($pfad)).'/'.basename($pfad),
                             $name,
                             $ziel,
                             $noetig,
-                            $waechter[$noetig],
+                            implode(' oder ', $waechter[$noetig]),
                         );
                     }
                 }
@@ -422,13 +588,13 @@ final class OperatorControlTest extends TestCase
                 $geprueft++;
 
                 foreach ($stellen as $offset) {
-                    if (! $this->guarded($template, $offset, $waechter[$noetig])) {
+                    if (! $this->guardedByAny($template, $offset, $waechter[$noetig])) {
                         $offen[] = sprintf(
-                            '%s: der Verweis auf %s (%s) steht nicht in `v-if="%s"`',
+                            '%s: der Verweis auf %s (%s) steht in keinem `v-if` auf %s',
                             basename(dirname($pfad)).'/'.basename($pfad),
                             $ziel,
                             $noetig,
-                            $waechter[$noetig],
+                            implode(' oder ', $waechter[$noetig]),
                         );
                     }
                 }

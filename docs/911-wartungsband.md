@@ -182,9 +182,31 @@ dritte Fassung bauen.
 
 ---
 
-## §3 Die Fragen an den Betreiber
+## §3 Die vier Entscheidungen
 
-Vier, und keine davon lässt sich messen.
+Vier Fragen, keine davon messbar — **alle am 12. September entschieden**, die
+vierte vom Betreiber, die drei anderen aus dem Zweck und mit seiner Zustimmung.
+
+| | entschieden |
+|---|---|
+| 1. Wer es sieht | **`operate-server`** — wer schalten darf |
+| 2. Rang | **`warn`**, nicht `critical` |
+| 3. Verweis auf `/maintenance` | **ja** |
+| 4. Ablage oder lesende Operation | **beides**, siehe unten |
+
+**Zu 4, und das ist der Zuschnitt:** `web.maintenance.state` wird gebaut, aber
+nicht für die Anzeige. Das Band steht auf jeder Seite und liest weiter die
+Ablage — ein Sockelaufruf je Seitenaufbau wäre der Fehler, den `docs/904` für
+`/updates` gerade behoben hat. Die Operation gibt es, damit die
+**Bestandsdiagnose** einmal pro Nacht Ablage und Datei aneinanderhalten kann.
+
+> **Eine Anzeige, die teurer wird, je öfter man sie ansieht, wird genau dann
+> langsam, wenn jemand arbeitet.**
+
+Damit wird aus einer stillen Ungenauigkeit ein Befund — und der erscheint über
+das Abzeichen am Menüpunkt „Diagnose", das am Tag davor entstanden ist.
+
+Die Erwägungen, die zu den vier Antworten geführt haben:
 
 **1. Wer sieht das Band?** Drei Zuschnitte:
 
@@ -242,13 +264,140 @@ Damit die Aufzählung eine Entscheidung ist und keine Lücke mit Überschrift
 
 ---
 
-## §6 Was offen bleibt und benannt ist
+## §6 Gebaut am 12. September 2026 — und was dabei anders war als im Plan
+
+Sechs Teile: die lesende Operation, das `seit`, der Abgleich als Prüfung, der
+geteilte Wert, das Band, und die Lücke aus M7.
+
+### a) Der Kommentar, der die Bestandsdiagnose beschrieb, war eine Vermutung
+
+`AgentOperationReachTest` trug bei `web.maintenance.set` den Satz *„Dass die
+beiden auseinanderlaufen können, meldet die Bestandsdiagnose — das ist der
+Grund, aus dem sie danach fragt."* Nachgezählt las `Maintenance::FLAG` genau
+**zwei** Stellen: die schaltende Operation und die Vorlage des Server-Blocks.
+`SystemDiagnose` kam darin nicht vor.
+
+> **Ein Satz, den ein Kommentar behauptet und den niemand gemessen hat, ist
+> eine Vermutung mit Fussnote — und er hält länger als der Handgriff, weil ihn
+> der Nächste liest und glaubt.**
+
+Seit diesem Bau stimmt er. Das ist keine Behebung eines Fehlers, sondern das
+Nachliefern einer Zusage, die jemand schon gegeben hatte.
+
+### b) Der geteilte Wert heisst nicht `maintenance` *(Befund eines Wächters)*
+
+`SharedPropTest` wurde rot: `MaintenanceController` gibt seiner Seite eine
+Eigenschaft dieses Namens, und Seitenwerte überschreiben geteilte. Auf
+`/maintenance` — der **einzigen** Seite, auf der man den Modus ausschaltet —
+wäre das Band damit fort gewesen.
+
+> **Ein geteilter Schlüssel, den eine Seite auch benutzt, ist auf genau dieser
+> Seite fort — und der Ausfall liest sich wie ein Rechteproblem.**
+
+Derselbe Fehler wie `can` gegen `abilities` (`docs/82`) und `errors`
+(`docs/904`), zum dritten Mal — und zum ersten Mal von einem Wächter gefangen,
+bevor ihn jemand gesehen hat. Er heisst jetzt `maintenanceBand`.
+
+### c) M7 ist geschlossen, und darunter lag ein zweiter Befund
+
+`OperatorControlTest` liest jetzt **alle** `.vue` statt nur `resources/js/Pages`
+und kennt eine zweite Art Wächter: ein `computed`, das eine geteilte
+Eigenschaft liest, welche die Mittelschicht an eine Fähigkeit bindet. Die
+Zuordnung Eigenschaft → Fähigkeit kommt aus `HandleInertiaRequests` und nicht
+aus einer Liste im Test.
+
+**Beim Erweitern fiel auf, dass der Wächter etwas Falsches gemessen hat.** Sein
+Ausdruck über `computed(…)` endete auf `\n)`, und ein einzeiliges
+`const fehler = computed(() => …)` hat kein solches Ende: Der Treffer lief bis
+zur nächsten mehrzeiligen Klammer und schrieb `operate-server` der Variablen
+`fehler` zu — dem Leser der Fehlermeldung.
+
+> **Ein Wächter, der einen Ausdruck nicht auflösen kann, hat nicht wenig
+> gemessen — er hat an dieser Stelle etwas Falsches gemessen.**
+
+Die gefährliche Richtung ist dabei nicht das falsche Rot, an dem es auffiel,
+sondern das falsche Grün daneben: Ein Bedienelement in einem `v-if` auf die
+unbeteiligte Variable käme durch. Gezählt werden seitdem die Klammern.
+
+**Und was er trotzdem nicht kann:** Nimmt man dem Verschluss seine
+Fähigkeitsprüfung, findet er für die Datei keine Wächtervariable mehr und
+überspringt sie — zu Recht, denn wo keine Variable Betrachter unterscheidet,
+gibt es für ihn nichts zu verstecken. Der Eingriff blieb grün.
+
+> **Ein Wächter, der beim Fehlen seiner Voraussetzung überspringt, meldet das
+> Fehlen der Voraussetzung nicht.**
+
+Diese Naht hält deshalb `MaintenanceBandTest` und nicht er.
+
+### d) Die Zweizeilen-Klammer schnitt die Auskunft weg *(Befund aus dem Bild)*
+
+Gemessen war alles grün: `dokument = 0`, Gegenprobe 200, 62 px — genau die Höhe
+aus M4. Und auf dem Bild stand bei 390 px *„Wartung Alle Kundenwebsites
+antworten mit 503. Seit 2026-09-11 18:35 Uhr (UTC…"* — abgeschnitten vor der
+überschrittenen Endzeit, und mitten in einer Zeitangabe, der damit ihre Zone
+fehlt.
+
+> **Eine Klammer über zwei Zeilen schneidet das Ende ab — und das Ende war hier
+> das, was den Streifen rechtfertigt.**
+
+> **Ein Bild zeigt, dass etwas fehlt. Die Zahl sagt, ob die Seite schiebt.
+> Keines von beiden ersetzt das andere.**
+
+Für eine Ankündigung ist die Klammer richtig: Deren Text schreibt der Betreiber,
+er hat keine Obergrenze, und der volle Wortlaut steht auf `/announcements`.
+Dieser Satz ist unserer und besteht aus zwei Zeitangaben und einer Zone. Das
+Band trägt sie deshalb **nicht**, und die überschrittene Endzeit steht **vorn**
+— sie ist der Grund, aus dem jemand hinsieht.
+
+### e) Die Messung an der echten Seite
+
+Gefahren gegen `artisan serve`, vier Lagen für den überfälligen Fall und drei
+Zustände bei 390 px. `dokument = 0` und Gegenprobe **200** überall, Ladebeleg
+`rand=3px`, Thema an der Grundfarbe abgelesen (`rgb(255,255,255)` gegen
+`rgb(15,17,22)`).
+
+| Zustand (390 px) | Band | Satz |
+|---|---|---|
+| an, ohne Endzeit | 83 px | „… mit 503 — seit … Uhr (UTC)." |
+| an, Endzeit offen | 104 px | „… mit 503 — seit … Uhr (UTC), voraussichtlich bis … Uhr (UTC)." |
+| an, überschritten | 104 px | „Die angekündigte Endzeit ist seit … Uhr (UTC) vorbei. …" |
+| **aus** | **keins** | — |
+
+Bei 1440 px ist es in allen Fällen **41 px**, also eine Zeile.
+
+**Der ausgeschaltete Zustand ist der Prüfkörper**, ohne den die anderen drei
+nichts sagen: Ein Band, das immer dasteht, belegt nicht, dass es einen Zustand
+zeigt.
+
+**Und der Zwilling stimmt zum zweiten Mal:** M4 hat im Nachbau 62 px je Band bei
+390 px gemessen; die echte Seite gab für dieselbe Form dieselben 62 px, bevor
+die Klammer fiel.
+
+**Was diese Messung nicht sagt:** Die Zone steht hier auf `UTC`, weil die
+Anzeigezone dieses Containers UTC ist. Auf `cloudsrv24` steht dort `CEST` — der
+Weg ist gemessen, dieser Wortlaut nicht.
+
+---
+
+## §7 Was offen bleibt und benannt ist
 
 - **Auf einem Server ist keine Zahl dieser Runde gemessen.** Die Zeiten stammen
   aus SQLite; `cloudsrv24` fährt MariaDB. Die **Lage** der Bänder ist dagegen
   über M4b an der Serverzahl aus `docs/105` geeicht.
-- **Die Lücke aus M7 gehört nicht diesem Merkmal**, sondern
-  `OperatorControlTest`. Sie ist hier gefunden worden und bleibt offen, bis
-  jemand entscheidet, ob die Regel das Layout mitnimmt.
-- **Der Abgleich Ablage ↔ Flagdatei** ist heute nirgends. Ob er gebaut wird,
-  hängt an Frage 4.
+- **Nichts davon hat einen Server gesehen.** Die Zahlen stammen aus dem
+  Container; `cloudsrv24` fährt MariaDB und eine andere Anzeigezone. Der
+  Abnahmelauf ist **`docs/912`**, ausgeschrieben am 12. September 2026 vor dem
+  Fahren; er misst genau die drei Dinge, die hier nicht messbar waren — dass die
+  Behauptung des Bandes an einer echten Domain stimmt, dass die Zone die des
+  Servers ist, und dass der Abgleich einen Befund erzeugt, den das Abzeichen
+  trägt.
+- **Der Abgleich läuft einmal pro Nacht und nicht laufend.** Zwischen zwei
+  Nachtläufen kann das Band einen Zustand behaupten, den die Datei nicht mehr
+  trägt. Das ist der Preis dafür, dass die Anzeige keinen Sockelaufruf je
+  Seitenaufbau kostet — und er ist benannt und nicht verschwiegen.
+- **Wer die Datei angelegt oder entfernt hat, sagt niemand.** Der Agent kennt
+  ihr Dasein; ein Ort im Dateisystem trägt keine Herkunft.
+- **Die Dauer steht als Zeitpunkt da und nicht als Spanne.** „seit
+  2026-09-11 18:35 Uhr" verlangt vom Leser eine Rechnung; „seit dreizehn
+  Stunden" nicht. Eine Spanne altert allerdings in einer offenen Seite, und ob
+  das den Tausch wert ist, ist nicht gemessen.

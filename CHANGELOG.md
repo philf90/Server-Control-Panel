@@ -27723,3 +27723,174 @@ das gesetzte Attribut **und die Farbe, die daraus folgt**.
 
 > **Eine Messung, die ihren Zustand nicht mitdruckt, ist von einer, die ihn
 > nicht hatte, nicht zu unterscheiden.**
+
+### Der Wartungsmodus steht als Band auf jeder Seite
+
+Wer ihn einschaltet, weiss im selben Augenblick alles darüber — das Band sagt
+ihm nichts Neues. Es hält einen Zustand gegenwärtig, der sonst unsichtbar ist:
+Während einer Wartung funktioniert das Panel vollständig normal, und keine Seite
+trug bisher ein Zeichen davon, dass draussen jede Kundenwebsite mit 503
+antwortet.
+
+> **Ein Zustand, den man einschaltet und danach nicht mehr sieht, ist einer, den
+> man vergisst — und die Wartung endet nicht von selbst.**
+
+Dass das der Fall ist, steht im Repo schon da: `MaintenanceWindow` gibt es
+genau dafür, und `docs/101` sagt es wörtlich — *„Der Nachtlauf meldet am Morgen,
+was am Abend vergessen wurde."* Das Band ist dieselbe Frage währenddessen. Es
+gehört deshalb dem, der handeln kann (`operate-server`): Eine Erinnerung wirkt
+nur bei ihm, und für einen Kunden wäre dasselbe Band eine Erklärung — ein
+anderes Merkmal.
+
+**Gebaut wurde keine neue Form und keine neue Farbe.** `.bands` trägt seit A14
+zwei Geschwister; das Wartungsband ist ein drittes im Rang `warn` — eine
+geplante Wartung ist keine Störung. Gemessen stapeln vier Bänder und kosten je
+70 px bei 390 px und 49 px bei 1440 px; drei Ankündigungsbänder ergeben dabei
+**214 px**, dieselbe Zahl, die `docs/105` auf `cloudsrv24` gemessen hat.
+
+### Das Panel konnte den Wartungsmodus nicht erfragen
+
+`agent/src/Ops/` führte genau eine Wartungsoperation: `web.maintenance.set`, und
+die verlangt `enabled` als Pflichtfeld.
+
+> **Ein Zustand, den man nur durch Setzen erfahren kann, ist von aussen nicht
+> lesbar — und die Anzeige daneben liest zwangsläufig eine Ablage.**
+
+Und niemand glich die beiden ab. `MaintenanceWindow` liest dieselbe Ablage und
+meldet nur eine überschrittene Endzeit; die Wache in den Vhost-Dateien steht
+seit A12 dauerhaft dort und sagt deshalb nichts über den Modus. Verschwand die
+Flagdatei von Hand, behauptete das Panel weiter „Wartung läuft" — und
+umgekehrt, mit jeder Kundenwebsite auf 503 und niemandem, der davon weiss.
+
+`web.maintenance.state` liest die Datei und schaltet nichts. Sie ist **nicht**
+für die Anzeige gebaut: Das Band steht auf jeder Seite und liest weiter die
+Ablage, weil ein Sockelaufruf je Seitenaufbau der Fehler wäre, den `docs/904`
+für `/updates` gerade behoben hat. Den Abgleich macht die neue Prüfung
+`maintenance.flag` einmal pro Nacht — und ihr Befund erreicht den Betreiber über
+das Abzeichen am Menüpunkt „Diagnose".
+
+**Die Richtung entscheidet die Schwere.** Fehlt die Datei, während das Panel
+„an" sagt, sind die Kundenwebsites erreichbar und nur die Anzeige irrt (`warn`).
+Liegt sie, während das Panel „aus" sagt, antwortet jede mit 503 und niemand
+weiss davon (`fail`).
+
+> **Zwei Fälle derselben Abweichung sind nicht derselbe Befund, wenn nur einer
+> den Dienst einstellt.**
+
+**Und ein Kommentar behauptete seit A12 genau das, was es nicht gab.**
+`AgentOperationReachTest` schrieb, die Bestandsdiagnose melde ein
+Auseinanderlaufen — nachgezählt lasen `Maintenance::FLAG` zwei Stellen, und
+`SystemDiagnose` war keine davon.
+
+> **Ein Satz, den ein Kommentar behauptet und den niemand gemessen hat, ist eine
+> Vermutung mit Fussnote — und er hält länger als der Handgriff, weil ihn der
+> Nächste liest und glaubt.**
+
+### Seit wann, und nicht nur bis wann
+
+Die Ablage führte `enabled` und `until`. Vergessen ist aber eine Funktion der
+verstrichenen Zeit: „voraussichtlich bis 02:00 Uhr" sagt nichts darüber, ob man
+es vergessen hat, „seit sechs Stunden" sagt es unmittelbar. `since` steht jetzt
+daneben und wird **nur beim Übergang aus→an** gesetzt — wer bloss die Endzeit
+ändert, ruft dieselbe Route mit `enabled = true` auf.
+
+> **Ein Wert, der bei jeder Änderung neu entsteht, misst die letzte Änderung und
+> nicht den Zustand.**
+
+### Drei Wächter haben den Bau angehalten, und jeder zu Recht
+
+**`SharedPropTest`:** Der geteilte Wert hiess zuerst `maintenance` — und
+`MaintenanceController` gibt seiner Seite eine Eigenschaft dieses Namens.
+Seitenwerte überschreiben geteilte, das Band wäre also ausgerechnet auf
+`/maintenance` fort gewesen, der einzigen Seite, auf der man den Modus
+ausschaltet. Derselbe Fehler wie `can` gegen `abilities` und `errors`, zum
+dritten Mal — und zum ersten Mal gefangen, bevor ihn jemand gesehen hat.
+
+**`TimeDisplayTest`:** Der neue Zeitpunkt entsteht in `MaintenanceMode` und
+nicht in `Settings`, weil nur der Aufrufer den Übergang kennt. Er steht jetzt
+mit diesem Grund in der Ausnahmeliste — im Wert und nicht in einem Kommentar
+daneben.
+
+**`DiagnoseSeamTest` und `AgentOperationReachTest`:** Neue Gründe und eine neue
+Operation gehören angemeldet, sonst sind sie tote Einträge oder Code, der als
+root läuft und zu dem es keinen Weg gibt.
+
+### Und `OperatorControlTest` hat etwas Falsches gemessen
+
+Seine tragende Regel las nur `resources/js/Pages`. `PanelLayout.vue` liegt unter
+`Layouts` und ist die Hülle aller 54 Seiten — sie war von der Regel nicht
+erreichbar, und das Band trägt einen Verweis auf eine Adminroute.
+
+> **Ein Wächter, der die geschriebenen Seiten prüft, sagt nichts über die Datei,
+> die niemand in diesen Ordner gelegt hat.**
+
+Beim Erweitern fiel der ältere Fehler auf: Sein Ausdruck über `computed(…)`
+endete auf `\n)`, und ein einzeiliges `const fehler = computed(() => …)` hat kein
+solches Ende. Der Treffer lief bis zur nächsten mehrzeiligen Klammer und schrieb
+`operate-server` der Variablen `fehler` zu — dem Leser der Fehlermeldung.
+
+> **Ein Wächter, der einen Ausdruck nicht auflösen kann, hat nicht wenig
+> gemessen — er hat an dieser Stelle etwas Falsches gemessen.**
+
+Die gefährliche Richtung ist nicht das falsche Rot, an dem es auffiel, sondern
+das falsche Grün daneben: Ein Bedienelement in einem `v-if` auf die unbeteiligte
+Variable käme durch. Gezählt werden seitdem die Klammern, eine Fähigkeit darf
+mehrere Wächter haben, und eine geteilte Eigenschaft, die die Mittelschicht an
+eine Fähigkeit bindet, zählt als einer — sonst stünde die Entscheidung zweimal
+da, und die zweite ist die, die veraltet.
+
+**Was er trotzdem nicht kann:** Nimmt man dem Verschluss seine Fähigkeitsprüfung,
+findet er für die Datei keine Wächtervariable mehr und überspringt sie.
+
+> **Ein Wächter, der beim Fehlen seiner Voraussetzung überspringt, meldet das
+> Fehlen der Voraussetzung nicht.**
+
+Diese Naht hält deshalb `MaintenanceBandTest`.
+
+### Die Klammer schnitt die Auskunft weg, und keine Zahl hat es gesagt
+
+Gemessen war alles grün: `dokument = 0`, Gegenprobe 200, 62 px — genau die Höhe,
+die der Nachbau vorhergesagt hatte. Auf dem Bild stand bei 390 px *„Wartung Alle
+Kundenwebsites antworten mit 503. Seit 2026-09-11 18:35 Uhr (UTC…"*, also
+abgeschnitten vor der überschrittenen Endzeit und mitten in einer Zeitangabe,
+der damit ihre Zone fehlt.
+
+> **Eine Klammer über zwei Zeilen schneidet das Ende ab — und das Ende war hier
+> das, was den Streifen rechtfertigt.**
+
+Für eine Ankündigung ist sie richtig: Deren Text schreibt der Betreiber, er hat
+keine Obergrenze, und der volle Wortlaut steht auf `/announcements`. Dieser Satz
+ist unserer. Das Band trägt sie deshalb nicht, und die überschrittene Endzeit
+steht vorn — sie ist der Grund, aus dem jemand hinsieht. Gemessen danach: 83 px
+ohne Endzeit, 104 px mit ihr, 41 px bei 1440 px, `dokument = 0` in allen vier
+Lagen — und **kein Band**, wenn der Modus aus ist. Das ist der Prüfkörper, ohne
+den die anderen drei nichts sagen.
+
+### Dreizehn Eingriffe standen hinter dem `exit` und sind nie gelaufen
+
+Gefunden hat es keine Prüfung, sondern eine Zahl, die sich nicht bewegt hat:
+Zwei volle Läufe des Bruchskripts hintereinander meldeten dieselben **940**
+Eingriffe und dieselben **2371** Zeilen — nachdem dreizehn dazugekommen waren.
+
+> **Zwei Läufe mit derselben Zahl nach einer Erweiterung sind kein Beleg,
+> sondern ein Verdacht.**
+
+`tests/waechter-brechen.sh` endet auf eine Bilanz und `exit "$fehler"`. Wer
+anhängt, hängt dahinter an — und dort steht Text, den keine Schale je ausführt.
+Die ältesten der dreizehn stammen aus der Runde zum Prozesszustand und haben
+damit **nie** eine Regel gebrochen, obwohl sie beim Bauen einzeln geprüft worden
+waren: Einzeln gefahren wird der Python-Block, im Lauf die Datei.
+
+**Kein Werkzeug hätte es gesehen.** `bash -n` parst die Zeilen und sagt über
+Erreichbarkeit nichts. shellcheck meldet über dieselbe Datei **null** `SC2317`
+(gemessen, 0.9.0) — und die CI fährt shellcheck ohnehin nur über `packaging/`.
+Die zwölf Fälle von `BreakScriptTest` lesen den **Text** des Skripts; für sie
+sah ein toter Eingriff aus wie ein lebender, und `test_every_check_names_a_test_that_exists`
+zählte ihn mit.
+
+> **Ein Wächter, der den Text eines Skripts liest, sagt nichts darüber, ob die
+> Zeile jemals an die Reihe kommt.**
+
+Die dreizehn stehen jetzt vor der Bilanz, und `test_nothing_stands_behind_the_exit`
+hält die Stelle. Gegengeprüft von Hand — das Bruchskript darf sich selbst nicht
+brechen.

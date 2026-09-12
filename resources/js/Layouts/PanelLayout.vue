@@ -58,6 +58,24 @@ const impersonation = computed(() => page.props.impersonation as { active: boole
  * Aufbau, ist `announcements.length` ohne Rückfall ein Fehler und nicht eine
  * Null.
  */
+/**
+ * Der Wartungsmodus als Band (`docs/911`).
+ *
+ * `null` heisst „aus oder geht mich nichts an" — die Mittelschicht teilt den
+ * Wert nur mit `operate-server`, und wer nicht schalten darf, bekommt gar
+ * keinen. Ein `v-if` auf die Fähigkeit wäre hier die zweite Fassung derselben
+ * Entscheidung.
+ */
+const maintenance = computed(
+  () => (page.props.maintenanceBand ?? null) as {
+    since: string | null
+    since_zone: string | null
+    until: string | null
+    until_zone: string | null
+    overdue: boolean
+  } | null,
+)
+
 const announcements = computed(
   () => (page.props.announcements ?? []) as { id: number; badge: string; rank: string; body: string }[],
 )
@@ -677,7 +695,7 @@ onBeforeUnmount(() => {
       den Rückweg bei sich — ein Wechsel, aus dem man suchen muss, ist einer,
       den jemand vergisst.
     -->
-    <div v-if="impersonation?.active || announcements.length" class="bands">
+    <div v-if="impersonation?.active || announcements.length || maintenance" class="bands">
       <div v-if="impersonation?.active" class="band warn">
         <span>
           Sie arbeiten in der Sicht dieses Kunden.
@@ -685,6 +703,57 @@ onBeforeUnmount(() => {
         </span>
         <button type="button" class="button small" @click="stopImpersonation">Zurück zur Verwaltung</button>
       </div>
+
+      <!--
+        **Der Wartungsmodus, und er erinnert statt zu informieren.** Wer ihn
+        einschaltet, weiss im selben Augenblick alles darüber; was fehlt, ist
+        die Gegenwart des Zustands, während man daneben arbeitet. Das Panel
+        funktioniert während einer Wartung vollständig normal, und keine Seite
+        trägt sonst ein Zeichen davon, dass draussen jede Kundenwebsite 503
+        gibt.
+
+        > **Ein Zustand, den man einschaltet und danach nicht mehr sieht, ist
+        > einer, den man vergisst — und die Wartung endet nicht von selbst.**
+
+        **Der Rang ist `warn` und nicht `critical`:** Eine geplante Wartung ist
+        keine Störung. Unterschieden wird sie vom Impersonationsband, das
+        denselben Rang trägt, durch das Rangwort.
+
+        **Und die dritte Fassung ist die, für die es das Band gibt.** Ein Band,
+        das nach der angekündigten Endzeit weiter „voraussichtlich bis" sagt,
+        wiederholt ein abgelaufenes Versprechen — es schwiege in genau dem
+        Augenblick, für den es gebaut ist.
+      -->
+      <Link v-if="maintenance" href="/maintenance" class="band warn">
+        <!--
+          **Ohne `clamped`, und das ist gemessen.** Bei 390 px schnitt die
+          Zweizeilen-Klammer den Satz nach „Seit 2026-09-11 18:35 Uhr (UTC…" ab
+          — also vor der Auskunft, für die es das Band gibt, und mitten in einer
+          Zeitangabe, der damit ihre Zone fehlt.
+
+          > **Eine Klammer über zwei Zeilen schneidet das Ende ab — und das Ende
+          > war hier das, was den Streifen rechtfertigt.**
+
+          Für eine Ankündigung ist sie richtig: Deren Text schreibt der
+          Betreiber, er hat keine Obergrenze, und der volle Wortlaut steht auf
+          `/announcements`. Dieser Satz ist **unserer**, seine Teile sind zwei
+          Zeitangaben und eine Zone, und länger als vier Zeilen kann er nicht
+          werden.
+
+          **Und die Reihenfolge trägt mit:** Die überschrittene Endzeit steht
+          vorn, weil sie der Grund ist, aus dem jemand jetzt hinsieht.
+        -->
+        <span>
+          <b class="rank">Wartung</b>
+          <template v-if="maintenance.overdue">
+            Die angekündigte Endzeit ist seit {{ maintenance.until }} Uhr ({{ maintenance.until_zone }}) vorbei.
+            Alle Kundenwebsites antworten mit 503<template v-if="maintenance.since">, seit {{ maintenance.since }} Uhr ({{ maintenance.since_zone }})</template>.
+          </template>
+          <template v-else>
+            Alle Kundenwebsites antworten mit 503<template v-if="maintenance.since"> — seit {{ maintenance.since }} Uhr ({{ maintenance.since_zone }})</template><template v-if="maintenance.until">, voraussichtlich bis {{ maintenance.until }} Uhr ({{ maintenance.until_zone }})</template>.
+          </template>
+        </span>
+      </Link>
 
       <!--
         Die Ankündigungen des Betreibers (A14). Dringendste zuerst — die

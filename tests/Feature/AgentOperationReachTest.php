@@ -97,11 +97,25 @@ final class AgentOperationReachTest extends TestCase
          * eine Anzeige über nichts.
          *
          * Was das Panel führt, ist die Einstellung `maintenance`; die Datei ist
-         * ihr Abbild und kein zweiter Bestand. Dass die beiden auseinanderlaufen
-         * können, meldet die Bestandsdiagnose — das ist der Grund, aus dem sie
-         * danach fragt.
+         * ihr Abbild und kein zweiter Bestand.
+         *
+         * **Hier stand bis zum 12. September 2026, die Bestandsdiagnose melde,
+         * wenn die beiden auseinanderlaufen — und das war nie wahr.**
+         * Nachgezählt: `Maintenance::FLAG` lasen genau zwei Stellen, die
+         * schaltende Operation und die Vorlage des Server-Blocks;
+         * `SystemDiagnose` kam darin nicht vor, und `MaintenanceWindow`
+         * vergleicht zwei abgelegte Werte miteinander. Der Satz beschrieb eine
+         * Absicht und keinen Mechanismus.
+         *
+         * > **Ein Satz, den ein Kommentar behauptet und den niemand gemessen
+         * > hat, ist eine Vermutung mit Fussnote — und er hält länger als der
+         * > Handgriff, weil ihn der Nächste liest und glaubt.**
+         *
+         * Seitdem stimmt er, und `web.maintenance.state` darunter ist der
+         * Grund.
          */
         'web.maintenance.set' => 'Schaltet die Flagdatei des Wartungsmodus. App\\Support\\Web\\MaintenanceMode ruft unmittelbar auf — der Betreiber soll die Meldung an seinem Schalter lesen.',
+        'web.maintenance.state' => 'Sieht nach, ob die Flagdatei liegt, und schaltet nichts. Kein Bestand im Panel und kein Vorgang: Der Aufruf steht in App\\Support\\Diagnose\\Checks\\MaintenanceFlag und läuft einmal pro Nacht, damit ein Auseinanderlaufen von Ablage und Datei ein Befund wird statt eine stille Lüge auf jeder Seite.',
 
         /*
          * **P6 Schritt 8: der SFTP-Zugang.** Kein Lebenslauf, und der Grund ist

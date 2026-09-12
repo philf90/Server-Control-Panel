@@ -7,6 +7,7 @@ namespace App\Support\Settings;
 use App\Models\Setting;
 use App\Support\Authorization\AdminNetwork;
 use App\Support\Time\Clock;
+use App\Support\Web\MaintenanceMode;
 use App\Support\Web\PhpSelection;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Schema;
@@ -387,25 +388,51 @@ final class Settings
      * bereits formatierter Wert hier wäre die zweite Fassung, und die veraltet
      * mit der nächsten Zeitzonenänderung.
      *
-     * @return array{enabled: bool, until: null|string}
+     * `since` ist der Zeitpunkt des Einschaltens, ebenfalls UTC — er trägt die
+     * **Dauer**, und die ist das, was das Band aus `docs/911` braucht:
+     * Vergessen ist eine Funktion der verstrichenen Zeit, und „voraussichtlich
+     * bis 02:00 Uhr" sagt darüber nichts. Bis zum 12. September 2026 gab es ihn
+     * nicht; ableitbar war er nur aus dem Zeitstempel der Protokollzeile, also
+     * aus einer zweiten Quelle mit eigener Aufbewahrung.
+     *
+     * @return array{enabled: bool, until: null|string, since: null|string}
      */
     public function maintenance(): array
     {
         $row = $this->read(self::MAINTENANCE);
         $until = $row['until'] ?? null;
+        $since = $row['since'] ?? null;
+        $an = ($row['enabled'] ?? false) === true;
 
         return [
-            'enabled' => ($row['enabled'] ?? false) === true,
+            'enabled' => $an,
             'until' => is_string($until) && $until !== '' ? $until : null,
+
+            /*
+             * **Ausgeschaltet gibt es kein „seit".** Ein stehengebliebener
+             * Wert läse sich wie eine laufende Wartung, und genau diese
+             * Verwechslung soll das Band nicht erzeugen. Die Bedingung steht
+             * hier und nicht beim Schreiben: Eine Zeile aus der Zeit vor
+             * diesem Feld trägt gar keins, und die soll denselben Weg nehmen.
+             */
+            'since' => $an && is_string($since) && $since !== '' ? $since : null,
         ];
     }
 
-    /** Den Wartungsmodus festhalten — nachdem der Agent geschaltet hat. */
-    public function saveMaintenance(bool $enabled, ?string $until): void
+    /**
+     * Den Wartungsmodus festhalten — nachdem der Agent geschaltet hat.
+     *
+     * **`since` entscheidet der Aufrufer**, weil nur er den Übergang kennt:
+     * Wer bloss die Endzeit ändert, während der Modus schon läuft, darf die
+     * Dauer nicht zurücksetzen — sonst lügt die Anzeige ausgerechnet in die
+     * Richtung, die das Vergessen verdeckt. {@see MaintenanceMode::set()}
+     * rechnet es aus dem vorigen Stand aus.
+     */
+    public function saveMaintenance(bool $enabled, ?string $until, ?string $since = null): void
     {
         Setting::query()->updateOrCreate(
             ['key' => self::MAINTENANCE],
-            ['value' => ['enabled' => $enabled, 'until' => $until]],
+            ['value' => ['enabled' => $enabled, 'until' => $until, 'since' => $enabled ? $since : null]],
         );
     }
 

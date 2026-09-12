@@ -10,6 +10,7 @@ use App\Enums\SubscriptionStatus;
 use App\Models\Domain;
 use App\Models\Subscription;
 use App\Support\Diagnose\Checks\Certificates;
+use App\Support\Diagnose\Checks\MaintenanceFlag;
 use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
 use SrvPanel\Agent\Client;
@@ -76,13 +77,48 @@ final class MaintenanceMode
         // war. Er sieht nach dem Schalten an der Datei nach.
         $ist = ($result['enabled'] ?? null) === true;
 
-        $this->settings->saveMaintenance($ist, $until);
+        $this->settings->saveMaintenance($ist, $until, self::since($vorher, $ist));
 
         // Die Blöcke tragen die Endzeit, also müssen sie neu geschrieben
         // werden, wenn sie sich ändert — und nur dann.
         $resweep = $vorher['until'] === $until ? 0 : $this->rewrite();
 
         return ['enabled' => $ist, 'resweep' => $resweep];
+    }
+
+    /**
+     * Seit wann geschaltet ist — der Wert, der die **Dauer** trägt.
+     *
+     * **Nur der Übergang aus→an setzt ihn neu.** Wer bloss die Endzeit ändert,
+     * während der Modus schon läuft, ruft dieselbe Route mit `enabled = true`
+     * auf; ein Zeitstempel je Aufruf setzte die Dauer dabei zurück. Das Band
+     * aus `docs/911` läse danach „seit einer Minute", während die Wartung seit
+     * sechs Stunden läuft — und es ist genau für den umgekehrten Fall gebaut.
+     *
+     * > **Ein Wert, der bei jeder Änderung neu entsteht, misst die letzte
+     * > Änderung und nicht den Zustand.**
+     *
+     * Fehlt er, obwohl schon eingeschaltet war, entsteht er jetzt: Das ist der
+     * Bestand aus der Zeit vor diesem Feld, und „seit unbekannt" wäre eine
+     * Auskunft weniger als „seit dem ersten Mal, an dem es jemand gemessen
+     * hat".
+     *
+     * **Öffentlich und statisch, damit es messbar ist** — dieselbe Bauart wie
+     * {@see MaintenanceFlag::judge()}: Eine
+     * reine Funktion aus altem Stand und neuem Zustand, ohne Agent und ohne
+     * Einstellungen. Durch die Tür gemessen bräuchte sie beides.
+     *
+     * @param  array{enabled: bool, until: null|string, since: null|string}  $vorher
+     */
+    public static function since(array $vorher, bool $ist): ?string
+    {
+        if (! $ist) {
+            return null;
+        }
+
+        return $vorher['enabled'] && $vorher['since'] !== null
+            ? $vorher['since']
+            : now()->toDateTimeString();
     }
 
     /**

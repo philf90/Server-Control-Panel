@@ -51,6 +51,12 @@ final class TimeDisplayTest extends TestCase
             .'Anzeigezone zu speichern hiesse, den Bestand von einer Einstellung abhängig zu '
             .'machen, die sich ändern darf.',
 
+        'app/Support/Web/MaintenanceMode.php' => 'Derselbe Fall: `since` — seit wann der '
+            .'Wartungsmodus läuft — geht als Text in `settings` und liegt dort in UTC. Gezeigt wird '
+            .'er in `HandleInertiaRequests` über `Clock::minute()` samt `Clock::labelAt()`. Der '
+            .'Zeitpunkt entsteht hier und nicht in `Settings`, weil nur der Aufrufer den Übergang '
+            .'kennt: Wer bloss die Endzeit ändert, darf die Dauer nicht zurücksetzen.',
+
         'app/Support/Settings/Settings.php' => 'Hier wird geschrieben und nicht angezeigt: `checked_at` '
             .'und `changed_at` gehen als Text in `settings` und liegen dort in UTC. Wer sie später '
             .'zeigt, dreht sie an der Lesestelle mit `Clock::displayText()` — eine Zeit in der '

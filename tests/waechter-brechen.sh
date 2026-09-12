@@ -27892,3 +27892,146 @@ pruefe "gemessener Zustand fehlt" \
   ProcessStateTest::test_the_measured_states_are_mapped failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ProcessStateTest passed
+
+echo "── MaintenanceBandTest: der geteilte Wert ohne seine Faehigkeit ──"
+#
+# Die Naht. Das Band steht in der Huelle JEDER Seite, auch der eines Kunden.
+# Ohne die Pruefung erfuehre er von einer Wartung, die er weder beenden noch
+# beeinflussen kann — und OperatorControlTest ueberspringt die Datei dann,
+# statt sie zu melden: Wo keine Variable Betrachter unterscheidet, gibt es
+# fuer ihn nichts zu verstecken. Gemessen am 12. September 2026.
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY2'
+p = 'app/Http/Middleware/HandleInertiaRequests.php'
+s = open(p, encoding='utf-8').read()
+alt = "                && $account->can(AdminAbility::OPERATE_SERVER)\n                    ? self::maintenanceBand("
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                    ? self::maintenanceBand(", 1))
+PY2
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "Wartungsband ohne Fähigkeit" &&
+pruefe "Wartungsband ohne Fähigkeit" \
+  MaintenanceBandTest::test_the_band_travels_as_a_closure_and_only_to_an_operator failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceBandTest passed
+
+echo "── MaintenanceBandTest: das Band ohne sein v-if ──"
+#
+# Der geteilte Wert ist `null`, wenn der Betrachter ihn nicht haben darf. Ohne
+# die Bedingung steht ein Verweis auf /maintenance in der Huelle jeder Seite,
+# und fuer einen Kunden ist er eine Sackgasse.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<Link v-if="maintenance" href="/maintenance" class="band warn">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<Link href="/maintenance" class="band warn">', 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Band ohne v-if" &&
+pruefe "Band ohne v-if" \
+  MaintenanceBandTest::test_the_band_sits_behind_the_shared_value failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceBandTest passed
+
+echo "── OperatorControlTest: dieselbe Stelle, von der Regel her gesehen ──"
+#
+# Derselbe Eingriff wie eben, gemessen am anderen Waechter: Seit die Regel ueber
+# `templates()` laeuft und eine geteilte Eigenschaft als Waechter zaehlt,
+# erreicht sie die Huelle — vorher konnte sie es nicht.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<Link v-if="maintenance" href="/maintenance" class="band warn">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<Link href="/maintenance" class="band warn">', 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Verweis ohne Wächter in der Hülle" &&
+pruefe "Verweis ohne Wächter in der Hülle" \
+  OperatorControlTest::test_a_control_for_a_stricter_route_sits_behind_its_ability failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperatorControlTest passed
+
+echo "── MaintenanceBandTest: die Dauer startet bei jeder Aenderung neu ──"
+#
+# Wer bloss die Endzeit aendert, ruft dieselbe Route mit enabled = true auf. Ein
+# Zeitstempel je Aufruf setzte die Dauer zurueck, und das Band laese „seit einer
+# Minute", waehrend die Wartung seit sechs Stunden laeuft — falsch in genau der
+# Richtung, die das Vergessen verdeckt.
+vorher_datei app/Support/Web/MaintenanceMode.php
+python3 - <<'PY2'
+p = 'app/Support/Web/MaintenanceMode.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return $vorher['enabled'] && $vorher['since'] !== null\n            ? $vorher['since']\n            : now()->toDateTimeString();"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return now()->toDateTimeString();", 1))
+PY2
+griff_datei app/Support/Web/MaintenanceMode.php "Dauer startet neu" &&
+pruefe "Dauer startet neu" \
+  MaintenanceBandTest::test_changing_the_end_time_does_not_restart_the_duration failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceBandTest passed
+
+echo "── MaintenanceBandTest: das Urteil nennt die Richtung nicht mehr ──"
+#
+# Beide Richtungen derselben Abweichung haben sehr verschiedene Folgen: Fehlt
+# die Datei, sind die Kundenwebsites erreichbar; liegt sie unerwartet, antwortet
+# jede mit 503. Ein Grund fuer beide verschweigt, welcher Fall vorliegt.
+vorher_datei app/Support/Diagnose/Checks/MaintenanceFlag.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/MaintenanceFlag.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'reason' => $abgelegt ? 'missing' : 'unexpected',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'reason' => 'missing',", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/MaintenanceFlag.php "Urteil ohne Richtung" &&
+pruefe "Urteil ohne Richtung" \
+  MaintenanceBandTest::test_the_drift_verdict_names_the_direction failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceBandTest passed
+
+echo "── MaintenanceBandTest: der Gegenstand kommt aus der Konstanten ──"
+#
+# Der Agent nennt die Datei, an der er nachgesehen hat. Steht dort die
+# Konstante, ist der Befund eine Behauptung ueber einen Pfad, den vielleicht
+# niemand gemessen hat.
+vorher_datei app/Support/Diagnose/Checks/MaintenanceFlag.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/MaintenanceFlag.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'subject' => is_string($flag) && $flag !== '' ? $flag : Maintenance::FLAG,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'subject' => Maintenance::FLAG,", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/MaintenanceFlag.php "Gegenstand aus der Konstanten" &&
+pruefe "Gegenstand aus der Konstanten" \
+  MaintenanceBandTest::test_the_drift_verdict_names_the_direction failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceBandTest passed
+
+echo "── OperatorControlTest: der Klammerzaehler raet wieder ein Ende ──"
+#
+# Bis zum 12. September endete der Ausdruck auf \n), und ein einzeiliges
+# `const x = computed(() => …)` hat kein solches Ende: Der Treffer lief bis zur
+# naechsten mehrzeiligen Klammer weiter und schrieb die Faehigkeit einer
+# unbeteiligten Variablen zu. Die gefaehrliche Richtung ist das falsche Gruen —
+# ein Bedienelement in einem v-if auf diese Variable kaeme durch.
+vorher_datei tests/Unit/OperatorControlTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/OperatorControlTest.php'
+s = open(p, encoding='utf-8').read()
+# Nachgestellt wird das Verschlucken und nicht ein zweiter Abbruch: Ein
+# zusaetzliches Ende neben dem Zaehler beisst nicht, weil der Zaehler weiter
+# richtig zaehlt. Der alte Ausdruck hatte gar keinen — sein Rumpf lief bis zur
+# naechsten mehrzeiligen Klammer, hier also bis ans Ende.
+alt = "            $gefunden[$t[1][0]] = substr($sfc, $von, $i - $von - 1);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "            $gefunden[$t[1][0]] = substr($sfc, $von);"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/OperatorControlTest.php "Klammerzähler rät das Ende" &&
+pruefe "Klammerzähler rät das Ende" \
+  OperatorControlTest::test_a_one_line_computed_does_not_swallow_what_follows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperatorControlTest passed

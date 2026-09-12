@@ -10,10 +10,13 @@ use App\Models\Announcement;
 use App\Models\Subscription;
 use App\Support\Audit\Impersonation;
 use App\Support\Authorization\AdminAbility;
+use App\Support\Diagnose\Checks\MaintenanceWindow;
 use App\Support\Diagnose\PendingFindings;
 use App\Support\Panel\Source;
 use App\Support\Passwords\Policy;
 use App\Support\Settings\Settings;
+use App\Support\Time\Clock;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\ViewErrorBag;
 use Inertia\Middleware;
@@ -262,6 +265,41 @@ final class HandleInertiaRequests extends Middleware
                     ? app(PendingFindings::class)->count()
                     : null,
 
+            /*
+             * Der Wartungsmodus als Band (`docs/911`).
+             *
+             * **`operate-server` und nicht `inspect-server`**, und das folgt
+             * aus dem Zweck: Das Band erinnert, und eine Erinnerung wirkt nur
+             * bei dem, der handeln kann. Wer zusieht, kann die Wartung nicht
+             * beenden; für ihn wäre dasselbe Band eine Erklärung, und die ist
+             * ein anderes Merkmal.
+             *
+             * **Es steht auf jeder Seite, und deshalb liest es die Ablage.**
+             * `web.maintenance.state` gibt es seit dem 12. September, aber ein
+             * Sockelaufruf je Seitenaufbau wäre der Fehler, den `docs/904`
+             * für `/updates` gerade behoben hat.
+             *
+             * **Der Name ist nicht `maintenance`, und das ist gemessen:**
+             * `MaintenanceController` gibt seiner Seite eine Eigenschaft
+             * dieses Namens, und Seitenwerte überschreiben geteilte. Auf
+             * `/maintenance` — der einzigen Seite, auf der man den Modus
+             * ausschaltet — wäre das Band damit fort. `SharedPropTest` hat es
+             * gemeldet, bevor es jemand gesehen hat; derselbe Fehler wie `can`
+             * gegen `abilities` (`docs/82`) und `errors` (`docs/904`).
+             *
+             * > **Ein geteilter Schlüssel, den eine Seite auch benutzt, ist auf
+             * > genau dieser Seite fort — und der Ausfall liest sich wie ein
+             * > Rechteproblem.**
+             *
+             * Den Abgleich zwischen Ablage
+             * und Datei macht einmal pro Nacht
+             * {@see \App\Support\Diagnose\Checks\MaintenanceFlag}.
+             */
+            'maintenanceBand' => fn (): ?array => $account instanceof Account
+                && $account->can(AdminAbility::OPERATE_SERVER)
+                    ? self::maintenanceBand(app(Settings::class)->maintenance())
+                    : null,
+
             // Die Passwortrichtlinie steht auf jeder Seite bereit, weil ein
             // Passwortfeld überall auftauchen kann — beim Anlegen eines
             // Kunden, beim Ändern des eigenen, später beim Zurücksetzen. Sie
@@ -346,5 +384,59 @@ final class HandleInertiaRequests extends Middleware
             'active' => true,
             'admin' => $admin->name ?? 'unbekannt',
         ];
+    }
+
+    /**
+     * Was das Band über den Wartungsmodus sagt — oder `null`, wenn nichts.
+     *
+     * **Umgerechnet wird hier und nicht auf der Seite.** Abgelegt ist UTC;
+     * was hinausgeht, ist Ortszeit über {@see Clock}, und zwar mit
+     * `labelAt()` **je Zeitpunkt** und nicht `label()`: Berlin heisst im
+     * Januar anders als im Juli, und beide Zeitpunkte können auf verschiedenen
+     * Seiten einer Umstellung liegen.
+     *
+     * > **Eine Zonenangabe, die für „jetzt" gilt, gehört nicht neben einen
+     * > Zeitpunkt, der woanders liegt.**
+     *
+     * `overdue` wird gerechnet und nicht abgelegt — derselbe Grund wie bei der
+     * nächsten Fälligkeit eines Cronjobs (`docs/108`): Ein Wert, der aus
+     * „jetzt" folgt und abgelegt wird, ist ab dem nächsten Augenblick falsch.
+     *
+     * @param  array{enabled: bool, until: null|string, since: null|string}  $stand
+     * @return array{since: null|string, since_zone: null|string, until: null|string, until_zone: null|string, overdue: bool}|null
+     */
+    private static function maintenanceBand(array $stand): ?array
+    {
+        if (! $stand['enabled']) {
+            return null;
+        }
+
+        $until = $stand['until'];
+
+        return [
+            'since' => Clock::minute($stand['since']),
+            'since_zone' => Clock::labelAt($stand['since']),
+            'until' => Clock::minute($until),
+            'until_zone' => Clock::labelAt($until),
+            'overdue' => $until !== null && self::isPast($until),
+        ];
+    }
+
+    /**
+     * Liegt dieser UTC-Zeitpunkt hinter uns?
+     *
+     * Ein unlesbarer Wert ist **nicht** überschritten: „nicht lesbar" ist etwas
+     * anderes als „vorbei", und wer das eine als das andere meldet, schickt den
+     * Betreiber zum Ausschalten, wo eine Zeile in der Tabelle kaputt ist —
+     * dieselbe Unterscheidung, die {@see MaintenanceWindow}
+     * in ihrem Kopf begründet.
+     */
+    private static function isPast(string $utc): bool
+    {
+        try {
+            return CarbonImmutable::parse($utc, 'UTC')->isPast();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 }

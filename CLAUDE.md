@@ -1422,6 +1422,13 @@ Test, und die Vorlage wird mit einem Stapel gelesen statt rückwärts; **ein
 wörtlicher `href` zählt seit dem 31. August mit**, denn ein Verweis führt
 genauso zu einem 403 wie ein Knopf, und was er nicht halten kann, steht in
 seinem Kopf als Frage),
+`OperatorControlTest` liest dabei **alle** `.vue` und nicht nur
+`resources/js/Pages` — `PanelLayout.vue` ist die Hülle aller 54 Seiten und war
+von der Regel nicht erreichbar; er zählt die **Klammern** eines `computed`,
+statt sein Ende auf `\n)` zu raten (ein einzeiliges schrieb sonst die Fähigkeit
+der nächstbesten Variablen zu), lässt je Fähigkeit **mehrere** Wächter zu, und
+eine geteilte Eigenschaft, die die Mittelschicht an eine Fähigkeit bindet, zählt
+als einer — sonst stünde die Entscheidung zweimal da.
 `InspectOnlyTest` (dieselbe Grenze an der Tür: vier Griffe geben dem
 Administrator 403 und dem Betreiber nicht — gemessen wird „nicht 403" und nicht
 „200", sonst prüfte er den Agenten statt der Tür) und `SourceKeyFilterTest`
@@ -1584,7 +1591,16 @@ auffällig und ruhig ist, darf `PendingFindings::count()` über `reason` allein
 filtern statt über das Paar `(check, reason)` — gemessen 0,073 ms gegen 1,06;
 die Gründe kommen aus `FindingCheck` und nicht aus einer Liste, und die Zahl
 reist als Verschluss, weil ein fertiger Wert in `share()` auch bei einem
-partiellen Nachladen läuft, das ihn gar nicht mitschickt). Der Bruch selbst steht als
+partiellen Nachladen läuft, das ihn gar nicht mitschickt) und
+`MaintenanceBandTest` (die Naht des Wartungsbands: Der Wert reist als Verschluss
+**und nur an `operate-server`**, das Band steht hinter ihm, die Dauer überlebt
+eine Änderung der Endzeit, und das Urteil über Ablage gegen Datei nennt die
+**Richtung** — fehlende Datei ist `warn`, unerwartete `fail`, weil nur die
+zweite jede Kundenwebsite abschaltet. Er hält die Naht, weil
+`OperatorControlTest` es strukturell nicht kann: Nimmt man dem Verschluss seine
+Fähigkeitsprüfung, findet der für die Datei keine Wächtervariable mehr und
+überspringt sie — **ein Wächter, der beim Fehlen seiner Voraussetzung
+überspringt, meldet das Fehlen der Voraussetzung nicht**). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 

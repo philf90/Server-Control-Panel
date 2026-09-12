@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Enums\FindingCheck;
 use App\Support\Diagnose\Checks\Certificates;
+use App\Support\Diagnose\Checks\MaintenanceFlag;
 use App\Support\Diagnose\Checks\MaintenanceWindow;
 use App\Support\Diagnose\Checks\ManagedBlocks;
 use App\Support\Diagnose\Checks\Orphans;
@@ -159,6 +160,7 @@ final class DiagnoseSeamTest extends TestCase
         'SystemUsers' => SystemUsers::REASONS,
         'Orphans' => Orphans::REASONS,
         'MaintenanceWindow' => MaintenanceWindow::REASONS,
+        'MaintenanceFlag' => MaintenanceFlag::REASONS,
     ];
 
     /**

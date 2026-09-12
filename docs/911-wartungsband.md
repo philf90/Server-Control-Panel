@@ -386,7 +386,11 @@ Weg ist gemessen, dieser Wortlaut nicht.
   über M4b an der Serverzahl aus `docs/105` geeicht.
 - **Nichts davon hat einen Server gesehen.** Die Zahlen stammen aus dem
   Container; `cloudsrv24` fährt MariaDB und eine andere Anzeigezone. Der
-  Abnahmelauf steht noch aus und gehört vor das Fahren ausgeschrieben.
+  Abnahmelauf ist **`docs/912`**, ausgeschrieben am 12. September 2026 vor dem
+  Fahren; er misst genau die drei Dinge, die hier nicht messbar waren — dass die
+  Behauptung des Bandes an einer echten Domain stimmt, dass die Zone die des
+  Servers ist, und dass der Abgleich einen Befund erzeugt, den das Abzeichen
+  trägt.
 - **Der Abgleich läuft einmal pro Nacht und nicht laufend.** Zwischen zwei
   Nachtläufen kann das Band einen Zustand behaupten, den die Datei nicht mehr
   trägt. Das ist der Preis dafür, dass die Anzeige keinen Sockelaufruf je

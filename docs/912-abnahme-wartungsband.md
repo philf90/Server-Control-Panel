@@ -92,18 +92,34 @@ Alles als `root` auf `cloudsrv24`, ausser wo eine Browserzeile dasteht.
 
 ```bash
 srvpanel version                                     # abgelesen, nicht erwartet
-grep -c 'web\.maintenance\.state' \
-     /opt/srvpanel/current/agent/src/Registry.php    # erwartet: 1
+srvpanel tinker --execute='
+  var_dump(app(SrvPanel\Agent\Client::class)->call("web.maintenance.state"));'
 systemctl is-active srvpanel-agentd srvpanel-worker  # erwartet: active active
 ls -l /var/spool/srvpanel/wartung                    # erwartet: No such file
 ```
 
-**Die zweite Zeile ist die eigentliche Vorbedingung.** Sie fragt die
-installierte Fassung, ob sie die lesende Operation kennt — und damit, ob sie das
-Band trägt. Steht dort `0`, ist eine Fassung ohne das Merkmal installiert, und
-jeder Punkt ab hier misst etwas anderes als den Prüfling. Eine Nummer könnte das
+**Die zweite Zeile ist die eigentliche Vorbedingung.** Sie fragt den laufenden
+Agenten, ob er die lesende Operation kennt — und damit, ob die installierte
+Fassung das Band trägt. Erwartet ist ein Feld mit `enabled` und `flag`; kennt er
+sie nicht, wirft der Aufruf, und die Meldung sagt es. Eine Nummer könnte das
 nicht beantworten: `0.7.4-rc.5` sieht neuer aus als alles davor und enthält das
 Band trotzdem nicht.
+
+**Gefragt wird der Agent und keine Datei, und das ist bezahlt.** Der erste Wurf
+dieser Zeile war ein `grep` nach `web.maintenance.state` in
+`/opt/srvpanel/current/agent/src/Registry.php`. Die Datei ist die richtige, die
+Zeichenkette steht nur nicht darin: Die Registrierung nennt die **Klasse**
+(`WebMaintenanceState`), den gepunkteten Namen trägt die Operation selbst. Der
+Griff hätte auf jedem Server `0` gemeldet, auch auf dem heilen — gemessen gegen
+den Arbeitsbaum, in dem das Merkmal unzweifelhaft steht.
+
+> **Eine Vorbedingung, die man nicht gegen den heilen Fall gemessen hat, ist
+> keine Prüfung — sie ist eine Behauptung, die auch im heilen Fall rot ist.**
+
+Und der Griff durch die Tür ist ohnehin der bessere: Er belegt nicht, dass eine
+Zeichenkette in einer Datei steht, sondern dass der **laufende** Agent die
+Operation beantwortet. Lesend ist er gefahrlos — `mutating() === false`, er
+sieht nur nach.
 
 **Der Arbeiter gehört dazu und ist kein Beiwerk.** Punkt 3 ändert die Endzeit,
 und das schreibt über die Warteschlange jede lebende Domain neu

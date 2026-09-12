@@ -11,7 +11,7 @@ der Lauf läuft — je Punkt der **gemessene** Wert, nicht der erwartete.
 | | gemessen |
 |---|---|
 | `srvpanel version` | `0.7.4-rc.6` |
-| Agent kennt `web.maintenance.state` | **siehe Befund 1** |
+| Agent kennt `web.maintenance.state` | ja — `enabled: false`, `flag: /var/spool/srvpanel/wartung` (27 Zeichen) |
 | `srvpanel-agentd` · `srvpanel-worker` | `active` · `active` |
 | `/var/spool/srvpanel/wartung` | fehlt (`No such file or directory`) |
 | `Clock::label()` | `CEST (UTC+02:00)` |
@@ -20,6 +20,14 @@ der Lauf läuft — je Punkt der **gemessene** Wert, nicht der erwartete.
 | Abzeichen **N** | **3** |
 | Prüfkörperdomain | `cloudlab24.ipv64.de` |
 | ihr heiler Zustand **V** | **200** |
+
+**Die Vorbedingung ist damit zugleich die erste Messung des neuen Merkmals auf
+einem Server.** Die Operation antwortet, sie nennt denselben Pfad, den die Wache
+im Server-Block trägt, und ihr Urteil deckt sich mit den beiden anderen Quellen
+des Ausgangszustands: `ls` sagt „fehlt", die Ablage sagt `enabled: false`, der
+Agent sagt `false`. Drei unabhängige Wege, ein Zustand — und genau dass diese
+drei auseinanderlaufen können, ist der Grund für die Prüfung, die in Punkt 7
+und 9 gemessen wird.
 
 **Die beiden Zonenwerte stimmen überein, und das musste nicht so sein.**
 `label()` gilt für „jetzt", `labelAt()` für einen genannten Zeitpunkt; im
@@ -56,7 +64,9 @@ grep -c 'web\.maintenance\.state' /opt/srvpanel/current/agent/src/Registry.php  
 
 und bekam auf dem Server **`0`** — auf einer Fassung, die das Merkmal
 nachweislich enthält (`v0.7.4-rc.6` zeigt auf `a78a66f9`, und
-`git merge-base --is-ancestor` bestätigt den Band-Commit darin).
+`git merge-base --is-ancestor` bestätigt den Band-Commit darin). Der berichtigte
+Griff hat es danach in derselben Minute belegt: Der Agent beantwortet die
+Operation.
 
 **Die Datei war die richtige, die Zeichenkette nicht.** `Registry.php`
 registriert die **Klasse** — `use SrvPanel\Agent\Ops\WebMaintenanceState;` und

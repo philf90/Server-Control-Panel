@@ -1,4 +1,4 @@
-# Abnahmelauf für das Wartungsband — `0.7.4-rc.5` auf `cloudsrv24`
+# Abnahmelauf für das Wartungsband — auf `cloudsrv24`
 
 Ausgeschrieben am **12. September 2026, vor dem Fahren**. Der Plan des Merkmals
 ist `docs/911`, die Messrunde steht in dessen §2, der Bau in §6.
@@ -15,9 +15,21 @@ Dinge lassen sich dort grundsätzlich nicht messen:
 3. Dass der Abgleich Ablage ↔ Datei einen Befund erzeugt, den das Abzeichen
    trägt — im Container gibt es weder einen Nachtlauf noch eine echte Flagdatei.
 
-**Die Freigabe trägt zwei Änderungen und nicht eine.** `v0.7.4-rc.5` bringt das
-Band **und** das Diagnose-Abzeichen aus `docs/910`, das in PR #236 gemergt und
-nie getaggt wurde.
+**Dieser Lauf nennt keine Fassungsnummer, und das ist berichtigt statt
+gewünscht.** Beim Ausschreiben stand hier `0.7.4-rc.5`. Gemessen zeigt dieser
+Tag auf `a6fd4dd8`, den Merge von PR #236 — er trägt das Diagnose-Abzeichen und
+**nicht** das Band; getaggt wurde er um 12:06, und PR #237 entstand neun Stunden
+später. Das Band kommt mit der Freigabe danach.
+
+> **Eine Fassungsnummer in einem Lauf, der vor dem Fahren geschrieben wird,
+> altert zwischen dem Schreiben und dem Fahren — und eine falsche misst eine
+> andere Fassung, ohne es zu sagen.**
+
+§1 prüft deshalb nicht die Nummer, sondern die **Eigenschaft**: dass die
+installierte Fassung das Band überhaupt enthält. Die Nummer wird abgelesen und
+ins Protokoll geschrieben; entschieden wird sie nicht von ihr.
+
+Bringt die Freigabe neben dem Band noch anderes mit, gilt weiter:
 
 > **Ein Nachlauf gegen eine Fassung, die vieles mitbringt, misst nicht die eine
 > Behebung.** (`docs/114 §14`)
@@ -79,10 +91,19 @@ belegt.
 Alles als `root` auf `cloudsrv24`, ausser wo eine Browserzeile dasteht.
 
 ```bash
-srvpanel version                                    # erwartet: 0.7.4-rc.5
+srvpanel version                                     # abgelesen, nicht erwartet
+grep -c 'web\.maintenance\.state' \
+     /opt/srvpanel/current/agent/src/Registry.php    # erwartet: 1
 systemctl is-active srvpanel-agentd srvpanel-worker  # erwartet: active active
-ls -l /var/spool/srvpanel/wartung                   # erwartet: No such file
+ls -l /var/spool/srvpanel/wartung                    # erwartet: No such file
 ```
+
+**Die zweite Zeile ist die eigentliche Vorbedingung.** Sie fragt die
+installierte Fassung, ob sie die lesende Operation kennt — und damit, ob sie das
+Band trägt. Steht dort `0`, ist eine Fassung ohne das Merkmal installiert, und
+jeder Punkt ab hier misst etwas anderes als den Prüfling. Eine Nummer könnte das
+nicht beantworten: `0.7.4-rc.5` sieht neuer aus als alles davor und enthält das
+Band trotzdem nicht.
 
 **Der Arbeiter gehört dazu und ist kein Beiwerk.** Punkt 3 ändert die Endzeit,
 und das schreibt über die Warteschlange jede lebende Domain neu

@@ -117,3 +117,91 @@ eine Fussnote.
 
 Ungeklärt ist, ob der Timer ihn je hatte oder ihn verloren hat; gemessen ist
 nur der Zustand von heute.
+
+---
+
+## §2 Punkt 1 — der Ausgangszustand ist der Prüfkörper *(erfüllt)*
+
+Auf `/`, angemeldet als Betreiber, 1440 px:
+
+```
+{url: '/', prop: null, band: null, hoehe: null, abzeichen: 3}
+```
+
+Kein Band, keine Ablage, und das Abzeichen am Menüpunkt „Diagnose" zeigt
+sichtbar **3** — dieselbe Zahl, die `PendingFindings::count()` auf der
+Kommandozeile gab. Damit ist auch der Weg des Abzeichens zum ersten Mal auf
+einem Server belegt, ganz nebenbei.
+
+**Ohne diesen Punkt sagten die folgenden nichts.** Ein Band, das immer dasteht,
+belegt nicht, dass es einen Zustand zeigt.
+
+---
+
+## §3 Punkt 2 — eingeschaltet, und die Behauptung gegengeprüft *(erfüllt)*
+
+Eingeschaltet über `/maintenance`, Endzeit leer.
+
+**Im Panel** (1440 px):
+
+```
+{url: '/maintenance', prop: Proxy(Object),
+ band: 'Wartung Alle Kundenwebsites antworten mit 503 — seit 2026-09-13 10:21 Uhr (CEST (UTC+02:00)).',
+ hoehe: 41, abzeichen: 3}
+```
+
+**Auf dem Server:**
+
+```
+-rw-r--r-- 1 root root 286 Sep 13 10:21 /var/spool/srvpanel/wartung
+503
+```
+
+| | erwartet | gemessen |
+|---|---|---|
+| Satz | „… mit 503 — seit … Uhr (Zone)." | wörtlich so |
+| Zone im Satz | die des Servers | `CEST (UTC+02:00)` |
+| Höhe bei 1440 px | 41 px | **41 px** |
+| Flagdatei | liegt | liegt, 286 Bytes, `10:21` |
+| `cloudlab24.ipv64.de` | 503 | **503** |
+
+**Die Zone ist der Teil, den nur ein Server sagen kann.** `docs/911 §6e` hat
+denselben Satz im Container gemessen und dort stand `UTC`; der Weg war belegt,
+der Wortlaut nicht. Jetzt steht er da.
+
+**Und der Zwilling stimmt zum dritten Mal.** 41 px bei 1440 px ist auf das Pixel
+der Wert aus `docs/911 §6e`. Nach M4b (214 px für drei Bänder) und der
+Messrunde selbst ist das die dritte Übereinstimmung zwischen Nachbau und echter
+Seite.
+
+**Die 503 ist der Kern dieses Punktes und nicht sein Beiwerk.** Das Band
+behauptet etwas über die Welt draussen; gemessen ist es an einer echten Domain
+über die echte Leitung. Im Container gibt es keine, die antworten könnte.
+
+---
+
+## Beobachtung 2 — auf `/maintenance` steht der Zustand dreimal
+
+Nach dem Einschalten trägt genau diese Seite
+
+1. das Band ganz oben,
+2. die grüne Erfolgsmeldung „Der Wartungsmodus ist eingeschaltet. Alle
+   Kundenwebsites antworten mit 503.",
+3. den roten Streifen der Seite „Der Wartungsmodus ist **eingeschaltet**. Alle
+   Kundenwebsites antworten mit 503; das Panel und die Zertifikatsprüfung
+   bleiben erreichbar."
+
+Dazu zeigt das Band einen Verweis auf die Seite, auf der man schon steht.
+
+**Kein Kriterium ist verletzt, und das Band gehört dorthin** — dass es auf
+`/maintenance` verschwände, war der Befund, den `SharedPropTest` vor dem
+Ausliefern gefangen hat (`docs/911 §6b`): Es ist die **einzige** Seite, auf der
+man ausschaltet. Ein Band, das genau dort fehlt, fehlt am wichtigsten Ort.
+
+Die Erfolgsmeldung ist flüchtig und verschwindet mit der nächsten Navigation;
+übrig bleiben zwei dauerhafte Aussagen und ein Verweis auf sich selbst. Ob das
+bleibt, ist eine Entscheidung des Betreibers und keine Frage an einen Wächter —
+niemand hat beim Entwurf gefragt, wie das Band **auf** `/maintenance` aussieht.
+
+> **Ein Bedienelement, das auf die Seite verweist, auf der es steht, ist kein
+> Fehler — es ist eine Frage, die beim Entwurf nicht gestellt wurde.**

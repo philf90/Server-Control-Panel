@@ -131,7 +131,15 @@ final class LogsController extends Controller
         $filter = trim($request->string('filter')->toString());
 
         $sources = [];
-        $result = ['lines' => [], 'exists' => false, 'note' => null, 'matched' => 0, 'window' => 0, 'truncated' => false];
+        // **Der Rückfall für einen Agenten, der nicht antwortet.** Die
+        // Fusszeile steht hinter `lines.length === 0` und rendert dann gar
+        // nicht; `complete` bleibt trotzdem `false`, weil „das ist die ganze
+        // Quelle" eine Aussage über etwas wäre, das nie gelesen wurde.
+        $result = [
+            'lines' => [], 'offsets' => [], 'exists' => false, 'note' => null,
+            'read' => 0, 'complete' => false, 'capped' => false,
+            'matched' => 0, 'truncated' => false,
+        ];
         $error = null;
 
         try {

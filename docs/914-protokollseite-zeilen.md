@@ -241,8 +241,9 @@ Auf einem echten Server, gegen echte Protokolle:
 
 ## §11 Was nicht gemessen ist
 
-- **Ob `journalctl --lines=500` einen vergleichbaren Deckel hat.** Dieser
-  Container hat kein Journal; gemessen ist nur der Dateiweg.
+- ~~Ob `journalctl --lines=500` einen vergleichbaren Deckel hat.~~
+  **Beantwortet beim Bauen, und ohne Server** — siehe §12, Fund 2. Der Deckel
+  steht nicht in `journalctl`, sondern im Agenten.
 - **Was der Bytedeckel auf `cloudsrv24` wirklich trifft.** Die Schwelle ist
   gerechnet und im Container belegt; welche der sieben Quellen aus `Logs`
   darüber liegen, sagt erst ein Blick auf den Server.
@@ -251,3 +252,128 @@ Auf einem echten Server, gegen echte Protokolle:
   Zusatzarbeit belegbar ist.
 - **Warum der Wunsch nie im Repo landete.** Die frühere Sitzung liegt nicht
   vor; festgehalten ist nur, dass er nirgends steht.
+
+---
+
+## §12 Was beim Bauen anders war als im Plan
+
+Gebaut am 13. September 2026. Zehn Stellen liefen anders — zwei davon sind
+Funde, zwei sind Widersprüche im Plan selbst, und drei sind Fehler an meinen
+eigenen Messmitteln.
+
+### Der Plan widersprach sich, und zwar in einem Dokument
+
+**§7 Schritt 1 verlangte „eine zweite Methode neben der bestehenden", §10
+verbot „keinen zweiten Leser".** Beides über dieselbe Frage, drei Absätze
+auseinander.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+Gebaut ist §10: `WebLogsTail::tail()` bleibt die eine Stelle und gibt statt
+`list<string>` eine Form mit `complete` und `capped` zurück. Beide Aufrufer
+sind nachgezogen — es waren zwei.
+
+### Fund 1 — der Knopf brauchte kein neues Feld
+
+**Das Fenster ist immer `MAX_LINES` Zeilen gross; `lines` schneidet nur das
+Ergebnis.** „Mehr Zeilen" liest also nichts nach — es schneidet weniger ab. Die
+Bedingung, unter der der Knopf etwas bewirkt, ist damit genau `count($matched)
+> $lines`, und das ist das Feld `truncated`, das es seit jeher gibt.
+
+Der Fehler war nicht, dass die Auskunft fehlte, sondern dass der Knopf sie
+nicht benutzt hat: Er stand unter `props.lines < 500`.
+
+> **Ein Feld, das die Frage beantwortet, und ein Bedienelement, das eine andere
+> stellt, sind von aussen dasselbe wie ein fehlendes Feld.**
+
+Damit schrumpft §4: `read` folgt aus `count($found['lines'])` und braucht den
+Leser nicht. Nur `complete` und `capped` kommen wirklich von dort.
+
+### Fund 2 — der Journalweg hat denselben Deckel, und er steht woanders
+
+§11 hat die Frage dem Server zugeschoben: „Dieser Container hat kein Journal."
+Sie war ohne Journal zu beantworten. Der Deckel steht nicht in `journalctl`,
+sondern in **`Runner::OUTPUT_MAX` = 4 MiB**; der Runner schneidet dort jede
+Ausgabe ab und hält es in `Result::truncated` fest.
+
+**Dieses Feld hat im ganzen Repo niemand gelesen** — ausgezählt über
+`agent/src`, `app` und `tests`: geschrieben an einer Stelle, gelesen an keiner.
+
+> **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
+> einem zu unterscheiden, das es nicht gibt.** Zum dritten Mal in diesem Repo
+> nach `context` (`docs/66`) und `subject_type` (`docs/94`).
+
+Und es gab dabei eine zweite Falle: In derselben Antwort heisst `truncated`
+schon etwas anderes — „es gibt mehr Treffer als gezeigt". Deshalb heisst das
+neue Feld `capped` und nicht `truncated`.
+
+> **Zwei Felder desselben Namens in einem Weg bedeuten zwei Dinge — und das
+> zweite verdeckt das erste.**
+
+### Fund 3 — `origin` wurde gesendet und von niemandem gelesen
+
+Gefunden hat es `LogFooterTest` bei seinem **ersten Lauf**, also der Wächter und
+nicht das Nachdenken. Die Seite nimmt Pfad beziehungsweise Unit aus
+`system.logs.list`; `system.logs.tail` sandte denselben Wert ein zweites Mal,
+und weder die Seite noch der Herunterladeweg las ihn.
+
+Er steht **nicht** als Ausnahme im Wächter, sondern ist entfernt — eine
+Ausnahmeliste hätte den Befund zugedeckt, für den es den Wächter gibt.
+
+### Drei Fehler an den eigenen Messmitteln
+
+**Der erste Bruchlauf hat nichts gemessen.** Er suchte `^OK` in PHPUnits
+Ausgabe, und die trägt Farbcodes davor; alle drei Eingriffe meldeten nichts,
+und das sah aus wie „beisst nicht". Gemessen wird seitdem der Rückgabewert.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+**Ein Eingriff hat nicht gebissen, und der Wächter war schuld.**
+`LineNumberTest` suchte `white-space: pre` — und `pre-wrap` enthält das. Der
+Eingriff, der den Umbruch zurückholte, blieb grün. Der Ausdruck trägt seitdem
+das Semikolon.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht.**
+
+**Ein Prüfkörper fehlte.** Eine Datei, die ganz in einen Block passt und
+trotzdem mehr Zeilen hat als gewünscht, verlässt die Schleife über das `break`
+— und ist vollständig gelesen. Wer `complete` am Ausstiegsgrund festmachte
+statt an der Lage (`$position === 0`), nennte sie unvollständig. Der Fall steht
+als M7 im Wächter.
+
+### Zwei Dinge, die PHPStan gefunden hat
+
+Ein früher Ausstieg in `fromFile()` gab die neuen Schlüssel nicht mit (eine
+Datei, die es nicht gibt — dort ist `complete` wahr, denn nichts ist
+ungelesen), und ein `array_values` um ein `array_keys` tat nichts.
+
+### `<div>` und nicht `<pre>`
+
+Vue erhält den Leerraum der Vorlage **innerhalb eines `<pre>`**. Eine Nummer
+neben der Zeile braucht Elemente je Zeile; in einem `<pre>` stünde damit die
+Einrückung dieser Datei im Protokoll. Die Form kommt ohnehin aus `.output`, der
+Umbruch aus `.log-text` — und `.output > div` trifft die Zeilen nicht, weil sie
+`<span>` sind.
+
+### Was das für die Entscheidungen aus §6 heisst
+
+Alle vier stehen, wie der Betreiber sie am 13. September entschieden hat:
+die echte Nummer wo belegbar und sonst die Lage; der Bytedeckel wird gemeldet
+und nicht erhöht; der Knopf bleibt (und hängt jetzt an der richtigen Frage);
+keine Nummern im Vorgangsprotokoll.
+
+### Was offen bleibt
+
+**Das Abnahmekriterium aus §9 ist nicht gefahren.** Gemessen ist der Leser an
+echten Dateien und die Naht im Quelltext; **nicht** gemessen sind die acht
+Punkte auf einem Server, und **keine Aufnahme** existiert bisher. Die Punkte 3
+und 5 dürfen dabei nicht ausfallen.
+
+> **Ein Beleg für den Weg ist keiner für das Ziel.**
+
+Und `web.logs.tail` sendet `complete` und `capped` jetzt mit, **ohne dass die
+Domainseite sie zeigt** — dieselbe Fusszeile hat dort dasselbe Problem. Das ist
+benannt und nicht gebaut; wer es anfasst, fängt hier an und nicht bei null.

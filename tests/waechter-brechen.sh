@@ -28071,6 +28071,143 @@ pruefe "Klammerzähler rät das Ende" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperatorControlTest passed
 
+echo "── LogWindowTest: der Bytedeckel meldet sich nicht ──"
+#
+# Bis zum 13. September gab `tail()` nur Zeilen zurueck, und drei Abbruchgruende
+# sahen von aussen gleich aus. Gemessen: 500 Zeilen a 4 KiB liefern 128 Zeilen,
+# und die Seite meldete eine vollstaendige Sicht auf einen Ausschnitt.
+vorher_datei agent/src/Ops/WebLogsTail.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebLogsTail.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'capped' => $position > 0 && strlen($text) >= self::MAX_BYTES,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'capped' => false,", 1))
+PY2
+griff_datei agent/src/Ops/WebLogsTail.php "Bytedeckel meldet sich nicht" &&
+pruefe "Bytedeckel meldet sich nicht" \
+  LogWindowTest::test_the_reader_says_what_bounded_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogWindowTest passed
+
+echo "── LogWindowTest: complete haengt am Ausstiegsgrund statt an der Lage ──"
+#
+# Eine Datei, die ganz in einen Block passt und mehr Zeilen hat als gewuenscht,
+# verlaesst die Schleife ueber das `break` — und ist vollstaendig gelesen. Wer
+# den Ausstiegsgrund merkt, nennt sie unvollstaendig und bietet „weiter zurueck"
+# an, wo nichts mehr ist.
+vorher_datei agent/src/Ops/WebLogsTail.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebLogsTail.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    break;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "                    $position = max($position, 1);\n                    break;"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/WebLogsTail.php "complete am Ausstiegsgrund" &&
+pruefe "complete am Ausstiegsgrund" \
+  LogWindowTest::test_the_reader_says_what_bounded_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogWindowTest passed
+
+echo "── LogWindowTest: der Journalweg liest Result::truncated nicht ──"
+#
+# Der Runner schneidet jede Ausgabe bei 4 MiB ab und haelt das in
+# `Result::truncated` fest. Bis zum 13. September las dieses Feld im ganzen Repo
+# niemand — es war von aussen nicht von einem zu unterscheiden, das es nicht
+# gibt.
+vorher_datei agent/src/Ops/SystemLogsTail.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemLogsTail.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'capped' => $result->truncated,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'capped' => false,", 1))
+PY2
+griff_datei agent/src/Ops/SystemLogsTail.php "Journal ohne Result::truncated" &&
+pruefe "Journal ohne Result::truncated" \
+  LogWindowTest::test_the_journal_reads_the_runners_cap failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogWindowTest passed
+
+echo "── LogFooterTest: der Knopf haengt wieder an der Konstanten ──"
+#
+# Das Fenster ist immer 500 Zeilen gross; `lines` schneidet nur das Ergebnis.
+# Unter `props.lines < 500` stand der Knopf auch dann, wenn schon alles zu sehen
+# war: dreimal druecken, dreimal nichts (docs/86, Befund 14).
+vorher_datei resources/js/Pages/Logs/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Logs/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'v-if="props.result.truncated" type="button"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'v-if="props.lines < 500" type="button"', 1))
+PY2
+griff_datei resources/js/Pages/Logs/Index.vue "Knopf an der Konstanten" &&
+pruefe "Knopf an der Konstanten" \
+  LogFooterTest::test_the_button_hangs_on_there_being_more failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFooterTest passed
+
+echo "── LogFooterTest: der Agent sendet ein Feld, das niemand liest ──"
+#
+# Die Familie von `context` (docs/66), `subject_type` und `Result::truncated`:
+# Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von einem
+# zu unterscheiden, das es nicht gibt. Der erste Lauf dieses Waechters hat so
+# `origin` gefunden.
+vorher_datei agent/src/Ops/SystemLogsTail.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemLogsTail.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'read' => $read,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt + "\n            'niemand' => 1,", 1))
+PY2
+griff_datei agent/src/Ops/SystemLogsTail.php "Feld ohne Leser" &&
+pruefe "Feld ohne Leser" \
+  LogFooterTest::test_every_field_the_agent_sends_is_read_by_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFooterTest passed
+
+echo "── LineNumberTest: die Nummer rollt weg ──"
+#
+# Ohne `sticky` ist sie bei einer langen Zeile ausserhalb des Sichtbaren — also
+# genau dann fort, wenn man sie braucht.
+vorher_datei resources/js/Pages/Logs/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Logs/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = "  position: sticky;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "  position: static;", 1))
+PY2
+griff_datei resources/js/Pages/Logs/Index.vue "Nummer rollt weg" &&
+pruefe "Nummer rollt weg" \
+  LineNumberTest::test_the_gutter_stays_put_while_the_line_scrolls failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LineNumberTest passed
+
+echo "── LineNumberTest: die Zeile bricht wieder um ──"
+#
+# Dieser Eingriff hat am 13. September NICHT gebissen: Der Waechter suchte
+# `white-space: pre`, und `pre-wrap` enthaelt das. Seitdem steht das Semikolon
+# im Ausdruck — ein Waechter, der eine Zeichenkette sucht, ist gruen, sobald sie
+# irgendwo steht.
+vorher_datei resources/js/Pages/Logs/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Logs/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = "  white-space: pre;\n}\n\n.log-note"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "  white-space: pre-wrap;\n}\n\n.log-note", 1))
+PY2
+griff_datei resources/js/Pages/Logs/Index.vue "Zeile bricht um" &&
+pruefe "Zeile bricht um" \
+  LineNumberTest::test_a_line_still_does_not_wrap failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LineNumberTest passed
+
 
 echo
 if [ "$fehler" -eq 0 ]; then

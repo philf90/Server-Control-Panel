@@ -27923,6 +27923,56 @@ gelten über ihn hinaus:
 > **Ein Schritt, der nicht im Block steht, wird nicht ausgeführt — er wird
 > gelesen.**
 
+### Die Protokollseite sagt jetzt, wie viel sie zeigt
+
+Die Fusszeile von `/logs` hat zwei Dinge behauptet, die sie nicht wusste:
+„gelesen wurden die letzten 500 Zeilen" kam aus einer Konstanten und nicht aus
+einer Messung, und der Knopf „Mehr Zeilen" stand unter `props.lines < 500`
+statt unter der Frage, ob es mehr zu zeigen gibt. Bei einer Datei mit 118
+Zeilen hiess das: dreimal drücken, dreimal nichts.
+
+**Der Grund war doppelt, und die zweite Hälfte stand in keinem Dokument.** Der
+Leser bricht nicht nur ab, wenn die Datei zu Ende ist, sondern auch an einem
+Bytedeckel von 512 KiB. Gemessen: 500 Zeilen à 4 KiB liefern **128** Zeilen,
+und die Schwelle liegt bei `512 KiB ÷ 500 = 1048 B` je Zeile — darüber liegen
+ein nginx-`error.log` mit Stacktraces und ein `upgrade.log` von apt
+regelmässig. Nach aussen sah das aus wie eine kurze Datei.
+
+Der Agent sendet deshalb `read`, `complete` und `capped`: wie viele Zeilen das
+Fenster wirklich hatte, ob es den Anfang der Quelle erreicht hat, und ob der
+Deckel zugeschlagen hat. Zwei Felder und nicht eines, weil es zwei Gründe sind
+und die Abhilfe für den einen den anderen stehen liesse.
+
+**Der Knopf brauchte dafür kein neues Feld.** Das Fenster ist immer 500 Zeilen
+gross; `lines` schneidet nur das Ergebnis. „Mehr Zeilen" liest also nichts nach
+— es schneidet weniger ab, und die Bedingung dafür gab es längst.
+
+**Auch der Journalweg hat einen Deckel, und er steht woanders:** in
+`Runner::OUTPUT_MAX` bei 4 MiB, festgehalten in `Result::truncated`. Dieses
+Feld hat im ganzen Repo niemand gelesen — geschrieben an einer Stelle, gelesen
+an keiner. Jetzt liest es der Journalweg.
+
+**Und die Protokollzeilen haben Nummern.** Sie bedeuten zweierlei, und die
+Seite sagt welche: Hat das Fenster den Anfang der Quelle erreicht, sind es die
+echten Zeilen der Datei; sonst zählen sie vom Ende, und `−1` ist die letzte
+Zeile. Für das Journal gibt es die erste Bedeutung nicht — dort sind es
+Einträge. Eine fortlaufende `1..n` über das Angezeigte wäre die dritte
+Möglichkeit und die einzige, die lügt: Mit gesetztem Filter sind die Zeilen
+nicht zusammenhängend.
+
+Die Nummer bleibt beim waagerechten Rollen stehen und geht beim Kopieren nicht
+mit — sonst wäre sie bei einer langen Zeile genau dann fort, wenn man sie
+braucht, beziehungsweise stünde in der Zeile, die man heraussucht.
+
+Dabei fiel ein drittes Feld ohne Leser heraus: `system.logs.tail` sandte
+`origin`, und die Seite nimmt denselben Wert aus dem Katalog daneben. Gefunden
+hat das der neue Wächter bei seinem ersten Lauf.
+
+`LogWindowTest` misst den Leser an echten Dateien (die vier Lagen der Messrunde
+und eine fünfte, die beim Bauen dazukam), `LogFooterTest` die Naht in beide
+Richtungen, `LineNumberTest` die Form der Nummernspalte. Der Plan ist
+`docs/914`.
+
 ### Der Nachtlauf meldete jede Nacht seinen eigenen Timer als kaputt
 
 `unit.schedule / no_next — srvpanel-diagnose.timer` blieb aus dem Abnahmelauf

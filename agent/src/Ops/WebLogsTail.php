@@ -65,19 +65,54 @@ final class WebLogsTail implements Op
             return ['path' => $path, 'kind' => $kind, 'lines' => [], 'exists' => false, 'size' => 0];
         }
 
+        $found = self::tail($path, $lines);
+
         return [
             'path' => $path,
             'kind' => $kind,
-            'lines' => self::tail($path, $lines),
+            'lines' => $found['lines'],
             'exists' => true,
             'size' => (int) filesize($path),
+
+            // **Mitgesendet, auch wenn die Domainseite sie heute nicht
+            // zeigt.** Sie kosten nichts, und ein Feld, das es gibt, ist von
+            // einem, das erst erfunden werden muss, dadurch unterschieden,
+            // dass jemand es lesen kann. Was die Domainseite daraus macht,
+            // steht in `docs/914 §12`.
+            'complete' => $found['complete'],
+            'capped' => $found['capped'],
         ];
     }
 
     /**
-     * Die letzten `$count` Zeilen einer Datei.
+     * Die letzten `$count` Zeilen einer Datei — und wovon sie begrenzt sind.
      *
-     * @return list<string>
+     * ## Warum die Antwort mehr als Zeilen trägt
+     *
+     * Dieser Leser hört aus **drei** Gründen auf, und von aussen sehen alle
+     * drei gleich aus: Die Datei war zu Ende, es waren genug Zeilen
+     * beisammen, oder {@see self::MAX_BYTES} war erreicht. Wer nur die Zeilen
+     * bekommt, kann „das ist alles" nicht von „mehr war nicht zu holen"
+     * unterscheiden — und eine Oberfläche, die das trotzdem behauptet, sagt
+     * etwas, das sie nicht weiss.
+     *
+     * Gemessen am 13. September 2026 (`docs/914 §1`), 500 Zeilen à 4 KiB:
+     * Der Bytedeckel liefert **128** Zeilen, und `truncated` der Operation
+     * stand dabei auf `false` — die Seite meldete eine vollständige Sicht auf
+     * einen Ausschnitt. Die Schwelle ist `512 KiB ÷ 500 = 1048 B` je Zeile.
+     *
+     * > **Zwei Gründe, die dasselbe Ergebnis erzeugen, sind nicht derselbe
+     * > Grund — und die Abhilfe für den einen lässt den anderen stehen.**
+     *
+     * ## `complete` hängt an der Lage und nicht am Ausstieg
+     *
+     * Gefragt wird `$position === 0` **nach** der Schleife, gleich wie sie
+     * geendet hat. Eine Datei, die ganz in einen Block passt und trotzdem mehr
+     * Zeilen hat als gewünscht, verlässt die Schleife über das `break` — und
+     * ist vollständig gelesen. Wer stattdessen den Ausstiegsgrund merkte,
+     * nennte sie unvollständig.
+     *
+     * @return array{lines: list<string>, complete: bool, capped: bool}
      */
     public static function tail(string $path, int $count): array
     {
@@ -92,7 +127,10 @@ final class WebLogsTail implements Op
             $position = ftell($handle);
 
             if ($position === false || $position === 0) {
-                return [];
+                // Eine leere Datei ist vollständig gelesen. `complete = false`
+                // liesse die Seite „weiter zurück gibt es mehr" anbieten, wo
+                // nichts ist.
+                return ['lines' => [], 'complete' => true, 'capped' => false];
             }
 
             $text = '';
@@ -117,7 +155,16 @@ final class WebLogsTail implements Op
 
         $all = explode("\n", rtrim($text, "\n"));
 
-        return array_values(array_slice($all, -$count));
+        return [
+            'lines' => array_values(array_slice($all, -$count)),
+            'complete' => $position === 0,
+
+            // **Der Deckel zählt nur, solange etwas ungelesen blieb.** Endet
+            // die Schleife am Anfang der Datei und ist der Text zufällig
+            // genau so gross, wäre `capped` sonst wahr für eine vollständig
+            // gelesene Datei.
+            'capped' => $position > 0 && strlen($text) >= self::MAX_BYTES,
+        ];
     }
 
     private function lines(mixed $value): int

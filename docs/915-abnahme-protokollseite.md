@@ -42,12 +42,23 @@ eine Behauptung, die auch im heilen Fall rot ist (`docs/913 §1`).
 ```bash
 srvpanel version
 /opt/srvpanel/current/agent/bin/srvpanel-agentd call system.logs.tail \
-  '{"source":"agent","lines":5}' | head -20
+  '{"source":"agent","lines":5}' \
+  | grep -E '"(read|complete|capped|matched|truncated|window|origin)"'
 ```
 
-**Erwartet:** Die Antwort trägt `read`, `complete`, `capped` und `offsets` —
-und **kein** `window` und **kein** `origin`. Fehlt eines davon, ist die falsche
-Fassung installiert, und der Lauf hört hier auf.
+**Erwartet:** Fünf Zeilen — `read`, `complete`, `capped`, `matched`,
+`truncated`. **Kein** `window` und **kein** `origin`; dass die fünf anderen
+dastehen, ist der Beleg, dass der Ausdruck greift. Fehlt eines der fünf, ist
+die falsche Fassung installiert, und der Lauf hört hier auf.
+
+**Hier stand `| head -20`, und das war die Hälfte einer Messung.** Die Antwort
+ist hübsch gedruckt; zwanzig Zeilen enden genau hinter `offsets`, also
+unmittelbar **vor** den drei Feldern, nach denen der Punkt fragt. Gefahren am
+13. September 2026 auf `cloudsrv24` belegte er `offsets` und die Abwesenheit
+von `origin` — und über `read`, `complete`, `capped` und `window` nichts.
+
+> **Ein Griff, der genau vor dem Feld abschneidet, nach dem er fragt, misst die
+> Hälfte — und die andere sieht aus, als wäre sie geprüft.**
 
 Wenn der Agent nicht antwortet, ersatzweise am Quelltext der installierten
 Fassung — gemessen am Arbeitsbaum sind es **vier** beziehungsweise **drei**

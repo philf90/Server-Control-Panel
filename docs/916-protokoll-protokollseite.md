@@ -217,3 +217,62 @@ nach dem Rollen `scrollLeft` zurückgesetzt und **danach** fotografiert.
 > Mal zugeschlagen.
 
 Behoben wird nach dem Lauf.
+
+---
+
+## §8 Punkt 5 — das Journal *(Ausschlusskriterium, erfüllt)*
+
+Beide Formen, an den beiden Units, die §2 dafür ausgesucht hat:
+
+| Quelle | Nummern | Fusszeile | Notiz |
+|---|---|---|---|
+| `journal-tls` (359) | **1 … n** aufsteigend | „359 Zeilen · gelesen wurden die letzten **359** Zeilen" | „Das ist die ganze Quelle" |
+| `journal-web` (503) | **−100 … −1** | „100 Zeilen von **503** Treffern · … letzten **503** Zeilen" | „zählen vom Ende" |
+
+**Das ist der Punkt, den der Container grundsätzlich nicht messen kann** — er
+hat kein Journal. Ohne die Bestandsaufnahme aus §2 wäre er an einer der sieben
+Units über 500 gefahren worden und hätte nur die eine Form gezeigt.
+
+**Und die Frage aus §2 ist für diesen Fall beantwortet:** Die erste Zeile von
+`journal-tls` ist ein echter Eintrag
+(`2026-08-05T00:35:10+02:00 cloudsrv24 sys…`) und keine Kopfzeile von
+`journalctl`. Der Leser zeigt also keine Meldung des Werkzeugs als Inhalt.
+
+### Beobachtung — `read` ist beim Journal grösser als das erklärte Fenster
+
+`journal-web` meldet **503**, und `SystemLogsTail::MAX_LINES` ist **500**.
+`journalctl --lines=500` liefert fünfhundert **Einträge** plus seine eigenen
+Trennzeilen — Bootmarken —, und `readJournal()` streicht nur leere Zeilen und
+`-- No entries --`. Drei davon sind durchgekommen.
+
+**Gelogen ist nichts:** Die Seite sagt „gelesen wurden die letzten 503 Zeilen",
+und 503 ist, was der Agent bekommen hat. Und `complete` fällt zur sicheren
+Seite, weil `503 < 500` falsch ist.
+
+**Der Randfall, den es benannt gibt:** Eine Unit mit 498 Einträgen und drei
+Bootmarken ergibt 501 und damit `complete = false` — die Seite sagt dann „zählen
+vom Ende", obwohl es die ganze Quelle ist. Das ist die harmlose Richtung.
+
+> **Eine Zahl, die über ihrer erklärten Obergrenze liegt, zählt etwas mit, das
+> die Grenze nicht meint — und ob das schadet, entscheidet die Richtung, in die
+> sie irrt.**
+
+**Was die drei Zeilen wirklich sind, ist nicht gemessen.** Bootmarken ist die
+naheliegende Erklärung und keine Messung.
+
+## §9 Stand nach dem ersten Abend
+
+| Punkt | Zustand |
+|---|---|
+| 1 — kurze Quelle, zwei Zustände | **erfüllt** |
+| 2 — lange Quelle | **halb** — der Druck auf den Knopf steht aus |
+| 3 — Bytedeckel *(Ausschluss)* | **erfüllt** |
+| 4 — Filter | **erfüllt** |
+| 5 — Journal *(Ausschluss)* | **erfüllt** |
+| 6 — 390 px und die Klebeprobe | offen — braucht eine Browserkonsole |
+| 7 — Kopieren | offen — braucht eine Maus |
+| 8 — beide Themen, beide Breiten | offen |
+
+**Beide Ausschlusskriterien stehen.** Drei Befunde sind offen und keiner davon
+ein Kriterienausfall: Befund 1 (die Vorschrift, behoben), Befund 2 (das
+Bruchstück am Bytedeckel) und Befund 3 (der Streifen neben der Nummer).

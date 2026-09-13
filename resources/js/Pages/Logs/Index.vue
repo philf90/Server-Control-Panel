@@ -227,9 +227,11 @@ function groesse(bytes: number | null): string {
               der Zeilenumbruch aus `.log-text`.
             -->
             <div class="output log">
-              <span v-for="(zeile, i) in props.result.lines" :key="i" class="log-line">
-                <span class="log-number" aria-hidden="true">{{ nummer(i) }}</span>
-                <span class="log-text">{{ zeile }}</span>
+              <span class="log-body">
+                <span v-for="(zeile, i) in props.result.lines" :key="i" class="log-line">
+                  <span class="log-number" :data-nummer="nummer(i)" aria-hidden="true" />
+                  <span class="log-text">{{ zeile }}</span>
+                </span>
               </span>
             </div>
 
@@ -308,6 +310,28 @@ function groesse(bytes: number | null): string {
 }
 
 /*
+ * **Die Hülle spannt die volle Rollbreite auf, und das ist tragend.**
+ *
+ * Ein klebendes Element kann seinen eigenen Kasten nicht verlassen. Ohne diese
+ * Hülle ist jede Zeile nur so breit wie der Sichtbereich; rollt man nach
+ * rechts, wandert ihr Kasten mit hinaus, und die Nummer geht mit. Gemessen am
+ * 13. September 2026 an der echten Seite: nach `scrollLeft = 3000` stand die
+ * Nummer bei **−1908 px**, also weit ausserhalb (`docs/914 §13`).
+ *
+ * `max-content` macht die Hülle so breit wie die längste Zeile, `min-width`
+ * hält sie bei kurzem Inhalt auf voller Breite — sonst endete der Streifen vor
+ * dem rechten Rand.
+ *
+ * > **Ein Wächter, der die Angabe prüft, hat über die Wirkung nichts gesagt.**
+ * > `position: sticky` und `left: 0` standen die ganze Zeit da.
+ */
+.log-body {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+}
+
+/*
  * **Eine Zeile ist eine Flexreihe aus Nummer und Text.** Der Leerraum der
  * Vorlage zwischen den beiden fällt damit weg, ohne dass er in der Vorlage
  * vermieden werden müsste — Flex verwirft Kinder, die nur aus Leerraum
@@ -328,9 +352,19 @@ function groesse(bytes: number | null): string {
  * **Die Fläche ist nicht Zierde.** Ohne sie rollt der Text der Zeile sichtbar
  * unter der Nummer hindurch.
  *
- * **`user-select: none`, damit die Nummern beim Kopieren nicht mitgehen.**
- * Eine Zeile, die man aus dem Protokoll herausholt, um sie zu suchen, wäre
- * mit einer vorangestellten Nummer nicht mehr die Zeile.
+ * **Die Nummer ist erzeugter Inhalt und kein Text — und das ist gemessen.**
+ * Der Plan sah `user-select: none` dafür vor. Am 13. September 2026 an der
+ * echten Seite gemessen, mit der Maus über drei Zeilen gezogen: Die Auswahl
+ * enthielt `⏎ 20 ⏎ … ⏎ 21 ⏎`, also die Nummern. `user-select: none` hält den
+ * Cursor ab, eine Auswahl, die über das Element **hinweggeht**, nicht.
+ *
+ * > **Eine Regel, die das Auswählen verbietet, verbietet nicht das
+ * > Ausgewähltwerden.**
+ *
+ * Was trägt, ist `content: attr(…)`: Erzeugter Inhalt steht nicht im
+ * Dokument und wird deshalb nicht kopiert. `user-select: none` bleibt
+ * daneben stehen — es hält die Einfügemarke davon ab, in der Spalte zu
+ * landen.
  */
 .log-number {
   position: sticky;
@@ -342,6 +376,10 @@ function groesse(bytes: number | null): string {
   color: var(--text-muted);
   background: var(--surface);
   user-select: none;
+}
+
+.log-number::before {
+  content: attr(data-nummer);
 }
 
 /*

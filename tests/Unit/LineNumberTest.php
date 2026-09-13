@@ -65,12 +65,54 @@ final class LineNumberTest extends TestCase
         );
     }
 
+    /**
+     * Die Nummer ist erzeugter Inhalt und kein Text im Dokument.
+     *
+     * **`user-select: none` allein genügt nicht, und das ist gemessen.** Am
+     * 13. September 2026 an der echten Seite, mit der Maus über drei Zeilen
+     * gezogen: Die Auswahl enthielt die Nummern (`docs/914 §13`). Die Regel
+     * hält den Cursor ab; eine Auswahl, die über das Element **hinweggeht**,
+     * hält sie nicht ab.
+     *
+     * > **Eine Regel, die das Auswählen verbietet, verbietet nicht das
+     * > Ausgewähltwerden.**
+     */
     public function test_the_number_does_not_travel_with_the_copied_line(): void
     {
+        $stil = $this->stil();
+
+        $this->assertMatchesRegularExpression(
+            '/\.log-number::before\s*\{[^}]*content:\s*attr\(data-nummer\)/s',
+            $stil,
+            'Die Nummer muss erzeugter Inhalt sein — sonst steht sie im Dokument und wird kopiert.',
+        );
+
         $this->assertStringContainsString(
             'user-select: none',
-            $this->regel($this->stil(), '.log-number'),
+            $this->regel($stil, '.log-number'),
+            'Bleibt daneben stehen: Es hält die Einfügemarke aus der Spalte.',
         );
+    }
+
+    /**
+     * Die Hülle spannt die volle Rollbreite auf.
+     *
+     * **Ohne sie klebt die Nummer nicht, obwohl `sticky` dasteht.** Ein
+     * klebendes Element kann seinen eigenen Kasten nicht verlassen; ohne
+     * Hülle ist jede Zeile nur so breit wie der Sichtbereich. Gemessen nach
+     * `scrollLeft = 3000`: die Nummer stand bei −1908 px.
+     *
+     * > **Ein Wächter, der die Angabe prüft, hat über die Wirkung nichts
+     * > gesagt.** `position: sticky` und `left: 0` standen die ganze Zeit da —
+     * > dieser Fall gibt es, weil die Bilderrunde gemessen hat, was sie
+     * > bewirken.
+     */
+    public function test_the_body_spans_the_whole_scroll_width(): void
+    {
+        $regel = $this->regel($this->stil(), '.log-body');
+
+        $this->assertStringContainsString('width: max-content', $regel);
+        $this->assertStringContainsString('min-width: 100%', $regel);
     }
 
     /**
@@ -107,8 +149,9 @@ final class LineNumberTest extends TestCase
         $markup = $this->markup();
 
         $this->assertMatchesRegularExpression(
-            '/<span class="log-number"[^>]*>\{\{ nummer\(i\) \}\}<\/span>/',
+            '/<span class="log-number" :data-nummer="nummer\(i\)"/',
             $markup,
+            'Die Nummer reist als Attribut und nicht als Textknoten.',
         );
 
         $this->assertMatchesRegularExpression(

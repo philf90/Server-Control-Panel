@@ -28208,6 +28208,67 @@ pruefe "Zeile bricht um" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LineNumberTest passed
 
+echo "── LineNumberTest: die Nummer ist wieder ein Textknoten ──"
+#
+# Der Plan sah `user-select: none` dafuer vor, dass die Nummer beim Kopieren
+# nicht mitgeht. Am 13. September an der echten Seite mit der Maus gemessen:
+# Die Auswahl enthielt sie trotzdem. Die Regel haelt den Cursor ab, eine
+# Auswahl, die ueber das Element hinweggeht, nicht. Was traegt, ist erzeugter
+# Inhalt — der steht nicht im Dokument.
+vorher_datei resources/js/Pages/Logs/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Logs/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = "  content: attr(data-nummer);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '  content: "";', 1))
+PY2
+griff_datei resources/js/Pages/Logs/Index.vue "Nummer als Textknoten" &&
+pruefe "Nummer als Textknoten" \
+  LineNumberTest::test_the_number_does_not_travel_with_the_copied_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LineNumberTest passed
+
+echo "── LineNumberTest: die Huelle spannt die Rollbreite nicht mehr auf ──"
+#
+# Ein klebendes Element kann seinen eigenen Kasten nicht verlassen. Ohne
+# `max-content` ist jede Zeile nur so breit wie der Sichtbereich; gemessen nach
+# scrollLeft = 3000 stand die Nummer bei −1908 px — bei unveraendertem
+# `position: sticky`. Ein Waechter, der die Angabe prueft, sagt ueber die
+# Wirkung nichts.
+vorher_datei resources/js/Pages/Logs/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Logs/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = "  width: max-content;\n  min-width: 100%;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "  min-width: 100%;", 1))
+PY2
+griff_datei resources/js/Pages/Logs/Index.vue "Hülle ohne max-content" &&
+pruefe "Hülle ohne max-content" \
+  LineNumberTest::test_the_body_spans_the_whole_scroll_width failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LineNumberTest passed
+
+echo "── LineNumberTest: die Huelle schrumpft auf kurzen Inhalt ──"
+#
+# Ohne `min-width` endet der Streifen bei kurzem Inhalt vor dem rechten Rand —
+# die Gegenrichtung zum Eingriff darueber, und beide zusammen sind die Regel.
+vorher_datei resources/js/Pages/Logs/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Logs/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = "  width: max-content;\n  min-width: 100%;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "  width: max-content;", 1))
+PY2
+griff_datei resources/js/Pages/Logs/Index.vue "Hülle ohne min-width" &&
+pruefe "Hülle ohne min-width" \
+  LineNumberTest::test_the_body_spans_the_whole_scroll_width failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LineNumberTest passed
+
+
 
 echo
 if [ "$fehler" -eq 0 ]; then

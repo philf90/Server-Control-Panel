@@ -27968,10 +27968,19 @@ Dabei fiel ein drittes Feld ohne Leser heraus: `system.logs.tail` sandte
 `origin`, und die Seite nimmt denselben Wert aus dem Katalog daneben. Gefunden
 hat das der neue Wächter bei seinem ersten Lauf.
 
+**Die Bilderrunde hat zwei Fehler gefunden, die kein Test finden konnte.**
+`position: sticky` stand am Nummernstreifen und klebte nicht: Ein klebendes
+Element kann seinen eigenen Kasten nicht verlassen, und jede Zeile war nur so
+breit wie der Sichtbereich — nach 3000 px Rollen stand die Nummer bei −1908.
+Und `user-select: none` hält die Nummer nicht aus einer Auswahl, die über sie
+hinweggeht; mit der Maus gezogen stand sie im kopierten Text. Die Nummer ist
+deshalb erzeugter Inhalt über `content: attr(…)`, und eine Hülle spannt die
+volle Rollbreite auf.
+
 `LogWindowTest` misst den Leser an echten Dateien (die vier Lagen der Messrunde
 und eine fünfte, die beim Bauen dazukam), `LogFooterTest` die Naht in beide
 Richtungen, `LineNumberTest` die Form der Nummernspalte. Der Plan ist
-`docs/914`.
+`docs/914`; §13 hat die Bilderrunde mit ihren zwölf Lagen.
 
 ### Der Nachtlauf meldete jede Nacht seinen eigenen Timer als kaputt
 

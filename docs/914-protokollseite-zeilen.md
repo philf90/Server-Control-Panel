@@ -377,3 +377,114 @@ und 5 dürfen dabei nicht ausfallen.
 Und `web.logs.tail` sendet `complete` und `capped` jetzt mit, **ohne dass die
 Domainseite sie zeigt** — dieselbe Fusszeile hat dort dasselbe Problem. Das ist
 benannt und nicht gebaut; wer es anfasst, fängt hier an und nicht bei null.
+
+---
+
+## §13 Die Bilderrunde — zwei Befunde, die kein Test finden konnte
+
+Gefahren am 13. September 2026 im Container, gegen die **echte Seite** mit
+echten Daten: Agent auf einem eigenen Socket, `artisan serve`, Playwright mit
+dem vorinstallierten Chromium, gemessen mit `tests/bilder-messen.js`.
+
+### Der Prüfstand
+
+Drei Dateien an den Pfaden, die `Logs` kennt — je eine für einen Zustand. Durch
+die **echte Operation** gemessen, nicht durch den Leser allein:
+
+| Quelle | `read` | `complete` | `capped` | stellt her |
+|---|---|---|---|---|
+| `agent` (118 Zeilen à 80 B) | 118 | **ja** | nein | echte Zeilennummern |
+| `apt-history` (2000 Zeilen) | 500 | nein | nein | Nummern vom Ende |
+| `panel` (500 Zeilen à 4 KiB) | **130** | nein | **ja** | Bytedeckel |
+
+`panel` ist der Prüfkörper M3 auf dem echten Weg: eine Datei mit 500 Zeilen,
+von der 130 ankommen.
+
+### Befund 1 — `position: sticky` stand da und klebte nicht
+
+Nach `scrollLeft = 3000` stand die Nummer bei **−1908 px**, also weit
+ausserhalb des Sichtbaren. Die Angaben `position: sticky` und `left: 0` waren
+die ganze Zeit richtig; ein klebendes Element kann nur seinen **eigenen
+Kasten** nicht verlassen, und jede Zeile war nur so breit wie der Sichtbereich.
+
+> **Ein Wächter, der die Angabe prüft, hat über die Wirkung nichts gesagt.**
+
+`LineNumberTest` war grün — er fragte nach `position: sticky`, und die stand
+da. Behoben mit einer Hülle `.log-body` (`width: max-content` plus
+`min-width: 100%`); beide Hälften haben ihren Eingriff, denn ohne die zweite
+endete der Streifen bei kurzem Inhalt vor dem rechten Rand.
+
+**Nebenbei hat die Hülle die Messung aufgeräumt:** Vorher meldete `schiebt` bis
+zu **100** Zeilen, jetzt **0** in allen zwölf Lagen.
+
+### Befund 2 — `user-select: none` hält die Nummer nicht aus dem Kopierten
+
+§5 hat es als Auflage hingeschrieben, und es stimmt nicht. Mit der Maus über
+drei Zeilen gezogen, enthielt die Auswahl `⏎ 20 ⏎ … ⏎ 21 ⏎` — die Nummern.
+
+> **Eine Regel, die das Auswählen verbietet, verbietet nicht das
+> Ausgewähltwerden.** Sie hält die Einfügemarke ab; eine Auswahl, die über das
+> Element **hinweggeht**, hält sie nicht ab.
+
+Was trägt, ist **erzeugter Inhalt**: Die Nummer reist als `data-nummer` und
+wird über `content: attr(data-nummer)` gezeichnet. Erzeugter Inhalt steht nicht
+im Dokument und wird deshalb nicht kopiert. `user-select: none` bleibt daneben
+stehen — es hält die Einfügemarke aus der Spalte.
+
+### Zwei Fehler an der eigenen Messung, beide am selben Punkt
+
+**Die erste Fassung von Punkt 7 mass mit einem programmatischen `Range`.** Ein
+Range nimmt den Text eines `user-select: none` mit; ein Mensch zieht mit der
+Maus, und gemessen werden soll, was er bekommt.
+
+> **Ein Prüfkörper, der den Zustand auf einem anderen Weg herstellt als der
+> Benutzer, stellt einen anderen Zustand her.**
+
+**Die zweite Fassung hat nichts gemessen und sah aus wie ein bestandener
+Punkt.** Der Schritt davor hatte `.log` auf 3000 gerollt; die Koordinaten
+zeigten ins Leere, die Auswahl traf die Navigation, und das Ergebnis lautete
+`ausgewählt: 'VERLAUF'` mit `enthaeltNummern: false`.
+
+> **Eine Messung, bei der der Prüfling gar nicht getroffen wurde, sieht aus wie
+> ein Ergebnis.** Die Messung druckt seitdem `hatGegenstand` mit — ob im
+> ausgewählten Text überhaupt eine Protokollzeile steht.
+
+### Die zwölf Lagen
+
+Drei Quellen × zwei Themen × zwei Breiten, jede in einer frisch geladenen
+Seite:
+
+- `dokument = 0` — in allen zwölf
+- Gegenprobe **200/200** — in allen zwölf
+- `schiebt = 0` — in allen zwölf
+- `klebt = 17->17` — die Nummer steht nach dem Rollen an derselben Stelle, bei
+  Rollwegen bis **31 433 px**
+
+**Eine Lage misst dabei weniger, als sie aussieht:** `apt-history` bei 1440 px
+hat `rollbar = 0`, dort ist `klebt` trivial wahr. Die übrigen zehn haben
+echten Rollweg (291 bis 31 433 px), und dort bedeutet die Zahl etwas.
+
+### Ein Kriterium war unscharf formuliert
+
+§9 Punkt 1 verlangte für eine Datei kürzer als das Fenster, „der Knopf steht
+nicht da". Gemessen steht er sehr wohl — bei `lines=100` und 118 Zeilen gibt es
+mehr zu zeigen, und das ist richtig. Mit `lines=200` verschwindet er, und der
+Satz lautet „118 Zeilen · gelesen wurden die letzten 118 Zeilen".
+
+> **Ein Kriterium, das zwei Zustände in einem Satz zusammenfasst, misst
+> keinen von beiden.** „Das Fenster ist vollständig" und „alles ist gezeigt"
+> sind zwei Dinge.
+
+### Eine Beobachtung, nicht behoben
+
+Ohne Filter und bei vollständig gezeigter Quelle sagt die Fusszeile dieselbe
+Zahl zweimal: „118 Zeilen · gelesen wurden die letzten 118 Zeilen", und die
+Notiz darunter sagt es ein drittes Mal in Worten. Gelogen ist nichts; ob es
+zuviel ist, entscheidet der Blick auf dem Server und nicht dieser Container.
+
+### Was weiterhin fehlt
+
+**Die acht Punkte auf einem echten Server.** Dieser Container stellt die
+Zustände mit selbstgeschriebenen Dateien her; ein Journal hat er nicht, also
+ist Punkt 5 — die Nummern am Journal — hier **nicht** gemessen. Er darf nicht
+ausfallen.

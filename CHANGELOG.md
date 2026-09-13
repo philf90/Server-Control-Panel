@@ -27949,5 +27949,14 @@ Prüfkörper in beiden Zeitfeldern dem gestoppten gleicht — sonst misst er
 nichts), `UnitVerdictTest` die Naht bis zum Urteil des Nachtlaufs. Beide
 Eingriffe stehen im Bruchskript.
 
-**Auf einem Server gesehen hat die Behebung nichts**; sie zeigt sich erst daran,
-dass im nächsten Nachtlauf `Kaputt: 1` ausbleibt.
+**Auf `cloudsrv24` nachgesehen** (13. September 2026, `0.7.4-rc.7`): Der
+nächtliche Lauf um 00:47 unter `rc.6` meldete `Auffällig: 2` und `Kaputt: 1`,
+die beiden Timer-Läufe um 15:54 und 16:02 unter `rc.7` je `Auffällig: 1`;
+die Liste dahinter trägt genau eine Zeile — `tls.file`, `expiring`,
+`p6-b.invalid`. Gemessen wurde die Liste und nicht die Zahl: Das
+Wegwerfzertifikat läuft am selben Tag aus, und aus `expiring` wird dann
+`expired`, also wieder ein `Kaputt`.
+
+Dass sich das erst nachts zeigen liesse, stimmte nicht. Der Zustand entsteht
+beim **Feuern** und nicht zu einer Uhrzeit; ein Ablegestück, das den Termin
+verlegt und die Streuung herausnimmt, stellt ihn zu jeder Tageszeit her.

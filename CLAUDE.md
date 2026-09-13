@@ -3678,11 +3678,29 @@ der Zähler der kaputten Timer.
 > **Wo vier Verbraucher denselben Wert deuten, gehört die Behebung an den
 > Erzeuger — sonst sind es vier Fassungen derselben Regel.**
 
-**Auf einem Server gesehen hat die Behebung nichts**, und das lässt sich nicht
-abkürzen: Sie zeigt sich erst daran, dass im nächsten Nachtlauf `Kaputt: 1`
-ausbleibt.
+**Auf einem Server nachgesehen am 13. September gegen `0.7.4-rc.7`**
+(`docs/913 §17`): Der nächtliche Lauf um 00:47 unter `rc.6` meldete
+`Auffällig: 2` und `Kaputt: 1`, die beiden Timer-Läufe um 15:54 und 16:02
+unter `rc.7` je `Auffällig: 1`; die Liste dahinter trägt genau eine Zeile,
+`tls.file / expiring / p6-b.invalid`. Der Timer steht in keiner. Ausgelöst hat
+alle drei der Timer und nicht eine Hand: `list-timers` führt `LAST` aus
+`LastTriggerUSec` **des Timers**, und ein `systemctl start` des Dienstes rührt
+die Spalte nicht an.
 
-> **Was nur nachts entsteht, lässt sich nur nachts widerlegen.**
+**Der Satz, der hier bis dahin stand, war zu schnell** — „Was nur nachts
+entsteht, lässt sich nur nachts widerlegen". Der Zustand entsteht nicht nachts,
+sondern **beim Feuern**; die Nacht war bloss der einzige Zeitpunkt, zu dem
+gefeuert wurde. Ein Ablegestück, das den Termin auf zwei Minuten von jetzt
+verlegt und die Streuung herausnimmt, stellt ihn zu jeder Tageszeit her — es
+ändert, *wann* gefeuert wird, und nichts daran, was der Lauf tut.
+
+> **Ein Zustand, der an einen Zeitpunkt gebunden scheint, ist an ein Ereignis
+> gebunden — und ein Ereignis lässt sich auslösen.**
+
+**Und die Zahl allein hätte es nicht getragen.** `p6-b.invalid` läuft am
+selben Tag aus; aus `expiring` wird `expired`, und das ist ein `Fail`. Der
+nächste Nachtlauf meldet deshalb wahrscheinlich wieder `Kaputt: 1` — für das
+Zertifikat. Belegt hat die Behebung die **Liste** hinter der Zahl.
 
 Ein Nebenbefund derselben Runde, für den nächsten, der hier PHPStan fährt:
 **Der Lader für `--autoload-file` muss larastans Namensraum selbst eintragen**

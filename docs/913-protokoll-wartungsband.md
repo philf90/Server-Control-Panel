@@ -804,9 +804,10 @@ benannt.
   `ohne Domain` und `srvpanel tls --prune` nimmt es mit.
 - **`unit.schedule / no_next` ist geklärt und war ein Befund im Prüfling**
   (§13 und §14): Der Nachtlauf hat seinen eigenen Timer gemeldet, weil er
-  dessen ausgelöste Unit ist. Behoben in `Units::hasNext()`; **auf einem Server
-  gesehen hat die Behebung nichts** — sie zeigt sich erst daran, dass im
-  nächsten Nachtlauf die Zeile `Kaputt: 1` ausbleibt. Die Sorge, der Abgleich
+  dessen ausgelöste Unit ist. Behoben in `Units::hasNext()` und **am
+  13. September 2026 auf `cloudsrv24` gegen `0.7.4-rc.7` nachgesehen** (§17):
+  zwei Timer-Läufe unter der behobenen Fassung, in beiden ist die Zeile fort.
+  Damit ist auch dieser Punkt geschlossen. Die Sorge, der Abgleich
   liefe nicht von selbst, ist erledigt: Die Nachtläufe vom 9. bis 13. September
   sind im Journal, keiner ist ausgefallen.
 - **Der Administrator ist nicht geprüft.** Punkt 6 misst die Tür an der
@@ -1005,11 +1006,18 @@ drei Fälle, und der dritte druckt die Zeile wörtlich, die der Server jede Nach
 erzeugt hat — `ActiveState=active SubState=running`. Beide Eingriffe stehen in
 `tests/waechter-brechen.sh`.
 
-**Auf einem Server gesehen hat die Behebung nichts.** Sie zeigt sich erst im
-nächsten Nachtlauf: Bleibt `Kaputt: 1` aus und meldet der Lauf `Auffällig: 2`,
-ist sie belegt. Vorher ist sie gebaut und nicht gemessen.
+**Auf einem Server gesehen am 13. September gegen `0.7.4-rc.7` — die Messung
+steht in §17.** Zwei Dinge, die hier bis dahin standen, hat sie berichtigt.
 
-> **Was nur nachts entsteht, lässt sich nur nachts widerlegen.**
+Der Satz „Was nur nachts entsteht, lässt sich nur nachts widerlegen" war zu
+schnell: Der Zustand entsteht beim **Feuern** und nicht zu einer Uhrzeit.
+
+Und die Erwartung `Auffällig: 2` war beim Hinschreiben richtig und beim Messen
+falsch — dazwischen hat §15 den P7-Rest geräumt. Gemessen wurden
+`Auffällig: 1` und die Liste dahinter.
+
+> **Eine Erwartung, die zwischen dem Aufschreiben und dem Messen von einer
+> anderen Änderung überholt wird, sieht beim Messen wie ein Befund aus.**
 
 ---
 
@@ -1178,3 +1186,106 @@ angesehen und entschieden hat.
 > **Ein Punkt, der als Frage offen steht, und einer, der als Entscheidung
 > geschlossen ist, sehen im Bestand gleich aus — der Unterschied steht nur
 > daneben.**
+
+---
+
+## §17 Die Behebung hat einen Server gesehen — 13. September 2026
+
+Gefahren auf `cloudsrv24` gegen **`0.7.4-rc.7`**, der Fassung, die die Behebung
+aus §14 als einzige Codeänderung mitbringt. Damit ist der Befund
+`unit.schedule / no_next — srvpanel-diagnose.timer` geschlossen.
+
+### Die drei Läufe
+
+| Lauf | Fassung | Zusammenfassung | Timer-Befund |
+|---|---|---|---|
+| **00:47:05**, nächtlich | `0.7.4-rc.6` | `Auffällig: 2` · **`Kaputt: 1`** | da |
+| **15:54:00**, Timer, echte Einstellung | `0.7.4-rc.7` | `Auffällig: 1` | fort |
+| **16:02:00**, Timer, verlegter Termin | `0.7.4-rc.7` | `Auffällig: 1` | fort |
+
+Alle drei sind **vom Timer** ausgelöst und nicht von Hand: `list-timers` führt
+`LAST` aus `LastTriggerUSec` des Timers, und die Spalte stand nach jedem der
+drei auf dessen Zeit. Ein `systemctl start` des Dienstes rührt sie nicht an —
+und ein Lauf von Hand hätte den Zustand gar nicht hergestellt, das ist der
+Fehler, an dem die erste Messrunde in §13 gescheitert ist.
+
+### Gemessen wurde die Liste und nicht die Zahl
+
+Nach jedem der beiden Läufe gegen `rc.7`:
+
+```
+tls.file          expiring          p6-b.invalid
+```
+
+Genau eine Zeile, und der Timer steht in keiner.
+
+**Die Zahl allein hätte die Frage nicht getragen.** `p6-b.invalid` läuft am
+13. September aus; aus `expiring` wird `expired`, und das ist nach
+`FindingCheck` ein `Fail`. Der nächste Nachtlauf wird deshalb mit einiger
+Wahrscheinlichkeit wieder `Kaputt: 1` melden — zu Recht, und für das
+Zertifikat.
+
+> **Eine Zahl, die gleich geblieben ist, belegt keine Gleichheit — sie belegt
+> eine Summe.** Derselbe Satz wie in §11 an Punkt 10, hier an der
+> Gegenrichtung:
+> Dort war eine Zunahme um eins keine Zunahme um eins, hier wäre eine Zahl von
+> morgen kein Rückfall.
+
+### Der Satz aus §14 war zu schnell
+
+Dort stand, die Behebung zeige sich erst im nächsten Nachtlauf:
+
+> **Was nur nachts entsteht, lässt sich nur nachts widerlegen.**
+
+Das ist falsch, und zwar zweifach. Der Zustand entsteht nicht nachts, sondern
+**beim Feuern** — die Nacht war nur der einzige Zeitpunkt, zu dem gefeuert
+wurde. Wer den Termin verlegt, verlegt den Zustand mit; das Ablegestück dazu
+(`OnCalendar=` auf zwei Minuten von jetzt, `RandomizedDelaySec=0`,
+`Persistent=false`) ändert nur, **wann** gefeuert wird, und nichts daran, was
+der Lauf tut.
+
+> **Ein Zustand, der an einen Zeitpunkt gebunden scheint, ist an ein Ereignis
+> gebunden — und ein Ereignis lässt sich auslösen.**
+
+Und zweitens hätte es der Lauf um 15:54 ohnehin widerlegt, ganz ohne Eingriff.
+
+### Der Lauf um 15:54 war nicht bestellt — und ist nicht erklärt
+
+Er ist der wertvollere der beiden, weil er die **echte** Einstellung fährt
+(`OnCalendar=daily`, `Persistent=true`, `RandomizedDelaySec=1h`) und nicht die
+verlegte. Warum er stattfand, ist offen: `packaging/scripts/preremove.sh` hält
+die sechs Timer beim Update an und schaltet sie ab, `postinstall.sh` Zeile 198
+fährt danach `systemctl enable --now srvpanel-diagnose.timer`, und im Journal
+liegt dazwischen ein Bootwechsel. Das ist die naheliegende Erklärung und
+**keine Messung**; sie steht hier als Vermutung.
+
+> **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch
+> dann falsch, wenn der Handgriff daneben richtig ist.**
+
+Tragend ist er nicht: Die Frage lautete, ob der Timer-Befund unter `rc.7`
+ausbleibt, und die beantworten beide Läufe gleich.
+
+### Der verlegte Lauf misst einen schärferen Zustand als die Nacht
+
+Mit `Persistent=false` und einem einmaligen `OnCalendar` hat der Timer nach dem
+Feuern **überhaupt keinen** Termin mehr — `list-timers` zeigt danach
+`NEXT -`.
+Während des Laufs stand er trotzdem auf `SubState=running`, und die Behebung
+hat ihn als gesund gewertet. Das ist genau die Grenze, die der Kopf von
+`Units::hasNext()` als Frage benennt: Ein Timer, dessen Unit hängt, bleibt auf
+`running` und wird nie wieder fällig — dort steht dann `true`.
+
+> **Ein Prüfkörper, der den Zustand schärfer herstellt als der Prüfling ihn
+> kennt, misst die Regel und ihre Grenze in einem Zug.**
+
+Die alte Fassung hätte in **beiden** Läufen gemeldet: `SubState=running`,
+Realtime leer, Monotonic `infinity` — die Zeile aus der Tabelle in §13.
+
+### Zurückgebaut und nachgesehen
+
+Das Ablegestück ist entfernt, `daemon-reload` und `restart` gefahren, und
+`list-timers` zeigt den Timer wieder auf **Montag, in 8 Stunden** — also auf
+den gewöhnlichen täglichen Termin samt Streuung.
+
+> **Ein Eingriff gilt als zurückgebaut, wenn jemand nachgesehen hat — nicht,
+> wenn jemand ihn zurückgebaut hat.**

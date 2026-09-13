@@ -1051,6 +1051,42 @@ Was offen bleibt, ist damit keine Frage an den Quelltext, sondern ein Handgriff
 auf dem Server: `srvpanel tls --prune --dry-run`, und wenn die Liste stimmt,
 `srvpanel tls --prune`.
 
+### Die Trockenprobe, gefahren am 13. September 2026 auf `cloudsrv24`
+
+```
+11 verwaiste Zeile(n), 1 Zeile(n) ohne Domain, 1 Ablageort(e) zu entfernen.
+  cloudlab24.de:       Ablageort bleibt — er wird noch gebraucht. Nur die Zeile geht.
+  cloudlab24.ipv64.de: Ablageort bleibt — er wird noch gebraucht. Nur die Zeile geht.
+  tls.cloudlab24.de:   Ablageort und Zeile(n) — ohne Domain
+--dry-run: es wurde nichts angefasst.
+```
+
+**Der eine entfernbare Ablageort ist genau der Befund**, und sein Grund ist der
+zweite Fall aus `CertificatePrune` — „ohne Domain", also der, der am
+24. August 2026 dazugekommen ist. Das Abonnement lebt, die Domain ist fort.
+
+**Und der Plan nennt zwölf ungebrauchte Zeilen, während die Diagnose eine
+meldet.** Das ist kein Loch, sondern die Trennlinie zwischen den beiden: Der
+Befund meldet, was **auf der Platte** liegt und niemand braucht — dort liegt ein
+privater Schlüssel. Elf verwaiste Zeilen an zwei Ablageorten, die noch jemand
+nennt, liegen nirgends; sie jede Nacht zu melden wäre die Falle aus
+`docs/98 §4`, und der Kopf von {@see Orphans} führt für `system_user` genau
+dieses Argument.
+
+> **Ein Rest, der nur in der Datenbank steht, und einer, der auf der Platte
+> liegt, sind nicht dieselbe Art Rest — und nur der zweite hat einen privaten
+> Schlüssel.**
+
+**Die Gegenprobe des Räumens ist nicht der Befund, sondern die beiden geteilten
+Ablageorte.** `forget()` filtert je Zeile über `inUse()`; die lebenden Zeilen
+von `cloudlab24.de` und `cloudlab24.ipv64.de` müssen den Lauf überstehen, und
+beide Domains müssen danach über die Leitung weiter ein gültiges Zertifikat
+zeigen. Ginge das schief, wäre es der teuerste Fehler dieses Vorgangs: ein
+Schlüssel unter einer laufenden Website.
+
+> **Ein Aufräumen misst man nicht an dem, was fort ist, sondern an dem, was
+> bleiben musste.**
+
 ---
 
 ## §16 Beobachtung 2, gemessen und entschieden

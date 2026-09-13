@@ -535,8 +535,27 @@ srvpanel tinker --execute='
   echo (new App\Support\Diagnose\PendingFindings)->count(), PHP_EOL;'
 ```
 
-**Erwartet:** `enabled: false`, `until: null`, `since: null`, und die Zahl ist
-wieder **N**.
+**Erwartet:** `enabled: false` und `since: null`.
+
+**`until` bleibt stehen, und diese Zeile hat zuerst das Gegenteil verlangt.**
+Der Absatz unten sagt es richtig — die Endzeit überlebt das Ausschalten —, die
+Erwartung darüber forderte `null`. Wer den Punkt nach der Erwartung führe, meldete
+den Prüfling für etwas, das er zu Recht tut.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+`MaintenanceMode::set()` legt ab, was das Formular schickt; steht dort noch ein
+Datum, bleibt es. `MaintenanceWindow` schweigt trotzdem, weil es `enabled` und
+`until` **zusammen** verlangt.
+
+**Und die Zahl der Befunde ist kein Kriterium.** Erwartet sind die **Zeilen**
+aus §1 — abzüglich derer, die sich während des Laufs von selbst erledigt haben.
+Am Ende darf keine `maintenance.*`-Zeile mehr dastehen; ob die Summe dieselbe ist
+wie am Anfang, sagt über diesen Lauf nichts.
+
+> **Eine Zahl, die um eins gestiegen ist, belegt keine Zunahme um eins — sie
+> belegt eine Summe.**
 
 Dazu im Browser: `stand()` → `prop: null`, `band: null`.
 

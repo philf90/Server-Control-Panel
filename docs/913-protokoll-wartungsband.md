@@ -633,3 +633,58 @@ sondern ihr Verhältnis zur Ablage.
 
 Ablage **an**, Datei **fehlt**, Kundenwebsites **erreichbar** (`200`), Band
 behauptet Wartung, Abzeichen **4**. Punkt 9 fängt von hier an.
+
+### Zweiter Anlauf — erfüllt *(Ausschlusskriterium)*
+
+**Block A, die Vorbedingung belegt statt vorausgesetzt:**
+
+```
+["enabled"]=> bool(false)
+["until"]=>   string(19) "2026-09-13 08:30:00"
+["since"]=>   NULL
+8 Prüfung(en) gefahren, 2026-09-13 11:09:33.  Auffällig: 2
+  orphan.row / certificate — tls.cloudlab24.de
+  tls.file / expiring — p6-b.invalid
+```
+
+Beide Wartungsbefunde sind fort — `maintenance.flag`, weil Ablage und Datei
+wieder übereinstimmen, und `maintenance.window`, weil es ohne eingeschalteten
+Modus keine überschrittene Endzeit gibt. Das ist die Gegenprobe zu Punkt 7.
+
+**`until` überlebt das Ausschalten** (`08:30:00` UTC = `10:30` CEST), `since`
+nicht. Das ist so gebaut und kein Rest: Die Ablage nimmt, was das Formular
+schickt, und dort stand das Datum noch. Die Erwartung in `docs/912 §10` hat das
+Gegenteil verlangt und ist berichtigt.
+
+**Block B, der Zustand, für den es die Prüfung gibt:**
+
+```
+touch /var/spool/srvpanel/wartung
+curl https://cloudlab24.ipv64.de/            → 503
+srvpanel diagnose                            → Auffällig: 2   Kaputt: 1
+  orphan.row / certificate — tls.cloudlab24.de
+  tls.file / expiring — p6-b.invalid
+  maintenance.flag / unexpected — /var/spool/srvpanel/wartung
+rm /var/spool/srvpanel/wartung
+curl https://cloudlab24.ipv64.de/            → 200
+```
+
+**Die Kundenwebsite war 503, und das Panel hat nichts gesagt.** Die Ablage stand
+die ganze Zeit auf `enabled: false`, also stand kein Band da — die Anzeige
+*kann* diesen Zustand nicht zeigen, weil sie eine Ablage liest. Gefunden hat ihn
+die Prüfung, und genau dafür gibt es sie.
+
+**Die Schwere steht in der Zusammenfassung und nicht nur im Text.** `Auffällig: 2`
+und **`Kaputt: 1`** — `unexpected` ist ein **Fehler**, `missing` war eine
+Warnung. Die Richtung, die `docs/911` beim Entwurf entschieden hat („nur die
+zweite schaltet jede Kundenwebsite ab"), ist damit auf der Kommandozeile
+ablesbar.
+
+**Und der Befund verschwindet mit seinem Grund:** nach dem `rm` ein weiterer
+Lauf um `11:10:21`, `Auffällig: 2`, keine `Kaputt`-Zeile.
+
+**Was gefolgert und nicht abgelesen ist:** Dass während des `touch`-Fensters kein
+Band dastand, folgt aus der Ablage (`enabled: false` in Block A gemessen und
+zwischen den beiden Blöcken nicht angefasst) und nicht aus einem Blick auf die
+Seite in genau dieser Sekunde. Die Seite danach zeigt den ausgeschalteten
+Zustand ohne Band.

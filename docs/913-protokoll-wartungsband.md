@@ -205,3 +205,77 @@ niemand hat beim Entwurf gefragt, wie das Band **auf** `/maintenance` aussieht.
 
 > **Ein Bedienelement, das auf die Seite verweist, auf der es steht, ist kein
 > Fehler — es ist eine Frage, die beim Entwurf nicht gestellt wurde.**
+
+### Punkt 2 — die Ablage und die Warteschlange
+
+Nachgereicht, weil die Konsole beim ersten Mal `Proxy(Object)` gedruckt und den
+Inhalt weggeklappt hatte (`docs/903`):
+
+```json
+{"since":"2026-09-13 10:21","since_zone":"CEST (UTC+02:00)",
+ "until":null,"until_zone":null,"overdue":false}
+```
+
+Und auf `/operations` stand als jüngster Vorgang weiterhin **850**
+(`system.packages.refresh` vom 11. September): **null** neue Vorgänge. Die
+Endzeit war `null` und blieb `null`, also schreibt `MaintenanceMode::set()`
+keinen Server-Block neu — gemessen und nicht nur behauptet.
+
+---
+
+## §4 Punkt 3 — die Endzeit kommt dazu *(teilweise gemessen)*
+
+**Der Rundlauf ist da und stimmt in der Zahl.** Auf `/operations` stehen die
+Vorgänge **851 bis 856**, alle `web.site.apply`, alle `fertig`, alle
+`2026-09-13 10:32:01` bis `10:32:02` — **sechs**, also genau eine je lebender
+Nicht-Alias-Domain aus §1.
+
+Das ist die Bauart aus `docs/101` und kein Befund: Die Endzeit steht im
+Server-Block jeder Domain, also müssen die Blöcke neu geschrieben werden, wenn
+sie sich ändert.
+
+**Was noch fehlt, ist die eigentliche Messung dieses Punktes** — `since`,
+`until` und `overdue` nach dem Setzen der Endzeit. Die vorliegenden
+Konsolenwerte stammen von **vor** dem Setzen (`until: null`, und die
+Formularfelder standen leer); sie gehören zu Punkt 2 und stehen dort.
+
+> **Zwei Messungen desselben Griffs unterscheiden sich durch den Zeitpunkt und
+> nicht durch den Befehl — welche man vor sich hat, sagt nur der Zustand
+> daneben.**
+
+---
+
+## Befund 2 — zwei Zertifikatsbestellungen sind fehlgeschlagen *(in Klärung)*
+
+Unmittelbar nach dem Rundlauf stehen zwei weitere Vorgänge:
+
+| Nr. | Aufgabe | Zustand | Zeit |
+|---|---|---|---|
+| 857 | `acme.certificate.issue` | **fehlgeschlagen** | `10:32:02` |
+| 858 | `acme.certificate.issue` | **fehlgeschlagen** | `10:32:03` |
+
+**Dass überhaupt bestellt wird, ist die Bauart und kein Befund.**
+`CertificateLifecycle::afterSuccess()` behandelt `web.site.apply` und ruft
+danach `request($domain, …)`: Jede angewandte Domain fragt, ob sie ein
+Zertifikat braucht. Sechs Rundläufe können also Bestellungen nach sich ziehen.
+
+**Warum zwei davon scheitern, ist noch nicht gemessen, und es gibt zwei
+Erklärungen mit sehr verschiedenem Gewicht:**
+
+1. **Harmlos.** Drei der sechs Domains liegen unter `.invalid` und können von
+   Let's Encrypt grundsätzlich nicht geprüft werden. `docs/78` hat genau das
+   schon einmal festgehalten: zwei Bestellungen aus `vhost --sites` galten
+   Namen unter `.invalid` und sind zu Recht abgewiesen worden. Dazu passt, dass
+   `tls.file / expiring — p6-b.invalid` schon im Ausgangszustand stand — das
+   Wegwerfzertifikat aus `docs/100 §6` läuft ausgerechnet **heute** aus.
+2. **Schwer.** Der Wartungsmodus blockiert die ACME-Prüfadresse. Genau dagegen
+   gibt es die Ausnahme in der Wache (`docs/101` M24, M28), und genau dieser
+   Fall — „während einer Wartung stürbe jede Zertifikatserneuerung" — ist der
+   Grund, aus dem A12 nicht mit einem einfachen `if` gebaut wurde.
+
+> **Ein Fehlschlag, der zwei Erklärungen hat, ist so lange keine von beiden, bis
+> jemand nachgesehen hat — und die bequemere zuerst zu glauben ist die
+> teuerste Gewohnheit.**
+
+Zu klären ist es an einer Stelle: den Vorgängen 857 und 858 selbst — welche
+Domain, welche Meldung.

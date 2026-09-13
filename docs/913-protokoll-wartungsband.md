@@ -223,7 +223,7 @@ keinen Server-Block neu — gemessen und nicht nur behauptet.
 
 ---
 
-## §4 Punkt 3 — die Endzeit kommt dazu *(teilweise gemessen)*
+## §4 Punkt 3 — die Endzeit kommt dazu, und die Dauer springt nicht *(erfüllt)*
 
 **Der Rundlauf ist da und stimmt in der Zahl.** Auf `/operations` stehen die
 Vorgänge **851 bis 856**, alle `web.site.apply`, alle `fertig`, alle
@@ -234,10 +234,33 @@ Das ist die Bauart aus `docs/101` und kein Befund: Die Endzeit steht im
 Server-Block jeder Domain, also müssen die Blöcke neu geschrieben werden, wenn
 sie sich ändert.
 
-**Was noch fehlt, ist die eigentliche Messung dieses Punktes** — `since`,
-`until` und `overdue` nach dem Setzen der Endzeit. Die vorliegenden
-Konsolenwerte stammen von **vor** dem Setzen (`until: null`, und die
-Formularfelder standen leer); sie gehören zu Punkt 2 und stehen dort.
+**Und die eigentliche Messung dieses Punktes**, nachgereicht:
+
+```json
+{"since":"2026-09-13 10:21","since_zone":"CEST (UTC+02:00)",
+ "until":"2026-09-13 12:30","until_zone":"CEST (UTC+02:00)","overdue":false}
+```
+
+`since` steht **unverändert** auf `10:21`, obwohl in derselben Handlung eine
+Endzeit gesetzt wurde. Das ist der Gegenstand dieses Punktes und nicht das
+`until`:
+
+> **Ein Wert, der bei jeder Änderung neu entsteht, misst die letzte Änderung und
+> nicht den Zustand.**
+
+Der Satz im Band lautet dazu
+
+```
+Wartung Alle Kundenwebsites antworten mit 503 — seit 2026-09-13 10:21 Uhr
+(CEST (UTC+02:00)), voraussichtlich bis 2026-09-13 12:30 Uhr (CEST (UTC+02:00)).
+```
+
+und die Höhe bleibt bei 1440 px **41 px**, also eine Zeile — trotz der zweiten
+Zeitangabe mit ihrer Zone.
+
+**Die erste Messung dieses Punktes war keine**, und sie sah wie eine aus: Sie
+stand mit `until: null` da, weil sie **vor** dem Setzen gefahren wurde. Die
+Formularfelder daneben waren leer und haben es verraten.
 
 > **Zwei Messungen desselben Griffs unterscheiden sich durch den Zeitpunkt und
 > nicht durch den Befehl — welche man vor sich hat, sagt nur der Zustand
@@ -245,7 +268,7 @@ Formularfelder standen leer); sie gehören zu Punkt 2 und stehen dort.
 
 ---
 
-## Befund 2 — zwei Zertifikatsbestellungen sind fehlgeschlagen *(in Klärung)*
+## Befund 2 — zwei Zertifikatsbestellungen sind fehlgeschlagen *(geklärt: harmlos)*
 
 Unmittelbar nach dem Rundlauf stehen zwei weitere Vorgänge:
 
@@ -277,5 +300,24 @@ Erklärungen mit sehr verschiedenem Gewicht:**
 > jemand nachgesehen hat — und die bequemere zuerst zu glauben ist die
 > teuerste Gewohnheit.**
 
-Zu klären ist es an einer Stelle: den Vorgängen 857 und 858 selbst — welche
-Domain, welche Meldung.
+**Gemessen an den Vorgängen selbst: Erklärung 1.** Beide nennen einen Namen
+unter `.invalid`, und beide tragen dieselbe Meldung der Zertifizierungsstelle:
+
+| Nr. | Domain | Meldung |
+|---|---|---|
+| 857 | `p6-abnahme.invalid` | `rejectedIdentifier` — *Cannot issue for „p6-abnahme.invalid": Domain name does not end with a valid public suffix (TLD)* |
+| 858 | `domain-mit-richtig-langem-namen.invalid` | dieselbe Meldung mit ihrem Namen |
+
+Der Wartungsmodus hat damit nichts zu tun, und der Prüfling ist entlastet.
+**Er ist damit aber nicht bestätigt**, und dieser Unterschied ist der Grund,
+warum hier eine Zeile mehr steht als „harmlos":
+
+> **Ein Fehlschlag, der vor dem Prüfschritt entsteht, sagt über den Prüfschritt
+> nichts.**
+
+`rejectedIdentifier` fällt bei der Bestellung — die Zertifizierungsstelle lehnt
+den **Namen** ab, bevor irgendeine Prüfadresse abgerufen wird. Ob die Ausnahme
+in der Wache während einer Wartung trägt, ist damit weder widerlegt noch
+belegt; belegt hat es `docs/102` (A12, Punkt 8), und zwar an einem anderen Tag
+und in einer anderen Fassung. Weil der Zustand gerade steht und der Griff eine
+Zeile kostet, wird er hier nachgemessen — siehe Beobachtung 3.

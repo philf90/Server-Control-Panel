@@ -38,10 +38,28 @@ const props = defineProps<{
   filter: string
   result: {
     lines: string[]
+
+    // Die Lage jeder gezeigten Zeile im gelesenen Fenster, nullbasiert.
+    // Daraus entsteht die Nummer — siehe `nummer()`.
+    offsets: number[]
     exists: boolean
     note: string | null
+
+    // Wie viele Zeilen das Fenster wirklich hatte. Hier stand `window` mit
+    // der Konstante 500, und die Fusszeile hat daraus „gelesen wurden die
+    // letzten 500 Zeilen" gebaut — auch bei einer Datei mit 118 Zeilen.
+    read: number
+
+    // Hat das Fenster den Anfang der Quelle erreicht, und hat der Bytedeckel
+    // zugeschlagen. Zwei Felder und nicht eines: Sie sind die beiden Gründe,
+    // aus denen ein Fenster unvollständig sein kann, und die Abhilfe für den
+    // einen lässt den anderen stehen.
+    complete: boolean
+    capped: boolean
     matched: number
-    window: number
+
+    // „Es gibt mehr Treffer als gezeigt" — und damit die einzige Bedingung,
+    // unter der „Mehr Zeilen" etwas bewirkt.
     truncated: boolean
   }
   error: string | null
@@ -65,6 +83,27 @@ const gewaehlt = computed(() => props.sources.find((s) => s.key === props.source
 
 function mehr(): void {
   router.get('/logs', { ...auswahl, lines: Math.min(500, props.lines * 2) })
+}
+
+/**
+ * Die Nummer einer gezeigten Zeile.
+ *
+ * **Zwei Bedeutungen, und die Fusszeile sagt welche.** Hat das Fenster den
+ * Anfang der Quelle erreicht, ist `offset + 1` die echte Zeilennummer der
+ * Datei. Sonst ist nur der Abstand zum Ende belegbar: `−1` ist die letzte
+ * Zeile, `−17` die siebzehnte von hinten. Für das Journal gibt es die erste
+ * Bedeutung gar nicht — dort sind es Einträge und keine Zeilen einer Datei.
+ *
+ * Eine fortlaufende `1..n` über das Angezeigte wäre die dritte Möglichkeit
+ * und die einzige, die lügt: Mit gesetztem Filter sind die Zeilen nicht
+ * zusammenhängend.
+ */
+function nummer(i: number): string {
+  const offset = props.result.offsets[i]
+
+  if (offset === undefined) return ''
+
+  return props.result.complete ? String(offset + 1) : `−${props.result.read - offset}`
 }
 
 function ladeUrl(): string {
@@ -176,13 +215,35 @@ function groesse(bytes: number | null): string {
           </p>
 
           <template v-else>
-            <pre class="output log">{{ props.result.lines.join('\n') }}</pre>
+            <!--
+              **Eine Zeile ist ein Element und kein Stück Text.** Hier stand
+              ein `join('\n')` in einem `<pre>`; eine Nummer daneben ist damit
+              nur möglich, indem man sie in den Text schreibt — und dann geht
+              sie beim Kopieren mit.
+
+              Ein `<div>` und nicht ein `<pre>`: Vue erhält den Leerraum der
+              Vorlage innerhalb eines `<pre>`, und dann steht die Einrückung
+              dieser Datei im Protokoll. Die Form kommt ohnehin aus `.output`,
+              der Zeilenumbruch aus `.log-text`.
+            -->
+            <div class="output log">
+              <span class="log-body">
+                <span v-for="(zeile, i) in props.result.lines" :key="i" class="log-line">
+                  <span class="log-number" :data-nummer="nummer(i)" aria-hidden="true" />
+                  <span class="log-text">{{ zeile }}</span>
+                </span>
+              </span>
+            </div>
 
             <div class="button-row footer-row">
               <!--
                 Der Satz nennt beide Zahlen, weil eine allein etwas Falsches
                 sagt: `matched` sind die Treffer im **gelesenen Fenster** und
                 nicht die Zeilen der Datei.
+
+                **`read` und nicht `window`.** Hier stand die Konstante 500,
+                und der Satz behauptete sie auch für eine Datei mit 118
+                Zeilen (`docs/86`, Befund 14).
               -->
               <p class="quiet">
                 {{ counted(props.result.lines.length, 'Zeile', 'Zeilen') }}
@@ -190,13 +251,39 @@ function groesse(bytes: number | null): string {
                   von {{ counted(props.result.matched, 'Treffer', 'Treffern') }}
                 </template>
                 · gelesen wurden die letzten
-                {{ counted(props.result.window, 'Zeile', 'Zeilen') }}
+                {{ counted(props.result.read, 'Zeile', 'Zeilen') }}
               </p>
 
-              <button v-if="props.lines < 500" type="button" class="button" @click="mehr">
+              <!--
+                **`truncated` und nicht `props.lines < 500`.** Das Fenster ist
+                immer 500 Zeilen gross; `lines` schneidet nur das Ergebnis.
+                Der Knopf liest also nichts nach, er schneidet weniger ab —
+                und bewirkt genau dann etwas, wenn es mehr Treffer gibt als
+                gezeigte Zeilen. Unter der alten Bedingung stand er auch da,
+                wenn schon alles zu sehen war: dreimal drücken, dreimal
+                nichts.
+              -->
+              <button v-if="props.result.truncated" type="button" class="button" @click="mehr">
                 Mehr Zeilen ({{ props.lines }} → {{ Math.min(500, props.lines * 2) }})
               </button>
             </div>
+
+            <!--
+              Was die Nummern bedeuten, steht dabei — sie bedeuten zweierlei,
+              und ohne diesen Satz wüsste der Leser nicht, welches.
+            -->
+            <p class="quiet log-note">
+              <template v-if="props.result.complete">
+                Das ist die ganze Quelle; die Nummern sind ihre Zeilen.
+              </template>
+              <template v-else>
+                Die Nummern zählen vom Ende: −1 ist die letzte Zeile.
+              </template>
+              <template v-if="props.result.capped">
+                Weiter zurück wurde nicht gelesen — das Fenster ist auch in
+                Bytes begrenzt.
+              </template>
+            </p>
           </template>
         </template>
       </Section>
@@ -220,7 +307,94 @@ function groesse(bytes: number | null): string {
   margin: 0;
   max-height: 60dvh;
   overflow: auto;
+}
+
+/*
+ * **Die Hülle spannt die volle Rollbreite auf, und das ist tragend.**
+ *
+ * Ein klebendes Element kann seinen eigenen Kasten nicht verlassen. Ohne diese
+ * Hülle ist jede Zeile nur so breit wie der Sichtbereich; rollt man nach
+ * rechts, wandert ihr Kasten mit hinaus, und die Nummer geht mit. Gemessen am
+ * 13. September 2026 an der echten Seite: nach `scrollLeft = 3000` stand die
+ * Nummer bei **−1908 px**, also weit ausserhalb (`docs/914 §13`).
+ *
+ * `max-content` macht die Hülle so breit wie die längste Zeile, `min-width`
+ * hält sie bei kurzem Inhalt auf voller Breite — sonst endete der Streifen vor
+ * dem rechten Rand.
+ *
+ * > **Ein Wächter, der die Angabe prüft, hat über die Wirkung nichts gesagt.**
+ * > `position: sticky` und `left: 0` standen die ganze Zeit da.
+ */
+.log-body {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+}
+
+/*
+ * **Eine Zeile ist eine Flexreihe aus Nummer und Text.** Der Leerraum der
+ * Vorlage zwischen den beiden fällt damit weg, ohne dass er in der Vorlage
+ * vermieden werden müsste — Flex verwirft Kinder, die nur aus Leerraum
+ * bestehen.
+ */
+.log-line {
+  display: flex;
+  align-items: flex-start;
+}
+
+/*
+ * **Die Nummer bleibt beim waagerechten Rollen stehen.** Ohne `sticky` ist
+ * sie bei einer langen Zeile ausserhalb des Sichtbaren — also genau dann
+ * fort, wenn man sie braucht. Der Grund ist derselbe wie beim Rinnstein eines
+ * Editors, und `docs/56` hat für den Dateieditor schon entschieden, dass
+ * Rollen hier richtig ist und Umbrechen falsch.
+ *
+ * **Die Fläche ist nicht Zierde.** Ohne sie rollt der Text der Zeile sichtbar
+ * unter der Nummer hindurch.
+ *
+ * **Die Nummer ist erzeugter Inhalt und kein Text — und das ist gemessen.**
+ * Der Plan sah `user-select: none` dafür vor. Am 13. September 2026 an der
+ * echten Seite gemessen, mit der Maus über drei Zeilen gezogen: Die Auswahl
+ * enthielt `⏎ 20 ⏎ … ⏎ 21 ⏎`, also die Nummern. `user-select: none` hält den
+ * Cursor ab, eine Auswahl, die über das Element **hinweggeht**, nicht.
+ *
+ * > **Eine Regel, die das Auswählen verbietet, verbietet nicht das
+ * > Ausgewähltwerden.**
+ *
+ * Was trägt, ist `content: attr(…)`: Erzeugter Inhalt steht nicht im
+ * Dokument und wird deshalb nicht kopiert. `user-select: none` bleibt
+ * daneben stehen — es hält die Einfügemarke davon ab, in der Spalte zu
+ * landen.
+ */
+.log-number {
+  position: sticky;
+  left: 0;
+  flex: none;
+  min-width: 4ch;
+  padding-right: var(--gap);
+  text-align: right;
+  color: var(--text-muted);
+  background: var(--surface);
+  user-select: none;
+}
+
+.log-number::before {
+  content: attr(data-nummer);
+}
+
+/*
+ * Der Umbruch sitzt hier und nicht am Rahmen: Der Rahmen soll den Leerraum
+ * der Vorlage verwerfen, die Zeile ihn erhalten. `flex: none`, damit eine
+ * lange Zeile den Rollbehälter benutzt, statt sich zusammenstauchen zu
+ * lassen.
+ */
+.log-text {
+  flex: none;
   white-space: pre;
+}
+
+.log-note {
+  margin-top: 0;
 }
 
 .footer-row {

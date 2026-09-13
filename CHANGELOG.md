@@ -27923,6 +27923,65 @@ gelten über ihn hinaus:
 > **Ein Schritt, der nicht im Block steht, wird nicht ausgeführt — er wird
 > gelesen.**
 
+### Die Protokollseite sagt jetzt, wie viel sie zeigt
+
+Die Fusszeile von `/logs` hat zwei Dinge behauptet, die sie nicht wusste:
+„gelesen wurden die letzten 500 Zeilen" kam aus einer Konstanten und nicht aus
+einer Messung, und der Knopf „Mehr Zeilen" stand unter `props.lines < 500`
+statt unter der Frage, ob es mehr zu zeigen gibt. Bei einer Datei mit 118
+Zeilen hiess das: dreimal drücken, dreimal nichts.
+
+**Der Grund war doppelt, und die zweite Hälfte stand in keinem Dokument.** Der
+Leser bricht nicht nur ab, wenn die Datei zu Ende ist, sondern auch an einem
+Bytedeckel von 512 KiB. Gemessen: 500 Zeilen à 4 KiB liefern **128** Zeilen,
+und die Schwelle liegt bei `512 KiB ÷ 500 = 1048 B` je Zeile — darüber liegen
+ein nginx-`error.log` mit Stacktraces und ein `upgrade.log` von apt
+regelmässig. Nach aussen sah das aus wie eine kurze Datei.
+
+Der Agent sendet deshalb `read`, `complete` und `capped`: wie viele Zeilen das
+Fenster wirklich hatte, ob es den Anfang der Quelle erreicht hat, und ob der
+Deckel zugeschlagen hat. Zwei Felder und nicht eines, weil es zwei Gründe sind
+und die Abhilfe für den einen den anderen stehen liesse.
+
+**Der Knopf brauchte dafür kein neues Feld.** Das Fenster ist immer 500 Zeilen
+gross; `lines` schneidet nur das Ergebnis. „Mehr Zeilen" liest also nichts nach
+— es schneidet weniger ab, und die Bedingung dafür gab es längst.
+
+**Auch der Journalweg hat einen Deckel, und er steht woanders:** in
+`Runner::OUTPUT_MAX` bei 4 MiB, festgehalten in `Result::truncated`. Dieses
+Feld hat im ganzen Repo niemand gelesen — geschrieben an einer Stelle, gelesen
+an keiner. Jetzt liest es der Journalweg.
+
+**Und die Protokollzeilen haben Nummern.** Sie bedeuten zweierlei, und die
+Seite sagt welche: Hat das Fenster den Anfang der Quelle erreicht, sind es die
+echten Zeilen der Datei; sonst zählen sie vom Ende, und `−1` ist die letzte
+Zeile. Für das Journal gibt es die erste Bedeutung nicht — dort sind es
+Einträge. Eine fortlaufende `1..n` über das Angezeigte wäre die dritte
+Möglichkeit und die einzige, die lügt: Mit gesetztem Filter sind die Zeilen
+nicht zusammenhängend.
+
+Die Nummer bleibt beim waagerechten Rollen stehen und geht beim Kopieren nicht
+mit — sonst wäre sie bei einer langen Zeile genau dann fort, wenn man sie
+braucht, beziehungsweise stünde in der Zeile, die man heraussucht.
+
+Dabei fiel ein drittes Feld ohne Leser heraus: `system.logs.tail` sandte
+`origin`, und die Seite nimmt denselben Wert aus dem Katalog daneben. Gefunden
+hat das der neue Wächter bei seinem ersten Lauf.
+
+**Die Bilderrunde hat zwei Fehler gefunden, die kein Test finden konnte.**
+`position: sticky` stand am Nummernstreifen und klebte nicht: Ein klebendes
+Element kann seinen eigenen Kasten nicht verlassen, und jede Zeile war nur so
+breit wie der Sichtbereich — nach 3000 px Rollen stand die Nummer bei −1908.
+Und `user-select: none` hält die Nummer nicht aus einer Auswahl, die über sie
+hinweggeht; mit der Maus gezogen stand sie im kopierten Text. Die Nummer ist
+deshalb erzeugter Inhalt über `content: attr(…)`, und eine Hülle spannt die
+volle Rollbreite auf.
+
+`LogWindowTest` misst den Leser an echten Dateien (die vier Lagen der Messrunde
+und eine fünfte, die beim Bauen dazukam), `LogFooterTest` die Naht in beide
+Richtungen, `LineNumberTest` die Form der Nummernspalte. Der Plan ist
+`docs/914`; §13 hat die Bilderrunde mit ihren zwölf Lagen.
+
 ### Der Nachtlauf meldete jede Nacht seinen eigenen Timer als kaputt
 
 `unit.schedule / no_next — srvpanel-diagnose.timer` blieb aus dem Abnahmelauf
@@ -27949,5 +28008,14 @@ Prüfkörper in beiden Zeitfeldern dem gestoppten gleicht — sonst misst er
 nichts), `UnitVerdictTest` die Naht bis zum Urteil des Nachtlaufs. Beide
 Eingriffe stehen im Bruchskript.
 
-**Auf einem Server gesehen hat die Behebung nichts**; sie zeigt sich erst daran,
-dass im nächsten Nachtlauf `Kaputt: 1` ausbleibt.
+**Auf `cloudsrv24` nachgesehen** (13. September 2026, `0.7.4-rc.7`): Der
+nächtliche Lauf um 00:47 unter `rc.6` meldete `Auffällig: 2` und `Kaputt: 1`,
+die beiden Timer-Läufe um 15:54 und 16:02 unter `rc.7` je `Auffällig: 1`;
+die Liste dahinter trägt genau eine Zeile — `tls.file`, `expiring`,
+`p6-b.invalid`. Gemessen wurde die Liste und nicht die Zahl: Das
+Wegwerfzertifikat läuft am selben Tag aus, und aus `expiring` wird dann
+`expired`, also wieder ein `Kaputt`.
+
+Dass sich das erst nachts zeigen liesse, stimmte nicht. Der Zustand entsteht
+beim **Feuern** und nicht zu einer Uhrzeit; ein Ablegestück, das den Termin
+verlegt und die Streuung herausnimmt, stellt ihn zu jeder Tageszeit her.

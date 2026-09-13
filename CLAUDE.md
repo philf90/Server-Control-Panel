@@ -69,7 +69,9 @@ gerendert.
 > **Ein Feld im Payload ist noch keine Spalte.**
 
 **Offen bleiben genau zwei:** Befund 14 (die Fusszeile von `/logs`, gehört zu A5)
-und die ungemessene Laufzeit über 142 Pakete (`docs/81 §2.3h` Punkt 1). **Und
+und die ungemessene Laufzeit über 142 Pakete (`docs/81 §2.3h` Punkt 1).
+**Befund 14 hat seit dem 13. September ein Vorhaben** — `docs/914`, zusammen mit
+den Zeilennummern in den Protokollen, weil beide dieselbe Naht brauchen. **Und
 keine der vier Behebungen hat einen Server gesehen** — der Nachlauf dazu ist
 `docs/87`, ausgeschrieben vor dem Fahren.
 
@@ -3678,11 +3680,29 @@ der Zähler der kaputten Timer.
 > **Wo vier Verbraucher denselben Wert deuten, gehört die Behebung an den
 > Erzeuger — sonst sind es vier Fassungen derselben Regel.**
 
-**Auf einem Server gesehen hat die Behebung nichts**, und das lässt sich nicht
-abkürzen: Sie zeigt sich erst daran, dass im nächsten Nachtlauf `Kaputt: 1`
-ausbleibt.
+**Auf einem Server nachgesehen am 13. September gegen `0.7.4-rc.7`**
+(`docs/913 §17`): Der nächtliche Lauf um 00:47 unter `rc.6` meldete
+`Auffällig: 2` und `Kaputt: 1`, die beiden Timer-Läufe um 15:54 und 16:02
+unter `rc.7` je `Auffällig: 1`; die Liste dahinter trägt genau eine Zeile,
+`tls.file / expiring / p6-b.invalid`. Der Timer steht in keiner. Ausgelöst hat
+alle drei der Timer und nicht eine Hand: `list-timers` führt `LAST` aus
+`LastTriggerUSec` **des Timers**, und ein `systemctl start` des Dienstes rührt
+die Spalte nicht an.
 
-> **Was nur nachts entsteht, lässt sich nur nachts widerlegen.**
+**Der Satz, der hier bis dahin stand, war zu schnell** — „Was nur nachts
+entsteht, lässt sich nur nachts widerlegen". Der Zustand entsteht nicht nachts,
+sondern **beim Feuern**; die Nacht war bloss der einzige Zeitpunkt, zu dem
+gefeuert wurde. Ein Ablegestück, das den Termin auf zwei Minuten von jetzt
+verlegt und die Streuung herausnimmt, stellt ihn zu jeder Tageszeit her — es
+ändert, *wann* gefeuert wird, und nichts daran, was der Lauf tut.
+
+> **Ein Zustand, der an einen Zeitpunkt gebunden scheint, ist an ein Ereignis
+> gebunden — und ein Ereignis lässt sich auslösen.**
+
+**Und die Zahl allein hätte es nicht getragen.** `p6-b.invalid` läuft am
+selben Tag aus; aus `expiring` wird `expired`, und das ist ein `Fail`. Der
+nächste Nachtlauf meldet deshalb wahrscheinlich wieder `Kaputt: 1` — für das
+Zertifikat. Belegt hat die Behebung die **Liste** hinter der Zahl.
 
 Ein Nebenbefund derselben Runde, für den nächsten, der hier PHPStan fährt:
 **Der Lader für `--autoload-file` muss larastans Namensraum selbst eintragen**
@@ -3691,6 +3711,53 @@ larastan steht nicht in `composer.json` — sonst bräche `composer install` an
 `phpstan/phpstan` ab —, also kennt Composers Autolader es nicht, und die Meldung
 lautet „Invalid configuration: Service 'sqlParser'" statt „Klasse nicht
 gefunden".
+
+---
+
+## Ein Wunsch, der nirgends stand — 13. September 2026
+
+Der Betreiber hat nach den Zeilennummern in den Protokollen gefragt, die er
+„zu einem früheren Zeitpunkt angefragt" hatte. Gesucht in `docs/`, `CLAUDE.md`,
+`CHANGELOG.md`, der ganzen Commit-Historie und der Mitschrift der laufenden
+Sitzung: **kein Treffer ausser der Nachfrage selbst.** Gebaut ist er auch
+nicht.
+
+Das ist die Spiegelung von A8, elf Tage später. Dort war ein Merkmal gebaut und
+in keinem Plan vermerkt und deshalb von aussen nicht von einem zu unterscheiden,
+das es nicht gibt. Hier ist eines angefragt und nirgends vermerkt.
+
+> **Was man zweimal braucht, gehört ins Repo — auch wenn es keine Zeile Code
+> ist.** Der Satz steht seit `docs/39` hier und galt bisher für Abnahmeläufe.
+> Er gilt für Wünsche genauso: Ein Wunsch, der nur in einem Gespräch steht, ist
+> fort, wenn das Gespräch fort ist — und der Nächste kann nicht einmal sagen,
+> dass es ihn gab.
+
+Das Vorhaben dazu ist **`docs/914`**, und es nimmt Befund 14 mit, weil beide
+dieselbe Ergänzung am Agenten brauchen: **was hat er tatsächlich gelesen.**
+Gebaut am 13. September; §12 sagt, was beim Bauen anders war, §13 hat die
+Bilderrunde. Der Abnahmelauf ist **`docs/915`**, ausgeschrieben vor dem Fahren.
+
+**Die Messrunde davor hat einen Befund gebracht, der in keinem Dokument stand.**
+`WebLogsTail::tail()` bricht nicht nur ab, wenn die Datei zu Ende ist, sondern
+auch am Bytedeckel `MAX_BYTES = 512 KiB`. Gemessen: 500 Zeilen à 4 KiB ergeben
+**128** gelieferte Zeilen, und die Schwelle liegt bei `512 KiB ÷ 500 = 1048 B`
+je Zeile (gemessen kippt es zwischen 1024 und 1100). Nach aussen sieht das
+Zeichen für Zeichen aus wie eine kurze Datei — `truncated` steht auf `false`,
+und die Seite meldet eine vollständige Sicht auf einen Ausschnitt.
+
+> **Zwei Gründe, die dasselbe Ergebnis erzeugen, sind nicht derselbe Grund —
+> und die Abhilfe für den einen lässt den anderen stehen.**
+
+`docs/86` hat Befund 14 auf **eine** Ursache zurückgeführt („die Seite weiss
+nicht, wie viele Zeilen die Datei hat"). Das stimmte und war die Hälfte. Der
+Deckel trifft dabei genau die Protokolle, die man liest, wenn etwas kaputt ist:
+ein nginx-`error.log` mit Stacktraces und ein `upgrade.log` von apt liegen
+regelmässig über 1 KiB je Zeile.
+
+**Und die Lage im Fenster gibt es und wird weggeworfen:** `array_filter` in
+`SystemLogsTail::apply()` erhält die Schlüssel, `array_values` in derselben
+Zeile wirft sie weg. Eine Zeilennummer braucht keine neue Messung, sondern das
+Aufheben dessen, was für einen Ausdruck lang schon dasteht.
 
 ---
 

@@ -84,12 +84,27 @@ final class SystemLogsTail implements Op
             ? $this->fromFile((string) $source['path'])
             : $this->fromJournal($context, (string) $source['unit']);
 
+        // **Vor dem Filter gezählt.** `read` ist die Grösse des Fensters und
+        // nicht die der Treffer; nach dem Filter gezählt wäre es `matched`
+        // unter einem zweiten Namen.
+        $read = count($found['lines']);
         $matched = $this->apply($found['lines'], $filter);
+
+        // **Die Lage bleibt erhalten.** `array_slice` mit `true` behält die
+        // Schlüssel, und die sind die Lage der Zeile im gelesenen Fenster —
+        // das Einzige, woraus sich eine Zeilennummer überhaupt bilden lässt.
+        $shown = array_slice($matched, -$lines, null, true);
 
         return [
             'source' => $key,
             'label' => $source['label'],
-            'origin' => $source['path'] ?? $source['unit'],
+            /*
+             * **`origin` sendet diese Operation nicht.** Die Seite nimmt den
+             * Pfad beziehungsweise die Unit aus `system.logs.list`, also aus
+             * dem Katalog daneben — hier stand derselbe Wert ein zweites Mal
+             * und wurde von niemandem gelesen. Gefunden hat das
+             * {@see \Tests\Unit\LogFooterTest} bei seinem ersten Lauf.
+             */
             'exists' => $found['exists'],
             'note' => $found['note'],
             'filter' => $filter,
@@ -98,7 +113,33 @@ final class SystemLogsTail implements Op
             // Treffer aus den letzten hundert Zeilen und nicht die letzten
             // hundert Treffer — und die Zahl daneben wäre eine über den
             // Ausschnitt statt über das Protokoll.
-            'lines' => array_values(array_slice($matched, -$lines)),
+            'lines' => array_values($shown),
+
+            /*
+             * **Die Lage je gezeigter Zeile im gelesenen Fenster, nullbasiert.**
+             * Daraus bildet die Seite die Nummer, und zwar auf zwei Arten:
+             * Hat das Fenster den Anfang der Quelle erreicht (`complete`),
+             * ist `offset + 1` die **echte** Zeilennummer der Datei; sonst
+             * ist nur der Abstand zum Ende belegbar, und `-1` heisst dann
+             * „letzte Zeile".
+             *
+             * > **Eine Nummer, die auf zwei Quellen zwei verschiedene Dinge
+             * > bedeutet, ist keine Nummer, sondern zwei** — deshalb sagt die
+             * > Seite, welche der beiden sie zeigt.
+             */
+            'offsets' => array_keys($shown),
+
+            // Wie viele Zeilen das Fenster wirklich hatte — nicht die
+            // Konstante. Hier stand `window` mit `self::MAX_LINES`, und die
+            // Seite hat daraus „gelesen wurden die letzten 500 Zeilen"
+            // gebaut, auch wenn die Datei 118 Zeilen hat (`docs/86`,
+            // Befund 14).
+            'read' => $read,
+
+            // Wovon das Fenster begrenzt ist. Die Begründung steht bei
+            // {@see WebLogsTail::tail()} und {@see self::readJournal()}.
+            'complete' => $found['complete'],
+            'capped' => $found['capped'],
 
             /*
              * **`matched` und nicht `total`.** Gelesen wird immer ein Fenster
@@ -110,17 +151,26 @@ final class SystemLogsTail implements Op
              * > **Eine Zahl, die nach etwas anderem heisst, als sie zählt,
              * > wird irgendwann als das andere gelesen.**
              *
-             * `window` steht daneben, damit die Seite den Satz vollständig
-             * bilden kann: „12 Treffer in den letzten 500 Zeilen".
+             * `read` steht daneben, damit die Seite den Satz vollständig
+             * bilden kann: „12 Treffer in den letzten 118 gelesenen Zeilen".
              */
             'matched' => count($matched),
-            'window' => self::MAX_LINES,
+
+            /*
+             * **`truncated` heisst hier „es gibt mehr Treffer als gezeigt"**
+             * und nicht „die Ausgabe wurde abgeschnitten" wie in
+             * {@see \SrvPanel\Agent\Result}. Genau das ist die Bedingung, unter
+             * der der Knopf „Mehr Zeilen" etwas bewirkt: Das Fenster ist immer
+             * {@see self::MAX_LINES} Zeilen gross, `lines` schneidet nur das
+             * Ergebnis — der Knopf liest also nichts nach, er schneidet
+             * weniger ab.
+             */
             'truncated' => count($matched) > $lines,
         ];
     }
 
     /**
-     * @return array{lines: list<string>, exists: bool, note: null|string}
+     * @return array{lines: list<string>, exists: bool, note: null|string, complete: bool, capped: bool}
      */
     private function fromFile(string $path): array
     {
@@ -128,16 +178,27 @@ final class SystemLogsTail implements Op
             // Kein Protokoll ist kein Fehler — dieselbe Entscheidung wie in
             // {@see WebLogsTail}: Ein Server, der noch nichts geschrieben hat,
             // ist der Normalfall am ersten Tag.
-            return ['lines' => [], 'exists' => false, 'note' => null];
+            // **`complete` ist hier wahr.** Eine Datei, die es nicht gibt,
+            // hat nichts Ungelesenes — `false` liesse die Seite „weiter
+            // zurück gibt es mehr" anbieten, wo gar nichts ist.
+            return ['lines' => [], 'exists' => false, 'note' => null, 'complete' => true, 'capped' => false];
         }
 
         // **Von hinten gelesen, und zwar mit demselben Leser.** Ein zweiter
         // Rückwärtsleser wäre die Stelle, an der die beiden auseinanderlaufen.
-        return ['lines' => WebLogsTail::tail($path, self::MAX_LINES), 'exists' => true, 'note' => null];
+        $found = WebLogsTail::tail($path, self::MAX_LINES);
+
+        return [
+            'lines' => $found['lines'],
+            'exists' => true,
+            'note' => null,
+            'complete' => $found['complete'],
+            'capped' => $found['capped'],
+        ];
     }
 
     /**
-     * @return array{lines: list<string>, exists: bool, note: null|string}
+     * @return array{lines: list<string>, exists: bool, note: null|string, complete: bool, capped: bool}
      */
     private function fromJournal(Context $context, string $unit): array
     {
@@ -166,7 +227,7 @@ final class SystemLogsTail implements Op
      * diesen Schnitt wäre der interessanteste Fall — die leere Antwort mit
      * Rückgabe 0 — nur auf einem echten Server zu sehen.
      *
-     * @return array{lines: list<string>, exists: bool, note: null|string}
+     * @return array{lines: list<string>, exists: bool, note: null|string, complete: bool, capped: bool}
      */
     public static function readJournal(Result $result): array
     {
@@ -191,12 +252,35 @@ final class SystemLogsTail implements Op
             'lines' => $lines,
             'exists' => $lines !== [],
             'note' => $note === '' ? null : $note,
+
+            /*
+             * **Auch der Journalweg hat einen Bytedeckel — er steht nur
+             * woanders.** Nicht in `journalctl`, sondern in
+             * {@see \SrvPanel\Agent\Runner::OUTPUT_MAX}: Der Runner schneidet
+             * jede Ausgabe bei 4 MiB ab und hält das in `Result::truncated`
+             * fest. Gemessen am 13. September 2026 (`docs/914 §12`) las
+             * dieses Feld im ganzen Repo **niemand** — es war von aussen
+             * nicht von einem zu unterscheiden, das es nicht gibt.
+             *
+             * > **Ein Feld, das geschrieben und nie gelesen wird, ist von
+             * > aussen nicht von einem zu unterscheiden, das es nicht gibt.**
+             */
+            'capped' => $result->truncated,
+
+            /*
+             * **`journalctl --lines=N` liefert höchstens N Einträge.** Kommen
+             * weniger zurück, war das alles, was das Journal noch hält —
+             * mehr als „alles, was es gibt", kann diese Antwort nicht
+             * bedeuten, und deshalb steht die Aufbewahrung im Hinweis daneben
+             * und nicht in diesem Feld.
+             */
+            'complete' => ! $result->truncated && count($lines) < self::MAX_LINES,
         ];
     }
 
     /**
      * @param  list<string>  $lines
-     * @return list<string>
+     * @return array<int,string>
      */
     private function apply(array $lines, ?string $filter): array
     {
@@ -204,12 +288,17 @@ final class SystemLogsTail implements Op
             return $lines;
         }
 
-        return array_values(array_filter(
+        // **Ohne `array_values`.** `array_filter` erhält die Schlüssel, und
+        // die sind die Lage der Zeile im Fenster. Hier stand ein
+        // `array_values` darum, und damit war die einzige Auskunft, aus der
+        // sich eine Zeilennummer bilden lässt, für genau einen Ausdruck lang
+        // da und danach fort.
+        return array_filter(
             $lines,
             // Ohne Rücksicht auf Gross- und Kleinschreibung: Wer nach „error"
             // sucht, meint auch „ERROR" — und in einem Protokoll stehen beide.
             static fn (string $line): bool => mb_stripos($line, $filter) !== false,
-        ));
+        );
     }
 
     private function filter(mixed $value): ?string

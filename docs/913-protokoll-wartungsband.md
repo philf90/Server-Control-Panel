@@ -395,7 +395,7 @@ genau das, was die Ausnahme herstellen soll.
 
 ---
 
-## §6 Punkt 5 — die Bilderrunde *(teilweise gemessen)*
+## §6 Punkt 5 — die Bilderrunde, und zwei Bänder stapeln *(erfüllt)*
 
 Gefahren auf `/announcements`, mit einer angelegten Ankündigung (Rang **Info**,
 Text „Das ist ein Test"), also mit **zwei** Bändern übereinander. Vier Lagen,
@@ -432,7 +432,67 @@ daneben hatte diese Zeile nicht — er war für diesen Lauf neu getippt.
 > **Ein Messmittel, das man aufhebt, macht die Fehler von letztem Mal nicht noch
 > einmal** — und eines, das man daneben frisch tippt, macht sie doch.
 
-Auf den Aufnahmen sind beide Bänder bei 390 px sichtbar gestapelt, mit
-erkennbarer Fuge. **Das ist ein Bild und keine Zahl**, und für den Punkt, der
-aus `docs/103` stammt — drei Bänder lagen dort bei 1440 px übereinander, bei
-`schiebt = 0` —, ist die Zahl das Kriterium.
+**Nachgereicht als Zahl, und damit ist der Punkt erfüllt:**
+
+| Breite | Wartungsband | Ankündigung | Fuge |
+|---|---|---|---|
+| 390 px | `oben 0`, `hoch 125` | `oben 133`, `hoch 41` | 8 px |
+| 1440 px | `oben 12`, `hoch 41` | `oben 61`, `hoch 41` | 8 px |
+
+Die Oberkanten wachsen streng, und die Rechnung geht in beiden Breiten auf
+(`0+125+8 = 133`, `12+41+8 = 61`). Sie **stapeln**. Damit ist die Falle aus
+`docs/103` — drei Bänder bei 1440 px übereinander, bei `schiebt = 0` — auf einem
+Server ausgeschlossen und nicht nur im Nachbau.
+
+**Und der Zwilling geht hier auseinander, aus einem Grund, der ihn bestätigt.**
+`docs/911 §6e` hat für die überschrittene Fassung bei 390 px **104 px**
+gemessen, hier sind es **125**. Der Unterschied ist die Zone: Im Container
+heisst sie `UTC` (drei Zeichen), auf dem Server `CEST (UTC+02:00)` (17), und der
+Satz trägt sie **zweimal**. Bei 1440 px, wo beides in eine Zeile passt, stimmen
+die Zahlen wieder auf das Pixel (41).
+
+> **Ein Zwilling, der bei der schmalen Breite abweicht und bei der breiten
+> übereinstimmt, weicht nicht in der Form ab, sondern im Inhalt.**
+
+---
+
+## §7 Punkt 6 — wer nicht schalten darf, sieht es nicht *(erfüllt)*
+
+Über „Anmelden als" in die Sicht eines Kunden gewechselt, bei laufender Wartung
+und überschrittener Endzeit. Auf `/` steht danach:
+
+| | |
+|---|---|
+| Impersonationsband | **da** — „Sie arbeiten in der Sicht dieses Kunden…" |
+| Ankündigungsband | **da** — „Info Das ist ein Test" |
+| **Wartungsband** | **fort** |
+
+**Der Prüfkörper ist besser, als er bestellt war.** Gefragt war, ob das
+Wartungsband verschwindet; gemessen ist zusätzlich, dass die Hülle darum
+**weiterhin rendert** und ein anderes Band darin steht. Ein leeres `.bands` hätte
+dieselbe Abwesenheit erzeugt und wäre von einem Rechteschnitt nicht zu
+unterscheiden gewesen.
+
+> **Eine Abwesenheit belegt eine Grenze erst, wenn daneben etwas anwesend ist,
+> das dieselbe Hülle braucht.**
+
+Dass die Ankündigung dem Kunden erscheint, ist dabei richtig und kein
+Nebenbefund: Ihr Publikum ist „Betreiber · Administrator · Kunde" (A14). Die
+Navigation daneben ist die des Kunden — kein „Wartungsmodus", keine „Diagnose".
+
+**Was gemessen ist und was nicht.** Der Zustand ist von der **Seite** abgelesen.
+Die Konsolenwerte fehlen: `stand` war nach dem Wechsel nicht mehr definiert, der
+Griff aus §1 also nicht neu eingefügt — und weil beide Zeilen zusammen abgesetzt
+wurden, riss der `ReferenceError` die zweite mit.
+
+> **Zwei Zeilen in einem Absatz sind eine Anweisung — schlägt die erste fehl,
+> ist auch die zweite nicht gemessen.**
+
+Für das Kriterium reicht die Seite: Das Wartungsband ist ein `<a>` mit
+`href="/maintenance"`, und ein solches steht dort nicht. Was die Ablage in
+diesem Augenblick sagte, ist nicht abgelesen worden.
+
+**Was dieser Punkt misst und was nicht:** Er misst, dass die Tür beisst. Dass es
+die **richtige** Tür ist — `AdminAbility::OPERATE_SERVER` und keine andere —,
+hält `MaintenanceBandTest` in der CI und ist dort mit einem Eingriff belegt.
+Ein Administrator ist hier nicht geprüft worden; `docs/912 §0` sagt warum.

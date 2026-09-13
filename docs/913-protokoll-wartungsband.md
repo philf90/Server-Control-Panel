@@ -688,3 +688,112 @@ Band dastand, folgt aus der Ablage (`enabled: false` in Block A gemessen und
 zwischen den beiden Blöcken nicht angefasst) und nicht aus einem Blick auf die
 Seite in genau dieser Sekunde. Die Seite danach zeigt den ausgeschalteten
 Zustand ohne Band.
+
+---
+
+## §10 Punkt 10 — der Endzustand *(erfüllt)*
+
+```
+ls -l /var/spool/srvpanel/wartung   → No such file or directory
+curl https://cloudlab24.ipv64.de/   → 200
+["enabled"]=> bool(false)
+["until"]=>   string(19) "2026-09-13 08:30:00"
+["since"]=>   NULL
+Abzeichen = 2
+  orphan.row / certificate — tls.cloudlab24.de
+  tls.file / expiring — p6-b.invalid
+```
+
+Im Browser auf `/maintenance`: `{prop: null, band: null, hoehe: null,
+abzeichen: 2}`, und die Seite sagt „Der Wartungsmodus ist ausgeschaltet. Alle
+Websites werden normal ausgeliefert."
+
+**Keine `maintenance.*`-Zeile mehr**, und das ist das Kriterium — nicht die
+Summe. Sie steht bei **2** gegen **3** im Ausgangszustand, weil
+`unit.schedule / no_next` sich zwischendurch von selbst erledigt hat
+(Beobachtung 1).
+
+`until` steht weiter auf `08:30:00` UTC. Das ist gebaut so und kein Rest: Die
+Endzeit überlebt das Ausschalten, sie wirkt nur nicht mehr.
+
+---
+
+## §11 Bilanz
+
+**Alle zehn Punkte aus `docs/912` sind gefahren und erfüllt**, beide
+Ausschlusskriterien (4 und 9) darunter, keiner als „nicht herstellbar"
+ausgefallen.
+
+| Punkt | Gegenstand | |
+|---|---|---|
+| 1 | Ausgangszustand, kein Band | erfüllt |
+| 2 | eingeschaltet, Kundenwebsite 503 | erfüllt |
+| 3 | Endzeit dazu, Dauer springt nicht | erfüllt |
+| **4** | **überschrittene Endzeit steht vorn** | **erfüllt** |
+| 5 | Bilderrunde, zwei Bänder stapeln | erfüllt |
+| 6 | Kundensicht ohne Band | erfüllt |
+| 7 | Datei fort → `missing` | erfüllt |
+| 8 | Abzeichen trägt den Befund | erfüllt |
+| **9** | **Datei da, Panel schweigt → `unexpected`** | **erfüllt** |
+| 10 | Endzustand | erfüllt |
+
+**Vier Befunde und drei Beobachtungen — und keiner der Befunde steckt im
+Prüfling:**
+
+| | wo | |
+|---|---|---|
+| Befund 1 | Prüfmittel | Die Vorbedingung konnte nur rot sein |
+| Befund 2 | — | Zwei fehlgeschlagene Bestellungen, geklärt: `.invalid`-Namen |
+| Befund 3 | Vorschrift | `docs/912 §10` verlangte `until: null` und sagte zwei Zeilen weiter das Gegenteil |
+| Befund 4 | Anweisung | Der Schritt vor dem Block wurde gelesen und nicht gefahren |
+| Beobachtung 1 | Server | `srvpanel-diagnose.timer` ohne nächsten Termin — und von selbst wieder da |
+| Beobachtung 2 | Entwurf | `/maintenance` nennt den Zustand dreimal, das Band verweist auf sich selbst |
+| Beobachtung 3 | Bestätigung | Die ACME-Ausnahme trägt während der Wartung |
+
+**Null Funde am Prüfling ist kein Freispruch.** Dieselbe Lage wie in `docs/78`,
+`docs/906` und `docs/909`, und derselbe Grund: Der Plan entstand nach einer
+Messrunde, der Lauf war vor dem Fahren ausgeschrieben, und das Messmittel lag
+als geprüftes Werkzeug im Repo.
+
+> **Ein Abnahmelauf ohne Fund am Prüfling sagt nicht, dass keiner da war — er
+> sagt, wo sie gefunden wurden.**
+
+Gefunden wurden sie beim **Bauen**: `docs/911 §6` führt vier Stellen auf, an
+denen es anders lief als im Plan, und **drei davon hat ein bestehender Wächter
+angehalten**, bevor sie einen Server gesehen haben — `SharedPropTest`,
+`TimeDisplayTest`, `DiagnoseSeamTest`. Der vierte kam aus der Bilderrunde.
+
+**Was dieser Lauf gekonnt hat und der Container nicht:**
+
+1. Dass die Behauptung des Bandes stimmt — 503 an einer echten Domain über die
+   echte Leitung, und 200, sobald die Datei fort ist.
+2. Dass die Zone die des Servers ist — `CEST (UTC+02:00)` statt `UTC`, an beiden
+   Uhren und über zwei Stunden Versatz im Rundlauf durch das Formular.
+3. Dass der Abgleich einen Befund erzeugt, den das Abzeichen trägt — in beide
+   Richtungen, mit `warn` und `fail` getrennt.
+
+Genau die drei hat `docs/912` in seiner Einleitung als unmessbar im Container
+benannt.
+
+---
+
+## §12 Was benannt offen bleibt
+
+- **Der Rest aus P7:** `orphan.row / certificate — tls.cloudlab24.de` steht seit
+  `docs/113 §13` da und ist von diesem Lauf unberührt.
+- **`tls.file / expiring — p6-b.invalid`** — das Wegwerfzertifikat aus
+  `docs/100 §6`, das an diesem Tag ausläuft. Erneuern lässt es sich nicht:
+  `.invalid` ist für Let's Encrypt kein prüfbarer Name (Befund 2).
+- **Warum `unit.schedule / no_next` verschwand**, ist nicht gemessen
+  (Beobachtung 1). Für den Nachtlauf ist es die tragende Frage: Ohne Termin
+  fährt der Abgleich aus diesem Merkmal nicht von selbst.
+- **Der Administrator ist nicht geprüft.** Punkt 6 misst die Tür an der
+  Kundensicht; dass es die richtige Tür ist, hält `MaintenanceBandTest`
+  (`docs/912 §0`).
+- **Ob eine Ankündigung und das Wartungsband zusammen mit dem
+  Impersonationsband stapeln**, ist nicht herstellbar — die beiden schliessen
+  einander aus (`docs/912 §0`).
+- **Der Zustand „eingeschaltet, aber `since` fehlt"** ist nicht vorgekommen:
+  `cloudsrv24` stand beim Einspielen nicht in Wartung.
+- **Beobachtung 2** ist eine Entwurfsfrage und keine Aufgabe: Ob `/maintenance`
+  den Zustand dreimal nennen soll, entscheidet der Betreiber.

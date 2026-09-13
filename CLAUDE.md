@@ -3471,6 +3471,108 @@ gemessen, und für keinen Punkt tragend.
 
 ---
 
+## Das Wartungsband ist abgenommen — 13. September 2026
+
+Auf `cloudsrv24` gegen `0.7.4-rc.6`, **alle zehn Punkte aus `docs/912`**, beide
+Ausschlusskriterien (4 und 9) darunter, keiner als „nicht herstellbar"
+ausgefallen. Der Plan ist `docs/911`, der Lauf `docs/912`, das Protokoll
+**`docs/913`**.
+
+Der Wartungsmodus steht seitdem als drittes Band im `PanelLayout`, dazu die
+lesende Operation `web.maintenance.state` und die Prüfung `maintenance.flag`,
+die Ablage und Flagdatei einmal pro Nacht aneinanderhält.
+
+**Vier Befunde, und keiner im Prüfling** — dieselbe Lage wie in `docs/78`,
+`docs/906` und `docs/909`, und derselbe Grund: Plan nach der Messrunde, Lauf vor
+dem Fahren ausgeschrieben, Messmittel als geprüftes Werkzeug im Repo. Gefunden
+wurden die Fehler beim **Bauen**, und **drei von vier hat ein bestehender
+Wächter angehalten** (`docs/911 §6`).
+
+> **Ein Abnahmelauf ohne Fund am Prüfling sagt nicht, dass keiner da war — er
+> sagt, wo sie gefunden wurden.**
+
+**Die teuerste Lehre trifft jede Vorbedingung, die je einer schreibt.** §1
+prüfte mit `grep -c 'web\.maintenance\.state'` über
+`/opt/srvpanel/current/agent/src/Registry.php`, ob die installierte Fassung das
+Band trägt, und bekam `0` — auf einer Fassung, die es nachweislich enthält. Die
+Datei war die richtige, die Zeichenkette nicht: `Registry.php` registriert die
+**Klasse**, den gepunkteten Namen trägt die Operation. Dieselbe Zeile gegen den
+Arbeitsbaum gefahren gibt ebenfalls `0` — der Griff hätte auf keinem Server je
+`1` gemeldet.
+
+> **Eine Vorbedingung, die man nicht gegen den heilen Fall gemessen hat, ist
+> keine Prüfung — sie ist eine Behauptung, die auch im heilen Fall rot ist.**
+
+Sie fragt jetzt den **laufenden Agenten** statt einer Datei. Das ist die
+Schwester von „Ein leerer Griff in die falsche Datei sieht aus wie ein Befund"
+(`docs/78`) und die überzeugendere: Pfad, Fassung und Rückgabewert waren alle
+plausibel.
+
+**Und die zweite gilt jeder Anweisung, die jemand abarbeitet.** Punkt 9 begann
+mit dem Ausschalten — in Prosa, während alles danach in einem Block zum Einfügen
+stand. Der Schritt ist nicht gefahren worden, und damit hat der `touch` Ablage
+und Datei nicht auseinandergebracht, sondern zusammengeführt.
+
+> **Ein Schritt, der nicht im Block steht, wird nicht ausgeführt — er wird
+> gelesen.**
+
+Der Fehlgriff hat dabei etwas belegt, das nur in einer Richtung bestellt war:
+Die Prüfung **verfolgt den Zustand und rastet nicht ein** — Befund da, nach dem
+`touch` fort, nach dem `rm` wieder da.
+
+> **Ein Befund, der verschwindet, wenn sein Grund verschwindet, ist gemessen.
+> Ein Befund, der nur entsteht, ist abgelegt.**
+
+**Und eine Zahl hat beinahe einen Punkt getragen, den sie nicht tragen kann.**
+Das Abzeichen stand auf 3 und danach auf 4 — die Differenz `+1` entstand aber
+aus drei Änderungen: Ein Befund des Ausgangszustands hatte sich von selbst
+erledigt, zwei neue kamen.
+
+> **Eine Zahl, die um eins gestiegen ist, belegt keine Zunahme um eins — sie
+> belegt eine Summe.**
+
+Belegt hat den Punkt die **Liste** hinter der Zahl. Seitdem nennt `docs/912 §10`
+Zeilen statt Zahlen — dieselbe Berichtigung hat dort eine zweite gefunden: Die
+Erwartung verlangte `until: null` nach dem Ausschalten, während der Absatz zwei
+Zeilen darunter richtig sagt, dass die Endzeit bleibt.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+**Drei Dinge kann nur ein Server sagen, und genau die hat der Lauf geholt:** die
+503 an einer echten Domain über die echte Leitung (und die 200, sobald die Datei
+fort ist); die Zone `CEST (UTC+02:00)` an beiden Uhren, samt Rundlauf durch das
+Formular über zwei Stunden Versatz — im Container ist die Anzeigezone UTC, und
+dort sähe eine fehlende Umrechnung wie eine gelungene aus; und den Abgleich als
+Befund, mit `warn` und `fail` getrennt ausgewiesen.
+
+**Der Zwilling weicht dabei an einer Stelle ab und bestätigt sich damit.** Der
+Nachbau mass für die überschrittene Fassung bei 390 px 104 px, der Server 125 —
+der Unterschied ist die Zone, die der Satz zweimal trägt. Bei 1440 px, wo alles
+in eine Zeile passt, stimmen die Zahlen auf das Pixel (41).
+
+> **Ein Zwilling, der bei der schmalen Breite abweicht und bei der breiten
+> übereinstimmt, weicht nicht in der Form ab, sondern im Inhalt.**
+
+**Und der beste Prüfkörper des Laufs war besser als bestellt.** Punkt 6 sollte
+zeigen, dass der Kunde das Band nicht sieht; gemessen ist zusätzlich, dass die
+Hülle darum **weiterhin rendert** und ein Ankündigungsband darin steht.
+
+> **Eine Abwesenheit belegt eine Grenze erst, wenn daneben etwas anwesend ist,
+> das dieselbe Hülle braucht.**
+
+**Was benannt offen bleibt** (`docs/913 §12`): der Rest aus P7, das
+`.invalid`-Zertifikat, das sich nicht erneuern lässt, die ungeklärte Frage,
+warum `unit.schedule / no_next` am `srvpanel-diagnose.timer` von selbst
+verschwand (für den Nachtlauf die tragende), und eine Entwurfsfrage —
+`/maintenance` nennt den Zustand dreimal und das Band verweist dort auf die
+Seite, auf der man schon steht.
+
+> **Ein Bedienelement, das auf die Seite verweist, auf der es steht, ist kein
+> Fehler — es ist eine Frage, die beim Entwurf nicht gestellt wurde.**
+
+---
+
 ## Zwei Befunde an einem Feld — 4. September 2026
 
 Gemeldet hat den ersten der Betreiber, beim ersten Versuch, den Wartungsmodus

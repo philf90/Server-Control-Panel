@@ -27894,3 +27894,31 @@ zählte ihn mit.
 Die dreizehn stehen jetzt vor der Bilanz, und `test_nothing_stands_behind_the_exit`
 hält die Stelle. Gegengeprüft von Hand — das Bruchskript darf sich selbst nicht
 brechen.
+
+### Abgenommen am 13. September 2026 auf `cloudsrv24`
+
+Gegen `0.7.4-rc.6`, alle zehn Punkte aus `docs/912`, beide Ausschlusskriterien
+(4 und 9) darunter, keiner als „nicht herstellbar" ausgefallen. Das Protokoll
+ist `docs/913`.
+
+Drei Dinge kann nur ein Server sagen, und genau die hat der Lauf geholt: dass
+die Behauptung des Bandes stimmt (503 an einer echten Domain, 200 sobald die
+Datei fort ist), dass die Zone die des Servers ist (`CEST (UTC+02:00)` statt des
+`UTC` aus dem Container, samt Rundlauf über zwei Stunden Versatz), und dass der
+Abgleich einen Befund erzeugt, den das Abzeichen trägt — in beide Richtungen,
+`warn` und `fail` getrennt ausgewiesen.
+
+**Kein Fund am Prüfling, und das ist kein Freispruch.** Gefunden wurden die
+Fehler beim Bauen, und drei von vier hat ein bestehender Wächter angehalten.
+
+> **Ein Abnahmelauf ohne Fund am Prüfling sagt nicht, dass keiner da war — er
+> sagt, wo sie gefunden wurden.**
+
+Was der Lauf über sich selbst gelernt hat, steht in `docs/913 §11`. Zwei Sätze
+gelten über ihn hinaus:
+
+> **Eine Vorbedingung, die man nicht gegen den heilen Fall gemessen hat, ist
+> keine Prüfung — sie ist eine Behauptung, die auch im heilen Fall rot ist.**
+
+> **Ein Schritt, der nicht im Block steht, wird nicht ausgeführt — er wird
+> gelesen.**

@@ -780,10 +780,27 @@ benannt.
 ## §12 Was benannt offen bleibt
 
 - **Der Rest aus P7:** `orphan.row / certificate — tls.cloudlab24.de` steht seit
-  `docs/113 §13` da und ist von diesem Lauf unberührt.
-- **`tls.file / expiring — p6-b.invalid`** — das Wegwerfzertifikat aus
-  `docs/100 §6`, das an diesem Tag ausläuft. Erneuern lässt es sich nicht:
-  `.invalid` ist für Let's Encrypt kein prüfbarer Name (Befund 2).
+  `docs/113 §13` da und ist von diesem Lauf unberührt. **Warum er nicht von
+  selbst verschwindet, ist gemessen** (§15): Das Aufräumen ist ein eigener Modus
+  (`srvpanel tls --prune`), und der nächtliche `srvpanel-tls.service` fährt
+  `artisan srvpanel:tls` **ohne** ihn — er erneuert und räumt nicht.
+- **`tls.file / expiring — p6-b.invalid` ist geschlossen** — entschieden vom
+  Betreiber am 13. September 2026. Nicht als Rest, sondern als Sache: `.invalid`
+  ist von RFC 2606 dafür reserviert, **nie** aufzulösen. Es gibt keine
+  Registrierung und damit keinen Weg, Verfügungsgewalt nachzuweisen; keine
+  Zertifizierungsstelle kann dafür ausstellen. Der Prüfling verhält sich richtig.
+
+  > **Ein Befund an einem Gegenstand, den es absichtlich nicht gibt, ist kein
+  > Rest des Prüflings — er ist ein Rest des Prüfstands.**
+
+  **Was daraus folgt und benannt bleibt:** Das Zertifikat läuft an diesem Tag
+  aus, und danach heisst der Grund `expired` statt `expiring` — also `Fail`
+  statt `Warn` (`FindingCheck::TlsFile`). Der Nachtlauf trägt damit dauerhaft
+  eine `Kaputt`-Zeile für eine Wegwerfdomain. Dass das so ist, ist richtig: Für
+  eine **echte** Domain, deren Zertifikat nicht mehr erneuerbar ist, wäre es
+  genau der Befund, den man will. Wer die Zeile loswerden will, entfernt die
+  Domain und nicht die Prüfung — danach wird ihr Zertifikat zu einer Zeile
+  `ohne Domain` und `srvpanel tls --prune` nimmt es mit.
 - **`unit.schedule / no_next` ist geklärt und war ein Befund im Prüfling**
   (§13 und §14): Der Nachtlauf hat seinen eigenen Timer gemeldet, weil er
   dessen ausgelöste Unit ist. Behoben in `Units::hasNext()`; **auf einem Server
@@ -799,8 +816,9 @@ benannt.
   einander aus (`docs/912 §0`).
 - **Der Zustand „eingeschaltet, aber `since` fehlt"** ist nicht vorgekommen:
   `cloudsrv24` stand beim Einspielen nicht in Wartung.
-- **Beobachtung 2** ist eine Entwurfsfrage und keine Aufgabe: Ob `/maintenance`
-  den Zustand dreimal nennen soll, entscheidet der Betreiber.
+- **Beobachtung 2 ist entschieden und geschlossen** (§16): Der Betreiber hat am
+  13. September 2026 nach der Messung entschieden, dass `/maintenance` so
+  bleibt.
 
 ---
 
@@ -991,3 +1009,93 @@ nächsten Nachtlauf: Bleibt `Kaputt: 1` aus und meldet der Lauf `Auffällig: 2`,
 ist sie belegt. Vorher ist sie gebaut und nicht gemessen.
 
 > **Was nur nachts entsteht, lässt sich nur nachts widerlegen.**
+
+---
+
+## §15 Warum der P7-Rest nicht von selbst verschwindet
+
+Ausgezählt am Quelltext am 13. September 2026, nachdem der Befund fünf Tage
+unverändert dastand.
+
+`orphan.row / certificate` meldet, was `CertificatePrune::plan()` unter
+`removable` führt — also genau das, was `srvpanel tls --prune` entfernen würde.
+Der Befund und das Aufräumen fragen dieselbe Klasse; sie können nicht
+auseinanderlaufen.
+
+**Nur läuft das Aufräumen nie von selbst.** `--prune` ist ein eigener Modus von
+`srvpanel:tls`, und `srvpanel-tls.service` fährt
+
+    ExecStart=/opt/srvpanel/bin/php artisan srvpanel:tls
+
+also ohne ihn. Der nächtliche Lauf erneuert Zertifikate und räumt keine ab.
+
+> **Ein Befund, für den es einen Griff gibt, verschwindet nicht dadurch, dass es
+> ihn gibt.**
+
+**Dass es zwei Modi sind, ist kein Versehen**, und der Kopf von
+`CertificatePrune` sagt warum: Der Vorgang nimmt einen **privaten Schlüssel**
+von der Platte, ist nicht rückgängig zu machen, und das Kommando fragt deshalb
+zurück — mit `false` als Vorgabe, damit ein Lauf ohne Rückfrage nichts löscht.
+Ein Nachtlauf, der das unbeaufsichtigt täte, wäre eine andere Entscheidung als
+die, die dort steht.
+
+**Was der Befund dem Leser sagt und was nicht.** Sein Text lautet „Dieses
+Zertifikat deckt keine lebende Domain mehr." — der Zustand, nicht der Griff.
+Das ist bei **jeder** Prüfung so (`FindingCheck::text()`); eine Ausnahme für
+diesen einen Grund wäre die erste.
+
+> **Eine Meldung, die den Zustand nennt und nicht den Griff, ist keine halbe
+> Meldung — sie ist die, die nicht veraltet, wenn sich der Griff ändert.**
+
+Was offen bleibt, ist damit keine Frage an den Quelltext, sondern ein Handgriff
+auf dem Server: `srvpanel tls --prune --dry-run`, und wenn die Liste stimmt,
+`srvpanel tls --prune`.
+
+---
+
+## §16 Beobachtung 2, gemessen und entschieden
+
+Gemessen am 13. September 2026 **im Container an der echten Seite** —
+`artisan serve`, angemeldet als Betreiber, Wartungsmodus in der Ablage
+eingeschaltet mit überschrittener Endzeit, also der längsten Fassung des Satzes.
+Messmittel ist `tests/bilder-messen.js`, dazu ein Zähler über `innerText`.
+
+| | 390 px | 1440 px |
+|---|---|---|
+| `dokument` | 0 | 0 |
+| Gegenprobe | 200 / 200 | 200 / 200 |
+| `schiebt` · `rollt` | leer · leer | leer · leer |
+| Ladebeleg (`display` des Bandes) | `flex` | `flex` |
+| „Alle Kundenwebsites" | **3×** | 3× |
+| „503" | **2×** | 2× |
+| Verweisziel des Bandes | `/maintenance` | `/maintenance` |
+
+**Die Drei zerfällt in zwei plus eine.** Zwei Blöcke nennen den *Zustand* — das
+Band und die Notiz —, der dritte ist die Unterzeile der Seite („Alle
+Kundenwebsites vorübergehend abschalten"), und die beschreibt, was die Seite
+tut, und nicht, was gerade gilt. Gezählt wird die Formulierung, entschieden hat
+die Art des Satzes.
+
+> **Ein Zähler über eine Zeichenkette zählt auch die Sätze mit, die etwas
+> anderes sagen.**
+
+**Und die beiden Zustandssätze sind keine Dubletten.** Nur das Band nennt die
+überschrittene Endzeit und das „seit"; nur die Notiz sagt, dass Panel und
+Zertifikatsprüfung erreichbar bleiben. Jeder trägt einen Teil, den der andere
+nicht hat.
+
+**Die Breite entscheidet, wie schwer es wiegt.** Bei 1440 px ist das Band eine
+Zeile über der Fläche und die Notiz eine Zeile darin — beides liest sich neben-
+einander weg. Bei 390 px stapeln Band, Titel, Unterzeile und Notiz, und vor dem
+ersten Bedienelement steht der ganze erste Bildschirm.
+
+> **Eine Wiederholung ist auf der breiten Ansicht eine Zeile und auf der
+> schmalen ein Bildschirm — dieselbe Anzeige, zwei Urteile.**
+
+**Entschieden vom Betreiber: es bleibt.** Der Punkt ist damit geschlossen und
+nicht offen — nicht, weil ihn niemand angesehen hat, sondern weil ihn jemand
+angesehen und entschieden hat.
+
+> **Ein Punkt, der als Frage offen steht, und einer, der als Entscheidung
+> geschlossen ist, sehen im Bestand gleich aus — der Unterschied steht nur
+> daneben.**

@@ -3561,13 +3561,53 @@ Hülle darum **weiterhin rendert** und ein Ankündigungsband darin steht.
 > **Eine Abwesenheit belegt eine Grenze erst, wenn daneben etwas anwesend ist,
 > das dieselbe Hülle braucht.**
 
-**Was benannt offen bleibt** (`docs/913 §12`): der Rest aus P7, das
-`.invalid`-Zertifikat, das sich nicht erneuern lässt, und eine Entwurfsfrage —
-`/maintenance` nennt den Zustand dreimal und das Band verweist dort auf die
-Seite, auf der man schon steht.
+**Zwei der drei Reste sind am 13. September geschlossen** (`docs/913 §15`
+und **§16**), und beide Male hat eine Messung entschieden und keine Meinung.
+
+**Das `.invalid`-Zertifikat ist kein Rest des Prüflings.** `.invalid` ist von
+RFC 2606 dafür reserviert, **nie** aufzulösen; es gibt keine Registrierung und
+damit keinen Weg, Verfügungsgewalt nachzuweisen. Keine Zertifizierungsstelle
+kann dafür ausstellen, und der Prüfling verhält sich richtig.
+
+> **Ein Befund an einem Gegenstand, den es absichtlich nicht gibt, ist kein Rest
+> des Prüflings — er ist ein Rest des Prüfstands.**
+
+Dass daraus ab dem Ablauf ein dauerhaftes `Fail` wird (`expired` statt
+`expiring`), ist ebenfalls richtig: Für eine **echte** Domain wäre es genau der
+Befund, den man will. Wer die Zeile loswerden will, entfernt die Domain.
+
+**Die Entwurfsfrage zu `/maintenance` ist gemessen und entschieden: es bleibt.**
+Gemessen an der echten Seite — „Alle Kundenwebsites" **3×**, „503" **2×**,
+`dokument = 0`, Gegenprobe 200/200. Die Drei zerfällt in zwei Zustandssätze plus
+die Unterzeile der Seite, und die beschreibt, was die Seite *tut*.
+
+> **Ein Zähler über eine Zeichenkette zählt auch die Sätze mit, die etwas
+> anderes sagen.**
+
+Und die beiden Zustandssätze sind keine Dubletten: Nur das Band nennt die
+überschrittene Endzeit, nur die Notiz die erreichbare Zertifikatsprüfung.
+
+> **Eine Wiederholung ist auf der breiten Ansicht eine Zeile und auf der
+> schmalen ein Bildschirm — dieselbe Anzeige, zwei Urteile.**
+
+> **Ein Punkt, der als Frage offen steht, und einer, der als Entscheidung
+> geschlossen ist, sehen im Bestand gleich aus — der Unterschied steht nur
+> daneben.**
+
+**Offen bleibt damit der Rest aus P7**, und auch dort ist jetzt gemessen, warum
+er nicht von selbst geht: `orphan.row / certificate` meldet, was
+`CertificatePrune::plan()` unter `removable` führt — also genau das, was
+`srvpanel tls --prune` entfernen würde. Nur fährt `srvpanel-tls.service`
+`artisan srvpanel:tls` **ohne** `--prune`; der Nachtlauf erneuert und räumt
+nicht. Das ist kein Versehen: Der Vorgang nimmt einen privaten Schlüssel von der
+Platte und fragt deshalb zurück, mit `false` als Vorgabe.
+
+> **Ein Befund, für den es einen Griff gibt, verschwindet nicht dadurch, dass es
+> ihn gibt.**
 
 > **Ein Bedienelement, das auf die Seite verweist, auf der es steht, ist kein
-> Fehler — es ist eine Frage, die beim Entwurf nicht gestellt wurde.**
+> Fehler — es ist eine Frage, die beim Entwurf nicht gestellt wurde.** Gestellt
+> und beantwortet am 13. September: Es bleibt.
 
 ---
 

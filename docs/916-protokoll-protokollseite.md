@@ -86,3 +86,61 @@ der Leser des Agenten sie als Protokollzeilen durchreicht, sagt erst Punkt 5:
 | 4 — Filter | `agent.log` |
 | 5 — Journal *(Ausschluss)* | `journal-web` und `journal-tls` |
 | 6 · 7 · 8 — Bilder, Kleben, Kopieren | `agent.log` |
+
+---
+
+## §1b Vorbedingung nachgeholt — erfüllt
+
+```
+"read": 500   "complete": false   "capped": false   "matched": 500   "truncated": true
+```
+
+Fünf Felder da, **kein `window`**, **kein `origin`**. Dass die fünf dastehen,
+ist der Beleg, dass der Ausdruck greift — die Abwesenheit der beiden anderen
+bedeutet damit etwas.
+
+## §3 Punkt 3 — der Bytedeckel *(Ausschlusskriterium, erfüllt)*
+
+Prüfkörper nach `docs/915 §5`: 600 Zeilen à rund 4 KiB an `laravel.log`
+angehängt, die Datei war vorher leer.
+
+| gemessen an | Ergebnis |
+|---|---|
+| Agent, mit Prüfkörper | `read: 130` · `complete: false` · **`capped: true`** · `matched: 130` · `truncated: false` |
+| Seite | 130 nummerierte Zeilen, „130 Zeilen · gelesen wurden die letzten 130 Zeilen" |
+| Notiz | „Die Nummern zählen vom Ende: −1 ist die letzte Zeile. **Weiter zurück wurde nicht gelesen — das Fenster ist auch in Bytes begrenzt.**" |
+| Gegenprobe nach dem Rückbau | `read: 0` · **`capped: false`** |
+
+**Die Containermessung war auf die Zeile genau.** Derselbe Prüfkörper ergab
+dort ebenfalls **130** (`docs/914 §13`).
+
+> **Ein Aufsatz, der das echte Markup und das gebaute Stylesheet benutzt, misst
+> die echte Seite** — und hier auch die echte Zahl.
+
+### Befund 2 — beim Bytedeckel ist die erste Zeile ein Bruchstück
+
+Auf dem Bild trägt Zeile **−130** kein `[2026-09-13 …]`, sondern nur `xxxx…`.
+Der Leser liest rückwärts in Blöcken; endet er am Bytedeckel, fängt sein Text
+**mitten in einer Zeile** an, und `explode("\n", …)` macht daraus einen ersten
+Eintrag, der keine Zeile ist.
+
+**Der Leser kennt das Problem und schützt nur den einen Ausstieg.** Sein
+Kommentar sagt die Absicht: *„Der erste Block endet in aller Regel mitten in
+einer Zeile, und die gehört nicht angeschnitten zurückgegeben."* Der Schutz ist
+`substr_count($text, "\n") > $count` — ein Umbruch mehr als gewünscht, damit
+`array_slice($all, -$count)` das Bruchstück wegschneidet. Beim Bytedeckel
+greift diese Bedingung nie, und dann bleibt es stehen.
+
+> **Ein Schutz, der an einer von drei Abbruchbedingungen hängt, schützt die
+> beiden anderen nicht — und welche greift, entscheidet der Inhalt der Datei.**
+
+Kein Kriterium fragt danach; der Befund fiel aus dem **Bild** heraus, nicht aus
+einer Zahl. Er ist **nicht während des Laufs behoben** — eine Behebung ist eine
+Änderung am Prüfling.
+
+### Eine Beobachtung, kein Befund
+
+Die Fusszeile sagt „130 Zeilen · gelesen wurden die letzten 130 Zeilen" —
+dieselbe Zahl zweimal, weil ohne Filter `matched` und `read` gleich sind. Sie
+steht schon als Beobachtung in `docs/914 §13`; der Blick auf dem Server
+bestätigt sie und entscheidet sie nicht.

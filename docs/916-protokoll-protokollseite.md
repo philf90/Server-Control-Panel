@@ -344,3 +344,64 @@ Drei seiner Regeln gelten für jedes Messmittel, das eine Seite misst — Stand,
 eine gedruckte Zeile, Sperre gegen den zweiten Lauf —, und zwei nur für die mit
 Prüfkörper. **Der Wächter trennt das nicht.** Behoben wird nach dem Lauf,
 zusammen mit den Befunden 2 und 3.
+
+---
+
+## §11 Punkt 6 und 8 — die Bilderrunde *(erfüllt)*
+
+Vier Lagen auf `cloudsrv24`, Quelle `agent`, je eine frisch geladene Seite:
+
+| Lage | | |
+|---|---|---|
+| 1440 dunkel · 1440 hell · 390 dunkel · 390 hell | `dokument=0` | `gegenprobe=200 (soll 200)` · `schiebt=0` · `rollt=1` · `versteckt=0` |
+
+## §12 Befund 5 — die Klebeprobe mass zweimal nichts und sagte es zweimal
+
+**Beim ersten Lauf auf dem Server:**
+
+    rollweg=2164 nummer=17->17 klebt=true imStreifen=[log-line] deckt=false misst=false
+
+**Die Selbstprüfung hat zugeschlagen, und das ist der Grund, dass sie da ist.**
+Die Probe mass die **vierte** Zeile und rollte bis ans Ende; auf dem Server sind
+die Zeilen verschieden lang, und die vierte endet lange vor `rollweg=2164`.
+Unter dem Streifen lag dann nichts — und ohne die Selbstprüfung wäre daraus
+`deckt=false` als Befund geworden oder, schlimmer, `deckt=true` als Freispruch.
+
+**Der Prüfstand im Container hatte lauter gleich lange Zeilen** und konnte den
+Fehler deshalb nicht zeigen.
+
+> **Ein Prüfstand, dessen Zeilen alle gleich lang sind, versteckt jeden Fehler,
+> der an der Länge hängt.**
+
+**Der zweite Anlauf war auch keiner.** Umgestellt auf die **längste** Zeile,
+gegen verschieden lange Zeilen gemessen: `deckt=true` bei `misst=false` — also
+ein Freispruch aus einer Messung, die nicht stattgefunden hat. `.log` rollt auch
+senkrecht, und die längste von hundert Zeilen steht in aller Regel nicht im
+sichtbaren Ausschnitt.
+
+> **Ein Prüfkörper, der seinen Gegenstand nicht im Blick hat, misst den leeren
+> Raum — und der besteht jede Prüfung.**
+
+Die Probe holt die gemessene Zeile seitdem erst senkrecht in den Blick. Gegen
+verschieden lange Zeilen stimmen alle Richtungen:
+
+| Richtung | Ergebnis |
+|---|---|
+| wie gebaut | `deckt=false` · `misst=true` |
+| mit dem Polster an der Spalte | `deckt=true` · `misst=true` |
+| Text auf `visibility: hidden` | `misst=false` samt Warnung |
+| zweiter Aufruf ohne Neuladen | wirft |
+
+**Was daraus über Messmittel gilt, und nicht nur über dieses:**
+
+> **Ein Messmittel, das sagt, dass es nichts gemessen hat, ist mehr wert als
+> eines, das eine Null liefert.** Zwei falsche Urteile in Folge hat allein die
+> Selbstprüfung abgefangen — die Probe selbst lag beide Male daneben.
+
+## §13 Was noch aussteht
+
+- **Punkt 6, zweite Hälfte** — die Klebeprobe auf dem Server, mit der
+  berichtigten Fassung. **Erwartet ist `deckt=false`** mit `log-text` im
+  Streifen: Das ist Befund 3, und er soll dort erscheinen. Käme `deckt=true`,
+  wäre die Containermessung falsch gewesen.
+- **Punkt 7** — das Kopieren mit der Maus. Nicht belegt.

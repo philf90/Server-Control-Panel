@@ -63,7 +63,7 @@
  */
 
 /** Der Tag, an dem dieses Messmittel zuletzt geändert wurde. */
-const KLEBE_STAND = '2026-09-13'
+const KLEBE_STAND = '2026-09-13c'
 
 /**
  * Ob in dieser geladenen Seite schon gemessen wurde.
@@ -97,11 +97,42 @@ function klebenMessen () {
 
   klebeGelaufen = true
 
-  // Gemessen wird an einer Zeile aus der Mitte des Sichtbaren und nicht an der
-  // ersten: Die erste kann von der Kopfzeile des Behälters überlagert sein.
-  const zeile = zeilen[3]
+  /*
+   * **Gemessen wird an der längsten Zeile, und das ist tragend.**
+   *
+   * Die Probe rollt bis ans Ende. Dort hat nur noch die längste Zeile Inhalt —
+   * jede kürzere endet vorher, und unter dem Streifen liegt dann nichts.
+   * Gemessen am 13. September 2026 auf `cloudsrv24` mit der vierten Zeile:
+   * `imStreifen=[log-line]`, `misst=false`. Der erste Wurf nahm sie, weil der
+   * Prüfstand im Container lauter **gleich lange** Zeilen hatte.
+   *
+   * > **Ein Prüfstand, dessen Zeilen alle gleich lang sind, versteckt jeden
+   * > Fehler, der an der Länge hängt.**
+   */
+  const zeile = [...zeilen].reduce((breiteste, kandidat) => {
+    const a = kandidat.querySelector('.log-text')?.getBoundingClientRect().width ?? 0
+    const b = breiteste.querySelector('.log-text')?.getBoundingClientRect().width ?? 0
+
+    return a > b ? kandidat : breiteste
+  })
+
   const nummer = zeile.querySelector('.log-number')
   const text = zeile.querySelector('.log-text')
+  const textBreite = Math.round(text.getBoundingClientRect().width)
+
+  /*
+   * **Erst senkrecht in den Blick holen.** `.log` rollt in beide Richtungen;
+   * die längste Zeile von hundert steht in aller Regel nicht im sichtbaren
+   * Ausschnitt. `elementFromPoint` trifft dann nichts, und ein leerer Streifen
+   * sieht aus wie ein gedeckter — gemessen am 13. September 2026: `deckt=true`
+   * bei `misst=false`, also ein Freispruch aus einer Messung, die nicht
+   * stattgefunden hat.
+   *
+   * > **Ein Prüfkörper, der seinen Gegenstand nicht im Blick hat, misst den
+   * > leeren Raum — und der besteht jede Prüfung.**
+   */
+  const hoch = zeile.getBoundingClientRect().top - rahmen.getBoundingClientRect().top
+  rahmen.scrollTop += hoch - rahmen.clientHeight / 2
 
   const kasten = () => rahmen.getBoundingClientRect()
   const links = (e) => Math.round(e.getBoundingClientRect().left - kasten().left)
@@ -140,6 +171,9 @@ function klebenMessen () {
   const ergebnis = {
     stand: KLEBE_STAND,
     breite: document.documentElement.clientWidth,
+    // Die Breite der gemessenen Zeile: Ist sie nicht grösser als der Rollweg,
+    // liegt unter dem Streifen nichts, und die Probe misst nichts.
+    zeileBreit: textBreite,
     thema: document.documentElement.getAttribute('data-theme') ?? '(System)',
     rollweg,
     nummerVorher: vorher,
@@ -160,7 +194,8 @@ function klebenMessen () {
    */
   console.log(
     `stand=${ergebnis.stand} breite=${ergebnis.breite} thema=${ergebnis.thema} ` +
-    `rollweg=${ergebnis.rollweg} nummer=${vorher}->${nachher} klebt=${ergebnis.klebt} ` +
+    `rollweg=${ergebnis.rollweg} zeileBreit=${ergebnis.zeileBreit} ` +
+    `nummer=${vorher}->${nachher} klebt=${ergebnis.klebt} ` +
     `imStreifen=[${streifen.join(', ') || '—'}] deckt=${ergebnis.deckt} ` +
     `misst=${ergebnis.misst} (sieht daneben: ${sichtDaneben ?? '—'}) ` +
     `· die Seite bleibt gerollt stehen`

@@ -56,12 +56,87 @@ final class LineNumberTest extends TestCase
         $this->assertStringContainsString('left: 0', $regel);
     }
 
+    /**
+     * Die Spalte deckt bis an die Kante.
+     *
+     * **Zwei Angaben, eine Regel.** Eine Fläche allein genügt nicht: Ein
+     * klebendes Element klebt am **Inhaltsrand**, und das waagerechte Polster
+     * des Rahmens liegt davor. Beim Rollen wandert der Text sichtbar in diesen
+     * Streifen — gemessen am 13. September 2026 auf `cloudsrv24`,
+     * `elementFromPoint` fand dort `log-text` (`docs/916 §7`).
+     *
+     * > **Ein Element, das klebt, deckt seinen eigenen Kasten — nicht den
+     * > Streifen, den das Polster davor freilässt.**
+     *
+     * Deshalb steht beides in **einem** Fall: Fällt eine der beiden Angaben
+     * weg, ist die Regel gebrochen, und zwei getrennte Fälle liessen die
+     * Begründung auseinanderlaufen.
+     */
     public function test_the_gutter_hides_what_scrolls_under_it(): void
     {
+        $stil = $this->stil();
+        $spalte = $this->regel($stil, '.log-number');
+
         $this->assertStringContainsString(
-            'background:',
-            $this->regel($this->stil(), '.log-number'),
+            'background: var(--gutter-bg)',
+            $spalte,
             'Ohne Fläche rollt der Text der Zeile sichtbar unter der Nummer hindurch.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/padding-inline:\s*0\s*;/',
+            $this->regel($stil, '.log'),
+            'Das waagerechte Polster gehört an die Kinder — vor der klebenden Spalte lässt es sonst einen Streifen frei.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/padding-left:\s*\d/',
+            $spalte,
+            'Die Spalte trägt das Polster, das der Rahmen abgegeben hat.',
+        );
+    }
+
+    /**
+     * Die Nummer vom Ende trägt einen Pfeil und kein Minus.
+     *
+     * **Das Zeichen unterscheidet die beiden Bedeutungen**, und das ist seine
+     * eigentliche Aufgabe: Bei einer vollständig gelesenen Quelle sind `1, 2,
+     * 3` die echten Zeilen der Datei; ohne Zeichen sähe die Lage vom Ende
+     * genauso aus, und die Notiz darunter wäre die einzige Unterscheidung.
+     *
+     * **Was er nicht hält:** dass der Pfeil schöner ist als ein Minus. Das hat
+     * der Betreiber am 13. September 2026 entschieden.
+     */
+    public function test_the_distance_from_the_end_carries_an_arrow(): void
+    {
+        $markup = $this->markup();
+
+        $this->assertStringContainsString('`↑${', $markup, 'Die Lage vom Ende wird mit ↑ geschrieben.');
+        $this->assertStringNotContainsString('`−${', $markup, 'Das Minus ist fort.');
+        $this->assertStringContainsString('↑1 ist die neueste Zeile', $markup, 'Der Satz nennt dasselbe Zeichen.');
+    }
+
+    /**
+     * Die Nummer bleibt beim Umdrehen an ihrer Zeile.
+     *
+     * Sie ist eine **Lage in der Quelle** und kein Anzeigeindex. Würde beim
+     * Umdrehen neu gezählt, hiesse dieselbe Zeile einmal so und einmal anders
+     * — genau der Grund, aus dem hier überhaupt vom Ende gezählt wird.
+     */
+    public function test_the_number_travels_with_its_line(): void
+    {
+        $markup = $this->markup();
+
+        $this->assertMatchesRegularExpression(
+            '/\{ text, nummer: nummer\(i\) \}/',
+            $markup,
+            'Die Nummer entsteht vor dem Umdrehen und wird an die Zeile gebunden.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            "/order === 'newest' \? paare\.reverse\(\) : paare/",
+            $markup,
+            'Umgedreht werden die fertigen Paare und nicht die Zeilen allein.',
         );
     }
 
@@ -149,13 +224,13 @@ final class LineNumberTest extends TestCase
         $markup = $this->markup();
 
         $this->assertMatchesRegularExpression(
-            '/<span class="log-number" :data-nummer="nummer\(i\)"/',
+            '/<span class="log-number" :data-nummer="zeile\.nummer"/',
             $markup,
             'Die Nummer reist als Attribut und nicht als Textknoten.',
         );
 
         $this->assertMatchesRegularExpression(
-            '/<span class="log-text">\{\{ zeile \}\}<\/span>/',
+            '/<span class="log-text">\{\{ zeile\.text \}\}<\/span>/',
             $markup,
         );
     }

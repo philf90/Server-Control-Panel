@@ -13374,10 +13374,17 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
 
 echo
-echo "── OverflowProbeTest: die Suche nach Messmitteln läuft ins Leere ──"
+echo "── OverflowProbeTest: die Suche nach Prüfkörpern läuft ins Leere ──"
 #
-# Untergrenze: Findet die Suche nur noch ein Messmittel, prueft die Schleife
-# eines statt zweier — und eine kurze Schleife ist genauso gruen wie eine volle.
+# Untergrenze: Findet die Suche nur noch einen Pruefkoerper, prueft die Schleife
+# einen statt zweier — und eine kurze Schleife ist genauso gruen wie eine volle.
+#
+# **Genannt ist seit dem 13. September ein Fall ueber probes() und nicht mehr
+# ueber instruments().** Der Eingriff nimmt `document.body.append(` weg, also
+# genau das Merkmal der engen Menge; die weite geht ueber `querySelector` und
+# bleibt vollzaehlig. Gegen `test_a_second_run_is_refused` gemessen war er nach
+# der Teilung gruen — ein Eingriff, der seine Datei veraendert und niemanden
+# mehr stoert.
 vorher_datei tests/baender-messen.js
 python3 - <<'PY2'
 p = 'tests/baender-messen.js'
@@ -13385,9 +13392,9 @@ s = open(p, encoding='utf-8').read()
 s = s.replace('document.body.append(koerper)', 'document.body.appendChild(koerper)', 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei tests/baender-messen.js "nur noch ein Messmittel" &&
-pruefe "nur noch ein Messmittel" \
-  OverflowProbeTest::test_a_second_run_is_refused failed
+griff_datei tests/baender-messen.js "nur noch ein Prüfkörper" &&
+pruefe "nur noch ein Prüfkörper" \
+  OverflowProbeTest::test_the_probe_is_bound_to_the_page failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
 
@@ -28076,13 +28083,17 @@ echo "── LogWindowTest: der Bytedeckel meldet sich nicht ──"
 # Bis zum 13. September gab `tail()` nur Zeilen zurueck, und drei Abbruchgruende
 # sahen von aussen gleich aus. Gemessen: 500 Zeilen a 4 KiB liefern 128 Zeilen,
 # und die Seite meldete eine vollstaendige Sicht auf einen Ausschnitt.
+#
+# Der Ausdruck stand zuerst im Rueckgabearray; seit der Behebung von Befund 2
+# haengt auch der Wegwurf der angebrochenen ersten Zeile an ihm, also steht er
+# in einer Variablen. Der Eingriff zeigt auf ihren neuen Ort.
 vorher_datei agent/src/Ops/WebLogsTail.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/WebLogsTail.php'
 s = open(p, encoding='utf-8').read()
-alt = "            'capped' => $position > 0 && strlen($text) >= self::MAX_BYTES,"
+alt = "        $capped = $position > 0 && strlen($text) >= self::MAX_BYTES;"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'capped' => false,", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        $capped = false;", 1))
 PY2
 griff_datei agent/src/Ops/WebLogsTail.php "Bytedeckel meldet sich nicht" &&
 pruefe "Bytedeckel meldet sich nicht" \
@@ -28194,13 +28205,20 @@ echo "── LineNumberTest: die Zeile bricht wieder um ──"
 # `white-space: pre`, und `pre-wrap` enthaelt das. Seitdem steht das Semikolon
 # im Ausdruck — ein Waechter, der eine Zeichenkette sucht, ist gruen, sobald sie
 # irgendwo steht.
+#
+# Und am selben Tag ist er ein zweites Mal ausgefallen, aus dem anderen Grund:
+# Seine Zielstelle war `white-space: pre;\n}\n\n.log-note` — also die Regel
+# **samt ihrem Nachbarn**. Das Polster, das Befund 3 an den Text gehaengt hat,
+# steht dazwischen, und der Eingriff fand seinen Text nicht mehr. Er greift
+# jetzt die Zeile allein; eindeutig ist sie ohnehin, und das sichert die Zeile
+# darunter zu.
 vorher_datei resources/js/Pages/Logs/Index.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Logs/Index.vue'
 s = open(p, encoding='utf-8').read()
-alt = "  white-space: pre;\n}\n\n.log-note"
+alt = "  white-space: pre;"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, "  white-space: pre-wrap;\n}\n\n.log-note", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "  white-space: pre-wrap;", 1))
 PY2
 griff_datei resources/js/Pages/Logs/Index.vue "Zeile bricht um" &&
 pruefe "Zeile bricht um" \
@@ -28267,6 +28285,271 @@ pruefe "Hülle ohne min-width" \
   LineNumberTest::test_the_body_spans_the_whole_scroll_width failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LineNumberTest passed
+
+echo
+echo "── OverflowProbeTest: das Messmittel ohne Prüfkörper nennt seinen Stand nicht ──"
+#
+# Befund 4 aus docs/916 §10: Bis zum 13. September 2026 waehlte dieser Waechter
+# seine Prueflinge an `document.body.append(` — also an einer Eigenschaft, die
+# nur die Messmittel mit Pruefkoerper haben. `kleben-messen.js` misst eine
+# Seite und setzt nichts ein; Stand, gedruckte Zeile und Wiederholungssperre
+# waren fuer es unerreichbar. Dieser Eingriff belegt, dass sie es nicht mehr
+# sind.
+vorher_datei tests/kleben-messen.js
+python3 - <<'PY2'
+p = 'tests/kleben-messen.js'
+s = open(p, encoding='utf-8').read()
+alt = "const KLEBE_STAND = '2026-09-13c'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "const KLEBE_STAND = 'aktuell'", 1))
+PY2
+griff_datei tests/kleben-messen.js "Klebeprobe ohne Stand" &&
+pruefe "Klebeprobe ohne Stand" \
+  OverflowProbeTest::test_a_reading_names_the_instrument failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: das Messmittel ohne Prüfkörper druckt sein Urteil nicht ──"
+#
+# Dieselbe erweiterte Reichweite, andere Regel. Ohne die gedruckte Zeile klappt
+# die Konsole das Objekt auf wenige Schluessel zusammen — und `deckt` und
+# `misst` waeren genau die, die wegfallen.
+vorher_datei tests/kleben-messen.js
+python3 - <<'PY2'
+p = 'tests/kleben-messen.js'
+s = open(p, encoding='utf-8').read()
+i = s.index('  console.log(')
+j = s.index('  if (rollweg === 0)')
+open(p, 'w', encoding='utf-8').write(s[:i] + s[j:])
+PY2
+griff_datei tests/kleben-messen.js "Klebeprobe ohne gedruckte Zeile" &&
+pruefe "Klebeprobe ohne gedruckte Zeile" \
+  OverflowProbeTest::test_every_instrument_prints_one_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: das Messmittel ohne Prüfkörper merkt sich seinen Lauf nicht ──"
+#
+# Der erste Lauf der Klebeprobe laesst die Seite **gerollt** stehen. Ein
+# zweiter verglich dann einen bereits gerollten Anfangszustand mit sich selbst
+# und faende jedes Kleben in Ordnung.
+vorher_datei tests/kleben-messen.js
+python3 - <<'PY2'
+p = 'tests/kleben-messen.js'
+s = open(p, encoding='utf-8').read()
+alt = 'let klebeGelaufen = false'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'const klebeGelaufen = false', 1))
+PY2
+griff_datei tests/kleben-messen.js "Klebeprobe ohne Gedächtnis" &&
+pruefe "Klebeprobe ohne Gedächtnis" \
+  OverflowProbeTest::test_a_second_run_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── OverflowProbeTest: die Verengung von Befund 4 wird zurückgestellt ──"
+#
+# **Die Zusicherung unter der Behebung.** Stellt jemand das Merkmal der weiten
+# Menge auf das der engen zurueck, bliebe jeder Fall darueber gruen — er
+# prueft dann eben nur noch die Pruefkoerper. Gemessen wird deshalb die
+# Differenz der beiden Mengen.
+vorher_datei tests/Unit/OverflowProbeTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/OverflowProbeTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'querySelector',\n            3,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'document.body.append(',\n            2,", 1))
+PY2
+griff_datei tests/Unit/OverflowProbeTest.php "weite Menge auf das enge Merkmal" &&
+pruefe "weite Menge auf das enge Merkmal" \
+  OverflowProbeTest::test_a_reading_instrument_need_not_insert_anything failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
+
+echo
+echo "── LogWindowTest: die angebrochene erste Zeile bleibt beim Bytedeckel stehen ──"
+#
+# Befund 2 aus docs/916 §3: Der Leser haelt am Bytedeckel mitten in einer Zeile
+# an. Der Schutz `substr_count($text, "\n") > $count` greift dort nie — er
+# gehoert dem anderen Ausstiegsgrund —, und die oberste Zeile war ein Rest ohne
+# Anfang, den nichts als solchen auswies.
+vorher_datei agent/src/Ops/WebLogsTail.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebLogsTail.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($capped && count($all) > 1) {\n            array_shift($all);\n        }\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei agent/src/Ops/WebLogsTail.php "halbe Zeile beim Bytedeckel" &&
+pruefe "halbe Zeile beim Bytedeckel" \
+  LogWindowTest::test_the_cap_never_yields_a_half_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogWindowTest passed
+
+echo
+echo "── LogWindowTest: die erste Zeile faellt auch ohne Bytedeckel weg ──"
+#
+# Die Gegenrichtung, und ohne sie waere die Regel halb: Wer den Deckel aus der
+# Bedingung nimmt, wirft bei **jedem** Lauf eine gute Zeile weg — und der Fall
+# darueber bliebe gruen.
+vorher_datei agent/src/Ops/WebLogsTail.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebLogsTail.php'
+s = open(p, encoding='utf-8').read()
+alt = 'if ($capped && count($all) > 1) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if (count($all) > 1) {', 1))
+PY2
+griff_datei agent/src/Ops/WebLogsTail.php "erste Zeile immer weg" &&
+pruefe "erste Zeile immer weg" \
+  LogWindowTest::test_without_the_cap_nothing_is_dropped failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogWindowTest passed
+
+echo
+echo "── LineNumberTest: die Nummernspalte bekommt die Fläche des Rahmens ──"
+#
+# Ohne eigene Marke ist die Spalte von ihrem Nachbarn nicht zu unterscheiden —
+# und der Betreiber hat am 13. September 2026 genau danach gefragt: „warum
+# nicht etwas vom restlichen Text absetzen".
+vorher_datei resources/js/Pages/Logs/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Logs/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '  background: var(--gutter-bg);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '  background: var(--surface);', 1))
+PY2
+griff_datei resources/js/Pages/Logs/Index.vue "Spalte ohne eigene Fläche" &&
+pruefe "Spalte ohne eigene Fläche" \
+  LineNumberTest::test_the_gutter_hides_what_scrolls_under_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LineNumberTest passed
+
+echo
+echo "── LineNumberTest: das waagerechte Polster kehrt an den Rahmen zurück ──"
+#
+# Befund 3 aus docs/916 §7: Ein klebendes Element klebt am **Inhaltsrand**. Die
+# sechzehn Pixel davor gehoeren dem Rollbereich, und beim Rollen wandert der
+# Text sichtbar hinein — auf cloudsrv24 fand `elementFromPoint` dort `log-text`.
+vorher_datei resources/js/Pages/Logs/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Logs/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '  overflow: auto;\n  padding-inline: 0;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '  overflow: auto;', 1))
+PY2
+griff_datei resources/js/Pages/Logs/Index.vue "Polster wieder am Rahmen" &&
+pruefe "Polster wieder am Rahmen" \
+  LineNumberTest::test_the_gutter_hides_what_scrolls_under_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LineNumberTest passed
+
+echo
+echo "── LineNumberTest: die Lage vom Ende wird wieder mit einem Minus geschrieben ──"
+#
+# `−17` liest sich wie eine Rechnung, und der Betreiber hat am 13. September
+# 2026 gefragt, wovon abgezogen wird. `↑17` sagt, was gemeint ist.
+vorher_datei resources/js/Pages/Logs/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Logs/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '`↑${props.result.read - offset}`'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '`−${props.result.read - offset}`', 1))
+PY2
+griff_datei resources/js/Pages/Logs/Index.vue "Minus statt Pfeil" &&
+pruefe "Minus statt Pfeil" \
+  LineNumberTest::test_the_distance_from_the_end_carries_an_arrow failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LineNumberTest passed
+
+echo
+echo "── LineNumberTest: beim Umdrehen wird die Nummer neu vergeben ──"
+#
+# Sie ist eine Lage in der **Quelle** und kein Anzeigeindex. Wird nach dem
+# Umdrehen neu gezaehlt, heisst dieselbe Zeile einmal so und einmal anders —
+# und das ist genau der Grund, aus dem hier ueberhaupt vom Ende gezaehlt wird.
+vorher_datei resources/js/Pages/Logs/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Logs/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = "  const paare = props.result.lines.map((text, i) => ({ text, nummer: nummer(i) }))\n\n  return props.order === 'newest' ? paare.reverse() : paare"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "  const roh = props.order === 'newest' ? [...props.result.lines].reverse() : props.result.lines\n\n  return roh.map((text, i) => ({ text, nummer: String(i + 1) }))"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Logs/Index.vue "Nummer nach dem Umdrehen neu vergeben" &&
+pruefe "Nummer nach dem Umdrehen neu vergeben" \
+  LineNumberTest::test_the_number_travels_with_its_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LineNumberTest passed
+
+echo
+echo "── LogOrderTest: die Auswahl kennt ein Wort, das der Controller nicht kennt ──"
+#
+# Die erlaubten Werte stehen an zwei Stellen. Ein umbenannter faellt nicht auf:
+# Die Auswahl schickt ein Wort, der Controller faellt wortlos auf die Vorgabe
+# zurueck, und die Seite zeigt weiterhin die alte Reihenfolge.
+vorher_datei resources/js/Pages/Logs/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Logs/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<option value="newest">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<option value="neueste">', 1))
+PY2
+griff_datei resources/js/Pages/Logs/Index.vue "Auswahl mit fremdem Wort" &&
+pruefe "Auswahl mit fremdem Wort" \
+  LogOrderTest::test_the_page_and_the_controller_allow_the_same_words failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogOrderTest passed
+
+echo
+echo "── LogOrderTest: die Reihenfolge wird ein Kästchen ──"
+#
+# docs/66: `router.get` legt seine Werte in die Adresse, und dort ist alles
+# Text. Aus `false` wird das Wort „false", und Laravels Regel `boolean` nimmt
+# kein Wort — die Suche im Dateimanager ist daran an keinem Tag durchgekommen.
+vorher_datei resources/js/Pages/Logs/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Logs/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = '            <select v-model="auswahl.order">\n              <option value="oldest">Älteste zuerst</option>\n              <option value="newest">Neueste zuerst</option>\n            </select>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '            <input v-model="auswahl.order" type="checkbox">', 1))
+PY2
+griff_datei resources/js/Pages/Logs/Index.vue "Reihenfolge als Kästchen" &&
+pruefe "Reihenfolge als Kästchen" \
+  LogOrderTest::test_the_order_is_a_word_and_not_a_checkbox failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogOrderTest passed
+
+echo
+echo "── LogOrderTest: der Knopf sichert etwas anderes als das Angezeigte ──"
+#
+# „Angezeigtes sichern" hiesse dann so und taete etwas anderes, sobald jemand
+# die Reihenfolge umdreht — und der Unterschied fiele erst auf, wenn man beide
+# Dateien nebeneinanderlegt.
+vorher_datei app/Http/Controllers/LogsController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/LogsController.php'
+s = open(p, encoding='utf-8').read()
+alt = '            $lines = array_reverse($lines);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '            $lines = array_values($lines);', 1))
+PY2
+griff_datei app/Http/Controllers/LogsController.php "Sicherung ohne Umkehrung" &&
+pruefe "Sicherung ohne Umkehrung" \
+  LogOrderTest::test_the_download_follows_the_shown_order failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogOrderTest passed
 
 
 

@@ -72,7 +72,10 @@ final class LogWindowTest extends TestCase
             // Name                        Zeilen  Breite  Fenster  erwartet  complete  capped
             'M1 kürzer als das Fenster' => [118, 80, 500, 118, true, false],
             'M2 länger als das Fenster' => [5000, 80, 500, 500, false, false],
-            'M3 Bytedeckel vor Zeilen' => [500, 4096, 500, 128, false, true],
+            // **127 und nicht 128.** Beim Bytedeckel fällt die erste Zeile weg
+            // — sie ist keine: Der Leser fängt mitten in ihr an. Siehe
+            // `test_the_cap_never_yields_a_half_line()`.
+            'M3 Bytedeckel vor Zeilen' => [500, 4096, 500, 127, false, true],
             'M4 leer' => [0, 80, 500, 0, true, false],
 
             /*
@@ -103,6 +106,87 @@ final class LogWindowTest extends TestCase
         $this->assertCount($erwartet, $found['lines']);
         $this->assertSame($complete, $found['complete']);
         $this->assertSame($capped, $found['capped']);
+    }
+
+    /**
+     * Beim Bytedeckel kommt keine angeschnittene Zeile zurück.
+     *
+     * **Der Leser kennt das Problem und schützte nur einen von drei
+     * Ausstiegen.** Sein Kommentar sagt die Absicht — *„die gehört nicht
+     * angeschnitten zurückgegeben"* —, und der Schutz ist ein Umbruch mehr als
+     * gewünscht, damit `array_slice` das Bruchstück abschneidet. Diese
+     * Bedingung greift beim Bytedeckel nie.
+     *
+     * > **Ein Schutz, der an einer von drei Abbruchbedingungen hängt, schützt
+     * > die beiden anderen nicht.**
+     *
+     * Gefunden am 13. September 2026 im **Bild** und nicht in einer Zahl
+     * (`docs/916 §3`): Die oberste Zeile trug kein Datum, sondern nur `xxxx…`.
+     *
+     * ## Die Zeilenbreite ist der Prüfkörper, und die erste war keiner
+     *
+     * **3001 und nicht 4096, und der Unterschied ist der ganze Fall.** Der
+     * erste Wurf nahm 4096 Bytes je Zeile — und der Leser holt seine Blöcke in
+     * Zweierpotenzen. Eine Zeile, die eine davon teilt, endet **immer** genau
+     * an einer Blockgrenze; der Deckel fiel nie mitten in eine Zeile, und der
+     * Fall war grün, ob der Schutz dastand oder nicht. Gemerkt hat es nicht
+     * das Nachdenken, sondern der Eingriff des Bruchskripts, der ihn nicht rot
+     * bekam.
+     *
+     * > **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall,
+     * > misst nicht.**
+     *
+     * Eine **ungerade** Breite kann mit einer Zweierpotenz nicht
+     * zusammenfallen — der Leser mag seine Blockgrösse ändern, solange sie eine
+     * Zweierpotenz bleibt. Das ist eine Eigenschaft des Prüfkörpers und keine
+     * zweite Fassung der Leserarithmetik; die Konstanten des Lesers sind
+     * `private`, und dieser Fall kommt ohne sie aus.
+     */
+    public function test_the_cap_never_yields_a_half_line(): void
+    {
+        $breite = 3001;
+
+        $this->assertSame(1, $breite % 2, 'Eine gerade Breite kann mit der Blockgrenze zusammenfallen — dann misst dieser Fall nichts.');
+
+        $found = WebLogsTail::tail($this->bau(500, $breite, 'deckel'), 500);
+
+        $this->assertTrue($found['capped'], 'Ohne Deckel misst dieser Fall nichts.');
+        $this->assertNotSame([], $found['lines']);
+
+        /*
+         * **Die zweite Prämisse, und sie ist die leiser ausfallende.** Das
+         * Bruchstück steht ganz oben im Fenster. Passen mehr Zeilen hinein als
+         * gefragt sind, schneidet `array_slice` es ohnehin ab — der Fall wäre
+         * grün, ohne den Schutz je berührt zu haben.
+         */
+        $this->assertLessThan(
+            500,
+            count($found['lines']),
+            'Das Fenster ist grösser als die Anfrage — dann verdeckt der Schnitt das Bruchstueck.',
+        );
+
+        foreach ($found['lines'] as $i => $zeile) {
+            $this->assertMatchesRegularExpression(
+                '/^\d{6} /',
+                $zeile,
+                sprintf('Zeile %d fängt nicht am Zeilenanfang an: %s', $i, mb_substr($zeile, 0, 30)),
+            );
+        }
+    }
+
+    /**
+     * Ohne Deckel wird nichts weggeworfen.
+     *
+     * **Die Gegenrichtung zum Fall darüber**, und sie ist nötig: Ein Leser,
+     * der die erste Zeile **immer** wegwirft, bestünde ihn genauso.
+     */
+    public function test_without_the_cap_nothing_is_dropped(): void
+    {
+        $found = WebLogsTail::tail($this->bau(118, 80, 'ganz'), 500);
+
+        $this->assertFalse($found['capped']);
+        $this->assertCount(118, $found['lines'], 'Ohne Deckel bleibt jede Zeile.');
+        $this->assertStringStartsWith('000001 ', $found['lines'][0]);
     }
 
     /**

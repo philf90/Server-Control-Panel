@@ -28019,3 +28019,133 @@ Wegwerfzertifikat läuft am selben Tag aus, und aus `expiring` wird dann
 Dass sich das erst nachts zeigen liesse, stimmte nicht. Der Zustand entsteht
 beim **Feuern** und nicht zu einer Uhrzeit; ein Ablegestück, das den Termin
 verlegt und die Streuung herausnimmt, stellt ihn zu jeder Tageszeit her.
+
+### Die Protokollzeilen lassen sich umdrehen, und die Nummer sagt jetzt, was sie meint
+
+Drei Fragen des Betreibers zur Form, gestellt am 13. September 2026 zu den
+Befunden des Abnahmelaufs. Zwei hatten eine Antwort im Bestand, die dritte
+hatte keine. Aufgeschrieben ist alles drei als `docs/917`.
+
+**Vorher** stand vor einer Nummer, die vom Ende zählt, ein `−`. Das Zeichen
+war nötig und falsch gewählt: Nötig, weil dieselbe Spalte zwei verschiedene
+Grössen zeigt — die echte Zeile der Datei, wenn der Leser bis zum Anfang kam,
+und sonst die Lage im gelesenen Ausschnitt, die niemand als Dateizeile kennt.
+Falsch, weil `−1` sich wie eine Rechnung liest. **Nachher** steht `↑1` da.
+Durchnummerieren bleibt dem Fall vorbehalten, in dem die Quelle vollständig
+gelesen ist; eine fortlaufende Zahl über einem Ausschnitt behauptete eine Lage,
+die der Leser nicht kennt.
+
+**Vorher** trug die Nummernspalte `--surface`, also dieselbe Fläche wie der
+Rahmen daneben — ein Rinnstein, der aussieht wie sein Nachbar. **Nachher** gibt
+es `--gutter-bg` in beiden Themen: gerechnet 5,15:1 gegen den Text im hellen
+und 6,06:1 im dunklen, 1,11:1 und 1,13:1 gegen die Fläche daneben. Kein Kursiv
+und keine zweite Schrift — Kursiv trägt an einer Zahl keine Bedeutung, und eine
+zweite Familie liefe aus der Rasterbreite.
+
+**Vorher** liessen sich die Zeilen nicht umdrehen; wer wissen wollte, was
+gerade passiert ist, rollte ans Ende. Der Wunsch fehlte nicht aus einem Grund,
+sondern weil er nie zur Sprache kam — `docs/914 §10` zählt auf, was das
+Vorhaben nicht wird, und die Reihenfolge steht dort nicht.
+
+> **Eine Aufzählung dessen, was ein Merkmal nicht wird, ist nur dann eine
+> Entscheidung, wenn das Fehlende darin steht — sonst ist sie eine Lücke mit
+> Überschrift.**
+
+**Nachher** hat die Seite ein drittes Feld. Die Reihenfolge reist als **Wort**
+und nicht als Wahrheitswert: `router.get` legt seine Werte in die Adresse, und
+dort würde aus `false` das Wort `"false"` (`docs/66`). Umgedreht wird auf der
+Seite und nicht im Agenten — er liefert eine Datei in Dateireihenfolge, das ist
+seine Auskunft und keine Darstellung. Die Nummer wandert mit ihrer Zeile und
+wird nicht neu vergeben, und „Angezeigtes sichern" dreht die Datei mit.
+
+`LogOrderTest` hält die Naht zwischen den beiden `<option>` und der Liste im
+Controller, `LineNumberTest` den Pfeil, die Tönung und dass die Nummer an ihrer
+Zeile bleibt.
+
+**Das Feld heisst „Sortierung", und entschieden hat das ein bestehender
+Wächter.** Der erste Wurf trug „Reihenfolge"; `AttributeLabelTest` meldete, dass
+der Server denselben Schlüssel `order` „Sortierung" nennt — der Name gehört der
+Datenbankkonsole, die über `order` ihre Zeilen sortiert und ihn in einer
+Meldung zeigt.
+
+> **Ein Feld, das zwei Seiten teilen, teilen sie auch im Wortlaut — oder eine
+> von beiden nennt es anders, als die Meldung es tut.**
+
+### Beim Bytedeckel war die oberste Protokollzeile ein Bruchstück
+
+Befund 2 des Abnahmelaufs (`docs/916 §3`), gefunden im **Bild** und nicht in
+einer Zahl: Die oberste Zeile trug kein Datum, sondern nur `xxxx…`.
+
+**Vorher** kannte `WebLogsTail::tail()` das Problem und schützte einen von drei
+Ausstiegen. Sein Kommentar sagte die Absicht — *„die gehört nicht angeschnitten
+zurückgegeben"* —, und der Schutz war ein Umbruch mehr als gewünscht, damit
+`array_slice` das Bruchstück abschneidet. Beim Bytedeckel greift diese
+Bedingung nie.
+
+> **Ein Schutz, der an einer von drei Abbruchbedingungen hängt, schützt die
+> beiden anderen nicht — und welche greift, entscheidet der Inhalt der Datei.**
+
+**Nachher** fällt die angebrochene erste Zeile weg, wenn der Deckel gegriffen
+hat. **Und der Prüfkörper dafür war beim ersten Wurf keiner:** Seine
+Zeilenbreite war 4096 Bytes, der Leser holt seine Blöcke in Zweierpotenzen, und
+eine Zeile, die eine davon teilt, endet immer genau an einer Blockgrenze — der
+Deckel fiel nie mitten in eine Zeile. Der Fall war grün, ob der Schutz dastand
+oder nicht. Gefunden hat es nicht das Nachdenken, sondern der Eingriff des
+Bruchskripts, der ihn nicht rot bekam.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht** — und ein Wächter, den man nie bricht, sagt es einem nie.
+
+Die Breite ist jetzt ungerade (3001) und kann mit keiner Zweierpotenz
+zusammenfallen; beide Prämissen stehen als Zusicherung im Fall selbst.
+
+### Beim Rollen schien der Text neben der Nummer durch
+
+Befund 3 des Abnahmelaufs, auf `cloudsrv24` mit `elementFromPoint` gemessen:
+Im Streifen links neben der klebenden Spalte lag `log-text`.
+
+**Vorher** trug `.log` sechzehn Pixel waagerechtes Polster. Ein klebendes
+Element klebt am **Inhaltsrand**; das Polster davor gehört dem Rollbereich, und
+beim Rollen wandert der Text sichtbar hinein.
+
+> **Ein Element, das klebt, deckt seinen eigenen Kasten — nicht den Streifen,
+> den das Polster davor freilässt.**
+
+**Nachher** liegt das Polster an den Kindern: links an der Nummer, rechts am
+Text. Senkrecht bleibt es am Rahmen, dort rollt nichts hinein.
+
+### Der Wächter über die Messmittel kannte nur die mit Prüfkörper
+
+Befund 4 des Abnahmelaufs. **Vorher** wählte `OverflowProbeTest` seine
+Prüflinge an `document.body.append(` — einer Eigenschaft, die nur die
+Messmittel mit Prüfkörper haben. `kleben-messen.js` misst eine Seite und setzt
+nichts ein; Stand, gedruckte Zeile und Wiederholungssperre waren für es
+unerreichbar. Es hielt alle drei, belegt war das nicht.
+
+> **Ein Wächter, dessen Auswahlmerkmal enger ist als seine Regel, prüft eine
+> Teilmenge und liest sich wie eine Zusage über alle.**
+
+**Nachher** gibt es zwei Mengen: jedes Messmittel, das eine gerenderte Seite
+ausliest (erkannt an `querySelector`), und die Teilmenge, die etwas einsetzt.
+Ein eigener Fall hält die Differenz der beiden — ohne ihn bliebe jede Regel
+grün, wenn jemand die Verengung zurückstellt.
+
+**Der erweiterte Zugriff war beim ersten Lauf zweimal rot, und beide Male am
+Wächter.** Der Ausdruck für den Stand verlangte ein blosses Datum, während
+`kleben-messen.js` `2026-09-13c` trägt — an einem Tag hat es drei Fassungen
+gebraucht, und genau das soll das Feld unterscheiden können. Und das
+Ergebnisobjekt wurde mit `strstr($quelltext, '  return {')` gesucht: In
+`bilder-messen.js` traf das den `return` der Gegenprobe — vier Leerzeichen, und
+die zwei gesuchten stecken darin — und damit den ganzen Rest der Datei. „Steht
+das im Ergebnis" hiess dort in Wahrheit „steht das irgendwo danach".
+
+> **Eine Marke, die auch etwas anderes trifft, ist keine — und solange sie zu
+> viel trifft, fällt es niemandem auf.**
+
+**Und ein Eingriff des Bruchskripts war nach der Teilung stumm.** `nur noch ein
+Messmittel` nimmt `document.body.append(` aus `baender-messen.js` und zielte
+auf einen Fall, der jetzt über die weite Menge geht — er veränderte seine Datei
+und störte niemanden mehr. Er zielt jetzt auf einen Prüfkörperfall.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn die Regel, die er brechen soll, unter ihm eine andere Menge bekommt.**

@@ -58,6 +58,15 @@ final class LogsController extends Controller
     /** Wie viele Zeilen die Seite voreingestellt zeigt. */
     private const DEFAULT_LINES = 200;
 
+    /**
+     * Die erlaubten Reihenfolgen; die erste ist die Vorgabe.
+     *
+     * `oldest` ist die Reihenfolge der Datei — wie `tail`, wie `less`, wie
+     * jedes Protokoll. `newest` dreht sie für den Blick auf das, was gerade
+     * passiert ist.
+     */
+    private const ORDERS = ['oldest', 'newest'];
+
     public function show(Request $request, Client $agent): Response
     {
         return Inertia::render('Logs/Index', $this->read($request, $agent));
@@ -80,6 +89,19 @@ final class LogsController extends Controller
     {
         $data = $this->read($request, $agent);
         $lines = is_array($data['result']['lines'] ?? null) ? $data['result']['lines'] : [];
+
+        /*
+         * **Der Knopf heisst „Angezeigtes sichern", also folgt die Datei der
+         * Anzeige.** Ohne diese Zeile hiesse er das und täte etwas anderes,
+         * sobald jemand die Reihenfolge umdreht — und der Unterschied fiele
+         * erst auf, wenn man beide nebeneinanderlegt.
+         *
+         * > **Ein Knopf, der sagt, was er sichert, muss das Gesicherte danach
+         * > richten und nicht umgekehrt.**
+         */
+        if (($data['order'] ?? null) === 'newest') {
+            $lines = array_reverse($lines);
+        }
 
         return response(
             implode("\n", $lines)."\n",
@@ -130,6 +152,19 @@ final class LogsController extends Controller
         $lines = min(max($request->integer('lines', self::DEFAULT_LINES), 10), SystemLogsTail::MAX_LINES);
         $filter = trim($request->string('filter')->toString());
 
+        /*
+         * **Die Reihenfolge ist ein Wort und kein Wahrheitswert**, aus dem
+         * Grund im Absatz darüber. Geprüft wird gegen die Liste und nicht
+         * gegen ein Muster: Ein unbekannter Wert fällt auf die Vorgabe zurück,
+         * statt die Seite mit einer Meldung aufzuhalten — die Reihenfolge ist
+         * eine Ansicht und keine Eingabe, die man berichtigen muss.
+         */
+        $order = $request->string('order')->toString();
+
+        if (! in_array($order, self::ORDERS, true)) {
+            $order = self::ORDERS[0];
+        }
+
         $sources = [];
         // **Der Rückfall für einen Agenten, der nicht antwortet.** Die
         // Fusszeile steht hinter `lines.length === 0` und rendert dann gar
@@ -168,6 +203,7 @@ final class LogsController extends Controller
             'source' => $source,
             'lines' => $lines,
             'filter' => $filter,
+            'order' => $order,
             'result' => $result,
             'error' => $error,
         ];

@@ -229,7 +229,7 @@ samt Warnung, und ein zweiter Aufruf ohne Neuladen wirft.
 ## §9 Punkt 7 — das Kopieren nimmt die Nummer nicht mit
 
 Von Hand, und **mit der Maus**: drei Zeilen im Protokoll überstreichen,
-kopieren, in das Filterfeld einfügen und wieder löschen.
+kopieren und den Inhalt der Zwischenablage ansehen.
 
 **Erwartet:** Der eingefügte Text trägt die Protokollzeilen und **keine
 Nummer**.
@@ -237,6 +237,21 @@ Nummer**.
 **Ein programmatischer `Range` taugt dafür nicht** — er nimmt den Text eines
 `user-select: none` mit, und ein Mensch tut etwas anderes. Genau das hat die
 Bilderrunde einen Fehlversuch gekostet (`docs/914 §13`).
+
+**Und das Filterfeld ist der falsche Ort — das ist Befund 6 aus `docs/916
+§14`.** Der erste Wurf dieses Punktes sagte „in das Filterfeld einfügen": Der
+Agent begrenzt den Filter auf **200 Zeichen** (`SystemLogsTail::filter()`,
+gemessen), drei Protokollzeilen sind länger, und die Seite filtert dann nichts.
+Der Punkt war am 13. September 2026 trotzdem entscheidbar, weil der eingefügte
+Text sichtbar stehenbleibt — aber das war Glück und nicht Entwurf.
+
+> **Ein Prüfkörper, der den kopierten Text in ein Feld mit einer Längengrenze
+> einfügt, prüft die Grenze und nicht den Text.**
+
+Eingefügt wird deshalb dorthin, wo nichts abgeschnitten wird: ein Textfeld
+ausserhalb des Panels, ein Editor, oder die Zwischenablage selbst
+(`navigator.clipboard.readText()` in der Konsole — sie fragt beim ersten Mal
+nach Erlaubnis).
 
 ## §10 Punkt 8 — beide Themen, beide Breiten
 

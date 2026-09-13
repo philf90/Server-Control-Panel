@@ -487,3 +487,158 @@ Punkt 3, der andere im Bild zu Punkt 4.
   nicht durch diese Änderung.
 - **Die Domainseite** (`web.logs.tail`) bekommt die neuen Felder mitgesendet und
   zeigt sie nicht (`docs/914 §12`).
+
+---
+
+## §16 Die vier offenen Befunde sind gebaut — 13. September 2026
+
+**Nach dem Lauf und nicht in ihm**, aus dem Grund, der in diesem Repo seit
+`docs/903 §16.1` steht: Eine Behebung ist eine Änderung am Prüfling. Dazu die
+drei Entscheidungen des Betreibers zur Form, gestellt als Fragen zu den
+Befunden — sie stehen mit ihrer Begründung in **`docs/917`** und nicht hier.
+
+| # | gebaut als |
+|---|---|
+| 2 | `WebLogsTail::tail()` wirft die angebrochene erste Zeile weg, wenn der Bytedeckel gegriffen hat |
+| 3 | `.log` hat kein `padding-inline` mehr; die sechzehn Pixel liegen an Nummer und Text |
+| 4 | `OverflowProbeTest` hat zwei Mengen statt einer — dazu §16.1 |
+| 6 | `docs/915 §9` fügt nicht mehr ins Filterfeld ein |
+
+### §16.1 Befund 4 hat beim Beheben zwei weitere gefunden
+
+**Der Wächter wählte seine Prüflinge an `document.body.append(`** — also an
+einer Eigenschaft, die nur die Messmittel **mit** Prüfkörper haben. Geteilt ist
+er jetzt in `instruments()` (jedes, das eine gerenderte Seite ausliest, erkannt
+an `querySelector`) und `probes()` (die Teilmenge, die etwas einsetzt). Stand,
+gedruckte Zeile und Wiederholungssperre gelten für alle; Prüfkörper und
+Gegenprobe nur für die zweite Menge.
+
+**Der erweiterte Zugriff war beim ersten Lauf sofort rot, zweimal.**
+
+**Erstens am Stand.** Der Ausdruck verlangte `'\d{4}-\d{2}-\d{2}'`, und
+`kleben-messen.js` trägt `2026-09-13c` — an einem Tag hat es drei Fassungen
+gebraucht, und genau das soll das Feld ja unterscheiden können. Falsch war der
+Ausdruck und nicht der Stand.
+
+> **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die Gewohnheit und
+> nicht die Regel.**
+
+**Zweitens am Ergebnisobjekt.** Drei Prüfungen suchten es mit
+`strstr($quelltext, '  return {')`. In `bilder-messen.js` traf das den `return`
+der **Gegenprobe** — vier Leerzeichen, und die zwei gesuchten stecken darin —
+und damit den ganzen Rest der Datei; „steht das im Ergebnis" hiess dort in
+Wahrheit „steht das irgendwo danach". `kleben-messen.js` hat kein `return {`
+und lieferte eine leere Zeichenkette, also ehrliches Rot.
+
+> **Eine Marke, die auch etwas anderes trifft, ist keine — und solange sie zu
+> viel trifft, fällt es niemandem auf.**
+
+Beides ist behoben; das Ergebnisobjekt holt jetzt ein Helfer, der beide
+Schreibweisen kennt. Er heisst `returnedObject()` und nicht `result()`:
+Diesen Namen hat `PHPUnit\Framework\TestCase` als `final` vergeben, die Klasse
+stirbt beim Laden, und `BaseMethodClashTest` hat beim ersten Lauf zugebissen —
+zum sechsten Mal in diesem Repo.
+
+### §16.2 Ein Eingriff des Bruchskripts war nach der Teilung stumm
+
+`nur noch ein Messmittel` nimmt `document.body.append(` aus
+`baender-messen.js` und war gegen `test_a_second_run_is_refused` gemessen.
+Nach der Teilung geht dieser Fall über `instruments()`, und die enthält
+`baender-messen.js` weiterhin — der Eingriff veränderte seine Datei und störte
+niemanden mehr. Er zielt jetzt auf `test_the_probe_is_bound_to_the_page`.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn die Regel, die er brechen soll, unter ihm eine andere Menge bekommt.**
+
+### §16.3 Und ein Prüfkörper, den erst der Eingriff als Attrappe entlarvt hat
+
+`LogWindowTest::test_the_cap_never_yields_a_half_line` war für Befund 2 gebaut
+und **hat ihn nie gemessen.** Seine Zeilenbreite war 4096 Bytes, und der Leser
+holt seine Blöcke in Zweierpotenzen: Eine Zeile, die eine davon teilt, endet
+immer genau an einer Blockgrenze. Der Deckel fiel nie mitten in eine Zeile —
+der Fall war grün, ob der Schutz dastand oder nicht.
+
+Gefunden hat es nicht das Nachdenken, sondern der Eingriff, der ihn nicht rot
+bekam.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht** — und ein Wächter, den man nie bricht, sagt es einem nie.
+
+Die Breite ist jetzt **3001**: Eine ungerade Zahl kann mit einer Zweierpotenz
+nicht zusammenfallen, gleich wie der Leser seine Blockgrösse wählt. Zwei
+Prämissen stehen als Zusicherung im Fall selbst — die Breite ist ungerade, und
+das Fenster ist kleiner als die Anfrage, weil `array_slice` das Bruchstück
+sonst ohnehin abschnitte.
+
+### §16.4 Und ein bestehender Wächter hat das neue Feld beim Namen genommen
+
+`AttributeLabelTest` — gebaut nach `docs/66` Befund 3 — meldete beim ersten
+vollen Lauf:
+
+    Logs/Index.vue — Feld `order`: auf der Seite „Reihenfolge",
+    der Server sagt „Sortierung"
+
+Der Name gehört der Datenbankkonsole: Sie prüft `order` und meint damit die
+Spalte, nach der sortiert wird. Auf `/logs` wird das Feld **nicht** geprüft, es
+könnte also gar keine Meldung geben — der Wächter fragt trotzdem zu Recht, denn
+sein Gegenstand ist der Wortlaut und nicht der Weg dorthin. Die Seite heisst
+seitdem „Sortierung".
+
+> **Ein Feld, das zwei Seiten teilen, teilen sie auch im Wortlaut — oder eine
+> von beiden nennt es anders, als die Meldung es tut.**
+
+### §16.5 Im Container gemessen — Befund 3 ist zu
+
+Gegen den gebauten Stand, echter Agent, echte Seite, 13. September 2026:
+
+    A   stand=2026-09-13c breite=1440 thema=dark rollweg=3432 zeileBreit=4516
+        nummer=1->1 klebt=true imStreifen=[—] deckt=true misst=true
+    A2  … imStreifen=[log-text] deckt=false misst=true
+
+**`deckt=true` bei `misst=true`** — der Streifen links neben der Nummer ist
+leer, und die Selbstprüfung sagt, dass die Abtastung den Text dort findet, wo
+er liegt. **A2 ist die Gegenprobe und der Grund, dass A etwas bedeutet:** das
+Polster per Stylesheet zurück an den Rahmen gehängt, und schon steht `log-text`
+wieder im Streifen. Ohne sie bliebe offen, ob die Abtastung überhaupt je
+etwas findet.
+
+**Die Tönung, gemessen und nicht angesehen** — vier Lagen, Spalte gegen Rahmen:
+
+| Thema | Spalte | Rahmen |
+|---|---|---|
+| hell | `rgb(236, 238, 242)` | `rgb(250, 250, 251)` |
+| dunkel | `rgb(30, 34, 43)` | `rgb(20, 23, 29)` |
+
+**Das Zeichen, beide Zustände hergestellt:** bei unvollständigem Fenster
+`↑20 ↑19 ↑18` und kein `−` irgendwo auf der Seite, bei vollständig gelesener
+Quelle `1 2 3` ohne Zeichen.
+
+**Und der erste Lauf hat diesen Punkt nicht gemessen.** Die Prüfdatei hatte
+300 Zeilen, der Leser kam bis zum Anfang, und `complete` stand auf `true` —
+die Nummern waren echte Dateizeilen, der Pfeil kam gar nicht vor. Gesehen hat
+es niemand ausser der Messung selbst, weil sie ihren Zustand mitdruckt.
+
+> **Eine Messung, die ihren Zustand nicht mitdruckt, ist von einer, die ihn
+> nicht hatte, nicht zu unterscheiden.**
+
+Mit 900 Zeilen ist der Zustand hergestellt.
+
+**Die Umkehrung, an einem Paar abgelesen:**
+
+| | erste | letzte | erste Zeile |
+|---|---|---|---|
+| `oldest` | `↑20` | `↑1` | `[… 11:42:47]` |
+| `newest` | `↑1` | `↑20` | `[… 11:45:00]` |
+
+Die Nummern tauschen die Plätze und ändern sich nicht — und die Textzeile
+daneben belegt, dass wirklich der Inhalt gedreht wurde und nicht nur die
+Beschriftung.
+
+**Bilderrunde, vier Lagen:** `dokument=0`, Gegenprobe `200/200`, `schiebt=0`,
+`rollt=1` (der Protokollrahmen, der rollen darf).
+
+### §16.6 Was danach zu messen bleibt
+
+**Auf einem Server gesehen hat davon nichts.** Die Abnahme der Umkehrung und
+der Form steht als sechs Punkte in `docs/917 §6`; Punkt 6 ist die Klebeprobe
+mit `deckt=true`, und die Containermessung sagt, was dort herauskommen muss.

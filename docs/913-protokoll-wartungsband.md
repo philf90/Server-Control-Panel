@@ -779,11 +779,12 @@ benannt.
 
 ## §12 Was benannt offen bleibt
 
-- **Der Rest aus P7:** `orphan.row / certificate — tls.cloudlab24.de` steht seit
-  `docs/113 §13` da und ist von diesem Lauf unberührt. **Warum er nicht von
-  selbst verschwindet, ist gemessen** (§15): Das Aufräumen ist ein eigener Modus
-  (`srvpanel tls --prune`), und der nächtliche `srvpanel-tls.service` fährt
-  `artisan srvpanel:tls` **ohne** ihn — er erneuert und räumt nicht.
+- **Der Rest aus P7 ist geräumt** (§15): `orphan.row / certificate —
+  tls.cloudlab24.de` stand seit `docs/113 §13` da und ist am 13. September 2026
+  auf `cloudsrv24` mit `srvpanel tls --prune` entfernt — gemessen, mit
+  Gegenprobe. Er verschwand nicht von selbst, weil das Aufräumen ein eigener
+  Modus ist und der nächtliche `srvpanel-tls.service` `artisan srvpanel:tls`
+  **ohne** ihn fährt.
 - **`tls.file / expiring — p6-b.invalid` ist geschlossen** — entschieden vom
   Betreiber am 13. September 2026. Nicht als Rest, sondern als Sache: `.invalid`
   ist von RFC 2606 dafür reserviert, **nie** aufzulösen. Es gibt keine
@@ -1086,6 +1087,48 @@ Schlüssel unter einer laufenden Website.
 
 > **Ein Aufräumen misst man nicht an dem, was fort ist, sondern an dem, was
 > bleiben musste.**
+
+### Gefahren am 13. September 2026 — sieben Werte, sieben Treffer
+
+Vorher gemessen, die Erwartung **aus den Zahlen ausgerechnet** und nicht
+geschätzt, dann geräumt, dann dieselbe Messung noch einmal:
+
+| | vorher | erwartet | gemessen |
+|---|---|---|---|
+| Zeilen gesamt | 16 | 4 | **4** |
+| `cloudlab24.de` | 7 | 1 | **1** |
+| `cloudlab24.ipv64.de` | 6 | 1 | **1** |
+| `tls.cloudlab24.de` | 1 | 0 | **0** |
+| `cloudlab24.de` über die Leitung | `200` / `verify=0` | unverändert | **`200` / `verify=0`** |
+| `cloudlab24.ipv64.de` über die Leitung | `200` / `verify=0` | unverändert | **`200` / `verify=0`** |
+| `srvpanel diagnose` | Auffällig 2 | Auffällig 1 | **Auffällig 1** |
+
+Dazu der Ablageort selbst: `ls` sagt `No such file or directory`.
+
+**Die Erwartung war bestimmt und nicht geschätzt, und genau das macht sie zum
+Beleg.** Der erste Wurf lautete „je eine Zeile weniger als vorher" — gemessen
+sind es sechs und fünf, und gegen die geschätzte Erwartung hätte das Ergebnis
+wie ein Befund ausgesehen. Ausgerechnet ist sie aus der Trockenprobe: 11
+verwaiste plus 1 ohne Domain, alle an den drei genannten Ablageorten, beide
+geteilten mit mindestens einer lebenden Zeile — bei 7 und 6 bleibt nur die
+Aufteilung 6 + 5.
+
+> **Eine Erwartung, die man aus den Zahlen ausrechnet statt sie zu schätzen,
+> macht aus dem Ergebnis einen Beleg — eine geschätzte hätte hier einen Befund
+> erfunden.**
+
+**Und die beiden Einsen sind der Punkt und nicht die Null.** Dass
+`tls.cloudlab24.de` fort ist, meldet das Kommando selbst; dass
+`cloudlab24.de` und `cloudlab24.ipv64.de` ihre **lebende** Zeile behalten haben
+und beide Domains weiter ein gültiges Zertifikat ausliefern, meldet niemand —
+das musste gemessen werden, und es ist der Fall, in dem ein Fehler teuer wäre.
+
+> **Ein Vorgang, der meldet, dass er etwas entfernt hat, sagt über das nichts,
+> was er stehenlassen sollte.**
+
+**`ls` und nicht die Meldung des Agenten.** `entfernt` ist, was der Agent
+zurückgibt; ob der private Schlüssel wirklich von der Platte ist, sagt das
+Verzeichnis.
 
 ---
 

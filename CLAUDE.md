@@ -3594,16 +3594,38 @@ Und die beiden Zustandssätze sind keine Dubletten: Nur das Band nennt die
 > geschlossen ist, sehen im Bestand gleich aus — der Unterschied steht nur
 > daneben.**
 
-**Offen bleibt damit der Rest aus P7**, und auch dort ist jetzt gemessen, warum
-er nicht von selbst geht: `orphan.row / certificate` meldet, was
-`CertificatePrune::plan()` unter `removable` führt — also genau das, was
-`srvpanel tls --prune` entfernen würde. Nur fährt `srvpanel-tls.service`
-`artisan srvpanel:tls` **ohne** `--prune`; der Nachtlauf erneuert und räumt
-nicht. Das ist kein Versehen: Der Vorgang nimmt einen privaten Schlüssel von der
-Platte und fragt deshalb zurück, mit `false` als Vorgabe.
+**Und der Rest aus P7 ist am selben Tag geräumt** — `orphan.row / certificate —
+tls.cloudlab24.de` stand seit `docs/113 §13` da. Er verschwand nicht von selbst,
+weil `orphan.row / certificate` zwar genau das meldet, was `srvpanel tls
+--prune` entfernen würde, der nächtliche `srvpanel-tls.service` aber `artisan
+srvpanel:tls` **ohne** `--prune` fährt: Er erneuert und räumt nicht. Kein
+Versehen — der Vorgang nimmt einen privaten Schlüssel von der Platte und fragt
+deshalb zurück, mit `false` als Vorgabe.
 
 > **Ein Befund, für den es einen Griff gibt, verschwindet nicht dadurch, dass es
 > ihn gibt.**
+
+**Sieben Werte vorhergesagt, sieben getroffen** (`docs/913 §15`): 16 Zeilen → 4,
+die beiden geteilten Ablageorte 7 → 1 und 6 → 1, `tls.cloudlab24.de` 1 → 0,
+beide Domains weiter `200` mit `verify=0`, `Auffällig` 2 → 1, und `ls` sagt
+`No such file or directory`.
+
+**Die Erwartung war ausgerechnet und nicht geschätzt, und das ist der Grund,
+dass das Ergebnis etwas belegt.** Der erste Wurf lautete „je eine Zeile weniger"
+— es sind sechs und fünf, und gegen die geschätzte Erwartung hätte das Ergebnis
+wie ein Befund ausgesehen.
+
+> **Eine Erwartung, die man aus den Zahlen ausrechnet statt sie zu schätzen,
+> macht aus dem Ergebnis einen Beleg — eine geschätzte hätte hier einen Befund
+> erfunden.**
+
+**Und die beiden Einsen sind der Punkt und nicht die Null.** Was fort ist,
+meldet das Kommando selbst; dass die geteilten Ablageorte ihre **lebende** Zeile
+behalten haben und beide Domains weiter ein gültiges Zertifikat ausliefern,
+meldet niemand.
+
+> **Ein Vorgang, der meldet, dass er etwas entfernt hat, sagt über das nichts,
+> was er stehenlassen sollte.**
 
 > **Ein Bedienelement, das auf die Seite verweist, auf der es steht, ist kein
 > Fehler — es ist eine Frage, die beim Entwurf nicht gestellt wurde.** Gestellt

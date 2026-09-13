@@ -321,3 +321,50 @@ in der Wache während einer Wartung trägt, ist damit weder widerlegt noch
 belegt; belegt hat es `docs/102` (A12, Punkt 8), und zwar an einem anderen Tag
 und in einer anderen Fassung. Weil der Zustand gerade steht und der Griff eine
 Zeile kostet, wird er hier nachgemessen — siehe Beobachtung 3.
+
+---
+
+## §5 Punkt 4 — die überschrittene Endzeit steht vorn *(erfüllt · Ausschlusskriterium)*
+
+Endzeit auf `13.09.2026 10:30` gesetzt, also **nach** dem Beginn und vor jetzt.
+Der Satz im Band lautet danach wörtlich:
+
+```
+Wartung Die angekündigte Endzeit ist seit 2026-09-13 10:30 Uhr (CEST (UTC+02:00))
+vorbei. Alle Kundenwebsites antworten mit 503, seit 2026-09-13 10:21 Uhr
+(CEST (UTC+02:00)).
+```
+
+| | erwartet | gemessen |
+|---|---|---|
+| Reihenfolge | überschrittene Endzeit **zuerst** | zuerst |
+| zweiter Teil | „… mit 503, seit … Uhr (Zone)." | wörtlich so |
+| Höhe bei 1440 px | eine Zeile | **41 px** |
+
+**Der Satz schlägt um, und er schlägt in die richtige Richtung um.** Ein Band,
+das nach der angekündigten Endzeit weiter „voraussichtlich bis" sagt,
+wiederholt ein abgelaufenes Versprechen — es schwiege in genau dem Augenblick,
+für den es gebaut ist. Das ist der Grund, aus dem dieser Punkt nicht ausfallen
+darf, und er ist erfüllt.
+
+**Was hier abgelesen und was gefolgert ist**, damit es später niemand
+verwechselt: Der **Satz** ist gemessen, aus der Seite und aus `stand().band`.
+`overdue: true`, `until = 10:30` und `since = 10:21` sind daraus **gefolgert** —
+die überschrittene Fassung steht in einem `v-if` auf `overdue`, und beide
+Zeitangaben stehen im Satz. Die Ablage selbst ist an diesem Punkt nicht noch
+einmal ausgelesen worden.
+
+### Nebenbei gemessen: der Rundlauf durch das Formular, mit echtem Versatz
+
+Das Formular zeigt nach dem Speichern `13.09.2026` und `10:30` — also genau das
+Eingetippte. Der Weg dahin ist `Clock::minuteToUtc()` beim Schreiben (`10:30`
+CEST wird `08:30` UTC) und `Clock::minute()` samt Schnitt am Leerzeichen beim
+Lesen.
+
+**Im Container ist dieser Weg nicht prüfbar.** Dort ist die Anzeigezone UTC, und
+eine fehlende Umrechnung sähe aus wie eine gelungene — genau die Falle, deretwegen
+`MaintenanceRoundTripTest` mit einem **Versatz** misst. Hier trägt der Server
+`CEST (UTC+02:00)`, und der Rundlauf stimmt über zwei Stunden Versatz hinweg.
+
+> **Eine Prüfzone ohne Versatz lässt eine fehlende Umrechnung wie eine gelungene
+> aussehen.**

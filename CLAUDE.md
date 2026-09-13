@@ -69,7 +69,9 @@ gerendert.
 > **Ein Feld im Payload ist noch keine Spalte.**
 
 **Offen bleiben genau zwei:** Befund 14 (die Fusszeile von `/logs`, gehört zu A5)
-und die ungemessene Laufzeit über 142 Pakete (`docs/81 §2.3h` Punkt 1). **Und
+und die ungemessene Laufzeit über 142 Pakete (`docs/81 §2.3h` Punkt 1).
+**Befund 14 hat seit dem 13. September ein Vorhaben** — `docs/914`, zusammen mit
+den Zeilennummern in den Protokollen, weil beide dieselbe Naht brauchen. **Und
 keine der vier Behebungen hat einen Server gesehen** — der Nachlauf dazu ist
 `docs/87`, ausgeschrieben vor dem Fahren.
 
@@ -3709,6 +3711,51 @@ larastan steht nicht in `composer.json` — sonst bräche `composer install` an
 `phpstan/phpstan` ab —, also kennt Composers Autolader es nicht, und die Meldung
 lautet „Invalid configuration: Service 'sqlParser'" statt „Klasse nicht
 gefunden".
+
+---
+
+## Ein Wunsch, der nirgends stand — 13. September 2026
+
+Der Betreiber hat nach den Zeilennummern in den Protokollen gefragt, die er
+„zu einem früheren Zeitpunkt angefragt" hatte. Gesucht in `docs/`, `CLAUDE.md`,
+`CHANGELOG.md`, der ganzen Commit-Historie und der Mitschrift der laufenden
+Sitzung: **kein Treffer ausser der Nachfrage selbst.** Gebaut ist er auch
+nicht.
+
+Das ist die Spiegelung von A8, elf Tage später. Dort war ein Merkmal gebaut und
+in keinem Plan vermerkt und deshalb von aussen nicht von einem zu unterscheiden,
+das es nicht gibt. Hier ist eines angefragt und nirgends vermerkt.
+
+> **Was man zweimal braucht, gehört ins Repo — auch wenn es keine Zeile Code
+> ist.** Der Satz steht seit `docs/39` hier und galt bisher für Abnahmeläufe.
+> Er gilt für Wünsche genauso: Ein Wunsch, der nur in einem Gespräch steht, ist
+> fort, wenn das Gespräch fort ist — und der Nächste kann nicht einmal sagen,
+> dass es ihn gab.
+
+Das Vorhaben dazu ist **`docs/914`**, und es nimmt Befund 14 mit, weil beide
+dieselbe Ergänzung am Agenten brauchen: **was hat er tatsächlich gelesen.**
+
+**Die Messrunde davor hat einen Befund gebracht, der in keinem Dokument stand.**
+`WebLogsTail::tail()` bricht nicht nur ab, wenn die Datei zu Ende ist, sondern
+auch am Bytedeckel `MAX_BYTES = 512 KiB`. Gemessen: 500 Zeilen à 4 KiB ergeben
+**128** gelieferte Zeilen, und die Schwelle liegt bei `512 KiB ÷ 500 = 1048 B`
+je Zeile (gemessen kippt es zwischen 1024 und 1100). Nach aussen sieht das
+Zeichen für Zeichen aus wie eine kurze Datei — `truncated` steht auf `false`,
+und die Seite meldet eine vollständige Sicht auf einen Ausschnitt.
+
+> **Zwei Gründe, die dasselbe Ergebnis erzeugen, sind nicht derselbe Grund —
+> und die Abhilfe für den einen lässt den anderen stehen.**
+
+`docs/86` hat Befund 14 auf **eine** Ursache zurückgeführt („die Seite weiss
+nicht, wie viele Zeilen die Datei hat"). Das stimmte und war die Hälfte. Der
+Deckel trifft dabei genau die Protokolle, die man liest, wenn etwas kaputt ist:
+ein nginx-`error.log` mit Stacktraces und ein `upgrade.log` von apt liegen
+regelmässig über 1 KiB je Zeile.
+
+**Und die Lage im Fenster gibt es und wird weggeworfen:** `array_filter` in
+`SystemLogsTail::apply()` erhält die Schlüssel, `array_values` in derselben
+Zeile wirft sie weg. Eine Zeilennummer braucht keine neue Messung, sondern das
+Aufheben dessen, was für einen Ausdruck lang schon dasteht.
 
 ---
 

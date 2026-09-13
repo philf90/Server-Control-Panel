@@ -580,3 +580,56 @@ Vermutung und steht hier als solche.
 
 Für diesen Lauf ändert es nichts; für die Nacht schon, denn der Nachtlauf braucht
 den Termin.
+
+---
+
+## §9 Punkt 9 — noch offen, und der erste Anlauf hat etwas anderes gemessen
+
+Der Lauf sollte mit dem **Ausschalten** beginnen. Es ist nicht geschehen: Die
+Anweisung nannte es in Prosa, alles danach stand in einem Block zum Einfügen.
+
+> **Ein Schritt, der nicht im Block steht, wird nicht ausgeführt — er wird
+> gelesen.**
+
+Was daraus folgte, ist Zeile für Zeile schlüssig und nur nicht das Gemeinte:
+
+| Zeit | Zustand | Ablage | Datei | `maintenance.flag` | Auffällig |
+|---|---|---|---|---|---|
+| `11:04:38` | wie nach Punkt 7 | **an** | fehlt | `missing` | 4 |
+| `11:04:56` | nach `touch` | **an** | liegt | **fort** | 3 |
+| `11:05:21` | nach `rm` | **an** | fehlt | `missing` | 4 |
+
+**Der `touch` hat die beiden nicht auseinandergebracht, sondern
+zusammengeführt.** `unexpected` verlangt Ablage **aus** und Datei **da**; hier
+war die Ablage an, und die Datei brachte die Übereinstimmung zurück, die Punkt 7
+zerstört hatte.
+
+**Punkt 9 ist damit nicht gemessen**, und er ist eines der beiden
+Ausschlusskriterien.
+
+### Was der Fehlgriff trotzdem belegt hat *(und es ist nicht wenig)*
+
+Die Prüfung **verfolgt den Zustand und rastet nicht ein** — in beide Richtungen,
+an drei Läufen hintereinander, jeder mit der Zahl daneben:
+
+- Ablage und Datei auseinander → Befund **da**
+- in Übereinstimmung gebracht → Befund **fort**
+- wieder auseinander → Befund **wieder da**
+
+Das ist die Gegenprobe, die Punkt 9 in seinem ersten Schritt ohnehin vorsah, nur
+über die andere Kante gefahren: nicht „ausschalten, bis beide leer sind", sondern
+„die Datei zurücklegen, bis beide übereinstimmen". Ein Befund, der einmal
+geschrieben und nie wieder geprüft würde, hätte hier zweimal stehen bleiben
+müssen.
+
+> **Ein Befund, der verschwindet, wenn sein Grund verschwindet, ist gemessen. Ein
+> Befund, der nur entsteht, ist abgelegt.**
+
+Und nebenbei ist die **Richtung** belegt, um die es der Prüfung geht: Dieselbe
+Datei erzeugt einmal einen Befund und einmal keinen — es zählt nicht ihr Dasein,
+sondern ihr Verhältnis zur Ablage.
+
+### Was der Zustand jetzt ist
+
+Ablage **an**, Datei **fehlt**, Kundenwebsites **erreichbar** (`200`), Band
+behauptet Wartung, Abzeichen **4**. Punkt 9 fängt von hier an.

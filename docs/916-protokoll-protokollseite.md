@@ -144,3 +144,76 @@ Die Fusszeile sagt „130 Zeilen · gelesen wurden die letzten 130 Zeilen" —
 dieselbe Zahl zweimal, weil ohne Filter `matched` und `read` gleich sind. Sie
 steht schon als Beobachtung in `docs/914 §13`; der Blick auf dem Server
 bestätigt sie und entscheidet sie nicht.
+
+---
+
+## §4 Punkt 1 — die kurze Quelle, beide Zustände *(erfüllt)*
+
+`panel-update`, 36 Zeilen.
+
+| | Fusszeile | Knopf | erste Nummer | Notiz |
+|---|---|---|---|---|
+| `lines=500` | „36 Zeilen · gelesen wurden die letzten **36** Zeilen" | **keiner** | **1** | „Das ist die ganze Quelle; die Nummern sind ihre Zeilen." |
+| `lines=10` | „10 Zeilen von 36 Treffern · … letzten **36** Zeilen" | „Mehr Zeilen (10 → 20)" | 27 | dieselbe |
+
+**Das ist genau der Fall, den `docs/915 §0` auseinandergelegt hat.** Die
+Fusszeile nennt 36 und nicht 500 — der Befund aus `docs/86` ist damit auf dem
+Server behoben —, und der Knopf steht bei `lines=10` **zu Recht** da, weil
+zehn von sechsunddreissig gezeigt werden. Bei `lines=500` verschwindet er.
+
+## §5 Punkt 2 — die lange Quelle *(halb)*
+
+`agent`, 500 Zeilen im Fenster: Nummern **−100 … −81**, Fusszeile „100 Zeilen
+von 500 Treffern · gelesen wurden die letzten 500 Zeilen", Notiz „Die Nummern
+zählen vom Ende: −1 ist die letzte Zeile.", Knopf „Mehr Zeilen (100 → 200)".
+
+**Der Druck auf den Knopf steht aus** — die zweite Hälfte des Punktes (erste
+Nummer danach **−200**) ist nicht gemessen.
+
+## §6 Punkt 4 — mit Filter *(erfüllt)*
+
+`agent` mit Filter, „100 Zeilen von **235** Treffern · gelesen wurden die
+letzten 500 Zeilen". Die Nummern:
+
+    −220  −215  −213  −211  −209  −207  −205  −203  −201  −199 …
+
+**Lücken von fünf und von zwei.** Eine lückenlose Folge wäre der Befund
+gewesen; sie hätte behauptet, die Treffer stünden in der Datei
+nebeneinander.
+
+## §7 Befund 3 — beim waagerechten Rollen scheint der Text links neben der Nummer durch
+
+**Gefunden hat es das Bild zu Punkt 4**, auf dem die Seite waagerecht gerollt
+war: Vor jeder Nummer stand `'ts` — der Anfang der Protokollzeile.
+
+**Erst für ein Artefakt des Telefons gehalten** (Sticky-Elemente hinken beim
+Schwungrollen nach) und deshalb im Container gegen echtes Chromium nachgemessen,
+im **gesetzten** Zustand. Es reproduziert:
+
+| Zustand | Nummer beginnt bei | `elementFromPoint` im Streifen davor |
+|---|---|---|
+| wie gebaut (`padding-left: 16px` am Rahmen) | x = **17** | **`log-text`** |
+| Polster am Rahmen entfernt | x = **1** | **nichts** |
+
+Die Ursache ist das Polster des Rollbehälters. Ein klebendes Element klebt am
+**Inhaltsrand** und nicht am Rahmen; die sechzehn Pixel davor gehören dem
+Rollbereich, und beim Rollen wandert der Text sichtbar hinein.
+
+> **Ein Element, das klebt, deckt seinen eigenen Kasten — nicht den Streifen,
+> den das Polster davor freilässt.**
+
+**Die Klebeprobe aus `docs/915 §8` konnte das nicht sehen.** Sie fragt, ob die
+Nummer **stehenbleibt** — gemessen `17 → 17`, und das stimmt. Sie fragt nicht,
+ob links von ihr etwas durchscheint.
+
+> **Eine Probe, die fragt, ob ein Element stehenbleibt, fragt nicht, ob daneben
+> etwas durchscheint.**
+
+**Und die Bilderrunde aus `docs/914 §13` konnte es erst recht nicht:** Sie hat
+nach dem Rollen `scrollLeft` zurückgesetzt und **danach** fotografiert.
+
+> **Ein Bild nach einer Messung zeigt den Zustand danach und nicht den
+> gemessenen.** Der Satz steht seit `docs/906` im Repo und hat hier zum zweiten
+> Mal zugeschlagen.
+
+Behoben wird nach dem Lauf.

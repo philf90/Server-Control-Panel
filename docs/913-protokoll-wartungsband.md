@@ -368,3 +368,71 @@ eine fehlende Umrechnung sähe aus wie eine gelungene — genau die Falle, deret
 
 > **Eine Prüfzone ohne Versatz lässt eine fehlende Umrechnung wie eine gelungene
 > aussehen.**
+
+---
+
+## Beobachtung 3 — die ACME-Ausnahme trägt während der Wartung
+
+Nachgemessen, weil Befund 2 den Prüfling entlastet, aber nicht bestätigt hat:
+
+```
+https://cloudlab24.ipv64.de/.well-known/acme-challenge/abc123XYZ_-   → 404
+https://cloudlab24.ipv64.de/                                          → 503
+```
+
+Beide Zeilen im selben Augenblick, bei eingeschaltetem Wartungsmodus. Die
+Ausnahme in der Wache (`if ($request_uri ~ ^/\.well-known/acme-challenge/…`)
+greift also: Die Prüfadresse geht durch, alles andere nicht.
+
+**Das ist keine Wiederholung von `docs/102`, sondern dieselbe Frage an eine
+andere Fassung** — A12 ist gegen `0.7.3-rc.19` abgenommen, hier steht
+`0.7.4-rc.6`, und dazwischen liegen das Band, die lesende Operation und eine
+neue Prüfung. Der Griff kostete eine Zeile.
+
+Die `404` ist dabei der richtige Wert und nicht ein zweiter Fehler: Die
+Prüfdatei gibt es nicht, also antwortet der Webserver normal — und „normal" ist
+genau das, was die Ausnahme herstellen soll.
+
+---
+
+## §6 Punkt 5 — die Bilderrunde *(teilweise gemessen)*
+
+Gefahren auf `/announcements`, mit einer angelegten Ankündigung (Rang **Info**,
+Text „Das ist ein Test"), also mit **zwei** Bändern übereinander. Vier Lagen,
+jede in einer frisch geladenen Seite:
+
+| Lage | `dokument` | Gegenprobe | `schiebt` | `rollt` | `versteckt` |
+|---|---|---|---|---|---|
+| 1440 px dunkel | **0** | 200 (soll 200) | 0 | 0 | 0 |
+| 1440 px hell | **0** | 200 | 0 | 0 | 0 |
+| 390 px dunkel | **0** | 200 | 0 | 0 | 2 |
+| 390 px hell | **0** | 200 | 0 | 0 | 2 |
+
+**`stand=2026-09-06` in allen vier**, und das ist die Zahl, die im Repo steht —
+der eingefügte Messaufsatz war der aktuelle und keiner aus der Zwischenablage
+von vorgestern. Genau dafür gibt es das Feld.
+
+**Die `versteckt=2` bei 390 px sind kein Befund**, sondern die eigene Buchhaltung
+des Messmittels: Es zählt die Überläufe, die es weglässt, weil sie nur zum
+Vorlesen da sind.
+
+> **Kein stiller Deckel: Wer die Sicht begrenzt, nennt die Zahl dazu.**
+
+**Was fehlt, ist die Lage der Bänder.** Der Griff danach hat in allen vier Lagen
+`(2) [{…}, {…}]` gedruckt — zwei Einträge, und die Werte weggeklappt. Damit ist
+die **Zahl** der Bänder gemessen und ihre **Lage** nicht.
+
+> **Ein Objekt in der Konsole zeigt fünf Schlüssel und klappt den Rest weg — und
+> was man abschreibt, ist dann eine Auswahl, die niemand getroffen hat.**
+
+Dieselbe Falle, vor der `tests/bilder-messen.js` im eigenen Kopf warnt und
+deretwegen es sein Urteil zusätzlich als **eine Zeile** druckt. Der Griff
+daneben hatte diese Zeile nicht — er war für diesen Lauf neu getippt.
+
+> **Ein Messmittel, das man aufhebt, macht die Fehler von letztem Mal nicht noch
+> einmal** — und eines, das man daneben frisch tippt, macht sie doch.
+
+Auf den Aufnahmen sind beide Bänder bei 390 px sichtbar gestapelt, mit
+erkennbarer Fuge. **Das ist ein Bild und keine Zahl**, und für den Punkt, der
+aus `docs/103` stammt — drei Bänder lagen dort bei 1440 px übereinander, bei
+`schiebt = 0` —, ist die Zahl das Kriterium.

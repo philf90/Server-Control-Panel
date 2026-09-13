@@ -3562,14 +3562,73 @@ Hülle darum **weiterhin rendert** und ein Ankündigungsband darin steht.
 > das dieselbe Hülle braucht.**
 
 **Was benannt offen bleibt** (`docs/913 §12`): der Rest aus P7, das
-`.invalid`-Zertifikat, das sich nicht erneuern lässt, die ungeklärte Frage,
-warum `unit.schedule / no_next` am `srvpanel-diagnose.timer` von selbst
-verschwand (für den Nachtlauf die tragende), und eine Entwurfsfrage —
+`.invalid`-Zertifikat, das sich nicht erneuern lässt, und eine Entwurfsfrage —
 `/maintenance` nennt den Zustand dreimal und das Band verweist dort auf die
 Seite, auf der man schon steht.
 
 > **Ein Bedienelement, das auf die Seite verweist, auf der es steht, ist kein
 > Fehler — es ist eine Frage, die beim Entwurf nicht gestellt wurde.**
+
+---
+
+## Der Nachtlauf hat seinen eigenen Timer als kaputt gemeldet — 13. September 2026
+
+Der Rest, der aus dem Wartungsband-Lauf offen blieb, war kein Zufall: `unit.schedule /
+no_next — srvpanel-diagnose.timer` stand **in jedem Nachtlauf** und in **keinem**
+Lauf von Hand. Das Protokoll ist `docs/913 §13` und **§14**.
+
+**`srvpanel-diagnose.service` ist die ausgelöste Unit ihres eigenen Timers.**
+Solange sie läuft, steht `srvpanel-diagnose.timer` auf `SubState=running` — und
+dann schreibt systemd in **beide** Zeitfelder dasselbe wie bei einem Timer ohne
+Termin: `NextElapseUSecRealtime` leer, `NextElapseUSecMonotonic=infinity`
+(gemessen gegen systemd 255, ein voller Zyklus zweimal). Die Prüfung läuft damit
+innerhalb des einen Fensters, in dem ihre Antwort falsch ist.
+
+> **Eine Prüfung, die sich selbst mitprüft, misst ihren eigenen Ausnahmezustand
+> als Normalfall.**
+
+> **Zwei Zustände, die in denselben Feldern dasselbe schreiben, trennt nur ein
+> drittes Feld — und wer es nicht liest, hält den gesunden für den kaputten.**
+
+**Und er sah aus, als verschwände er von selbst**, weil von Hand der Zustand
+gar nicht herstellbar ist. Entschieden hat es nicht der Zustand des Timers,
+sondern die Zeile `Kaputt: 1` im Journal jedes Nachtlaufs neben ihrem Fehlen in
+jedem Lauf von Hand.
+
+> **Ein Befund, der nur in dem Lauf entsteht, den niemand sieht, sieht aus, als
+> verschwände er von selbst.**
+
+**Die erste Messrunde dazu hat den entscheidenden Fall verfehlt** — elf Lagen
+gemessen, den Dienst aber **von Hand** gestartet; dabei bleibt der Timer auf
+`waiting`. Gemessen war „Dienst läuft", gebraucht war „Timer hat gefeuert".
+
+> **Ein Prüfkörper, der den Zustand auf einem anderen Weg herstellt als der
+> Prüfling, stellt einen anderen Zustand her.**
+
+> **Eine Schlussfolgerung, die einer gemessenen Zeile widerspricht, ist nicht
+> ungenau, sondern falsch.** Aufgefallen ist es daran, dass der Zeitstrahl des
+> Servers sagte, der Timer lief.
+
+Behoben in **`Units::hasNext()`** und dort allein: Vier Stellen lesen
+`has_next === false` — die Diagnose, die Farbe der Zeile, die Datumsspalte und
+der Zähler der kaputten Timer.
+
+> **Wo vier Verbraucher denselben Wert deuten, gehört die Behebung an den
+> Erzeuger — sonst sind es vier Fassungen derselben Regel.**
+
+**Auf einem Server gesehen hat die Behebung nichts**, und das lässt sich nicht
+abkürzen: Sie zeigt sich erst daran, dass im nächsten Nachtlauf `Kaputt: 1`
+ausbleibt.
+
+> **Was nur nachts entsteht, lässt sich nur nachts widerlegen.**
+
+Ein Nebenbefund derselben Runde, für den nächsten, der hier PHPStan fährt:
+**Der Lader für `--autoload-file` muss larastans Namensraum selbst eintragen**
+(`$autoload->addPsr4('Larastan\\Larastan\\', …/vendor/larastan/larastan/src)`).
+larastan steht nicht in `composer.json` — sonst bräche `composer install` an
+`phpstan/phpstan` ab —, also kennt Composers Autolader es nicht, und die Meldung
+lautet „Invalid configuration: Service 'sqlParser'" statt „Klasse nicht
+gefunden".
 
 ---
 

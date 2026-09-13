@@ -784,11 +784,13 @@ benannt.
 - **`tls.file / expiring — p6-b.invalid`** — das Wegwerfzertifikat aus
   `docs/100 §6`, das an diesem Tag ausläuft. Erneuern lässt es sich nicht:
   `.invalid` ist für Let's Encrypt kein prüfbarer Name (Befund 2).
-- **Warum `unit.schedule / no_next` verschwand**, ist zur Hälfte gemessen
-  (§13). Was der Grund bedeutet, steht jetzt fest — der Timer lief nicht —,
-  und wer ihn angehalten und wer ihn gestartet hat, sagt das Journal des
-  Servers. Für den Nachtlauf ist die tragende Frage ohnehin eine andere: ob er
-  je von selbst gefahren ist.
+- **`unit.schedule / no_next` ist geklärt und war ein Befund im Prüfling**
+  (§13 und §14): Der Nachtlauf hat seinen eigenen Timer gemeldet, weil er
+  dessen ausgelöste Unit ist. Behoben in `Units::hasNext()`; **auf einem Server
+  gesehen hat die Behebung nichts** — sie zeigt sich erst daran, dass im
+  nächsten Nachtlauf die Zeile `Kaputt: 1` ausbleibt. Die Sorge, der Abgleich
+  liefe nicht von selbst, ist erledigt: Die Nachtläufe vom 9. bis 13. September
+  sind im Journal, keiner ist ausgefallen.
 - **Der Administrator ist nicht geprüft.** Punkt 6 misst die Tür an der
   Kundensicht; dass es die richtige Tür ist, hält `MaintenanceBandTest`
   (`docs/912 §0`).
@@ -885,3 +887,107 @@ nachgesehen.
 
 > **Eine Namespace, die das Netz und die Einhängepunkte trennt, trennt die
 > Dateien nicht — und `enable` schreibt in eine Datei.**
+
+---
+
+## §14 Beobachtung 1 ist geklärt — und war ein Befund im Prüfling
+
+Gemessen am **13. September 2026 auf `cloudsrv24`** (Journal und Zeitstrahl) und
+**im Container** (systemd 255 als PID 1). Der Befund war nicht vergänglich; er
+stand jede Nacht da, und nur nachts.
+
+### Was der Server gesagt hat
+
+| | gemessen |
+|---|---|
+| Timer jetzt | `active` · `waiting` · `NextElapse=Mon 2026-09-14 00:23:04 CEST` · `enabled` |
+| Stempel | `2026-09-13 00:47:04.891451000 +0200` |
+| Nachtläufe | 9., 10., 11., 12., **13. September** — je einer, keiner ausgefallen |
+| jeder Nachtlauf | `Auffällig: 2`, **`Kaputt: 1`** |
+| jeder Lauf von Hand (10:57, 13:40) | `Auffällig: 2`, **keine `Kaputt`-Zeile** |
+| Stop/Start des Timers | acht Paare, je **4 bis 5 Sekunden** — die Fenster der Paketupdates |
+| am 13. September | `09:36:47` gestoppt, Neustart des Servers, `09:37:01` gestartet |
+
+**Damit fällt die erste Erklärung.** Um 10:16 lief der Timer seit 39 Minuten;
+angehalten war er nicht. Und der Nachtlauf ist nie ausgefallen — die Sorge aus
+§12, der Abgleich liefe nicht von selbst, war unbegründet.
+
+**Die Zahl, die es entscheidet, ist die Zeile `Kaputt: 1`.** Sie steht in
+**jedem** Nachtlauf und in **keinem** Lauf von Hand. `no_next` ist der einzige
+`Fail` unter den drei Befunden (`FindingCheck::UnitSchedule`), also ist der
+Befund nicht verschwunden — er ist **nie in einem Lauf von Hand entstanden**.
+
+> **Ein Befund, der nur in dem Lauf entsteht, den niemand sieht, sieht aus, als
+> verschwände er von selbst.**
+
+### Was der Container gesagt hat
+
+Ein voller Zyklus, zweimal, jede Sekunde gemessen:
+
+| `SubState` | `NextElapseUSecRealtime` | `NextElapseUSecMonotonic` | `has_next` |
+|---|---|---|---|
+| `waiting` | `Sun 2026-09-13 11:45:30 UTC` | `0` | true |
+| **`running`** (feuert) | **leer** | **`infinity`** | **false → `no_next`** |
+| `waiting` (danach) | `Sun 2026-09-13 11:46:00 UTC` | `0` | true |
+
+**Die beiden Zeitfelder schreiben im feuernden und im kaputten Zustand
+dasselbe.** Getrennt werden sie allein durch `SubState`.
+
+> **Zwei Zustände, die in denselben Feldern dasselbe schreiben, trennt nur ein
+> drittes Feld — und wer es nicht liest, hält den gesunden für den kaputten.**
+
+### Der Befund
+
+`srvpanel-diagnose.service` ist die **ausgelöste Unit ihres eigenen Timers**.
+Solange sie läuft, steht `srvpanel-diagnose.timer` auf `running` und hat keinen
+nächsten Termin. Die Prüfung läuft damit *innerhalb* des einen Fensters, in dem
+ihre Antwort falsch ist — und meldet sich selbst als kaputt.
+
+> **Eine Prüfung, die sich selbst mitprüft, misst ihren eigenen Ausnahmezustand
+> als Normalfall.**
+
+Von Hand gefahren war der Zustand nie herstellbar: Dort ist der Timer `waiting`.
+Genau deshalb war der Befund über Wochen unsichtbar und sah, als er einmal
+auffiel, nach einem Zufall aus.
+
+### Und die eigene Messung war beim ersten Mal unvollständig
+
+§13 hat elf Lagen gemessen und den entscheidenden nicht getroffen: Der Dienst
+wurde dort **von Hand** gestartet, und der Timer bleibt dabei auf `waiting`.
+Gemessen war „Dienst läuft" — gebraucht war „Timer hat gefeuert".
+
+> **Ein Prüfkörper, der den Zustand auf einem anderen Weg herstellt als der
+> Prüfling, stellt einen anderen Zustand her.**
+
+Aufgefallen ist es nicht am Nachdenken, sondern daran, dass der Zeitstrahl des
+Servers der Schlussfolgerung widersprach — der Timer lief um 10:16.
+
+> **Eine Schlussfolgerung, die einer gemessenen Zeile widerspricht, ist nicht
+> ungenau, sondern falsch.**
+
+### Behoben
+
+In **`SrvPanel\Agent\Units::hasNext()`** und dort allein. Vier Stellen lesen
+`has_next === false` — die Diagnose, die Farbe der Zeile, die Datumsspalte und
+der Zähler der kaputten Timer; jede davon hätte die Ausnahme sonst selbst
+tragen müssen.
+
+> **Wo vier Verbraucher denselben Wert deuten, gehört die Behebung an den
+> Erzeuger — sonst sind es vier Fassungen derselben Regel.**
+
+Gehalten von `UnitStateTest` (der Prüfkörper ist die gemessene Ausgabe, und ein
+eigener Fall sichert zu, dass er in beiden Zeitfeldern dem gestoppten gleicht —
+sonst misst er nicht mehr, was er messen soll) und von `UnitVerdictTest`, der
+die **Naht** misst: durch `Units::read()` in `Units::judge()`, also den Weg des
+Nachtlaufs, mit der Gegenprobe bei `SubState=dead`.
+
+Gebrochen in beide Richtungen: Ohne die Kenntnis des feuernden Zustands fallen
+drei Fälle, und der dritte druckt die Zeile wörtlich, die der Server jede Nacht
+erzeugt hat — `ActiveState=active SubState=running`. Beide Eingriffe stehen in
+`tests/waechter-brechen.sh`.
+
+**Auf einem Server gesehen hat die Behebung nichts.** Sie zeigt sich erst im
+nächsten Nachtlauf: Bleibt `Kaputt: 1` aus und meldet der Lauf `Auffällig: 2`,
+ist sie belegt. Vorher ist sie gebaut und nicht gemessen.
+
+> **Was nur nachts entsteht, lässt sich nur nachts widerlegen.**

@@ -20675,6 +20675,62 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
+echo "== UnitStateTest: hasNext kennt den feuernden Timer nicht =="
+#
+# Der Befund vom 13. September 2026 (docs/913 Paragraph 14): Ein Timer, der
+# gefeuert hat und dessen Unit laeuft, schreibt in beide Zeitfelder dasselbe
+# wie ein Timer ohne Termin -- leer und infinity. Getrennt werden sie allein
+# durch SubState=running.
+#
+# srvpanel-diagnose.service ist die ausgeloeste Unit seines eigenen Timers und
+# lief jede Nacht in genau diesem Fenster. Der Nachtlauf hat den Timer deshalb
+# monatelang als kaputt gemeldet; von Hand gefahren stand der Befund nie da.
+vorher_datei agent/src/Units.php
+python3 - <<'PY2'
+p = 'agent/src/Units.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (($values['SubState'] ?? '') === self::FIRING) {
+            return true;
+        }
+
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei agent/src/Units.php "hasNext kennt den feuernden Timer nicht" &&
+pruefe "hasNext kennt den feuernden Timer nicht" \
+  UnitStateTest::test_the_pair_decides_whether_a_next_date_exists failed
+pruefe "  … und die Naht bis zum Nachtlauf" \
+  UnitVerdictTest::test_a_timer_that_is_firing_is_not_a_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+echo
+echo "== UnitStateTest: der Pruefkoerper hoert auf zu trennen =="
+#
+# Der Waechter ueber den feuernden Timer misst nur, solange sein Pruefkoerper
+# in beiden Zeitfeldern dasselbe schreibt wie der gestoppte. Unterscheiden sie
+# sich, trennt SubState nichts mehr -- und der Waechter waere gruen, ohne seine
+# Regel geprueft zu haben. Er sagt es deshalb selbst.
+vorher_datei tests/Unit/UnitStateTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/UnitStateTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """        'NextElapseUSecMonotonic=infinity',
+        'Id=probe.timer',"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        'NextElapseUSecMonotonic=4h 2min',
+        'Id=probe.timer',"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/UnitStateTest.php "der Pruefkoerper hoert auf zu trennen" &&
+pruefe "der Pruefkoerper hoert auf zu trennen" \
+  UnitStateTest::test_only_the_sub_state_separates_firing_from_broken failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
+
+
+echo
 echo "== UnitStateTest: ein fehlendes Feld wird zur gemessenen Null =="
 #
 # Der Fehler, den dieser Leser abloest: Ein Timer beantwortet MainPID,

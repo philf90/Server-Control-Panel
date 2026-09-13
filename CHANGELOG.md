@@ -27922,3 +27922,32 @@ gelten über ihn hinaus:
 
 > **Ein Schritt, der nicht im Block steht, wird nicht ausgeführt — er wird
 > gelesen.**
+
+### Der Nachtlauf meldete jede Nacht seinen eigenen Timer als kaputt
+
+`unit.schedule / no_next — srvpanel-diagnose.timer` blieb aus dem Abnahmelauf
+als „von selbst verschwunden" offen stehen. Nachgemessen war es ein Fehler im
+Prüfling, und zwar einer, der nur nachts entstand.
+
+**Vorher** las `Units::hasNext()` genau zwei Felder. Ein Timer, der gefeuert hat
+und dessen Unit läuft, schreibt dort dasselbe wie ein Timer ohne Termin —
+`NextElapseUSecRealtime` leer, `NextElapseUSecMonotonic=infinity`. Getrennt
+werden die beiden allein durch `SubState`: `running` gegen `waiting` oder
+`dead`. Gemessen gegen systemd 255, ein voller Zyklus zweimal.
+
+`srvpanel-diagnose.service` ist die ausgelöste Unit ihres eigenen Timers, lief
+also in genau diesem Fenster und meldete sich selbst. Im Journal von
+`cloudsrv24` steht die Folge: jeder Nachtlauf `Kaputt: 1`, jeder Lauf von Hand
+ohne diese Zeile.
+
+**Nachher** fragt `hasNext()` `SubState` zuerst. Die Behebung sitzt am Erzeuger
+und nicht bei den vier Verbrauchern des Wertes — Diagnose, Farbe der Zeile,
+Datumsspalte und Zähler der kaputten Timer.
+
+`UnitStateTest` hält den Leser (mit einem Fall, der zusichert, dass der
+Prüfkörper in beiden Zeitfeldern dem gestoppten gleicht — sonst misst er
+nichts), `UnitVerdictTest` die Naht bis zum Urteil des Nachtlaufs. Beide
+Eingriffe stehen im Bruchskript.
+
+**Auf einem Server gesehen hat die Behebung nichts**; sie zeigt sich erst daran,
+dass im nächsten Nachtlauf `Kaputt: 1` ausbleibt.

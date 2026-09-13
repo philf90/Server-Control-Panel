@@ -36,19 +36,27 @@ namespace SrvPanel\Agent;
  *
  * ## Der nächste Termin steht in zwei Feldern, und keines sagt allein etwas
  *
- * | Fall | `NextElapseUSecRealtime` | `NextElapseUSecMonotonic` |
- * |---|---|---|
- * | gesund, `OnCalendar` | ein Zeitstempel | `0` |
- * | gesund, `OnBootSec` | **leer** | eine Dauer |
- * | kein Termin | leer | `infinity` |
+ * | Fall | `SubState` | `NextElapseUSecRealtime` | `NextElapseUSecMonotonic` |
+ * |---|---|---|---|
+ * | gesund, `OnCalendar` | `waiting` | ein Zeitstempel | `0` |
+ * | gesund, `OnBootSec` | `waiting` | **leer** | eine Dauer |
+ * | **feuert gerade** | **`running`** | **leer** | **`infinity`** |
+ * | kein Termin | `waiting`/`dead` | leer | `infinity` |
  *
  * Die zweite Zeile ist die, die eine naheliegende Regel umwirft: „die
  * Realtime-Spalte ist leer" heisst **nicht** „kein Termin" — es ist die Bauart
  * der Panel-Timer unmittelbar nach einem Neustart, wenn `OnBootSec` vor der
  * nächsten Kalenderzeit liegt.
  *
+ * **Die dritte und die vierte Zeile sind in beiden Zeitfeldern nicht zu
+ * unterscheiden** — nur `SubState` trennt sie. Das ist am 13. September 2026
+ * nachgetragen worden, nachdem der Nachtlauf monatelang seinen eigenen Timer
+ * als kaputt gemeldet hatte (`docs/913 §14`).
+ *
  * > **Zwei Felder, von denen jedes im gesunden Fall leer oder null sein darf,
- * > sagen einzeln nichts — erst das Paar sagt, ob ein Termin existiert.**
+ * > sagen einzeln nichts — erst das Paar sagt, ob ein Termin existiert.** Und
+ * > wo auch das Paar zwei Zustände gleich schreibt, entscheidet ein drittes
+ * > Feld.
  *
  * `ActiveState` taugt dafür nicht: Es steht beim gesunden wie beim kaputten
  * Timer auf `active`. Genau das ist der Satz, der seit dem 19. August in
@@ -122,6 +130,15 @@ final class Units
      * Der Wert, den systemd dort schreibt, wenn der Termin im anderen Feld steht.
      */
     private const OTHER_FIELD = '0';
+
+    /**
+     * Der Unterzustand eines Timers, der gefeuert hat und dessen Unit läuft.
+     *
+     * Solange er dort steht, **veröffentlicht systemd keinen nächsten Termin** —
+     * gemessen, nicht nachgelesen. Der Termin entsteht wieder, sobald die
+     * ausgelöste Unit fertig ist.
+     */
+    private const FIRING = 'running';
 
     /**
      * Eine Zeile aus den Ausgabezeilen von `systemctl show`.
@@ -298,10 +315,45 @@ final class Units
      * Beide Felder werden gefragt, weil jedes für sich im gesunden Fall leer
      * oder `0` sein darf — siehe die Tabelle im Kopf dieser Klasse.
      *
+     * ## Der dritte Zustand: der Timer feuert gerade
+     *
+     * **Ein Timer, der gefeuert hat und dessen Unit läuft, trägt beide Felder
+     * leer beziehungsweise `infinity`** — also byteweise dasselbe wie ein
+     * Timer, der nie wieder fällig wird. Unterschieden werden die beiden allein
+     * durch `SubState`: `running` gegen `waiting` oder `dead`.
+     *
+     * Gemessen am 13. September 2026 gegen systemd 255, ein voller Zyklus
+     * zweimal (`docs/913 §14`):
+     *
+     * | `SubState` | Realtime | Monotonic |
+     * |---|---|---|
+     * | `waiting` | ein Zeitstempel | `0` |
+     * | **`running`** (feuert) | **leer** | **`infinity`** |
+     * | `waiting` (danach) | ein neuer Zeitstempel | `0` |
+     *
+     * > **Zwei Zustände, die in denselben Feldern dasselbe schreiben, trennt
+     * > nur ein drittes Feld — und wer es nicht liest, hält den gesunden für
+     * > den kaputten.**
+     *
+     * Das hat `srvpanel-diagnose.service` jede Nacht seinen eigenen Timer als
+     * kaputt melden lassen: Die Prüfung läuft **innerhalb** dieses Fensters,
+     * weil sie die ausgelöste Unit ist. Von Hand gefahren stand der Befund nie
+     * da — und genau deshalb sah er aus, als verschwände er von selbst.
+     *
+     * **Was diese Antwort nicht kann:** Bleibt die ausgelöste Unit für immer
+     * hängen, bleibt der Timer auf `running` und wird nie wieder fällig — und
+     * hier steht dann `true`. Ein hängender Dienst ist ein Schaden am Dienst
+     * und nicht am Timer; gemessen ist dieser Fall nicht, und er steht deshalb
+     * als Frage da und nicht als Zusage.
+     *
      * @param  array<string,string>  $values
      */
     public static function hasNext(array $values): bool
     {
+        if (($values['SubState'] ?? '') === self::FIRING) {
+            return true;
+        }
+
         if (($values['NextElapseUSecRealtime'] ?? '') !== '') {
             return true;
         }

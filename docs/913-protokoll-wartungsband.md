@@ -1,6 +1,6 @@
 # Protokoll zum Abnahmelauf des Wartungsbands
 
-Gefahren am **12. September 2026 auf `cloudsrv24`** gegen **`0.7.4-rc.6`**. Der
+Gefahren am **13. September 2026 auf `cloudsrv24`** gegen **`0.7.4-rc.6`**. Der
 Plan des Merkmals ist `docs/911`, der Lauf `docs/912`. Angelegt nach §1, während
 der Lauf läuft — je Punkt der **gemessene** Wert, nicht der erwartete.
 
@@ -779,14 +779,36 @@ benannt.
 
 ## §12 Was benannt offen bleibt
 
-- **Der Rest aus P7:** `orphan.row / certificate — tls.cloudlab24.de` steht seit
-  `docs/113 §13` da und ist von diesem Lauf unberührt.
-- **`tls.file / expiring — p6-b.invalid`** — das Wegwerfzertifikat aus
-  `docs/100 §6`, das an diesem Tag ausläuft. Erneuern lässt es sich nicht:
-  `.invalid` ist für Let's Encrypt kein prüfbarer Name (Befund 2).
-- **Warum `unit.schedule / no_next` verschwand**, ist nicht gemessen
-  (Beobachtung 1). Für den Nachtlauf ist es die tragende Frage: Ohne Termin
-  fährt der Abgleich aus diesem Merkmal nicht von selbst.
+- **Der Rest aus P7 ist geräumt** (§15): `orphan.row / certificate —
+  tls.cloudlab24.de` stand seit `docs/113 §13` da und ist am 13. September 2026
+  auf `cloudsrv24` mit `srvpanel tls --prune` entfernt — gemessen, mit
+  Gegenprobe. Er verschwand nicht von selbst, weil das Aufräumen ein eigener
+  Modus ist und der nächtliche `srvpanel-tls.service` `artisan srvpanel:tls`
+  **ohne** ihn fährt.
+- **`tls.file / expiring — p6-b.invalid` ist geschlossen** — entschieden vom
+  Betreiber am 13. September 2026. Nicht als Rest, sondern als Sache: `.invalid`
+  ist von RFC 2606 dafür reserviert, **nie** aufzulösen. Es gibt keine
+  Registrierung und damit keinen Weg, Verfügungsgewalt nachzuweisen; keine
+  Zertifizierungsstelle kann dafür ausstellen. Der Prüfling verhält sich richtig.
+
+  > **Ein Befund an einem Gegenstand, den es absichtlich nicht gibt, ist kein
+  > Rest des Prüflings — er ist ein Rest des Prüfstands.**
+
+  **Was daraus folgt und benannt bleibt:** Das Zertifikat läuft an diesem Tag
+  aus, und danach heisst der Grund `expired` statt `expiring` — also `Fail`
+  statt `Warn` (`FindingCheck::TlsFile`). Der Nachtlauf trägt damit dauerhaft
+  eine `Kaputt`-Zeile für eine Wegwerfdomain. Dass das so ist, ist richtig: Für
+  eine **echte** Domain, deren Zertifikat nicht mehr erneuerbar ist, wäre es
+  genau der Befund, den man will. Wer die Zeile loswerden will, entfernt die
+  Domain und nicht die Prüfung — danach wird ihr Zertifikat zu einer Zeile
+  `ohne Domain` und `srvpanel tls --prune` nimmt es mit.
+- **`unit.schedule / no_next` ist geklärt und war ein Befund im Prüfling**
+  (§13 und §14): Der Nachtlauf hat seinen eigenen Timer gemeldet, weil er
+  dessen ausgelöste Unit ist. Behoben in `Units::hasNext()`; **auf einem Server
+  gesehen hat die Behebung nichts** — sie zeigt sich erst daran, dass im
+  nächsten Nachtlauf die Zeile `Kaputt: 1` ausbleibt. Die Sorge, der Abgleich
+  liefe nicht von selbst, ist erledigt: Die Nachtläufe vom 9. bis 13. September
+  sind im Journal, keiner ist ausgefallen.
 - **Der Administrator ist nicht geprüft.** Punkt 6 misst die Tür an der
   Kundensicht; dass es die richtige Tür ist, hält `MaintenanceBandTest`
   (`docs/912 §0`).
@@ -795,5 +817,364 @@ benannt.
   einander aus (`docs/912 §0`).
 - **Der Zustand „eingeschaltet, aber `since` fehlt"** ist nicht vorgekommen:
   `cloudsrv24` stand beim Einspielen nicht in Wartung.
-- **Beobachtung 2** ist eine Entwurfsfrage und keine Aufgabe: Ob `/maintenance`
-  den Zustand dreimal nennen soll, entscheidet der Betreiber.
+- **Beobachtung 2 ist entschieden und geschlossen** (§16): Der Betreiber hat am
+  13. September 2026 nach der Messung entschieden, dass `/maintenance` so
+  bleibt.
+
+---
+
+## §13 Nachmessung zu Beobachtung 1 — was `no_next` überhaupt bedeutet
+
+Gemessen am **13. September 2026 im Entwicklungscontainer**, gegen systemd 255
+als PID 1 in einer eigenen PID- und Mount-Namespace (`docs/89 §1`). Der
+Prüfkörper ist ein Wegwerf-Timer, dessen `[Timer]`-Block **wortgleich** der von
+`srvpanel-diagnose.timer` ist — `OnCalendar=daily`, `Persistent=true`,
+`RandomizedDelaySec=1h`, dazu `PartOf=` auf ein Wegwerf-Ziel.
+
+Gefragt wird dieselbe Frage wie der Prüfling sie stellt: `systemctl show` nach
+`NextElapseUSecRealtime` und `NextElapseUSecMonotonic`, geurteilt nach
+`SrvPanel\Agent\Units::hasNext()`.
+
+| Lage | Active | Sub | Realtime | Monoton | `has_next` |
+|---|---|---|---|---|---|
+| installiert, nie gestartet | `inactive` | `dead` | leer | `infinity` | **false** |
+| Timer läuft, Dienst ruht *(Gegenprobe)* | `active` | `waiting` | Zeitstempel | `0` | true |
+| Timer läuft, ausgelöster Dienst läuft | `active` | `waiting` | Zeitstempel | `0` | true |
+| `daemon-reload` bei laufendem Dienst | `active` | `waiting` | Zeitstempel | `0` | true |
+| `daemon-reload` bei ruhendem Dienst | `active` | `waiting` | Zeitstempel | `0` | true |
+| Timer gestoppt | `inactive` | `dead` | leer | `infinity` | **false** |
+| `stop` des Ziels *(über `PartOf=`)* | `inactive` | `dead` | leer | `infinity` | **false** |
+| `restart` des Ziels *(über `PartOf=`)* | `active` | `waiting` | Zeitstempel | `0` | true |
+| `enable`, aber nicht gestartet | `inactive` | `dead` | leer | `infinity` | **false** |
+| `enable --now` | `active` | `waiting` | Zeitstempel | `0` | true |
+| Start mit altem Stempel (Nachholung) | `active` | `waiting` | Zeitstempel | `0` | true |
+
+**Damit hat `no_next` an diesem Timer genau eine Bedeutung: Er lief nicht.**
+`ActiveState=inactive`, `SubState=dead`. Weder ein laufender ausgelöster Dienst
+noch ein `daemon-reload` noch eine Nachholung durch `Persistent=true` erzeugt
+ihn.
+
+> **Ein Grund, der in jeder gemessenen Lage auf denselben Zustand zurückgeht,
+> ist keine Familie von Erklärungen — es ist eine.**
+
+**Die Vermutung aus Beobachtung 1 ist damit widerlegt.** Dort stand, ein Timer
+habe „unmittelbar nach einer Installation seinen nächsten Termin noch nicht".
+`packaging/scripts/postinstall.sh` fährt `systemctl enable --now
+srvpanel-diagnose.timer`, und das ist die vorletzte Zeile der Tabelle: Der
+Termin steht in derselben Sekunde da.
+
+> **Eine Vermutung, die plausibel ist und die niemand gemessen hat, wird beim
+> Nachmessen nicht ungenauer — sie wird falsch oder richtig.**
+
+**Was das Paket beim Update wirklich tut**, ausgezählt an den Skripten:
+`packaging/scripts/preremove.sh` hält alle sechs Timer an und schaltet sie ab —
+**auch beim Update**, denn dpkg ruft `prerm` dort ebenfalls, und nur das
+`rm -rf` des Rückwegs darunter ist auf `remove`/`purge` beschränkt.
+`postinstall.sh` wirft sie über `restart_services()` wieder an, und zwar auf
+**jedem** Weg, den ein eingerichtetes System nimmt — auch aus `roll_back()`
+heraus. Zwischen den beiden liegt ein Fenster, in dem alle sechs `no_next`
+ergäben; danach keiner.
+
+**Was daraus für den Server folgt und hier nicht zu messen ist:** Am 13.
+September stand der Befund um 10:16 da und um 10:57 nicht mehr. Nach dieser
+Tabelle heisst das, der Timer war um 10:16 angehalten und lief um 10:57. Wer
+ihn angehalten und wer ihn gestartet hat, weiss das Journal des Servers und
+nicht dieser Container.
+
+**Und die tragende Frage ist eine andere als die nach dem Befund.** Ob der
+Nachtlauf je von selbst gefahren ist, sagt `stamp-srvpanel-diagnose.timer` und
+das Journal von `srvpanel-diagnose.service` — nicht der Zustand des Timers von
+heute.
+
+> **Ein Timer, der jetzt einen Termin hat, belegt nicht, dass er je gefeuert
+> hat.**
+
+**Zwei Fallen dieser Messrunde**, beide bezahlt. Die erste hat die Gegenprobe
+gefangen und nicht das Nachdenken: Der erste Wurf las `systemctl show` über
+`eval "$(… | sed 's/^/V_/')"`, und ein `NextElapseUSecRealtime=Mon 2026-09-14
+00:03:38 UTC` trägt Leerzeichen — die Zuweisung scheitert, die Variable bleibt
+leer, und **jede** Lage meldete `no_next`, die gesunde eingeschlossen.
+
+> **Eine Gegenprobe ist die einzige Stelle, an der ein Messmittel merkt, dass es
+> jede Lage gleich beantwortet.**
+
+Die zweite ist eine Spur ausserhalb der Namespace: `systemctl enable` legt
+seinen Symlink unter `/etc/systemd/system/timers.target.wants/` an, und `/etc`
+ist **nicht** namespace-privat — nur `/run` ist es. `Persistent=true` legt
+ausserdem `/var/lib/systemd/timers/stamp-…` an. Beides ist weggeräumt und
+nachgesehen.
+
+> **Eine Namespace, die das Netz und die Einhängepunkte trennt, trennt die
+> Dateien nicht — und `enable` schreibt in eine Datei.**
+
+---
+
+## §14 Beobachtung 1 ist geklärt — und war ein Befund im Prüfling
+
+Gemessen am **13. September 2026 auf `cloudsrv24`** (Journal und Zeitstrahl) und
+**im Container** (systemd 255 als PID 1). Der Befund war nicht vergänglich; er
+stand jede Nacht da, und nur nachts.
+
+### Was der Server gesagt hat
+
+| | gemessen |
+|---|---|
+| Timer jetzt | `active` · `waiting` · `NextElapse=Mon 2026-09-14 00:23:04 CEST` · `enabled` |
+| Stempel | `2026-09-13 00:47:04.891451000 +0200` |
+| Nachtläufe | 9., 10., 11., 12., **13. September** — je einer, keiner ausgefallen |
+| jeder Nachtlauf | `Auffällig: 2`, **`Kaputt: 1`** |
+| jeder Lauf von Hand (10:57, 13:40) | `Auffällig: 2`, **keine `Kaputt`-Zeile** |
+| Stop/Start des Timers | acht Paare, je **4 bis 5 Sekunden** — die Fenster der Paketupdates |
+| am 13. September | `09:36:47` gestoppt, Neustart des Servers, `09:37:01` gestartet |
+
+**Damit fällt die erste Erklärung.** Um 10:16 lief der Timer seit 39 Minuten;
+angehalten war er nicht. Und der Nachtlauf ist nie ausgefallen — die Sorge aus
+§12, der Abgleich liefe nicht von selbst, war unbegründet.
+
+**Die Zahl, die es entscheidet, ist die Zeile `Kaputt: 1`.** Sie steht in
+**jedem** Nachtlauf und in **keinem** Lauf von Hand. `no_next` ist der einzige
+`Fail` unter den drei Befunden (`FindingCheck::UnitSchedule`), also ist der
+Befund nicht verschwunden — er ist **nie in einem Lauf von Hand entstanden**.
+
+> **Ein Befund, der nur in dem Lauf entsteht, den niemand sieht, sieht aus, als
+> verschwände er von selbst.**
+
+### Was der Container gesagt hat
+
+Ein voller Zyklus, zweimal, jede Sekunde gemessen:
+
+| `SubState` | `NextElapseUSecRealtime` | `NextElapseUSecMonotonic` | `has_next` |
+|---|---|---|---|
+| `waiting` | `Sun 2026-09-13 11:45:30 UTC` | `0` | true |
+| **`running`** (feuert) | **leer** | **`infinity`** | **false → `no_next`** |
+| `waiting` (danach) | `Sun 2026-09-13 11:46:00 UTC` | `0` | true |
+
+**Die beiden Zeitfelder schreiben im feuernden und im kaputten Zustand
+dasselbe.** Getrennt werden sie allein durch `SubState`.
+
+> **Zwei Zustände, die in denselben Feldern dasselbe schreiben, trennt nur ein
+> drittes Feld — und wer es nicht liest, hält den gesunden für den kaputten.**
+
+### Der Befund
+
+`srvpanel-diagnose.service` ist die **ausgelöste Unit ihres eigenen Timers**.
+Solange sie läuft, steht `srvpanel-diagnose.timer` auf `running` und hat keinen
+nächsten Termin. Die Prüfung läuft damit *innerhalb* des einen Fensters, in dem
+ihre Antwort falsch ist — und meldet sich selbst als kaputt.
+
+> **Eine Prüfung, die sich selbst mitprüft, misst ihren eigenen Ausnahmezustand
+> als Normalfall.**
+
+Von Hand gefahren war der Zustand nie herstellbar: Dort ist der Timer `waiting`.
+Genau deshalb war der Befund über Wochen unsichtbar und sah, als er einmal
+auffiel, nach einem Zufall aus.
+
+### Und die eigene Messung war beim ersten Mal unvollständig
+
+§13 hat elf Lagen gemessen und den entscheidenden nicht getroffen: Der Dienst
+wurde dort **von Hand** gestartet, und der Timer bleibt dabei auf `waiting`.
+Gemessen war „Dienst läuft" — gebraucht war „Timer hat gefeuert".
+
+> **Ein Prüfkörper, der den Zustand auf einem anderen Weg herstellt als der
+> Prüfling, stellt einen anderen Zustand her.**
+
+Aufgefallen ist es nicht am Nachdenken, sondern daran, dass der Zeitstrahl des
+Servers der Schlussfolgerung widersprach — der Timer lief um 10:16.
+
+> **Eine Schlussfolgerung, die einer gemessenen Zeile widerspricht, ist nicht
+> ungenau, sondern falsch.**
+
+### Behoben
+
+In **`SrvPanel\Agent\Units::hasNext()`** und dort allein. Vier Stellen lesen
+`has_next === false` — die Diagnose, die Farbe der Zeile, die Datumsspalte und
+der Zähler der kaputten Timer; jede davon hätte die Ausnahme sonst selbst
+tragen müssen.
+
+> **Wo vier Verbraucher denselben Wert deuten, gehört die Behebung an den
+> Erzeuger — sonst sind es vier Fassungen derselben Regel.**
+
+Gehalten von `UnitStateTest` (der Prüfkörper ist die gemessene Ausgabe, und ein
+eigener Fall sichert zu, dass er in beiden Zeitfeldern dem gestoppten gleicht —
+sonst misst er nicht mehr, was er messen soll) und von `UnitVerdictTest`, der
+die **Naht** misst: durch `Units::read()` in `Units::judge()`, also den Weg des
+Nachtlaufs, mit der Gegenprobe bei `SubState=dead`.
+
+Gebrochen in beide Richtungen: Ohne die Kenntnis des feuernden Zustands fallen
+drei Fälle, und der dritte druckt die Zeile wörtlich, die der Server jede Nacht
+erzeugt hat — `ActiveState=active SubState=running`. Beide Eingriffe stehen in
+`tests/waechter-brechen.sh`.
+
+**Auf einem Server gesehen hat die Behebung nichts.** Sie zeigt sich erst im
+nächsten Nachtlauf: Bleibt `Kaputt: 1` aus und meldet der Lauf `Auffällig: 2`,
+ist sie belegt. Vorher ist sie gebaut und nicht gemessen.
+
+> **Was nur nachts entsteht, lässt sich nur nachts widerlegen.**
+
+---
+
+## §15 Warum der P7-Rest nicht von selbst verschwindet
+
+Ausgezählt am Quelltext am 13. September 2026, nachdem der Befund fünf Tage
+unverändert dastand.
+
+`orphan.row / certificate` meldet, was `CertificatePrune::plan()` unter
+`removable` führt — also genau das, was `srvpanel tls --prune` entfernen würde.
+Der Befund und das Aufräumen fragen dieselbe Klasse; sie können nicht
+auseinanderlaufen.
+
+**Nur läuft das Aufräumen nie von selbst.** `--prune` ist ein eigener Modus von
+`srvpanel:tls`, und `srvpanel-tls.service` fährt
+
+    ExecStart=/opt/srvpanel/bin/php artisan srvpanel:tls
+
+also ohne ihn. Der nächtliche Lauf erneuert Zertifikate und räumt keine ab.
+
+> **Ein Befund, für den es einen Griff gibt, verschwindet nicht dadurch, dass es
+> ihn gibt.**
+
+**Dass es zwei Modi sind, ist kein Versehen**, und der Kopf von
+`CertificatePrune` sagt warum: Der Vorgang nimmt einen **privaten Schlüssel**
+von der Platte, ist nicht rückgängig zu machen, und das Kommando fragt deshalb
+zurück — mit `false` als Vorgabe, damit ein Lauf ohne Rückfrage nichts löscht.
+Ein Nachtlauf, der das unbeaufsichtigt täte, wäre eine andere Entscheidung als
+die, die dort steht.
+
+**Was der Befund dem Leser sagt und was nicht.** Sein Text lautet „Dieses
+Zertifikat deckt keine lebende Domain mehr." — der Zustand, nicht der Griff.
+Das ist bei **jeder** Prüfung so (`FindingCheck::text()`); eine Ausnahme für
+diesen einen Grund wäre die erste.
+
+> **Eine Meldung, die den Zustand nennt und nicht den Griff, ist keine halbe
+> Meldung — sie ist die, die nicht veraltet, wenn sich der Griff ändert.**
+
+Was offen bleibt, ist damit keine Frage an den Quelltext, sondern ein Handgriff
+auf dem Server: `srvpanel tls --prune --dry-run`, und wenn die Liste stimmt,
+`srvpanel tls --prune`.
+
+### Die Trockenprobe, gefahren am 13. September 2026 auf `cloudsrv24`
+
+```
+11 verwaiste Zeile(n), 1 Zeile(n) ohne Domain, 1 Ablageort(e) zu entfernen.
+  cloudlab24.de:       Ablageort bleibt — er wird noch gebraucht. Nur die Zeile geht.
+  cloudlab24.ipv64.de: Ablageort bleibt — er wird noch gebraucht. Nur die Zeile geht.
+  tls.cloudlab24.de:   Ablageort und Zeile(n) — ohne Domain
+--dry-run: es wurde nichts angefasst.
+```
+
+**Der eine entfernbare Ablageort ist genau der Befund**, und sein Grund ist der
+zweite Fall aus `CertificatePrune` — „ohne Domain", also der, der am
+24. August 2026 dazugekommen ist. Das Abonnement lebt, die Domain ist fort.
+
+**Und der Plan nennt zwölf ungebrauchte Zeilen, während die Diagnose eine
+meldet.** Das ist kein Loch, sondern die Trennlinie zwischen den beiden: Der
+Befund meldet, was **auf der Platte** liegt und niemand braucht — dort liegt ein
+privater Schlüssel. Elf verwaiste Zeilen an zwei Ablageorten, die noch jemand
+nennt, liegen nirgends; sie jede Nacht zu melden wäre die Falle aus
+`docs/98 §4`, und der Kopf von {@see Orphans} führt für `system_user` genau
+dieses Argument.
+
+> **Ein Rest, der nur in der Datenbank steht, und einer, der auf der Platte
+> liegt, sind nicht dieselbe Art Rest — und nur der zweite hat einen privaten
+> Schlüssel.**
+
+**Die Gegenprobe des Räumens ist nicht der Befund, sondern die beiden geteilten
+Ablageorte.** `forget()` filtert je Zeile über `inUse()`; die lebenden Zeilen
+von `cloudlab24.de` und `cloudlab24.ipv64.de` müssen den Lauf überstehen, und
+beide Domains müssen danach über die Leitung weiter ein gültiges Zertifikat
+zeigen. Ginge das schief, wäre es der teuerste Fehler dieses Vorgangs: ein
+Schlüssel unter einer laufenden Website.
+
+> **Ein Aufräumen misst man nicht an dem, was fort ist, sondern an dem, was
+> bleiben musste.**
+
+### Gefahren am 13. September 2026 — sieben Werte, sieben Treffer
+
+Vorher gemessen, die Erwartung **aus den Zahlen ausgerechnet** und nicht
+geschätzt, dann geräumt, dann dieselbe Messung noch einmal:
+
+| | vorher | erwartet | gemessen |
+|---|---|---|---|
+| Zeilen gesamt | 16 | 4 | **4** |
+| `cloudlab24.de` | 7 | 1 | **1** |
+| `cloudlab24.ipv64.de` | 6 | 1 | **1** |
+| `tls.cloudlab24.de` | 1 | 0 | **0** |
+| `cloudlab24.de` über die Leitung | `200` / `verify=0` | unverändert | **`200` / `verify=0`** |
+| `cloudlab24.ipv64.de` über die Leitung | `200` / `verify=0` | unverändert | **`200` / `verify=0`** |
+| `srvpanel diagnose` | Auffällig 2 | Auffällig 1 | **Auffällig 1** |
+
+Dazu der Ablageort selbst: `ls` sagt `No such file or directory`.
+
+**Die Erwartung war bestimmt und nicht geschätzt, und genau das macht sie zum
+Beleg.** Der erste Wurf lautete „je eine Zeile weniger als vorher" — gemessen
+sind es sechs und fünf, und gegen die geschätzte Erwartung hätte das Ergebnis
+wie ein Befund ausgesehen. Ausgerechnet ist sie aus der Trockenprobe: 11
+verwaiste plus 1 ohne Domain, alle an den drei genannten Ablageorten, beide
+geteilten mit mindestens einer lebenden Zeile — bei 7 und 6 bleibt nur die
+Aufteilung 6 + 5.
+
+> **Eine Erwartung, die man aus den Zahlen ausrechnet statt sie zu schätzen,
+> macht aus dem Ergebnis einen Beleg — eine geschätzte hätte hier einen Befund
+> erfunden.**
+
+**Und die beiden Einsen sind der Punkt und nicht die Null.** Dass
+`tls.cloudlab24.de` fort ist, meldet das Kommando selbst; dass
+`cloudlab24.de` und `cloudlab24.ipv64.de` ihre **lebende** Zeile behalten haben
+und beide Domains weiter ein gültiges Zertifikat ausliefern, meldet niemand —
+das musste gemessen werden, und es ist der Fall, in dem ein Fehler teuer wäre.
+
+> **Ein Vorgang, der meldet, dass er etwas entfernt hat, sagt über das nichts,
+> was er stehenlassen sollte.**
+
+**`ls` und nicht die Meldung des Agenten.** `entfernt` ist, was der Agent
+zurückgibt; ob der private Schlüssel wirklich von der Platte ist, sagt das
+Verzeichnis.
+
+---
+
+## §16 Beobachtung 2, gemessen und entschieden
+
+Gemessen am 13. September 2026 **im Container an der echten Seite** —
+`artisan serve`, angemeldet als Betreiber, Wartungsmodus in der Ablage
+eingeschaltet mit überschrittener Endzeit, also der längsten Fassung des Satzes.
+Messmittel ist `tests/bilder-messen.js`, dazu ein Zähler über `innerText`.
+
+| | 390 px | 1440 px |
+|---|---|---|
+| `dokument` | 0 | 0 |
+| Gegenprobe | 200 / 200 | 200 / 200 |
+| `schiebt` · `rollt` | leer · leer | leer · leer |
+| Ladebeleg (`display` des Bandes) | `flex` | `flex` |
+| „Alle Kundenwebsites" | **3×** | 3× |
+| „503" | **2×** | 2× |
+| Verweisziel des Bandes | `/maintenance` | `/maintenance` |
+
+**Die Drei zerfällt in zwei plus eine.** Zwei Blöcke nennen den *Zustand* — das
+Band und die Notiz —, der dritte ist die Unterzeile der Seite („Alle
+Kundenwebsites vorübergehend abschalten"), und die beschreibt, was die Seite
+tut, und nicht, was gerade gilt. Gezählt wird die Formulierung, entschieden hat
+die Art des Satzes.
+
+> **Ein Zähler über eine Zeichenkette zählt auch die Sätze mit, die etwas
+> anderes sagen.**
+
+**Und die beiden Zustandssätze sind keine Dubletten.** Nur das Band nennt die
+überschrittene Endzeit und das „seit"; nur die Notiz sagt, dass Panel und
+Zertifikatsprüfung erreichbar bleiben. Jeder trägt einen Teil, den der andere
+nicht hat.
+
+**Die Breite entscheidet, wie schwer es wiegt.** Bei 1440 px ist das Band eine
+Zeile über der Fläche und die Notiz eine Zeile darin — beides liest sich neben-
+einander weg. Bei 390 px stapeln Band, Titel, Unterzeile und Notiz, und vor dem
+ersten Bedienelement steht der ganze erste Bildschirm.
+
+> **Eine Wiederholung ist auf der breiten Ansicht eine Zeile und auf der
+> schmalen ein Bildschirm — dieselbe Anzeige, zwei Urteile.**
+
+**Entschieden vom Betreiber: es bleibt.** Der Punkt ist damit geschlossen und
+nicht offen — nicht, weil ihn niemand angesehen hat, sondern weil ihn jemand
+angesehen und entschieden hat.
+
+> **Ein Punkt, der als Frage offen steht, und einer, der als Entscheidung
+> geschlossen ist, sehen im Bestand gleich aus — der Unterschied steht nur
+> daneben.**

@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use App\Support\Diagnose\Checks\Units;
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\Catalog;
+use SrvPanel\Agent\Units as AgentUnits;
 
 /**
  * Das Urteil des Nachtlaufs über eine Unit (A10 Schritt 5, `docs/98 §3 D`).
@@ -103,6 +104,52 @@ final class UnitVerdictTest extends TestCase
 
         $this->assertSame('no_next', $verdict['schedule'][0]['reason']);
         $this->assertSame([], $verdict['state']);
+    }
+
+    /**
+     * Ein Timer, der gerade feuert, ist **kein** Befund — durch die ganze Naht.
+     *
+     * Gemessen wird die **Wirkung** und nicht das Feld: Die Zeilen sind die
+     * Ausgabe von `systemctl show`, wie sie am 13. September 2026 gegen
+     * systemd 255 gemessen wurde, und sie gehen durch {@see AgentUnits::read()}
+     * in {@see Units::judge()} — also denselben Weg wie im Nachtlauf.
+     *
+     * Ein Wächter, der `has_next` von Hand auf `true` setzte, prüfte die
+     * Behauptung statt der Naht; genau an dieser Naht sass der Fehler.
+     *
+     * Der Befund dahinter: `srvpanel-diagnose.service` ist die ausgelöste Unit
+     * seines eigenen Timers. Jeder Nachtlauf fiel in dieses Fenster und meldete
+     * den Timer als kaputt — von Hand gefahren stand der Befund nie da.
+     *
+     * > **Eine Prüfung, die sich selbst mitprüft, misst ihren eigenen
+     * > Ausnahmezustand als Normalfall.**
+     */
+    public function test_a_timer_that_is_firing_is_not_a_finding(): void
+    {
+        $zeilen = [
+            'Unit=srvpanel-diagnose.service',
+            'NextElapseUSecRealtime=',
+            'NextElapseUSecMonotonic=infinity',
+            'Id=srvpanel-diagnose.timer',
+            'Description=SrvPanel — taegliche Pruefung des Bestands',
+            'LoadState=loaded',
+            'ActiveState=active',
+            'SubState=running',
+            'UnitFileState=enabled',
+        ];
+
+        $zeile = AgentUnits::read('srvpanel-diagnose.timer', $zeilen) + ['own' => true, 'scheduled' => null];
+
+        $this->assertSame([], Units::judge([$zeile])['schedule']);
+        $this->assertSame([], Units::judge([$zeile])['state']);
+
+        // Die Gegenprobe: dieselben zwei Zeitfelder, nur `SubState` anders.
+        $gestoppt = AgentUnits::read('srvpanel-diagnose.timer', array_map(
+            static fn (string $z): string => $z === 'SubState=running' ? 'SubState=dead' : $z,
+            $zeilen,
+        )) + ['own' => true, 'scheduled' => null];
+
+        $this->assertSame('no_next', Units::judge([$gestoppt])['schedule'][0]['reason']);
     }
 
     /** Ein Dienst, den ein Timer startet, darf stillstehen — der Rest nicht. */

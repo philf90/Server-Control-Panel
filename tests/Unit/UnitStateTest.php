@@ -103,6 +103,30 @@ final class UnitStateTest extends TestCase
         'UnitFileState=static',
     ];
 
+    /**
+     * Ein Timer, der **gerade gefeuert hat** und dessen Unit läuft.
+     *
+     * Gemessen am 13. September 2026 gegen systemd 255 (`docs/913 §14`), ein
+     * voller Zyklus zweimal. Die beiden Zeitfelder stehen byteweise wie bei
+     * {@see self::TIMER_GESTOPPT} — getrennt werden die Fälle allein durch
+     * `SubState`.
+     *
+     * Das ist der Prüfkörper des Befundes: `srvpanel-diagnose.service` ist die
+     * ausgelöste Unit seines eigenen Timers und lief jede Nacht genau in diesem
+     * Fenster.
+     */
+    private const TIMER_FEUERT = [
+        'Unit=probe.service',
+        'NextElapseUSecRealtime=',
+        'NextElapseUSecMonotonic=infinity',
+        'Id=probe.timer',
+        'Description=Timer der gerade gefeuert hat',
+        'LoadState=loaded',
+        'ActiveState=active',
+        'SubState=running',
+        'UnitFileState=static',
+    ];
+
     /** Ein von Hand gestoppter Timer. Gemessen an `probe-a.timer` nach `stop`. */
     private const TIMER_GESTOPPT = [
         'Unit=probe-a.service',
@@ -233,7 +257,54 @@ final class UnitStateTest extends TestCase
             'gestoppt' => [
                 self::TIMER_GESTOPPT, false, 'Ein gestoppter Timer hat keinen Termin.',
             ],
+            'feuert gerade' => [
+                self::TIMER_FEUERT, true, 'Ein Timer, dessen Unit laeuft, bekommt seinen Termin danach zurueck — er hat ihn nicht verloren.',
+            ],
         ];
+    }
+
+    /**
+     * Die beiden Zeitfelder trennen den feuernden nicht vom kaputten Timer.
+     *
+     * Ohne diesen Fall liesse sich {@see Units::hasNext()} auf die zwei
+     * Zeitfelder zurückbauen, ohne dass ein Wächter zubisse — der Prüfkörper
+     * daneben sähe gleich aus.
+     *
+     * > **Ein Wächter über zwei Fälle, die in den gemessenen Feldern dasselbe
+     * > schreiben, misst nichts, solange er das trennende Feld nicht nennt.**
+     */
+    public function test_only_the_sub_state_separates_firing_from_broken(): void
+    {
+        $feuert = Units::read('probe.timer', self::TIMER_FEUERT);
+        $kaputt = Units::read('probe-a.timer', self::TIMER_GESTOPPT);
+
+        foreach (['NextElapseUSecRealtime', 'NextElapseUSecMonotonic'] as $feld) {
+            $this->assertSame(
+                self::wert(self::TIMER_FEUERT, $feld),
+                self::wert(self::TIMER_GESTOPPT, $feld),
+                'Sind die Zeitfelder verschieden, trennt dieser Wächter nicht das, was er trennen soll.',
+            );
+        }
+
+        $this->assertNotSame($feuert['sub_state'], $kaputt['sub_state']);
+        $this->assertTrue($feuert['has_next']);
+        $this->assertFalse($kaputt['has_next']);
+    }
+
+    /**
+     * Der Wert eines Schlüssels aus einem Prüfkörper.
+     *
+     * @param  list<string>  $zeilen
+     */
+    private static function wert(array $zeilen, string $schluessel): string
+    {
+        foreach ($zeilen as $zeile) {
+            if (str_starts_with($zeile, $schluessel.'=')) {
+                return substr($zeile, strlen($schluessel) + 1);
+            }
+        }
+
+        return '(fehlt)';
     }
 
     /**

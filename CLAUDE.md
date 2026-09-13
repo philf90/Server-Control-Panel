@@ -3561,15 +3561,136 @@ Hülle darum **weiterhin rendert** und ein Ankündigungsband darin steht.
 > **Eine Abwesenheit belegt eine Grenze erst, wenn daneben etwas anwesend ist,
 > das dieselbe Hülle braucht.**
 
-**Was benannt offen bleibt** (`docs/913 §12`): der Rest aus P7, das
-`.invalid`-Zertifikat, das sich nicht erneuern lässt, die ungeklärte Frage,
-warum `unit.schedule / no_next` am `srvpanel-diagnose.timer` von selbst
-verschwand (für den Nachtlauf die tragende), und eine Entwurfsfrage —
-`/maintenance` nennt den Zustand dreimal und das Band verweist dort auf die
-Seite, auf der man schon steht.
+**Zwei der drei Reste sind am 13. September geschlossen** (`docs/913 §15`
+und **§16**), und beide Male hat eine Messung entschieden und keine Meinung.
+
+**Das `.invalid`-Zertifikat ist kein Rest des Prüflings.** `.invalid` ist von
+RFC 2606 dafür reserviert, **nie** aufzulösen; es gibt keine Registrierung und
+damit keinen Weg, Verfügungsgewalt nachzuweisen. Keine Zertifizierungsstelle
+kann dafür ausstellen, und der Prüfling verhält sich richtig.
+
+> **Ein Befund an einem Gegenstand, den es absichtlich nicht gibt, ist kein Rest
+> des Prüflings — er ist ein Rest des Prüfstands.**
+
+Dass daraus ab dem Ablauf ein dauerhaftes `Fail` wird (`expired` statt
+`expiring`), ist ebenfalls richtig: Für eine **echte** Domain wäre es genau der
+Befund, den man will. Wer die Zeile loswerden will, entfernt die Domain.
+
+**Die Entwurfsfrage zu `/maintenance` ist gemessen und entschieden: es bleibt.**
+Gemessen an der echten Seite — „Alle Kundenwebsites" **3×**, „503" **2×**,
+`dokument = 0`, Gegenprobe 200/200. Die Drei zerfällt in zwei Zustandssätze plus
+die Unterzeile der Seite, und die beschreibt, was die Seite *tut*.
+
+> **Ein Zähler über eine Zeichenkette zählt auch die Sätze mit, die etwas
+> anderes sagen.**
+
+Und die beiden Zustandssätze sind keine Dubletten: Nur das Band nennt die
+überschrittene Endzeit, nur die Notiz die erreichbare Zertifikatsprüfung.
+
+> **Eine Wiederholung ist auf der breiten Ansicht eine Zeile und auf der
+> schmalen ein Bildschirm — dieselbe Anzeige, zwei Urteile.**
+
+> **Ein Punkt, der als Frage offen steht, und einer, der als Entscheidung
+> geschlossen ist, sehen im Bestand gleich aus — der Unterschied steht nur
+> daneben.**
+
+**Und der Rest aus P7 ist am selben Tag geräumt** — `orphan.row / certificate —
+tls.cloudlab24.de` stand seit `docs/113 §13` da. Er verschwand nicht von selbst,
+weil `orphan.row / certificate` zwar genau das meldet, was `srvpanel tls
+--prune` entfernen würde, der nächtliche `srvpanel-tls.service` aber `artisan
+srvpanel:tls` **ohne** `--prune` fährt: Er erneuert und räumt nicht. Kein
+Versehen — der Vorgang nimmt einen privaten Schlüssel von der Platte und fragt
+deshalb zurück, mit `false` als Vorgabe.
+
+> **Ein Befund, für den es einen Griff gibt, verschwindet nicht dadurch, dass es
+> ihn gibt.**
+
+**Sieben Werte vorhergesagt, sieben getroffen** (`docs/913 §15`): 16 Zeilen → 4,
+die beiden geteilten Ablageorte 7 → 1 und 6 → 1, `tls.cloudlab24.de` 1 → 0,
+beide Domains weiter `200` mit `verify=0`, `Auffällig` 2 → 1, und `ls` sagt
+`No such file or directory`.
+
+**Die Erwartung war ausgerechnet und nicht geschätzt, und das ist der Grund,
+dass das Ergebnis etwas belegt.** Der erste Wurf lautete „je eine Zeile weniger"
+— es sind sechs und fünf, und gegen die geschätzte Erwartung hätte das Ergebnis
+wie ein Befund ausgesehen.
+
+> **Eine Erwartung, die man aus den Zahlen ausrechnet statt sie zu schätzen,
+> macht aus dem Ergebnis einen Beleg — eine geschätzte hätte hier einen Befund
+> erfunden.**
+
+**Und die beiden Einsen sind der Punkt und nicht die Null.** Was fort ist,
+meldet das Kommando selbst; dass die geteilten Ablageorte ihre **lebende** Zeile
+behalten haben und beide Domains weiter ein gültiges Zertifikat ausliefern,
+meldet niemand.
+
+> **Ein Vorgang, der meldet, dass er etwas entfernt hat, sagt über das nichts,
+> was er stehenlassen sollte.**
 
 > **Ein Bedienelement, das auf die Seite verweist, auf der es steht, ist kein
-> Fehler — es ist eine Frage, die beim Entwurf nicht gestellt wurde.**
+> Fehler — es ist eine Frage, die beim Entwurf nicht gestellt wurde.** Gestellt
+> und beantwortet am 13. September: Es bleibt.
+
+---
+
+## Der Nachtlauf hat seinen eigenen Timer als kaputt gemeldet — 13. September 2026
+
+Der Rest, der aus dem Wartungsband-Lauf offen blieb, war kein Zufall: `unit.schedule /
+no_next — srvpanel-diagnose.timer` stand **in jedem Nachtlauf** und in **keinem**
+Lauf von Hand. Das Protokoll ist `docs/913 §13` und **§14**.
+
+**`srvpanel-diagnose.service` ist die ausgelöste Unit ihres eigenen Timers.**
+Solange sie läuft, steht `srvpanel-diagnose.timer` auf `SubState=running` — und
+dann schreibt systemd in **beide** Zeitfelder dasselbe wie bei einem Timer ohne
+Termin: `NextElapseUSecRealtime` leer, `NextElapseUSecMonotonic=infinity`
+(gemessen gegen systemd 255, ein voller Zyklus zweimal). Die Prüfung läuft damit
+innerhalb des einen Fensters, in dem ihre Antwort falsch ist.
+
+> **Eine Prüfung, die sich selbst mitprüft, misst ihren eigenen Ausnahmezustand
+> als Normalfall.**
+
+> **Zwei Zustände, die in denselben Feldern dasselbe schreiben, trennt nur ein
+> drittes Feld — und wer es nicht liest, hält den gesunden für den kaputten.**
+
+**Und er sah aus, als verschwände er von selbst**, weil von Hand der Zustand
+gar nicht herstellbar ist. Entschieden hat es nicht der Zustand des Timers,
+sondern die Zeile `Kaputt: 1` im Journal jedes Nachtlaufs neben ihrem Fehlen in
+jedem Lauf von Hand.
+
+> **Ein Befund, der nur in dem Lauf entsteht, den niemand sieht, sieht aus, als
+> verschwände er von selbst.**
+
+**Die erste Messrunde dazu hat den entscheidenden Fall verfehlt** — elf Lagen
+gemessen, den Dienst aber **von Hand** gestartet; dabei bleibt der Timer auf
+`waiting`. Gemessen war „Dienst läuft", gebraucht war „Timer hat gefeuert".
+
+> **Ein Prüfkörper, der den Zustand auf einem anderen Weg herstellt als der
+> Prüfling, stellt einen anderen Zustand her.**
+
+> **Eine Schlussfolgerung, die einer gemessenen Zeile widerspricht, ist nicht
+> ungenau, sondern falsch.** Aufgefallen ist es daran, dass der Zeitstrahl des
+> Servers sagte, der Timer lief.
+
+Behoben in **`Units::hasNext()`** und dort allein: Vier Stellen lesen
+`has_next === false` — die Diagnose, die Farbe der Zeile, die Datumsspalte und
+der Zähler der kaputten Timer.
+
+> **Wo vier Verbraucher denselben Wert deuten, gehört die Behebung an den
+> Erzeuger — sonst sind es vier Fassungen derselben Regel.**
+
+**Auf einem Server gesehen hat die Behebung nichts**, und das lässt sich nicht
+abkürzen: Sie zeigt sich erst daran, dass im nächsten Nachtlauf `Kaputt: 1`
+ausbleibt.
+
+> **Was nur nachts entsteht, lässt sich nur nachts widerlegen.**
+
+Ein Nebenbefund derselben Runde, für den nächsten, der hier PHPStan fährt:
+**Der Lader für `--autoload-file` muss larastans Namensraum selbst eintragen**
+(`$autoload->addPsr4('Larastan\\Larastan\\', …/vendor/larastan/larastan/src)`).
+larastan steht nicht in `composer.json` — sonst bräche `composer install` an
+`phpstan/phpstan` ab —, also kennt Composers Autolader es nicht, und die Meldung
+lautet „Invalid configuration: Service 'sqlParser'" statt „Klasse nicht
+gefunden".
 
 ---
 

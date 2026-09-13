@@ -181,7 +181,7 @@ letzten 500 Zeilen". Die Nummern:
 gewesen; sie hätte behauptet, die Treffer stünden in der Datei
 nebeneinander.
 
-## §7 Befund 3 — beim waagerechten Rollen scheint der Text links neben der Nummer durch
+## §7 Befund 3 — beim Rollen scheint der Text neben der Nummer durch
 
 **Gefunden hat es das Bild zu Punkt 4**, auf dem die Seite waagerecht gerollt
 war: Vor jeder Nummer stand `'ts` — der Anfang der Protokollzeile.
@@ -300,3 +300,47 @@ Zeilen" steht die erste Nummer auf **−200**, die Fusszeile auf „200 Zeilen v
 **Beide Ausschlusskriterien stehen.** Drei Befunde sind offen und keiner davon
 ein Kriterienausfall: Befund 1 (die Vorschrift, behoben), Befund 2 (das
 Bruchstück am Bytedeckel) und Befund 3 (der Streifen neben der Nummer).
+
+---
+
+## §10 Die Klebeprobe ist erweitert — und in vier Richtungen gemessen
+
+**Kein Eingriff am Prüfling, sondern am Messmittel** — das darf während des
+Laufs, und es muss: Die Punkte 6 bis 8 stehen noch aus, und die alte Probe
+hätte Befund 3 wieder nicht gesehen.
+
+Sie steht jetzt als **`tests/kleben-messen.js`** im Repo statt inline im Lauf.
+Sie fragt zwei Dinge statt einem — bleibt die Nummer stehen, **und** scheint
+links neben ihr etwas durch — und trägt eine Selbstprüfung: Findet die
+Abtastung den Text nicht einmal dort, wo er mit Sicherheit liegt, ist ein
+leerer Streifen keine Auskunft.
+
+| Richtung | Ergebnis |
+|---|---|
+| wie gebaut | `deckt=false`, `imStreifen=[log-text]`, `misst=true` |
+| mit dem Polster an der Spalte | `deckt=true`, `imStreifen=[—]`, `misst=true` |
+| Text auf `visibility: hidden` | `misst=false` samt Warnung |
+| zweiter Aufruf ohne Neuladen | wirft |
+
+**Sie lässt die Seite gerollt stehen**, damit ein Bild danach den gemessenen
+Zustand zeigt und nicht den aufgeräumten.
+
+### Befund 4 — der Wächter über die Messmittel kennt diese Art nicht
+
+`OverflowProbeTest` blieb grün, als drei seiner Regeln in der neuen Probe
+gebrochen wurden: fehlender Stand, keine gedruckte Zeile, keine Sperre gegen
+den zweiten Lauf.
+
+Der Grund steht in seinem eigenen Kopf: Er erkennt ein Messmittel daran, dass
+es **etwas in die Seite einsetzt** (`document.body.append(`), und begründet das
+ausdrücklich — Werkzeuge, die nur Routen abfragen, haben weder Prüfkörper noch
+Gegenprobe. `kleben-messen.js` ist eine dritte Art: Sie misst die Seite und
+setzt nichts ein.
+
+> **Ein Merkmal, das zwei Arten trennt, ordnet die dritte einer von beiden zu —
+> und welcher, entscheidet der Zufall.**
+
+Drei seiner Regeln gelten für jedes Messmittel, das eine Seite misst — Stand,
+eine gedruckte Zeile, Sperre gegen den zweiten Lauf —, und zwei nur für die mit
+Prüfkörper. **Der Wächter trennt das nicht.** Behoben wird nach dem Lauf,
+zusammen mit den Befunden 2 und 3.

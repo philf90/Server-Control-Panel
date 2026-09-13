@@ -207,23 +207,24 @@ geladene Seite**, dann `bilderMessen()`.
 
 **Erwartet:** `dokument=0`, `gegenprobe=200 (soll 200)`, `schiebt=0`.
 
-Dazu die Klebeprobe, im selben Seitenaufbau:
+Dazu die Klebeprobe: **`tests/kleben-messen.js`** einfügen, dann
+`klebenMessen()` — in einer **eigenen** frisch geladenen Seite, denn sie lässt
+die Seite gerollt stehen.
 
-```js
-(() => {
-  const rahmen = document.querySelector('.log')
-  const nummer = document.querySelector('.log-number')
-  const links = () => Math.round(nummer.getBoundingClientRect().left - rahmen.getBoundingClientRect().left)
-  const vorher = links()
-  rahmen.scrollLeft = Math.max(1, rahmen.scrollWidth - rahmen.clientWidth)
-  const nachher = links()
-  return { rollweg: rahmen.scrollWidth - rahmen.clientWidth, vorher, nachher }
-})()
-```
+**Erwartet:** `klebt=true` bei einem **Rollweg über 0** (ohne ihn ist das
+Kleben trivial wahr), `deckt=true`, `imStreifen=[—]` und `misst=true`.
 
-**Erwartet:** `vorher === nachher`, und ein **Rollweg über 0** — ohne ihn ist
-die Gleichheit trivial wahr. Gemessen im Container: `17 -> 17` bei Rollwegen
-bis 31 433 px.
+**Die erste Fassung dieser Probe stand hier inline und hat Befund 3 nicht
+gesehen.** Sie fragte nur, ob die Nummer stehenbleibt — gemessen `17 → 17`, und
+das stimmte —, nicht, ob links neben ihr etwas durchscheint.
+
+> **Eine Probe, die fragt, ob ein Element stehenbleibt, fragt nicht, ob daneben
+> etwas durchscheint.**
+
+Die Fassung im Repo ist am 13. September in **vier** Richtungen gemessen: wie
+gebaut meldet sie `deckt=false` mit `log-text` im Streifen, mit der Behebung
+`deckt=true` und einen leeren Streifen, bei unsichtbarem Text `misst=false`
+samt Warnung, und ein zweiter Aufruf ohne Neuladen wirft.
 
 ## §9 Punkt 7 — das Kopieren nimmt die Nummer nicht mit
 

@@ -1,4 +1,4 @@
-# Abnahmelauf für das Wartungsband — `0.7.4-rc.5` auf `cloudsrv24`
+# Abnahmelauf für das Wartungsband — auf `cloudsrv24`
 
 Ausgeschrieben am **12. September 2026, vor dem Fahren**. Der Plan des Merkmals
 ist `docs/911`, die Messrunde steht in dessen §2, der Bau in §6.
@@ -15,9 +15,21 @@ Dinge lassen sich dort grundsätzlich nicht messen:
 3. Dass der Abgleich Ablage ↔ Datei einen Befund erzeugt, den das Abzeichen
    trägt — im Container gibt es weder einen Nachtlauf noch eine echte Flagdatei.
 
-**Die Freigabe trägt zwei Änderungen und nicht eine.** `v0.7.4-rc.5` bringt das
-Band **und** das Diagnose-Abzeichen aus `docs/910`, das in PR #236 gemergt und
-nie getaggt wurde.
+**Dieser Lauf nennt keine Fassungsnummer, und das ist berichtigt statt
+gewünscht.** Beim Ausschreiben stand hier `0.7.4-rc.5`. Gemessen zeigt dieser
+Tag auf `a6fd4dd8`, den Merge von PR #236 — er trägt das Diagnose-Abzeichen und
+**nicht** das Band; getaggt wurde er um 12:06, und PR #237 entstand neun Stunden
+später. Das Band kommt mit der Freigabe danach.
+
+> **Eine Fassungsnummer in einem Lauf, der vor dem Fahren geschrieben wird,
+> altert zwischen dem Schreiben und dem Fahren — und eine falsche misst eine
+> andere Fassung, ohne es zu sagen.**
+
+§1 prüft deshalb nicht die Nummer, sondern die **Eigenschaft**: dass die
+installierte Fassung das Band überhaupt enthält. Die Nummer wird abgelesen und
+ins Protokoll geschrieben; entschieden wird sie nicht von ihr.
+
+Bringt die Freigabe neben dem Band noch anderes mit, gilt weiter:
 
 > **Ein Nachlauf gegen eine Fassung, die vieles mitbringt, misst nicht die eine
 > Behebung.** (`docs/114 §14`)
@@ -79,10 +91,35 @@ belegt.
 Alles als `root` auf `cloudsrv24`, ausser wo eine Browserzeile dasteht.
 
 ```bash
-srvpanel version                                    # erwartet: 0.7.4-rc.5
+srvpanel version                                     # abgelesen, nicht erwartet
+srvpanel tinker --execute='
+  var_dump(app(SrvPanel\Agent\Client::class)->call("web.maintenance.state"));'
 systemctl is-active srvpanel-agentd srvpanel-worker  # erwartet: active active
-ls -l /var/spool/srvpanel/wartung                   # erwartet: No such file
+ls -l /var/spool/srvpanel/wartung                    # erwartet: No such file
 ```
+
+**Die zweite Zeile ist die eigentliche Vorbedingung.** Sie fragt den laufenden
+Agenten, ob er die lesende Operation kennt — und damit, ob die installierte
+Fassung das Band trägt. Erwartet ist ein Feld mit `enabled` und `flag`; kennt er
+sie nicht, wirft der Aufruf, und die Meldung sagt es. Eine Nummer könnte das
+nicht beantworten: `0.7.4-rc.5` sieht neuer aus als alles davor und enthält das
+Band trotzdem nicht.
+
+**Gefragt wird der Agent und keine Datei, und das ist bezahlt.** Der erste Wurf
+dieser Zeile war ein `grep` nach `web.maintenance.state` in
+`/opt/srvpanel/current/agent/src/Registry.php`. Die Datei ist die richtige, die
+Zeichenkette steht nur nicht darin: Die Registrierung nennt die **Klasse**
+(`WebMaintenanceState`), den gepunkteten Namen trägt die Operation selbst. Der
+Griff hätte auf jedem Server `0` gemeldet, auch auf dem heilen — gemessen gegen
+den Arbeitsbaum, in dem das Merkmal unzweifelhaft steht.
+
+> **Eine Vorbedingung, die man nicht gegen den heilen Fall gemessen hat, ist
+> keine Prüfung — sie ist eine Behauptung, die auch im heilen Fall rot ist.**
+
+Und der Griff durch die Tür ist ohnehin der bessere: Er belegt nicht, dass eine
+Zeichenkette in einer Datei steht, sondern dass der **laufende** Agent die
+Operation beantwortet. Lesend ist er gefahrlos — `mutating() === false`, er
+sieht nur nach.
 
 **Der Arbeiter gehört dazu und ist kein Beiwerk.** Punkt 3 ändert die Endzeit,
 und das schreibt über die Warteschlange jede lebende Domain neu
@@ -498,8 +535,27 @@ srvpanel tinker --execute='
   echo (new App\Support\Diagnose\PendingFindings)->count(), PHP_EOL;'
 ```
 
-**Erwartet:** `enabled: false`, `until: null`, `since: null`, und die Zahl ist
-wieder **N**.
+**Erwartet:** `enabled: false` und `since: null`.
+
+**`until` bleibt stehen, und diese Zeile hat zuerst das Gegenteil verlangt.**
+Der Absatz unten sagt es richtig — die Endzeit überlebt das Ausschalten —, die
+Erwartung darüber forderte `null`. Wer den Punkt nach der Erwartung führe, meldete
+den Prüfling für etwas, das er zu Recht tut.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+`MaintenanceMode::set()` legt ab, was das Formular schickt; steht dort noch ein
+Datum, bleibt es. `MaintenanceWindow` schweigt trotzdem, weil es `enabled` und
+`until` **zusammen** verlangt.
+
+**Und die Zahl der Befunde ist kein Kriterium.** Erwartet sind die **Zeilen**
+aus §1 — abzüglich derer, die sich während des Laufs von selbst erledigt haben.
+Am Ende darf keine `maintenance.*`-Zeile mehr dastehen; ob die Summe dieselbe ist
+wie am Anfang, sagt über diesen Lauf nichts.
+
+> **Eine Zahl, die um eins gestiegen ist, belegt keine Zunahme um eins — sie
+> belegt eine Summe.**
 
 Dazu im Browser: `stand()` → `prop: null`, `band: null`.
 

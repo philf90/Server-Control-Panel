@@ -1,6 +1,6 @@
 # Protokoll zum Abnahmelauf des Wartungsbands
 
-Gefahren am **12. September 2026 auf `cloudsrv24`** gegen **`0.7.4-rc.6`**. Der
+Gefahren am **13. September 2026 auf `cloudsrv24`** gegen **`0.7.4-rc.6`**. Der
 Plan des Merkmals ist `docs/911`, der Lauf `docs/912`. Angelegt nach §1, während
 der Lauf läuft — je Punkt der **gemessene** Wert, nicht der erwartete.
 
@@ -784,9 +784,11 @@ benannt.
 - **`tls.file / expiring — p6-b.invalid`** — das Wegwerfzertifikat aus
   `docs/100 §6`, das an diesem Tag ausläuft. Erneuern lässt es sich nicht:
   `.invalid` ist für Let's Encrypt kein prüfbarer Name (Befund 2).
-- **Warum `unit.schedule / no_next` verschwand**, ist nicht gemessen
-  (Beobachtung 1). Für den Nachtlauf ist es die tragende Frage: Ohne Termin
-  fährt der Abgleich aus diesem Merkmal nicht von selbst.
+- **Warum `unit.schedule / no_next` verschwand**, ist zur Hälfte gemessen
+  (§13). Was der Grund bedeutet, steht jetzt fest — der Timer lief nicht —,
+  und wer ihn angehalten und wer ihn gestartet hat, sagt das Journal des
+  Servers. Für den Nachtlauf ist die tragende Frage ohnehin eine andere: ob er
+  je von selbst gefahren ist.
 - **Der Administrator ist nicht geprüft.** Punkt 6 misst die Tür an der
   Kundensicht; dass es die richtige Tür ist, hält `MaintenanceBandTest`
   (`docs/912 §0`).
@@ -797,3 +799,89 @@ benannt.
   `cloudsrv24` stand beim Einspielen nicht in Wartung.
 - **Beobachtung 2** ist eine Entwurfsfrage und keine Aufgabe: Ob `/maintenance`
   den Zustand dreimal nennen soll, entscheidet der Betreiber.
+
+---
+
+## §13 Nachmessung zu Beobachtung 1 — was `no_next` überhaupt bedeutet
+
+Gemessen am **13. September 2026 im Entwicklungscontainer**, gegen systemd 255
+als PID 1 in einer eigenen PID- und Mount-Namespace (`docs/89 §1`). Der
+Prüfkörper ist ein Wegwerf-Timer, dessen `[Timer]`-Block **wortgleich** der von
+`srvpanel-diagnose.timer` ist — `OnCalendar=daily`, `Persistent=true`,
+`RandomizedDelaySec=1h`, dazu `PartOf=` auf ein Wegwerf-Ziel.
+
+Gefragt wird dieselbe Frage wie der Prüfling sie stellt: `systemctl show` nach
+`NextElapseUSecRealtime` und `NextElapseUSecMonotonic`, geurteilt nach
+`SrvPanel\Agent\Units::hasNext()`.
+
+| Lage | Active | Sub | Realtime | Monoton | `has_next` |
+|---|---|---|---|---|---|
+| installiert, nie gestartet | `inactive` | `dead` | leer | `infinity` | **false** |
+| Timer läuft, Dienst ruht *(Gegenprobe)* | `active` | `waiting` | Zeitstempel | `0` | true |
+| Timer läuft, ausgelöster Dienst läuft | `active` | `waiting` | Zeitstempel | `0` | true |
+| `daemon-reload` bei laufendem Dienst | `active` | `waiting` | Zeitstempel | `0` | true |
+| `daemon-reload` bei ruhendem Dienst | `active` | `waiting` | Zeitstempel | `0` | true |
+| Timer gestoppt | `inactive` | `dead` | leer | `infinity` | **false** |
+| `stop` des Ziels *(über `PartOf=`)* | `inactive` | `dead` | leer | `infinity` | **false** |
+| `restart` des Ziels *(über `PartOf=`)* | `active` | `waiting` | Zeitstempel | `0` | true |
+| `enable`, aber nicht gestartet | `inactive` | `dead` | leer | `infinity` | **false** |
+| `enable --now` | `active` | `waiting` | Zeitstempel | `0` | true |
+| Start mit altem Stempel (Nachholung) | `active` | `waiting` | Zeitstempel | `0` | true |
+
+**Damit hat `no_next` an diesem Timer genau eine Bedeutung: Er lief nicht.**
+`ActiveState=inactive`, `SubState=dead`. Weder ein laufender ausgelöster Dienst
+noch ein `daemon-reload` noch eine Nachholung durch `Persistent=true` erzeugt
+ihn.
+
+> **Ein Grund, der in jeder gemessenen Lage auf denselben Zustand zurückgeht,
+> ist keine Familie von Erklärungen — es ist eine.**
+
+**Die Vermutung aus Beobachtung 1 ist damit widerlegt.** Dort stand, ein Timer
+habe „unmittelbar nach einer Installation seinen nächsten Termin noch nicht".
+`packaging/scripts/postinstall.sh` fährt `systemctl enable --now
+srvpanel-diagnose.timer`, und das ist die vorletzte Zeile der Tabelle: Der
+Termin steht in derselben Sekunde da.
+
+> **Eine Vermutung, die plausibel ist und die niemand gemessen hat, wird beim
+> Nachmessen nicht ungenauer — sie wird falsch oder richtig.**
+
+**Was das Paket beim Update wirklich tut**, ausgezählt an den Skripten:
+`packaging/scripts/preremove.sh` hält alle sechs Timer an und schaltet sie ab —
+**auch beim Update**, denn dpkg ruft `prerm` dort ebenfalls, und nur das
+`rm -rf` des Rückwegs darunter ist auf `remove`/`purge` beschränkt.
+`postinstall.sh` wirft sie über `restart_services()` wieder an, und zwar auf
+**jedem** Weg, den ein eingerichtetes System nimmt — auch aus `roll_back()`
+heraus. Zwischen den beiden liegt ein Fenster, in dem alle sechs `no_next`
+ergäben; danach keiner.
+
+**Was daraus für den Server folgt und hier nicht zu messen ist:** Am 13.
+September stand der Befund um 10:16 da und um 10:57 nicht mehr. Nach dieser
+Tabelle heisst das, der Timer war um 10:16 angehalten und lief um 10:57. Wer
+ihn angehalten und wer ihn gestartet hat, weiss das Journal des Servers und
+nicht dieser Container.
+
+**Und die tragende Frage ist eine andere als die nach dem Befund.** Ob der
+Nachtlauf je von selbst gefahren ist, sagt `stamp-srvpanel-diagnose.timer` und
+das Journal von `srvpanel-diagnose.service` — nicht der Zustand des Timers von
+heute.
+
+> **Ein Timer, der jetzt einen Termin hat, belegt nicht, dass er je gefeuert
+> hat.**
+
+**Zwei Fallen dieser Messrunde**, beide bezahlt. Die erste hat die Gegenprobe
+gefangen und nicht das Nachdenken: Der erste Wurf las `systemctl show` über
+`eval "$(… | sed 's/^/V_/')"`, und ein `NextElapseUSecRealtime=Mon 2026-09-14
+00:03:38 UTC` trägt Leerzeichen — die Zuweisung scheitert, die Variable bleibt
+leer, und **jede** Lage meldete `no_next`, die gesunde eingeschlossen.
+
+> **Eine Gegenprobe ist die einzige Stelle, an der ein Messmittel merkt, dass es
+> jede Lage gleich beantwortet.**
+
+Die zweite ist eine Spur ausserhalb der Namespace: `systemctl enable` legt
+seinen Symlink unter `/etc/systemd/system/timers.target.wants/` an, und `/etc`
+ist **nicht** namespace-privat — nur `/run` ist es. `Persistent=true` legt
+ausserdem `/var/lib/systemd/timers/stamp-…` an. Beides ist weggeräumt und
+nachgesehen.
+
+> **Eine Namespace, die das Netz und die Einhängepunkte trennt, trennt die
+> Dateien nicht — und `enable` schreibt in eine Datei.**

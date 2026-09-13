@@ -3734,6 +3734,8 @@ das es nicht gibt. Hier ist eines angefragt und nirgends vermerkt.
 
 Das Vorhaben dazu ist **`docs/914`**, und es nimmt Befund 14 mit, weil beide
 dieselbe Ergänzung am Agenten brauchen: **was hat er tatsächlich gelesen.**
+Gebaut am 13. September; §12 sagt, was beim Bauen anders war, §13 hat die
+Bilderrunde. Der Abnahmelauf ist **`docs/915`**, ausgeschrieben vor dem Fahren.
 
 **Die Messrunde davor hat einen Befund gebracht, der in keinem Dokument stand.**
 `WebLogsTail::tail()` bricht nicht nur ab, wenn die Datei zu Ende ist, sondern

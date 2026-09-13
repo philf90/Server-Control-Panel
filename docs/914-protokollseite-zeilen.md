@@ -488,3 +488,8 @@ zuviel ist, entscheidet der Blick auf dem Server und nicht dieser Container.
 Zustände mit selbstgeschriebenen Dateien her; ein Journal hat er nicht, also
 ist Punkt 5 — die Nummern am Journal — hier **nicht** gemessen. Er darf nicht
 ausfallen.
+
+**Der Lauf dafür ist `docs/915`**, ausgeschrieben am 13. September 2026 vor dem
+Fahren. Sein §0 nennt die drei Kriterien aus §9, die beim Ausschreiben
+umgefallen sind, und §2 misst zuerst den Bestand der Protokolle — welche Quelle
+welchen Punkt trägt, weiss diese Maschine nicht.

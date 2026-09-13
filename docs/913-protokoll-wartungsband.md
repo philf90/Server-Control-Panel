@@ -496,3 +496,87 @@ diesem Augenblick sagte, ist nicht abgelesen worden.
 die **richtige** Tür ist — `AdminAbility::OPERATE_SERVER` und keine andere —,
 hält `MaintenanceBandTest` in der CI und ist dort mit einem Eingriff belegt.
 Ein Administrator ist hier nicht geprüft worden; `docs/912 §0` sagt warum.
+
+### Die Gegenprobe zu Punkt 6
+
+Nach „Zurück zur Verwaltung" steht das Band wieder da, mit dem vollen Satz und
+der Ankündigung darunter. Ohne diesen Blick bliebe offen, ob es überhaupt noch
+erscheint — und der Punkt meldete ein Verschwinden, das mit der Fähigkeit nichts
+zu tun hat.
+
+---
+
+## §8 Punkt 7 und 8 — die Datei verschwindet, und das Abzeichen trägt es *(erfüllt)*
+
+`rm /var/spool/srvpanel/wartung` bei weiterhin eingeschalteter Ablage.
+
+```
+curl https://cloudlab24.ipv64.de/            → 200
+srvpanel diagnose                            → 8 Prüfung(en) gefahren, 2026-09-13 10:57:03.
+                                               Auffällig: 4
+```
+
+**Die Website ist im selben Augenblick wieder erreichbar** (`200`, also `V`) —
+nginx liest die Datei bei jeder Anfrage. Genau das ist der Zustand, den niemand
+bemerkt: Das Panel führt eine Wartung, die keine mehr ist.
+
+**Acht Prüfungen statt sieben.** `docs/911 §2` M8 hat „alle sieben Prüfungen der
+Bestandsdiagnose" ausgezählt; der Nachtlauf fährt jetzt acht. Die neue ist im
+Katalog angekommen, und das steht hier, weil es die billigste Art ist, es zu
+belegen.
+
+**Die Befundliste danach:**
+
+| Prüfung | Grund | Gegenstand | |
+|---|---|---|---|
+| `orphan.row` | `certificate` | `tls.cloudlab24.de` | aus §1 |
+| `tls.file` | `expiring` | `p6-b.invalid` | aus §1 |
+| `maintenance.window` | `overdue` | `cloudsrv24.de` | **A12**, nicht dieses Merkmal |
+| **`maintenance.flag`** | **`missing`** | **`/var/spool/srvpanel/wartung`** | **Punkt 7** |
+
+Der Gegenstand ist der Pfad, den der **Agent** genannt hat, und nicht die
+Konstante des Panels — beide stimmen überein, und dass sie es müssen, sagt keine
+Zeile, sondern die Wache im Server-Block, die denselben Pfad trägt.
+
+**Und das Band behauptet weiter, es sei Wartung** (`prop` gesetzt, Satz
+unverändert, `hoehe: 41`). Das ist die Grenze aus `docs/911 §2` M8, auf einem
+Server gemessen statt hergeleitet — und **kein Mangel**: Das Band liest die
+Ablage, und dass die beiden auseinanderlaufen können, ist der Grund für die neue
+Prüfung.
+
+### Punkt 8 — und warum die Zahl allein ihn nicht belegt hätte
+
+`abzeichen: 4` im Payload, und die Seite zeigt dieselbe 4 am Menüpunkt
+„Diagnose".
+
+**Die Differenz zu §1 ist `+1`, und sie entsteht aus drei Änderungen.** Der
+Ausgangsstand hatte `unit.schedule / no_next — srvpanel-diagnose.timer`; der
+steht jetzt **nicht mehr** da. Dafür sind zwei gekommen. 3 − 1 + 2 = 4.
+
+> **Eine Zahl, die um eins gestiegen ist, belegt keine Zunahme um eins — sie
+> belegt eine Summe.**
+
+Belegt ist Punkt 8 deshalb nicht durch die Differenz, sondern dadurch, dass die
+**Liste hinter der Zahl** den neuen Befund führt und die Zahl zu der Liste passt.
+`docs/912 §0` hatte verlangt, vorher und nachher zu messen statt eine absolute
+Zahl zu erwarten; nötig war am Ende, die **Zeilen** zu vergleichen und nicht die
+Zahlen.
+
+---
+
+## Beobachtung 1, nachgetragen — der Befund war vergänglich
+
+`unit.schedule / no_next — srvpanel-diagnose.timer` stand um **10:16** in der
+Liste und um **10:57** nicht mehr. Dazwischen liegt kein Griff dieses Laufs, der
+einen Timer anfasst.
+
+**Warum er verschwand, ist nicht gemessen.** Die naheliegende Erklärung — das
+Paket `0.7.4-rc.6` war kurz zuvor eingespielt worden, und unmittelbar nach einer
+Installation hat ein Timer seinen nächsten Termin noch nicht — ist eine
+Vermutung und steht hier als solche.
+
+> **Ein Befund, der zwischen zwei Läufen von selbst verschwindet, ist damit nicht
+> erklärt — er ist nur nicht mehr da.**
+
+Für diesen Lauf ändert es nichts; für die Nacht schon, denn der Nachtlauf braucht
+den Termin.

@@ -257,21 +257,45 @@ vom Ende", obwohl es die ganze Quelle ist. Das ist die harmlose Richtung.
 > die Grenze nicht meint — und ob das schadet, entscheidet die Richtung, in die
 > sie irrt.**
 
-**Was die drei Zeilen wirklich sind, ist nicht gemessen.** Bootmarken ist die
-naheliegende Erklärung und keine Messung.
+**Nachgemessen am selben Abend: es sind Bootmarken.** `grep -c '^--'` über
+dieselbe Ausgabe gibt **3**, und die drei lauten:
+
+    -- Boot 767bc82d8cca435e820efd7d86e727a0 --
+    -- Boot 7ec24c5f0e8848279809b0a67468e0dd --
+    -- Boot e19b19b9743e4a37a522b9705f1c441a --
+
+Die letzte ist dieselbe Boot-ID, die im Journal von `srvpanel-diagnose` steht
+(`docs/913 §17`). Aus der naheliegenden Erklärung ist damit eine Messung
+geworden.
+
+> **Eine naheliegende Erklärung wird nicht dadurch zur Messung, dass sie
+> stimmt.**
+
+**Was daraus als Frage bleibt:** Eine Bootmarke bekommt auf der Seite eine
+Zeilennummer wie ein Eintrag. Das ist dieselbe Art von Sache wie das Bruchstück
+aus Befund 2 — etwas, das keine Protokollzeile ist, wird als eine
+durchgezählt. `readJournal()` streicht `-- No entries --` mit der Begründung,
+eine Meldung des Werkzeugs gehöre nicht als Inhalt gezeigt; für die Bootmarke
+gilt derselbe Satz und die entgegengesetzte Überlegung, denn sie sagt etwas
+über das Protokoll. **Das Verhalten gibt es seit A5 und nicht erst seit dieser
+Änderung** — es steht hier als Frage und nicht als Befund.
 
 ## §9 Stand nach dem ersten Abend
 
 | Punkt | Zustand |
 |---|---|
 | 1 — kurze Quelle, zwei Zustände | **erfüllt** |
-| 2 — lange Quelle | **halb** — der Druck auf den Knopf steht aus |
+| 2 — lange Quelle | **erfüllt** |
 | 3 — Bytedeckel *(Ausschluss)* | **erfüllt** |
 | 4 — Filter | **erfüllt** |
 | 5 — Journal *(Ausschluss)* | **erfüllt** |
 | 6 — 390 px und die Klebeprobe | offen — braucht eine Browserkonsole |
 | 7 — Kopieren | offen — braucht eine Maus |
 | 8 — beide Themen, beide Breiten | offen |
+
+**Punkt 2 ist am selben Abend geschlossen worden:** Nach dem Druck auf „Mehr
+Zeilen" steht die erste Nummer auf **−200**, die Fusszeile auf „200 Zeilen von
+500 Treffern". Damit sind **sechs von acht** erfüllt.
 
 **Beide Ausschlusskriterien stehen.** Drei Befunde sind offen und keiner davon
 ein Kriterienausfall: Befund 1 (die Vorschrift, behoben), Befund 2 (das

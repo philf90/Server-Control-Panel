@@ -405,3 +405,85 @@ verschieden lange Zeilen stimmen alle Richtungen:
   Streifen: Das ist Befund 3, und er soll dort erscheinen. Käme `deckt=true`,
   wäre die Containermessung falsch gewesen.
 - **Punkt 7** — das Kopieren mit der Maus. Nicht belegt.
+
+---
+
+## §14 Punkt 6 vollständig und Punkt 7 — beide erfüllt
+
+**Die Klebeprobe, berichtigte Fassung, auf `cloudsrv24`:**
+
+    stand=2026-09-13c breite=1440 thema=dark rollweg=7932 zeileBreit=9001
+    nummer=17->17 klebt=true imStreifen=[log-text] deckt=false misst=true
+
+`misst=true` — die Messung hat stattgefunden, und erst damit bedeutet `deckt`
+etwas. `klebt=true` bei einem Rollweg von **7932 px**: Die Nummer bleibt stehen,
+und **Punkt 6 ist damit erfüllt**, denn danach fragt er.
+
+**`deckt=false` ist Befund 3 auf dem echten Server**, Zeichen für Zeichen wie im
+Container. Er ist kein Kriterienausfall: `docs/915 §8` fragt, ob die Nummer
+stehenbleibt, und nicht, ob sie deckt — **das ist genau die Lücke, die Befund 3
+benannt hat**, und sie steht jetzt zweimal da, in der Vorschrift und im
+Ergebnis.
+
+**Punkt 7 ist erfüllt:** Drei Zeilen mit der Maus überstrichen und kopiert —
+**keine Zeilennummern im eingefügten Text.** Der erzeugte Inhalt aus
+`content: attr(data-nummer)` hält also auch auf einem echten Rechner.
+
+### Befund 6 — mein Prüfkörper für Punkt 7 war schlecht gewählt
+
+`docs/915 §9` sagt, der kopierte Text solle **in das Filterfeld** eingefügt
+werden. Der Agent begrenzt den Filter auf **200 Zeichen**
+(`SystemLogsTail::filter()`, gemessen); drei Protokollzeilen sind länger,
+und die Seite filtert dann nichts.
+
+> **Ein Prüfkörper, der den kopierten Text in ein Feld mit einer Längengrenze
+> einfügt, prüft die Grenze und nicht den Text.**
+
+Der Punkt war trotzdem entscheidbar, weil der eingefügte Text sichtbar bleibt —
+aber das war Glück und nicht Entwurf. Ein Feld ohne Grenze oder ein Blick in die
+Zwischenablage wäre der richtige Ort.
+
+## §15 Bilanz — alle acht Punkte erfüllt
+
+| Punkt | Zustand |
+|---|---|
+| 1 — kurze Quelle, zwei Zustände | **erfüllt** |
+| 2 — lange Quelle | **erfüllt** |
+| 3 — Bytedeckel *(Ausschluss)* | **erfüllt** |
+| 4 — Filter | **erfüllt** |
+| 5 — Journal *(Ausschluss)* | **erfüllt** |
+| 6 — 390 px, Klebeprobe | **erfüllt** |
+| 7 — Kopieren | **erfüllt** |
+| 8 — beide Themen, beide Breiten | **erfüllt** |
+
+**Beide Ausschlusskriterien stehen**, und kein Punkt ist als „nicht
+herstellbar" ausgefallen.
+
+**Sechs Befunde, und nur zwei stecken im Prüfling.**
+
+| # | wo | Zustand |
+|---|---|---|
+| 1 | Vorschrift — `head -20` schnitt vor den gefragten Feldern ab | behoben |
+| 2 | **Prüfling** — beim Bytedeckel ist die erste Zeile ein Bruchstück | offen |
+| 3 | **Prüfling** — beim Rollen scheint Text neben der Nummer durch | offen |
+| 4 | Wächter — `OverflowProbeTest` kennt diese Art Messmittel nicht | offen |
+| 5 | Messmittel — die Klebeprobe mass zweimal nichts | behoben |
+| 6 | Vorschrift — das Filterfeld als Ort für den kopierten Text | offen |
+
+**Das Verhältnis ist dasselbe wie in `docs/45`, `docs/48`, `docs/59` und
+`docs/84`:** Die Mehrheit der Fehler steckt nicht im Prüfling. Und beide
+Prüflingsbefunde hat **das Bild** gefunden und keine Zahl — der eine im Bild zu
+Punkt 3, der andere im Bild zu Punkt 4.
+
+> **Eine Zahl sagt, ob die Seite schiebt. Ein Bild sagt, was darauf steht.
+> Keines von beiden ersetzt das andere.**
+
+### Was benannt offen bleibt
+
+- **Die Beobachtung zur Fusszeile** (`docs/914 §13`): Ohne Filter und bei
+  vollständig gezeigter Quelle steht dieselbe Zahl zweimal. Auf dem Server
+  bestätigt, nicht entschieden.
+- **Die Bootmarke bekommt eine Zeilennummer wie ein Eintrag** (§8). Seit A5 so,
+  nicht durch diese Änderung.
+- **Die Domainseite** (`web.logs.tail`) bekommt die neuen Felder mitgesendet und
+  zeigt sie nicht (`docs/914 §12`).

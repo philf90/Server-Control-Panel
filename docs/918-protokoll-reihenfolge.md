@@ -115,3 +115,68 @@ dazukommen. Das wäre ein Befund am Prüfling gewesen, den es nicht gibt.
 
 > **Ein Prüfkörper, der seinen Gegenstand beim Messen verändert, meldet den
 > Unterschied als Fehler des Gemessenen.**
+
+## §5 Punkt 1 vollständig — die Gegenprobe *(erfüllt)*
+
+`/logs?source=panel-update&lines=200&order=newest`, 36 Zeilen:
+
+| | gemessen |
+|---|---|
+| Fusszeile | „36 Zeilen · gelesen wurden die letzten 36 Zeilen" |
+| Notiz | „**Das ist die ganze Quelle**; die Nummern sind ihre Zeilen." |
+| Nummern | `36 35 34 33 …` — **ohne Zeichen** |
+
+Damit ist Punkt 1 ganz: Der Pfeil steht dort, wo die Lage nur vom Ende her
+belegbar ist, und **nur** dort. Ohne diese Hälfte wäre gemessen, dass er
+dasteht, nicht dass er auf einen Zustand bezogen ist.
+
+**Und die Aufnahme trägt mehr, als der Punkt verlangt.** Sie steht auf „Neueste
+zuerst", und die echten Dateizeilen laufen deshalb `36 … 1` — also abwärts. Das
+ist der Beleg für „die Nummer wandert mit ihrer Zeile" im **zweiten** Zustand:
+Punkt 2 hat ihn für das unvollständige Fenster gezeigt, hier steht er für die
+ganz gelesene Quelle, wo die Nummer eine Dateizeile ist und keine Lage.
+
+> **Eine Regel, die in zwei Zuständen gilt, ist in einem gemessen und im anderen
+> behauptet — bis jemand auch dort hinsieht.**
+
+## §6 Punkt 4b — beide Reihenfolgen in einem Zug *(Ausschlusskriterium, erfüllt)*
+
+`source=panel-update&lines=20`, beide Abrufe über dieselbe Route wie der Knopf:
+
+```
+oldest  erste=SrvPanel: Rückweg bereitgestellt unter /opt/srvpanel/ro
+oldest  letzte=apt-run: Fassung 0.7.4~rc.8 wurde zu 0.7.4~rc.9.
+newest  erste=apt-run: Fassung 0.7.4~rc.8 wurde zu 0.7.4~rc.9.
+newest  letzte=SrvPanel: Rückweg bereitgestellt unter /opt/srvpanel/ro
+getauscht=true gleichLang=true
+```
+
+**`getauscht=true`** — erste und letzte Zeile tauschen die Plätze, und diesmal
+sind es **dieselben** Zeilen: Die Quelle steht still, das Fenster ist in beiden
+Abrufen dasselbe. Das ist der Vergleich, den Punkt 2 an `agent` nicht führen
+konnte.
+
+**`gleichLang=true` ist die Zugabe, nach der niemand gefragt hat** und die den
+Punkt erst schliesst: Gleich lang heisst, dass beim Umdrehen keine Zeile
+verlorengeht und keine doppelt steht. Ein Umkehren, das die erste Zeile
+verschluckt, hätte `getauscht` trotzdem erfüllt.
+
+> **Zwei Enden, die sich vertauschen, sagen über die Mitte nichts — die Länge
+> schon.**
+
+Das Fenster ist ablesbar richtig: 36 Zeilen, 20 abgerufen, also die Zeilen 17
+bis 36. `oldest erste` ist Zeile 17 der Anzeige, `oldest letzte` Zeile 36.
+
+## §7 Stand
+
+| Punkt | Zustand |
+|---|---|
+| 1 — das Zeichen | **erfüllt** (beide Hälften) |
+| 2 — die Umkehrung *(Ausschluss)* | **erfüllt** |
+| 3 — die Adresse trägt sie | **erfüllt** |
+| 4 — der Knopf *(Ausschluss)* | **erfüllt** (a und b) |
+| 5 — die Tönung | offen |
+| 6 — die Klebeprobe | offen |
+
+**Beide Ausschlusskriterien stehen.** Was bleibt, sind die zwei Punkte, die eine
+Konsole brauchen.

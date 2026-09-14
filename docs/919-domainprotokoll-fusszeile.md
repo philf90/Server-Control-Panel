@@ -222,10 +222,10 @@ Zeilen" heisst.
 
 ## §6 Entscheidungen für den Betreiber
 
-1. **Bekommt die Domainseite die Nummernspalte?** Sie ist auf `/logs` gebaut und
-   gemessen. Die Frage ist hier neu, weil diese Seite dem **Kunden** gehört:
-   Eine Nummer „↑17" erklärt sich nur mit dem Satz darunter. **Nicht in diesem
-   Wurf** — die Fusszeile ist Befund 14, die Spalte war der Wunsch daneben.
+1. **Bekommt die Domainseite die Nummernspalte?** — **Nein, entschieden am
+   14. September 2026.** Die Begründung des Betreibers: Auf dieser Seite
+   erschliesst sich ihr Sinn nicht. Das ist eine Entscheidung und keine
+   Vertagung; was dafür gemessen wurde, steht in §15.
 2. **Nennt der Satz beim Deckel die Bytegrenze?** Vorgeschlagen ist der Grund
    ohne die Zahl („auch in Bytes begrenzt"), weil 512 KiB dem Kunden nichts
    sagt und der Betreiber sie in `docs/914` findet.
@@ -301,7 +301,8 @@ Auf einem echten Server, an einer echten Domain:
 
 ## §10 Was dieses Vorhaben ausdrücklich nicht wird
 
-- **Keine Nummernspalte auf der Domainseite** (§6 Punkt 1).
+- **Keine Nummernspalte auf der Domainseite** — entschieden und nicht vertagt
+  (§6 Punkt 1, die Messungen dazu in §15).
 - **Kein Filter.** `/logs` hat einen, diese Seite nicht; ein Filter über das
   Fenster wäre ein eigenes Merkmal mit eigener Fusszeile.
 - **Kein zweiter Leser.** `WebLogsTail::tail()` bleibt die eine Stelle — sie
@@ -322,8 +323,8 @@ Auf einem echten Server, an einer echten Domain:
 - **Ob ein Kunde die Fusszeile so liest, wie sie gemeint ist.** Das hängt an
   einer Erwartung und nicht an einer Eigenschaft des Quelltextes — kein Wächter
   kann es halten, und deshalb steht es hier als Frage.
-- **Die Nummernspalte für den Kunden.** Siehe §6 Punkt 1; nicht gebaut, nicht
-  gemessen, benannt.
+- ~~**Die Nummernspalte für den Kunden.**~~ **Gemessen und entschieden** am
+  14. September 2026 — §15. Sie wird nicht gebaut.
 
 ---
 
@@ -508,3 +509,89 @@ Steht hier, damit der Nächste es nicht noch einmal untersucht.
 
 > **Eine Zeile, die eine Abwesenheit behauptet, lässt den Nächsten dasselbe noch
 > einmal bauen.**
+
+---
+
+## §15 Die Nummernspalte wird nicht gebaut — entschieden am 14. September 2026
+
+**Der Betreiber hat entschieden: Auf der Domainseite erschliesst sich ihr Sinn
+nicht.** Das ist der Schluss, und er ist eine Entscheidung und keine Vertagung.
+
+> **Ein Punkt, der als Frage offen steht, und einer, der als Entscheidung
+> geschlossen ist, sehen im Bestand gleich aus — der Unterschied steht nur
+> daneben.**
+
+Gemessen wurde davor trotzdem, und die Messungen bleiben hier stehen: Sie sind
+über die Frage hinaus gültig, und wer sie später noch einmal stellt, fängt bei
+ihnen an und nicht bei null.
+
+### N1 — `complete` heisst nicht, dass die erste Zeile die erste ist
+
+Das ist der Fund dieser Runde und gilt für **jede** künftige Zeilennummer,
+gleich auf welcher Seite. Passt eine Datei in einen Block von 8192 Bytes, liest
+der Agent sie ganz — `complete` ist wahr — und gibt trotzdem nur die letzten
+`lines` Zeilen heraus:
+
+| Datei | Bytes | `complete` | geliefert | erste Zeile ist in Wahrheit |
+|---|---|---|---|---|
+| 300 Zeilen à 20 B | 6 000 | **ja** | 100 | **201** |
+| 300 Zeilen à 27 B | 8 100 | **ja** | 100 | **201** |
+| 300 Zeilen à 40 B | 12 000 | nein | 100 | — |
+
+Eine Seite, die bei `complete` einfach `i + 1` schriebe, druckte hier `1`, wo
+`201` steht — und sie sähe dabei völlig richtig aus. Der Kopf von
+`WebLogsTail::tail()` beschreibt diesen Ausstieg seit `docs/914`; **dass er die
+Zeilennummer verschiebt, stand nirgends.**
+
+> **Eine Auskunft, die stimmt, trägt eine zweite nicht mit — `complete` sagt,
+> dass alles gelesen wurde, und nicht, dass alles gezeigt wird.**
+
+Daraus folgt der Preis, den die Spalte an der Naht gehabt hätte: Die echte
+Zeilennummer braucht `read`, also genau das Feld, das §3 mit Begründung
+ausschliesst. Die Begründung dort bleibt richtig — als **Anzeige** ist `read`
+hier ein Blick in die Maschine —, sie trägt diese Frage nur nicht mit.
+
+> **Ein Feld, das als Anzeige nichts sagt, kann als Grundlage einer anderen
+> Anzeige unentbehrlich sein.**
+
+### N2 — die Pfeilnummer hätte nichts gekostet
+
+Ohne Filter sind die Lagen lückenlos, und `↑n` ist schlicht `gezeigt − i`:
+gemessen an 2000 Zeilen, `i = 0 → ↑100`, `i = 99 → ↑1`. Kein Feld, keine Zeile
+im Agenten.
+
+**Eine Spalte mit ausschliesslich Pfeilnummern wäre trotzdem die schlechtere
+Hälfte gewesen.** Der häufige Fall bei einer Kundendomain ist die kleine Datei
+— also gerade der, in dem die echte Zeilennummer verfügbar und nützlich ist. Sie
+hätte `↑36` gezeigt, wo `36` die Wahrheit ist.
+
+### N3 — was sie auf dem Telefon gekostet hätte
+
+Gemessen an der echten Regel mit dem gebauten Stylesheet, mit Ladebeleg
+(`display: flex` an `.log-line`):
+
+| Breite | Rinnstein | Anteil der Sichtbreite | sichtbare Zeichen der Protokollzeile |
+|---|---|---|---|
+| 390 px | 59,3 px | **16,7 %** | **31** statt 37 |
+| 1440 px | 61,3 px | 4,4 % | 140 statt 147 |
+
+Die Spalte ist auf beiden Breiten gleich breit; ihr Preis ist ganz und gar ein
+Telefonproblem.
+
+### N4 — und was sie im Code gekostet hätte
+
+Die Gestaltung liegt als `<style scoped>` in `Logs/Index.vue`: **115 Zeilen** mit
+ihren Begründungen über sechs Regeln, dazu acht Zeilen Markup. Alle fünf Klassen
+(`log-body`, `log-line`, `log-number`, `log-text`, `log-note`) kommen in genau
+**einer** `.vue` vor.
+
+Sie zu kopieren wäre die zweite Fassung derselben Regel gewesen. Der ehrliche
+Weg wäre ein Herauslösen nach `app.css` gewesen — die Form eines Bausteins
+gehört dorthin —, und das hätte `/logs` angefasst, das am selben Tag abgenommen
+worden ist.
+
+**Dieses Herauslösen bleibt als Frage bestehen und hängt nicht an der Spalte:**
+Eine Protokollansicht, die in einer Seite wohnt, ist heute nur deshalb kein
+Widerspruch zu `CLAUDE.md`, weil es sie genau einmal gibt. Käme je eine dritte
+Protokollseite, fiele die Frage von selbst an. Sie steht hier und wird nicht
+gebaut.

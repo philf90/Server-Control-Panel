@@ -28236,3 +28236,38 @@ damit ein Tippfehler darin nicht stillschweigend nichts mehr prüft.
 
 Acht Eingriffe in `tests/waechter-brechen.sh`, jeder einzeln belegt; einer davon
 stellt den echten Befund nach und nimmt `complete` im Controller wieder heraus.
+
+### Die Nummernspalte kommt nicht auf die Domainseite
+
+**Entschieden am 14. September 2026 vom Betreiber:** Auf dieser Seite
+erschliesst sich ihr Sinn nicht. Das steht als Entscheidung in `docs/919 §15`
+und nicht als offene Frage — der Unterschied ist in diesem Repo mehrfach teuer
+gewesen.
+
+> **Ein Punkt, der als Frage offen steht, und einer, der als Entscheidung
+> geschlossen ist, sehen im Bestand gleich aus — der Unterschied steht nur
+> daneben.**
+
+**Gemessen wurde davor trotzdem, und ein Fund gilt über die Frage hinaus.**
+`complete` heisst nicht, dass die erste gezeigte Zeile die erste der Datei ist:
+Passt eine Datei in einen Block von 8192 Bytes, liest `WebLogsTail::tail()` sie
+ganz und gibt trotzdem nur die letzten `lines` Zeilen heraus. Gemessen an
+300 Zeilen à 20 B — `complete` wahr, hundert geliefert, und die oberste ist
+Zeile **201**. Eine Seite, die dort `i + 1` schriebe, druckte `1` und sähe dabei
+richtig aus.
+
+> **Eine Auskunft, die stimmt, trägt eine zweite nicht mit — `complete` sagt,
+> dass alles gelesen wurde, und nicht, dass alles gezeigt wird.**
+
+Daraus folgt auch, dass `docs/919 §3` die Frage nach `read` richtig, aber nicht
+erschöpfend beantwortet hat: Als **Anzeige** ist das Feld auf dieser Seite ein
+Blick in die Maschine, als **Grundlage** einer Zeilennummer wäre es notwendig.
+
+> **Ein Feld, das als Anzeige nichts sagt, kann als Grundlage einer anderen
+> Anzeige unentbehrlich sein.**
+
+Dazu die beiden Preise, die die Entscheidung mitgetragen haben: Der Rinnstein
+misst 59,3 px und nimmt bei 390 px **16,7 %** der Sichtbreite — 31 sichtbare
+Zeichen der Protokollzeile statt 37, bei 1440 px 140 statt 147. Und die
+Gestaltung liegt als 115 Zeilen `<style scoped>` in `Logs/Index.vue`; sie zu
+kopieren wäre die zweite Fassung derselben Regel gewesen.

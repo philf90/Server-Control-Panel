@@ -28271,3 +28271,50 @@ misst 59,3 px und nimmt bei 390 px **16,7 %** der Sichtbreite — 31 sichtbare
 Zeichen der Protokollzeile statt 37, bei 1440 px 140 statt 147. Und die
 Gestaltung liegt als 115 Zeilen `<style scoped>` in `Logs/Index.vue`; sie zu
 kopieren wäre die zweite Fassung derselben Regel gewesen.
+
+### Der Abnahmelauf für die Domain-Fusszeile steht
+
+`docs/920`, ausgeschrieben vor dem Fahren. **Neun Punkte, Punkt 3 und Punkt 7
+dürfen nicht ausfallen.**
+
+**Vier Kriterien aus `docs/919 §9` haben beim Ausschreiben ihre Fassung
+gewechselt, und keines hat der Prüfling zu verantworten.**
+
+Das teuerste hätte für einen Grund ausfallen können, der mit seinem Gegenstand
+nichts zu tun hat: „Der Kunde sieht dieselbe Fusszeile" ist nur messbar, wenn der
+Kunde die Seite erreicht — `DomainPolicy::viewLogs` verlangt von einem Nicht-Admin
+`Permission::FilesRead`, und ohne sie gibt es keinen anderen Text, sondern einen
+403. Die Bedingung wird jetzt vorher gemessen.
+
+> **Ein Kriterium, das an einer Vorbedingung scheitern kann, die es nicht nennt,
+> fällt für einen Grund aus, der mit seinem Gegenstand nichts zu tun hat.**
+
+Das zweite mass an einem Gegenstand, der sich beim Messen verändert: Ein
+Zugriffsprotokoll einer lebenden Domain wächst zwischen den beiden Messungen, und
+gerade der **Stillstand der letzten Zeile** ist die Hälfte des Belegs, dass der
+Knopf weiter zurückliest statt anzuhängen. Gefahren wird an einer Domain, die
+stillsteht — belegt mit `wc -l` und nicht geglaubt.
+
+Das dritte verlangte einen Zustand und sagte nicht, wie er entsteht. Hergestellt
+wird er über die echte Route: nginx schreibt `access_log` ohne Formatnamen, also
+`combined`, und das enthält `"$request"` vollständig — ein Aufruf mit langer
+Abfragezeichenkette erzeugt eine echte Zeile über der Schwelle. Ob sie ankam,
+wird gemessen, denn eine zu lange Anfragezeile kann nginx mit `414` abweisen.
+
+Das vierte war eine Zählung: `docs/919 §9` führt **sieben** Punkte, §13 sprach von
+„den acht Punkten aus §9" — beides in derselben Datei.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+**Zwei Punkte sind dazugekommen.** Der eine wiederholt M9 durch den ganzen Weg:
+Beim Bytedeckel `lines=500` von Hand in die Adresse getippt gibt dieselben
+Zeilen — damit ist die Abwesenheit des Knopfes eine Messung. Der andere prüft den
+Fall, dass der Agent nicht antwortet: `docs/919` hat die Meldung des Fehlschlags
+umgebaut, und kein Kriterium fasste sie an.
+
+> **Eine Änderung ohne Kriterium ist eine Änderung, die niemand nachsieht.**
+
+Er trägt ausserdem die Falle mit, die `docs/100 §9.10` gemessen hat: Wer den
+Agenten anhält, hält Worker und Metrik mit an — und ein `start` des Agenten
+allein holt sie **nicht** zurück. Zurück geht es über `srvpanel.target`.

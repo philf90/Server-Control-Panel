@@ -482,7 +482,8 @@ Messung — durch Agent, Controller und Seite.
 
 ### Was der Container nicht beantwortet
 
-Die acht Punkte aus §9 auf einem echten Server. Die Zustände sind hier mit
+Die **sieben** Punkte aus §9 auf einem echten Server — ausgeschrieben als
+neun in `docs/920`, weil beim Ausschreiben zwei dazugekommen sind. Die Zustände sind hier mit
 selbstgeschriebenen Dateien hergestellt; welche `error.log` auf `cloudsrv24`
 über der Schwelle liegt, sagt erst ein Blick dorthin (§11). Punkt 5 — dass der
 **Kunde** dieselbe Fusszeile sieht — ist hier gar nicht gemessen: Gefahren wurde

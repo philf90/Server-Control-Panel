@@ -201,10 +201,20 @@ und der Unterschied fiele erst auf, wenn man beide Dateien nebeneinanderlegt.
 Gefahren auf `cloudsrv24` gegen die nächste Fassung. **Punkt 2 und Punkt 4
 dürfen nicht ausfallen.**
 
-1. **Das Zeichen.** Eine Quelle wählen, die nicht vollständig gelesen ist
-   (Fusszeile: „Weiter zurück wurde nicht gelesen" oder „Die Nummern zählen vom
-   Ende"). Erwartet: `↑` vor jeder Nummer, kein `−` auf der Seite. Gegenprobe:
-   eine kurze Quelle zeigt Nummern **ohne** Zeichen.
+1. **Das Zeichen.** Eine Quelle wählen, deren Fenster **nicht** bis zum Anfang
+   reicht — abzulesen an der Fusszeile: dort steht „Die Nummern zählen vom
+   Ende". Erwartet: `↑` vor jeder Nummer und kein `−` auf der Seite.
+   Gegenprobe: eine kurze Quelle sagt „Das ist die ganze Quelle" und zeigt
+   Nummern **ohne** Zeichen.
+
+   *Beim Ausschreiben berichtigt:* Der erste Wurf liess zwei Sätze zu — den
+   obigen **oder** „Weiter zurück wurde nicht gelesen". Die beiden sind aber
+   nicht zwei Ausgänge, sondern zwei Anzeichen: Der erste ist `complete =
+   false` und trägt den Punkt, der zweite ist `capped` und kommt manchmal
+   dazu. Genannt wird deshalb der eine, der den Zustand wirklich bedeutet.
+
+   > **Ein Kriterium, das zwei Sätze zulässt, misst den, der gerade dasteht —
+   > und nicht den, der den Zustand bedeutet.**
 
 2. **Die Umkehrung.** *(Ausschlusskriterium)* „Neueste zuerst" wählen.
    Erwartet: Die Zeile, die vorher unten stand, steht oben; **ihre Nummer ist
@@ -217,10 +227,26 @@ dürfen nicht ausfallen.**
    `?order=quatsch` von Hand — die Seite zeigt „Älteste zuerst" und keine
    Fehlermeldung.
 
-4. **Der Knopf sichert das Angezeigte.** *(Ausschlusskriterium)* Bei „Neueste
-   zuerst" auf „Angezeigtes sichern" — die erste Zeile der Datei ist die, die
-   auf der Seite oben stand. Gegenprobe bei „Älteste zuerst": umgekehrt.
-   Verglichen wird die **erste Zeile beider Dateien**, nicht ihre Länge.
+4. **Der Knopf sichert das Angezeigte.** *(Ausschlusskriterium)* Zwei Hälften,
+   und die Trennung ist Absicht:
+
+   **a) Der Knopf selbst.** Bei „Neueste zuerst" einmal auf „Angezeigtes
+   sichern" drücken. Erwartet: Eine Datei kommt an, und ihre erste Zeile ist
+   die, die auf der Seite oben stand.
+
+   **b) Der Vergleich beider Reihenfolgen** — in der Konsole, weil zwei
+   Downloads derselben Quelle denselben Dateinamen tragen und der Browser den
+   zweiten umbenennt. Welche Datei welche ist, entscheidet dann die Reihenfolge
+   des Herunterladens und nicht der Inhalt.
+
+   > **Zwei Prüfkörper, die gleich heissen, unterscheidet nur noch die
+   > Erinnerung daran, welcher zuerst kam.**
+
+   Gefahren wird der Vergleich über **dieselbe Route** und dieselbe Sitzung,
+   also über den Weg, den auch der Knopf nimmt — was er nicht mitprüft, ist das
+   Anklicken, und dafür gibt es (a).
+
+   Verglichen wird die **erste Zeile beider Antworten**, nicht ihre Länge.
 
 5. **Die Tönung, gemessen und nicht angesehen.** In beiden Themen bei 1440 px
    und 390 px: `getComputedStyle` der Nummernspalte und des Rahmens daneben

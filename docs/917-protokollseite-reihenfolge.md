@@ -201,10 +201,20 @@ und der Unterschied fiele erst auf, wenn man beide Dateien nebeneinanderlegt.
 Gefahren auf `cloudsrv24` gegen die nächste Fassung. **Punkt 2 und Punkt 4
 dürfen nicht ausfallen.**
 
-1. **Das Zeichen.** Eine Quelle wählen, die nicht vollständig gelesen ist
-   (Fusszeile: „Weiter zurück wurde nicht gelesen" oder „Die Nummern zählen vom
-   Ende"). Erwartet: `↑` vor jeder Nummer, kein `−` auf der Seite. Gegenprobe:
-   eine kurze Quelle zeigt Nummern **ohne** Zeichen.
+1. **Das Zeichen.** Eine Quelle wählen, deren Fenster **nicht** bis zum Anfang
+   reicht — abzulesen an der Fusszeile: dort steht „Die Nummern zählen vom
+   Ende". Erwartet: `↑` vor jeder Nummer und kein `−` auf der Seite.
+   Gegenprobe: eine kurze Quelle sagt „Das ist die ganze Quelle" und zeigt
+   Nummern **ohne** Zeichen.
+
+   *Beim Ausschreiben berichtigt:* Der erste Wurf liess zwei Sätze zu — den
+   obigen **oder** „Weiter zurück wurde nicht gelesen". Die beiden sind aber
+   nicht zwei Ausgänge, sondern zwei Anzeichen: Der erste ist `complete =
+   false` und trägt den Punkt, der zweite ist `capped` und kommt manchmal
+   dazu. Genannt wird deshalb der eine, der den Zustand wirklich bedeutet.
+
+   > **Ein Kriterium, das zwei Sätze zulässt, misst den, der gerade dasteht —
+   > und nicht den, der den Zustand bedeutet.**
 
 2. **Die Umkehrung.** *(Ausschlusskriterium)* „Neueste zuerst" wählen.
    Erwartet: Die Zeile, die vorher unten stand, steht oben; **ihre Nummer ist
@@ -217,10 +227,38 @@ dürfen nicht ausfallen.**
    `?order=quatsch` von Hand — die Seite zeigt „Älteste zuerst" und keine
    Fehlermeldung.
 
-4. **Der Knopf sichert das Angezeigte.** *(Ausschlusskriterium)* Bei „Neueste
-   zuerst" auf „Angezeigtes sichern" — die erste Zeile der Datei ist die, die
-   auf der Seite oben stand. Gegenprobe bei „Älteste zuerst": umgekehrt.
-   Verglichen wird die **erste Zeile beider Dateien**, nicht ihre Länge.
+4. **Der Knopf sichert das Angezeigte.** *(Ausschlusskriterium)* Gefahren wird
+   er an einer Quelle, die **während der Messung nicht wächst** — also nicht an
+   `agent`, sondern zum Beispiel an `panel-update`.
+
+   **Warum das tragend ist.** Die Sicherung ist eine **neue** Anfrage: Sie liest
+   die Datei ein zweites Mal. Bei `agent` schreibt das Panel dabei selbst
+   hinein — jeder Seitenaufruf und jede Sicherung hinterlassen dort ihre
+   `system.logs.tail`-Zeile. Das Fenster ist also ein anderes als das auf der
+   Seite, und zwar um genau die Zeilen, die das Messen erzeugt hat.
+
+   > **Ein Protokoll, das der Prüfling selbst beschreibt, verändert sich durch
+   > das Messen — und die gesicherte Datei kann der Anzeige dann nie Zeile für
+   > Zeile gleichen.**
+
+   **a) Der Knopf selbst.** Bei „Neueste zuerst" einmal auf „Angezeigtes
+   sichern". Erwartet: Die erste Zeile der Datei ist die, die auf der Seite oben
+   stand.
+
+   **b) Der Vergleich beider Reihenfolgen**, in der Konsole und in einem Zug:
+   Die erste Zeile von `oldest` ist die letzte von `newest` und umgekehrt. Zwei
+   Aufrufe nacheinander sind dafür eng genug — an einer wachsenden Quelle wären
+   sie es nicht, und der Punkt meldete einen Befund am Prüfling, der keiner ist.
+
+   Verglichen wird die **erste Zeile beider Antworten**, nicht ihre Länge.
+
+   *Beim Ausschreiben stand hier zuerst ein anderer Grund für die Konsole: zwei
+   Sicherungen derselben Quelle trügen denselben Dateinamen. Das ist falsch —
+   `filename()` hängt `Ymd-His` an, zwei Sicherungen kollidieren also nur
+   innerhalb derselben Sekunde. Gelesen war der Aufruf, nicht die Methode.*
+
+   > **Ein Wert, den nur der Aufruf nennt, ist eine Vermutung, bis jemand die
+   > Methode dahinter liest.**
 
 5. **Die Tönung, gemessen und nicht angesehen.** In beiden Themen bei 1440 px
    und 390 px: `getComputedStyle` der Nummernspalte und des Rahmens daneben

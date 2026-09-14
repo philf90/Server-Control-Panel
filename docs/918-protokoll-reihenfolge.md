@@ -180,3 +180,99 @@ bis 36. `oldest erste` ist Zeile 17 der Anzeige, `oldest letzte` Zeile 36.
 
 **Beide Ausschlusskriterien stehen.** Was bleibt, sind die zwei Punkte, die eine
 Konsole brauchen.
+
+## §8 Punkt 5 — die Tönung *(erfüllt in der Zahl)*
+
+Vier Lagen, gemessen mit `getComputedStyle` an der Nummernspalte und am Rahmen
+daneben:
+
+| Thema | Breite | Spalte | Rahmen | verschieden |
+|---|---|---|---|---|
+| hell | 1440 | `rgb(236, 238, 242)` | `rgb(250, 250, 251)` | **true** |
+| dunkel | 1440 | `rgb(30, 34, 43)` | `rgb(20, 23, 29)` | **true** |
+| hell | 390 | `rgb(236, 238, 242)` | `rgb(250, 250, 251)` | **true** |
+| dunkel | 390 | `rgb(30, 34, 43)` | `rgb(20, 23, 29)` | **true** |
+
+**Der Container hatte alle vier Werte vorhergesagt** (`docs/916 §16.5`), und sie
+stimmen Byte für Byte. Das Nebeneinanderlegen ersetzt hier das Beurteilen: Die
+Erwartung stand vor der Messung fest.
+
+**Und die Breite ändert die Farbe nicht** — dieselben Werte bei 1440 und 390.
+Das ist die Hälfte, nach der niemand gefragt hätte: Eine Marke, die nur in einer
+Lage aufgelöst wird, sähe in der anderen Messung genauso aus wie eine, die dort
+fehlt.
+
+> **Zwei Messungen, die sich nur in einer Bedingung unterscheiden, beantworten
+> eine Frage, die keine von beiden allein stellt.**
+
+Das Skript hat das Thema danach zurückgestellt — gemessen wurde, ohne den
+Zustand des Betreibers zu verändern.
+
+## §9 Punkt 6 — die Klebeprobe *(erfüllt)*
+
+`tests/kleben-messen.js` bei 1440 px im dunklen Thema, Quelle `agent` mit
+100 Zeilen:
+
+```
+stand=2026-09-13c breite=1440 thema=dark rollweg=810 zeileBreit=1894 nummer=1->1
+klebt=true imStreifen=[—] deckt=true misst=true (sieht daneben: log-text)
+```
+
+**`deckt=true` bei `misst=true`** — der Streifen links neben der Nummer ist
+leer, und die Selbstprüfung sagt, dass die Abtastung den Text dort findet, wo er
+sicher liegt. Ohne den zweiten Wert bedeutete der erste nichts.
+
+**Die Gegenprobe ist die Fassung davor, auf derselben Maschine mit demselben
+Werkzeug.** Am 13. September gegen `0.7.4-rc.8` stand dort
+`imStreifen=[log-text] deckt=false` (`docs/916 §14`); heute gegen `0.7.4-rc.9`
+`imStreifen=[—] deckt=true`. Damit ist nicht bloss ein Zustand gemessen, sondern
+ein Unterschied — und zwar der, den die Behebung herstellen sollte.
+
+> **Ein Wert, den man nur einmal misst, belegt einen Zustand. Zwei Messungen an
+> derselben Stelle belegen eine Änderung.**
+
+`klebt=true` bei einem Rollweg von **810 px**, und die gemessene Zeile ist
+**1894 px** breit — also lag unter dem Streifen tatsächlich Text, und `deckt`
+hatte einen Gegenstand.
+
+## §10 Bilanz — alle sechs Punkte erfüllt
+
+| Punkt | Zustand |
+|---|---|
+| 1 — das Zeichen | **erfüllt** |
+| 2 — die Umkehrung *(Ausschluss)* | **erfüllt** |
+| 3 — die Adresse trägt sie | **erfüllt** |
+| 4 — der Knopf *(Ausschluss)* | **erfüllt** |
+| 5 — die Tönung | **erfüllt** |
+| 6 — die Klebeprobe | **erfüllt** |
+
+**Beide Ausschlusskriterien stehen**, und kein Punkt ist als „nicht herstellbar"
+ausgefallen.
+
+**Kein Befund am Prüfling.** Was der Lauf gefunden hat, steckte in der
+Vorschrift — und zwar dreimal, jedes Mal beim **Ausschreiben** oder beim Fahren
+und nie im Panel:
+
+| # | wo | Zustand |
+|---|---|---|
+| 1 | Punkt 1 liess zwei Sätze zu, wo einer den Zustand bedeutet | behoben |
+| 2 | Punkt 4 nannte einen Grund, den die Methode widerlegt (`filename()` hängt `Ymd-His` an) | behoben |
+| 3 | Punkt 4 mass an einer Quelle, die das Messen selbst beschreibt | behoben |
+
+**Der dritte ist der teure.** An `agent` hätte Punkt 4b gemeldet, die Nummern
+tauschten nicht — ein Befund am Prüfling, den es nicht gibt. Gefallen ist er
+nicht beim Nachdenken, sondern an einer Zeile der Messung: Die gesicherte Datei
+begann zwei Zeilen später als die Anzeige, und diese zwei Zeilen hatte das
+Sichern selbst geschrieben.
+
+> **Ein Prüfkörper, der seinen Gegenstand beim Messen verändert, meldet den
+> Unterschied als Fehler des Gemessenen.**
+
+**Und dass keiner im Prüfling steckte, ist kein Zufall** — dieselbe Lage wie in
+`docs/78`, `docs/906`, `docs/909` und `docs/913`, aus demselben Grund: Plan nach
+der Messrunde, Lauf vor dem Fahren ausgeschrieben, Messmittel als geprüftes
+Werkzeug im Repo. Die vier Befunde, die es gab, waren beim Bauen gefunden und
+stehen in `docs/916 §16`.
+
+> **Ein Abnahmelauf ohne Fund am Prüfling sagt nicht, dass keiner da war — er
+> sagt, wo sie gefunden wurden.**

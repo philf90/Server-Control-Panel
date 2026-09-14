@@ -3761,6 +3761,58 @@ Aufheben dessen, was für einen Ausdruck lang schon dasteht.
 
 ---
 
+## Die Reihenfolge ist abgenommen — 14. September 2026
+
+Auf `cloudsrv24` gegen `0.7.4-rc.9`, **alle sechs Punkte aus `docs/917 §6`**,
+beide Ausschlusskriterien (2 und 4) darunter, keiner als „nicht herstellbar"
+ausgefallen. Der Plan und der Lauf sind `docs/917`, das Protokoll **`docs/918`**.
+
+**Kein Befund am Prüfling — und drei an der Vorschrift**, alle drei beim
+Ausschreiben oder beim Fahren gefunden. Der teuerste hätte einen Befund am
+Panel erfunden, den es nicht gibt:
+
+> **Ein Prüfkörper, der seinen Gegenstand beim Messen verändert, meldet den
+> Unterschied als Fehler des Gemessenen.**
+
+Punkt 4 mass an `agent.log` — und jede Seite und jede Sicherung schreiben dort
+ihre eigene `system.logs.tail`-Zeile hinein. Die gesicherte Datei begann
+deshalb zwei Zeilen später als die Anzeige, und ein Vergleich beider
+Reihenfolgen hätte gemeldet, die Nummern tauschten nicht. Gefallen ist es nicht
+beim Nachdenken, sondern an genau diesen zwei Zeilen im Ergebnis. Gemessen wird
+seitdem an einer Quelle, die während des Messens stillsteht.
+
+**Und eine Berichtigung von mir war selbst falsch.** Ich hatte Punkt 4 geteilt
+mit der Begründung, zwei Sicherungen derselben Quelle trügen denselben
+Dateinamen; `filename()` hängt `Ymd-His` an. Gelesen hatte ich den Aufruf
+`$this->filename($data['source'])` und nicht die Methode dahinter — widerlegt
+hat es der Dateiname in der ersten Messung.
+
+> **Ein Wert, den nur der Aufruf nennt, ist eine Vermutung, bis jemand die
+> Methode dahinter liest.**
+
+**Zweimal hat eine Messung mehr getragen, als ihr Punkt verlangt hat.** Die
+Zeitstempel der umgedrehten Liste laufen gegenläufig — damit ist der **Inhalt**
+gedreht und nicht die Beschriftung, und eine Umkehrung, die bloss die Nummern
+neu verteilte, sähe an den Nummern genauso aus. Und `gleichLang=true` neben
+`getauscht=true` schliesst aus, dass beim Drehen eine Zeile verlorengeht:
+
+> **Zwei Enden, die sich vertauschen, sagen über die Mitte nichts — die Länge
+> schon.**
+
+**Die Klebeprobe hat ihre Gegenprobe in der Zeit statt im Eingriff.** Dieselbe
+Maschine, dasselbe Werkzeug, eine Fassung früher: `rc.8` gab
+`imStreifen=[log-text] deckt=false`, `rc.9` gibt `imStreifen=[—] deckt=true`.
+
+> **Ein Wert, den man nur einmal misst, belegt einen Zustand. Zwei Messungen an
+> derselben Stelle belegen eine Änderung.**
+
+**Und der Container hatte alle vier Farbwerte vorhergesagt** (`docs/916 §16.5`)
+— sie stimmen Byte für Byte, in beiden Themen und bei beiden Breiten. Wo eine
+Erwartung vor der Messung feststeht, ersetzt das Nebeneinanderlegen das
+Beurteilen.
+
+---
+
 ## Zwei Befunde an einem Feld — 4. September 2026
 
 Gemeldet hat den ersten der Betreiber, beim ersten Versuch, den Wartungsmodus

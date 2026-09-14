@@ -324,3 +324,187 @@ Auf einem echten Server, an einer echten Domain:
   kann es halten, und deshalb steht es hier als Frage.
 - **Die Nummernspalte für den Kunden.** Siehe §6 Punkt 1; nicht gebaut, nicht
   gemessen, benannt.
+
+---
+
+## §12 Was beim Bauen anders war als im Plan
+
+Gebaut am 14. September 2026. **Fünf Funde, vier davon am Wächter** — und keinen
+hat das Nachdenken gemacht: drei kamen von einem Eingriff oder von einem Lauf,
+einer vom Versuch, den Wächter auf das zweite Paar zu richten.
+
+### Fund 1 — `kind` wird gesendet und von niemandem gelesen
+
+Beim Eintragen des zweiten Paares fiel auf, dass `web.logs.tail` seinen
+Argumentwert `kind` zurückspiegelt. Ausgezählt liest ihn niemand: Der Umschalter
+der Seite nimmt `props.kind`, und das setzt der Controller selbst.
+
+Er steht deshalb **nicht** in `ohne_anzeige`, sondern ist aus der Operation
+entfernt — nach dem Vorbild von `origin` bei `system.logs.tail` (`docs/914 §12`,
+Fund 3). Eine Ausnahme hätte den Befund zugedeckt, den der Wächter machen soll.
+
+### Fund 2 — der Fehlschlag lag **in** der Antwort
+
+Der erste Lauf des erweiterten Wächters war sofort rot: *„Die Seite zu
+`web.logs.tail` liest `error`, und der Agent sendet es nicht."* Er stimmte.
+`$result['error']` kam vom Controller und stand zwischen den Feldern des
+Agenten; `/logs` hält ihn seit jeher daneben.
+
+> **Eine Ablage, die zwei Herkünfte mischt, lässt sich nicht gegen ihre Quelle
+> halten.**
+
+Die zweite Seite ist nach der ersten gerichtet worden und nicht die Regel nach
+der zweiten Seite.
+
+### Fund 3 — der Controller war von keiner Regel erfasst
+
+Der Wächter hielt Agent und Seite aneinander. **Dazwischen sitzt der
+Controller, und genau dort ist dieser Befund entstanden.** Ein Feld, das er
+fallen lässt, kommt auf der Seite nicht an — beide Enden passen weiter
+zusammen.
+
+> **Zwei Enden, die zusammenpassen, sagen über die Strecke dazwischen nichts.**
+
+Die Regel lautet jetzt: **Wer Felder einzeln nennt, nennt alle — wer keines
+nennt, reicht die Antwort im Ganzen durch.** Gemessen sind beide Zweige:
+`LogsController` nennt **null** Felder und weist `$result = $answer` zu,
+`DomainController` nennt **sechs**. Kein Zweig wird übersprungen.
+
+### Fund 4 — ein Eingriff, der nicht biss, hat eine fehlende Regel gezeigt
+
+Der `capped`-Zweig der Fusszeile durch `false` ersetzt liess den Wächter
+**grün**: Das Feld blieb im `computed` des Knopfes stehen, wurde also gelesen.
+Die Seite hätte den Knopf richtig versteckt und nie gesagt, warum — also genau
+den Zustand hergestellt, den Befund 14 beschreibt.
+
+> **Ein Eingriff, der nicht beisst, ist entweder schlecht gewählt — oder er
+> zeigt eine Regel, die es nicht gibt.**
+
+Gefragt wird seitdem der **Vorlagenblock** und nicht die Datei: Ein Feld, das
+nur im Skript vorkommt, steuert etwas und sagt nichts. Gegengeprüft an **beiden**
+Paaren, auch an `/logs`, das schon abgenommen ist.
+
+### Fund 5 — die Knopfregel war zuerst zu weit, und ein Wächter hat es gemeldet
+
+`LogFooterTest::test_the_button_hangs_on_there_being_more` verlangte für `/logs`
+wörtlich `props.result.truncated`. Beim Umbau ist daraus „die Bedingung nennt
+**ein** gesendetes Feld" geworden — und `props.result.read > 0` hätte das
+erfüllt.
+
+Gemeldet hat es nicht das Nachdenken, sondern
+`BreakScriptTest::test_every_check_names_a_test_that_exists`: Ein bestehender
+Eingriff nannte den alten Fallnamen, und beim Nachziehen war nachzulesen, was
+der alte Fall zugesagt hatte.
+
+> **Ein Wächter, der eine Regel verallgemeinert, verliert die Zusage der
+> besonderen — und merkt es nur, wenn etwas den alten Namen festhält.**
+
+Verlangt wird jetzt je Paar das **Urteil** (`truncated` dort, `complete` und
+`capped` hier), und die Liste wird gegen die Operation gehalten: Jedes genannte
+Feld muss auch gesendet werden, sonst prüfte ein Tippfehler darin nichts mehr.
+
+---
+
+## §13 Die Bilderrunde und die Knopfprobe
+
+Gefahren am 14. September 2026 im Container gegen die **echte Seite** mit echten
+Dateien: Agent auf einem eigenen Socket, `artisan serve`, Playwright mit dem
+vorinstallierten Chromium, gemessen mit `tests/bilder-messen.js`.
+
+### Der Prüfstand
+
+Ein Abonnement `p9001`, zwei Domains, drei Dateien an den Pfaden, die `Site`
+kennt — durch die **echte Operation** gemessen und nicht durch den Leser allein:
+
+| Quelle | Zeilen | B/Zeile | geliefert | stellt her |
+|---|---|---|---|---|
+| `kurz` / Zugriffe | 36 | 139 | 36 | `complete` |
+| `lang` / Zugriffe | 2000 | 140 | 100 | weder noch |
+| `lang` / Fehler | 300 | **10 348** | **50** | `capped` |
+
+Die dritte ist der Prüfkörper aus §1 (M2) auf dem echten Weg: ein
+nginx-`error.log` mit Stacktraces, also die Form, die den Deckel im Betrieb
+wirklich auslöst.
+
+**Die Erwartung stand vor der Messung fest** — die drei Sätze aus §5 — und alle
+drei sind Wort für Wort so gekommen.
+
+> **Wo eine Erwartung vor der Messung feststeht, ersetzt das Nebeneinanderlegen
+> das Beurteilen.**
+
+### Die zwölf Lagen
+
+Drei Zustände × zwei Themen × zwei Breiten, jede in einer frisch geladenen
+Seite:
+
+- `dokument = 0` — in allen zwölf
+- Gegenprobe **200/200** — in allen zwölf
+- `schiebt = 0` — in allen zwölf
+- `geladen = flex` — der Ladebeleg: Unter 720 px wäre `.footer-row` ohne
+  Stylesheet ein Block. Er gehört in die Messung und nicht in die Erinnerung.
+
+Der Rollbehälter rollt wie gewollt (21 px bei der kurzen Datei bis 80 666 px
+beim `error.log` auf 390 px) — das ist die Entscheidung aus `docs/24`, keine
+Zahl, die sich beschwert.
+
+### Die Knopfprobe — was zwölf Lagen nicht belegen
+
+Zwölf Aufnahmen zeigen, dass der Knopf **dasteht**. Ob er etwas **bewirkt**, ist
+eine andere Frage, und sie ist an der ersten Zeile gemessen und nicht an der
+Zahl:
+
+| | Zeilen | erste | letzte |
+|---|---|---|---|
+| `lines=100` | 100 | `203.0.113.151` | `203.0.113.0` |
+| Knopf gedrückt | 200 | **`203.0.113.51`** | `203.0.113.0` |
+
+Die erste Zeile wandert zurück, die letzte bleibt stehen. Eine Anfrage, die
+bloss mehr Zeilen **anhinge**, sähe an der Zahl genauso aus.
+
+> **Zwei Enden, von denen eines wandert und eines steht, sagen mehr als die
+> Zahl dazwischen.**
+
+**Und der Deckel ist durch den ganzen Weg belegt, nicht nur am Leser.** M9 ist
+im Browser wiederholt, indem `lines=500` von Hand in die Adresse getippt wurde —
+also genau das, was der Knopf täte, wenn er dastünde:
+
+| | Zeilen | erste | letzte |
+|---|---|---|---|
+| Deckel, `lines=100` | 50 | `2026/09/14 09:12:11` | `09:12:00` |
+| Deckel, `lines=500` | **50** | **dieselbe** | **dieselbe** |
+
+Damit ist die Abwesenheit des Knopfes keine Entwurfsmeinung, sondern eine
+Messung — durch Agent, Controller und Seite.
+
+> **Eine Abwesenheit ist begründet, wenn das Vorhandene gemessen nichts
+> geändert hätte.**
+
+### Was der Container nicht beantwortet
+
+Die acht Punkte aus §9 auf einem echten Server. Die Zustände sind hier mit
+selbstgeschriebenen Dateien hergestellt; welche `error.log` auf `cloudsrv24`
+über der Schwelle liegt, sagt erst ein Blick dorthin (§11). Punkt 5 — dass der
+**Kunde** dieselbe Fusszeile sieht — ist hier gar nicht gemessen: Gefahren wurde
+als Betreiber.
+
+---
+
+## §14 Eine Beobachtung neben der Sache
+
+Der volle Lauf meldet **vier „risky" Fälle** — `Tests: 3373, Skipped: 1,
+Risky: 4`, Rückgabewert 0. Keiner davon gehört zu diesem Vorhaben; kein Commit
+dieses Zweiges fasst ihre Dateien an. Nachgesehen sind es **zwei** Arten:
+
+- `ComponentReachTest::test_every_exemption_carries_a_reason` und
+  `BrowserDialogTest::…` gehen über eine **leere** Ausnahmeliste. Das ist hier
+  der gewollte Zustand — es gibt keine Ausnahme —, und dann hat der Fall nichts
+  zu behaupten.
+- `PublicKeyTest::test_a_broken_key_never_yields_a_fingerprint` und
+  `SshdConfigTest::test_a_newline_in_a_name_never_becomes_a_second_block` messen
+  sehr wohl; sie tun es über einen Helfer (`assertRefused`), dessen
+  Behauptungen PHPUnit nicht als solche zählt.
+
+Steht hier, damit der Nächste es nicht noch einmal untersucht.
+
+> **Eine Zeile, die eine Abwesenheit behauptet, lässt den Nächsten dasselbe noch
+> einmal bauen.**

@@ -28142,10 +28142,19 @@ das im Ergebnis" hiess dort in Wahrheit „steht das irgendwo danach".
 > **Eine Marke, die auch etwas anderes trifft, ist keine — und solange sie zu
 > viel trifft, fällt es niemandem auf.**
 
-**Und ein Eingriff des Bruchskripts war nach der Teilung stumm.** `nur noch ein
-Messmittel` nimmt `document.body.append(` aus `baender-messen.js` und zielte
+**Und zwei Eingriffe des Bruchskripts waren nach der Teilung stumm.** `nur noch
+ein Messmittel` nimmt `document.body.append(` aus `baender-messen.js` und zielte
 auf einen Fall, der jetzt über die weite Menge geht — er veränderte seine Datei
-und störte niemanden mehr. Er zielt jetzt auf einen Prüfkörperfall.
+und störte niemanden mehr. `gedruckte Zeile ohne Gegenprobe` zielte auf den
+Fall, aus dem die Zusage über die Gegenprobe herausgelöst wurde. Beide zeigen
+jetzt auf einen Prüfkörperfall.
 
 > **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
 > wenn die Regel, die er brechen soll, unter ihm eine andere Menge bekommt.**
+
+Den zweiten hat erst der **volle** Lauf gefunden — 977 Eingriffe, einer ohne
+Biss, null ohne Messung. Beim ersten hatte ich nicht nachgesehen, welcher
+weitere an derselben Teilung hängt.
+
+> **Wer eine Zusage aus einem Fall herauslöst, sucht die Eingriffe, die diesen
+> Fall beim Namen nennen — nicht die, die seine Datei anfassen.**

@@ -539,7 +539,7 @@ Diesen Namen hat `PHPUnit\Framework\TestCase` als `final` vergeben, die Klasse
 stirbt beim Laden, und `BaseMethodClashTest` hat beim ersten Lauf zugebissen —
 zum sechsten Mal in diesem Repo.
 
-### §16.2 Ein Eingriff des Bruchskripts war nach der Teilung stumm
+### §16.2 Zwei Eingriffe des Bruchskripts waren nach der Teilung stumm
 
 `nur noch ein Messmittel` nimmt `document.body.append(` aus
 `baender-messen.js` und war gegen `test_a_second_run_is_refused` gemessen.
@@ -549,6 +549,27 @@ niemanden mehr. Er zielt jetzt auf `test_the_probe_is_bound_to_the_page`.
 
 > **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
 > wenn die Regel, die er brechen soll, unter ihm eine andere Menge bekommt.**
+
+**Und der zweite ist der Satz darunter, den ich beim ersten nicht gezogen
+habe.** `gedruckte Zeile ohne Gegenprobe` zielte auf
+`test_every_instrument_prints_one_line` — genau den Fall, aus dem die Zusage
+über die Gegenprobe mit Befund 4 **herausgelöst** wurde. Er zielt jetzt auf
+`test_a_probe_names_its_counter_check_in_the_printed_line`.
+
+Gefunden hat ihn der **volle** Lauf und keine Einzelprüfung: 977 Eingriffe,
+einer ohne Biss, null ohne Messung. Die dreizehn neuen waren alle einzeln
+belegt, und dieser war keiner von ihnen — er ist ein alter, dem meine Änderung
+den Gegenstand weggezogen hat.
+
+> **Wer etwas an einer Datei behebt, sieht in derselben Stunde nach, wo dieselbe
+> Frage noch gestellt wird.** Die Gewohnheit steht seit A14 in `docs/105`; hier
+> hat sie eines von zwei gefunden, weil ich nach dem ersten aufgehört habe zu
+> suchen.
+
+Der Griff dagegen ist derselbe wie bei `routes/web.php`: Wer eine Zusage aus
+einem Fall herauslöst, sucht die Eingriffe, die **diesen Fall nennen** —
+`grep -n 'test_every_instrument_prints_one_line' tests/waechter-brechen.sh` —
+und nicht die, die seine Datei anfassen.
 
 ### §16.3 Und ein Prüfkörper, den erst der Eingriff als Attrappe entlarvt hat
 

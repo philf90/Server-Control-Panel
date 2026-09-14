@@ -13323,6 +13323,15 @@ echo "── OverflowProbeTest: die gedruckte Zeile lässt die Gegenprobe weg �
 #
 # Ohne sie bedeuten die uebrigen Werte nichts — eine Null ist nur dann eine
 # Messung, wenn daneben etwas anderes als Null steht.
+#
+# **Genannt ist seit dem 13. September der Fall ueber probes().** Mit Befund 4
+# ist die Gegenprobe aus `test_every_instrument_prints_one_line` herausgeloest
+# worden: Die gedruckte Zeile braucht jedes Messmittel, eine Gegenprobe hat nur,
+# wer einen Pruefkoerper einsetzt. Gegen den alten Fall gemessen war dieser
+# Eingriff nach der Teilung gruen — er veraenderte seine Datei und stoerte
+# niemanden mehr. Gefunden hat es der volle Lauf und nicht die Einzelpruefung:
+# Beim Umhaengen des Geschwistereingriffs habe ich nicht nachgesehen, welcher
+# zweite an derselben Teilung haengt.
 vorher_datei tests/baender-messen.js
 python3 - <<'PY2'
 p = 'tests/baender-messen.js'
@@ -13332,7 +13341,7 @@ open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei tests/baender-messen.js "gedruckte Zeile ohne Gegenprobe" &&
 pruefe "gedruckte Zeile ohne Gegenprobe" \
-  OverflowProbeTest::test_every_instrument_prints_one_line failed
+  OverflowProbeTest::test_a_probe_names_its_counter_check_in_the_printed_line failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OverflowProbeTest passed
 

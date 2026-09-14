@@ -28166,7 +28166,7 @@ open(p, 'w', encoding='utf-8').write(s.replace(alt, 'v-if="props.lines < 500" ty
 PY2
 griff_datei resources/js/Pages/Logs/Index.vue "Knopf an der Konstanten" &&
 pruefe "Knopf an der Konstanten" \
-  LogFooterTest::test_the_button_hangs_on_there_being_more failed
+  LogFooterTest::test_the_button_never_hangs_on_the_requested_count failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LogFooterTest passed
 
@@ -28560,6 +28560,181 @@ pruefe "Sicherung ohne Umkehrung" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LogOrderTest passed
 
+
+
+echo
+echo "── LogFooterTest: die Domainseite benutzt den Bytedeckel und sagt ihn nicht ──"
+#
+# Der Eingriff laesst `props.log.capped` im `computed` des Knopfes stehen und
+# nimmt nur den Zweig der Fusszeile. Die Seite versteckt den Knopf dann richtig
+# und sagt nie, warum — genau der Zustand, den Befund 14 beschreibt.
+#
+# **Dieser Eingriff hat die Regel gefunden, die er prueft.** Am 14. September
+# 2026 blieb er gegen die erste Fassung des Waechters gruen: „jedes gesendete
+# Feld wird gelesen" war nicht verletzt, das Feld wurde ja gelesen.
+vorher_datei resources/js/Pages/Domains/Logs.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Logs.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<template v-else-if="props.log.capped">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<template v-else-if="false">', 1))
+PY2
+griff_datei resources/js/Pages/Domains/Logs.vue "Deckel benutzt, nicht gesagt" &&
+pruefe "Deckel benutzt, nicht gesagt" \
+  LogFooterTest::test_the_page_says_both_reasons_and_not_only_uses_them failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFooterTest passed
+
+echo
+echo "── LogFooterTest: der Knopf der Domainseite hängt wieder an der Anfrage ──"
+#
+# `props.lines` ist die Anfrage und keine Auskunft ueber den Lauf. Gemessen
+# (docs/919 §1): Bei einer Datei mit 36 Zeilen steht der Knopf da und tut
+# nichts, und bei gegriffenem Bytedeckel liefert eine groessere Anfrage
+# byteweise dasselbe — 87 Zeilen bei lines 100, 200 und 500.
+vorher_datei resources/js/Pages/Domains/Logs.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Logs.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<button v-if="mehrDa"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<button v-if="props.lines < 500"', 1))
+PY2
+griff_datei resources/js/Pages/Domains/Logs.vue "Knopf an der Anfrage" &&
+pruefe "Knopf an der Anfrage" \
+  LogFooterTest::test_the_button_never_hangs_on_the_requested_count failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFooterTest passed
+
+echo
+echo "── LogFooterTest: die Knopfbedingung nennt kein Feld der Antwort ──"
+#
+# Der Knopf bleibt ein `computed` — der Waechter loest es auf und sieht nach,
+# ob darin ueberhaupt etwas steht, das der Agent gemessen hat.
+vorher_datei resources/js/Pages/Domains/Logs.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Logs.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'const mehrDa = computed(() => !props.log.complete && !props.log.capped && props.lines < 500)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'const mehrDa = computed(() => props.lines < 500)', 1))
+PY2
+griff_datei resources/js/Pages/Domains/Logs.vue "Bedingung ohne Messung" &&
+pruefe "Bedingung ohne Messung" \
+  LogFooterTest::test_the_button_hangs_on_the_verdict_of_the_answer failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFooterTest passed
+
+echo
+echo "── LogFooterTest: die Feldliste kommt wieder aus dem ganzen Rumpf ──"
+#
+# Gemessen am 14. September 2026: Ueber den ganzen Rumpf gelesen findet der
+# Ausdruck bei `WebLogsTail` elf Felder statt sieben — die vier zuviel sind die
+# Argumente von `Site::fromArgs()`. Der Waechter verlangte danach, dass die
+# Seite `subscription` anzeigt.
+vorher_datei tests/Unit/LogFooterTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/LogFooterTest.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $rumpf = substr($quelle, $von, $bis - $von);\n        $felder = [];'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = ('        $rumpf = substr($quelle, $von, $bis - $von);\n'
+       '        preg_match_all("/\'([a-z_]+)\' =>/", $rumpf, $alles);\n'
+       '\n'
+       '        return array_values(array_unique($alles[1]));\n'
+       '        $felder = [];')
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/LogFooterTest.php "Felder aus dem ganzen Rumpf" &&
+pruefe "Felder aus dem ganzen Rumpf" \
+  LogFooterTest::test_every_field_the_agent_sends_is_read_by_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFooterTest passed
+
+echo
+echo "── LogFooterTest: der Controller lässt complete wieder fallen ──"
+#
+# **Der echte Befund, nachgestellt.** So ist er entstanden: Der Agent sendete
+# `complete` seit docs/914, die Seite haette es zeigen koennen, und dazwischen
+# stand ein Controller, der die Antwort Feld fuer Feld abschrieb und drei davon
+# nicht mitnahm.
+vorher_datei app/Http/Controllers/DomainController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DomainController.php'
+s = open(p, encoding='utf-8').read()
+alt = "            $result['complete'] = ($answer['complete'] ?? false) === true;\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/DomainController.php "Controller lässt ein Feld fallen" &&
+pruefe "Controller lässt ein Feld fallen" \
+  LogFooterTest::test_a_controller_that_picks_fields_picks_all_of_them failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFooterTest passed
+
+echo
+echo "── LogFooterTest: der Controller reicht die Antwort nicht mehr durch ──"
+#
+# Die andere Haelfte derselben Regel. `LogsController` nennt kein einziges Feld
+# — richtig ist das nur, solange er die Antwort im Ganzen zuweist. Ohne den
+# zweiten Zweig übersprünge der Waechter ihn wortlos.
+vorher_datei app/Http/Controllers/LogsController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/LogsController.php'
+s = open(p, encoding='utf-8').read()
+alt = '            $result = $answer;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '            $result = [];', 1))
+PY2
+griff_datei app/Http/Controllers/LogsController.php "Antwort nicht durchgereicht" &&
+pruefe "Antwort nicht durchgereicht" \
+  LogFooterTest::test_a_controller_that_picks_fields_picks_all_of_them failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFooterTest passed
+
+echo
+echo "── LogFooterTest: der Fehlschlag wandert zurück in die Antwort ──"
+#
+# `props.log` ist, was der Agent gesagt hat. Ein Fehlschlag kommt vom
+# Controller; steht er darin, laesst sich die Ablage nicht mehr gegen ihre
+# Quelle halten — und genau das hat der Waechter bei seinem ersten Lauf ueber
+# beide Paare gemeldet.
+vorher_datei resources/js/Pages/Domains/Logs.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Logs.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<p v-if="props.error" class="notice critical">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<p v-if="props.log.error" class="notice critical">', 1))
+PY2
+griff_datei resources/js/Pages/Domains/Logs.vue "Fehlschlag in der Antwort" &&
+pruefe "Fehlschlag in der Antwort" \
+  LogFooterTest::test_the_page_reads_no_field_the_agent_does_not_send failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFooterTest passed
+
+
+echo
+echo "── LogFooterTest: der Knopf fragt ein Feld, aber das falsche ──"
+#
+# **Die Verschaerfung vom 14. September 2026, gegen den Fall gemessen, der sie
+# noetig gemacht hat.** Die erste Fassung verlangte nur, dass die Bedingung
+# ueberhaupt ein gesendetes Feld nennt — `props.result.read > 0` haette das
+# erfuellt und den Knopf wieder falsch stehen lassen.
+vorher_datei resources/js/Pages/Logs/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Logs/Index.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'v-if="props.result.truncated" type="button"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'v-if="props.result.read > 0" type="button"', 1))
+PY2
+griff_datei resources/js/Pages/Logs/Index.vue "Knopf am falschen Urteil" &&
+pruefe "Knopf am falschen Urteil" \
+  LogFooterTest::test_the_button_hangs_on_the_verdict_of_the_answer failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFooterTest passed
 
 
 echo

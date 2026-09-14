@@ -28158,3 +28158,163 @@ weitere an derselben Teilung hängt.
 
 > **Wer eine Zusage aus einem Fall herauslöst, sucht die Eingriffe, die diesen
 > Fall beim Namen nennen — nicht die, die seine Datei anfassen.**
+
+### Die Domainseite sagt jetzt auch, wie viel sie zeigt
+
+**Befund 14 an seinem zweiten Ort.** `docs/914` hat ihn für `/logs` gebaut und
+`docs/916` ihn abgenommen; `web.logs.tail` sendete `complete` und `capped`
+seitdem mit, und der `DomainController` warf beide weg — zusammen mit `size`.
+Die Protokollseite einer Domain sagte über ihren Umfang **gar nichts**:
+gemessen `grep -c 'gelesen wurden'`, `Logs/Index.vue` zwei Treffer,
+`Domains/Logs.vue` null.
+
+> **Eine Seite, die nichts über ihre Grenze sagt, lässt den Leser annehmen,
+> dass es keine gibt.**
+
+Die Fusszeile hat jetzt drei Zustände, und sie schliessen einander aus: „das ist
+die ganze Datei" · „die Datei ist länger" · „weiter zurück wurde nicht gelesen;
+das Fenster ist auch in Bytes begrenzt". Die Grösse der Datei steht neben dem
+Pfad. Der Plan ist `docs/919`, die Messrunde sein §1.
+
+**Der Knopf hängt an einer anderen Frage als auf `/logs`, und jeder Teil ist
+gemessen.** Dort lautet sie `truncated`; hier ist das Fenster **die Anfrage**
+und nicht eine feste Grösse, also `! complete && ! capped && lines < 500`. Der
+mittlere Teil ist der, den niemand vermuten würde: Greift der Bytedeckel,
+liefert eine grössere Anfrage byteweise dasselbe — 87 Zeilen bei `lines` 100,
+200 und 500, jedes Mal ab derselben Zeile.
+
+> **Ein Deckel, der greift, heisst nicht, dass weniger geliefert wurde — er
+> heisst, dass nicht weiter zurück gelesen wurde.**
+
+**`kind` ist aus der Antwort entfernt statt ausgenommen.** Es wurde
+zurückgespiegelt und von niemandem gelesen; der Umschalter nimmt seinen Wert aus
+`props.kind`. Dasselbe war `origin` bei `system.logs.tail`, und dort ist es aus
+demselben Grund entfernt worden. Und der Fehlschlag steht jetzt **neben** der
+Antwort statt darin: `props.log` ist, was der Agent gesagt hat.
+
+### `LogFooterTest` hält Paare statt eines Paares
+
+Er war grün, während derselbe Befund eine Seite weiter offenstand — er kannte
+`system.logs.tail` und `Logs/Index.vue` und sonst nichts.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+Drei Dinge daran sind beim Bauen gemessen worden und nicht überlegt:
+
+**Sein Ausdruck für „was sendet der Agent" las den ganzen Rumpf von
+`execute()`.** Für `SystemLogsTail` stimmte das Ergebnis, weil dort sonst nichts
+Ähnliches steht; für `WebLogsTail` fand er **elf** Felder statt sieben — die vier
+zuviel sind die Argumente von `Site::fromArgs()`. Gelesen werden jetzt die
+`return`-Blöcke, gezählt über die Klammertiefe.
+
+> **Ein Ausdruck, der über den ganzen Rumpf liest, misst die Rückgabe nur so
+> lange, wie der Rumpf sonst nichts Ähnliches enthält.**
+
+**Der Controller dazwischen war von keiner Regel erfasst — und dort ist der
+Befund entstanden.** Ein Wächter, der nur Agent und Seite gegeneinanderhält,
+sagt darüber nichts: Auf der Seite kommt das Feld gar nicht erst an. Die Regel
+lautet jetzt: Wer Felder einzeln nennt, nennt alle — wer keines nennt, reicht
+die Antwort im Ganzen durch. Beide Zweige werden gemessen, keiner übersprungen.
+
+> **Zwei Enden, die zusammenpassen, sagen über die Strecke dazwischen nichts.**
+
+**Und eine Regel fehlte, gefunden von einem Eingriff, der nicht biss.** Der
+`capped`-Zweig der Fusszeile durch `false` ersetzt liess den Wächter grün: Das
+Feld blieb im `computed` des Knopfes stehen, wurde also gelesen. Die Seite hätte
+den Knopf richtig versteckt und nie gesagt, warum. Gefragt wird deshalb der
+**Vorlagenblock** und nicht die Datei.
+
+> **Ein Eingriff, der nicht beisst, ist entweder schlecht gewählt — oder er
+> zeigt eine Regel, die es nicht gibt.**
+
+**Die Knopfregel ist dabei einmal zu weit geraten und nachgeschärft worden.**
+„Die Bedingung nennt irgendein gesendetes Feld" hätte `props.result.read > 0`
+erfüllt. Verlangt wird jetzt je Paar das **Urteil** — `truncated` dort,
+`complete` und `capped` hier —, und die Liste wird gegen die Operation gehalten,
+damit ein Tippfehler darin nicht stillschweigend nichts mehr prüft.
+
+Acht Eingriffe in `tests/waechter-brechen.sh`, jeder einzeln belegt; einer davon
+stellt den echten Befund nach und nimmt `complete` im Controller wieder heraus.
+
+### Die Nummernspalte kommt nicht auf die Domainseite
+
+**Entschieden am 14. September 2026 vom Betreiber:** Auf dieser Seite
+erschliesst sich ihr Sinn nicht. Das steht als Entscheidung in `docs/919 §15`
+und nicht als offene Frage — der Unterschied ist in diesem Repo mehrfach teuer
+gewesen.
+
+> **Ein Punkt, der als Frage offen steht, und einer, der als Entscheidung
+> geschlossen ist, sehen im Bestand gleich aus — der Unterschied steht nur
+> daneben.**
+
+**Gemessen wurde davor trotzdem, und ein Fund gilt über die Frage hinaus.**
+`complete` heisst nicht, dass die erste gezeigte Zeile die erste der Datei ist:
+Passt eine Datei in einen Block von 8192 Bytes, liest `WebLogsTail::tail()` sie
+ganz und gibt trotzdem nur die letzten `lines` Zeilen heraus. Gemessen an
+300 Zeilen à 20 B — `complete` wahr, hundert geliefert, und die oberste ist
+Zeile **201**. Eine Seite, die dort `i + 1` schriebe, druckte `1` und sähe dabei
+richtig aus.
+
+> **Eine Auskunft, die stimmt, trägt eine zweite nicht mit — `complete` sagt,
+> dass alles gelesen wurde, und nicht, dass alles gezeigt wird.**
+
+Daraus folgt auch, dass `docs/919 §3` die Frage nach `read` richtig, aber nicht
+erschöpfend beantwortet hat: Als **Anzeige** ist das Feld auf dieser Seite ein
+Blick in die Maschine, als **Grundlage** einer Zeilennummer wäre es notwendig.
+
+> **Ein Feld, das als Anzeige nichts sagt, kann als Grundlage einer anderen
+> Anzeige unentbehrlich sein.**
+
+Dazu die beiden Preise, die die Entscheidung mitgetragen haben: Der Rinnstein
+misst 59,3 px und nimmt bei 390 px **16,7 %** der Sichtbreite — 31 sichtbare
+Zeichen der Protokollzeile statt 37, bei 1440 px 140 statt 147. Und die
+Gestaltung liegt als 115 Zeilen `<style scoped>` in `Logs/Index.vue`; sie zu
+kopieren wäre die zweite Fassung derselben Regel gewesen.
+
+### Der Abnahmelauf für die Domain-Fusszeile steht
+
+`docs/920`, ausgeschrieben vor dem Fahren. **Neun Punkte, Punkt 3 und Punkt 7
+dürfen nicht ausfallen.**
+
+**Vier Kriterien aus `docs/919 §9` haben beim Ausschreiben ihre Fassung
+gewechselt, und keines hat der Prüfling zu verantworten.**
+
+Das teuerste hätte für einen Grund ausfallen können, der mit seinem Gegenstand
+nichts zu tun hat: „Der Kunde sieht dieselbe Fusszeile" ist nur messbar, wenn der
+Kunde die Seite erreicht — `DomainPolicy::viewLogs` verlangt von einem Nicht-Admin
+`Permission::FilesRead`, und ohne sie gibt es keinen anderen Text, sondern einen
+403. Die Bedingung wird jetzt vorher gemessen.
+
+> **Ein Kriterium, das an einer Vorbedingung scheitern kann, die es nicht nennt,
+> fällt für einen Grund aus, der mit seinem Gegenstand nichts zu tun hat.**
+
+Das zweite mass an einem Gegenstand, der sich beim Messen verändert: Ein
+Zugriffsprotokoll einer lebenden Domain wächst zwischen den beiden Messungen, und
+gerade der **Stillstand der letzten Zeile** ist die Hälfte des Belegs, dass der
+Knopf weiter zurückliest statt anzuhängen. Gefahren wird an einer Domain, die
+stillsteht — belegt mit `wc -l` und nicht geglaubt.
+
+Das dritte verlangte einen Zustand und sagte nicht, wie er entsteht. Hergestellt
+wird er über die echte Route: nginx schreibt `access_log` ohne Formatnamen, also
+`combined`, und das enthält `"$request"` vollständig — ein Aufruf mit langer
+Abfragezeichenkette erzeugt eine echte Zeile über der Schwelle. Ob sie ankam,
+wird gemessen, denn eine zu lange Anfragezeile kann nginx mit `414` abweisen.
+
+Das vierte war eine Zählung: `docs/919 §9` führt **sieben** Punkte, §13 sprach von
+„den acht Punkten aus §9" — beides in derselben Datei.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+**Zwei Punkte sind dazugekommen.** Der eine wiederholt M9 durch den ganzen Weg:
+Beim Bytedeckel `lines=500` von Hand in die Adresse getippt gibt dieselben
+Zeilen — damit ist die Abwesenheit des Knopfes eine Messung. Der andere prüft den
+Fall, dass der Agent nicht antwortet: `docs/919` hat die Meldung des Fehlschlags
+umgebaut, und kein Kriterium fasste sie an.
+
+> **Eine Änderung ohne Kriterium ist eine Änderung, die niemand nachsieht.**
+
+Er trägt ausserdem die Falle mit, die `docs/100 §9.10` gemessen hat: Wer den
+Agenten anhält, hält Worker und Metrik mit an — und ein `start` des Agenten
+allein holt sie **nicht** zurück. Zurück geht es über `srvpanel.target`.

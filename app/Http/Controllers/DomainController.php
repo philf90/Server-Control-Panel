@@ -343,7 +343,33 @@ final class DomainController extends Controller
 
         $subscription = $domain->subscription;
 
-        $result = ['lines' => [], 'exists' => false, 'error' => null, 'path' => null];
+        /*
+         * **Die Vorgaben fallen zur vorsichtigen Seite.** Antwortet der Agent
+         * nicht, sagt die Seite lieber „die Datei ist länger" als „das ist
+         * alles": Der erste Satz kostet einen Knopf, der nichts bewirkt, der
+         * zweite wäre eine Auskunft, die niemand gemessen hat.
+         */
+        $result = [
+            'lines' => [],
+            'exists' => false,
+            'path' => null,
+            'size' => 0,
+            'complete' => false,
+            'capped' => false,
+        ];
+
+        /*
+         * **Der Fehlschlag steht neben der Antwort und nicht in ihr.** Hier lag
+         * er bis zum 14. September 2026 als Feld in `$result`, und damit war
+         * `props.log` eine Mischung aus dem, was der Agent gesagt hat, und dem,
+         * was dieser Controller darüber denkt. `/logs` hält ihn seit jeher
+         * daneben; `LogFooterTest` hat den Unterschied beim ersten Lauf über
+         * beide Paare gemeldet.
+         *
+         * > **Eine Ablage, die zwei Herkünfte mischt, lässt sich nicht gegen
+         * > ihre Quelle halten.**
+         */
+        $error = null;
 
         try {
             $answer = $agent->call('web.logs.tail', [
@@ -357,8 +383,26 @@ final class DomainController extends Controller
             $result['lines'] = is_array($answer['lines'] ?? null) ? $answer['lines'] : [];
             $result['exists'] = ($answer['exists'] ?? false) === true;
             $result['path'] = is_string($answer['path'] ?? null) ? $answer['path'] : null;
-        } catch (AgentException $error) {
-            $result['error'] = $error->getMessage();
+            $result['size'] = (int) ($answer['size'] ?? 0);
+
+            /*
+             * **Drei Felder, die der Agent sendet und die hier bis zum
+             * 14. September 2026 gefallen sind.** `complete` und `capped` sind
+             * die beiden Gründe, aus denen ein Fenster unvollständig sein kann,
+             * und die Abhilfe für den einen lässt den anderen stehen.
+             *
+             * Ohne sie sagte diese Seite über ihren Umfang gar nichts — und der
+             * gedeckelte Fall sah Zeichen für Zeichen aus wie eine kurze Datei.
+             * Gemessen (`docs/919 §1`, M2): Bei 6000 Zeichen je Zeile kommen von
+             * hundert angefragten 87 an, bei 12 000 noch 43.
+             *
+             * > **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen
+             * > nicht von einem zu unterscheiden, das es nicht gibt.**
+             */
+            $result['complete'] = ($answer['complete'] ?? false) === true;
+            $result['capped'] = ($answer['capped'] ?? false) === true;
+        } catch (AgentException $failure) {
+            $error = $failure->getMessage();
         }
 
         return Inertia::render('Domains/Logs', [
@@ -366,6 +410,7 @@ final class DomainController extends Controller
             'kind' => $kind,
             'lines' => $lines,
             'log' => $result,
+            'error' => $error,
         ]);
     }
 

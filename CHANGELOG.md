@@ -28158,3 +28158,81 @@ weitere an derselben Teilung hängt.
 
 > **Wer eine Zusage aus einem Fall herauslöst, sucht die Eingriffe, die diesen
 > Fall beim Namen nennen — nicht die, die seine Datei anfassen.**
+
+### Die Domainseite sagt jetzt auch, wie viel sie zeigt
+
+**Befund 14 an seinem zweiten Ort.** `docs/914` hat ihn für `/logs` gebaut und
+`docs/916` ihn abgenommen; `web.logs.tail` sendete `complete` und `capped`
+seitdem mit, und der `DomainController` warf beide weg — zusammen mit `size`.
+Die Protokollseite einer Domain sagte über ihren Umfang **gar nichts**:
+gemessen `grep -c 'gelesen wurden'`, `Logs/Index.vue` zwei Treffer,
+`Domains/Logs.vue` null.
+
+> **Eine Seite, die nichts über ihre Grenze sagt, lässt den Leser annehmen,
+> dass es keine gibt.**
+
+Die Fusszeile hat jetzt drei Zustände, und sie schliessen einander aus: „das ist
+die ganze Datei" · „die Datei ist länger" · „weiter zurück wurde nicht gelesen;
+das Fenster ist auch in Bytes begrenzt". Die Grösse der Datei steht neben dem
+Pfad. Der Plan ist `docs/919`, die Messrunde sein §1.
+
+**Der Knopf hängt an einer anderen Frage als auf `/logs`, und jeder Teil ist
+gemessen.** Dort lautet sie `truncated`; hier ist das Fenster **die Anfrage**
+und nicht eine feste Grösse, also `! complete && ! capped && lines < 500`. Der
+mittlere Teil ist der, den niemand vermuten würde: Greift der Bytedeckel,
+liefert eine grössere Anfrage byteweise dasselbe — 87 Zeilen bei `lines` 100,
+200 und 500, jedes Mal ab derselben Zeile.
+
+> **Ein Deckel, der greift, heisst nicht, dass weniger geliefert wurde — er
+> heisst, dass nicht weiter zurück gelesen wurde.**
+
+**`kind` ist aus der Antwort entfernt statt ausgenommen.** Es wurde
+zurückgespiegelt und von niemandem gelesen; der Umschalter nimmt seinen Wert aus
+`props.kind`. Dasselbe war `origin` bei `system.logs.tail`, und dort ist es aus
+demselben Grund entfernt worden. Und der Fehlschlag steht jetzt **neben** der
+Antwort statt darin: `props.log` ist, was der Agent gesagt hat.
+
+### `LogFooterTest` hält Paare statt eines Paares
+
+Er war grün, während derselbe Befund eine Seite weiter offenstand — er kannte
+`system.logs.tail` und `Logs/Index.vue` und sonst nichts.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+Drei Dinge daran sind beim Bauen gemessen worden und nicht überlegt:
+
+**Sein Ausdruck für „was sendet der Agent" las den ganzen Rumpf von
+`execute()`.** Für `SystemLogsTail` stimmte das Ergebnis, weil dort sonst nichts
+Ähnliches steht; für `WebLogsTail` fand er **elf** Felder statt sieben — die vier
+zuviel sind die Argumente von `Site::fromArgs()`. Gelesen werden jetzt die
+`return`-Blöcke, gezählt über die Klammertiefe.
+
+> **Ein Ausdruck, der über den ganzen Rumpf liest, misst die Rückgabe nur so
+> lange, wie der Rumpf sonst nichts Ähnliches enthält.**
+
+**Der Controller dazwischen war von keiner Regel erfasst — und dort ist der
+Befund entstanden.** Ein Wächter, der nur Agent und Seite gegeneinanderhält,
+sagt darüber nichts: Auf der Seite kommt das Feld gar nicht erst an. Die Regel
+lautet jetzt: Wer Felder einzeln nennt, nennt alle — wer keines nennt, reicht
+die Antwort im Ganzen durch. Beide Zweige werden gemessen, keiner übersprungen.
+
+> **Zwei Enden, die zusammenpassen, sagen über die Strecke dazwischen nichts.**
+
+**Und eine Regel fehlte, gefunden von einem Eingriff, der nicht biss.** Der
+`capped`-Zweig der Fusszeile durch `false` ersetzt liess den Wächter grün: Das
+Feld blieb im `computed` des Knopfes stehen, wurde also gelesen. Die Seite hätte
+den Knopf richtig versteckt und nie gesagt, warum. Gefragt wird deshalb der
+**Vorlagenblock** und nicht die Datei.
+
+> **Ein Eingriff, der nicht beisst, ist entweder schlecht gewählt — oder er
+> zeigt eine Regel, die es nicht gibt.**
+
+**Die Knopfregel ist dabei einmal zu weit geraten und nachgeschärft worden.**
+„Die Bedingung nennt irgendein gesendetes Feld" hätte `props.result.read > 0`
+erfüllt. Verlangt wird jetzt je Paar das **Urteil** — `truncated` dort,
+`complete` und `capped` hier —, und die Liste wird gegen die Operation gehalten,
+damit ein Tippfehler darin nicht stillschweigend nichts mehr prüft.
+
+Acht Eingriffe in `tests/waechter-brechen.sh`, jeder einzeln belegt; einer davon
+stellt den echten Befund nach und nimmt `complete` im Controller wieder heraus.

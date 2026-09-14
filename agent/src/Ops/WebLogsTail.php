@@ -62,23 +62,33 @@ final class WebLogsTail implements Op
             // Kein Protokoll ist kein Fehler: Eine Domain, die noch niemand
             // aufgerufen hat, hat keines. Eine Ausnahme hier führte im Panel
             // zu einer roten Meldung für den Normalfall am ersten Tag.
-            return ['path' => $path, 'kind' => $kind, 'lines' => [], 'exists' => false, 'size' => 0];
+            return ['path' => $path, 'lines' => [], 'exists' => false, 'size' => 0];
         }
 
         $found = self::tail($path, $lines);
 
+        /*
+         * **`kind` steht hier nicht mehr.** Es wurde zurückgespiegelt und von
+         * niemandem gelesen: Der Umschalter der Seite nimmt seinen Wert aus
+         * `props.kind`, das der Controller selbst setzt. Dasselbe galt für
+         * `origin` bei `system.logs.tail`, und dort ist es aus demselben Grund
+         * entfernt worden statt in einer Ausnahmeliste zu landen
+         * (`docs/914 §12`, Fund 3) — eine Ausnahme deckt den Befund zu, den der
+         * Wächter darüber machen soll.
+         *
+         * > **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen
+         * > nicht von einem zu unterscheiden, das es nicht gibt.**
+         */
         return [
             'path' => $path,
-            'kind' => $kind,
             'lines' => $found['lines'],
             'exists' => true,
             'size' => (int) filesize($path),
 
-            // **Mitgesendet, auch wenn die Domainseite sie heute nicht
-            // zeigt.** Sie kosten nichts, und ein Feld, das es gibt, ist von
-            // einem, das erst erfunden werden muss, dadurch unterschieden,
-            // dass jemand es lesen kann. Was die Domainseite daraus macht,
-            // steht in `docs/914 §12`.
+            // **Die beiden Gründe, aus denen ein Fenster unvollständig sein
+            // kann.** Sie wurden ab `docs/914` gesendet und bis zum
+            // 14. September 2026 vom Controller weggeworfen; seit `docs/919`
+            // baut die Domainseite ihre Fusszeile und ihren Knopf daraus.
             'complete' => $found['complete'],
             'capped' => $found['capped'],
         ];

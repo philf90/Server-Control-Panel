@@ -181,7 +181,7 @@ bis 36. `oldest erste` ist Zeile 17 der Anzeige, `oldest letzte` Zeile 36.
 **Beide Ausschlusskriterien stehen.** Was bleibt, sind die zwei Punkte, die eine
 Konsole brauchen.
 
-## §8 Punkt 5 — die Tönung *(erfüllt in der Zahl)*
+## §8 Punkt 5 — die Tönung *(erfüllt)*
 
 Vier Lagen, gemessen mit `getComputedStyle` an der Nummernspalte und am Rahmen
 daneben:
@@ -207,6 +207,16 @@ fehlt.
 
 Das Skript hat das Thema danach zurückgestellt — gemessen wurde, ohne den
 Zustand des Betreibers zu verändern.
+
+**Und die zweite Hälfte ist beantwortet, von der einzigen Instanz, die sie
+beantworten kann.** Die Zahl sagt, dass zwei Flächen verschieden sind; ob man
+sie auseinanderhält, sagt sie nicht — 1,11:1 im hellen Thema ist gerechnet, und
+über einen Bildschirm sagt eine Rechnung nichts. Der Betreiber hat am
+14. September am Gerät nachgesehen: **die Spalte ist im hellen Thema als eigener
+Bereich erkennbar.**
+
+> **Eine Zahl über zwei Farben sagt, dass sie verschieden sind — nicht, dass
+> jemand sie unterscheidet. Das beantwortet nur ein Betrachter.**
 
 ## §9 Punkt 6 — die Klebeprobe *(erfüllt)*
 

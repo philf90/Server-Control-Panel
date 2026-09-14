@@ -154,6 +154,29 @@ final class WebLogsTail implements Op
         }
 
         $all = explode("\n", rtrim($text, "\n"));
+        $capped = $position > 0 && strlen($text) >= self::MAX_BYTES;
+
+        /*
+         * **Beim Bytedeckel wird die erste Zeile weggeworfen, und das ist kein
+         * Datenverlust.** Sie ist keine Zeile: Der Leser fängt mitten in einer
+         * an, und `explode` macht daraus einen ersten Eintrag ohne Anfang.
+         *
+         * Der Kommentar an der Schleife sagt die Absicht seit jeher — *„die
+         * gehört nicht angeschnitten zurückgegeben"* —, und sein Schutz ist
+         * `substr_count($text, "\n") > $count`: ein Umbruch mehr als
+         * gewünscht, damit `array_slice` das Bruchstück abschneidet. Diese
+         * Bedingung greift beim Bytedeckel **nie**.
+         *
+         * > **Ein Schutz, der an einer von drei Abbruchbedingungen hängt,
+         * > schützt die beiden anderen nicht — und welche greift, entscheidet
+         * > der Inhalt der Datei.**
+         *
+         * Gefunden am 13. September 2026 auf `cloudsrv24` (`docs/916 §3`): Die
+         * oberste Zeile trug kein `[2026-…]`, sondern nur `xxxx…`.
+         */
+        if ($capped && count($all) > 1) {
+            array_shift($all);
+        }
 
         return [
             'lines' => array_values(array_slice($all, -$count)),
@@ -163,7 +186,7 @@ final class WebLogsTail implements Op
             // die Schleife am Anfang der Datei und ist der Text zufällig
             // genau so gross, wäre `capped` sonst wahr für eine vollständig
             // gelesene Datei.
-            'capped' => $position > 0 && strlen($text) >= self::MAX_BYTES,
+            'capped' => $capped,
         ];
     }
 

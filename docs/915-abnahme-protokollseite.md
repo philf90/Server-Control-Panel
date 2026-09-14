@@ -42,12 +42,23 @@ eine Behauptung, die auch im heilen Fall rot ist (`docs/913 §1`).
 ```bash
 srvpanel version
 /opt/srvpanel/current/agent/bin/srvpanel-agentd call system.logs.tail \
-  '{"source":"agent","lines":5}' | head -20
+  '{"source":"agent","lines":5}' \
+  | grep -E '"(read|complete|capped|matched|truncated|window|origin)"'
 ```
 
-**Erwartet:** Die Antwort trägt `read`, `complete`, `capped` und `offsets` —
-und **kein** `window` und **kein** `origin`. Fehlt eines davon, ist die falsche
-Fassung installiert, und der Lauf hört hier auf.
+**Erwartet:** Fünf Zeilen — `read`, `complete`, `capped`, `matched`,
+`truncated`. **Kein** `window` und **kein** `origin`; dass die fünf anderen
+dastehen, ist der Beleg, dass der Ausdruck greift. Fehlt eines der fünf, ist
+die falsche Fassung installiert, und der Lauf hört hier auf.
+
+**Hier stand `| head -20`, und das war die Hälfte einer Messung.** Die Antwort
+ist hübsch gedruckt; zwanzig Zeilen enden genau hinter `offsets`, also
+unmittelbar **vor** den drei Feldern, nach denen der Punkt fragt. Gefahren am
+13. September 2026 auf `cloudsrv24` belegte er `offsets` und die Abwesenheit
+von `origin` — und über `read`, `complete`, `capped` und `window` nichts.
+
+> **Ein Griff, der genau vor dem Feld abschneidet, nach dem er fragt, misst die
+> Hälfte — und die andere sieht aus, als wäre sie geprüft.**
 
 Wenn der Agent nicht antwortet, ersatzweise am Quelltext der installierten
 Fassung — gemessen am Arbeitsbaum sind es **vier** beziehungsweise **drei**
@@ -196,28 +207,29 @@ geladene Seite**, dann `bilderMessen()`.
 
 **Erwartet:** `dokument=0`, `gegenprobe=200 (soll 200)`, `schiebt=0`.
 
-Dazu die Klebeprobe, im selben Seitenaufbau:
+Dazu die Klebeprobe: **`tests/kleben-messen.js`** einfügen, dann
+`klebenMessen()` — in einer **eigenen** frisch geladenen Seite, denn sie lässt
+die Seite gerollt stehen.
 
-```js
-(() => {
-  const rahmen = document.querySelector('.log')
-  const nummer = document.querySelector('.log-number')
-  const links = () => Math.round(nummer.getBoundingClientRect().left - rahmen.getBoundingClientRect().left)
-  const vorher = links()
-  rahmen.scrollLeft = Math.max(1, rahmen.scrollWidth - rahmen.clientWidth)
-  const nachher = links()
-  return { rollweg: rahmen.scrollWidth - rahmen.clientWidth, vorher, nachher }
-})()
-```
+**Erwartet:** `klebt=true` bei einem **Rollweg über 0** (ohne ihn ist das
+Kleben trivial wahr), `deckt=true`, `imStreifen=[—]` und `misst=true`.
 
-**Erwartet:** `vorher === nachher`, und ein **Rollweg über 0** — ohne ihn ist
-die Gleichheit trivial wahr. Gemessen im Container: `17 -> 17` bei Rollwegen
-bis 31 433 px.
+**Die erste Fassung dieser Probe stand hier inline und hat Befund 3 nicht
+gesehen.** Sie fragte nur, ob die Nummer stehenbleibt — gemessen `17 → 17`, und
+das stimmte —, nicht, ob links neben ihr etwas durchscheint.
+
+> **Eine Probe, die fragt, ob ein Element stehenbleibt, fragt nicht, ob daneben
+> etwas durchscheint.**
+
+Die Fassung im Repo ist am 13. September in **vier** Richtungen gemessen: wie
+gebaut meldet sie `deckt=false` mit `log-text` im Streifen, mit der Behebung
+`deckt=true` und einen leeren Streifen, bei unsichtbarem Text `misst=false`
+samt Warnung, und ein zweiter Aufruf ohne Neuladen wirft.
 
 ## §9 Punkt 7 — das Kopieren nimmt die Nummer nicht mit
 
 Von Hand, und **mit der Maus**: drei Zeilen im Protokoll überstreichen,
-kopieren, in das Filterfeld einfügen und wieder löschen.
+kopieren und den Inhalt der Zwischenablage ansehen.
 
 **Erwartet:** Der eingefügte Text trägt die Protokollzeilen und **keine
 Nummer**.
@@ -225,6 +237,21 @@ Nummer**.
 **Ein programmatischer `Range` taugt dafür nicht** — er nimmt den Text eines
 `user-select: none` mit, und ein Mensch tut etwas anderes. Genau das hat die
 Bilderrunde einen Fehlversuch gekostet (`docs/914 §13`).
+
+**Und das Filterfeld ist der falsche Ort — das ist Befund 6 aus `docs/916
+§14`.** Der erste Wurf dieses Punktes sagte „in das Filterfeld einfügen": Der
+Agent begrenzt den Filter auf **200 Zeichen** (`SystemLogsTail::filter()`,
+gemessen), drei Protokollzeilen sind länger, und die Seite filtert dann nichts.
+Der Punkt war am 13. September 2026 trotzdem entscheidbar, weil der eingefügte
+Text sichtbar stehenbleibt — aber das war Glück und nicht Entwurf.
+
+> **Ein Prüfkörper, der den kopierten Text in ein Feld mit einer Längengrenze
+> einfügt, prüft die Grenze und nicht den Text.**
+
+Eingefügt wird deshalb dorthin, wo nichts abgeschnitten wird: ein Textfeld
+ausserhalb des Panels, ein Editor, oder die Zwischenablage selbst
+(`navigator.clipboard.readText()` in der Konsole — sie fragt beim ersten Mal
+nach Erlaubnis).
 
 ## §10 Punkt 8 — beide Themen, beide Breiten
 

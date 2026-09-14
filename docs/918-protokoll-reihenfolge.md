@@ -63,3 +63,55 @@ wachsenden Protokoll lässt er sich nicht ablesen.
 
 Gemessen wird er von **Punkt 4b**: Der holt beide Reihenfolgen in einem Zug und
 vergleicht erste gegen letzte Zeile — dasselbe Fenster, dieselbe Sekunde.
+
+## §3 Punkt 3 — die Adresse trägt sie *(erfüllt)*
+
+| | gemessen |
+|---|---|
+| nach dem Umschalten | `…/logs?filter=&lines=200&order=newest&source=agent` |
+| Neuladen mit dieser Adresse | zeigt „Neueste zuerst", `↑1` oben |
+| Gegenprobe `order=quatsch` | Auswahl steht auf **„Älteste zuerst"**, Nummern `↑200` abwärts |
+| Fehlermeldung dabei | **keine** |
+
+Der unbekannte Wert fällt also auf die Vorgabe zurück, statt die Seite
+aufzuhalten. Das ist der Entwurf aus §3.3: Eine Ansicht ist keine Eingabe, die
+man berichtigen muss.
+
+## §4 Punkt 4a — der Knopf *(erfüllt in der Sache)*
+
+Bei „Neueste zuerst" gedrückt. Die Datei heisst
+`srvpanel-agent-20260914-120312.log` und läuft von `12:03:12Z` abwärts bis
+`12:01:29Z` — **absteigend**, also in der Reihenfolge der Anzeige.
+
+**Die Zeile für Zeile gleiche Deckung mit der Seite gibt es an dieser Quelle
+nicht, und das ist kein Mangel des Prüflings.** Die Seite zeigte oben
+`12:03:10Z`, die Datei beginnt bei `12:03:12Z` — dazwischen liegen genau die
+beiden Zeilen, die das **Sichern selbst** erzeugt hat: `system.logs.tail` und
+`system.logs.list`.
+
+> **Ein Protokoll, das der Prüfling selbst beschreibt, verändert sich durch das
+> Messen — und die gesicherte Datei kann der Anzeige dann nie Zeile für Zeile
+> gleichen.**
+
+`docs/917 §6` Punkt 4 nennt seitdem eine Quelle, die während der Messung nicht
+wächst.
+
+### Und meine eigene Berichtigung von heute früh war falsch
+
+Vor dem Lauf hatte ich Punkt 4 geteilt mit der Begründung, zwei Sicherungen
+derselben Quelle trügen denselben Dateinamen und der Browser hänge dem zweiten
+ein `(1)` an. Der Dateiname aus dieser Messung widerlegt das:
+`filename()` hängt `Ymd-His` an, zwei Sicherungen kollidieren also nur innerhalb
+derselben Sekunde. Gelesen hatte ich den Aufruf `$this->filename($data['source'])`
+und nicht die Methode dahinter.
+
+> **Ein Wert, den nur der Aufruf nennt, ist eine Vermutung, bis jemand die
+> Methode dahinter liest.**
+
+Die Teilung bleibt trotzdem richtig — nur aus dem anderen Grund, der in §4
+darüber steht. **Und der ist der teurere:** An `agent` hätte Punkt 4b gemeldet,
+die Nummern tauschten **nicht**, weil zwischen den beiden Abrufen Zeilen
+dazukommen. Das wäre ein Befund am Prüfling gewesen, den es nicht gibt.
+
+> **Ein Prüfkörper, der seinen Gegenstand beim Messen verändert, meldet den
+> Unterschied als Fehler des Gemessenen.**

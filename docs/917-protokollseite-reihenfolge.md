@@ -227,26 +227,38 @@ dürfen nicht ausfallen.**
    `?order=quatsch` von Hand — die Seite zeigt „Älteste zuerst" und keine
    Fehlermeldung.
 
-4. **Der Knopf sichert das Angezeigte.** *(Ausschlusskriterium)* Zwei Hälften,
-   und die Trennung ist Absicht:
+4. **Der Knopf sichert das Angezeigte.** *(Ausschlusskriterium)* Gefahren wird
+   er an einer Quelle, die **während der Messung nicht wächst** — also nicht an
+   `agent`, sondern zum Beispiel an `panel-update`.
+
+   **Warum das tragend ist.** Die Sicherung ist eine **neue** Anfrage: Sie liest
+   die Datei ein zweites Mal. Bei `agent` schreibt das Panel dabei selbst
+   hinein — jeder Seitenaufruf und jede Sicherung hinterlassen dort ihre
+   `system.logs.tail`-Zeile. Das Fenster ist also ein anderes als das auf der
+   Seite, und zwar um genau die Zeilen, die das Messen erzeugt hat.
+
+   > **Ein Protokoll, das der Prüfling selbst beschreibt, verändert sich durch
+   > das Messen — und die gesicherte Datei kann der Anzeige dann nie Zeile für
+   > Zeile gleichen.**
 
    **a) Der Knopf selbst.** Bei „Neueste zuerst" einmal auf „Angezeigtes
-   sichern" drücken. Erwartet: Eine Datei kommt an, und ihre erste Zeile ist
-   die, die auf der Seite oben stand.
+   sichern". Erwartet: Die erste Zeile der Datei ist die, die auf der Seite oben
+   stand.
 
-   **b) Der Vergleich beider Reihenfolgen** — in der Konsole, weil zwei
-   Downloads derselben Quelle denselben Dateinamen tragen und der Browser den
-   zweiten umbenennt. Welche Datei welche ist, entscheidet dann die Reihenfolge
-   des Herunterladens und nicht der Inhalt.
-
-   > **Zwei Prüfkörper, die gleich heissen, unterscheidet nur noch die
-   > Erinnerung daran, welcher zuerst kam.**
-
-   Gefahren wird der Vergleich über **dieselbe Route** und dieselbe Sitzung,
-   also über den Weg, den auch der Knopf nimmt — was er nicht mitprüft, ist das
-   Anklicken, und dafür gibt es (a).
+   **b) Der Vergleich beider Reihenfolgen**, in der Konsole und in einem Zug:
+   Die erste Zeile von `oldest` ist die letzte von `newest` und umgekehrt. Zwei
+   Aufrufe nacheinander sind dafür eng genug — an einer wachsenden Quelle wären
+   sie es nicht, und der Punkt meldete einen Befund am Prüfling, der keiner ist.
 
    Verglichen wird die **erste Zeile beider Antworten**, nicht ihre Länge.
+
+   *Beim Ausschreiben stand hier zuerst ein anderer Grund für die Konsole: zwei
+   Sicherungen derselben Quelle trügen denselben Dateinamen. Das ist falsch —
+   `filename()` hängt `Ymd-His` an, zwei Sicherungen kollidieren also nur
+   innerhalb derselben Sekunde. Gelesen war der Aufruf, nicht die Methode.*
+
+   > **Ein Wert, den nur der Aufruf nennt, ist eine Vermutung, bis jemand die
+   > Methode dahinter liest.**
 
 5. **Die Tönung, gemessen und nicht angesehen.** In beiden Themen bei 1440 px
    und 390 px: `getComputedStyle` der Nummernspalte und des Rahmens daneben

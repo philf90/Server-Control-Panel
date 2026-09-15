@@ -87,6 +87,12 @@ final class ChangelogTest extends TestCase
             .'bündig anfängt, und prüft alle Paare daraus. Der alte Name bleibt in CHANGELOG.md und '
             .'docs/46 stehen, weil dort die Geschichte der vier Fälle erzählt wird.',
 
+        'StewardSkillTest' => 'Am 15. September 2026 mit dem Skill entfernt, den er gehalten hat '
+            .'(gebaut in PR #245, zurückgebaut am selben Abend auf Entscheidung des Betreibers). '
+            .'Er hielt die Naht zwischen dem Skill und den beiden Workflows in beide Richtungen; '
+            .'ohne seinen Gegenstand hat die Regel keinen Ort mehr. Der Name bleibt im CHANGELOG '
+            .'stehen, weil dort steht, was es gab und warum es fort ist.',
+
         'SecretsStayOutOfTheStoreTest' => 'Beim Bauen in SecretsStayOutOfTheQueueTest aufgegangen '
             .'(P5): Die Regel lebt dort als test_the_database_tables_have_no_place_for_a_secret(). '
             .'Der Name blieb in einem Kommentar der Migration und im Plan stehen und zeigte ins '

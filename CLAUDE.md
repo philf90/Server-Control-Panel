@@ -4303,60 +4303,78 @@ weil er ein `continue` trug.
 
 ---
 
-## Ein Skill für die Betreuung offener Pull Requests — 15. September 2026
+## Ein Skill für die PR-Betreuung — gebaut und am selben Tag zurückgebaut
 
-**`.claude/skills/steward/SKILL.md` ist der erste Skill dieses Repos.** Eine
-Sitzung liest ihn bei jedem CI-Ereignis auf einem offenen Pull Request vom Kopf
-des Zweiges; von Hand holt ihn `/steward`. Er setzt Konventionen und
-Proaktivität und kann keine der harten Grenzen aufheben — kein Merge, keine
-Freigabe, kein übersprungener Test.
+**Es gab ihn am 15. September 2026, einen Nachmittag lang.**
+Ein Skill unter `.claude/skills/`, sein Wächter und sechs Eingriffe (PR #245),
+dazu ein eigenes Dokument über die Zeitgrenze des Wächterlaufs (PR #246).
+Beides ist am selben Abend auf Entscheidung des Betreibers wieder entfernt
+worden; im Arbeitsbaum steht nichts mehr davon. Wer nachsehen will, findet den
+Wortlaut in den beiden Pull Requests — **die Dokumentnummer von damals ist
+wieder frei** und gehört nicht zitiert, als läge dort noch etwas.
 
-**Er ist eine Korrektur und keine Anleitung.** Die allgemeinen Regeln über Pull
-Requests beschreiben menschliche Rezensenten, Review-Threads und eine
-Freigabeprüfung; gemessen am 15. September hat dieses Repo davon nichts — keiner
-der letzten zwölf PRs trug einen angeforderten Rezensenten, ein Label oder einen
-Review-Kommentar, und alle 49 gingen von einem `claude/…`-Zweig an denselben
-Leser, der sie selbst mergt.
+> **Eine Zeile, die eine Abwesenheit behauptet, lässt den Nächsten dasselbe noch
+> einmal bauen.** Deshalb steht dieser Absatz da und nicht nichts — sonst ist
+> von aussen nicht zu unterscheiden, ob es den Skill nie gab oder ob er
+> abgelehnt wurde.
 
-> **Eine Regel, die einen Vorgang beschreibt, den es nicht gibt, wird nicht
-> falsch angewandt — sie wird auf etwas anderes angewandt.**
+**Was bleibt, sind die Messungen** — sie hingen nicht am Skill, und eine von
+ihnen trägt eine Zeile, die im Repo steht.
 
-**Der Taktgeber ist `waechter.yml` und nicht `ci.yml`** — an Pull Requests
-gemessen 23,2 Minuten im Median gegen 3,0. Der PR, der den Skill gebracht hat,
-hat das an sich selbst belegt: Die CI war um 14:10:44 durch, der Wächterlauf um
-14:29:12.
+**Der Wächterlauf ist der Taktgeber jedes Pull Requests**, nicht `ci.yml`: an
+Pull Requests gemessen 23,2 Minuten im Median gegen 3,0. Über alle 50 Läufe mit
+Ergebnis seit dem 31. August sind es **22,5 Minuten**, der kürzeste 13,0, der
+längste **28,0** — und die beiden Zahlen sind kein Widerspruch, sondern zwei
+Grundgesamtheiten.
 
-`StewardSkillTest` hält die Naht in **beide** Richtungen: Jeder Job und jeder
-Schritt, den der Skill nennt, steht in einem der beiden Workflows, und jeder Job
-der beiden steht im Skill. Sechs Eingriffe belegen ihn, darunter der Fall, für
-den es ihn gibt — eine Umbenennung in `ci.yml` macht beide Richtungen rot. Der
-Anlass steht in dieser Datei: Sie nennt `shellcheck -e SC1091 packaging/bin/*`
-als „wörtlich in `ci.yml` und einmal Kopieren", und dort stehen **fünf**
-Aufrufe; der genannte deckt acht Skripte nicht ab.
+> **Zwei Messungen derselben Grösse über verschiedene Grundgesamtheiten sind
+> kein Widerspruch — bis jemand eine davon ohne ihre Grundgesamtheit
+> weiterschreibt.**
 
-> **Ein Befehl, den ein zweites Dokument nacherzählt, ist eine zweite Fassung —
-> und die zweite ist die, die veraltet.**
+**Die Zeitgrenze steht seitdem auf sechzig Minuten und bleibt es.** Der
+Kommentar in `waechter.yml` trägt die Rechnung selbst: Was skaliert, ist der
+Testlauf und nicht der Eingriff (0,45 s im August, 0,68 s im langsamsten
+gemessenen Lauf), und gegen den langsamsten Wert gerechnet trug die alte Grenze
+von dreissig noch **vier Tage**. Dass die Grenze drängte, lag nicht an der
+verlorenen Zeit: **Ein abgeschnittener Lauf liest sich als roter**, und der
+Nächste sucht dann am Skript statt an der Grenze.
 
-**`.claude/` steht seitdem in `$BAEUME`**, sonst holte `wiederherstellen` keinen
-der sechs Eingriffe zurück.
+**Und die Eingriffszahl war um eins zu hoch**, weil die Messvorschrift ihren
+eigenen Zähler mitzählte: `grep -c 'vorher_datei'` trifft auch die Zeile, die
+die Funktion *definiert*. Keine Folgerung hat sich dadurch geändert — der
+Zuwachs blieb derselbe, das Verhältnis 1,85 Testläufe je Eingriff auch.
 
-**Und ein Befund fiel dabei nebenbei an, der nicht zum Skill gehört:
-`docs/922`.** Der Kommentar über `timeout-minutes: 30` in `waechter.yml`
-begründet die Grenze mit „376 Eingriffe, gemessen 4:40 … das Sechsfache" —
-gemessen sind es **1342 Eingriffe und ein Median von 22,5 Minuten** über alle
-50 Läufe mit Ergebnis. Die naheliegende Hochrechnung daraus ist widerlegt, und
-zwar gemessen: Drei Läufe über denselben Stand mit 1328 Eingriffen brauchten
-28,0, 27,3 und 18,1 Minuten.
+> **Eine Zählung über den Namen einer Funktion zählt ihre Definition mit — und
+> die sieht im Text genauso aus wie ein Aufruf.**
 
-> **Zwei Läufe desselben Prüfmittels über denselben Stand, die um achtzig
-> Prozent auseinanderliegen, messen etwas, das nicht im Prüfling steht.**
+> **Ein systematischer Versatz verschwindet aus jeder Differenz — und die
+> Differenzen sind es, die man nachrechnet.**
 
-Was die Laufzeit *kurzfristig* treibt, ist ungemessen; über einen Monat skaliert
-sie mit der Zahl der Testläufe (`docs/922 §5`), und daraus ist die Grenze am
-15. September von dreissig auf **sechzig Minuten** gesetzt worden — die alte
-trug gerechnet noch vier Tage. `§6` sagt, was zu messen bleibt, `§7`, was
-entschieden ist und was nicht. Ein abgeschnittener Lauf sieht dabei aus wie ein
-roter — das ist der Grund, dass die Frage drängte.
+**Die Teilung des Wächterlaufs auf parallele Jobs ist gemessen und nicht
+entschieden.** Derselbe Stand einmal ganz und einmal in vier Teilen gefahren
+(1341 Eingriffe, 2479 Prüfungen): **die Befundlisten Zeile für Zeile gleich**,
+nicht nur als Menge. Damit trägt der Satz *„Ein Eingriff, der einzeln beisst,
+beisst nicht unbedingt im Lauf"* gegen eine **zusammenhängende** Teilung nicht
+mehr; gegen eine, die die Reihenfolge umstellt, sagt die Messung nichts. Der
+Nebenbefund wiegt dabei mehr: Nach den 990 Abschnittsüberschriften geteilt
+ergeben sich 421, 423, 560 und **1075** Prüfungen — das letzte Viertel trägt
+43 % der Arbeit, und die Wanduhr vier paralleler Jobs ist die des längsten.
+
+> **Eine Teilung, die die Abschnitte zählt statt der Arbeit, ist gleichmässig in
+> einer Grösse, auf die es nicht ankommt.**
+
+**Und der Rückbau selbst hat eine Falle gefunden.** `.claude/` stand für den
+Skill in `$BAEUME`. Löscht man die einzige Datei darunter und lässt den Eintrag
+stehen, fällt `git checkout -- $BAEUME` mit `pathspec … did not match` aus und
+stellt **keinen** der übrigen zwölf Bäume wieder her — gemessen in einem
+Wegwerf-Repo, und `wiederherstellen()` schluckt den Fehler mit `2>/dev/null`.
+Die Sauberkeitsprüfung daneben sieht ihn nicht: `git status --porcelain` gibt
+für einen toten Pfad rc=0 und keine Ausgabe.
+
+> **Ein toter Pfad in dieser Liste schaltet den Rückweg des ganzen Bruchskripts
+> still ab.** Das ist „Ein Rückweg, der stillschweigend nichts tut, ist
+> schlimmer als keiner" an einem neuen Ort — und es wäre der teuerste Rest
+> dieses Rückbaus gewesen.
 
 ---
 

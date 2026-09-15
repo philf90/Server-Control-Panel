@@ -28368,62 +28368,66 @@ Prüfstand.
 > **Ein Rückgabewert von 200 sagt, dass jemand geantwortet hat — nicht, dass der
 > Gemeinte geantwortet hat.**
 
-### Ein Skill für die Betreuung offener Pull Requests
+### Ein Skill für die PR-Betreuung, gebaut und wieder zurückgebaut
 
-**Der Anlass ist eine Lücke, die niemandem auffällt, solange die CI grün ist.**
-Bei einem CI-Ereignis auf einem offenen Pull Request liest eine Sitzung
-`.claude/skills/steward/SKILL.md`, wenn es sie gibt — sonst gelten die
-allgemeinen Regeln. Die beschreiben menschliche Rezensenten, Review-Threads und
-eine Freigabeprüfung; **gemessen am 15. September 2026 hat dieses Repo von
-alldem nichts.** Keiner der letzten zwölf PRs trug einen angeforderten
-Rezensenten, ein Label oder einen Review-Kommentar, und alle 49 gingen von einem
-`claude/…`-Zweig an denselben Leser, der sie selbst mergt.
+**Er hat einen Nachmittag lang gelebt.** Am 15. September 2026 entstand ein
+Skill unter `.claude/skills/`, der einer Sitzung bei jedem CI-Ereignis auf einem
+offenen Pull Request sagt, was in diesem Repo von den allgemeinen PR-Regeln
+trägt; dazu sein Wächter, sechs Eingriffe im Bruchskript und ein eigenes
+Dokument über die Zeitgrenze des Wächterlaufs. Am selben Abend hat der Betreiber
+entschieden, beides wieder zu entfernen. Dieser Eintrag ersetzt den alten, weil
+der einen Zustand beschrieb, den es nicht mehr gibt.
 
-> **Eine Regel, die einen Vorgang beschreibt, den es nicht gibt, wird nicht
-> falsch angewandt — sie wird auf etwas anderes angewandt.**
+> **Löschen und Vergessen sind zwei Dinge.** Der Satz steht seit `docs/35` in
+> diesem Repo und galt für Abonnements. Er gilt für ein zurückgebautes Merkmal
+> genauso: Die Dateien dürfen verschwinden, die Messungen nicht.
 
-**Die Zahl, die den Skill trägt, ist der Taktgeber.** `ci.yml` ist im Median
-**3,0 Minuten** durch, `waechter.yml` braucht **23,2** und im schlechtesten
-gemessenen Lauf **28,0**. Wer nach der grünen CI „grün" meldet, hat die Hälfte
-der Prüfung nicht gesehen — und zwar die Hälfte, die prüft, ob die Wächter
-dieses Repos überhaupt beissen. Der Skill schreibt deshalb vor, beide Läufe
-abzuwarten; gemessen an den letzten zehn PRs wartet der Betreiber ohnehin, und
-bei zweien lagen zwischen dem Ende des Wächterlaufs und dem Merge unter zwei
-Minuten.
+**Was bleibt, ist die Zeitgrenze des Wächterlaufs — sechzig Minuten statt
+dreissig.** Der Kommentar in `.github/workflows/waechter.yml` trägt die Rechnung
+seitdem selbst, und sie ist gerechnet und nicht gegriffen: Was skaliert, ist der
+**Testlauf** und nicht der Eingriff — 0,45 s im August, 0,52 s im Median,
+**0,68 s im langsamsten** gemessenen Lauf. Gegen den langsamsten Wert gerechnet
+trug die alte Grenze noch **vier Tage**, die neue rund zwei Monate.
 
-**Acht von sechzig CI-Läufen an Pull Requests waren rot, und jeder davon in
-unter 3,5 Minuten** — die schnellen Jobs fallen zuerst, und das sind genau die,
-die auch vor dem Push messbar sind. Der Skill ordnet deshalb **jeden** Job der
-beiden Workflows ein: entweder in die Naht-Tabelle mit dem Griff, der ihn lokal
-beantwortet, oder in die Liste dessen, was nur die CI sagen kann — Paketbau,
-systemd, und alles, was gegen MariaDB statt SQLite läuft.
+**Hier stand vorher „376 Eingriffe, gemessen 4:40, dreissig ist das
+Sechsfache".** Beide Zahlen waren vom 14. August und nie nachgezogen worden; aus
+dem Sechsfachen war unbemerkt das **1,07-fache des längsten Laufs** geworden.
 
-**`StewardSkillTest` hält die Naht, und zwar in beide Richtungen.** Jeder Job
-und jeder Schritt, den der Skill nennt, steht in `ci.yml` oder `waechter.yml`;
-und jeder Job der beiden steht im Skill. Die erste Richtung allein liesse bei
-einer Umbenennung den alten Namen liegen, die zweite allein einen neuen Job
-unerwähnt. Dazu: jeder genannte Pfad existiert, und das Frontmatter trägt seinen
-Namen. Sechs Eingriffe in `tests/waechter-brechen.sh` belegen es, darunter der
-Fall, für den der Wächter gebaut ist — ein Job wird in `ci.yml` umbenannt, und
-**beide** Richtungen werden rot.
+> **Eine Zahl im Kommentar altert mit dem Code, den sie zählt, und nichts meldet
+> es.**
 
-**Der Anlass für den Wächter steht in `CLAUDE.md` selbst.** Dort ist
-`shellcheck -e SC1091 packaging/bin/*` als „wörtlich in `ci.yml` und einmal
-Kopieren" vermerkt — in `ci.yml` stehen **fünf** Aufrufe, und der genannte deckt
-`packaging/install.sh`, `packaging/build.sh` und sechs weitere nicht ab. Wer ihn
-kopiert, prüft weniger als die CI und hält seinen Lauf für gleichwertig.
+**Und die naheliegende Hochrechnung daraus ist widerlegt, und zwar gemessen.**
+Drei Läufe über denselben Stand brauchten 28,0, 27,3 und 18,1 Minuten — eine
+Spanne von 9,9 Minuten bei *unveränderter* Datei.
 
-> **Ein Befehl, den ein zweites Dokument nacherzählt, ist eine zweite Fassung —
-> und die zweite ist die, die veraltet.**
+> **Zwei Läufe desselben Prüfmittels über denselben Stand, die um achtzig
+> Prozent auseinanderliegen, messen etwas, das nicht im Prüfling steht.**
 
-**`.claude/` steht jetzt in `$BAEUME`, und das war der Teil, der beinahe
-gefehlt hätte.** Die sechs Eingriffe verfälschen Jobnamen und Pfade im Skill;
-ohne den Eintrag holte `wiederherstellen` keinen davon zurück, und jede
-Gegenprobe meldete „nicht wieder grün" — derselbe Fall wie am 16. August 2026,
-nur an einem neuen Verzeichnis.
+**Die Teilung des Laufs auf parallele Jobs ist gemessen und nicht entschieden.**
+Derselbe Stand einmal ganz und einmal in vier Teilen gefahren ergab **dieselbe
+Befundliste, Zeile für Zeile** — nicht nur als Menge, und die Reihenfolge war
+der Gegenstand. Damit trägt der Satz *„Ein Eingriff, der einzeln beisst, beisst
+nicht unbedingt im Lauf"* gegen eine **zusammenhängende** Teilung nicht mehr;
+gegen eine, die die Reihenfolge umstellt, sagt die Messung nichts. Der
+Nebenbefund wiegt mehr als das Ergebnis: Nach Abschnittsüberschriften
+gleichmässig geteilt trägt das letzte Viertel **43 %** der Arbeit, und die
+Wanduhr vier paralleler Jobs ist die des längsten.
 
-**Was der Wächter nicht kann, steht in seinem Kopf als Frage:** Er hält, dass
-die genannten Namen existieren, nicht dass stimmt, was der Skill über sie sagt.
-Ob die Laufzeiten und die Zahl der PRs noch die gemessenen sind, sagt ihm
-nichts; sie tragen ihr Datum, und wer sie wieder misst, schreibt das neue
-daneben.
+> **Eine Teilung, die die Abschnitte zählt statt der Arbeit, ist gleichmässig in
+> einer Grösse, auf die es nicht ankommt.**
+
+**Der Rückbau selbst hat den teuersten Befund geliefert.** `.claude/` stand für
+den Skill in der Baumliste des Bruchskripts. Löscht man die einzige Datei
+darunter und lässt den Eintrag stehen, fällt `git checkout --` über die ganze
+Liste mit `pathspec … did not match` aus und stellt **keinen** der übrigen zwölf
+Bäume wieder her; `wiederherstellen()` schluckt den Fehler, und die
+Sauberkeitsprüfung daneben sieht ihn nicht, weil `git status --porcelain` für
+einen toten Pfad rc=0 und keine Ausgabe gibt. Gemessen in einem Wegwerf-Repo.
+
+> **Ein toter Pfad in dieser Liste schaltet den Rückweg des ganzen Bruchskripts
+> still ab** — „Ein Rückweg, der stillschweigend nichts tut, ist schlimmer als
+> keiner", an einem neuen Ort.
+
+**Der Wächter des Skills heisst `StewardSkillTest` und ist mit ihm gegangen.**
+Er steht seitdem in `ChangelogTest::REMOVED`, mit Datum und Grund — genau dafür
+gibt es diese Liste.

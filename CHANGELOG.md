@@ -28492,3 +28492,54 @@ Prüfling las.
 
 > **Ein Prüfkörper, der seinen Gegenstand beim Messen verändert, meldet den
 > Unterschied als Fehler des Gemessenen.**
+
+### Der Plan von P8 steht — und das Abnahmekriterium der Stufe ist neu gefasst
+
+`docs/117`, geschrieben nach der Messrunde und nach den drei Entscheidungen des
+Betreibers: Der Prüflauf **prüft und spielt nicht zurück** — jede
+Wiederherstellung verbrennt sonst eine Systembenutzernummer, und ein nächtlicher
+Lauf jede Nacht eine. Eine Sicherung liegt **daneben und gehört `root`**, wie
+die Datenbank-Sicherungen seit P5; was sie von der Quota des Kunden fernhält,
+ist ihr Eigentümer und nicht ihr Ablageort. Und **nur der Betreiber richtet ein
+Fernziel ein** — der Kunde wählt eines aus und sieht nur dessen Namen.
+
+**Beim Ausschreiben sind drei Zeilen umgefallen.** Die erste ist das
+Abnahmekriterium aus `docs/20 §9` selbst: *„danach funktionieren Webseiten,
+Datenbanken, DNS und Cron"* ist nach der Messrunde keine Eigenschaft der
+Wiederherstellung, weil die Datenbanknamen wechseln und die Konfigurationsdatei
+des Kunden — eine Kundendatei in derselben Sicherung — die alten nennt. Neu
+gefasst hat es acht Punkte, zwei davon dürfen nicht ausfallen.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+Die zweite: Der Prüflauf aus `docs/20 §9` war als Rückspiellauf beschrieben und
+ist keiner mehr. Das bewegt eine Zeile in `docs/20 §9`, und es steht
+ausgeschrieben da, damit es nicht still geschieht. Die dritte: S3 und FTP kosten
+kein Programm auf der Positivliste — der Agent hat mit `Acme\Outbound` seit P4
+eine geprüfte Naht nach draussen, `ext-curl` ist Paketabhängigkeit und `ext-ftp`
+im Grundbestand. SFTP kostet `ext-ssh2` oder ein Programm und ist deshalb
+vertagt.
+
+**Die Positivliste des Runners wächst in P8 um kein Programm**, und der Grund
+ist gemessen: Der Eigentümer, den weder `ZipArchive` noch `PharData` trägt, wird
+beim Zurückspielen ohnehin neu gesetzt. Gebraucht werden Rechte und
+Verweisziele, und die trägt das Verzeichnis im Archiv.
+
+> **Ein Wert, der sich beim Zurückspielen sowieso ändert, gehört nicht in die
+> Sicherung — er gehört neu gerechnet.**
+
+**Eine Frage bleibt offen, und sie ist die einzige, die der Plan nicht selbst
+trifft** (`docs/117 §3`): ob eine Wiederherstellung ihre eigene Reservierung in
+`system_users` zurückholen darf, wenn Nummer, Abonnementname und das fehlende
+Unix-Konto zusammenpassen. Sie berührt die Regel, die `docs/35` ausdrücklich
+zugemacht hat. Vorgeschlagen ist sie mit drei Bedingungen und mit der neuen
+Nummer als Rückfall; entschieden ist sie nicht.
+
+**Und ein Befund ausserhalb von P8 fiel beim Planen heraus:** Drei Dateien des
+Agenten benutzen `ZipArchive`, und weder `packaging/nfpm.yaml` noch
+`composer.json` nennen `ext-zip`. Ob `php8.4-zip` auf dem Zielserver liegt, ist
+nicht gemessen; der Griff steht in `docs/117 §9`.
+
+> **Eine Erweiterung, die der Code benutzt und die Paketierung nicht nennt, ist
+> auf jedem Server vorhanden, auf dem sie zufällig jemand anderes mitgebracht
+> hat.**

@@ -4444,6 +4444,38 @@ lässt sich gar nicht einhängen), der Weg zum Kunden bei mehreren GB hinter
 echtem nginx, der Durchsatz auf der Platte des Servers, und ob `retry_after`
 (90 s) einem Lauf von 1800 s in die Quere kommt.
 
+**Der Plan ist `docs/117`**, geschrieben nach der Messrunde und nach den drei
+Entscheidungen des Betreibers vom 15. September: der Prüflauf **prüft und spielt
+nicht zurück**, eine Sicherung liegt **daneben und gehört root** — wie die Dumps
+seit P5 —, und **nur der Betreiber richtet ein Fernziel ein**.
+
+**Beim Ausschreiben sind drei Zeilen umgefallen** (`docs/117 §0`), und die erste
+ist das Abnahmekriterium der Stufe selbst: *„danach funktionieren die
+Webseiten"* ist nach M5 keine Eigenschaft der Wiederherstellung — die
+Konfigurationsdatei des Kunden nennt eine Datenbank, die es nach dem
+Namenswechsel nicht mehr gibt.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+**Und eine Frage bleibt offen, die `docs/115 §6.2` nicht kannte** (`docs/117
+§3`): ob eine Wiederherstellung ihre **eigene** Reservierung zurückholen darf,
+wenn Nummer, Name und das fehlende Unix-Konto zusammenpassen. Sie berührt die
+eine Regel, die `docs/35` ausdrücklich zugemacht hat, und sie ist die einzige
+Entscheidung dieser Stufe, die der Plan nicht selbst trifft.
+
+> **Eine Reservierung, die festhält, wem eine Nummer gehörte, beantwortet die
+> Frage „darf dieses Abonnement sie zurückbekommen" — sie beantwortet nicht die
+> Frage, ob es dasselbe Abonnement ist.**
+
+**Ein Befund ausserhalb von P8 steht in `docs/117 §9` Punkt 5**, weil er beim
+Planen herausfiel: Drei Dateien des Agenten benutzen `ZipArchive`, und weder
+`packaging/nfpm.yaml` noch `composer.json` nennen `ext-zip`. Ob `php8.4-zip` auf
+`cloudsrv24` liegt, ist **nicht gemessen**.
+
+> **Eine Erweiterung, die der Code benutzt und die Paketierung nicht nennt, ist
+> auf jedem Server vorhanden, auf dem sie zufällig jemand anderes mitgebracht
+> hat.**
+
 ---
 
 ## Befehle

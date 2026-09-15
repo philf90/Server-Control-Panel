@@ -7,7 +7,7 @@ name: Wächter brechen
 # 1. Das Skript **ändert Dateien** im Arbeitsbaum und stellt sie über git wieder
 #    her. In einem Lauf, der nebenher ein Paket baut, wäre das ein Wettlauf um
 #    denselben Baum.
-# 2. Es fährt die Testsuite einmal je Eingriff — **1342 Eingriffe, 2479 Läufe**
+# 2. Es fährt die Testsuite einmal je Eingriff — **1335 Eingriffe, 2466 Läufe**
 #    (gemessen am 15. September 2026; im August waren es 376 und 623). In
 #    `ci.yml` hinge das an einem Job, der ohnehin schon die ganze Suite fährt.
 #
@@ -39,9 +39,9 @@ on:
   # > **Eine Entscheidung überlebt ihre Begründung — und wer nur die Begründung
   # > nachliest, hält sie für widerlegt.**
   #
-  # Was den Preis wieder senken würde, steht in `docs/922 §7`: eine Teilung auf
-  # parallele Jobs brächte ihn auf rund sechs Minuten. Entschieden ist das
-  # nicht.
+  # Was den Preis wieder senken würde, wäre eine Teilung auf parallele Jobs —
+  # rund sechs Minuten Wanduhr. Entschieden ist das **nicht**; der Stand der
+  # Messungen dazu steht im `CHANGELOG.md` zum 15. September 2026.
   #
   # Entschieden hat es ein Befund: Am 13. August meldete der Wochenlauf drei
   # Prüfungen ohne Biss, und alle drei hingen an einem Umbau vom 11. — zwei Tage
@@ -73,8 +73,7 @@ jobs:
 
     # **Gemessen am 15. September 2026**, über 50 Läufe mit Ergebnis seit dem
     # 31. August: Median **22,5 min**, kürzester 13,0, längster **28,0** — bei
-    # 1342 Eingriffen und 2479 Testläufen. Die Einzelheiten stehen in
-    # `docs/922`.
+    # rund 1340 Eingriffen und 2470 Testläufen.
     #
     # **Hier stand „376 Eingriffe, gemessen 4:40, dreissig ist das Sechsfache".**
     # Beide Zahlen waren vom 14. August und sind seitdem nie nachgezogen worden;
@@ -87,7 +86,7 @@ jobs:
     # **Sechzig, und die Zahl ist gerechnet und nicht gegriffen.** Was skaliert,
     # ist der Testlauf und nicht der Eingriff: 0,45 s im August, 0,52 s im
     # Median heute, **0,68 s im langsamsten** gemessenen Lauf. Das Skript wächst
-    # um rund 24 Eingriffe und damit 44 Testläufe am Tag (983 → 1342 in fünfzehn
+    # um rund 24 Eingriffe und damit 44 Testläufe am Tag (982 → 1335 in fünfzehn
     # Tagen). Gegen den langsamsten Wert gerechnet trug die alte Grenze noch
     # **vier Tage**; sechzig Minuten tragen rund **zwei Monate**.
     #
@@ -100,11 +99,12 @@ jobs:
     # sondern dass ein abgeschnittener Lauf sich als roter liest — der Nächste
     # sucht dann am Skript statt an der Grenze.
     #
-    # Die eigentliche Antwort wäre eine Teilung auf parallele Jobs
-    # (`docs/922 §7`): Wanduhr rund sechs Minuten, CI-Minuten +5 %, und die
-    # Grenze trüge ein halbes Jahr. Sie ist **nicht entschieden**, weil sie ein
-    # Umbau an dem Werkzeug ist, das die Wächter dieses Repos prüft — und weil
-    # vorher zu messen ist, ob die Eingriffe wirklich unabhängig sind.
+    # Die eigentliche Antwort wäre eine Teilung auf parallele Jobs: Wanduhr
+    # rund sechs Minuten, CI-Minuten +5 %, und die Grenze trüge ein halbes Jahr.
+    # Sie ist **nicht entschieden** — sie ist ein Umbau an dem Werkzeug, das die
+    # Wächter dieses Repos prüft. Ihre Vorbedingung ist am 15. September gemessen
+    # und steht im `CHANGELOG.md` zu diesem Tag: Derselbe Stand ganz und in vier
+    # Teilen gefahren ergibt dieselbe Befundliste, Zeile für Zeile.
     timeout-minutes: 60
 
     steps:

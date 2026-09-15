@@ -195,12 +195,19 @@ fi
 # Eingriff zu `ErrorPageTest` nimmt dort den Stylesheet-Eingang heraus. Der
 # Wächter darüber hat es beim ersten Lauf gemeldet — er zählt inzwischen die
 # angefassten Dateien und nicht nur die genannten.
-# `.claude/` kam am 15. September 2026 dazu, und zwar bevor der erste Eingriff
-# dorthin zeigte. Der Steward-Skill ist eine Datei wie jede andere hier: Die
-# Eingriffe unten verfaelschen darin Jobnamen und Pfade, und ohne diesen Eintrag
-# holte `wiederherstellen` keinen davon zurueck — der Fall vom 16. August, der
-# eine Zeile weiter unten steht, nur an einem neuen Verzeichnis.
-BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/ lang/ package.json vite.config.js .claude/"
+#
+# **`.claude/` stand hier vom 15. September 2026 bis zum selben Abend** und ist
+# mit dem Steward-Skill wieder gegangen. Der Eintrag ist kein Vorrat fuer
+# spaeter, sondern eine Falle: Ohne eine git-bekannte Datei darunter faellt
+# `git checkout -- $BAEUME` mit `pathspec ... did not match` aus und stellt
+# **keinen** der uebrigen Baeume wieder her — gemessen am 15. September in einem
+# Wegwerf-Repo, und `wiederherstellen()` schluckt den Fehler mit `2>/dev/null`.
+# Die Sauberkeitspruefung unten sieht ihn nicht: `git status --porcelain` gibt
+# fuer einen toten Pfad rc=0 und keine Ausgabe.
+#
+#   Ein toter Pfad in dieser Liste schaltet den Rueckweg des ganzen Skripts
+#   still ab — wer hier ein Verzeichnis eintraegt, legt zuerst die Datei an.
+BAEUME="resources/ app/ agent/ tests/ packaging/ .github/ database/ routes/ docs/ config/ bootstrap/ lang/ package.json vite.config.js"
 
 # **Dieses Skript liegt selbst unter `tests/` und nimmt sich aus.**
 #
@@ -28740,138 +28747,6 @@ pruefe "Knopf am falschen Urteil" \
   LogFooterTest::test_the_button_hangs_on_the_verdict_of_the_answer failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LogFooterTest passed
-
-
-echo
-echo "── StewardSkillTest: der Skill nennt einen Job, den es nicht gibt ──"
-#
-# **Warum es diese sechs Eingriffe gibt.** `.claude/skills/steward/SKILL.md`
-# wird bei jedem CI-Ereignis auf einem offenen Pull Request gelesen und nennt
-# Jobs, Schritte und Pfade der beiden Workflows. Das ist die Fehlerklasse aus
-# CLAUDE.md in Reinform: eine Zeichenkette, die auf etwas verweist, ohne dass
-# ein Typ oder ein Werkzeug den Bezug prueft. Benennt jemand einen Job um,
-# zeigt der Skill danach ins Leere — und gemerkt wird das beim naechsten roten
-# Lauf, also genau dann, wenn niemand Zeit dafuer hat.
-vorher_datei .claude/skills/steward/SKILL.md
-python3 - <<'PY2'
-p = '.claude/skills/steward/SKILL.md'
-s = open(p, encoding='utf-8').read()
-alt = '| `Shell-Skripte` | `shellcheck` |'
-assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '| `Shellskripte` | `shellcheck` |', 1))
-PY2
-griff_datei .claude/skills/steward/SKILL.md "Job im Skill verfaelscht" &&
-pruefe "Job im Skill verfaelscht" \
-  StewardSkillTest::test_every_job_the_skill_names_exists failed
-wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" StewardSkillTest passed
-
-
-echo
-echo "── StewardSkillTest: ein Job der CI steht in keinem Verzeichnis ──"
-#
-# **Die zweite Richtung, und sie ist die, an der der Schaden wirklich
-# entsteht.** Bei einer Umbenennung traegt man den neuen Namen nach, die erste
-# Richtung ist wieder gruen — und ein Job, den niemand eingeordnet hat, wird
-# beim naechsten roten Lauf zum ersten Mal gelesen.
-vorher_datei .claude/skills/steward/SKILL.md
-python3 - <<'PY2'
-p = '.claude/skills/steward/SKILL.md'
-s = open(p, encoding='utf-8').read()
-alt = '`Schwachstellen und Lizenzen`'
-assert s.count(alt) >= 1, 'Zielstelle nicht gefunden — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, 'Schwachstellen und Lizenzen'))
-PY2
-griff_datei .claude/skills/steward/SKILL.md "Job nirgends eingeordnet" &&
-pruefe "Job nirgends eingeordnet" \
-  StewardSkillTest::test_every_job_of_the_workflows_is_placed_in_the_skill failed
-wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" StewardSkillTest passed
-
-
-echo
-echo "── StewardSkillTest: die Naht nennt einen Schritt, den der Job nicht hat ──"
-#
-# Der Jobname stimmt hier, nur der Schritt nicht — der Fall, den eine Pruefung
-# ueber Jobnamen allein durchgehen liesse.
-vorher_datei .claude/skills/steward/SKILL.md
-python3 - <<'PY2'
-p = '.claude/skills/steward/SKILL.md'
-s = open(p, encoding='utf-8').read()
-alt = '| `Oberfläche` | `Typen` |'
-assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '| `Oberfläche` | `Typprüfung` |', 1))
-PY2
-griff_datei .claude/skills/steward/SKILL.md "Schritt in der Naht verfaelscht" &&
-pruefe "Schritt in der Naht verfaelscht" \
-  StewardSkillTest::test_every_step_the_seam_names_exists_in_its_job failed
-wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" StewardSkillTest passed
-
-
-echo
-echo "── StewardSkillTest: der Skill nennt eine Datei, die es nicht gibt ──"
-#
-# Ein Griff, den der Steward bei rotem Lauf kopiert, laeuft damit ins Leere —
-# und die leere Ausgabe sieht aus wie ein Befund. Der Satz dazu steht in
-# docs/78: **Ein leerer Griff in die falsche Datei sieht aus wie ein Befund.**
-vorher_datei .claude/skills/steward/SKILL.md
-python3 - <<'PY2'
-p = '.claude/skills/steward/SKILL.md'
-s = open(p, encoding='utf-8').read()
-alt = '`tests/waechter-brechen.sh`'
-assert s.count(alt) >= 1, 'Zielstelle nicht gefunden — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '`tests/waechter-brechen.bash`', 1))
-PY2
-griff_datei .claude/skills/steward/SKILL.md "Pfad im Skill verfaelscht" &&
-pruefe "Pfad im Skill verfaelscht" \
-  StewardSkillTest::test_every_file_the_skill_names_exists failed
-wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" StewardSkillTest passed
-
-
-echo
-echo "── StewardSkillTest: das Frontmatter traegt einen anderen Namen ──"
-#
-# Der Ordnername entscheidet, ob eine Sitzung den Skill bei einem PR-Ereignis
-# findet; der Name im Frontmatter, ob ein Mensch ihn von Hand rufen kann.
-vorher_datei .claude/skills/steward/SKILL.md
-python3 - <<'PY2'
-p = '.claude/skills/steward/SKILL.md'
-s = open(p, encoding='utf-8').read()
-alt = '\nname: steward\n'
-assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '\nname: pr-steward\n', 1))
-PY2
-griff_datei .claude/skills/steward/SKILL.md "Frontmatter verfaelscht" &&
-pruefe "Frontmatter verfaelscht" \
-  StewardSkillTest::test_the_skill_carries_its_frontmatter failed
-wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" StewardSkillTest passed
-
-
-echo
-echo "── StewardSkillTest: ein Job wird in ci.yml umbenannt ──"
-#
-# **Der Fall, fuer den es diesen Waechter gibt** — und der einzige der sechs,
-# der den Prueflig nicht anfasst, sondern das, worauf er zeigt. Er muss
-# **beide** Richtungen rot machen: den alten Namen im Skill, den es nicht mehr
-# gibt, und den neuen in ci.yml, den niemand eingeordnet hat.
-vorher_datei .github/workflows/ci.yml
-python3 - <<'PY2'
-p = '.github/workflows/ci.yml'
-s = open(p, encoding='utf-8').read()
-alt = '    name: Statische Prüfung\n'
-assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '    name: Statische Analyse\n', 1))
-PY2
-griff_datei .github/workflows/ci.yml "Job in ci.yml umbenannt" &&
-pruefe "Job in ci.yml umbenannt" \
-  StewardSkillTest::test_every_job_the_skill_names_exists failed
-pruefe "  … und die Gegenrichtung ebenso" \
-  StewardSkillTest::test_every_job_of_the_workflows_is_placed_in_the_skill failed
-wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" StewardSkillTest passed
 
 
 echo

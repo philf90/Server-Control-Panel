@@ -4301,6 +4301,62 @@ weil er ein `continue` trug.
 
 > **Ein Prüfkörper, der überspringt, meldet das Überspringen nicht.**
 
+---
+
+## Ein Skill für die Betreuung offener Pull Requests — 15. September 2026
+
+**`.claude/skills/steward/SKILL.md` ist der erste Skill dieses Repos.** Eine
+Sitzung liest ihn bei jedem CI-Ereignis auf einem offenen Pull Request vom Kopf
+des Zweiges; von Hand holt ihn `/steward`. Er setzt Konventionen und
+Proaktivität und kann keine der harten Grenzen aufheben — kein Merge, keine
+Freigabe, kein übersprungener Test.
+
+**Er ist eine Korrektur und keine Anleitung.** Die allgemeinen Regeln über Pull
+Requests beschreiben menschliche Rezensenten, Review-Threads und eine
+Freigabeprüfung; gemessen am 15. September hat dieses Repo davon nichts — keiner
+der letzten zwölf PRs trug einen angeforderten Rezensenten, ein Label oder einen
+Review-Kommentar, und alle 49 gingen von einem `claude/…`-Zweig an denselben
+Leser, der sie selbst mergt.
+
+> **Eine Regel, die einen Vorgang beschreibt, den es nicht gibt, wird nicht
+> falsch angewandt — sie wird auf etwas anderes angewandt.**
+
+**Der Taktgeber ist `waechter.yml` und nicht `ci.yml`** — an Pull Requests
+gemessen 23,2 Minuten im Median gegen 3,0. Der PR, der den Skill gebracht hat,
+hat das an sich selbst belegt: Die CI war um 14:10:44 durch, der Wächterlauf um
+14:29:12.
+
+`StewardSkillTest` hält die Naht in **beide** Richtungen: Jeder Job und jeder
+Schritt, den der Skill nennt, steht in einem der beiden Workflows, und jeder Job
+der beiden steht im Skill. Sechs Eingriffe belegen ihn, darunter der Fall, für
+den es ihn gibt — eine Umbenennung in `ci.yml` macht beide Richtungen rot. Der
+Anlass steht in dieser Datei: Sie nennt `shellcheck -e SC1091 packaging/bin/*`
+als „wörtlich in `ci.yml` und einmal Kopieren", und dort stehen **fünf**
+Aufrufe; der genannte deckt acht Skripte nicht ab.
+
+> **Ein Befehl, den ein zweites Dokument nacherzählt, ist eine zweite Fassung —
+> und die zweite ist die, die veraltet.**
+
+**`.claude/` steht seitdem in `$BAEUME`**, sonst holte `wiederherstellen` keinen
+der sechs Eingriffe zurück.
+
+**Und ein Befund fiel dabei nebenbei an, der nicht zum Skill gehört:
+`docs/922`.** Der Kommentar über `timeout-minutes: 30` in `waechter.yml`
+begründet die Grenze mit „376 Eingriffe, gemessen 4:40 … das Sechsfache" —
+gemessen sind es **1342 Eingriffe und ein Median von 22,5 Minuten** über alle
+50 Läufe mit Ergebnis. Die naheliegende Hochrechnung daraus ist widerlegt, und
+zwar gemessen: Drei Läufe über denselben Stand mit 1328 Eingriffen brauchten
+28,0, 27,3 und 18,1 Minuten.
+
+> **Zwei Läufe desselben Prüfmittels über denselben Stand, die um achtzig
+> Prozent auseinanderliegen, messen etwas, das nicht im Prüfling steht.**
+
+Was die Laufzeit *kurzfristig* treibt, ist ungemessen; über einen Monat skaliert
+sie mit der Zahl der Testläufe (`docs/922 §5`), und daraus ist die Grenze am
+15. September von dreissig auf **sechzig Minuten** gesetzt worden — die alte
+trug gerechnet noch vier Tage. `§6` sagt, was zu messen bleibt, `§7`, was
+entschieden ist und was nicht. Ein abgeschnittener Lauf sieht dabei aus wie ein
+roter — das ist der Grund, dass die Frage drängte.
 
 ---
 

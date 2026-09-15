@@ -7,7 +7,8 @@ name: Wächter brechen
 # 1. Das Skript **ändert Dateien** im Arbeitsbaum und stellt sie über git wieder
 #    her. In einem Lauf, der nebenher ein Paket baut, wäre das ein Wettlauf um
 #    denselben Baum.
-# 2. Es fährt die Testsuite einmal je Eingriff — 376 Eingriffe, 623 Läufe. In
+# 2. Es fährt die Testsuite einmal je Eingriff — **1342 Eingriffe, 2479 Läufe**
+#    (gemessen am 15. September 2026; im August waren es 376 und 623). In
 #    `ci.yml` hinge das an einem Job, der ohnehin schon die ganze Suite fährt.
 #
 # **Und warum es ihn überhaupt gibt.** CLAUDE.md verlangt: „Ein Wächter, der nie
@@ -24,9 +25,23 @@ on:
   #
   # Hier stand: „Über zweihundert Läufe gehören nicht vor jeden Pull Request,
   # sondern regelmässig und auf Zuruf." Die Zahl stimmte, die Folgerung nicht —
-  # **gemessen dauert der ganze Lauf fünf Minuten**, weniger als der
-  # Installationsjob auf Ubuntu 22.04, den niemand infrage stellt. Die Vorsicht
-  # galt einer Rechnung, die nie jemand gemacht hat.
+  # der Lauf dauerte damals fünf Minuten, weniger als der Installationsjob auf
+  # Ubuntu 22.04, den niemand infrage stellt. Die Vorsicht galt einer Rechnung,
+  # die nie jemand gemacht hat.
+  #
+  # **Diese Begründung trägt seit August nicht mehr, die Entscheidung schon.**
+  # Gemessen am 15. September 2026 braucht der Lauf **22,5 Minuten im Median**,
+  # der Installationsjob rund zwei — das Verhältnis hat sich umgekehrt, und
+  # dieser Lauf ist heute der Taktgeber jedes Pull Requests. Was ihn trägt, ist
+  # nicht mehr sein geringer Preis, sondern der Befund vom 13. August: zwei Tage
+  # lang stand im Repo ein Wächter, den es nicht mehr gab.
+  #
+  # > **Eine Entscheidung überlebt ihre Begründung — und wer nur die Begründung
+  # > nachliest, hält sie für widerlegt.**
+  #
+  # Was den Preis wieder senken würde, steht in `docs/922 §7`: eine Teilung auf
+  # parallele Jobs brächte ihn auf rund sechs Minuten. Entschieden ist das
+  # nicht.
   #
   # Entschieden hat es ein Befund: Am 13. August meldete der Wochenlauf drei
   # Prüfungen ohne Biss, und alle drei hingen an einem Umbau vom 11. — zwei Tage
@@ -56,14 +71,41 @@ jobs:
     name: Jede Regel absichtlich brechen
     runs-on: ubuntu-latest
 
-    # 376 Eingriffe, 623 Testläufe, **gemessen 4:40** am 14. August 2026. Die
-    # Zahlen stehen hier, weil sie die Grenze darunter begründen — und sie sind
-    # nachgezogen worden, als P5c zwölf Eingriffe dazugelegt hat. Die Vorgabe von
-    # sechs Stunden wäre kein Schutz, sondern eine Rechnung — und seit der Lauf
-    # an jedem Pull Request hängt, blockiert eine Hängepartie nicht mehr nur
-    # eine Nacht, sondern jemandes Arbeit. Dreissig ist das Sechsfache des
-    # Gemessenen und immer noch eine Grenze, die etwas bedeutet.
-    timeout-minutes: 30
+    # **Gemessen am 15. September 2026**, über 50 Läufe mit Ergebnis seit dem
+    # 31. August: Median **22,5 min**, kürzester 13,0, längster **28,0** — bei
+    # 1342 Eingriffen und 2479 Testläufen. Die Einzelheiten stehen in
+    # `docs/922`.
+    #
+    # **Hier stand „376 Eingriffe, gemessen 4:40, dreissig ist das Sechsfache".**
+    # Beide Zahlen waren vom 14. August und sind seitdem nie nachgezogen worden;
+    # aus dem Sechsfachen war das **1,07-fache des längsten Laufs** geworden,
+    # ohne dass es jemand gemerkt hätte.
+    #
+    # > **Eine Zahl im Kommentar altert mit dem Code, den sie zählt, und nichts
+    # > meldet es.**
+    #
+    # **Sechzig, und die Zahl ist gerechnet und nicht gegriffen.** Was skaliert,
+    # ist der Testlauf und nicht der Eingriff: 0,45 s im August, 0,52 s im
+    # Median heute, **0,68 s im langsamsten** gemessenen Lauf. Das Skript wächst
+    # um rund 24 Eingriffe und damit 44 Testläufe am Tag (983 → 1342 in fünfzehn
+    # Tagen). Gegen den langsamsten Wert gerechnet trug die alte Grenze noch
+    # **vier Tage**; sechzig Minuten tragen rund **zwei Monate**.
+    #
+    # **Warum nicht mehr und nicht weniger.** Neunzig trügen vier Monate und
+    # wären keine Grenze mehr, die etwas bedeutet — der Satz von damals gilt
+    # unverändert, nur die Zahl darunter nicht. Fünfundvierzig trügen einen
+    # Monat, also kaum länger, als das Nachziehen selbst wieder kostet.
+    #
+    # **Und warum die Grenze überhaupt drängt**, ist nicht die verlorene Zeit,
+    # sondern dass ein abgeschnittener Lauf sich als roter liest — der Nächste
+    # sucht dann am Skript statt an der Grenze.
+    #
+    # Die eigentliche Antwort wäre eine Teilung auf parallele Jobs
+    # (`docs/922 §7`): Wanduhr rund sechs Minuten, CI-Minuten +5 %, und die
+    # Grenze trüge ein halbes Jahr. Sie ist **nicht entschieden**, weil sie ein
+    # Umbau an dem Werkzeug ist, das die Wächter dieses Repos prüft — und weil
+    # vorher zu messen ist, ob die Eingriffe wirklich unabhängig sind.
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4

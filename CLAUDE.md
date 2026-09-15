@@ -4351,9 +4351,12 @@ zwar gemessen: Drei Läufe über denselben Stand mit 1328 Eingriffen brauchten
 > **Zwei Läufe desselben Prüfmittels über denselben Stand, die um achtzig
 > Prozent auseinanderliegen, messen etwas, das nicht im Prüfling steht.**
 
-Was die Laufzeit treibt, ist ungemessen; `docs/922 §5` sagt, was dafür zu tun
-ist, und §6, was der Betreiber entscheidet. Ein abgeschnittener Lauf sieht dabei
-aus wie ein roter — das ist der Grund, dass die Frage drängt.
+Was die Laufzeit *kurzfristig* treibt, ist ungemessen; über einen Monat skaliert
+sie mit der Zahl der Testläufe (`docs/922 §5`), und daraus ist die Grenze am
+15. September von dreissig auf **sechzig Minuten** gesetzt worden — die alte
+trug gerechnet noch vier Tage. `§6` sagt, was zu messen bleibt, `§7`, was
+entschieden ist und was nicht. Ein abgeschnittener Lauf sieht dabei aus wie ein
+roter — das ist der Grund, dass die Frage drängte.
 
 ---
 

@@ -120,7 +120,55 @@ innerhalb jeder Hälfte.**
 
 ---
 
-## §5 Was damit offen ist
+## §5 Was doch skaliert — und wie lange welche Grenze trägt
+
+**§4 sagt, woran die Laufzeit *nicht* hängt. Das ist die halbe Antwort.** Über
+einen einzelnen Tag dominiert die Streuung; über einen Monat ist der Trend
+eindeutig, und er hat eine Einheit: **nicht den Eingriff, sondern den Testlauf.**
+1342 Eingriffe erzeugen 2479 `pruefe`-Aufrufe, also 1,85 je Eingriff.
+
+| Stand | Testläufe | Dauer | je Testlauf |
+|---|---|---|---|
+| 14. August (laut Kommentar) | 623 | 4:40 | **0,45 s** |
+| 15. September, Medianlauf | 2479 | 21:29 | **0,52 s** |
+| 15. September, langsamster | 2479 | 28:00 | **0,68 s** |
+
+Über einen Monat und das Vierfache an Testläufen bleibt der Wert in derselben
+Grössenordnung. Die Streuung liegt als Faktor 1,8 darum herum.
+
+> **Ein Trend, der kleiner ist als die Streuung, ist deshalb nicht falsch — er
+> ist nur an einem einzelnen Lauf nicht ablesbar.**
+
+**Das Skript wächst um rund 24 Eingriffe und damit 44 Testläufe am Tag** (983 →
+1342 in fünfzehn Tagen, +36,5 %). Gegen den **langsamsten** gemessenen Wert
+gerechnet:
+
+| Grenze | Kapazität | Puffer | trägt noch |
+|---|---|---|---|
+| 30 min *(bis zum 15. September)* | 2647 | 168 | **4 Tage** |
+| **60 min** *(seitdem)* | 5294 | 2815 | **64 Tage** |
+| 90 min | 7941 | 5462 | 124 Tage |
+| vier parallele Jobs, 30 min | 10 588 | 8109 | **184 Tage** |
+
+**Der Puffer war vier Tage und nicht Wochen.** Das ist der Grund, warum die
+Grenze am 15. September auf sechzig Minuten gesetzt wurde, bevor die Messung aus
+§6 gemacht war: Eine Zeile, die zwei Monate kauft, wartet nicht auf eine
+Messung, die eine Woche dauert.
+
+**Und der Anteil des Rüstens ist der Grund, dass eine Teilung überhaupt lohnt:**
+Setup (Checkout, PHP, `composer install`, Schlüssel) kostet **15 Sekunden**, das
+Skript 21:29 — **1,2 Prozent**. Vier Jobs kosten also vier mal fünfzehn Sekunden
+mehr und bringen die Wanduhr von 21,5 auf **5,6 Minuten**; die CI-Minuten
+steigen um **fünf Prozent**.
+
+**Der Nebeneffekt wiegt dabei schwerer als die Zeitgrenze.** Bei 5,6 Minuten
+wäre der Taktgeber eines Pull Requests wieder `ci.yml` mit 3,0 Minuten statt
+dieses Laufs — ein PR wäre in etwa sechs statt fünfundzwanzig Minuten beurteilt.
+`.claude/skills/steward/SKILL.md §2` müsste dann neu geschrieben werden.
+
+---
+
+## §6 Was damit offen ist
 
 **Was die Laufzeit treibt, ist ungemessen.** Drei Kandidaten, keiner geprüft:
 
@@ -154,26 +202,67 @@ offen, und sie messen Verschiedenes:
 
 ---
 
-## §6 Was der Betreiber entscheidet
+## §7 Was der Betreiber entscheidet
 
-**Die Zahl ist nicht die eigentliche Frage.** Ein Lauf, der mit dem Bestand
-wächst, läuft irgendwann in jede feste Grenze; 1132 → 1342 Eingriffe in elf
-Tagen sind rund neunzehn Prozent. Die Grenze höherzusetzen verschiebt den Tag,
-an dem sie wieder zu eng ist.
+**Es sind zwei Entscheidungen und nicht eine.** Die erste ist am
+15. September 2026 getroffen, die zweite ausdrücklich nicht.
 
-Die Alternative wäre, den Lauf zu teilen — eine Matrix über Eingriffsgruppen,
-die parallel fahren. Das ist ein Umbau am Werkzeug, das die Wächter dieses Repos
-prüft, und **keine Entscheidung, die nebenbei fällt**. Sie gehört vorgelegt und
-nicht getroffen.
+### Getroffen: die Grenze steht auf sechzig Minuten
 
-**Und ein abgeschnittener Lauf sieht aus wie ein roter.** Das ist der Grund,
-warum die Frage überhaupt drängt: Nicht die verlorene Zeit, sondern dass der
-Ausfall sich als Befund liest — und der Nächste am Skript sucht statt an der
-Grenze. Der Steward-Skill hält das seit dem 15. September in §5 fest.
+Gerechnet und nicht gegriffen, nach §5: Gegen den langsamsten gemessenen Wert
+trug die alte Grenze noch **vier Tage**, sechzig Minuten tragen rund **zwei**
+**Monate**. Neunzig trügen vier Monate und wären keine Grenze mehr, die etwas
+bedeutet; fünfundvierzig trügen einen Monat, also kaum länger, als das
+Nachziehen selbst wieder kostet.
+
+**Sie ist gesetzt worden, bevor die Messung aus §6 gemacht war**, und das ist
+kein Widerspruch zur Sorgfalt dieses Repos, sondern ihre Anwendung: Eine Zeile,
+die zwei Monate kauft, wartet nicht auf eine Messung, die eine Woche dauert.
+
+> **Ein abgeschnittener Lauf liest sich als roter — und der Nächste sucht dann
+> am Skript statt an der Grenze.**
+
+### Nicht getroffen: die Teilung auf parallele Jobs
+
+Die Zahlen sprechen dafür (§5): Wanduhr von 21,5 auf 5,6 Minuten, CI-Minuten
++5 %, und die Grenze trüge ein halbes Jahr statt zwei Monate. **Der Nebeneffekt
+wiegt dabei schwerer als die Zeit** — bei 5,6 Minuten wäre der Taktgeber eines
+Pull Requests wieder `ci.yml`, und ein PR wäre in sechs statt fünfundzwanzig
+Minuten beurteilt.
+
+**Trotzdem ist sie offen, und zwar aus einem Grund, der in `CLAUDE.md` steht:**
+
+> **Ein Eingriff, der einzeln beisst, beisst nicht unbedingt im Lauf** — er
+> steht dort neben anderen, und die verändern seinen Gegenstand.
+
+Der Satz kam aus einem echten Fall (20. August 2026). Trägt er, dann ändert eine
+Teilung die Nachbarschaft der Eingriffe und könnte Befunde verstecken. Gemessen
+spricht dagegen — **1384 Wiederherstellungen auf 1342 Eingriffe**, kein `npm`,
+kein `composer`, kein `migrate` im Skript, und an globalem Zustand nur die drei
+Zähler —, aber „spricht dagegen" ist kein Beleg.
+
+**Die Reihenfolge ist deshalb: erst messen, dann teilen.** Denselben Stand
+einmal ganz und einmal in vier Teilen fahren und die Befundlisten vergleichen.
+Kommen dieselben heraus, ist der Satz für die Teilung unschädlich; kommen sie
+auseinander, ist die Teilung vom Tisch — und der Befund ist mehr wert als die
+Zeitersparnis.
+
+Zwei kleinere Punkte für den Fall, dass geteilt wird: Die Teilung muss **stabil**
+sein — nach Zeilennummern wäre falsch, weil jeder neue Eingriff sie verschiebt;
+nach den 990 Abschnitten ginge es. Und `BreakScriptTest` hält das Skript mit
+zwölf Fällen, von denen mindestens `test_a_workflow_runs_the_script` und
+`test_nothing_stands_behind_the_exit` mitziehen müssten.
+
+### Was ausdrücklich nicht in Frage steht
+
+**Die Grenze zu streichen.** Eine Hängepartie ohne sie blockiert den Runner bis
+zum Maximum von sechs Stunden, und seit der Lauf an jedem Pull Request hängt,
+blockiert sie nicht mehr nur eine Nacht, sondern jemandes Arbeit. Der Satz aus
+der ersten Fassung gilt unverändert: Eine Grenze soll etwas bedeuten.
 
 ---
 
-## §7 Was kein Wächter halten kann
+## §8 Was kein Wächter halten kann
 
 **Die Eingriffszahl im Kommentar ist prüfbar**, die Laufzeit nicht. Ein Wächter
 könnte die genannte Zahl gegen

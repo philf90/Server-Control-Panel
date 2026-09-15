@@ -28318,3 +28318,52 @@ umgebaut, und kein Kriterium fasste sie an.
 Er trägt ausserdem die Falle mit, die `docs/100 §9.10` gemessen hat: Wer den
 Agenten anhält, hält Worker und Metrik mit an — und ein `start` des Agenten
 allein holt sie **nicht** zurück. Zurück geht es über `srvpanel.target`.
+
+### Die Fusszeile der Domainseite ist abgenommen
+
+**Am 15. September 2026 auf `cloudsrv24` gegen `0.7.4-rc.10`: alle neun Punkte
+aus `docs/920`**, beide Ausschlusskriterien (3 und 7) darunter, keiner als
+„nicht herstellbar" ausgefallen. Das Protokoll ist `docs/921`.
+
+**Kein Befund am Prüfling — acht an der Vorschrift, am Prüfmittel und am
+Prüfstand.** Und sieben davon haben eine Wurzel:
+
+> **Eine Vorschrift, die im Container entstanden ist, setzt einen Gegenstand
+> voraus, der stillhält — und auf einem echten Server hält nichts still.**
+
+Ein Zugriffsprotokoll ist das Gegenteil eines Prüfkörpers: Es rotiert über
+Nacht, es wächst, und Fremde schreiben hinein. Die ausgerechneten Erwartungen
+vom Vortag waren beim Messen schon falsch — 8393 Zeilen abends, 481 am Morgen.
+
+Drei Handgriffe haben getragen und gehören in jede künftige Vorschrift über
+einen lebenden Gegenstand: die Erwartung **unmittelbar** vor der Messung
+ausrechnen; den Gegenstand **klammern** (`stat` davor und danach, gleiche Werte
+heissen stillgestanden); und **jede erzeugte Zeile nummerieren**, die Nummer nach
+vorn.
+
+> **Eine Nummer am Anfang einer erzeugten Zeile kostet nichts und entscheidet
+> drei Punkte.** `?i=35` hat Punkt 4 entschieden, `?k=21` Punkt 7, und `?i=437`
+> gegen `?i=337` Punkt 2.
+
+**Zweimal hat eine Messung mehr getragen, als ihr Punkt verlangt hat.** Punkt 2
+sollte die letzte Zeile abgelesen haben; stattdessen liegen zwei unabhängige
+Lesungen nebeneinander — 437 + 99 = 536 = 337 + 199 —, und die Rechnung sagt
+dasselbe, ohne dass jemand im Kasten nach unten rollen muss.
+
+> **Zwei Fenster, deren Anfänge sich um genau die Differenz ihrer Grössen
+> unterscheiden, haben dasselbe Ende.**
+
+**Die Grössenangabe war eine offene Frage und ist jetzt gemessen.** Eine frühere
+Ablesung passte besser zu 1000 als zu 1024. Entschieden hat es eine Klammer um
+das Laden: 792 739 B davor, 792 959 B danach, beide 1024-basiert **774 KB** — und
+genau das steht auf der Seite, während 1000 auf 793 käme. Die frühere Ablesung
+war das Wachstum einer Datei, in die währenddessen ein Bot schrieb.
+
+**Und der Prüfling hat einmal recht behalten, wo die Vorschrift irrte:** An einer
+0-Byte-Datei sagt die Seite „Das Protokoll ist leer." — nicht „gibt es nicht",
+nicht eine leere Liste, und auch bei `lines=500` derselbe Satz. Dass 300 Aufrufe
+dorthin mit `200` beantwortet wurden und trotzdem nichts ankam, lag am
+Prüfstand.
+
+> **Ein Rückgabewert von 200 sagt, dass jemand geantwortet hat — nicht, dass der
+> Gemeinte geantwortet hat.**

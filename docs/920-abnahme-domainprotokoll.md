@@ -24,6 +24,18 @@ Kunde die Seite überhaupt erreicht. `DomainPolicy::viewLogs` verlangt von einem
 Nicht-Admin **`Permission::FilesRead`** auf dem Abonnement — und ohne sie gibt es
 keinen anderen Fusszeilentext, sondern einen **403**.
 
+**Nachgelesen am 14. September, und die erste Fassung dieses Absatzes war zu
+streng:** `Account::permissionsFor()` gibt jedem Konto, das **kein**
+Zusatzbenutzer ist, `Permission::cases()` zurück — alle Rechte. Ein gewöhnlicher
+Kunde hat `FilesRead` damit immer, sobald er das Abonnement sehen darf; fehlen
+kann es nur einem **Zusatzbenutzer** (`AccountType::Additional`). Was hier
+wirklich beisst, ist deshalb ein **aktives Kundenkonto** — und genau das verlangt
+auch `ImpersonationController::start`, sonst gibt es keinen Wechsel.
+
+> **Eine Bedingung, die an einer Stelle steht, ist nicht überall dieselbe
+> Bedingung — die Policy fragt nach einem Recht, und wer es hat, entscheidet der
+> Kontotyp.**
+
 > **Ein Kriterium, das an einer Vorbedingung scheitern kann, die es nicht nennt,
 > fällt für einen Grund aus, der mit seinem Gegenstand nichts zu tun hat.**
 
@@ -115,9 +127,32 @@ foreach (Account::withoutGlobalScopes()->where("type", "customer")->get() as $a)
 }'
 ```
 
-**Erwartet:** mindestens ein Konto mit `status=active` **und** `FilesRead=ja`.
-Gibt es keines, fällt Punkt 7 aus — und zwar **als Ausfall**, nicht als „nicht
-herstellbar": Die Berechtigung lässt sich vergeben.
+**Erwartet:** mindestens ein Konto mit `status=active`, das das Abonnement sehen
+darf. Gibt es keines, fällt Punkt 7 aus — und zwar **als Ausfall**, nicht als
+„nicht herstellbar": Ein Kundenkonto lässt sich anlegen.
+
+**Zwei Fallen dieser Abfrage, beide am 14. September bezahlt.**
+
+`Domain::withoutGlobalScopes()` nimmt die Mandantenklammer von der
+**Domain**-Abfrage — `$d->subscription` ist aber eine nachgeladene Beziehung auf
+das *Subscription*-Modell, und das steht auf der Kommandozeile ohne angemeldetes
+Konto auf `whereRaw('0 = 1')`. Der erste Wurf bekam für alle sechs Domains
+`null`, übersprang jede und druckte **nichts**.
+
+> **Eine Frage, die im Grundzustand alles verweigert, antwortet mit einer leeren
+> Liste und nicht mit einem Fehler.** Die Klammer wird je Modell gelöst und
+> nicht je Abfrage.
+
+Und der Prüfkörper hat den Fehler verdeckt, statt ihn zu melden — er trug ein
+`continue`:
+
+> **Ein Prüfkörper, der überspringt, meldet das Überspringen nicht.** Er druckt
+> deshalb seine Zählung voraus und je Zeile eine Zeile, auch für die, die nichts
+> taugt.
+
+`Account::mayAccessSubscription()` und `permissionsFor()` sind davon **nicht**
+betroffen: Beide wickeln ihre Abfragen selbst in `withoutRestriction()`.
+Nachgelesen, nicht vermutet.
 
 **Der Prüfkörper für die lange Zeile, einmal probeweise:**
 

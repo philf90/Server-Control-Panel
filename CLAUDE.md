@@ -68,12 +68,12 @@ gerendert.
 
 > **Ein Feld im Payload ist noch keine Spalte.**
 
-**Offen bleiben genau zwei:** Befund 14 (die Fusszeile von `/logs`, gehört zu A5)
-und die ungemessene Laufzeit über 142 Pakete (`docs/81 §2.3h` Punkt 1).
-**Befund 14 hat seit dem 13. September ein Vorhaben** — `docs/914`, zusammen mit
-den Zeilennummern in den Protokollen, weil beide dieselbe Naht brauchen. **Und
-keine der vier Behebungen hat einen Server gesehen** — der Nachlauf dazu ist
-`docs/87`, ausgeschrieben vor dem Fahren.
+**Offen bleibt davon noch eine:** die ungemessene Laufzeit über 142 Pakete
+(`docs/81 §2.3h` Punkt 1). **Befund 14 ist an beiden Orten gebaut und an beiden
+abgenommen** — für `/logs` am 14. September (`docs/914`, `docs/916`), für die
+Domainseite am 15. (`docs/919`, `docs/921`). **Und keine der vier Behebungen hat
+einen Server gesehen** — der Nachlauf dazu ist `docs/87`, ausgeschrieben vor dem
+Fahren.
 
 **Punkt 5 ist der Grund, dass es diesen Lauf gab, und er ist zweifach belegt.**
 Dass eine transiente Unit den Neustart von `srvpanel-worker` überlebt, wenn
@@ -4226,6 +4226,81 @@ dann, und zwar zu Recht. Der Punkt steht jetzt als drei getrennte Wände da.
 
 > **Eine Option, die etwas erlaubt, ist nicht dasselbe wie ein Zustand, in dem
 > es geschieht.**
+
+---
+
+## Die Fusszeile der Domainseite ist abgenommen — 15. September 2026
+
+Auf `cloudsrv24` gegen `0.7.4-rc.10`, **alle neun Punkte aus `docs/920`**, beide
+Ausschlusskriterien (3 und 7) darunter, keiner als „nicht herstellbar"
+ausgefallen. Der Plan ist `docs/919`, der Lauf `docs/920`, das Protokoll
+**`docs/921`**.
+
+Befund 14 aus `docs/86` ist damit an **beiden** Orten gebaut und an beiden
+gemessen. `LogFooterTest` hält seitdem **Paare** aus Operation, Controller und
+Seite statt eines Paares — und das war der eigentliche Gegenstand: Er war grün,
+während derselbe Befund eine Seite weiter offenstand.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+**Kein Befund am Prüfling — acht an der Vorschrift, am Prüfmittel und am
+Prüfstand.** Sieben davon haben eine Wurzel, und die gilt über diesen Lauf
+hinaus:
+
+> **Eine Vorschrift, die im Container entstanden ist, setzt einen Gegenstand
+> voraus, der stillhält — und auf einem echten Server hält nichts still.**
+
+Ein Zugriffsprotokoll ist das Gegenteil eines Prüfkörpers: Es rotiert über
+Nacht (8393 Zeilen abends, 481 am Morgen), es wächst, und Fremde schreiben
+hinein. Jede Erwartung, die aus seiner Länge folgt, altert ab dem Augenblick
+ihrer Berechnung. **Drei Handgriffe gehören deshalb in jede Vorschrift über
+einen lebenden Gegenstand:**
+
+- Die Erwartung **unmittelbar** vor der Messung ausrechnen, nicht am Vortag.
+- Den Gegenstand **klammern** — `stat` davor und danach; gleiche Werte heissen
+  stillgestanden, ungleiche sagen, um wie viel.
+- **Jede erzeugte Zeile nummerieren**, und die Nummer nach vorn.
+
+> **Eine Nummer am Anfang einer erzeugten Zeile kostet nichts und entscheidet
+> drei Punkte.** `?i=35` hat Punkt 4 entschieden, `?k=21` Punkt 7, und `?i=437`
+> gegen `?i=337` Punkt 2 — ohne sie sind hundert Protokollzeilen im Bild
+> ununterscheidbar, weil der Unterschied jenseits des rechten Randes liegt.
+
+**Zweimal hat eine Messung mehr getragen, als ihr Punkt verlangt hat**, und beide
+Male, weil zwei unabhängige Lesungen nebeneinanderlagen:
+
+> **Zwei Fenster, deren Anfänge sich um genau die Differenz ihrer Grössen
+> unterscheiden, haben dasselbe Ende — das sagt die Rechnung, und dafür muss
+> niemand ans untere Ende rollen.**
+
+**Und eine offene Zahl ist entschieden.** Eine Ablesung von „85 KB" bei
+gemessenen 85 419 B passte besser zu 1000 als zu den 1024 des Quelltextes.
+Entschieden hat es eine Klammer um das Laden: 792 739 B davor, 792 959 B danach,
+beide 1024-basiert **774 KB** — und genau das steht auf der Seite, während 1000
+auf 793 käme. Die frühere Ablesung war Wachstum.
+
+> **Ein Prüfkörper, der noch beschrieben wird, entscheidet keine Zahl, die aus
+> seiner Grösse folgt.**
+
+**Der Prüfling hat einmal recht behalten, wo die Vorschrift irrte.** 300 Aufrufe
+an eine `.invalid`-Domain wurden mit `200` beantwortet, und ihr Protokoll blieb
+bei 0 Bytes — der Vorgabeblock hatte geantwortet. Die Seite sagte dazu „Das
+Protokoll ist leer.", also die richtige der fünf Auskünfte, und auch bei
+`lines=500` denselben Satz.
+
+> **Ein Rückgabewert von 200 sagt, dass jemand geantwortet hat — nicht, dass der
+> Gemeinte geantwortet hat.**
+
+**Und zwei Fallen der `tinker`-Abfrage stehen in `docs/920 §1`**, weil sie jeden
+treffen, der auf der Kommandozeile den Bestand ansieht:
+`Domain::withoutGlobalScopes()` löst die Mandantenklammer für die
+**Domain**-Abfrage, nicht für die nachgeladene Beziehung `$d->subscription` — die
+kam für alle sechs Domains als `null` zurück. Und der Prüfkörper verdeckte es,
+weil er ein `continue` trug.
+
+> **Ein Prüfkörper, der überspringt, meldet das Überspringen nicht.**
+
 
 ---
 

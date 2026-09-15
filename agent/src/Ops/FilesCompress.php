@@ -14,14 +14,28 @@ use SrvPanel\Agent\Op;
 /**
  * Einen Baum im Abonnement zu einem Zip packen.
  *
- * **Zip und nicht Tar**, und der Grund ist eine Eigenschaft dieser Umgebung:
- * `phar.readonly` steht auf `1` — die Voreinstellung jeder Distribution —, und
- * damit kann `PharData` lesen und nicht schreiben. Das umzustellen hiesse, dem
- * Agenten das Schreiben von Phar-Archiven überhaupt zu erlauben, und das ist
- * eine weitere Vollmacht für einen kleineren Gewinn als ein Dateiformat.
+ * **Zip und nicht Tar.** Hier stand bis zum 15. September 2026 als Grund,
+ * `phar.readonly` erlaube `PharData` nur das Lesen. **Das stimmt nicht**, und
+ * die Messrunde vor P8 hat es mit `Phar` als Gegenprobe nachgemessen
+ * (`docs/116` M1b): `phar.readonly` sperrt `Phar` — die ausführbare Bauart —
+ * und nicht `PharData`. Ein Tar aus PHP zu schreiben ginge.
  *
- * Entpacken kann trotzdem beides ({@see FilesExtract}) — `phar.readonly` sperrt
- * nur den Schreibweg.
+ * > **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch
+ * > dann falsch, wenn der Handgriff daneben richtig ist — und er hält länger
+ * > als der Handgriff, weil ihn der Nächste liest und glaubt.**
+ *
+ * **Die Entscheidung trägt trotzdem, aus einem gemessenen Grund.** Für das,
+ * was dieser Vorgang tut — eine Auswahl des Kunden herunterladbar machen —,
+ * ist Zip das Format, das jedes Betriebssystem ohne Zutat öffnet. Und
+ * `PharData` wäre hier sogar das schlechtere: Es lässt **leere Verzeichnisse
+ * ganz fallen** und trägt so wenig Eigentümer und Verweis wie `ZipArchive`
+ * (`docs/116` M1b, 1 von 5 Eigenschaften bei beiden, 5 von 5 nur bei `tar(1)`).
+ *
+ * Wer für P8 ein Archiv sucht, das ein **Abonnement** zurückbringt, findet die
+ * Frage dort beantwortet und nicht hier: Dieser Vorgang packt eine Auswahl,
+ * keine Sicherung.
+ *
+ * Entpacken kann beides ({@see FilesExtract}).
  *
  * ## Warum `paths` und nicht `path`
  *

@@ -4378,6 +4378,74 @@ für einen toten Pfad rc=0 und keine Ausgabe.
 
 ---
 
+## Die Messrunde vor P8 — 15. September 2026
+
+**P7b ist durch, und P8 ist noch nicht geplant.** Die Übergabe ist `docs/115`,
+die Messrunde davor **`docs/116`**, die Messvorschrift
+**`tests/sicherung-messen.php`**. Sie beantwortet die sieben Fragen aus
+`docs/115 §6.1` — jede mit Gegenprobe und jede mit dem, was sie nicht sagt.
+
+**Vier Ergebnisse ändern die Form, die `docs/115` sich gedacht hatte.**
+
+> **Ein Archiv, das den Eigentümer nicht trägt, ist keine Sicherung eines
+> Abonnements — es ist eine Sicherung seiner Dateinamen.** Gemessen an fünf
+> Eigenschaften (Rechte, UID, Verweis, setgid, leeres Verzeichnis): `ZipArchive`
+> **1 von 5**, `PharData` **1 von 5**, `tar(1)` von aussen **5 von 5** — und
+> `tar` steht nicht auf der Positivliste des Runners.
+
+> **Ein Wert, der grösser ist als der Weg dorthin, ist keine Grenze.** Ein
+> Verzeichnis je Datei ist bei rund **14 000** Einträgen zu Ende
+> (`Connection::CONTENT_MAX`), während `Packer::MAX_ENTRIES` **20 000** zulässt.
+> Derselbe Satz wie bei `FilesRead::MAX_BYTES` gegen `REQUEST_MAX`
+> (`docs/62` Punkt 12b), eine Stufe weiter draussen.
+
+> **Eine Wiederherstellung kann die Datenbanken des Kunden nicht unter ihren
+> alten Namen zurückbringen — und die Konfigurationsdatei seines Auftritts, die
+> sie beim Namen nennt, liegt als Kundendatei in derselben Sicherung.** Ein
+> wiederhergestelltes Abonnement bekommt einen **neuen** Systembenutzer und ein
+> **neues** `db_prefix`; `Names::belongsTo()` weist die alten Namen ab (gemessen
+> in beide Richtungen). `SystemUser` hat fünf Zugriffsstellen in `app/`, und
+> **keine fragt nach `subscription`** — es gibt keinen Weg zurück.
+
+> **Ein Geheimnis, das als Argument eines Vorgangs reist, steht auf der
+> Vorgangsseite.** `Operations/Show.vue` rendert `payload` als JSON, und
+> `OperationPolicy::view()` lässt jeden Admin und den Kunden des Abonnements
+> hindurch. `DnsCredentialStore` nennt genau das als Grund, **keinen** Vorgang
+> einzureihen — der Vorläufer für jedes Fernziel von P8.
+
+**Und eine Begründung im Quelltext war falsch.** `FilesCompress` sagte seit P6,
+`phar.readonly` erlaube `PharData` nur das Lesen. Gemessen mit `Phar` als
+Gegenprobe: `phar.readonly` sperrt **`Phar`** und nicht `PharData`. Die
+Entscheidung (Zip statt Tar) trägt trotzdem, und der Kommentar sagt jetzt,
+warum — `PharData` lässt leere Verzeichnisse ganz fallen.
+
+> **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch dann
+> falsch, wenn der Handgriff daneben richtig ist — und er hält länger als der
+> Handgriff, weil ihn der Nächste liest und glaubt.**
+
+**Zwei Zeilen in `docs/115` sind berichtigt** (`docs/116`, letzter Abschnitt):
+`/var/www/vhosts/<…>` hängt am **Abonnementnamen** und nicht am Benutzer — am
+Benutzer hängen das Eigentum und `/etc/cron.d/srvpanel-<benutzer>` —, und die
+Frage „Beschreibung oder erzeugte Datei" hat eine **dritte** Antwort:
+Schlüsselmaterial eines hochgeladenen Zertifikats und Datenbankpasswörter stehen
+in keiner von beiden.
+
+**Und der erste Anlauf von M3 war keine Messung.** Er benutzte `ob_start()` ohne
+Stückgrösse, sammelte die Antwort im Speicher und starb bei 1 GiB an
+`Allowed memory size exhausted`.
+
+> **Ein Prüfkörper, der seinen Gegenstand beim Messen verändert, meldet den
+> Unterschied als Fehler des Gemessenen.**
+
+**Was im Container nicht messbar ist, steht in `docs/116` als eigener
+Abschnitt** und nicht als Zusage: die greifende Quota (der Kernel kennt das
+Format nicht — `quotaon` rc=1, und ein Dateisystem mit der ext4-eigenen Quota
+lässt sich gar nicht einhängen), der Weg zum Kunden bei mehreren GB hinter
+echtem nginx, der Durchsatz auf der Platte des Servers, und ob `retry_after`
+(90 s) einem Lauf von 1800 s in die Quere kommt.
+
+---
+
 ## Befehle
 
 ```bash

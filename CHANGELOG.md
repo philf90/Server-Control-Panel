@@ -28431,3 +28431,64 @@ einen toten Pfad rc=0 und keine Ausgabe gibt. Gemessen in einem Wegwerf-Repo.
 **Der Wächter des Skills heisst `StewardSkillTest` und ist mit ihm gegangen.**
 Er steht seitdem in `ChangelogTest::REMOVED`, mit Datum und Grund — genau dafür
 gibt es diese Liste.
+
+### Die Messrunde vor P8 steht — und sie hat die Form umgeworfen
+
+`docs/116` beantwortet die sieben Fragen aus `docs/115 §6.1`, **bevor** eine
+Zeile Plan entsteht; die Messvorschrift liegt als `tests/sicherung-messen.php`
+daneben und nicht in einem Sitzungsverlauf. Jede Messung nennt ihre Gegenprobe
+und das, was sie nicht sagt.
+
+**Vier Ergebnisse ändern, was P8 bauen kann.**
+
+Kein Schreiber in PHP trägt, was eine Wiederherstellung braucht. Gemessen an
+fünf Eigenschaften — Rechte, Eigentümer, Verweis, setgid und ein leeres
+Verzeichnis — bringt `ZipArchive` **1 von 5** zurück, `PharData` ebenfalls 1 von
+5 (es lässt leere Verzeichnisse ganz fallen), und `tar(1)` von aussen **5 von
+5**. `tar` steht nicht auf der Positivliste des Runners.
+
+> **Ein Archiv, das den Eigentümer nicht trägt, ist keine Sicherung eines
+> Abonnements — es ist eine Sicherung seiner Dateinamen.**
+
+Ein Verzeichnis je Datei passt nicht durch die Leitung zum Agenten: Bei rund
+**14 000** Einträgen ist `Connection::CONTENT_MAX` erreicht, während
+`Packer::MAX_ENTRIES` **20 000** zulässt. Das Archiv nimmt mehr, als die Leitung
+beschreiben kann — derselbe Fehler wie bei `FilesRead::MAX_BYTES` gegen
+`REQUEST_MAX`, eine Stufe weiter draussen.
+
+Ein wiederhergestelltes Abonnement bekommt einen **neuen** Systembenutzer und
+ein **neues** Datenbankpräfix, und `Names::belongsTo()` weist die alten
+Datenbanknamen ab (gemessen in beide Richtungen). `SystemUser` hat fünf
+Zugriffsstellen in `app/`, und keine fragt nach `subscription`.
+
+> **Eine Wiederherstellung kann die Datenbanken des Kunden nicht unter ihren
+> alten Namen zurückbringen — und die Konfigurationsdatei seines Auftritts, die
+> sie beim Namen nennt, liegt als Kundendatei in derselben Sicherung.**
+
+Und eine wörtlich zurückgespielte Vhost-Datei aus einer älteren Fassung meldet
+der Nachtlauf als `directive_lost` — gemessen an der echten Vorlage und am
+echten Leser, mit der unveränderten Datei als Gegenprobe.
+
+**Eine Begründung im Quelltext war falsch.** `FilesCompress` sagte seit P6,
+`phar.readonly` erlaube `PharData` nur das Lesen. Gemessen mit `Phar` als
+Gegenprobe sperrt `phar.readonly` **`Phar`** und nicht `PharData`. Die
+Entscheidung — Zip statt Tar — trägt trotzdem, und der Kommentar sagt jetzt,
+warum.
+
+> **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch dann
+> falsch, wenn der Handgriff daneben richtig ist — und er hält länger als der
+> Handgriff, weil ihn der Nächste liest und glaubt.**
+
+**Zwei Zeilen in `docs/115` sind berichtigt.** `/var/www/vhosts/<…>` hängt am
+Abonnementnamen und nicht am Systembenutzer; am Benutzer hängen das Eigentum und
+`/etc/cron.d/srvpanel-<benutzer>`. Und die Frage „Beschreibung oder erzeugte
+Datei" hat eine dritte Antwort: Das Schlüsselmaterial eines hochgeladenen
+Zertifikats und die Datenbankpasswörter stehen in keiner von beiden.
+
+**Der erste Anlauf einer Messung war keine.** M3 benutzte `ob_start()` ohne
+Stückgrösse, sammelte die Antwort im Speicher und starb bei 1 GiB an
+`Allowed memory size exhausted` — ein Befund am Prüfstand, der sich wie einer am
+Prüfling las.
+
+> **Ein Prüfkörper, der seinen Gegenstand beim Messen verändert, meldet den
+> Unterschied als Fehler des Gemessenen.**

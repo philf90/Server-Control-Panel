@@ -29368,3 +29368,45 @@ Methode dasselbe Recht, und der Wächter blieb zu Recht grün.
 Gefunden hat es **nur der volle Lauf** — einzeln biss jeder neu gebaute Eingriff
 dieser Runde. Beide treffen jetzt jeden Frager, mit einer Zusicherung daneben,
 dass sie überhaupt einen finden.
+
+**Und die CI hat drei Wächter dieser Runde rot gemeldet, die hier grün waren.**
+`BackupRestoreTest` und die eine Hälfte von `BackupFormTest` massen einen
+Eigentümerwechsel auf einen **anderen** Benutzer — das darf nur root. Dieser
+Container läuft als root, der Lauf in der CI als `runner`, und dort scheitert
+jedes `chown` auf `nobody`. Fünf Fälle waren hier grün und dort rot, und rot aus
+einem Grund, der mit ihrer Regel nichts zu tun hat.
+
+Im Kopf des Wächters stand die Grenze sogar — „Er läuft als root" —, und der Satz
+war für diesen Container wahr und für die CI falsch.
+
+> **Ein Wächter, der in einer Umgebung entsteht und nur dort gefahren wird, hält
+> seine Umgebung für die Regel.**
+
+Gefragt wird jetzt, was **jeder** Aufrufer fragen darf, und das ist dieselbe
+Unterscheidung an einem anderen Gegenstand. Gemessen am 16. September 2026, als
+root und als `nobody`, mit identischer Antwort:
+
+| Griff auf einen **hängenden** Verweis | root | nobody |
+|---|---|---|
+| `chown()` | `false` | `false` |
+| `lchown()` | `true` | `true` |
+
+`chown` löst den Verweis auf und scheitert an einem Ziel, das es nicht gibt;
+`lchown` fasst ihn selbst an und kommt durch. Die Reichweite misst daneben der
+**Zähler**: Was der Rundlauf nicht betreten hat, zählt er nicht — mit Gegenprobe,
+dass er sehr wohl zählt, was unter ihm liegt. Beide Fälle laufen damit überall,
+und beide Eingriffe beissen als root **und** als `nobody` (gemessen, in beide
+Richtungen).
+
+**Die Kennung selbst bleibt root-Sache**, und sie steht jetzt mit ihrem Grund
+daneben statt als stiller Fehlschlag. `BackupFormTest` ist dafür geteilt: Die
+Reihenfolge im Rumpf von `execute()` liest jeder, das Verzeichnisschema an einem
+echten Baum nur root.
+
+> **Zwei Zusagen mit verschiedenen Voraussetzungen in einem Fall teilen sich die
+> schwächere Umgebung — und die stärkere Hälfte fällt mit aus.**
+
+Was die CI damit nicht mehr sieht, holt der Abnahmelauf: `docs/118 §0.5` legt
+**vor** der Sicherung einen Verweis aus dem Baum hinaus auf eine Wegwerfdatei in
+`/root`, und Punkt 4 liest hinterher deren Eigentümer. Kein `/etc/shadow` —
+schlägt die Regel fehl, soll die Datei eine sein, an der nichts hängt.

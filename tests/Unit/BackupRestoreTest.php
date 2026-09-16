@@ -38,11 +38,42 @@ use SrvPanel\Agent\Ops\BackupRestore;
  * > **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
  * > steht.**
  *
- * ## Und was er nicht kann
+ * ## Und warum er seine Frage ohne Rechte stellt
  *
- * Er läuft als root. Ein Eigentümerwechsel, der einem **unprivilegierten**
- * Aufrufer scheitern würde, scheitert hier nicht — dieselbe Grenze, die
- * `BackupPromiseTest` für die Reihenfolge der Verzeichnisrechte benennt.
+ * Hier stand bis zum 16. September 2026 „Er läuft als root" als benannte
+ * Grenze. Der Satz war für diesen Container wahr und für die CI falsch: Dort
+ * läuft der Lauf als `runner`, und ein `chown` auf einen **anderen** Benutzer
+ * ist einem unprivilegierten Aufrufer verwehrt. Alle vier Fälle waren hier
+ * grün und dort rot — und rot für einen Grund, der mit der Regel nichts zu tun
+ * hat.
+ *
+ * > **Ein Wächter, der in einer Umgebung entsteht und nur dort gefahren wird,
+ * > hält seine Umgebung für die Regel.**
+ *
+ * Gefragt wird deshalb, was **jeder** Aufrufer fragen darf. Gemessen am
+ * 16. September 2026, als root und als `nobody`, mit identischer Antwort:
+ *
+ * | Griff auf einen **hängenden** Verweis | root | nobody |
+ * |---|---|---|
+ * | `chown()` | `false` | `false` |
+ * | `lchown()` | `true` | `true` |
+ *
+ * Das ist dieselbe Unterscheidung wie oben — `chown` löst den Verweis auf,
+ * `lchown` nicht —, nur an einem Ziel, das es nicht gibt. Ein
+ * Eigentümerwechsel, der ihr folgte, scheiterte daran; einer, der es nicht
+ * tut, kommt durch. Die Reichweite misst daneben der **Zähler**: Was der
+ * Rundlauf nicht betreten hat, zählt er nicht.
+ *
+ * ## Was er nicht kann
+ *
+ * Die Kennung selbst. Dass der Kunde seine Dateien danach wirklich **besitzt**,
+ * braucht zwei Identitäten und damit root; die beiden Fälle unten stehen
+ * deshalb mit einem Grund daneben. Gemessen wird sie auf einem echten Server —
+ * `docs/118` Punkt 4 liest den Eigentümer nach der Wiederherstellung, und seit
+ * heute auch den einer Datei, auf die ein Verweis aus dem Baum hinauszeigt.
+ *
+ * > **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+ * > als Zusage.**
  */
 final class BackupRestoreTest extends TestCase
 {
@@ -76,15 +107,112 @@ final class BackupRestoreTest extends TestCase
         return (int) $eintrag['uid'];
     }
 
+    /** Der Name des Kontos, unter dem dieser Lauf läuft — root hier, `runner` in der CI. */
+    private function ich(): string
+    {
+        $eintrag = posix_getpwuid(posix_geteuid());
+
+        $this->assertIsArray($eintrag, 'Das eigene Konto hat keinen Eintrag in der Passwortdatei.');
+
+        return (string) $eintrag['name'];
+    }
+
     /**
      * **Der Fall, um dessentwillen es diesen Wächter gibt.**
      *
-     * Ein Verweis im Baum zeigt auf eine Datei ausserhalb. Nach dem
-     * Eigentümerwechsel gehört der **Verweis** dem neuen Benutzer und das
-     * **Ziel** weiterhin root.
+     * Ein **hängender** Verweis im Baum. `chown()` löst ihn auf und scheitert
+     * an einem Ziel, das es nicht gibt; `lchown()` fasst den Verweis selbst an
+     * und kommt durch. Ein Eigentümerwechsel, der dem Verweis folgte, meldete
+     * hier also einen Fehlschlag — und genau deshalb ist das Ausbleiben der
+     * Ausnahme hier eine Messung und keine Abwesenheit.
+     *
+     * Die Gegenprobe steht **im selben Fall**: Ohne sie bliebe offen, ob die
+     * beiden Griffe in dieser Umgebung überhaupt verschieden antworten. Täten
+     * sie es nicht, wäre der Fall grün aus einem Grund, der mit seiner Regel
+     * nichts zu tun hat.
      */
-    public function test_the_owner_change_never_follows_a_link_out_of_the_tree(): void
+    public function test_the_owner_change_never_follows_a_link(): void
     {
+        $ich = $this->ich();
+
+        $verweis = $this->scratch.'/baum/haengt';
+        symlink($this->scratch.'/gibtsnicht', $verweis);
+
+        $this->assertTrue(is_link($verweis), 'Der Prüfkörper trägt keinen Verweis.');
+        $this->assertFileDoesNotExist($this->scratch.'/gibtsnicht', 'Das Ziel gibt es — dann hängt der Verweis nicht.');
+
+        // Die Gegenprobe: In dieser Umgebung antworten die beiden Griffe
+        // verschieden. Sie läuft **vor** dem Prüfling, weil sie nichts
+        // verändert, was er später misst — beide Griffe setzen denselben
+        // Eigentümer, den der Verweis ohnehin schon hat.
+        $this->assertFalse(@chown($verweis, $ich), 'chown() kommt hier an einem hängenden Verweis durch — dann misst der Fall darunter nichts.');
+        $this->assertTrue(@lchown($verweis, $ich), 'lchown() scheitert hier an einem hängenden Verweis — dann ist der Fall darunter nicht herstellbar.');
+
+        $gezaehlt = BackupRestore::own($this->scratch.'/baum', $ich);
+
+        $this->assertSame(1, $gezaehlt, 'Der Verweis wird nicht gezählt — dann hat der Rundlauf ihn gar nicht gesehen.');
+    }
+
+    /**
+     * Und der Rundlauf steigt nicht in ein verwiesenes Verzeichnis hinab.
+     *
+     * Dieselbe Familie, eine Ebene höher: `FOLLOW_SYMLINKS` am Iterator führte
+     * ihn aus dem Baum hinaus, und dann träfe `chown()` jede Datei dahinter —
+     * ganz ohne dass ein einziger Verweis gechownt würde.
+     *
+     * Gemessen wird das am **Zähler** und nicht am Eigentümer: Was der Rundlauf
+     * nicht betreten hat, zählt er nicht, und diese Zahl darf jeder lesen. Die
+     * Gegenprobe legt dieselben drei Einträge in den Baum selbst — ohne sie
+     * bliebe offen, ob der Zähler überhaupt zählt, was unter ihm liegt.
+     */
+    public function test_the_walk_does_not_descend_into_a_linked_directory(): void
+    {
+        $ich = $this->ich();
+
+        mkdir($this->scratch.'/draussen/unterordner', 0700, true);
+        file_put_contents($this->scratch.'/draussen/unterordner/tief.txt', 'gehoert jemand anderem');
+        file_put_contents($this->scratch.'/draussen/flach.txt', 'auch');
+
+        symlink($this->scratch.'/draussen', $this->scratch.'/baum/hinaus');
+
+        $this->assertSame(
+            1,
+            BackupRestore::own($this->scratch.'/baum', $ich),
+            'Der Rundlauf zählt mehr als den Verweis — dann ist er in ein verwiesenes Verzeichnis hinabgestiegen.',
+        );
+
+        // Die Gegenprobe: dieselben drei Einträge, diesmal im Baum. Zählte der
+        // Rundlauf sie auch hier nicht, sagte die Zeile darüber nichts über
+        // den Verweis, sondern über den Zähler.
+        mkdir($this->scratch.'/baum/drin/unterordner', 0700, true);
+        file_put_contents($this->scratch.'/baum/drin/unterordner/tief.txt', 'gehoert dem Kunden');
+        file_put_contents($this->scratch.'/baum/drin/flach.txt', 'auch');
+
+        $this->assertSame(
+            5,
+            BackupRestore::own($this->scratch.'/baum', $ich),
+            'Der Zähler zählt nicht, was unter ihm liegt — dann belegt die Zeile darüber nichts.',
+        );
+    }
+
+    /**
+     * **Die Kennung selbst — und dieser Fall braucht root.**
+     *
+     * Er trägt, was die beiden Fälle darüber nicht können: dass der neue
+     * Eigentümer wirklich ankommt, dass die Wurzel aussen vor bleibt, und dass
+     * ein Verweis aus dem Baum hinaus sein Ziel **nicht** mitnimmt. Dafür
+     * braucht es zwei Identitäten — ein unprivilegierter Aufrufer darf eine
+     * Datei niemandem sonst geben.
+     *
+     * Er ist damit in der CI still. Die Regel, um die es geht, ist es nicht:
+     * Sie steht in den beiden Fällen darüber, und die laufen überall.
+     */
+    public function test_the_new_owner_really_lands(): void
+    {
+        if (posix_geteuid() !== 0) {
+            $this->markTestSkipped('Nur root darf eine Datei einem anderen Benutzer geben — der Prüfkörper stellt seinen Zustand nicht her.');
+        }
+
         $opfer = $this->scratch.'/draussen/opfer.txt';
         file_put_contents($opfer, 'gehoert root');
         chown($opfer, 'root');
@@ -92,11 +220,14 @@ final class BackupRestoreTest extends TestCase
         $verweis = $this->scratch.'/baum/verweis';
         symlink($opfer, $verweis);
 
-        // Ohne diese Zeile misst der Fall nichts: Läge kein Verweis da, wäre
-        // jedes Ergebnis darunter richtig.
+        mkdir($this->scratch.'/baum/httpdocs', 0755, true);
+        file_put_contents($this->scratch.'/baum/httpdocs/index.php', '<?php');
+
+        // Ohne diese Zeile misst der Fall nichts: Folgte `chown()` dem Verweis
+        // hier gar nicht, wäre jedes Ergebnis darunter richtig.
         $this->assertTrue(is_link($verweis), 'Der Prüfkörper trägt keinen Verweis.');
 
-        BackupRestore::own($this->scratch.'/baum', self::WER);
+        $gezaehlt = BackupRestore::own($this->scratch.'/baum', self::WER);
 
         $neu = $this->uidOf(self::WER);
 
@@ -106,17 +237,29 @@ final class BackupRestoreTest extends TestCase
             stat($opfer)['uid'],
             'Der Eigentümerwechsel ist dem Verweis gefolgt — damit gehört eine Datei ausserhalb des Abonnements dem Kunden.',
         );
+
+        $this->assertSame($neu, stat($this->scratch.'/baum/httpdocs')['uid']);
+        $this->assertSame($neu, stat($this->scratch.'/baum/httpdocs/index.php')['uid']);
+
+        // Die Wurzel selbst bleibt aussen vor — sie gehört root, und das Schema
+        // setzt sie gleich noch einmal.
+        $this->assertSame(0, stat($this->scratch.'/baum')['uid']);
+
+        $this->assertSame(3, $gezaehlt, 'Es werden nicht alle drei Einträge gezählt — dann misst der Fall wenig.');
     }
 
     /**
-     * **Die Gegenprobe, und ohne sie belegt der Fall darüber nichts.**
+     * **Die Gegenprobe zu dem Fall darüber, und auch sie braucht root.**
      *
      * Ein `chown()` an derselben Stelle **muss** das Ziel treffen. Täte es das
-     * nicht, wäre oben nicht `lchown` der Grund, sondern die Umgebung — und der
-     * Wächter grün aus einem Grund, der mit seiner Regel nichts zu tun hat.
+     * nicht, wäre oben nicht `lchown` der Grund, sondern die Umgebung.
      */
     public function test_a_plain_chown_really_would_have_followed_it(): void
     {
+        if (posix_geteuid() !== 0) {
+            $this->markTestSkipped('Nur root darf eine Datei einem anderen Benutzer geben — der Prüfkörper stellt seinen Zustand nicht her.');
+        }
+
         $opfer = $this->scratch.'/draussen/opfer.txt';
         file_put_contents($opfer, 'gehoert root');
         chown($opfer, 'root');
@@ -130,51 +273,6 @@ final class BackupRestoreTest extends TestCase
             stat($opfer)['uid'],
             'Ein gewöhnliches chown() folgt dem Verweis hier nicht — dann misst der Fall darüber etwas anderes als gedacht.',
         );
-    }
-
-    /**
-     * Und der Rundlauf steigt nicht in ein verwiesenes Verzeichnis hinab.
-     *
-     * Dieselbe Familie, eine Ebene höher: `FOLLOW_SYMLINKS` am Iterator führte
-     * ihn aus dem Baum hinaus, und dann träfe `chown()` jede Datei dahinter —
-     * ganz ohne dass ein einziger Verweis gechownt würde.
-     */
-    public function test_the_walk_does_not_descend_into_a_linked_directory(): void
-    {
-        $drin = $this->scratch.'/draussen/unterordner';
-        mkdir($drin, 0700, true);
-        file_put_contents($drin.'/tief.txt', 'gehoert root');
-        chown($drin.'/tief.txt', 'root');
-
-        symlink($this->scratch.'/draussen', $this->scratch.'/baum/hinaus');
-
-        BackupRestore::own($this->scratch.'/baum', self::WER);
-
-        $this->assertSame(
-            0,
-            stat($drin.'/tief.txt')['uid'],
-            'Der Rundlauf ist in ein verwiesenes Verzeichnis hinabgestiegen.',
-        );
-    }
-
-    /** Gewöhnliche Dateien und Verzeichnisse bekommen ihn sehr wohl. */
-    public function test_files_and_directories_do_get_the_new_owner(): void
-    {
-        mkdir($this->scratch.'/baum/httpdocs', 0755, true);
-        file_put_contents($this->scratch.'/baum/httpdocs/index.php', '<?php');
-
-        $gezaehlt = BackupRestore::own($this->scratch.'/baum', self::WER);
-
-        $neu = $this->uidOf(self::WER);
-
-        $this->assertSame($neu, stat($this->scratch.'/baum/httpdocs')['uid']);
-        $this->assertSame($neu, stat($this->scratch.'/baum/httpdocs/index.php')['uid']);
-
-        // Die Wurzel selbst bleibt aussen vor — sie gehört root, und das Schema
-        // setzt sie gleich noch einmal.
-        $this->assertSame(0, stat($this->scratch.'/baum')['uid']);
-
-        $this->assertSame(2, $gezaehlt, 'Es werden nicht beide Einträge gezählt — dann misst der Fall wenig.');
     }
 
     /** Die Zusage von Form A: Die Operation ändert etwas, und sie heisst so. */

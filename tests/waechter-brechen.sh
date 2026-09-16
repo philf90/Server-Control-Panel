@@ -29565,7 +29565,7 @@ open(p, 'w', encoding='utf-8').write(s.replace(alt, "? @chown($pfad, $uid) && @c
 PY2
 griff_datei agent/src/Ops/BackupRestore.php "Verweis wird gechownt" &&
 pruefe "Verweis wird gechownt" \
-  BackupRestoreTest::test_the_owner_change_never_follows_a_link_out_of_the_tree failed
+  BackupRestoreTest::test_the_owner_change_never_follows_a_link failed
 wiederherstellen
 
 echo
@@ -29604,7 +29604,7 @@ open(p, 'w', encoding='utf-8').write(s.replace(alt, '// ' + alt, 1))
 PY2
 griff_datei agent/src/Ops/BackupRestore.php "Schema nicht wiederhergestellt" &&
 pruefe "Schema nicht wiederhergestellt" \
-  BackupFormTest::test_the_restore_puts_the_directory_scheme_back failed
+  BackupFormTest::test_the_restore_puts_the_directory_scheme_back_after_the_owner_change failed
 wiederherstellen
 
 echo

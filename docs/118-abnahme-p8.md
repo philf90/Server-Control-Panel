@@ -57,6 +57,24 @@ geändert hat, muss die Seite sagen.
 
 ---
 
+### 0.5 Punkt 4 bekommt den Verweis aus dem Baum hinaus
+
+Nachgetragen am 16. September 2026, und nicht beim Ausschreiben gefunden,
+sondern beim Fahren der CI: `BackupRestoreTest` misst, dass der
+Eigentümerwechsel keinem Verweis folgt — und die Hälfte davon, die eine
+**Kennung** liest, braucht root. Die CI läuft als `runner`, und dort ist sie
+still.
+
+Der Wächter trägt die Regel weiterhin überall (am hängenden Verweis und am
+Zähler); was ihm in der CI fehlt, ist der Beleg, dass eine Datei **ausserhalb**
+des Abonnements ihren Eigentümer behält. Genau das kann ein echter Server, und
+deshalb steht es jetzt in Punkt 1 als Prüfkörper und in Punkt 4 als Messung.
+
+> **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
+> als Zusage** — und wo ein Lauf sie beantworten kann, gehört sie in den Lauf.
+
+---
+
 ## 0b · Der Vorflug — was vorher dasteht und hinterher wieder
 
 Dieser Lauf **legt ein Abonnement an und löscht es**. Vorher festhalten:
@@ -92,6 +110,21 @@ MariaDB, eine PostgreSQL), mindestens einer Domain und einem Cronjob.
 # vorher — die Quota des Kunden
 repquota -s / | grep "^p1[0-9]*" | tee /root/p8-quota-vorher.txt
 ```
+
+**Und der Verweis aus dem Baum hinaus** — der Prüfkörper zu 0.5. Er wird
+angelegt, **bevor** gesichert wird, und zeigt auf eine Datei, die es nur für
+diesen Lauf gibt:
+
+```bash
+install -m 600 -o root -g root /dev/null /root/p8-opfer.txt
+echo 'gehoert root' > /root/p8-opfer.txt
+ln -s /root/p8-opfer.txt /var/www/vhosts/<abo>/httpdocs/hinaus
+stat -c '%U:%G %a %n' /root/p8-opfer.txt
+```
+
+**Kein `/etc/shadow`.** Schlägt die Regel fehl, wechselt die Datei ihren
+Eigentümer — dann soll das eine Wegwerfdatei sein und keine, an der die
+Anmeldung hängt. Der Befund ist derselbe.
 
 Dann über die Oberfläche: `/subscriptions/<id>/backups` → **Jetzt sichern**.
 Warten, bis der Vorgang `succeeded` meldet.
@@ -176,6 +209,24 @@ crontab -l -u <neuer-benutzer> 2>/dev/null; cat /etc/cron.d/srvpanel-<neuer-benu
 Datenbanken mit ihrem Inhalt (Zeilenzahl!), Domains und Cronjobs wieder da.
 
 **Der Eigentümer ist der neue** — das ist Form A und kein Mangel.
+
+**Und die Datei ausserhalb behält ihren** (0.5):
+
+```bash
+stat -c '%U:%G %a %n' /root/p8-opfer.txt
+stat -c '%U:%G %n' /var/www/vhosts/<neues-abo>/httpdocs/hinaus
+readlink /var/www/vhosts/<neues-abo>/httpdocs/hinaus
+```
+
+**Erwartet:** `/root/p8-opfer.txt` weiterhin `root:root 600`, der **Verweis
+selbst** dem neuen Benutzer, und sein Ziel unverändert `/root/p8-opfer.txt`.
+
+Steht dort der neue Benutzer, ist der Eigentümerwechsel dem Verweis gefolgt —
+und ein Kunde bekäme über ein Archiv jede Datei dieses Servers. Das ist ein
+Ausfall und kein Mangel an Schönheit.
+
+> **Ein Verweis, dessen Ziel man nicht prüft, ist harmlos, solange niemand ihm
+> folgt — und ein rekursiver Griff folgt ihm, ohne es zu sagen.**
 
 ---
 

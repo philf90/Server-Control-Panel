@@ -161,21 +161,58 @@ final class BackupFormTest extends TestCase
     }
 
     /**
-     * **Das Verzeichnisschema überlebt den Eigentümerwechsel.**
+     * **Das Verzeichnisschema überlebt den Eigentümerwechsel — die Reihenfolge.**
      *
-     * Zwei Hälften, und beide sind nötig:
+     * Zwei Hälften trugen den Befund, und sie haben **verschiedene
+     * Voraussetzungen**: Die eine liest den Rumpf, die andere braucht zwei
+     * Identitäten und damit root. Bis zum 16. September 2026 standen sie in
+     * einem Fall; in der CI, die als `runner` läuft, fiel damit auch die
+     * Hälfte aus, die dort sehr wohl messbar ist.
      *
-     * 1. `applyTree()` **stellt es her** — gemessen an einem echten Baum, dem
-     *    ein rekursiver `chown` seine Gruppen genommen hat.
-     * 2. `execute()` ruft es **nach** dem Eigentümerwechsel — gemessen an der
-     *    Reihenfolge im Rumpf.
+     * > **Zwei Zusagen mit verschiedenen Voraussetzungen in einem Fall teilen
+     * > sich die schwächere Umgebung — und die stärkere Hälfte fällt mit
+     * > aus.**
      *
-     * Ohne die zweite wäre die erste eine Zusage über eine Methode, die zum
-     * falschen Zeitpunkt läuft; ohne die erste eine über einen Aufruf, der
-     * nichts tut.
+     * Diese hier misst die **Reihenfolge** im Rumpf von `execute()`: Das Schema
+     * wird nach dem Eigentümerwechsel gesetzt. Stünde es davor, wäre es
+     * danach fort.
      */
-    public function test_the_restore_puts_the_directory_scheme_back(): void
+    public function test_the_restore_puts_the_directory_scheme_back_after_the_owner_change(): void
     {
+        $rumpf = $this->methodBody('agent/src/Ops/BackupRestore.php', 'execute');
+
+        $chown = strpos($rumpf, 'self::own(');
+        $schema = strpos($rumpf, 'SubscriptionProvision::applyTree(');
+
+        $this->assertNotFalse($chown, 'execute() setzt keinen Eigentümer.');
+        $this->assertNotFalse($schema, implode("\n", [
+            'execute() stellt das Verzeichnisschema nicht wieder her.',
+            'Ein rekursiver Eigentümerwechsel ebnet es ein: httpdocs gehört danach dem Kunden',
+            'statt www-data, und der Webserver kommt an das Dokumentenverzeichnis nicht mehr heran.',
+        ]));
+
+        $this->assertGreaterThan($chown, $schema, 'Das Schema wird vor dem Eigentümerwechsel gesetzt — danach ist es fort.');
+    }
+
+    /**
+     * **Und dass `applyTree()` es wirklich herstellt — dieser Fall braucht root.**
+     *
+     * Gemessen an einem echten Baum, dem ein rekursiver `chown` seine Gruppen
+     * genommen hat. Der Schaden lässt sich nur herstellen, wenn der Lauf eine
+     * Datei einem **anderen** Benutzer geben darf; ein unprivilegierter
+     * Aufrufer darf das nicht.
+     *
+     * Ohne die Reihenfolge darüber wäre das eine Zusage über eine Methode, die
+     * zum falschen Zeitpunkt läuft; ohne diese hier eine über einen Aufruf, der
+     * nichts tut. Auf einem echten Server liest `docs/118` Punkt 4 die Gruppen
+     * von `httpdocs` und `logs` nach der Wiederherstellung.
+     */
+    public function test_the_directory_scheme_is_really_rebuilt(): void
+    {
+        if (posix_geteuid() !== 0) {
+            $this->markTestSkipped('Nur root darf eine Datei einem anderen Benutzer geben — der Prüfkörper stellt den Schaden nicht her.');
+        }
+
         $root = $this->scratch.'/shop';
         mkdir($root.'/httpdocs', 0700, true);
         mkdir($root.'/logs', 0700, true);
@@ -202,21 +239,6 @@ final class BackupFormTest extends TestCase
             stat($root.'/logs')['gid'],
             'logs gehört nach der Wiederherstellung nicht adm — der Betreiber käme ohne root nicht an die Protokolle.',
         );
-
-        // Und die Reihenfolge, gemessen im Rumpf von `execute()`.
-        $rumpf = $this->methodBody('agent/src/Ops/BackupRestore.php', 'execute');
-
-        $chown = strpos($rumpf, 'self::own(');
-        $schema = strpos($rumpf, 'SubscriptionProvision::applyTree(');
-
-        $this->assertNotFalse($chown, 'execute() setzt keinen Eigentümer.');
-        $this->assertNotFalse($schema, implode("\n", [
-            'execute() stellt das Verzeichnisschema nicht wieder her.',
-            'Ein rekursiver Eigentümerwechsel ebnet es ein: httpdocs gehört danach dem Kunden',
-            'statt www-data, und der Webserver kommt an das Dokumentenverzeichnis nicht mehr heran.',
-        ]));
-
-        $this->assertGreaterThan($chown, $schema, 'Das Schema wird vor dem Eigentümerwechsel gesetzt — danach ist es fort.');
     }
 
     /** Der Rumpf einer Methode, ohne Kommentare. */

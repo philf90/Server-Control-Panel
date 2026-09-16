@@ -4965,6 +4965,40 @@ Testen berücksichtigen:
   Wer hier misst, räumt seinen Prüfkörper hinterher weg; wer einen Wächter baut,
   gibt ihm einen Prüfkörper, den die Umgebung nicht liefern kann.
 
+  **Und der grösste Unterschied zur CI ist eine Zeile: `id`.** Hier läuft alles
+  als **root**, der Lauf in der CI als `runner` (uid 1001). Gemessen am
+  16. September 2026 an fünf frisch gebauten Fällen, die hier grün waren und
+  dort rot: Ein `chown` auf einen **anderen** Benutzer darf nur root, und ein
+  Wächter, der eine Kennung setzt, misst damit eine Fähigkeit und nicht seine
+  Regel. Im Kopf des Wächters stand die Grenze sogar — „Er läuft als root" —,
+  und der Satz war für diesen Container wahr und für die CI falsch.
+
+  > **Ein Wächter, der in einer Umgebung entsteht und nur dort gefahren wird,
+  > hält seine Umgebung für die Regel.**
+
+  Die Richtung ist dabei beides: Als root **gelingt** zuviel (`is_executable()`
+  sagt für jedes Verzeichnis `true`, ein Schreibschutz greift nicht —
+  `MaintenanceSwitchTest` überspringt genau deshalb), als `runner` **scheitert**
+  zuviel. Wer einen Wächter baut, der Rechte, Eigentümer oder Schreibschutz
+  anfasst, fährt ihn deshalb **unter beiden Kennungen**, bevor er pusht:
+
+      setpriv --reuid=65534 --regid=65534 --clear-groups \
+        env TMPDIR=/var/tmp/<eigenes> ./vendor/bin/phpunit --filter <Fall>
+
+  `/tmp` ist hier `0755 root:root` und **nicht** 1777 — ohne ein eigenes
+  `TMPDIR` scheitert `sys_get_temp_dir()` wortlos, und das sieht aus wie ein
+  Befund am Prüfling. Die Gegenprobe gehört dazu: derselbe Aufruf als root.
+
+  > **Eine Messung, die nur unter einer Kennung läuft, sagt über die andere
+  > nichts — und welche von beiden die CI hat, entscheidet nicht, wer recht
+  > hat.**
+
+  Was eine Kennung wirklich braucht, gehört als Frage daneben und wird dort
+  gemessen, wo es geht: `BackupRestoreTest` trägt seine Regel am **hängenden
+  Verweis** und am **Zähler** (beides rechtefrei, gemessen als root und als
+  `nobody` mit identischer Antwort), und den Eigentümer liest der Abnahmelauf
+  auf einem echten Server.
+
   **Und zwei weitere setzten voraus, dass hier niemand gebaut hat** — bis zum
   26. August 2026. `PreviousUrlTest` schickte `X-Inertia-Version: ''`, und
   Inertia trägt dort den Stand der Bauartefakte ein: Weicht er ab, kommt **409**

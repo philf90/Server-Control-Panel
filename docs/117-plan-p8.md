@@ -2332,6 +2332,36 @@ baut ein Fernziel), die Sicherung war zwischen Punkt 2 und 3 unerreichbar
 (Befund 21), Punkt 2 sagte „die Zeile" und meint nicht die der Sicherungen, und
 Punkt 4 sagte „die Datenbanken" und meint andere Namen.
 
+### Befund 22 · Zwei fremde Eingriffe, die meine zweite Policy stumpf gemacht hat
+
+Der volle Bruchlauf über alle **2559** Prüfungen meldete zwei ohne Biss —
+und beide gehören nicht zu P8:
+
+```
+Recht ohne Policy      — passed (erwartet: failed)
+Recht nur im Kommentar — passed (erwartet: failed)
+```
+
+Sie brechen `PermissionReachTest` („jedes Recht wird von einer Policy gefragt")
+und ersetzen dafür `Permission::Backups` durch ein anderes — **mit `, 1`, also
+nur das erste Vorkommen**. Seit `downloadBackup()` daneben steht, fragt eine
+**zweite** Methode dasselbe Recht, und der Wächter blieb zu Recht grün: Seine
+Regel lautet „*eine* Policy fragt es", und eine tat es noch.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand daneben eine zweite baut, die dieselbe Frage beantwortet.**
+
+Gefunden hat es **nur der volle Lauf**. Einzeln gefahren biss jeder neue
+Eingriff dieser Runde; diese beiden sind alt, und ihre Zieldatei stand nicht auf
+der Liste der Dateien, die dieser Zweig ändert — bis `SubscriptionPolicy.php`
+es tat.
+
+> **Ein Eingriff misst nicht nur die Datei, die er anfasst — er misst jede, die
+> sein Wächter liest.**
+
+Beide treffen jetzt **jeden** Frager und nicht den ersten, mit einer Zusicherung
+daneben, dass sie überhaupt einen finden.
+
 ### Was danach offen bleibt
 
 - **Der ganze Weg ist nie auf einem Server gefahren** — das gilt unverändert aus

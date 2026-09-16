@@ -29355,3 +29355,16 @@ Bereich also niemand zu sehen.
 `/backups` trägt jetzt den Bereich „Ohne Abonnement" — nur für den Betreiber, nur
 wenn es solche Sicherungen gibt. Der Wächter misst, **dass** es einen Weg gibt;
 ob jemand dort sucht, hängt an einer Erwartung und steht daneben als Frage.
+
+**Und der volle Bruchlauf hat zwei fremde Eingriffe gefunden, die stumpf
+geworden sind.** Sie brechen `PermissionReachTest`, indem sie
+`Permission::Backups` durch ein anderes Recht ersetzen — mit `, 1`, also nur an
+der ersten Stelle. Seit `downloadBackup()` daneben steht, fragt eine zweite
+Methode dasselbe Recht, und der Wächter blieb zu Recht grün.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand daneben eine zweite baut, die dieselbe Frage beantwortet.**
+
+Gefunden hat es **nur der volle Lauf** — einzeln biss jeder neu gebaute Eingriff
+dieser Runde. Beide treffen jetzt jeden Frager, mit einer Zusicherung daneben,
+dass sie überhaupt einen finden.

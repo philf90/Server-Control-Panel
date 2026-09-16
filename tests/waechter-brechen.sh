@@ -29185,9 +29185,15 @@ vorher_datei app/Policies/SubscriptionPolicy.php
 python3 - <<'PY2'
 p = 'app/Policies/SubscriptionPolicy.php'
 s = open(p, encoding='utf-8').read()
+# **Beide Frager und nicht nur den ersten.** Seit P8 fragt neben
+# `manageBackups()` auch `downloadBackup()` dieses Recht; mit `, 1` blieb der
+# zweite stehen, und der Waechter war zu Recht gruen — die Regel lautet „*eine*
+# Policy fragt es", und eine tat es noch.
+anzahl = s.count('return $this->useFeature($account, $subscription, Permission::Backups);')
+assert anzahl >= 1, 'Zielzeile nicht gefunden — der Bruch waere blind'
 s = s.replace(
     'return $this->useFeature($account, $subscription, Permission::Backups);',
-    'return $this->useFeature($account, $subscription, Permission::FilesRead);', 1)
+    'return $this->useFeature($account, $subscription, Permission::FilesRead);')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Policies/SubscriptionPolicy.php "Recht ohne Policy" &&
@@ -29205,10 +29211,13 @@ vorher_datei app/Policies/SubscriptionPolicy.php
 python3 - <<'PY2'
 p = 'app/Policies/SubscriptionPolicy.php'
 s = open(p, encoding='utf-8').read()
+# Auch hier beide — siehe den Eingriff darueber.
+anzahl = s.count('return $this->useFeature($account, $subscription, Permission::Backups);')
+assert anzahl >= 1, 'Zielzeile nicht gefunden — der Bruch waere blind'
 s = s.replace(
     'return $this->useFeature($account, $subscription, Permission::Backups);',
     '// return $this->useFeature($account, $subscription, Permission::Backups);\n        '
-    'return $this->useFeature($account, $subscription, Permission::FilesRead);', 1)
+    'return $this->useFeature($account, $subscription, Permission::FilesRead);')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Policies/SubscriptionPolicy.php "Recht nur im Kommentar" &&

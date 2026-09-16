@@ -11,6 +11,7 @@ use SrvPanel\Agent\Ops\AcmeCertificateRemove;
 use SrvPanel\Agent\Ops\AgentPing;
 use SrvPanel\Agent\Ops\BackupCreate;
 use SrvPanel\Agent\Ops\BackupRemove;
+use SrvPanel\Agent\Ops\BackupRestore;
 use SrvPanel\Agent\Ops\BackupVerify;
 use SrvPanel\Agent\Ops\CertificateUpload;
 use SrvPanel\Agent\Ops\ConfigValidate;
@@ -310,6 +311,14 @@ final class Registry
          * hat.
          */
         $this->register(new BackupVerify);
+
+        /*
+         * Und der Weg zurück (`docs/117 §6` Schritt 8). Er steht **hinter**
+         * `create`, weil er dessen Ausgabe liest — dieselbe Ordnung wie bei den
+         * Dumps. Ein `remove` braucht er nicht: Was er anlegt, gehört dem
+         * Abonnement, und dessen Rückweg ist `subscription.remove`.
+         */
+        $this->register(new BackupRestore);
         $this->register(new DbRestore);
 
         // Die Messung. Sie steht ausserhalb der Paare oben, weil sie nichts

@@ -119,6 +119,44 @@ final class Dumps
         ), $accountId, ['source' => $source]);
     }
 
+    /**
+     * Eine Datei, die schon in der Ablage liegt, als Sicherung übernehmen.
+     *
+     * **Der Fall der Wiederherstellung** (`docs/117 §6` Schritt 8):
+     * `backup.restore` hat den Dump aus dem Archiv in die Ablage des neuen
+     * Abonnements gelegt; hier bekommt er die Zeile, die
+     * {@see self::restore()} braucht. Ohne sie gäbe es die Datei und keinen
+     * Weg zu ihr.
+     *
+     * **`Ready` und nicht `Pending`, und das ist gemessen und nicht gesetzt:**
+     * `restore()` fragt `status->usable()`, und eine Zeile auf `Pending` wiese
+     * es mit *„Diese Sicherung ist nicht fertig"* ab. Fertig ist sie auch —
+     * geschrieben hat sie der Lauf, der die Sicherung angelegt hat, und
+     * `backup.verify` prüft ihre Bytes.
+     *
+     * **`Imported` und nicht `Export`**, aus demselben Grund wie bei
+     * {@see self::import()}: Eine Sicherung, die aus einem Archiv kommt, ist
+     * etwas anderes als eine, die dieser Server eben geschrieben hat. Wer beim
+     * Zurückspielen zwischen den beiden nicht unterscheiden kann, trifft die
+     * Wahl blind.
+     */
+    public function adopt(Database $database, string $storageName): DatabaseDump
+    {
+        $dump = new DatabaseDump([
+            'database_id' => (int) $database->id,
+            'database_name' => $database->name,
+            'storage_name' => $storageName,
+            'engine' => $database->engine,
+            'kind' => DumpKind::Imported,
+            'status' => DumpStatus::Ready,
+        ]);
+
+        $dump->subscription_id = $database->subscription_id;
+        $dump->save();
+
+        return $dump;
+    }
+
     /** Eine Sicherung entfernen — die Datei zuerst, die Zeile danach. */
     public function remove(DatabaseDump $dump, ?int $accountId = null): Operation
     {

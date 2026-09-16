@@ -72,8 +72,12 @@ final class BackupSecretTest extends TestCase
     private const KEYS = [
         'subscription' => ['name', 'plan', 'status'],
 
+        // `parent` ist der **Name** der Domain, unter der eine Subdomain
+        // hängt, und keine Kennung: Ohne ihn lässt sich eine Subdomain nicht
+        // wiederherstellen (`docs/117 §15`), mit einer Kennung liefe sie auf
+        // einem anderen Server ins Leere.
         'domains' => [
-            'name', 'type', 'document_root', 'php_version', 'php_settings',
+            'name', 'parent', 'type', 'document_root', 'php_version', 'php_settings',
             'nginx_directives', 'redirect_target', 'redirect_kind',
         ],
 

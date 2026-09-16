@@ -6,6 +6,7 @@ namespace App\Support\Operations;
 
 use App\Models\Operation;
 use App\Support\Backups\BackupLifecycle;
+use App\Support\Backups\RestoreLifecycle;
 use App\Support\Databases\DbLifecycle;
 use App\Support\Databases\DumpLifecycle;
 use App\Support\Databases\PgLifecycle;
@@ -63,6 +64,7 @@ final class Lifecycles
          * beiden Operationen haben nicht dieselbe Form.
          */
         BackupLifecycle::class,
+        RestoreLifecycle::class,
     ];
 
     /**

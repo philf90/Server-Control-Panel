@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import Badge from '../../Components/Badge.vue'
 import FormErrors from '../../Components/FormErrors.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
@@ -34,6 +34,15 @@ const props = defineProps<{
    * eine zweite Aufzählung wäre die Fassung, die veraltet.
    */
   skipped: Record<string, string>
+
+  /**
+   * Was der Betrachter hier darf.
+   *
+   * **Eigenes `can` und nicht die geteilte Ablage `abilities`:** Die führt die
+   * Adminfähigkeiten und keine Policy über ein Modell. Diese Seite gehört dem
+   * Kunden, die Wiederherstellung dem Betreiber — sie legt ein Abonnement an.
+   */
+  can: { restore: boolean }
 }>()
 
 function anlegen(): void {
@@ -173,6 +182,20 @@ function inhalt(backup: BackupRow): string {
                     >
                       Herunterladen
                     </a>
+
+                    <!--
+                      **Der Weg zurück steht an der Sicherung** — dort sucht ihn,
+                      wer ihn braucht. Er hängt an `can.restore` und nicht am
+                      Kontotyp: Die Route trägt `can:create,Subscription`, und ein
+                      Knopf, der einen 403 gibt, ist schlimmer als keiner.
+                    -->
+                    <Link
+                      v-if="backup.usable && props.can.restore"
+                      :href="`/backups/${backup.id}/restore`"
+                      class="button"
+                    >
+                      Zurückspielen
+                    </Link>
                     <button type="button" class="button danger" @click="entfernen(backup)">
                       Entfernen
                     </button>

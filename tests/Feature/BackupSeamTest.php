@@ -67,6 +67,24 @@ final class BackupSeamTest extends TestCase
         yield 'mit Bindestrich' => ['shop-zwei'];
         yield 'nur Ziffern' => ['1001'];
         yield 'am Rand der Länge' => [str_repeat('a', 63)];
+
+        /*
+         * **Und der Fall, an dem die Kürzung wirklich trägt.** Die Regel
+         * `max:63` gilt für den Weg über das Formular; `subscriptions.name`
+         * ist ein `varchar(255)`, und ein Name aus einer Migration, einem
+         * Kommando oder einem künftigen Aufrufer kommt dort nicht vorbei.
+         *
+         * Bis zum 16. September 2026 stand hier nur der 63er, und damit war
+         * die Kürzung nicht gemessen: 63 plus 25 für Zeitstempel und
+         * Zufallsteil sind 88 und liegen unter den 96, die der Agent zulässt.
+         * Der Eingriff des Bruchskripts, der sie entfernte, blieb grün — im
+         * vollen Lauf, nicht einzeln.
+         *
+         * > **Ein Eingriff, der einen Zustand herstellt, den der Prüfling
+         * > ohnehin gleich beantwortet, misst die Regel nicht — er misst, dass
+         * > sie unempfindlich ist.**
+         */
+        yield 'so breit wie die Spalte' => [str_repeat('a', 255)];
     }
 
     #[DataProvider('subscriptionNames')]

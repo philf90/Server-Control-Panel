@@ -1394,3 +1394,192 @@ Wort.
 - **Was ein Lauf über echte Kundenarchive kostet.** `TimeoutStartSec=7200` ist
   gegen 1,2 GB/s dieses Containers gerechnet. Die Platte von `cloudsrv24` ist
   nicht diese; die Zahl gehört auf den Server (`§9`).
+
+---
+
+## §15 · Schritt 7 und 8 — die Wiederherstellung, und was beim Ausschreiben umfiel
+
+Gebaut am 16. September 2026, in **Form A** (`§3`). Was hier steht, sind die
+Funde — drei davon liegen in Code, der schon gebaut war, und einer hätte eine
+Sicherheitslücke ergeben.
+
+### M12 · Folgt `chown()` einem Verweis?
+
+Der gefährlichste Handgriff dieser Stufe, gemessen **bevor** eine Zeile
+entstand. Ein Verweis im Baum zeigt auf eine Datei ausserhalb:
+
+| Griff | der Verweis | sein Ziel |
+|---|---|---|
+| `chown()` | bleibt `uid=0` | **wird `uid=65534`** |
+| `lchown()` | wird `uid=65534` | bleibt `uid=0` |
+
+`Backup\Unpacker` legt Verweise an und prüft ihr Ziel **mit Absicht nicht** —
+sein Kopf begründet das: *„Was ein Kunde in seinem eigenen Baum anlegen darf,
+darf eine Wiederherstellung ihm zurückgeben."* Das ist richtig, solange niemand
+den Verweisen folgt. Ein `chown -R` nach dem Auspacken folgt ihnen: Ein Verweis
+auf `/etc/shadow` im Archiv, und nach der Wiederherstellung gehört die Datei dem
+Kunden.
+
+> **Ein Verweis, dessen Ziel man nicht prüft, ist harmlos, solange niemand ihm
+> folgt — und ein rekursiver Griff folgt ihm, ohne es zu sagen.**
+
+Dieselbe Familie eine Ebene höher: Der Rundlauf läuft **ohne**
+`FOLLOW_SYMLINKS`, sonst führte ein Verweis auf ein Verzeichnis ihn aus dem Baum
+hinaus — und dann träfe `chown()` jede Datei dahinter, ohne dass ein einziger
+Verweis gechownt würde. `BackupRestoreTest` hält beides an einem echten Baum,
+mit der Gegenprobe, dass ein gewöhnliches `chown()` dem Verweis hier wirklich
+folgen **würde**.
+
+### M13 · Und `chgrp($pfad, $user)` war eine Annahme über einen Namen
+
+Gefunden hat es die **Vorbedingungszeile des eigenen Wächters**, nicht das
+Nachdenken: Der Prüfkörper stellte den Schaden gar nicht her, den er messen
+wollte. Der Grund war `chgrp($pfad, $user)` — die Annahme, dass es zum Benutzer
+eine **Gruppe gleichen Namens** gibt. Für ein Abonnement stimmt sie
+(`subscription.provision` legt sie an), für `nobody` nicht, und `@` davor hat
+den Fehlschlag verschluckt: Die Gruppe wäre `root` geblieben, über den ganzen
+Baum, wortlos.
+
+> **Eine Annahme über einen Namen, die meistens stimmt, ist mit `@` davor nicht
+> mehr von einer zu unterscheiden, die immer stimmt.**
+
+Gefragt wird seitdem die **primäre Gruppe** des Benutzers, einmal aufgelöst statt
+je Eintrag — bei 100 000 Einträgen sind das 200 000 gesparte Abfragen an
+`/etc/passwd` und `/etc/group` für eine Antwort, die sich nicht ändert. Und ein
+misslungener Wechsel wird **gesammelt und geworfen** statt verschluckt: Eine
+Datei, die dem alten Eigentümer gehören bleibt, ist für den Kunden nicht lesbar,
+und eine Wiederherstellung, die das verschweigt, sieht aus wie eine gelungene.
+
+### Befund 1 · Die Dumpliste hat die Struktur der Datenbanken überschrieben
+
+`BackupCreate::addManifest()` schrieb `$description['databases'] = $dumps` —
+unter demselben Schlüssel, unter dem `Description` die **Struktur** ablegt:
+Beschriftung, Zeichensatz, Sortierung. Am echten Code belegt: Nach der Zuweisung
+ist von `collation` nichts mehr da.
+
+**Jede bis dahin geschriebene Sicherung trägt sie nicht**, und eine
+Wiederherstellung daraus legte jede Datenbank mit der Vorgabe des Servers an
+statt mit ihrer Sortierung — eine Datenbank, die aussieht wie die alte und
+anders sortiert.
+
+> **Ein geteilter Schlüssel, den eine Seite auch benutzt, ist auf genau dieser
+> Seite fort — und der Ausfall liest sich wie ein Rechteproblem.**
+
+Zum **dritten** Mal in diesem Repo: `can` gegen `abilities` (`docs/82`
+Schritt 5), `errors` auf `/updates` (`docs/904`), und jetzt `databases`. Der
+Schlüssel heisst `dumps`; `BackupFormTest` hält, dass `BackupCreate` **keinen**
+Schlüssel beschreibt, den die Beschreibung schon führt — die Liste dazu kommt aus
+`Description::of()` und nicht aus einer Aufzählung im Test.
+
+### Befund 2 · Die Beschreibung reichte für eine Subdomain nicht
+
+`App\Support\Web\Domains::create()` verlangt für `subdomain` und `alias` die
+Zeile, unter der sie hängen, und weist sonst mit *„Diese Sorte braucht eine
+Domain, unter der sie hängt"* ab. Die Beschreibung trägt **keine Kennungen** —
+das ist richtig und in `BackupSecretTest` festgehalten, weil eine Kennung dieses
+Panels auf einem anderen Server ins Leere führte.
+
+Sie trägt jetzt den **Namen** des Elternteils, und die Wiederherstellung legt
+Haupt- und Addon-Domains zuerst an. Gefunden beim Ausschreiben von Schritt 8 und
+nicht beim Bauen von Schritt 5: Dort sah die Beschreibung vollständig aus, weil
+niemand sie gelesen hat.
+
+> **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
+> einem zu unterscheiden, das es nicht gibt** — und ob es reicht, sagt erst der
+> Leser.
+
+### Befund 3 · Ein rekursiver Griff ebnet das Verzeichnisschema ein
+
+`httpdocs` gehört `%u:www-data`, `logs` gehört `%u:adm`, `conf` gehört
+`root:root` — das steht in `SubscriptionProvision::TREE` und nirgends sonst. Ein
+`chown -R` macht daraus dreimal `%u:%u`, und der Webserver käme an das
+Dokumentenverzeichnis nicht mehr heran.
+
+> **Ein Schema, das eine Stelle kennt, wird von jedem rekursiven Griff
+> eingeebnet — und der Schaden sieht aus wie ein Rechteproblem irgendwo
+> anders.**
+
+`applyTree()` ist deshalb öffentlich und wird **nach** dem Eigentümerwechsel
+gerufen. Die Wiederherstellung baut das Schema nicht nach: Eine zweite
+Aufzählung wäre die, die beim nächsten Zuwachs von `TREE` veraltet.
+`BackupFormTest` misst beides — die Wirkung an einem echten Baum und die
+Reihenfolge im Rumpf von `execute()`.
+
+### Befund 4 · Ein Wächter aus Schritt 5, der nie beissen konnte
+
+Der volle Bruchlauf hat ihn gemeldet: `Ablagename ungekürzt — passed (erwartet:
+failed)`. Die Kürzung des Abonnementnamens auf 60 Zeichen war mit *„63 Zeichen
+plus Zeitstempel plus Zufallsteil überschreiten die 96"* begründet, und das ist
+falsch gerechnet:
+
+| | Zeichen |
+|---|---|
+| Abonnementname, Höchstlänge im Formular | 63 |
+| `-<Ymd-His>-<8 hex>` | 25 |
+| zusammen | **88** |
+| was `Store::storageName()` zulässt | **96** |
+
+> **Eine Zahl in einer Erwartung, die man nicht gezählt hat, ist eine Vermutung
+> mit Anspruch.**
+
+**Tragend ist die Kürzung trotzdem**, und zwar dort, wo der Prüfer des Formulars
+nicht hinkommt: `subscriptions.name` ist ein `varchar(255)`, und `max:63` gilt
+nur für den Weg über das Formular.
+
+> **Eine Prüfung am Formular ist keine über die Spalte.**
+
+Der Platz wird jetzt aus `Store::MAX_NAME` gerechnet, und der Prüfkörper des
+Wächters hat einen Fall an der Breite der **Spalte** bekommen. Danach beisst der
+Eingriff.
+
+### Was Form A den Kunden kostet — und wo es steht
+
+`§3` zählt drei Preise auf, und alle drei stehen **vor** dem Knopf auf der
+Seite und nicht danach: der neue Systembenutzer (sein SFTP-Benutzername), das
+neue `db_prefix` (die Datenbanknamen in seiner Konfigurationsdatei) und die
+neuen Passwörter.
+
+**Die Passwörter kann die Wiederherstellung nicht nennen**, und das ist eine
+Entscheidung und keine Auslassung: Sie entstehen in einem Hintergrundlauf, und
+ein Passwort, das dieses Panel ablegt oder in ein Vorgangsergebnis schreibt,
+stünde auf der Vorgangsseite — `Operations/Show.vue` rendert `result` als JSON,
+und `OperationPolicy::view()` lässt jeden Admin und den Kunden hindurch.
+
+> **Ein Geheimnis, das als Argument eines Vorgangs reist, steht auf der
+> Vorgangsseite.**
+
+Die Zugänge entstehen deshalb mit ihren Rechten und einem verworfenen Passwort,
+und das Ergebnis sagt je Lauf, dass jeder eines neu braucht. Das ist genau die
+dritte Art aus `§4`: *Was weder beschrieben noch erzeugt werden kann, muss die
+Wiederherstellung benennen.*
+
+### Zwei Vorgänge und nicht einer
+
+`subscription.provision` legt Konto, Schema und Quota an, `backup.restore` packt
+hinein. **Keine Operation dieses Agenten ruft eine andere**; die Reihenfolge
+stellt das Panel her, wie schon bei `Backups::create()`, und sie trägt, weil
+`queue:work` einspurig ist.
+
+Sie trägt **laut**: Läuft die Bereitstellung nicht durch, findet
+`backup.restore` kein Verzeichnis und bricht mit genau diesem Satz ab. Ein
+Auspacken, das sich sein Ziel selbst anlegte, wäre die halbe Bereitstellung in
+einer zweiten Fassung — ohne Konto, ohne Quota, ohne Schema.
+
+### Und was danach noch offen ist
+
+- **Punkt 5 des Abnahmekriteriums ist hier nicht messbar.** Ob eine
+  wiederhergestellte Vhost-Datei die Bestandsdiagnose besteht, braucht nginx,
+  die echte Vorlage und einen Nachtlauf. `BackupFormTest` hält, dass die
+  **Eingaben** vollständig sind, aus denen sie entsteht — nicht das Ergebnis.
+
+  > **Ein Beleg für den Weg ist keiner für das Ziel.**
+
+- **Der ganze Weg ist nie auf einem Server gefahren.** Kein Abonnement ist
+  gelöscht und zurückgeholt worden; was hier steht, ist an Prüfkörpern gemessen.
+  Das ist `§8` Punkt 1 bis 6 und gehört auf `cloudsrv24`.
+
+- **Eine Wiederherstellung, die auf halbem Weg scheitert, räumt nicht auf.** Das
+  Abonnement steht dann da, die Nummer ist verbraucht, und was schon angelegt
+  wurde, bleibt. Der Lauf sagt in seinem Ergebnis, was misslungen ist; ein
+  Rückbau von Hand ist `subscription.remove`. Ein automatischer wäre ein zweiter
+  Weg, der im Fehlerfall läuft — also der, der am wenigsten geprüft ist.

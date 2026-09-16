@@ -1022,6 +1022,30 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:manageBackups,subscription')
         ->name('backups.destroy');
 
+    /*
+     * **Die Wiederherstellung hängt an der Sicherung und nicht am Abonnement.**
+     *
+     * Der häufigste Fall ist der, für den es Sicherungen gibt: Das Abonnement
+     * ist fort. Eine Adresse mit `{subscription}` verlangte genau das, was
+     * fehlt — und wäre ausgerechnet dann nicht erreichbar, wenn man sie
+     * braucht.
+     *
+     * > **Ein Weg, den es nur gibt, solange man ihn nicht braucht, ist
+     * > keiner.**
+     *
+     * **`can:create,Subscription` und nicht `manageBackups`**: Eine
+     * Wiederherstellung legt ein Abonnement an, und das tut in diesem Panel nur
+     * der Betreiber. Sie braucht ausserdem Kunde und Plan — zwei Angaben, die
+     * in keiner Sicherung stehen und auch nicht hineingehören.
+     */
+    Route::get('/backups/{backup}/restore', [BackupController::class, 'restoreForm'])
+        ->middleware('can:create,'.Subscription::class)
+        ->name('backups.restore.form');
+
+    Route::post('/backups/{backup}/restore', [BackupController::class, 'restore'])
+        ->middleware('can:create,'.Subscription::class)
+        ->name('backups.restore');
+
     Route::get('/databases', [DatabaseController::class, 'index'])
         ->middleware('can:viewAny,'.Database::class)
         ->name('databases.index');

@@ -28927,3 +28927,87 @@ die im Archiv steht.
 
 > **Eine Prüfsumme, die neben ihrem Gegenstand liegt, belegt die Übertragung und
 > nicht die Herkunft.**
+
+### P8 Schritt 7 und 8 — die Wiederherstellung, in Form A
+
+Aus einer Sicherung wird wieder ein Abonnement. `backup.restore` packt den Baum
+aus, setzt den Eigentümer, stellt das Verzeichnisschema wieder her und legt die
+Dumps dorthin, wo `db.dump.restore` sie erwartet; `RestoreLifecycle` **erzeugt**
+danach Datenbanken, Zugänge, Domains und Cronjobs aus der Beschreibung. Der Weg
+führt über `/backups/{backup}/restore` — an der **Sicherung** und nicht am
+Abonnement, denn der häufigste Fall ist der, für den es Sicherungen gibt: Das
+Abonnement ist fort.
+
+> **Ein Weg, den es nur gibt, solange man ihn nicht braucht, ist keiner.**
+
+**Form A** (`docs/117 §3`, vom Betreiber entschieden): Die Wiederherstellung
+nimmt die nächste freie Nummer und holt keine Reservierung zurück — `docs/35`
+bleibt unberührt. Was das kostet, steht **vor** dem Knopf und nicht danach: neuer
+Systembenutzer (der SFTP-Benutzername des Kunden), neues Präfix (die
+Datenbanknamen in seiner Konfigurationsdatei), neue Passwörter.
+
+**Der gefährlichste Fund kam vor der ersten Zeile.** Gemessen: `chown()` auf
+einen Verweis setzt den Eigentümer **des Ziels**, `lchown()` den des Verweises.
+`Unpacker` prüft Verweisziele mit Absicht nicht — ein `chown -R` nach dem
+Auspacken hätte daraus einen Weg nach draussen gemacht: ein Verweis auf
+`/etc/shadow` im Archiv, und die Datei gehörte danach dem Kunden.
+
+> **Ein Verweis, dessen Ziel man nicht prüft, ist harmlos, solange niemand ihm
+> folgt — und ein rekursiver Griff folgt ihm, ohne es zu sagen.**
+
+**Und die Vorbedingungszeile des eigenen Wächters hat den zweiten gefunden:**
+`chgrp($pfad, $user)` war eine Annahme über einen Namen — dass es zum Benutzer
+eine Gruppe gleichen Namens gibt —, und `@` davor hat den Fehlschlag
+verschluckt. Die Gruppe wäre `root` geblieben, über den ganzen Baum.
+
+> **Eine Annahme über einen Namen, die meistens stimmt, ist mit `@` davor nicht
+> mehr von einer zu unterscheiden, die immer stimmt.**
+
+Gefragt wird jetzt die primäre Gruppe des Benutzers, **einmal** aufgelöst statt je
+Eintrag, und ein misslungener Wechsel wird gesammelt und geworfen.
+
+**Drei Funde liegen in Code, der schon gebaut war.**
+
+`BackupCreate::addManifest()` schrieb die Dumpliste unter `databases` — denselben
+Schlüssel, unter dem die Beschreibung die **Struktur** der Datenbanken ablegt.
+Beschriftung, Zeichensatz und Sortierung waren damit in jeder geschriebenen
+Sicherung fort, und eine Wiederherstellung legte jede Datenbank mit der Vorgabe
+des Servers an.
+
+> **Ein geteilter Schlüssel, den eine Seite auch benutzt, ist auf genau dieser
+> Seite fort.** Zum dritten Mal nach `can` gegen `abilities` und `errors` auf
+> `/updates`.
+
+Die Beschreibung reichte ausserdem für eine **Subdomain** nicht: `Domains::create()`
+verlangt die Zeile, unter der sie hängt, und die Beschreibung trägt keine
+Kennungen. Sie nennt den Elternteil jetzt beim Namen, und die Wiederherstellung
+legt Haupt- und Addon-Domains zuerst an.
+
+Und der volle Bruchlauf hat einen Wächter aus Schritt 5 gemeldet, der nie
+beissen konnte: Die Kürzung des Ablagenamens auf 60 Zeichen war mit einer Zahl
+begründet, die niemand gezählt hatte — 63 plus 25 sind 88 und liegen unter den
+96, die der Agent zulässt.
+
+> **Eine Zahl in einer Erwartung, die man nicht gezählt hat, ist eine Vermutung
+> mit Anspruch.**
+
+Tragend ist die Kürzung trotzdem, und zwar dort, wo der Prüfer des Formulars
+nicht hinkommt: `subscriptions.name` ist ein `varchar(255)`, `max:63` gilt nur
+für den Weg über das Formular. Der Platz wird jetzt aus `Store::MAX_NAME`
+gerechnet, und der Prüfkörper misst an der Breite der Spalte.
+
+**Die neuen Datenbankpasswörter nennt die Wiederherstellung nicht**, und das ist
+eine Entscheidung: Sie entstehen im Hintergrund, und ein Passwort im
+Vorgangsergebnis stünde auf der Vorgangsseite. Die Zugänge stehen mit ihren
+Rechten und ihren Netzen wieder da, und das Ergebnis sagt, dass jeder eines neu
+braucht.
+
+**Wächter:** `BackupRestoreTest` misst den Eigentümerwechsel an einem echten Baum
+— mit der Gegenprobe, dass ein gewöhnliches `chown()` dem Verweis wirklich folgen
+würde —, `BackupFormTest` hält die drei Stellen, an denen die Beschreibung tragen
+muss. Fünf neue Eingriffe im Bruchskript, jeder einzeln belegt.
+
+**Was offen bleibt**, steht in `docs/117 §15` und nicht als Zusage im Code: Der
+ganze Weg ist nie auf einem Server gefahren, Punkt 5 des Abnahmekriteriums
+braucht nginx und einen Nachtlauf, und eine Wiederherstellung, die auf halbem Weg
+scheitert, räumt nicht auf — sie sagt in ihrem Ergebnis, was misslungen ist.

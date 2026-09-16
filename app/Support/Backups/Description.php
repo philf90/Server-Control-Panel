@@ -11,6 +11,7 @@ use App\Models\Domain;
 use App\Models\SshKey;
 use App\Models\Subscription;
 use App\Support\Tenancy\Tenancy;
+use App\Support\Web\Domains;
 
 /**
  * Was eine Sicherung über ein Abonnement **beschreibt**, statt es abzuschreiben.
@@ -121,16 +122,32 @@ final class Description
      * Die Nummer eines Zertifikats, das es auf dem Zielserver nicht gibt, wäre
      * eine Zusage, die niemand einlöst.
      *
+     * **Der Elternteil steht mit seinem Namen da und nicht mit seiner
+     * Kennung**, und ohne ihn wäre die Wiederherstellung einer Subdomain gar
+     * nicht möglich: {@see Domains::create()} verlangt für
+     * `subdomain` und `alias` die Zeile, unter der sie hängen, und weist sonst
+     * mit *„Diese Sorte braucht eine Domain, unter der sie hängt"* ab.
+     *
+     * Gefunden beim Ausschreiben von Schritt 8 (`docs/117 §15`) und nicht beim
+     * Bauen von Schritt 5 — dort sah die Beschreibung vollständig aus, weil
+     * niemand sie gelesen hat.
+     *
+     * > **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht
+     * > von einem zu unterscheiden, das es nicht gibt** — und ob es reicht,
+     * > sagt erst der Leser.
+     *
      * @return list<array<string, mixed>>
      */
     private function domains(Subscription $subscription): array
     {
         return Domain::query()
             ->where('subscription_id', $subscription->id)
+            ->with('parent')
             ->orderBy('name')
             ->get()
             ->map(static fn (Domain $domain): array => [
                 'name' => $domain->name,
+                'parent' => $domain->parent?->name,
                 'type' => $domain->type->value,
                 'document_root' => $domain->document_root,
                 'php_version' => $domain->php_version,

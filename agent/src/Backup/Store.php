@@ -120,12 +120,35 @@ final class Store
      */
     public static function storageName(string $value): string
     {
-        if (! preg_match('/^[a-z0-9][a-z0-9_\-]{0,95}$/D', $value)) {
+        $muster = sprintf('/^[a-z0-9][a-z0-9_\-]{0,%d}$/D', self::MAX_NAME - 1);
+
+        if (! preg_match($muster, $value)) {
             throw AgentException::badRequest('Unzulässiger Name für eine Sicherung.', ['name' => $value]);
         }
 
         return $value;
     }
+
+    /**
+     * Wie lang der Name einer Ablage höchstens sein darf.
+     *
+     * **Sie steht als Zahl da, weil das Panel sie braucht.** Es baut den Namen
+     * (`<abo>-<Ymd-His>-<8 hex>`) und muss wissen, wie viel Platz dem
+     * Abonnementnamen bleibt; bis zum 16. September 2026 stand dort eine
+     * gegriffene 60, und die hat nie etwas begrenzt — 63 Zeichen plus 25 für
+     * Zeitstempel und Zufallsteil sind 88 und damit unter dieser Grenze.
+     *
+     * > **Eine Zahl in einer Erwartung, die man nicht gezählt hat, ist eine
+     * > Vermutung mit Anspruch.**
+     *
+     * Gefunden hat es der volle Bruchlauf: Der Eingriff, der die Kürzung
+     * entfernte, blieb grün, weil es nichts zu kürzen gab.
+     *
+     * > **Ein Eingriff, der einen Zustand herstellt, den der Prüfling ohnehin
+     * > gleich beantwortet, misst die Regel nicht — er misst, dass sie
+     * > unempfindlich ist.**
+     */
+    public const MAX_NAME = 96;
 
     /**
      * Das Verzeichnis eines Abonnements anlegen — `root:srvpanel 0710`.

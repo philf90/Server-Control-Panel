@@ -18,6 +18,7 @@ use App\Support\Databases\Dumps;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
+use SrvPanel\Agent\Backup\Store;
 
 /**
  * Der Weg vom Panel zu `backup.create` und `backup.remove`.
@@ -300,7 +301,19 @@ final class Backups
      * seiner Dateien daran scheitern zu lassen wäre die Antwort auf eine Frage,
      * die niemand gestellt hat.
      */
-    private function prefixOf(Subscription $subscription): ?string
+    /**
+     * Das Datenbankpräfix eines Abonnements — **die eine Stelle, die es liest**.
+     *
+     * `subscriptions` führt keine solche Spalte; der Wert steht seit P5b in
+     * `system_users`, vergeben von `Lifecycle::claim()` in derselben Zeile wie
+     * die Nummer. Ein `$subscription->db_prefix` wäre wortlos `null` — genau
+     * das hat beim Bau von Schritt 3+4 eine PHPStan-Runde gekostet.
+     *
+     * **Öffentlich seit Schritt 8**, weil die Wiederherstellung dieselbe Frage
+     * stellt: Sie schreibt die Zuordnung alt → neu, und das Neue ist dieser
+     * Wert. Ein zweiter Leser dort wäre die Fassung, die veraltet.
+     */
+    public function prefixOf(Subscription $subscription): ?string
     {
         $number = $this->numberOf($subscription);
 
@@ -349,6 +362,29 @@ final class Backups
             $name = 'abo'.$subscription->id;
         }
 
-        return mb_substr($name, 0, 60).'-'.gmdate('Ymd-His').'-'.bin2hex(random_bytes(4));
+        $anhang = '-'.gmdate('Ymd-His').'-'.bin2hex(random_bytes(4));
+
+        /*
+         * **Der Platz wird gerechnet und nicht gegriffen.**
+         *
+         * Hier stand `mb_substr($name, 0, 60)`, und die 60 hat nie etwas
+         * begrenzt: Ein Abonnementname ist im Formular auf 63 Zeichen
+         * begrenzt, der Anhang misst 25, zusammen 88 — und
+         * {@see Store::MAX_NAME} lässt 96 zu. Der Eingriff des Bruchskripts,
+         * der die Kürzung entfernte, blieb deshalb grün.
+         *
+         * > **Eine Zahl in einer Erwartung, die man nicht gezählt hat, ist
+         * > eine Vermutung mit Anspruch.**
+         *
+         * **Tragend ist sie trotzdem**, und zwar genau dort, wo der Prüfer des
+         * Formulars nicht hinkommt: `subscriptions.name` ist ein
+         * `varchar(255)`, die Regel `max:63` gilt nur für den Weg über das
+         * Formular. Ein Name aus einer Migration, einem Kommando oder einem
+         * künftigen Aufrufer ergäbe sonst einen Ablagenamen, den der Agent
+         * abweist — und die Zeile bliebe für immer auf „wird erstellt".
+         *
+         * > **Eine Prüfung am Formular ist keine über die Spalte.**
+         */
+        return mb_substr($name, 0, Store::MAX_NAME - mb_strlen($anhang)).$anhang;
     }
 }

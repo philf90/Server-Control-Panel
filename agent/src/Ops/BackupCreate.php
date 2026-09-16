@@ -306,11 +306,27 @@ final class BackupCreate implements Op
         array $description,
         array $dumps,
     ): void {
-        // Die Dumpliste gehört in die Beschreibung und nicht in die Einträge:
-        // Dort steht, *was* eine Datei ist; hier steht, *wozu* sie gehört —
-        // welche Datenbank welches Systems in welcher Datei liegt. Ohne das
-        // müsste die Wiederherstellung es aus Dateinamen raten.
-        $description['databases'] = $dumps;
+        /*
+         * Die Dumpliste gehört in die Beschreibung und nicht in die Einträge:
+         * Dort steht, *was* eine Datei ist; hier steht, *wozu* sie gehört —
+         * welche Datenbank welches Systems in welcher Datei liegt. Ohne das
+         * müsste die Wiederherstellung es aus Dateinamen raten.
+         *
+         * **Der Schlüssel heisst `dumps` und nicht `databases`.** Hier stand
+         * bis zum 16. September 2026 `databases`, und das ist der Schlüssel,
+         * unter dem `App\Support\Backups\Description` die **Struktur** der
+         * Datenbanken ablegt: Name, Beschriftung, Zeichensatz, Sortierung. Die
+         * Zuweisung hat sie wortlos überschrieben — jede Sicherung bis dahin
+         * trägt statt ihrer Struktur nur die Dumpliste, und eine
+         * Wiederherstellung daraus legte jede Datenbank mit der Vorgabe des
+         * Servers an statt mit ihrer Sortierung.
+         *
+         * > **Ein geteilter Schlüssel, den eine Seite auch benutzt, ist auf
+         * > genau dieser Seite fort — und der Ausfall liest sich wie ein
+         * > Rechteproblem.** (`docs/82` Schritt 5, dort an `can` gegen
+         * > `abilities`; hier zum dritten Mal in diesem Repo.)
+         */
+        $description['dumps'] = $dumps;
 
         $json = Manifest::encode($subscription, $systemUser, $dbPrefix, $panel, $entries, $description);
 

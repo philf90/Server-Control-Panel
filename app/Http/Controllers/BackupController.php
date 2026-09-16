@@ -4,19 +4,26 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\CustomerStatus;
 use App\Models\Backup;
+use App\Models\Customer;
+use App\Models\Plan;
 use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Backups\Backups;
+use App\Support\Backups\Restore;
 use App\Support\Time\Clock;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Backup\Packer;
+use SrvPanel\Agent\Ops\SubscriptionProvision;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
@@ -53,6 +60,7 @@ class BackupController extends Controller
     public function __construct(
         private readonly Backups $backups,
         private readonly Audit $audit,
+        private readonly Restore $restore,
     ) {}
 
     /**
@@ -134,6 +142,25 @@ class BackupController extends Controller
              * > **Was ein Archiv nicht enthält, muss es sagen.**
              */
             'skipped' => Packer::SKIPPED,
+
+            /*
+             * **Wer zurückspielen darf, entscheidet dieselbe Policy, die die
+             * Route bewacht** — und nicht der Kontotyp. Eine zweite Fassung
+             * wäre die, die veraltet.
+             *
+             * Der Knopf gehört in ein `v-if` darauf und wird nicht bloss
+             * abgeblendet: `AbilityReachTest` besteht darauf, dass ein Knopf,
+             * den der Betrachter nicht drücken darf, gar nicht gezeigt wird.
+             * Diese Seite gehört dem **Kunden** (`manageBackups`), die
+             * Wiederherstellung dem Betreiber — sie legt ein Abonnement an.
+             *
+             * Eigenes `can` und nicht die geteilte Ablage `abilities`: Die
+             * führt die Adminfähigkeiten aus `AdminAbility` und keine Policy
+             * über ein Modell.
+             */
+            'can' => [
+                'restore' => Gate::allows('create', Subscription::class),
+            ],
         ]);
     }
 
@@ -199,6 +226,113 @@ class BackupController extends Controller
      * wegzubekommen hiesse, eine Datei zu hinterlassen, die in keiner Liste
      * steht.
      */
+    /**
+     * Das Formular der Wiederherstellung (`docs/117 §6` Schritt 7).
+     *
+     * ## Warum die Adresse an der **Sicherung** hängt und nicht am Abonnement
+     *
+     * Der häufigste Fall ist der, für den es Sicherungen gibt: Das Abonnement
+     * ist fort. Eine Adresse `/subscriptions/{id}/backups/{backup}/restore`
+     * verlangte genau das, was fehlt — und wäre ausgerechnet dann nicht
+     * erreichbar, wenn man sie braucht.
+     *
+     * > **Ein Weg, den es nur gibt, solange man ihn nicht braucht, ist
+     * > keiner.**
+     *
+     * ## Und warum der Betreiber und nicht der Kunde
+     *
+     * Eine Wiederherstellung **legt ein Abonnement an**, und das tut in diesem
+     * Panel nur der Betreiber (`can:create,Subscription`). Sie braucht
+     * ausserdem zwei Angaben, die in keiner Sicherung stehen und auch nicht
+     * hineingehören: den Kunden und den Plan. Der Kunde ist eine Kennung dieses
+     * Panels, der Plan kann auf dem Zielserver ein anderer sein.
+     */
+    public function restoreForm(Backup $backup): Response
+    {
+        $manifest = $this->restore->manifest($backup);
+
+        return Inertia::render('Subscriptions/BackupRestore', [
+            'backup' => [
+                'id' => (int) $backup->id,
+                'storage_name' => $backup->storage_name,
+                'bytes' => $backup->bytes,
+                'created_at' => Clock::display($backup->created_at),
+            ],
+
+            // Was darin steht — Zahlen und keine Zusage. Ob der gewählte Plan
+            // sie trägt, entscheidet beim Anlegen die Kontingentprüfung.
+            'contents' => $this->restore->preview($manifest),
+
+            /*
+             * **Der alte Name, solange er frei ist** — dann bleiben Pfad und
+             * Verzeichnisname gleich, und der Kunde merkt von beidem nichts
+             * (`docs/117 §3`). Ist er vergeben, steht hier `null` und der
+             * Betreiber wählt: Einen zu erfinden hiesse, ihm eine Entscheidung
+             * abzunehmen, die er sehen soll.
+             */
+            'suggested_name' => $this->restore->suggestedName($manifest),
+
+            'customers' => Customer::query()->orderBy('last_name')->get()
+                ->map(static fn (Customer $c): array => [
+                    'id' => (int) $c->id,
+                    'label' => $c->number.' · '.$c->displayName(),
+                    'suspended' => $c->status === CustomerStatus::Suspended,
+                ])->all(),
+
+            'plans' => Plan::query()->orderByDesc('is_default')->orderBy('name')->get()
+                ->map(static fn (Plan $p): array => [
+                    'id' => (int) $p->id,
+                    'label' => $p->name,
+                    'is_default' => (bool) $p->is_default,
+                ])->all(),
+        ]);
+    }
+
+    /**
+     * Und sie starten.
+     *
+     * **Die Prüfung des Namens ist dieselbe wie beim Anlegen** und keine zweite
+     * Formulierung davon: `Rule::unique` für die Zeile, `SubscriptionProvision`
+     * für die Form. Ein Name, der hier durchginge und dort scheiterte, ergäbe
+     * ein Abonnement, das ewig „wird angelegt" bliebe.
+     */
+    public function restore(Request $request, Backup $backup): RedirectResponse
+    {
+        $data = $request->validate([
+            'customer_id' => ['required', Rule::exists('customers', 'id')->whereNull('deleted_at')],
+            'plan_id' => ['required', Rule::exists('plans', 'id')],
+            'name' => ['required', 'string', 'max:63', Rule::unique('subscriptions', 'name')],
+        ]);
+
+        try {
+            SubscriptionProvision::subscriptionName($data['name']);
+        } catch (AgentException) {
+            throw ValidationException::withMessages([
+                'name' => 'Kleinbuchstaben, Ziffern, Punkt und Bindestrich; Anfang und Ende alphanumerisch.',
+            ]);
+        }
+
+        try {
+            $operation = $this->restore->start(
+                $backup,
+                (int) $data['customer_id'],
+                (int) $data['plan_id'],
+                $data['name'],
+                $request->user()?->getAuthIdentifier(),
+            );
+        } catch (RuntimeException $e) {
+            throw ValidationException::withMessages(['name' => $e->getMessage()]);
+        }
+
+        $this->audit->record(
+            'backup.restored',
+            target: $backup,
+            context: ['storage' => $backup->storage_name, 'name' => $data['name']],
+        );
+
+        return redirect()->route('operations.show', $operation);
+    }
+
     public function destroy(Subscription $subscription, Backup $backup): RedirectResponse
     {
         abort_unless($backup->subscription_id === $subscription->id, 404);

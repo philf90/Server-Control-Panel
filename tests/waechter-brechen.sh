@@ -29115,14 +29115,21 @@ wiederherstellen
 echo
 echo "── BackupSeamTest: ein langer Abonnementname wird gekürzt ──"
 #
-# 63 Zeichen plus Zeitstempel plus Zufallsteil überschreiten die 96, die
-# `Store::storageName()` zulässt.
+# **Die Zahl daneben stand hier falsch, und der Eingriff hat deshalb nie
+# gebissen.** 63 Zeichen plus 25 für Zeitstempel und Zufallsteil sind 88 und
+# liegen unter den 96, die `Store::storageName()` zulaesst — es gab nichts zu
+# kuerzen. Gemessen wird jetzt an der Breite der **Spalte**: `subscriptions.name`
+# ist ein `varchar(255)`, und `max:63` gilt nur fuer den Weg ueber das Formular.
+#
+#   Eine Zahl in einer Erwartung, die man nicht gezaehlt hat, ist eine
+#   Vermutung mit Anspruch.
 vorher_datei app/Support/Backups/Backups.php
 python3 - <<'PY2'
 p = 'app/Support/Backups/Backups.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("return mb_substr($name, 0, 60)", "return $name", 1)
-open(p, 'w', encoding='utf-8').write(s)
+alt = 'mb_substr($name, 0, Store::MAX_NAME - mb_strlen($anhang)).$anhang'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$name.$anhang', 1))
 PY2
 griff_datei app/Support/Backups/Backups.php "Ablagename ungekürzt" &&
 pruefe "Ablagename ungekürzt" \
@@ -29531,6 +29538,103 @@ pruefe "Prüfung in beiden Läufen" \
   DiagnoseRunTest::test_the_catalogue_names_every_check_that_exists failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "── BackupRestoreTest: der Eigentümerwechsel folgt dem Verweis ──"
+#
+# **Der gefaehrlichste Handgriff dieser Stufe.** `chown()` auf einen Verweis
+# setzt den Eigentuemer des ZIELS, `lchown()` den des Verweises (gemessen,
+# `docs/117 §15` M12). `Unpacker` prueft Verweisziele mit Absicht nicht — ein
+# Verweis auf /etc/shadow im Archiv, und die Datei gehoert danach dem Kunden.
+vorher_datei agent/src/Ops/BackupRestore.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupRestore.php'
+s = open(p, encoding='utf-8').read()
+alt = "? @lchown($pfad, $uid) && @lchgrp($pfad, $gid)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "? @chown($pfad, $uid) && @chgrp($pfad, $gid)", 1))
+PY2
+griff_datei agent/src/Ops/BackupRestore.php "Verweis wird gechownt" &&
+pruefe "Verweis wird gechownt" \
+  BackupRestoreTest::test_the_owner_change_never_follows_a_link_out_of_the_tree failed
+wiederherstellen
+
+echo
+echo "── BackupRestoreTest: der Rundlauf folgt einem Verzeichnisverweis ──"
+#
+# Dieselbe Familie eine Ebene hoeher: Mit `FOLLOW_SYMLINKS` fuehrt der Rundlauf
+# aus dem Baum hinaus, und dann trifft `chown()` jede Datei dahinter — ohne dass
+# ein einziger Verweis gechownt wuerde.
+vorher_datei agent/src/Ops/BackupRestore.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupRestore.php'
+s = open(p, encoding='utf-8').read()
+alt = 'new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS | FilesystemIterator::FOLLOW_SYMLINKS)', 1))
+PY2
+griff_datei agent/src/Ops/BackupRestore.php "Rundlauf folgt Verzeichnisverweis" &&
+pruefe "Rundlauf folgt Verzeichnisverweis" \
+  BackupRestoreTest::test_the_walk_does_not_descend_into_a_linked_directory failed
+wiederherstellen
+
+echo
+echo "── BackupRestoreTest: das Schema wird vor dem Eigentümer gesetzt ──"
+#
+# Ein rekursiver Eigentuemerwechsel ebnet das Schema ein: `httpdocs` gehoert
+# `%u:www-data`, `logs` gehoert `%u:adm`. Steht `applyTree()` davor, ist es
+# danach fort — und der Webserver kommt an das Dokumentenverzeichnis nicht mehr
+# heran.
+vorher_datei agent/src/Ops/BackupRestore.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupRestore.php'
+s = open(p, encoding='utf-8').read()
+alt = "SubscriptionProvision::applyTree($root, $user);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '// ' + alt, 1))
+PY2
+griff_datei agent/src/Ops/BackupRestore.php "Schema nicht wiederhergestellt" &&
+pruefe "Schema nicht wiederhergestellt" \
+  BackupFormTest::test_the_restore_puts_the_directory_scheme_back failed
+wiederherstellen
+
+echo
+echo "── BackupFormTest: die Beschreibung nennt den Elternteil nicht ──"
+#
+# Ohne ihn laesst sich eine Subdomain nicht wiederherstellen: `Domains::create()`
+# verlangt die Zeile, unter der sie haengt, und weist sonst ab.
+vorher_datei app/Support/Backups/Description.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Description.php'
+s = open(p, encoding='utf-8').read()
+alt = "                'parent' => $domain->parent?->name,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Backups/Description.php "Elternteil fehlt" &&
+pruefe "Elternteil fehlt" \
+  BackupFormTest::test_a_subdomain_can_be_restored_at_all failed
+wiederherstellen
+
+echo
+echo "── BackupFormTest: die Dumpliste überschreibt die Struktur ──"
+#
+# `$description['databases'] = $dumps` loescht Beschriftung, Zeichensatz und
+# Sortierung, die `Description` unter demselben Schluessel ablegt — und eine
+# Wiederherstellung legte jede Datenbank mit der Vorgabe des Servers an.
+vorher_datei agent/src/Ops/BackupCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupCreate.php'
+s = open(p, encoding='utf-8').read()
+alt = "$description['dumps'] = $dumps;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$description['databases'] = $dumps;", 1))
+PY2
+griff_datei agent/src/Ops/BackupCreate.php "Dumpliste ueberschreibt Struktur" &&
+pruefe "Dumpliste ueberschreibt Struktur" \
+  BackupFormTest::test_the_dump_list_never_overwrites_the_structure failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupFormTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

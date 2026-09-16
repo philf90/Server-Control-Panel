@@ -48,6 +48,17 @@ depends:
   - php8.4-xml
   # Der HTTP-Client des Frameworks.
   - php8.4-curl
+  # **Gemessen und nicht geraten** (16. September 2026): `zip.so` kommt aus
+  # `php8.4-zip`, einem eigenen Paket — `posix` und `sockets` liegen in
+  # `php8.4-common`, `pcntl` und `openssl` sind eingebaut. Von sieben benutzten
+  # Erweiterungen ist das die einzige, die ohne eigene Zeile fehlen kann.
+  #
+  # Acht Dateien benutzen `ZipArchive`, und **eine davon läuft unter php-fpm**:
+  # `App\Support\Backups\Restore` liest das Verzeichnis einer Sicherung im
+  # Web-Request. Ohne diese Zeile stirbt seit P8 jede Sicherung und jede
+  # Wiederherstellung auf einem Server, auf dem das Paket nicht zufällig schon
+  # jemand anderes mitgebracht hat.
+  - php8.4-zip
   - mariadb-server
   - quota
   - ca-certificates

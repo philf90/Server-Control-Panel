@@ -29128,3 +29128,51 @@ Bereichs** — sie steht sichtbar darüber und ist ein Name.
 
 Entschieden hat das nicht das Nachdenken, sondern der Wächter: Seine Meldung
 nennt beide Ausgänge, und seine Ausnahmeliste trug denselben Fall schon dreimal.
+
+### `php8.4-zip` fehlte in der Paketierung — seit P6, und seit P8 trägt es eine Stufe
+
+**Acht Dateien benutzen `ZipArchive`, und `depends:` nannte `zip` nicht.**
+Gemessen am 16. September 2026: `zip.so` kommt aus einem **eigenen** Paket,
+während `posix` und `sockets` in `php8.4-common` liegen und `pcntl` und
+`openssl` eingebaut sind. Von sieben benutzten Erweiterungen war das die
+einzige, die ohne eigene Zeile fehlen kann.
+
+> **Eine Erweiterung, die der Code benutzt und die Paketierung nicht nennt, ist
+> auf jedem Server vorhanden, auf dem sie zufällig jemand anderes mitgebracht
+> hat.**
+
+Seit P6 war das ein Merkmal (`files.compress`), seit P8 ist es eine Stufe — und
+**eine der acht Dateien läuft unter php-fpm**: Das Panel liest das Verzeichnis
+einer Sicherung im Web-Request. `PackagedExtensionTest` hält es seitdem in beide
+Richtungen. `composer.json` nennt weiterhin keine Erweiterung, auch keine der
+schon paketierten; der Zielserver bekommt `vendor/` fertig im `.deb`, dort läuft
+nie ein `composer install`.
+
+**Drei Fehler beim Bauen dieses Wächters, und alle drei stehen schon in
+CLAUDE.md.**
+
+Der erste hat eine Datei gekostet: Der Wächter hiess im ersten Wurf
+`PhpExtensionTest`, und den gibt es seit dem 9. August über etwas ganz anderes.
+Geschrieben mit `cat >`, also ohne hinzusehen. Gemeldet hat es
+`BreakScriptTest`, zurückgeholt `git checkout --`.
+
+> **Ein Name, den man für frei hält, ist nicht frei, solange niemand
+> nachgesehen hat.**
+
+Der zweite: Der Wächter fragte `str_contains($nfpm, 'php8.4-zip')` — und blieb
+grün, als der Eingriff die Zeile **auskommentierte**. Der Absatz darüber, der
+die Messung erklärt, schreibt den Paketnamen wörtlich hin.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht — und ein Kommentar, der die entfernte Zeile zitiert, stellt sie für ihn
+> wieder her.**
+
+Der dritte: Pint hat aus der `{@see}`-Marke im Dokumentblock zum dritten Mal
+einen echten Import gemacht.
+
+Dazu ein Handgriff, der beim Berichtigen des ersten Fehlers zwei bestehende
+Eingriffe mitgenommen hätte — ein `sed` über die ganze Datei. Gefunden hat es
+der Diff und kein Test.
+
+> **Ein `sed` über eine ganze Datei trifft jede Zeile, die zufällig so aussieht
+> — und der Diff ist die einzige Stelle, an der man es sieht.**

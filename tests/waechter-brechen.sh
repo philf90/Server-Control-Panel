@@ -29892,6 +29892,49 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ButtonRowPlacementTest passed
 
 echo
+echo "── PackagedExtensionTest: die Paketierung nennt zip nicht mehr ──"
+#
+# Acht Dateien benutzen ZipArchive, eine davon unter php-fpm. Ohne
+# `php8.4-zip` in den depends stirbt jede Sicherung auf einem Server, auf dem
+# das Paket nicht zufaellig schon jemand anderes mitgebracht hat.
+#
+# **Der Eingriff kommentiert die Zeile aus und loescht sie nicht** — genau so
+# blieb der erste Wurf des Waechters gruen: Der Absatz darueber schreibt
+# `php8.4-zip` woertlich hin.
+vorher_datei packaging/nfpm.yaml
+python3 - <<'PY2'
+p = 'packaging/nfpm.yaml'
+s = open(p, encoding='utf-8').read()
+alt = '\n  - php8.4-zip\n'
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '\n  # - php8.4-zip\n', 1))
+PY2
+griff_datei packaging/nfpm.yaml "zip fehlt in der Paketierung" &&
+pruefe "zip fehlt in der Paketierung" \
+  PackagedExtensionTest::test_every_extension_the_code_uses_is_named_in_the_packaging failed
+wiederherstellen
+
+echo
+echo "── PackagedExtensionTest: eine Ausnahme ohne Gegenstand ──"
+#
+# So entsteht ein toter Eintrag wirklich: Eine Erweiterung fliegt aus dem Code,
+# die Zeile bleibt liegen — und der Naechste liest eine Messung ueber etwas,
+# das es nicht mehr gibt.
+vorher_datei tests/Unit/PackagedExtensionTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/PackagedExtensionTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'openssl' => 'Eingebaut"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        'gibtesnicht' => 'Eingebaut", 1))
+PY2
+griff_datei tests/Unit/PackagedExtensionTest.php "Ausnahme ohne Gegenstand" &&
+pruefe "Ausnahme ohne Gegenstand" \
+  PackagedExtensionTest::test_no_exemption_stands_for_an_extension_nobody_uses failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PackagedExtensionTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

@@ -657,16 +657,39 @@ Die ersten vier stehen schon in `docs/116`.
    gemessen und dort eine Vermutung.
 4. **`retry_after` gegen einen Lauf von 1800 s** — 90 s stehen in
    `config/queue.php` als Laravels unbegründete Vorgabe.
-5. **Ob `php8.4-zip` auf `cloudsrv24` liegt.** Gemessen im Repo: Drei Dateien
-   des Agenten benutzen `ZipArchive` (`Files\Archive`, `Files\Packer`,
-   `Ops\FilesCompress`), und **weder `packaging/nfpm.yaml` noch `composer.json`
-   nennen `ext-zip`**. Ob es trotzdem da ist, weiss nur der Server — der Griff
-   ist `php -m | grep -i zip`. Das ist ein Befund **ausserhalb von P8**; er
-   steht hier, weil P8 sich stärker auf `ZipArchive` stützt als P6.
+5. **Ob `php8.4-zip` auf `cloudsrv24` liegt.** ~~Offen.~~ **Die Paketierung
+   nennt es seit dem 16. September**, und die Zahl im ersten Wurf dieses Punktes
+   war zu klein: Es sind **acht** Dateien und nicht drei — und **eine davon
+   läuft unter php-fpm**, `App\Support\Backups\Restore` liest das Verzeichnis
+   einer Sicherung im Web-Request.
 
    > **Eine Erweiterung, die der Code benutzt und die Paketierung nicht nennt,
    > ist auf jedem Server vorhanden, auf dem sie zufällig jemand anderes
    > mitgebracht hat.**
+
+   **Gemessen statt geraten, welche der sieben benutzten Erweiterungen überhaupt
+   ein Paket braucht** (`ls /usr/lib/php/20240924/<ext>.so` plus `dpkg -S`, auf
+   `php8.4-cli` aus dem Ubuntu-Archiv):
+
+   | Erweiterung | kommt aus | in `depends:` |
+   |---|---|---|
+   | `zip` | **`php8.4-zip`** | jetzt ja |
+   | `curl` | `php8.4-curl` | ja |
+   | `mbstring` | `php8.4-mbstring` | ja |
+   | `posix` | `php8.4-common` | nicht nötig |
+   | `sockets` | `php8.4-common` | nicht nötig |
+   | `pcntl` | eingebaut | nicht nötig |
+   | `openssl` | eingebaut | nicht nötig |
+
+   `PackagedExtensionTest` hält es seitdem, in beide Richtungen. **`composer.json`
+   nennt weiterhin keine einzige Erweiterung** — auch `ext-curl` und
+   `ext-mbstring` nicht —, und das bleibt so: Der Zielserver bekommt `vendor/`
+   fertig im `.deb`, dort läuft nie ein `composer install`. Der tragende Ort ist
+   die `depends:`.
+
+   **Was der Server weiterhin allein beantwortet:** ob das Paket dort wirklich
+   liegt (`php -m | grep -i zip`) — und auf einer Installation, die es vor
+   dieser Fassung bekommen hat, zieht erst das nächste Update es nach.
 
 6. **Wie lange ein Prüflauf über echte Kundenarchive wirklich braucht.**
    `srvpanel-backup-verify.service` trägt `TimeoutStartSec=7200`, gerechnet
@@ -1938,6 +1961,71 @@ alten Fassung meldet sie 23 Dateien.
 
 > **Ein Leser, der den Faden verliert, meldet nicht sich selbst — er meldet die
 > Datei.**
+
+### Befund 9 · Ein Name, den ich für frei gehalten habe
+
+Der Wächter zu Punkt 5 hiess im ersten Wurf `PhpExtensionTest` — und **den gibt
+es seit dem 9. August**, über etwas ganz anderes: was einer PHP-Version aus der
+Ausgabe von `dpkg-query` fehlt. Geschrieben wurde die Datei mit `cat >`, also
+ohne hinzusehen; fünf Testfälle waren fort.
+
+Gemeldet hat es nicht das Schreiben, sondern
+`BreakScriptTest::test_every_check_names_a_test_that_exists` — zwei Eingriffe im
+Bruchskript zeigten plötzlich auf Fälle, die es nicht mehr gab.
+
+> **Ein Name, den man für frei hält, ist nicht frei, solange niemand
+> nachgesehen hat** — und `cat >` fragt nicht.
+
+Zurückgeholt hat ihn `git checkout --`, weil die Datei verfolgt war. Der neue
+heisst `PackagedExtensionTest`.
+
+**Und die Berichtigung hat zwei bestehende Eingriffe mitgenommen.** Ein `sed`
+über die ganze Datei ersetzte auch die beiden Zeilen
+`pruefe "… wieder grün" PhpExtensionTest passed`, die zum **alten** Wächter
+gehören. Gefunden hat es der Blick auf den Diff und nicht ein Test: Danach stand
+im Skript nur noch, dass 43 Zeilen dazugekommen sind, und keine einzige
+verändert.
+
+> **Ein `sed` über eine ganze Datei trifft jede Zeile, die zufällig so aussieht
+> — und der Diff ist die einzige Stelle, an der man es sieht.**
+
+### Befund 10 · Der Wächter gegen die Zeichenkette war selbst einer
+
+Der erste Wurf von `PackagedExtensionTest` fragte
+`str_contains($nfpm, 'php8.4-zip')`. Der Eingriff, der die Zeile
+**auskommentiert**, liess ihn grün — der Absatz darüber, der die Messung
+erklärt, schreibt `php8.4-zip` wörtlich hin.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht — und ein Kommentar, der die entfernte Zeile zitiert, stellt sie für ihn
+> wieder her.**
+
+Der Satz steht in CLAUDE.md, seit `OutcomeTest` ihn am 1. September bezahlt hat,
+und dort steht auch die Anweisung: *Wer einen Wächter über ein Shellskript oder
+YAML baut, streift die Kommentarzeilen ab, bevor er sucht.* Ich habe die
+PHP-Kommentare abgestreift und die der YAML nicht.
+
+Gesucht wird jetzt der **Listeneintrag** in der kommentarfreien Datei, mit einer
+zweiten Untergrenze daneben: Findet der Leser weniger als zwei `php8.4-*`, meldet
+er sich selbst.
+
+**Und der Eingriff kommentiert deshalb aus, statt zu löschen** — ein Eingriff,
+der die Zeile entfernt, hätte diesen Fehler nicht gefunden.
+
+> **Ein Eingriff, der den bequemen Weg nimmt, misst die bequeme Hälfte der
+> Regel.**
+
+### Befund 11 · Pint hat die `{@see}`-Marke wieder in einen Import verwandelt
+
+Zum dritten Mal in diesem Repo: Aus `{@see \App\Support\Backups\Restore}` im
+Dokumentblock eines framework-freien Wächters machte
+`fully_qualified_strict_types` ein `use App\Support\Backups\Restore;`.
+
+> **Ein Wächter, den man vor dem Formatierer prüft, ist nicht der, der ins Repo
+> geht.**
+
+Die Antwort ist dieselbe wie bei `BackupVerifyTest`: Rückwärtsstriche statt
+Marke.
 
 ### Was danach offen bleibt
 

@@ -644,6 +644,42 @@ table.pairs td.ident {
 }
 
 /*
+ * Eine Begründung in einer Zeile macht ihre Spalte so breit wie der Satz.
+ *
+ * **Gemessen am 16. September 2026** an der Sicherungstabelle und an der
+ * Dump-Tabelle aus P5, beide bei 1440 px in einem Behälter von 1140 px:
+ *
+ * | Zustand | Meldung | Sicherungen | Dumps |
+ * |---|---|---|---|
+ * | ohne Regel | 505 px, 1 Zeile | 470 px Überlauf | 217 px |
+ * | nur `display: block` | 505 px, 1 Zeile | **470** | **217** |
+ * | `block` + `max-width: 30ch` | 267 px, 2 Zeilen | 233 | **0** |
+ *
+ * **Die mittlere Zeile ist der Grund, warum die Regel so aussieht, wie sie
+ * aussieht.** `display: block` allein ändert nichts: Ein Block in einer Zelle
+ * mit automatischem Tabellenlayout ist so breit wie sein Inhalt. Erst der
+ * Deckel wirkt — und ohne `block` wirkt *der* nicht, weil die Meldung dann als
+ * `inline-block` **neben** der Zustandsmarke steht und die Spalte um deren
+ * Breite wächst. Gemessen war der Überlauf mit `inline-block; max-width: 46ch`
+ * sogar **grösser** als ohne Regel (519 gegen 470).
+ *
+ * > **Zwei Angaben, von denen jede allein nichts tut, sind keine Verzierung —
+ * > sie sind eine Regel, die man nicht halbieren kann.**
+ *
+ * **Warum die Meldung überhaupt so lang ist**, steht in `docs/45`: Je wichtiger
+ * die Begründung, desto länger ist sie — „Datei nicht gefunden" passte immer,
+ * „Zu wenig Platz: 412 MB frei, geschätzt 2048 MB nötig" nicht. Sie zu kürzen
+ * wäre die falsche Antwort; sie umbrechen zu lassen ist die richtige.
+ *
+ * `td .quiet` und nicht `.quiet`: Ein `td.quiet` ist eine leere Zeile („Noch
+ * keine Sicherung."), und die füllt ihre Zelle zu Recht.
+ */
+table td .quiet {
+  display: block;
+  max-width: 30ch;
+}
+
+/*
  * Der Fokusrahmen — auch an Eingabefeldern.
  *
  * Die Anmeldemaske hatte dafür eine eigene Zeile, jedes andere Formular nicht:

@@ -29163,6 +29163,142 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupSeamTest passed
 
 echo
+echo "── PermissionReachTest: ein Recht, das keine Policy fragt ──"
+#
+# Der Befund, der diesen Wächter ausgelöst hat: `Permission::Backups` gab es
+# seit P0, und bis P8 hat niemand es gefragt. Ein Plan konnte „Sicherungen"
+# freigeben, und es bedeutete nichts.
+vorher_datei app/Policies/SubscriptionPolicy.php
+python3 - <<'PY2'
+p = 'app/Policies/SubscriptionPolicy.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'return $this->useFeature($account, $subscription, Permission::Backups);',
+    'return $this->useFeature($account, $subscription, Permission::FilesRead);', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Policies/SubscriptionPolicy.php "Recht ohne Policy" &&
+pruefe "Recht ohne Policy" \
+  PermissionReachTest::test_every_permission_is_asked_by_a_policy failed
+wiederherstellen
+
+echo
+echo "── PermissionReachTest: das Recht steht nur noch im Kommentar ──"
+#
+# Jede Behebung in diesem Repo hält ihren Vorzustand im Kommentar fest. Ohne
+# `token_get_all()` stellte genau dieser Kommentar die entfernte Zeile für den
+# Ausdruck wieder her.
+vorher_datei app/Policies/SubscriptionPolicy.php
+python3 - <<'PY2'
+p = 'app/Policies/SubscriptionPolicy.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'return $this->useFeature($account, $subscription, Permission::Backups);',
+    '// return $this->useFeature($account, $subscription, Permission::Backups);\n        '
+    'return $this->useFeature($account, $subscription, Permission::FilesRead);', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Policies/SubscriptionPolicy.php "Recht nur im Kommentar" &&
+pruefe "Recht nur im Kommentar" \
+  PermissionReachTest::test_every_permission_is_asked_by_a_policy failed
+wiederherstellen
+
+echo
+echo "── PermissionReachTest: eine Ausnahme, die überholt ist ──"
+#
+# Die Gegenrichtung. So entsteht ein toter Eintrag wirklich: Jemand baut die
+# Policy nach, der Eintrag bleibt, und das Recht ist dauerhaft ausgenommen.
+vorher_datei tests/Feature/PermissionReachTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/PermissionReachTest.php'
+s = open(p, encoding='utf-8').read()
+anker = "        'statistics' => 'Reserviert"
+s = s.replace(anker, "        'backups' => 'Ein Eintrag, der nicht mehr stimmt.',\n" + anker, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/PermissionReachTest.php "veraltete Rechte-Ausnahme" &&
+pruefe "veraltete Rechte-Ausnahme" \
+  PermissionReachTest::test_an_exemption_does_not_outlive_its_reason failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PermissionReachTest passed
+
+echo
+echo "── BackupSecretTest: ein Passwort in der Beschreibung ──"
+#
+# Sie geht als `payload` an `backup.create`, und `Operations/Show.vue` rendert
+# `payload` als JSON — jeder Admin und der Kunde sehen ihn.
+vorher_datei app/Support/Backups/Description.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Description.php'
+s = open(p, encoding='utf-8').read()
+a = "                'host' => $user->host,"
+s = s.replace(a, a + "\n                'password' => 'geheim',", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Description.php "Passwort in der Beschreibung" &&
+pruefe "Passwort in der Beschreibung" \
+  BackupSecretTest::test_the_description_carries_only_declared_keys failed
+wiederherstellen
+
+echo
+echo "── BackupSecretTest: eine Kennung in der Beschreibung ──"
+#
+# Eine Wiederherstellung legt neue Zeilen an; eine alte `id` darin führt ins
+# Leere oder verleitet dazu, sie zu übernehmen — und nach Form A ist das falsch.
+vorher_datei app/Support/Backups/Description.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Description.php'
+s = open(p, encoding='utf-8').read()
+a = "                'name' => $domain->name,"
+s = s.replace(a, "                'id' => $domain->id,\n" + a, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Description.php "Kennung in der Beschreibung" &&
+pruefe "Kennung in der Beschreibung" \
+  BackupSecretTest::test_the_description_carries_no_identifiers failed
+wiederherstellen
+
+echo
+echo "── BackupSecretTest: ein Abschnitt fällt weg ──"
+#
+# Eine Sicherung ohne die SFTP-Schlüssel gäbe dem Kunden nach der
+# Wiederherstellung keinen Zugang mehr — und sähe vollständig aus.
+vorher_datei app/Support/Backups/Description.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Description.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'ssh_keys' => $this->sshKeys($subscription),\n", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Description.php "Abschnitt der Beschreibung fort" &&
+pruefe "Abschnitt der Beschreibung fort" \
+  BackupSecretTest::test_the_description_carries_only_declared_keys failed
+wiederherstellen
+
+echo
+echo "── BackupSecretTest: die Mandantenklammer bleibt zu ──"
+#
+# Ein nächtlicher Lauf hat kein angemeldetes Konto. Ohne `withoutRestriction()`
+# stünde die Klammer auf `whereRaw('0 = 1')`, und die Beschreibung wäre leer —
+# wortlos, und die Sicherung sähe vollständig aus. Derselbe Befund, den
+# `Cron::store()` in P6 gekostet hat.
+vorher_datei app/Support/Backups/Description.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Description.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('return $this->tenancy->withoutRestriction(fn (): array => [', 'return ((fn (): array => [', 1)
+s = s.replace("""            'ssh_keys' => $this->sshKeys($subscription),
+        ]);""", """            'ssh_keys' => $this->sshKeys($subscription),
+        ]))();""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Description.php "Beschreibung in der Klammer" &&
+pruefe "Beschreibung in der Klammer" \
+  BackupSecretTest::test_the_list_does_not_outlive_the_description failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupSecretTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

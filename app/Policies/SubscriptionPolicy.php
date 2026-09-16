@@ -150,6 +150,34 @@ final class SubscriptionPolicy
         return $this->useFeature($account, $subscription, Permission::Cron);
     }
 
+    /**
+     * Sicherungen verwalten — ansehen, anlegen, herunterladen, entfernen.
+     *
+     * **Am Recht `Backups`, und das ist der Befund, der diese Methode
+     * ausgelöst hat.** `Permission::Backups` und `Feature::Backups` gibt es
+     * seit P0, beide sind aufeinander abgebildet — und **bis P8 hat niemand
+     * sie gefragt.** Ein Plan konnte „Sicherungen" freigeben oder verweigern,
+     * und es bedeutete nichts.
+     *
+     * > **Ein Recht, das keine Policy fragt, ist von aussen nicht von einem zu
+     * > unterscheiden, das es nicht gibt.** Derselbe Fall wie `context` im
+     * > Protokoll (`docs/66`) und `Settings::saveDnsAddresses()` (`docs/74`),
+     * > nur an einer Berechtigung.
+     *
+     * **Und ausdrücklich nicht `FilesRead`.** Eine Sicherung enthält den
+     * ganzen Baum des Abonnements samt seinen Datenbanken — und nach
+     * `docs/117 §4` auch den privaten Schlüssel eines hochgeladenen
+     * Zertifikats. Wer eine einzelne Datei lesen darf, hat damit nicht die
+     * Erlaubnis, alles auf einmal herunterzuladen.
+     *
+     * > **Etwas ansehen zu dürfen ist nicht dasselbe, wie es mitnehmen zu
+     * > dürfen.**
+     */
+    public function manageBackups(Account $account, Subscription $subscription): bool
+    {
+        return $this->useFeature($account, $subscription, Permission::Backups);
+    }
+
     public function browseFiles(Account $account, Subscription $subscription): bool
     {
         return $this->useFeature($account, $subscription, Permission::FilesRead);

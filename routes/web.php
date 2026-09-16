@@ -9,6 +9,7 @@ use App\Http\Controllers\AuditController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Auth\TwoFactorSetupController;
+use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DatabaseController;
@@ -983,6 +984,43 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/subscriptions/{subscription}/cron/{job}/runs', [CronController::class, 'runs'])
         ->middleware('can:manageCron,subscription')
         ->name('cron.runs');
+
+    /*
+     * **Die Sicherungen** (P8 Schritt 5). `/backups` ohne Kennung, aus
+     * demselben Grund wie `/files`, `/sftp` und `/cron`: Das Merkmal hängt an
+     * *einem* Abonnement, und die Adresse beantwortet die Frage „welches" —
+     * bei genau einem führt sie hinein, bei mehreren zur Auswahl.
+     *
+     * Das ist das **vierte** Merkmal mit dieser Frage. Die ersten drei lagen
+     * jeweils drei Klicks tief, und jedes Mal hat es der Betreiber gemeldet.
+     *
+     * > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten
+     * > Merkmal wieder da, wenn die Behebung nicht die Regel wurde.**
+     */
+    Route::get('/backups', [BackupController::class, 'pick'])
+        ->name('backups.pick');
+
+    Route::get('/subscriptions/{subscription}/backups', [BackupController::class, 'show'])
+        ->middleware('can:manageBackups,subscription')
+        ->name('backups.show');
+
+    Route::post('/subscriptions/{subscription}/backups', [BackupController::class, 'store'])
+        ->middleware('can:manageBackups,subscription')
+        ->name('backups.store');
+
+    /*
+     * **Das Herunterladen ist eine eigene Route und kein Feld der Seite.** Eine
+     * Sicherung wird mehrere Gigabyte gross; sie durch den Inertia-Payload zu
+     * reichen wäre dieselbe Art Fehler wie das Verzeichnis über den Socket.
+     * `response()->download()` strömt (gemessen, `docs/116` M3).
+     */
+    Route::get('/subscriptions/{subscription}/backups/{backup}/download', [BackupController::class, 'download'])
+        ->middleware('can:manageBackups,subscription')
+        ->name('backups.download');
+
+    Route::delete('/subscriptions/{subscription}/backups/{backup}', [BackupController::class, 'destroy'])
+        ->middleware('can:manageBackups,subscription')
+        ->name('backups.destroy');
 
     Route::get('/databases', [DatabaseController::class, 'index'])
         ->middleware('can:viewAny,'.Database::class)

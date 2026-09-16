@@ -310,6 +310,23 @@ const navigation = computed<{ group: string | null; items: NavItem[] }[]>(() => 
                * mehreren zur Auswahl.
                */
               { name: 'Cronjobs', href: '/cron', icon: 'cron' },
+
+              /*
+               * **Und derselbe Weg für die Sicherungen** (P8 Schritt 5). Das
+               * ist das vierte Merkmal mit dieser Frage; die Antwort ist die
+               * Regel und keine Entdeckung mehr.
+               *
+               * `/backups` ohne Kennung, weil eine Sicherung an *einem*
+               * Abonnement hängt — bei genau einem führt die Adresse hinein,
+               * bei mehreren zur Auswahl.
+               *
+               * **Und sie steht am Ende dieser Gruppe, nicht am Anfang.** Wer
+               * das Panel öffnet, will meistens an seine Dateien, seine
+               * Datenbank oder seine Domain; eine Sicherung sucht man, wenn
+               * etwas schiefgegangen ist oder bevor man etwas wagt. Sie gehört
+               * sichtbar in die Liste und nicht vor die tägliche Arbeit.
+               */
+              { name: 'Sicherungen', href: '/backups', icon: 'backups' },
             ]
           : []),
 

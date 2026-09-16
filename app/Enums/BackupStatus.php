@@ -22,6 +22,19 @@ enum BackupStatus: string
     case Ready = 'ready';
     case Failed = 'failed';
 
+    /**
+     * Lässt sich diese Sicherung benutzen?
+     *
+     * **Nur `Ready`.** Eine, die noch läuft, ist eine halb geschriebene Datei;
+     * eine gescheiterte ist gar keine oder eine, von der niemand weiss, wie
+     * weit sie kam. Beide herunterzugeben hiesse, etwas auszuliefern, das wie
+     * eine Sicherung aussieht.
+     */
+    public function usable(): bool
+    {
+        return $this === self::Ready;
+    }
+
     public function label(): string
     {
         return match ($this) {

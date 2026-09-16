@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use SrvPanel\Agent\Backup\Store;
 
 /**
  * Eine Sicherung eines ganzen Abonnements (P8).
@@ -73,6 +74,29 @@ class Backup extends Model
             'databases' => 'integer',
             'system_user' => 'integer',
         ];
+    }
+
+    /**
+     * Wo die Datei liegt — oder `null`, wenn der Name des Abonnements fehlt.
+     *
+     * **`->` und nicht `?->`**: Der Null-Zusammenführungsoperator hat
+     * isset-Semantik und fängt das fehlende Abonnement selbst ab. Dieselbe
+     * Zeile wie in {@see DatabaseDump::path()}, mit derselben Begründung.
+     *
+     * Und der abgeschriebene Name trägt, wenn das Abonnement fort ist: Eine
+     * Sicherung ist gerade das, was man nach einem Rückbau noch hat.
+     */
+    public function path(): ?string
+    {
+        $subscription = $this->subscription->name ?? $this->subscription_name;
+
+        return $subscription === '' ? null : Store::path($subscription, $this->storage_name);
+    }
+
+    /** Eine Sicherung, deren Abonnement zurückgebaut wurde — die Datei liegt noch. */
+    public function orphaned(): bool
+    {
+        return $this->subscription_id === null;
     }
 
     /** @return BelongsTo<Subscription, $this> */

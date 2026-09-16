@@ -28786,3 +28786,58 @@ ist das Feld aus 100 000 kleinen Feldern.
 Und ein Eingriff dazu hat nichts gemessen: Ein Feldliteral aus lauter
 Konstanten legt PHP **einmal unveränderlich** ab, also kostete „ein Feld mehr je
 Eintrag" null Bytes. Mit Werten je Eintrag beisst er.
+
+### P8 Schritt 5 — die Seite der Sicherungen
+
+`/backups` steht als eigener Menüpunkt im Kundenmenü und beantwortet „welches
+Abonnement" selbst — bei genau einem führt die Adresse hinein, bei mehreren zur
+Auswahl. Dazu `BackupController` mit Anlegen, Herunterladen (über
+`response()->download()`, das gemessen strömt) und Entfernen, und
+`OperationSubject::Backup`, damit ein Vorgang zu seiner Sicherung zurückführt.
+
+**Das ist das vierte Merkmal mit derselben Frage**, und die Antwort stand schon
+im Quelltext: `/files`, `/sftp` und `/cron` liegen alle so. Jedes lag vorher
+drei Klicks tief, jedes hat der Betreiber gemeldet.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+**`Permission::Backups` gab es seit P0, und keine Policy hat es je gefragt.**
+Ein Plan konnte „Sicherungen" freigeben oder verweigern, ein Konto das Recht
+bekommen oder nicht, und es bedeutete nichts.
+
+> **Ein Recht, das keine Policy fragt, ist von aussen nicht von einem zu
+> unterscheiden, das es nicht gibt.** Ein Recht, das nichts durchsetzt, sieht
+> aus wie Sicherheit.
+
+`PermissionReachTest` hält das seitdem — und hat beim Bauen gleich einen zweiten
+Fall gefunden, den niemand gesucht hat: `Permission::Statistics`, ohne Policy,
+ohne Plan-Feature, ohne Oberfläche. `BackupSecretTest` hält die andere Richtung:
+Die Beschreibung einer Sicherung reist als `payload` an den Agenten, und
+`Operations/Show.vue` rendert `payload` als JSON — jeder erlaubte Schlüssel
+steht deshalb in einer Positivliste, kein Ausdruck über verdächtige Wörter.
+
+**Die Bilderrunde hat drei Fehler gefunden, und keinen davon eine Zahl.** Die
+Knöpfe lagen bei 1440 px ausserhalb des Sichtbaren, obwohl `dokument = 0` und
+der Roller erlaubt war; unter dem Namen stand bei zwei Zeilen ein nackter
+Gedankenstrich; und die Tabelle „Was nicht mitgesichert wird" schnitt ihre
+Gründe bei 390 px ab.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+**Der Deckel für eine Begründung in einer Tabellenzeile steht jetzt in
+`app.css`, und er behebt auch die Dump-Tabelle aus P5** (gemessen 217 px
+Überlauf, dieselbe Meldung). Zwei Anläufe lagen daneben: Als `inline-block`
+steht die Meldung neben der Zustandsmarke und der Überlauf wurde **grösser** als
+ohne Regel; `display: block` allein änderte gar nichts.
+
+> **Zwei Angaben, von denen jede allein nichts tut, sind keine Verzierung — sie
+> sind eine Regel, die man nicht halbieren kann.**
+
+**Und die erste Messrunde hat die falsche Seite gemessen** — nach der Anmeldung
+stand `/settings/two-factor`, und `dokument: 0` mit Gegenprobe 200/200 sah aus
+wie ein Ergebnis. Gefangen hat es die Klassenprobe neben der Messung: eine
+Tabelle statt zweier.
+
+> **Ein Ladebeleg gehört in die Messung und nicht in die Erinnerung.**

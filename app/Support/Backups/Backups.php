@@ -6,13 +6,18 @@ namespace App\Support\Backups;
 
 use App\Enums\BackupStatus;
 use App\Enums\OperationStatus;
+use App\Enums\OperationSubject;
 use App\Jobs\RunAgentOperation;
 use App\Models\Backup;
+use App\Models\Database;
+use App\Models\DatabaseDump;
 use App\Models\Operation;
 use App\Models\Subscription;
 use App\Models\SystemUser;
+use App\Support\Databases\Dumps;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 /**
  * Der Weg vom Panel zu `backup.create` und `backup.remove`.
@@ -37,21 +42,54 @@ use Illuminate\Support\Facades\DB;
  */
 final class Backups
 {
-    public function __construct(private readonly Tenancy $tenancy) {}
+    public function __construct(
+        private readonly Tenancy $tenancy,
+        private readonly Dumps $dumps,
+        private readonly Description $description,
+    ) {}
 
     /**
-     * Eine Sicherung einreihen — Zeile und Vorgang in einer Transaktion.
+     * Eine Sicherung einreihen — erst die Datenbanken, dann das Archiv.
+     *
+     * ## Die Reihenfolge stellt das Panel her, und sie ist gemessen
+     *
+     * `backup.create` legt fertige Dumps in das Archiv und erzeugt sie nicht
+     * (`docs/117 §6` Schritt 4) — keine Operation dieses Agenten ruft eine
+     * andere. Die Kette gehört hierher, und dass sie trägt, hängt an drei
+     * gemessenen Eigenschaften:
+     *
+     * - **Ein Worker, eine Spur.** `srvpanel-worker.service` fährt
+     *   `queue:work --queue=operations,default` ohne `--max-processes`.
+     * - **Der Datenbanktreiber gibt FIFO.** Wer zuerst eingereiht wird, läuft
+     *   zuerst.
+     * - **Die Warteschlange teilt sich die Verbindung mit den Vorgängen.**
+     *   `config/queue.php` lässt `DB_QUEUE_CONNECTION` ungesetzt, also
+     *   committen Zeile und Job zusammen. Ohne das wäre `after_commit => false`
+     *   ein Rennen: Der Worker sähe den Job vor der Zeile.
+     *
+     * **Und ein Dump, der scheitert, bricht die Sicherung laut ab** statt sie
+     * ohne Datenbanken auszugeben — `BackupCreate` weist einen benannten Dump
+     * ab, der nicht liegt.
+     *
+     * > **Ein Archiv, das stillschweigend weniger enthält, ist schlimmer als
+     * > keines: Es sieht aus wie eines.**
+     *
+     * ## Zeile und Vorgang in einer Transaktion
      *
      * **Beides oder keines.** Eine Zeile ohne Vorgang stünde für immer auf
      * „wird erstellt"; ein Vorgang ohne Zeile schriebe eine Datei, die in
      * keiner Liste steht und die deshalb niemand entfernt.
-     *
-     * @param  list<array{storage: string, engine: string, database: string}>  $dumps
-     * @param  array<string, mixed>  $description
      */
-    public function create(Subscription $subscription, array $dumps = [], array $description = []): Backup
+    public function create(Subscription $subscription): Backup
     {
         $storage = $this->storageName($subscription);
+
+        // **Vor der Transaktion**, und das ist Absicht: Jeder Dump ist ein
+        // eigener Vorgang mit eigener Zeile, und die sollen stehen, auch wenn
+        // das Anlegen der Sicherung danach scheitert. Eine Datenbank, die
+        // gesichert wurde, ist gesichert.
+        $dumps = $this->dumpEveryDatabase($subscription);
+        $description = $this->description->of($subscription);
 
         return DB::transaction(function () use ($subscription, $storage, $dumps, $description): Backup {
             $backup = Backup::query()->create([
@@ -75,10 +113,65 @@ final class Backups
                 'db_prefix' => $this->prefixOf($subscription),
                 'dumps' => $dumps,
                 'description' => $description,
-            ], 'Sicherung wird erstellt');
+            ], 'Sicherung wird erstellt', $backup);
 
             return $backup;
         });
+    }
+
+    /**
+     * Je Datenbank einen Dump einreihen und die Liste für das Archiv bauen.
+     *
+     * **Die Zeile des Dumps wird über `subject_id` zurückgelesen**, und das ist
+     * der erklärte Vertrag von {@see Dumps::export()}: „Die Zeile entsteht
+     * **vor** dem Vorgang […]; ohne sie gäbe es nichts, worauf `subject_id`
+     * zeigen könnte." Ein zweiter Weg zu derselben Zeile wäre eine zweite
+     * Fassung derselben Frage.
+     *
+     * **Ohne Mandantenklammer**, weil eine Sicherung auch aus einem
+     * nächtlichen Lauf kommen kann — dort ist niemand angemeldet, die Klammer
+     * stünde auf `whereRaw('0 = 1')`, und die Sicherung enthielte wortlos keine
+     * Datenbank.
+     *
+     * @return list<array{storage: string, engine: string, database: string}>
+     */
+    private function dumpEveryDatabase(Subscription $subscription): array
+    {
+        $databases = $this->tenancy->withoutRestriction(
+            fn (): array => Database::query()
+                ->where('subscription_id', $subscription->id)
+                ->orderBy('name')
+                ->get()
+                ->all(),
+        );
+
+        $dumps = [];
+
+        foreach ($databases as $database) {
+            $operation = $this->dumps->export($database);
+
+            $dump = $this->tenancy->withoutRestriction(
+                fn (): ?DatabaseDump => DatabaseDump::query()->find($operation->subject_id),
+            );
+
+            if ($dump === null) {
+                // Unerreichbar, solange `Dumps::export()` seine Zeile vor dem
+                // Vorgang anlegt — und deshalb laut statt übersprungen: Ein
+                // stilles `continue` gäbe eine Sicherung ohne diese Datenbank.
+                throw new RuntimeException(sprintf(
+                    'Zur Sicherung der Datenbank %s gibt es keine Zeile — die Sicherung bliebe ohne sie.',
+                    $database->name,
+                ));
+            }
+
+            $dumps[] = [
+                'storage' => (string) $dump->storage_name,
+                'engine' => $database->engine->value,
+                'database' => (string) $database->name,
+            ];
+        }
+
+        return $dumps;
     }
 
     /**
@@ -103,7 +196,7 @@ final class Backups
 
         $this->dispatch('backup.remove', $subscription, [
             'storage' => $backup->storage_name,
-        ], 'Sicherung wird entfernt');
+        ], 'Sicherung wird entfernt', $backup);
     }
 
     /**
@@ -133,10 +226,27 @@ final class Backups
      *
      * @param  array<string, mixed>  $payload
      */
-    private function dispatch(string $task, Subscription $subscription, array $payload, string $message): Operation
-    {
+    private function dispatch(
+        string $task,
+        Subscription $subscription,
+        array $payload,
+        string $message,
+        ?Backup $backup = null,
+    ): Operation {
         $operation = Operation::query()->create([
             'subscription_id' => $subscription->id,
+
+            /*
+             * **Der Gegenstand, seit die Seite existiert.** Bis Schritt 5 stand
+             * hier nichts, und der Lebenslauf suchte seine Zeile über
+             * `storage_name` — ein Fall in `OperationSubject` verlangt einen
+             * Ort, und den gab es noch nicht. Jetzt gibt es ihn, und die Suche
+             * ist fort statt daneben: Zwei Wege von einem Vorgang zu seiner
+             * Zeile wären zwei Fassungen derselben Frage.
+             */
+            'subject_type' => $backup === null ? null : OperationSubject::Backup->value,
+            'subject_id' => $backup?->id,
+
             'type' => $task,
             'task' => $task,
             'payload' => array_merge([

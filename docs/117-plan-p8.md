@@ -976,3 +976,144 @@ Drei Stellen, keine davon von einem Wächter gemeldet:
 - Und ein Kommentarblock, den eine frühere Berichtigung an einen anderen
   gestossen hatte — zwei Begründungen ohne Leerzeile dazwischen, die sich als
   eine lasen.
+
+---
+
+## §12 · Schritt 5 — die Seite
+
+### a · Die Frage vor dem Bau, und sie war schon beantwortet
+
+**Wo sucht ein Kunde „meine Sicherung"?** Am Quelltext nachgesehen statt
+geraten: `/files`, `/sftp` und `/cron` stehen alle als **eigener Menüpunkt** im
+Kundenmenü, hinter `has_active_subscription`, und beantworten „welches
+Abonnement" selbst. Jedes lag vorher drei Klicks tief, jedes hat der Betreiber
+gemeldet (`docs/55` Befund 8, `docs/59` Befund 19, `docs/64` Befund 13).
+
+Sicherungen sind das **vierte** Merkmal mit dieser Frage. `PanelLayout.vue`
+schreibt die Antwort selbst als Regel hin — „das dritte Merkmal mit dieser
+Frage, und damit ist der Weg keine Entdeckung mehr, sondern die Regel". Gebaut
+ist `/backups` an derselben Stelle, hinter Cronjobs.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+### b · Ein Recht, das seit P0 niemand gefragt hat
+
+`Permission::Backups` und `Feature::Backups` gibt es **seit P0**, beide sind
+aufeinander abgebildet — und **keine Policy hat sie je gefragt**. Ein Plan
+konnte „Sicherungen" freigeben oder verweigern, ein Konto das Recht bekommen
+oder nicht, und es bedeutete nichts.
+
+> **Ein Recht, das keine Policy fragt, ist von aussen nicht von einem zu
+> unterscheiden, das es nicht gibt.**
+
+Dieselbe Familie wie `context` im Protokoll (`docs/66`), `subject_type`
+(`docs/94`) und `Settings::saveDnsAddresses()` (`docs/74`) — nur an einer
+Berechtigung, wo es am teuersten ist: **Ein Recht, das nichts durchsetzt, sieht
+aus wie Sicherheit.**
+
+`SubscriptionPolicy::manageBackups()` fragt es seitdem, und
+**`PermissionReachTest`** hält die Regel dahinter. **Die Frage hat gleich einen
+zweiten Fall gefunden**, den niemand gesucht hat: `Permission::Statistics` —
+keine Policy, kein Plan-Feature, keine Oberfläche. Er steht als Ausnahme mit
+Grund da; das ist ein Befund ausserhalb von P8.
+
+### c · Der Gegenstand kommt mit seiner Seite
+
+In Schritt 3+4 fand der Lebenslauf seine Zeile über `storage_name`, weil
+`OperationSubject` je Fall einen **Ort** verlangt und es die Seite noch nicht
+gab. Jetzt gibt es sie: `OperationSubject::Backup` zeigt auf
+`/subscriptions/{id}/backups`, der Vorgang trägt `subject_id`, und **die Suche
+ist fort statt daneben stehen geblieben**.
+
+> **Zwei Wege von einem Vorgang zu seiner Zeile wären zwei Fassungen derselben
+> Frage.**
+
+### d · Die Kette Dumps → Sicherung, und worauf sie ruht
+
+`Backups::create()` reiht je Datenbank einen Dump ein und danach die Sicherung.
+Dass die Reihenfolge trägt, ist gemessen und nicht angenommen:
+
+- `srvpanel-worker.service` fährt `queue:work` **ohne** `--max-processes` — ein
+  Worker, eine Spur.
+- Der Datenbanktreiber gibt FIFO.
+- `config/queue.php` lässt `DB_QUEUE_CONNECTION` ungesetzt, also teilt sich die
+  Warteschlange die Verbindung mit den Vorgängen und **committet mit ihnen**.
+  Ohne das wäre `after_commit => false` ein Rennen.
+
+### e · Was die Bilderrunde gefunden hat, und was keine Zahl gemeldet hat
+
+**Die erste Messrunde hat die falsche Seite gemessen.** Nach der Anmeldung stand
+`/settings/two-factor`, und `dokument: 0` mit Gegenprobe 200/200 sah aus wie ein
+Ergebnis. Gefangen hat es die **Klassenprobe** neben der Messung: eine Tabelle
+statt zweier, ein Bereich statt zweier.
+
+> **Ein Ladebeleg gehört in die Messung und nicht in die Erinnerung.**
+
+**Dann drei Befunde, alle am Bild und keiner an der Zahl.**
+
+**1 · Die Knöpfe lagen bei 1440 px ausserhalb.** `dokument = 0`, ein erlaubter
+Roller — und „Herunterladen" und „Entfernen" nicht zu sehen. Derselbe Befund wie
+in `docs/901`. Ausgemessen, was jede Spalte **kostet** (also wie stark die
+Tabelle schrumpft, wenn sie fehlt — nicht ihre Breite, denn die Nachbarn nehmen
+sich, was frei wird):
+
+| ohne | Tabelle | Überlauf |
+|---|---|---|
+| — (voll) | 1610 | 470 |
+| nur die Fehlermeldung | 1249 | 109 |
+| Spalte „Inhalt" | 1376 | 236 |
+| Spalte „Zustand" | 1140 | **0** |
+
+Die Meldung kostete **361 px**. Behoben an **beiden** Ursachen: ein Deckel für
+die Meldung in `app.css` und die Spalte „Inhalt" unter den Namen. Danach rollt
+in keiner der vier Lagen etwas.
+
+**Der Deckel ist dabei zweimal danebengegangen, bevor er sass.** Gemessen:
+
+| Regel | Meldung | Sicherungen | Dumps |
+|---|---|---|---|
+| ohne | 505 px, 1 Zeile | 470 | 217 |
+| `inline-block; max-width: 46ch` | 410 px, 2 Zeilen | **519** | 265 |
+| nur `display: block` | 505 px, 1 Zeile | **470** | **217** |
+| `block` + `max-width: 30ch` | 267 px, 2 Zeilen | 233 | **0** |
+
+Als `inline-block` steht die Meldung **neben** der Zustandsmarke, und der
+Überlauf wurde **grösser** als ohne Regel. `display: block` allein tut gar
+nichts: Ein Block in einer Zelle mit automatischem Tabellenlayout ist so breit
+wie sein Inhalt.
+
+> **Zwei Angaben, von denen jede allein nichts tut, sind keine Verzierung — sie
+> sind eine Regel, die man nicht halbieren kann.**
+
+**Und es war nicht meine Seite, sondern die Regel:** Die Dump-Tabelle aus P5 hat
+denselben Bau und hatte **217 px** Überlauf mit derselben Meldung. Der Deckel
+steht deshalb in `app.css` und behebt beide.
+
+**2 · Ein nackter Gedankenstrich unter dem Namen.** Bei einer laufenden und
+einer gescheiterten Sicherung stand dort `—` — eine zweite Zeile, die nichts
+sagt. Keine Zahl hat sich beschwert.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+**3 · Die Tabelle „Was nicht mitgesichert wird" schnitt ihre Gründe ab.** Als
+`pairs` stand der Grund bei 390 px rechts neben dem Namen: „Protokolle rotieren
+und werden nicht zurückge…". `docs/24 §5` sagt es — `.pairs` ist für ein Paar
+aus Beschriftung und **Wert**, was man Zeile für Zeile liest, ist `.stacks`.
+
+> **Ein Format, das für Bezeichner reicht, reicht nicht für Werte.**
+
+### f · Und ein Handgriff, der Erfolg meldete und nichts tat
+
+Zwei von drei Ersetzungen an der `.vue` haben ihre Zielstelle **nicht gefunden**
+— die Einrückung war zwei Zeichen gewachsen, weil die Bereiche kurz zuvor einen
+Behälter bekommen hatten. **Nur eine der drei trug eine Zusicherung**, also
+meldete das Skript Erfolg. Aufgefallen ist es erst an der gemessenen Kopfzeile,
+in der `<th>Inhalt</th>` weiter stand.
+
+> **Ein `sed`, das nichts findet, meldet Erfolg — und der Rückfall, der daran
+> hängt, läuft nie.** (`docs/96`, an einem anderen Werkzeug.)
+
+Seitdem trägt **jede** Ersetzung ihre Zusicherung; die nächste hat sofort
+zugebissen, weil ein `colspan` schon berichtigt war.

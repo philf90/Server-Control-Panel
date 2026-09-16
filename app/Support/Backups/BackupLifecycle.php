@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Backups;
 
 use App\Enums\BackupStatus;
+use App\Enums\OperationSubject;
 use App\Models\Backup;
 use App\Models\Operation;
 use App\Support\Operations\AfterOperation;
@@ -17,25 +18,20 @@ use App\Support\Tenancy\Tenancy;
  * dem Klick. Eine Zeile steht auf `pending`, bis `backup.create` zurückkommt —
  * und auf `failed`, wenn es mit einer Begründung zurückkommt.
  *
- * ## Warum die Zeile über `storage_name` gefunden wird und nicht über `subject_id`
+ * ## Die Zeile kommt über `subject_id` — seit es die Seite gibt
  *
- * `OperationSubject` verlangt für jeden Fall einen **Ort**, und
+ * In Schritt 3+4 stand hier eine Suche über `storage_name`, weil
+ * `OperationSubject` für jeden Fall einen **Ort** verlangt und
  * `OperationOriginTest` hält, dass jeder genannte Pfad eine angemeldete
- * GET-Route ist. Die Seite der Sicherungen ist `docs/117 §6` Schritt 5 und gibt
- * es noch nicht; einen Gegenstand zu erklären, dessen Ort erfunden wäre, hiesse
- * genau die Zeile schreiben, die dieser Wächter verbietet.
+ * GET-Route ist. Die Seite gab es noch nicht.
  *
- * `storage_name` trägt die Verbindung dafür ohne Umweg: Er ist eindeutig, er
- * steht in der Antwort des Agenten, und er ist derselbe Name, unter dem die
- * Datei liegt.
+ * **Mit Schritt 5 gibt es sie, und die Suche ist fort** — nicht daneben stehen
+ * geblieben. Zwei Wege von einem Vorgang zu seiner Zeile wären zwei Fassungen
+ * derselben Frage, und die zweite ist die, die veraltet.
  *
- * **Mit der Seite kommt der Gegenstand**, und dann ersetzt `subject_id` diese
- * Suche — nicht daneben. Zwei Wege von einem Vorgang zu seiner Zeile wären zwei
- * Fassungen derselben Frage.
- *
- * > **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung.**
- * > Deshalb steht hier, wann diese Stelle sich ändert, und nicht bloss, wie sie
- * > heute ist.
+ * > **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung** —
+ * > deshalb stand im Kopf dieser Klasse, wann sie sich ändert, und nicht bloss,
+ * > wie sie damals war.
  */
 final class BackupLifecycle implements AfterOperation
 {
@@ -121,25 +117,25 @@ final class BackupLifecycle implements AfterOperation
         });
     }
 
-    /** Die Zeile zu einem Vorgang — oder `null`, wenn sie jemand entfernt hat. */
+    /**
+     * Die Zeile zu einem Vorgang — oder `null`, wenn es keine gibt.
+     *
+     * `null` heisst hier zweierlei, und beides ist in Ordnung: `backup.remove`
+     * ohne Zeile räumt beim Rückbau das ganze Verzeichnis eines Abonnements ab,
+     * und eine Zeile, die jemand inzwischen entfernt hat, ist fort.
+     */
     private function rowOf(Operation $operation): ?Backup
     {
         if (! in_array((string) ($operation->task ?? ''), self::handles(), true)) {
             return null;
         }
 
-        $payload = is_array($operation->payload) ? $operation->payload : [];
-        $storage = $payload['storage'] ?? null;
-
-        if (! is_string($storage) || $storage === '') {
-            // `backup.remove` ohne `storage` räumt das ganze Verzeichnis eines
-            // Abonnements ab — beim Rückbau. Dann gibt es keine einzelne Zeile,
-            // und die Zeilen selbst sind mit dem Abonnement schon fort.
+        if ($operation->subject_type !== OperationSubject::Backup->value) {
             return null;
         }
 
         return $this->tenancy->withoutRestriction(
-            fn (): ?Backup => Backup::query()->where('storage_name', $storage)->first(),
+            fn (): ?Backup => Backup::query()->find($operation->subject_id),
         );
     }
 

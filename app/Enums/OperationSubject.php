@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use App\Models\Backup;
 use App\Models\Database;
 use App\Models\DatabaseDump;
 use App\Models\Domain;
@@ -41,6 +42,20 @@ enum OperationSubject: string
      */
     case Dump = 'dump';
 
+    /**
+     * Die Sicherung eines ganzen Abonnements (P8).
+     *
+     * **Sie kommt mit ihrer Seite und nicht davor.** Beim Bau von Schritt 3+4
+     * stand `backup.create` schon, und dieser Fall bewusst noch nicht: Jeder
+     * Fall hier nennt einen **Ort**, und `OperationOriginTest` löst ihn gegen
+     * die angemeldeten Routen auf. Eine Kennung ohne Seite wäre genau die
+     * Zeichenkette, die auf nichts zeigt.
+     *
+     * > **Ein Verweis auf einen Ort, den es nicht gibt, ist der Fehler, den
+     * > dieses Projekt sechsmal eingeholt hat.**
+     */
+    case Backup = 'backup';
+
     /** @return class-string<Model> */
     public function modelClass(): string
     {
@@ -48,6 +63,7 @@ enum OperationSubject: string
             self::Domain => Domain::class,
             self::Database => Database::class,
             self::Dump => DatabaseDump::class,
+            self::Backup => Backup::class,
         };
     }
 
@@ -56,7 +72,8 @@ enum OperationSubject: string
         return match ($this) {
             self::Domain => 'Domain',
             self::Database => 'Datenbank',
-            self::Dump => 'Sicherung',
+            self::Dump => 'Datenbanksicherung',
+            self::Backup => 'Sicherung',
         };
     }
 
@@ -78,6 +95,17 @@ enum OperationSubject: string
                 : '',
             self::Dump => is_string($subject->getAttribute('database_name'))
                 ? $subject->getAttribute('database_name')
+                : '',
+
+            /*
+             * **Ihr eigener Name und nicht der des Abonnements.** Anders als
+             * beim Dump: Ein Abonnement hat viele Sicherungen, und welche es
+             * war, ist genau die Frage, die man später stellt. Der Zeitstempel
+             * steckt darin, und deshalb ist der Name hier lesbar, wo er bei
+             * einer Datenbank nur eine Kennung wäre.
+             */
+            self::Backup => is_string($subject->getAttribute('storage_name'))
+                ? $subject->getAttribute('storage_name')
                 : '',
         };
     }
@@ -108,6 +136,20 @@ enum OperationSubject: string
             self::Database => '/databases/'.$id,
             self::Dump => is_int($subject->getAttribute('database_id'))
                 ? '/databases/'.$subject->getAttribute('database_id')
+                : null,
+
+            /*
+             * **Die Seite ihres Abonnements** — dort steht die Liste. Ein
+             * eigener Ort je Sicherung wäre `…/backups/{id}/download`, und das
+             * ist ein Herunterladen und kein Ort; dieselbe Überlegung wie beim
+             * Dump.
+             *
+             * Fehlt das Abonnement, führt der Verweis nirgendwohin — und das
+             * ist besser als irgendwohin. Eine zurückgebaute Sicherung ist
+             * gerade das, was man danach noch hat.
+             */
+            self::Backup => is_int($subject->getAttribute('subscription_id'))
+                ? '/subscriptions/'.$subject->getAttribute('subscription_id').'/backups'
                 : null,
         };
     }

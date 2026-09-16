@@ -160,6 +160,88 @@ final class BackupTeardownTest extends TestCase
         $this->assertSame(1, $angelegt, 'Der Rückbau hat nicht vorher gesichert — dann misst dieser Fall nichts.');
     }
 
+    /**
+     * **Und sie ist danach auffindbar.**
+     *
+     * Der Befund, der diesen Fall ausgelöst hat, kam nicht aus einer Messung,
+     * sondern aus dem **Ausschreiben des Abnahmelaufs**: Jede Liste dieses
+     * Panels führt über ein Abonnement — `/backups` wählt eines,
+     * `/subscriptions/{id}/backups` braucht eines. Eine Sicherung, die ihren
+     * Rückbau überlebt hat, stand damit in **keiner** Liste und war nur über
+     * eine Adresse erreichbar, deren Kennung niemand kennt.
+     *
+     * Das ist ausgerechnet der Fall, für den es die Stufe gibt.
+     *
+     * > **Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht
+     * > sie dort?**
+     *
+     * **Was dieser Fall nicht halten kann**, ist genau diese Frage: Ob jemand
+     * dort sucht, hängt an einer Erwartung und nicht an einer Eigenschaft des
+     * Quelltextes. Gehalten ist, dass es überhaupt einen Weg gibt.
+     */
+    public function test_a_backup_without_a_subscription_is_findable(): void
+    {
+        $subscription = $this->subscription();
+        $name = (string) $subscription->name;
+
+        $backup = $this->backup($subscription, 'ueberlebt');
+
+        app(Tenancy::class)->withoutRestriction(static fn () => $subscription->forceDelete());
+
+        /*
+         * **Ein lebendes Abonnement daneben, und genau eines.** Das ist die
+         * Bedingung, unter der die Abkürzung der Seite greift — ohne sie misst
+         * dieser Fall den kurzen Weg gar nicht, und ein Bruch daran bliebe
+         * grün.
+         *
+         * > **Ein Prüfkörper, der die Bedingung nicht herstellt, unter der der
+         * > Fehler entsteht, misst ihn nicht.**
+         */
+        $lebend = $this->subscription();
+
+        // **Ohne Mandantenklammer gezählt** — hier ist noch niemand angemeldet,
+        // und der Grundzustand ist `whereRaw('0 = 1')`.
+        $this->assertSame(1, app(Tenancy::class)->withoutRestriction(
+            static fn (): int => Subscription::query()->count(),
+        ), 'Der Prüfkörper stellt den kurzen Weg nicht her.');
+        $this->assertNotNull($lebend->id);
+
+        $antwort = $this->actingAs($this->admin())->get('/backups');
+
+        $antwort->assertSuccessful();
+
+        /*
+         * **Und zwar auch dann, wenn es genau ein Abonnement gibt.** Der kurze
+         * Weg der Seite sprang bei einem einzigen weiter — und übersprang damit
+         * den Sonderfall, der sonst nirgends steht.
+         *
+         * > **Eine Weiterleitung, die den Sonderfall überspringt, macht ihn
+         * > unerreichbar und sieht dabei aus wie Bequemlichkeit.**
+         */
+        $antwort->assertInertia(fn ($page) => $page
+            ->component('Subscriptions/BackupPick')
+            ->where('orphaned.0.id', $backup->id)
+            ->where('orphaned.0.subscription_name', $name));
+    }
+
+    /**
+     * **Und der kurze Weg bleibt, solange es nichts zu übersehen gibt.**
+     *
+     * Ohne verwaiste Sicherung springt die Seite bei genau einem Abonnement
+     * weiter — die Auswahlseite beantwortete dort eine Frage mit einer
+     * einzigen möglichen Antwort.
+     *
+     * > **Eine Frage, die nur eine mögliche Antwort hat, ist keine Frage.**
+     */
+    public function test_a_single_subscription_still_skips_the_picker(): void
+    {
+        $this->subscription();
+
+        $this->actingAs($this->admin())
+            ->get('/backups')
+            ->assertRedirect();
+    }
+
     private function admin(): Account
     {
         return Account::factory()->admin()->create();

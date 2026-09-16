@@ -1338,16 +1338,42 @@ dem 28. August 2026 in **P9b**, unten.
 
 - Sicherung je Abonnement: Dateien, Datenbanken, Konfiguration (Domains, DNS,
   Cron, FTP, Zertifikate) als beschriebenes, portables Format mit Manifest
-- Zeitpläne, Aufbewahrungsregeln, Ziele: lokal, S3-kompatibel, SFTP/FTP
-- Wiederherstellung: vollständig oder einzeln (eine Domain, eine Datenbank,
-  ein Verzeichnisstand) — **durch den Kunden selbst**
-- Automatische Sicherung vor riskanten Aktionen (Löschen, PHP-Wechsel,
-  Wiederherstellung)
-- Prüflauf, der eine Sicherung regelmäßig testweise zurückspielt
+- Zeitpläne, Aufbewahrungsregeln, Ziel: **lokal**. Das Fernziel (S3-kompatibel)
+  ist am 16. September 2026 nach **P9b** gezogen, SFTP und FTP sind vertagt
+  (`docs/117 §5` und `§10`) — P8 baut die Sicherung, wohin sie ausser Haus geht,
+  ist eine eigene Entscheidung
+- Wiederherstellung: **vollständig**. Einzelne Gegenstände (eine Domain, eine
+  Datenbank, ein Verzeichnisstand) sind am 16. September 2026 ausdrücklich
+  ausgenommen (`docs/117 §10`): Der Kunde lädt die Sicherung herunter und nimmt
+  heraus, was er braucht
+- Automatische Sicherung **vor dem Rückbau** — und sonst nirgends. Ein
+  PHP-Wechsel ist durch einen zweiten zurückzunehmen, und eine Wiederherstellung
+  legt in Form A ein neues Abonnement an und überschreibt nichts (`docs/117
+  §16`)
+
+  > **Eine Vorsichtsmassnahme vor jedem Griff ist keine Vorsicht, sondern eine
+  > Gewohnheit — und sie wird als Erstes abgeschaltet, wenn sie stört.**
+- Prüflauf, der eine Sicherung regelmässig **prüft und nicht zurückspielt** —
+  entschieden vom Betreiber am 15. September 2026, und zwar aus einem gemessenen
+  Grund: Jede Wiederherstellung verbraucht dauerhaft eine Systembenutzernummer
+  und ein Datenbankpräfix (`docs/116` M5, es gibt keine Freigabe). Ein
+  nächtlicher Rückspiellauf verbrennt jede Nacht eine Nummer
 
 **Fertig, wenn** ein vollständig gelöschtes Abonnement aus einer Sicherung
-wiederhergestellt wird und danach Webseiten, Datenbanken, DNS und Cron
-funktionieren — geprüft durch einen automatisierten Lauf, nicht von Hand.
+wiederhergestellt wird: Verzeichnis mit den ursprünglichen Rechten und
+Verweisen, Datenbanken mit ihrem Inhalt, Domains und Cronjobs aus der
+Beschreibung **erzeugt** — und die Seite sagt, **was sich geändert hat**.
+
+**Hier stand „und danach funktionieren Webseiten, Datenbanken, DNS und Cron",
+und das ist nicht erfüllbar** (`docs/117 §0`): Ein wiederhergestelltes
+Abonnement bekommt einen **neuen** Systembenutzer und ein **neues**
+Datenbankpräfix; die `wp-config.php` des Kunden — eine Kundendatei in derselben
+Sicherung — nennt danach eine Datenbank, die es nicht gibt. Das Panel fasst sie
+nicht an und **sagt es** stattdessen.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+Die vollständige Fassung mit acht Punkten steht in `docs/117 §8`.
 
 ### P9 — Kundenfähigkeit und Betrieb · 3–4 Wochen · (0.10)
 
@@ -1416,6 +1442,26 @@ gemessen an einem Durchlauf mit einer Person, die das Projekt nicht kennt.
   entsperren, eine eigene Jail für das Panel-Log. Der Entsperren-Knopf ohne
   Prüfung wäre „beliebige Zeichenkette an fail2ban": Die Adresse gehört
   validiert, der Jailname kommt aus der gelesenen Liste.
+- **Das Fernziel für Sicherungen (S3-kompatibel)** · **verortet am
+  16. September 2026 vom Betreiber.** P8 baut die Sicherung; wohin sie **ausser
+  Haus** geht, ist eine eigene Entscheidung — dieselbe, mit der `docs/117 §10`
+  SFTP und FTP schon vertagt hat. Der Entwurf steht in `docs/117 §5` und ist
+  gemessen: Er reitet auf `Acme\Outbound` mit, signiert mit `hash_hmac`, und
+  braucht **kein neues Programm**.
+
+  **Warum hier und nicht in P8.** `docs/117 §8` hat ein S3-Ziel als
+  Abnahmekriterium geführt, während **kein einziger** der zehn Bauschritte eines
+  herstellt — der Punkt ist deshalb gestrichen.
+
+  > **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den
+  > Verfasser.**
+
+  **Und es gehört zu einer Härtungsstufe**, weil sein Kern die Zugangsdaten
+  sind: Sie reisen über eine eigene Operation nach dem Vorbild von
+  `dns.credential.store` — einmal hinein, nie zurück, ohne Warteschlange.
+
+  > **Ein Geheimnis, das als Argument eines Vorgangs reist, steht auf der
+  > Vorgangsseite.**
 
 **Warum vor P10 und nicht darin.** P10 enthält den vollständigen
 Angriffsdurchgang und den **externen Sicherheits-Review**. Eine Firewall, die in

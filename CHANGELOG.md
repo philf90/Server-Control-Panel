@@ -29306,3 +29306,52 @@ Bruch, der einen Filter auf `ready` einsetzt, blieb grün.
 Die Grösse der Datei steht bewusst **nicht** im Befundtext: Sie wäre die
 nützlichere Auskunft und kostete eine vierte Fassung von `formatBytes`. Der Pfad
 steht da, und `ls -l` liegt daneben.
+
+### §8 Punkt 8 ist gestrichen — S3 steht in P9b
+
+Das Abnahmekriterium von P8 verlangte, dass eine Sicherung auf einem S3-Ziel
+ankommt. **Kein einziger der zehn Bauschritte stellt eines her**; `docs/117 §5`
+führt S3 als Vorschlag. Ein Kriterium, das etwas misst, das kein Schritt baut,
+macht den Lauf unfahrbar — und weich gelesen wäre es keines mehr.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+Entschieden vom Betreiber: Der Punkt fällt, und S3 bekommt seinen Ort in **P9b**
+— neben A3s zweitem Wurf und A4, mit derselben Begründung, mit der SFTP und FTP
+schon vertagt sind. Es gehört zu einer Härtungsstufe, weil sein Kern die
+Zugangsdaten sind.
+
+**Und dabei fiel auf, dass zwei Zeilen in `docs/20 §9` seit dem 15. September
+auf ihre Verschiebung warteten.** `docs/117 §0` hat sie angekündigt — das
+unerfüllbare Abnahmekriterium und den Prüflauf, der nicht mehr zurückspielt —
+mit dem Satz „damit es nicht still geschieht". Geschehen ist es trotzdem nicht;
+gesehen hat es nur, wer denselben Abschnitt aus einem anderen Grund geöffnet hat.
+
+> **Eine Zeile, die eine Absicht festhält, ist keine Änderung — und beide sehen
+> im Bestand gleich aus.**
+
+### Eine Sicherung ohne Abonnement stand in keiner Liste
+
+**Gefunden beim Ausschreiben des Abnahmelaufs** — und das ist der Grund, aus dem
+er vor dem Fahren geschrieben wird. Das Kriterium löscht in Punkt 2 das
+Abonnement vollständig und spielt in Punkt 3 die Sicherung zurück; dazwischen war
+sie **unerreichbar**. Jede Liste dieses Panels führt über ein Abonnement, und
+übrig blieb eine Adresse, deren Kennung niemand kennt.
+
+> **Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht sie
+> dort?**
+
+Das ist ausgerechnet der Fall, für den es die Stufe gibt: `backups.subscription_id`
+steht auf `nullOnDelete`, damit die Sicherung ihren Rückbau überlebt, und seit
+Schritt 10 legt der Rückbau selbst eine an.
+
+**Die Abkürzung der Seite machte es schlimmer**: Bei genau einem erreichbaren
+Abonnement sprang `/backups` weiter — auf einem Server mit einem Kunden bekam den
+Bereich also niemand zu sehen.
+
+> **Eine Weiterleitung, die den Sonderfall überspringt, macht ihn unerreichbar
+> und sieht dabei aus wie Bequemlichkeit.**
+
+`/backups` trägt jetzt den Bereich „Ohne Abonnement" — nur für den Betreiber, nur
+wenn es solche Sicherungen gibt. Der Wächter misst, **dass** es einen Weg gibt;
+ob jemand dort sucht, hängt an einer Erwartung und steht daneben als Frage.

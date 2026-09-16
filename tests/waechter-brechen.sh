@@ -30119,6 +30119,43 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupDiagnoseTest passed
 
 echo
+echo "── BackupTeardownTest: der kurze Weg ueberspringt den Sonderfall ──"
+#
+# Bei genau einem Abonnement springt `/backups` weiter — und die Sicherungen
+# ohne Abonnement stehen in keiner anderen Liste dieses Panels.
+vorher_datei app/Http/Controllers/BackupController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/BackupController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($erreichbar->count() === 1 && $verwaist->isEmpty()) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        if ($erreichbar->count() === 1) {", 1))
+PY2
+griff_datei app/Http/Controllers/BackupController.php "kurzer Weg ueberspringt" &&
+pruefe "kurzer Weg ueberspringt" \
+  BackupTeardownTest::test_a_backup_without_a_subscription_is_findable failed
+wiederherstellen
+
+echo
+echo "── BackupTeardownTest: die Liste der verwaisten bleibt leer ──"
+#
+# Dann ist eine Sicherung, die ihren Rueckbau ueberlebt hat, nur ueber eine
+# Adresse erreichbar, deren Kennung niemand kennt.
+vorher_datei app/Http/Controllers/BackupController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/BackupController.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ? $this->backups->orphaned()"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            ? collect()", 1))
+PY2
+griff_datei app/Http/Controllers/BackupController.php "verwaiste Liste leer" &&
+pruefe "verwaiste Liste leer" \
+  BackupTeardownTest::test_a_backup_without_a_subscription_is_findable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupTeardownTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

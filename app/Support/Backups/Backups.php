@@ -17,6 +17,7 @@ use App\Models\SystemUser;
 use App\Support\Databases\Dumps;
 use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use RuntimeException;
@@ -232,6 +233,36 @@ final class Backups
      * `null`, wenn der Betreiber sie abgeschaltet hat oder das Abonnement
      * nichts hat, was zu sichern wäre.
      */
+    /**
+     * Die Sicherungen, deren Abonnement es nicht mehr gibt.
+     *
+     * **Sie stehen sonst in keiner Liste dieses Panels.** Jede andere führt über
+     * ein Abonnement — `/backups` wählt eines, `/subscriptions/{id}/backups`
+     * braucht eines. Eine Sicherung, die ihren Rückbau überlebt hat, wäre damit
+     * nur über eine Adresse erreichbar, deren Kennung niemand kennt.
+     *
+     * Und das ist ausgerechnet der Fall, für den es die Stufe gibt: Schritt 10
+     * legt **vor** dem Rückbau eine an, und `backups.subscription_id` steht auf
+     * `nullOnDelete`, damit sie ihn überlebt.
+     *
+     * > **Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht
+     * > sie dort?**
+     *
+     * **Ohne Mandantenklammer**, und das ist hier keine Bequemlichkeit: Eine
+     * Zeile ohne Abonnement kann keiner Klammer genügen. Gezeigt wird sie
+     * trotzdem nur dem Betreiber — das entscheidet die Aufrufstelle.
+     *
+     * @return Collection<int, Backup>
+     */
+    public function orphaned(): Collection
+    {
+        return $this->tenancy->withoutRestriction(static fn (): Collection => Backup::query()
+            ->whereNull('subscription_id')
+            ->where('status', BackupStatus::Ready->value)
+            ->orderByDesc('id')
+            ->get());
+    }
+
     public function beforeRemoval(Subscription $subscription): ?Backup
     {
         if ($this->settings->backups()['before_removal'] !== true) {

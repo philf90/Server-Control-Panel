@@ -82,7 +82,28 @@ class BackupController extends Controller
             ->filter(fn (Subscription $s): bool => $account?->can('manageBackups', $s) ?? false)
             ->values();
 
-        if ($erreichbar->count() === 1) {
+        /*
+         * **Die Sicherungen ohne Abonnement, und die gibt es nur für den
+         * Betreiber.** Sie gehören keinem Kunden mehr — das Abonnement ist
+         * zurückgebaut, und `backups.subscription_id` steht auf `nullOnDelete`,
+         * damit die Sicherung ihn überlebt.
+         */
+        $verwaist = Gate::allows('create', Subscription::class)
+            ? $this->backups->orphaned()
+            : collect();
+
+        /*
+         * **Der kurze Weg nur, wenn es nichts anderes zu wählen gibt.**
+         *
+         * Hier stand `if ($erreichbar->count() === 1)` allein, und das war eine
+         * Sackgasse: Bei genau einem Abonnement sprang die Seite weiter, und
+         * die verwaisten Sicherungen bekam niemand zu sehen — sie stehen in
+         * keiner anderen Liste dieses Panels.
+         *
+         * > **Eine Weiterleitung, die den Sonderfall überspringt, macht ihn
+         * > unerreichbar und sieht dabei aus wie Bequemlichkeit.**
+         */
+        if ($erreichbar->count() === 1 && $verwaist->isEmpty()) {
             return to_route('backups.show', ['subscription' => $erreichbar->first()?->id]);
         }
 
@@ -91,6 +112,15 @@ class BackupController extends Controller
                 ->map(static fn (Subscription $s): array => [
                     'id' => $s->id,
                     'name' => $s->name,
+                ])
+                ->all(),
+
+            'orphaned' => $verwaist
+                ->map(static fn (Backup $backup): array => [
+                    'id' => (int) $backup->id,
+                    'subscription_name' => (string) $backup->subscription_name,
+                    'storage_name' => (string) $backup->storage_name,
+                    'created_at' => Clock::display($backup->created_at),
                 ])
                 ->all(),
         ]);

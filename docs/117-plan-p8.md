@@ -541,6 +541,15 @@ P8:
   seit P4 gegen ein Drehbuch prüfbar ist. Signiert wird mit `hash_hmac`;
   `ext-curl` ist Paketabhängigkeit, `ext-openssl` und `ext-hash` sind im
   Grundbestand. **Kein neues Programm.**
+
+  **Entworfen und nicht gebaut — seit dem 16. September 2026 mit einem Ort.**
+  Kein Schritt aus §6 baut ein Fernziel, und §8 Punkt 8 hat es trotzdem
+  gemessen; der Punkt ist gestrichen, und S3 steht in **P9b** (`docs/20 §9`),
+  neben A3s zweitem Wurf und A4.
+
+  > **Eine Aufzählung dessen, was ein Merkmal nicht wird, ist nur dann eine
+  > Entscheidung, wenn das Fehlende darin steht — sonst ist sie eine Lücke mit
+  > Überschrift.**
 - **SFTP und FTP: vertagt.** FTP ginge mit `ext-ftp` ohne neues Programm, ist
   aber unverschlüsselt und damit für eine Sicherung mit Schlüsselmaterial die
   falsche Antwort. SFTP kostet `ext-ssh2` oder ein Programm auf der
@@ -662,8 +671,28 @@ Das alte steht in `docs/20 §9` und ist nach §0 nicht erfüllbar. Neu:
    ihm zu sagen warum.)*
 7. `backup.verify` meldet eine absichtlich beschädigte Sicherung als beschädigt
    — **und eine heile als heil.** Die Gegenprobe gehört in denselben Lauf.
-8. Eine Sicherung auf ein S3-Ziel kommt dort an, und die Zugangsdaten stehen auf
-   **keiner** Seite des Panels und in **keinem** Vorgang.
+~~8. Eine Sicherung auf ein S3-Ziel kommt dort an …~~ **Gestrichen am
+16. September 2026, entschieden vom Betreiber.**
+
+**Der Punkt war im Plan nicht gedeckt.** §6 zählt zehn Schritte auf, und
+**keiner** baut ein Fernziel; §5 führt S3 als *Vorschlag*. Ein Kriterium, das
+etwas misst, das kein Schritt herstellt, macht den ganzen Lauf unfahrbar — und
+weich gelesen wäre es keines mehr.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+Gestrichen wird er mit derselben Begründung, mit der §10 SFTP und FTP schon
+vertagt hat: *Beides ist eine eigene Entscheidung und gehört nicht in dieselbe
+Stufe wie das Sichern selbst.* Das Ziel steht in §5 und ist **entworfen und
+nicht gebaut**; sein Ort ist jetzt **P9b** (`docs/20 §9`), neben A3s zweitem
+Wurf und A4.
+
+**Was dabei nicht verlorengeht:** Die Messung, die den Entwurf trägt, steht in
+§5 und in `docs/116` M4 — Zugangsdaten reisen über eine eigene Operation nach
+dem Vorbild von `dns.credential.store`, **einmal hinein, nie zurück, ohne
+Warteschlange**, weil ein Geheimnis, das als Argument eines Vorgangs reist, auf
+der Vorgangsseite steht. Wer S3 baut, fängt dort an und nicht bei null.
 
 **Zwei Punkte dürfen nicht ausfallen: 5 und 6.** Punkt 5, weil ohne ihn nicht
 belegt ist, dass die Beschreibung erzeugt und nicht zurückgespielt wird — der
@@ -771,7 +800,10 @@ Damit die Aufzählung eine Entscheidung ist und keine Lücke mit Überschrift
 
 - **Kein Rückspiel-Prüflauf.** Entscheidung 1 des Betreibers; der nächtliche
   Lauf prüft und spielt nicht zurück.
-- **Kein SFTP und kein FTP als Ziel** (§5). S3 und lokal ja.
+- **Kein Fernziel überhaupt** (§5). Lokal ja; S3 ist entworfen und steht in
+  **P9b**, SFTP und FTP bleiben vertagt. Hier stand „S3 und lokal ja", und das
+  war der Widerspruch, den §8 Punkt 8 gemessen hat: Kein Schritt aus §6 baut
+  eines.
 - **Keine Sicherung des ganzen Servers.** P8 sichert je Abonnement. Was dem
   Betreiber gehört — Panel, Zertifikate, Agentenkonfiguration — ist eine eigene
   Frage.
@@ -2225,6 +2257,80 @@ fehlendes `@return`), und `DocblockAnchorTest` die andere.
 Einfügen, das am **Namen der folgenden Deklaration** ankert, setzt sich zwischen
 sie und ihren Block. Wer vor eine bestehende Deklaration einfügt, ankert an
 deren **Dokumentblock** und nicht an ihrer Signatur.
+
+### Befund 20 · Zwei Zeilen, deren Verschiebung §0 angekündigt und niemand getan hat
+
+`§0` hält seit dem 15. September fest, dass zwei Zeilen in `docs/20 §9` sich
+bewegen: das Abnahmekriterium („danach funktionieren die Webseiten" — nicht
+erfüllbar) und der Prüflauf („testweise zurückspielen" — vom Betreiber
+gestrichen). Es steht dort mit dem Satz *„und es steht hier, damit es nicht still
+geschieht"*.
+
+**Getan hat es niemand.** Beim Verorten von S3 am 16. September stand die alte
+Fassung noch Wort für Wort da — samt „Ziele: lokal, S3-kompatibel, SFTP/FTP".
+
+> **Ein Merkmal, das als Nebenwirkung einer Behebung entsteht, trägt den Namen
+> nicht, unter dem es geplant war — und die Planzeile bleibt offen stehen.**
+> (A8, 7. September)
+
+Hier ist es die Spiegelung davon: Eine Änderung, die **angekündigt** ist,
+geschieht nicht dadurch, dass sie irgendwo aufgeschrieben steht. Aufgefallen ist
+es nur, weil derselbe Abschnitt aus einem anderen Grund geöffnet wurde.
+
+> **Eine Zeile, die eine Absicht festhält, ist keine Änderung — und beide sehen
+> im Bestand gleich aus.**
+
+### Befund 21 · Eine Sicherung ohne Abonnement stand in keiner Liste
+
+**Gefunden beim Ausschreiben des Abnahmelaufs**, und das ist der Grund, aus dem
+man ihn vorher ausschreibt. `§8` Punkt 2 löscht das Abonnement vollständig,
+Punkt 3 spielt die Sicherung zurück — und zwischen den beiden Punkten ist die
+Sicherung **unerreichbar**: Jede Liste dieses Panels führt über ein Abonnement.
+`/backups` wählt eines, `/subscriptions/{id}/backups` braucht eines.
+
+Übrig blieb `/backups/{id}/restore` — eine Adresse, deren Kennung niemand kennt.
+
+> **Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht sie
+> dort?**
+
+Das ist ausgerechnet der Fall, für den es die Stufe gibt: `nullOnDelete` ist so
+gewählt, damit die Sicherung ihren Rückbau überlebt, und Schritt 10 legt **vor**
+dem Rückbau eine an.
+
+**Und die Abkürzung der Seite machte es schlimmer.** Bei genau einem erreichbaren
+Abonnement sprang `/backups` weiter — auf einem Server mit einem Kunden bekam
+den Bereich also niemand zu sehen, auch wenn es ihn gäbe.
+
+> **Eine Weiterleitung, die den Sonderfall überspringt, macht ihn unerreichbar
+> und sieht dabei aus wie Bequemlichkeit.**
+
+`/backups` trägt jetzt einen Bereich „Ohne Abonnement" — nur für den Betreiber,
+nur wenn es solche Sicherungen gibt, und mit dem Satz, dass beim Zurückspielen
+ein neues Abonnement entsteht.
+
+**Der Wächter dazu misst, dass es einen Weg gibt — nicht, dass jemand dort
+sucht.** Diese Frage hängt an einer Erwartung und nicht am Quelltext, und
+deshalb steht sie daneben als Frage.
+
+**Und sein erster Wurf stellte die Bedingung nicht her**, unter der die
+Abkürzung greift: Das Abonnement des Prüfkörpers war gelöscht, also gab es kein
+einziges mehr, und der Bruch daran blieb grün. Ein lebendes daneben, und eine
+Zusicherung auf genau eines, machen den Fall messbar.
+
+> **Ein Prüfkörper, der die Bedingung nicht herstellt, unter der der Fehler
+> entsteht, misst ihn nicht.**
+
+### Der Abnahmelauf steht als `docs/118`
+
+Ausgeschrieben am 16. September 2026, **vor** dem Fahren — die Gewohnheit, die
+bei A10, A2, A14 und dem Platzhalterlauf die Befunde am Prüfling auf fast null
+gedrückt hat. Sieben Punkte; **5 und 6 dürfen nicht ausfallen**.
+
+**Vier Dinge sind beim Ausschreiben umgefallen** (`docs/118 §0`), alle am
+Quelltext gefunden und keines beim Fahren: Punkt 8 ist gestrichen (kein Schritt
+baut ein Fernziel), die Sicherung war zwischen Punkt 2 und 3 unerreichbar
+(Befund 21), Punkt 2 sagte „die Zeile" und meint nicht die der Sicherungen, und
+Punkt 4 sagte „die Datenbanken" und meint andere Namen.
 
 ### Was danach offen bleibt
 

@@ -116,6 +116,25 @@ final class Backups
                 'system_user' => $this->numberOf($subscription),
                 'db_prefix' => $this->prefixOf($subscription),
                 'dumps' => $dumps,
+
+                /*
+                 * **Nur die Namen, und nur die hochgeladenen.** Wo ein
+                 * Zertifikat liegt, weiss der Agent; welches Material er
+                 * mitnehmen darf, weiss nur das Panel, weil nur es `source`
+                 * kennt. Ein ACME-Zertifikat wird nach der Wiederherstellung
+                 * neu bestellt (`docs/117 §4`).
+                 *
+                 * Sie kommen aus derselben Beschreibung, aus der die
+                 * Wiederherstellung später die Zeilen baut — **eine Quelle und
+                 * nicht zwei**: Eine zweite Abfrage hier liefe irgendwann
+                 * auseinander, und dann trüge die Sicherung Dateien ohne Zeile
+                 * oder Zeilen ohne Datei.
+                 */
+                'certificates' => array_map(
+                    static fn (array $eintrag): string => (string) $eintrag['storage_name'],
+                    is_array($description['certificates'] ?? null) ? $description['certificates'] : [],
+                ),
+
                 'description' => $description,
             ], 'Sicherung wird erstellt', $backup);
 
@@ -325,18 +344,28 @@ final class Backups
         ], 'Sicherung wird entfernt', $backup, $name);
     }
 
-    /**
-     * Alle Sicherungen eines Abonnements — beim Rückbau.
+    /*
+     * **Hier stand `removeAll()`, und es hatte nie einen Aufrufer.**
      *
-     * **Ohne `storage`, und das ist der Fall, für den es die Operation gibt.**
-     * `subscription.remove` räumt auf, was zum Abo-Verzeichnis gehört, und
-     * `/var/lib/srvpanel/backups/<abo>` gehört nicht dazu — dieselbe Lage wie
-     * bei den Dumps und den Zertifikaten (`docs/35`).
+     * Gedacht war es für den Rückbau — und genau dort darf es nicht laufen:
+     * `backups.subscription_id` steht auf `nullOnDelete`, und der Kopf der
+     * Migration sagt warum. *„Die Sicherung überlebt ihr Abonnement."* Seit
+     * Schritt 10 hängt daran ein Merkmal: Die Sicherung **vor** dem Rückbau
+     * wäre sonst die erste, die der Rückbau mitnimmt.
+     *
+     * > **Eine Methode, die niemand ruft, ist von aussen nicht von einer zu
+     * > unterscheiden, die es nicht gibt — und eine, deren einziger denkbarer
+     * > Ort ihr widerspricht, ist schlimmer als keine.**
+     *
+     * **Der Weg zurück bleibt trotzdem da, im Agenten.** `backup.remove` ohne
+     * `storage` räumt das Verzeichnis eines Abonnements ab
+     * ({@see \SrvPanel\Agent\Backup\Store::removeDirectory()}), und das ist
+     * der Griff, den `docs/35` verlangt. Automatisch geht ihn niemand; was
+     * liegenbleibt, **meldet** die Bestandsdiagnose, statt es zu löschen —
+     * dieselbe Regel wie bei jedem anderen Rest seit A10.
+     *
+     * `BackupTeardownTest` hält beides.
      */
-    public function removeAll(Subscription $subscription): void
-    {
-        $this->dispatch('backup.remove', $subscription, [], 'Sicherungen werden entfernt');
-    }
 
     /**
      * Der Vorgang dazu.

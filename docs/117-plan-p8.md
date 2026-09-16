@@ -458,6 +458,37 @@ Das gilt für die Vhost-Datei, für `pg_hba.conf`, für die Cron-Dateien und fü
   gehört in die Sicherung — und damit trägt eine Sicherung erstmals ein
   Geheimnis. Sie liegt deshalb `root:srvpanel 0640` und geht nur über das Panel
   hinaus (§2 Entscheidung 2).
+
+  **Gebaut am 16. September 2026**, und beim Bauen fiel auf, dass dieser Absatz
+  eine Hälfte übersprungen hat. Er wägt den Schlüssel gegen das **Dateisystem**
+  ab und gegen den **Kunden**, der seine eigene Sicherung lädt. Wer den Knopf
+  sonst noch drücken darf, steht hier nicht — und gemessen ist es **jeder
+  Administrator**: `manageBackups` löst über `useFeature()` auf, und das gibt
+  bei `isAdmin()` sofort durch; `isAdmin()` fragt den **Typ** und nicht die
+  Rolle.
+
+  > **Ein Ablageort, der ein Geheimnis vor dem Dateisystem schützt, sagt nichts
+  > darüber, wer den Knopf drücken darf, der es herausgibt.**
+
+  Entschieden vom Betreiber: Der Schlüssel geht hinein, und das **Herunterladen**
+  wird enger — `SubscriptionPolicy::downloadBackup()` lässt den Betreiber und den
+  Kunden des Abonnements an die Datei, den Administrator nicht. Dieselbe Grenze
+  wie bei `/logs` seit A9, und aus demselben Grund. Liste, Anlegen und Entfernen
+  bleiben, wo sie waren: Sie geben kein Material heraus.
+
+  **Im Archiv liegt es unter `Manifest::CERTS`** (`.srvpanel-certs`), einem
+  **reservierten** Namen — damit überspringt `Backup\Unpacker` es beim
+  Auspacken, und der Schlüssel landet nie im Baum des Kunden, wo der SFTP-Zugang
+  ihn läse. Zurückgeschrieben wird über `Acme\Store::write()`, weil dort steht,
+  dass die Kette `0644` und der Schlüssel `0600` trägt.
+
+  **Und die Zeile gehört dazu.** Ohne sie zeigte nichts auf die Dateien: Der
+  Nachtlauf meldete `orphan.row / certificate`, und `srvpanel tls --prune`
+  entfernte den Schlüssel unter einer Website, die ihn gerade zurückbekommen
+  hat. `RestoreLifecycle::rebuildCertificates()` legt sie an.
+
+  > **Eine Datei ohne ihre Zeile ist ein Rest, auch wenn sie gerade erst
+  > entstanden ist.**
 - **Datenbankpasswörter** stehen nirgends und werden nicht gesichert. Nach der
   Wiederherstellung bekommt jeder Zugang ein neues, und die Seite sagt es.
 
@@ -2027,6 +2058,119 @@ Dokumentblock eines framework-freien Wächters machte
 Die Antwort ist dieselbe wie bei `BackupVerifyTest`: Rückwärtsstriche statt
 Marke.
 
+### Befund 12 · Ein Prüfkörper, der vor der Wirkung gemessen hat
+
+Der erste Wurf von `BackupTeardownTest` fuhr `DELETE /subscriptions/{id}` und
+sah unmittelbar danach nach, ob die Zeile noch an ihrem Abonnement hängt. Sie
+hing — **zu Recht**: `destroy()` löscht nichts, es reiht `subscription.remove`
+ein, und gelöscht wird erst, wenn der Agent geantwortet hat. Das ist die zweite
+Grenze dieses Projekts, wörtlich.
+
+> **Ein Prüfkörper, der vor der Wirkung misst, misst den Klick und nicht den
+> Zustand.**
+
+Gemessen wird seitdem über den ganzen Weg: die Route, dann der `forceDelete()`,
+mit dem `Lifecycle::withdraw()` endet — und danach stehen beide Zeilen, die von
+Hand angelegte und die, die der Rückbau selbst gemacht hat.
+
+**Und der erste Bruch dazu hat die falsche Hälfte gemessen.** Er löschte *alle*
+Sicherungen des Abonnements — damit fiel schon die Vorbedingung („der Rückbau
+hat vorher gesichert"), und die eigentliche Behauptung kam nie an die Reihe. Der
+Eingriff trifft jetzt nur die ältere Zeile.
+
+> **Ein Bruch, der die Vorbedingung mitnimmt, belegt die Regel nicht — er
+> belegt, dass der Prüfkörper seine Vorbedingung prüft.**
+
+### Befund 13 · Der Schlüssel war gegen das Dateisystem abgewogen und nicht gegen die Rolle
+
+`§4` hat den privaten Schlüssel eines hochgeladenen Zertifikats gegen zwei
+Dinge abgewogen: das Dateisystem (`root:srvpanel 0640`, ausserhalb des
+Kunden-Chroots) und den Kunden, der seine eigene Sicherung lädt. **Gemessen kam
+ein Dritter hinzu**, den der Absatz nicht nennt: `manageBackups` löst über
+`useFeature()` auf, und das gibt bei `isAdmin()` sofort durch — `isAdmin()`
+fragt den **Typ** und nicht die Rolle. Jeder Administrator hätte den Schlüssel
+jedes Kunden bekommen.
+
+> **Ein Ablageort, der ein Geheimnis vor dem Dateisystem schützt, sagt nichts
+> darüber, wer den Knopf drücken darf, der es herausgibt.**
+
+Das ist dieselbe Grenze, die A9 bei `/logs` gezogen hat, und sie war schon
+gezogen — nur nicht hier: Ein Stacktrace trägt Zugangsdaten, deshalb gehört die
+Seite dem Betreiber allein.
+
+`SubscriptionPolicy::downloadBackup()` ist die **erste** Policy dieses Panels,
+die nach der Rolle fragt. Die anderen Betreiberstellen sind Routen ohne Modell
+und tragen `can:operate-server`; hier geht das nicht, weil der Kunde
+durchkommen muss und der Gate ihn abwiese.
+
+**Und genau ein Griff wird enger.** Liste, Anlegen und Entfernen bleiben beim
+Administrator — `BackupDownloadTest` misst das mit, sonst wäre eine Verengung,
+die zu viel mitnimmt, von der gewollten nicht zu unterscheiden.
+
+### Befund 14 · Ein fremder Kunde bekommt 404 und nicht 403
+
+Beim Bauen des Wächters erwartet und falsch: Die Mandantenklammer antwortet vor
+der Policy. Für einen fremden Kunden gibt es das Abonnement gar nicht, und die
+Bindung der Route scheitert, bevor irgendeine Policy gefragt wird.
+
+Das ist die **bessere** der beiden Auskünfte — ein `403` verriete, dass es das
+Abonnement gibt. Und es heisst, dass dieser Fall die Klammer misst und nicht die
+Verengung: Sein `404` ist von dem des Betreibers, dem nur die Datei fehlt, nicht
+zu unterscheiden. Getrennt werden die beiden an der **Liste**.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+### Befund 15 · `git checkout --` auf eine Datei mit unversionierter Arbeit
+
+Beim Gegenprüfen eines Eingriffs habe ich `git checkout -- app/Support/Backups/Backups.php`
+gefahren, um ihn zurückzunehmen — und damit **den ganzen Tagesstand dieser
+Datei** weggeworfen: die Nutzlast der Zertifikate, `hasDirectory()`, das
+entfernte `removeAll()`.
+
+Der Satz steht seit dem A9-Lauf in CLAUDE.md, und zwar wörtlich: *Gesichert wird
+mit `cp`.* Gerettet hat es genau das — eine Kopie im Scratchpad, die eine halbe
+Stunde vorher für einen anderen Zweck entstanden war.
+
+> **Ein Rückweg, der nur zufällig da ist, ist keiner.**
+
+Gemerkt habe ich es nicht am Werkzeug, sondern an einem `grep -c`, der `0`
+sagte, wo `1` stehen musste.
+
+### Befund 16 · Ein bestehender Eingriff, dem eine neue Zeile den Anker nahm
+
+`BackupSecretTest`s Eingriff „die Beschreibung in der Klammer" verankert an der
+**letzten** Zeile der Liste in `Description::of()`. Die hiess `'ssh_keys' => …`
+und heisst jetzt `'certificates' => …`.
+
+Gemeldet hat es `BreakScriptTest::test_every_intervention_still_grips_its_file`,
+und zwar sofort — nicht erst im Wochenlauf.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand daneben eine Zeile einfügt.**
+
+### Befund 17 · Und derselbe verwaiste Block gleich zweimal
+
+Beim Einsetzen von `rebuildCertificates()` ist die Methode **zwischen**
+`record()` und dessen Dokumentblock gerutscht — der beschrieb seitdem die
+falsche Methode, und PHPStan meldete die Hälfte, die ein Werkzeug sehen kann:
+drei fehlende `@param`.
+
+**Die Behebung hat den Fehler verdoppelt.** Ich habe den Block über
+`private function record(` neu eingesetzt und den verwaisten stehenlassen — zwei
+Blöcke übereinander, und PHPStan war zufrieden, weil beide da sind.
+
+Gemeldet hat es `DocblockAnchorTest`, und seine Meldung sagt genau das:
+*„Stehen beide da, ist PHPStan zufrieden."*
+
+> **Ein Werkzeug bemerkt den fehlenden Kommentar. Den falschen bemerkt es
+> nicht.**
+
+Dasselbe ist im Agenten passiert (`BackupRestore::certificates()` erbte den
+Block von `dumps()`), nur dort vor dem Lauf aufgefallen. **Zweimal in einer
+Stunde** heisst: Wer eine Methode vor eine bestehende setzt, sieht nach, wessen
+Block darüber steht.
+
 ### Was danach offen bleibt
 
 - **Der ganze Weg ist nie auf einem Server gefahren** — das gilt unverändert aus
@@ -2037,12 +2181,23 @@ Marke.
   Rumpf**; die Reihenfolge in der Warteschlange gehört auf `cloudsrv24`.
 - **Ein Fernziel gibt es nicht** (`§5`, `§8` Punkt 8). S3 ist entworfen und nicht
   gebaut; `§2` Entscheidung 3 und die Messung dazu stehen, der Weg fehlt.
-- **`Backups::removeAll()` hat weiterhin keinen Aufrufer.** Es war für den
-  Rückbau gedacht und widerspricht damit dem, was die Migration entschieden hat:
-  Die Sicherung überlebt ihr Abonnement. Es zu rufen wäre falsch, es zu löschen
-  eine eigene Entscheidung — es steht hier, damit die nächste Sitzung nicht
-  dieselbe halbe Stunde damit verbringt, den Widerspruch noch einmal zu finden.
+- ~~**`Backups::removeAll()` hat weiterhin keinen Aufrufer.**~~ **Aufgelöst am
+  16. September 2026: Die Methode ist fort.** Es zu rufen wäre falsch gewesen,
+  und der einzige denkbare Ort — der Rückbau — ist genau der, an dem sie nicht
+  laufen darf: `backups.subscription_id` steht auf `nullOnDelete`, weil die
+  Sicherung ihr Abonnement überleben soll, und seit Schritt 10 legt der Rückbau
+  **selbst** eine an, die sie als Erste träfe.
 
-  > **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
-  > einem zu unterscheiden, das es nicht gibt** — und eine Methode, die niemand
-  > ruft, genauso.
+  > **Eine Methode, die niemand ruft, ist von aussen nicht von einer zu
+  > unterscheiden, die es nicht gibt — und eine, deren einziger denkbarer Ort
+  > ihr widerspricht, ist schlimmer als keine.**
+
+  **Der Weg zurück bleibt im Agenten.** `backup.remove` ohne `storage` räumt das
+  Verzeichnis eines Abonnements ab; das ist der Griff, den `docs/35` verlangt.
+  Automatisch geht ihn niemand — was liegenbleibt, **meldet** die
+  Bestandsdiagnose (§9 Punkt 7), statt es zu löschen. Dieselbe Regel wie bei
+  jedem anderen Rest seit A10.
+
+  `BackupTeardownTest` hält beides an der **Wirkung** und nicht am Quelltext:
+  die echte Route, danach der `forceDelete()`, mit dem `Lifecycle::withdraw()`
+  endet — und beide Zeilen stehen noch.

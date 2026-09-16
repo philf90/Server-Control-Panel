@@ -29300,8 +29300,8 @@ python3 - <<'PY2'
 p = 'app/Support/Backups/Description.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace('return $this->tenancy->withoutRestriction(fn (): array => [', 'return ((fn (): array => [', 1)
-s = s.replace("""            'ssh_keys' => $this->sshKeys($subscription),
-        ]);""", """            'ssh_keys' => $this->sshKeys($subscription),
+s = s.replace("""            'certificates' => $this->certificates($subscription),
+        ]);""", """            'certificates' => $this->certificates($subscription),
         ]))();""", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
@@ -29933,6 +29933,144 @@ pruefe "Ausnahme ohne Gegenstand" \
   PackagedExtensionTest::test_no_exemption_stands_for_an_extension_nobody_uses failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PackagedExtensionTest passed
+
+echo
+echo "── BackupTeardownTest: der Rueckbau nimmt die Sicherungen mit ──"
+#
+# `backups.subscription_id` steht auf nullOnDelete, damit die Sicherung ihren
+# Rueckbau ueberlebt — und seit Schritt 10 legt der Rueckbau selbst eine an,
+# die es sonst als Erste traefe.
+vorher_datei app/Http/Controllers/SubscriptionController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/SubscriptionController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $backups->beforeRemoval($subscription);\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+eingriff = "        \\App\\Models\\Backup::query()->where('storage_name', 'von-hand')->delete();\n"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt + eingriff, 1))
+PY2
+griff_datei app/Http/Controllers/SubscriptionController.php "Rueckbau nimmt die Sicherung mit" &&
+pruefe "Rueckbau nimmt die Sicherung mit" \
+  BackupTeardownTest::test_the_backup_taken_before_a_teardown_survives_it failed
+wiederherstellen
+
+echo
+echo "── BackupTeardownTest: ein backup.remove ohne storage ──"
+#
+# Ohne `storage` raeumt die Operation das **ganze** Verzeichnis ab. Genau das
+# tat `Backups::removeAll()`, und genau deshalb hatte es nie einen Aufrufer.
+vorher_datei app/Http/Controllers/SubscriptionController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/SubscriptionController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $backups->beforeRemoval($subscription);\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+eingriff = (
+    "        \\App\\Models\\Operation::query()->create(["
+    "'subscription_id' => $subscription->id, 'type' => 'backup.remove', "
+    "'task' => 'backup.remove', 'payload' => ['subscription' => (string) $subscription->name], "
+    "'status' => \\App\\Enums\\OperationStatus::Queued, 'progress' => 0, 'message' => 'x']);\n"
+)
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt + eingriff, 1))
+PY2
+griff_datei app/Http/Controllers/SubscriptionController.php "backup.remove ohne storage" &&
+pruefe "backup.remove ohne storage" \
+  BackupTeardownTest::test_no_operation_wipes_the_whole_directory failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupTeardownTest passed
+
+echo
+echo "── BackupDownloadTest: die Datei geht wieder an jeden Admin ──"
+#
+# Seit P8 traegt eine Sicherung den privaten Schluessel eines hochgeladenen
+# Zertifikats. `manageBackups` loest ueber `useFeature()` auf, und das gibt bei
+# `isAdmin()` sofort durch — `isAdmin()` fragt den Typ und nicht die Rolle.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+alt = "->middleware('can:downloadBackup,subscription')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "->middleware('can:manageBackups,subscription')", 1))
+PY2
+griff_datei routes/web.php "Datei an jeden Admin" &&
+pruefe "Datei an jeden Admin" \
+  BackupDownloadTest::test_an_administrator_is_refused_the_file failed
+wiederherstellen
+
+echo
+echo "── BackupDownloadTest: der Knopf fragt nicht mehr nach ──"
+#
+# Ein Knopf, der einen 403 gibt, ist schlimmer als keiner.
+vorher_datei app/Http/Controllers/BackupController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/BackupController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'download' => Gate::allows('downloadBackup', $subscription),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'download' => true,", 1))
+PY2
+griff_datei app/Http/Controllers/BackupController.php "Knopf fragt nicht nach" &&
+pruefe "Knopf fragt nicht nach" \
+  BackupDownloadTest::test_the_page_tells_the_button_which_way_to_go failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupDownloadTest passed
+
+echo
+echo "── BackupCertificateTest: die Beschreibung nimmt jedes Zertifikat ──"
+#
+# Ein ACME-Zertifikat wird neu bestellt; sein Material geht nicht mit. Eine
+# Zeile dafuer liesse die Wiederherstellung eine anlegen, auf die keine Datei
+# zeigt — und der Nachtlauf meldete sie als orphan.row.
+vorher_datei app/Support/Backups/Description.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Description.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ->where('source', CertificateSource::Uploaded->value)\n"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Backups/Description.php "Beschreibung nimmt jedes Zertifikat" &&
+pruefe "Beschreibung nimmt jedes Zertifikat" \
+  BackupCertificateTest::test_only_uploaded_certificates_are_described failed
+wiederherstellen
+
+echo
+echo "── BackupCertificateTest: der Vorgang nennt eine zweite Quelle ──"
+#
+# Eine Quelle und nicht zwei: Eine eigene Abfrage liefe irgendwann neben der
+# Beschreibung her, und dann traegt die Sicherung Dateien ohne Zeile.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = "is_array($description['certificates'] ?? null) ? $description['certificates'] : []"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '[]', 1))
+PY2
+griff_datei app/Support/Backups/Backups.php "Vorgang nennt eine zweite Quelle" &&
+pruefe "Vorgang nennt eine zweite Quelle" \
+  BackupCertificateTest::test_the_operation_names_the_same_certificates failed
+wiederherstellen
+
+echo
+echo "── BackupCertificateTest: der Ablageort ist nicht mehr reserviert ──"
+#
+# Dann packt der Unpacker das Schluesselmaterial in den Baum des Kunden — und
+# der private Schluessel ist ueber den SFTP-Zugang lesbar.
+vorher_datei agent/src/Backup/Manifest.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Manifest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        self::CERTS,\n"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Backup/Manifest.php "Ablageort nicht reserviert" &&
+pruefe "Ablageort nicht reserviert" \
+  BackupCertificateTest::test_the_material_lives_under_a_reserved_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupCertificateTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Support\Backups;
 
+use App\Enums\CertificateSource;
+use App\Enums\CertificateStatus;
 use App\Enums\DatabaseEngine;
 use App\Enums\DomainType;
 use App\Models\Backup;
+use App\Models\Certificate;
 use App\Models\Database;
 use App\Models\Operation;
 use App\Models\Subscription;
@@ -18,6 +21,7 @@ use App\Support\Operations\AfterOperation;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Web\Domains;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -106,6 +110,7 @@ final class RestoreLifecycle implements AfterOperation
             $this->rebuildDumps($beschreibung, $datenbanken, $fehler);
             $this->rebuildDomains($subscription, $beschreibung, $fehler);
             $this->rebuildCron($subscription, $beschreibung, $fehler);
+            $this->rebuildCertificates($subscription, $beschreibung, $fehler);
 
             $this->record($operation, $manifest, $subscription, $datenbanken, $fehler);
         });
@@ -329,6 +334,61 @@ final class RestoreLifecycle implements AfterOperation
                 $this->cron->create($subscription, $eintrag);
             } catch (Throwable $e) {
                 $fehler[] = ['gegenstand' => (string) ($eintrag['label'] ?? '?'), 'grund' => $this->messageOf($e)];
+            }
+        }
+    }
+
+    /**
+     * Die Zeilen der hochgeladenen Zertifikate — das Material liegt schon.
+     *
+     * **Der Agent hat die Dateien zurückgelegt, bevor diese Methode läuft.**
+     * `backup.restore` schreibt sie über `Acme\Store::write()` in den
+     * Ablageort; hier entsteht nur, was das Panel führt.
+     *
+     * **Ohne diese Zeilen wäre das Material ein Rest.** Nichts zeigte darauf,
+     * der Nachtlauf meldete `orphan.row / certificate`, und `srvpanel tls
+     * --prune` entfernte den privaten Schlüssel unter einer Website, die ihn
+     * gerade zurückbekommen hat.
+     *
+     * > **Eine Datei ohne ihre Zeile ist ein Rest, auch wenn sie gerade erst
+     * > entstanden ist.**
+     *
+     * **Die Domains werden hier nicht verknüpft**, und das ist Absicht: Welche
+     * Domain welches Zertifikat benutzt, entscheidet die **Deckung** und nicht
+     * eine Zuordnung — dieselbe Frage, die `CertificatePrune` seit P7 stellt.
+     * Ein Platzhalter deckt eine Domain, ohne ihr zugeordnet zu sein.
+     *
+     * **`status` kommt nicht aus der Beschreibung.** Ob ein Zertifikat gilt,
+     * hängt an `not_after` und an dem, was wirklich auf der Platte liegt; ein
+     * abgeschriebener Zustand wäre eine Zusage über einen Augenblick, der
+     * vorbei ist. Abgelaufen ist abgelaufen, und das rechnet die Seite.
+     *
+     * @param  array<string, mixed>  $beschreibung
+     * @param  list<array{gegenstand: string, grund: string}>  $fehler
+     */
+    private function rebuildCertificates(Subscription $subscription, array $beschreibung, array &$fehler): void
+    {
+        foreach ($this->listOf($beschreibung, 'certificates') as $eintrag) {
+            $name = (string) ($eintrag['storage_name'] ?? '');
+
+            try {
+                if ($name === '') {
+                    throw new RuntimeException('Ein Zertifikat ohne Ablagenamen.');
+                }
+
+                Certificate::query()->create([
+                    'subscription_id' => $subscription->id,
+                    'names' => is_array($eintrag['names'] ?? null) ? $eintrag['names'] : [],
+                    'storage_name' => $name,
+                    'status' => CertificateStatus::Active,
+                    'source' => CertificateSource::Uploaded,
+                    'issuer' => $eintrag['issuer'] ?? null,
+                    'serial' => $eintrag['serial'] ?? null,
+                    'not_before' => $eintrag['not_before'] ?? null,
+                    'not_after' => $eintrag['not_after'] ?? null,
+                ]);
+            } catch (Throwable $e) {
+                $fehler[] = ['gegenstand' => $name === '' ? '?' : $name, 'grund' => $this->messageOf($e)];
             }
         }
     }

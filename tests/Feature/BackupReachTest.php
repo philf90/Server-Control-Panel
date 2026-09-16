@@ -40,7 +40,7 @@ final class BackupReachTest extends TestCase
      * @var list<string>
      */
     private const BESCHRIEBEN = [
-        'subscription', 'domains', 'databases', 'db_users', 'cron', 'ssh_keys',
+        'subscription', 'domains', 'databases', 'db_users', 'cron', 'ssh_keys', 'certificates',
     ];
 
     /**
@@ -54,27 +54,20 @@ final class BackupReachTest extends TestCase
      */
     private const NICHT_GETRAGEN = [
         /*
-         * **Der benannte Rest von P8.** Ein hochgeladenes Zertifikat hat seinen
-         * privaten Schlüssel nirgends sonst — `certificates` führt
-         * `storage_name` und **kein** Schlüsselmaterial —, und er liegt unter
-         * `/etc/srvpanel/tls/certs` und damit ausserhalb des Baums, den der
-         * Packer läuft.
+         * **Hier stand der private Schlüssel eines hochgeladenen Zertifikats,
+         * und seit dem 16. September 2026 steht er nicht mehr hier.** Er liegt
+         * unter `Manifest::CERTS` im Archiv — §4 verlangt es, und ohne ihn ist
+         * ein hochgeladenes Zertifikat nach einer Wiederherstellung verloren.
          *
-         * Nach einer Wiederherstellung fehlt er also, und das Abonnement hat
-         * ein Zertifikat ohne Schlüssel. Für ein **ACME**-Zertifikat ist das
-         * kein Verlust — es wird neu bestellt, den Weg geht P4 ohnehin; für ein
-         * hochgeladenes ist es einer, und der Kunde hat die Datei vielleicht
-         * nicht mehr.
+         * Damit trägt eine Sicherung erstmals ein Geheimnis, und das hat den
+         * Zugriff verengt: {@see \App\Policies\SubscriptionPolicy::downloadBackup()}
+         * lässt den Betreiber und den Kunden an die Datei, den Administrator
+         * nicht. `BackupDownloadTest` hält es.
          *
-         * > **Was weder beschrieben noch erzeugt werden kann, muss die
-         * > Sicherung selbst tragen — oder die Wiederherstellung muss sagen,
-         * > dass es fehlt.**
-         *
-         * Er gehört hinein (§4 sagt es), und damit trüge eine Sicherung
-         * erstmals ein Geheimnis. Das ist keine Kleinigkeit: Die Datei geht
-         * über `response()->download()` an den Kunden. Gebaut ist es nicht.
+         * > **Ein Ablageort, der ein Geheimnis vor dem Dateisystem schützt,
+         * > sagt nichts darüber, wer den Knopf drücken darf, der es
+         * > herausgibt.**
          */
-        'certificate_key' => 'Der private Schlüssel eines hochgeladenen Zertifikats liegt unter /etc/srvpanel/tls/certs und damit ausserhalb des Baums. §4 will ihn in der Sicherung; damit trüge sie erstmals ein Geheimnis, und das ist nicht gebaut.',
 
         /*
          * **Und die Datenbankpasswörter, aber die sind kein Rest.** Dieses

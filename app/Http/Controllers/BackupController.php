@@ -160,6 +160,17 @@ class BackupController extends Controller
              */
             'can' => [
                 'restore' => Gate::allows('create', Subscription::class),
+
+                /*
+                 * **Enger als das Verwalten, seit die Sicherung ein Geheimnis
+                 * trägt.** Ein Administrator sieht die Liste und darf anlegen
+                 * und entfernen — die fertige Datei bekommt der Betreiber und
+                 * der Kunde ({@see \App\Policies\SubscriptionPolicy::downloadBackup()}).
+                 *
+                 * Der Knopf hängt daran und nicht am Kontotyp: Ein Knopf, der
+                 * einen 403 gibt, ist schlimmer als keiner.
+                 */
+                'download' => Gate::allows('downloadBackup', $subscription),
             ],
         ]);
     }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support\Backups;
 
+use App\Enums\CertificateSource;
+use App\Models\Certificate;
 use App\Models\CronJob;
 use App\Models\Database;
 use App\Models\DbUser;
@@ -92,7 +94,52 @@ final class Description
             'db_users' => $this->dbUsers($subscription),
             'cron' => $this->cron($subscription),
             'ssh_keys' => $this->sshKeys($subscription),
+            'certificates' => $this->certificates($subscription),
         ]);
+    }
+
+    /**
+     * Die **hochgeladenen** Zertifikate — und nur die.
+     *
+     * **Ein ACME-Zertifikat steht hier nicht.** Es wird nach der
+     * Wiederherstellung neu bestellt; das ist der Weg, den P4 ohnehin geht, und
+     * eine Zeile dafür wäre eine Zusage über ein Material, das die Sicherung
+     * gar nicht trägt.
+     *
+     * Ein **hochgeladenes** hat seinen privaten Schlüssel nirgends sonst, und
+     * er liegt seit P8 unter `Manifest::CERTS` im Archiv. Diese Zeilen sind
+     * das, was die Wiederherstellung daraus wieder zu einem Zertifikat macht:
+     * Ohne sie lägen die Dateien da und keine Zeile zeigte darauf — und der
+     * Nachtlauf meldete sie als `orphan.row / certificate`, während `srvpanel
+     * tls --prune` sie entfernte.
+     *
+     * > **Eine Datei ohne ihre Zeile ist ein Rest, auch wenn sie gerade erst
+     * > entstanden ist.**
+     *
+     * **`names` und nicht die Domains.** Wofür ein Zertifikat gilt, steht in
+     * ihm selbst; welche Domain es benutzt, entscheidet nach der
+     * Wiederherstellung die Deckung — dieselbe Frage, die
+     * `CertificatePrune` seit P7 stellt.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function certificates(Subscription $subscription): array
+    {
+        return Certificate::query()
+            ->where('subscription_id', $subscription->id)
+            ->where('source', CertificateSource::Uploaded->value)
+            ->whereNotNull('storage_name')
+            ->orderBy('id')
+            ->get()
+            ->map(static fn (Certificate $certificate): array => [
+                'storage_name' => (string) $certificate->storage_name,
+                'names' => $certificate->names,
+                'issuer' => $certificate->issuer,
+                'serial' => $certificate->serial,
+                'not_before' => $certificate->not_before?->toIso8601String(),
+                'not_after' => $certificate->not_after?->toIso8601String(),
+            ])
+            ->all();
     }
 
     /**

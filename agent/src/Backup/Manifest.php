@@ -85,6 +85,27 @@ final class Manifest
     public const DUMPS = '.srvpanel-databases';
 
     /**
+     * Wo das Schlüsselmaterial hochgeladener Zertifikate liegt.
+     *
+     * **Die dritte Art aus `docs/117 §4`, und die einzige, die ein Geheimnis
+     * ist.** Ein ACME-Zertifikat wird nach der Wiederherstellung neu bestellt;
+     * ein *hochgeladenes* hat seinen privaten Schlüssel nirgends sonst —
+     * `certificates` führt `storage_name` und kein Material. Ohne ihn ist es
+     * nach einer Wiederherstellung verloren, und der Kunde müsste es neu
+     * einspielen.
+     *
+     * > **Was weder beschrieben noch erzeugt werden kann, muss die Sicherung
+     * > selbst tragen — oder die Wiederherstellung muss sagen, dass es
+     * > fehlt.**
+     *
+     * Darunter liegt je Zertifikat ein Verzeichnis mit `fullchain.pem` und
+     * `privkey.pem` — dieselben zwei Namen wie unter
+     * `Acme\Store`, und **beide oder keins**: Ein
+     * `ssl_certificate` ohne `ssl_certificate_key` lässt nginx nicht starten.
+     */
+    public const CERTS = '.srvpanel-certs';
+
+    /**
      * Namen, die die Sicherung selbst belegt — und die der Kunde deshalb nicht
      * mitbringen darf.
      *
@@ -110,6 +131,7 @@ final class Manifest
     public const RESERVED = [
         self::ENTRY,
         self::DUMPS,
+        self::CERTS,
     ];
 
     /**

@@ -29176,3 +29176,98 @@ der Diff und kein Test.
 
 > **Ein `sed` über eine ganze Datei trifft jede Zeile, die zufällig so aussieht
 > — und der Diff ist die einzige Stelle, an der man es sieht.**
+
+### `Backups::removeAll()` ist fort — es hatte nie einen Aufrufer
+
+Die Methode stand seit P8 Schritt 3 da, und ihr Dokumentblock nannte den
+**Rückbau** als ihren Ort. Genau dort darf sie nicht laufen:
+`backups.subscription_id` steht auf `nullOnDelete`, weil die Sicherung ihr
+Abonnement überleben soll — und seit Schritt 10 legt der Rückbau **selbst** eine
+an, die sie als Erste träfe. Ein Griff, der sichert und die Sicherung im selben
+Zug löscht, ist schlimmer als keiner: Er sieht aus wie Vorsicht.
+
+> **Eine Methode, die niemand ruft, ist von aussen nicht von einer zu
+> unterscheiden, die es nicht gibt — und eine, deren einziger denkbarer Ort ihr
+> widerspricht, ist schlimmer als keine.**
+
+**Der Weg zurück bleibt im Agenten**, wo `docs/35` ihn verlangt: `backup.remove`
+ohne `storage` räumt das Verzeichnis eines Abonnements ab. Automatisch geht ihn
+niemand — was liegenbleibt, meldet die Bestandsdiagnose, statt es zu löschen.
+
+`BackupTeardownTest` hält beides an der **Wirkung**: die echte Route, danach der
+`forceDelete()`, mit dem `Lifecycle::withdraw()` endet.
+
+**Und sein erster Wurf mass vor der Wirkung.** Er sah unmittelbar nach der Route
+nach und fand das Abonnement noch vor — zu Recht, denn `destroy()` reiht nur
+ein.
+
+> **Ein Prüfkörper, der vor der Wirkung misst, misst den Klick und nicht den
+> Zustand.**
+
+Der erste Bruch dazu löschte *alle* Sicherungen und liess damit schon die
+Vorbedingung fallen; die eigentliche Behauptung kam nie an die Reihe.
+
+> **Ein Bruch, der die Vorbedingung mitnimmt, belegt die Regel nicht — er belegt,
+> dass der Prüfkörper seine Vorbedingung prüft.**
+
+### Der private Schlüssel eines hochgeladenen Zertifikats geht mit — und die Datei wird enger
+
+`docs/117 §4` verlangt ihn seit dem Plan: Ein **hochgeladenes** Zertifikat hat
+seinen privaten Schlüssel nirgends sonst, und ohne ihn ist es nach einer
+Wiederherstellung verloren. Ein ACME-Zertifikat wird neu bestellt; den Weg geht
+P4 ohnehin.
+
+Im Archiv liegt das Material unter `.srvpanel-certs`, einem **reservierten**
+Namen — damit überspringt der Unpacker es, und der Schlüssel landet nie im Baum
+des Kunden, wo der SFTP-Zugang ihn läse. Zurückgeschrieben wird über
+`Acme\Store::write()`, weil dort steht, dass die Kette `0644` trägt und der
+Schlüssel `0600`. Und die **Zeile** gehört dazu: Ohne sie zeigte nichts auf die
+Dateien, der Nachtlauf meldete `orphan.row / certificate`, und `srvpanel tls
+--prune` entfernte den Schlüssel unter einer Website, die ihn gerade
+zurückbekommen hat.
+
+> **Eine Datei ohne ihre Zeile ist ein Rest, auch wenn sie gerade erst
+> entstanden ist.**
+
+**Beim Bauen fiel auf, dass §4 eine Hälfte übersprungen hatte.** Er wägt den
+Schlüssel gegen das Dateisystem ab und gegen den Kunden. Wer den Knopf sonst
+noch drücken darf, stand dort nicht — und gemessen ist es **jeder
+Administrator**: `manageBackups` löst über `useFeature()` auf, und das gibt bei
+`isAdmin()` sofort durch; `isAdmin()` fragt den Typ und nicht die Rolle.
+
+> **Ein Ablageort, der ein Geheimnis vor dem Dateisystem schützt, sagt nichts
+> darüber, wer den Knopf drücken darf, der es herausgibt.**
+
+Das **Herunterladen** ist deshalb enger: `SubscriptionPolicy::downloadBackup()`
+lässt den Betreiber und den Kunden des Abonnements an die Datei, den
+Administrator nicht — dieselbe Grenze wie bei `/logs` seit A9. Liste, Anlegen
+und Entfernen bleiben, wo sie waren, und der Wächter misst das mit: Eine
+Verengung, die zu viel mitnimmt, sähe sonst aus wie die gewollte.
+
+Es ist die **erste** Policy dieses Panels, die nach der Rolle fragt. Die anderen
+Betreiberstellen sind Routen ohne Modell und tragen `can:operate-server`; hier
+geht das nicht, weil der Kunde durchkommen muss.
+
+**Drei bestehende Wächter haben dabei zugebissen** — `BackupSecretTest` an einem
+Abschnitt der Beschreibung, der entschieden werden will, `BackupReachTest` an der
+Ausnahme, die dadurch überholt war, und `BreakScriptTest` an einem Eingriff, dem
+die neue Zeile den Anker nahm.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand daneben eine Zeile einfügt.**
+
+**Und ein `git checkout --` hat den halben Tagesstand einer Datei weggeworfen**,
+um einen Eingriff zurückzunehmen. Der Satz steht seit dem A9-Lauf in CLAUDE.md:
+Gesichert wird mit `cp`. Gerettet hat es eine Kopie im Scratchpad, die eine halbe
+Stunde vorher für einen anderen Zweck entstanden war.
+
+> **Ein Rückweg, der nur zufällig da ist, ist keiner.**
+
+**Und ein verwaister Dokumentblock, zweimal in einer Stunde.** Eine neue Methode
+rutschte zwischen eine bestehende und deren Block; PHPStan meldete die Hälfte,
+die ein Werkzeug sehen kann. Die Behebung hat den Fehler verdoppelt — zwei
+Blöcke übereinander, und PHPStan war zufrieden, weil beide dastehen. Gemeldet
+hat es `DocblockAnchorTest`.
+
+> **Ein Werkzeug bemerkt den fehlenden Kommentar. Den falschen bemerkt es
+> nicht.**

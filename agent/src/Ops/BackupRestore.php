@@ -7,6 +7,8 @@ namespace SrvPanel\Agent\Ops;
 use FilesystemIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use SrvPanel\Agent\Acme\CertificateName;
+use SrvPanel\Agent\Acme\Store as AcmeStore;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Backup\Manifest;
 use SrvPanel\Agent\Backup\Store;
@@ -157,6 +159,9 @@ final class BackupRestore implements Op
         $context->progress(92, 'Datenbanksicherungen bereitlegen');
         $dumps = $this->dumps($archive, $subscription);
 
+        $context->progress(96, 'Zertifikate zurücklegen');
+        $certificates = $this->certificates($archive);
+
         $context->progress(100, 'fertig');
 
         return [
@@ -168,6 +173,7 @@ final class BackupRestore implements Op
             'directories' => $unpacked['directories'],
             'owned' => $owned,
             'dumps' => $dumps,
+            'certificates' => $certificates,
         ];
     }
 
@@ -283,6 +289,103 @@ final class BackupRestore implements Op
         }
 
         return $gezaehlt;
+    }
+
+    /**
+     * Das Material hochgeladener Zertifikate zurück in den Ablageort.
+     *
+     * **Nicht in den Baum des Kunden**, und dafür braucht es hier keine Zeile:
+     * `Manifest::CERTS` steht in {@see Manifest::RESERVED}, und
+     * {@see Unpacker} überspringt reservierte Namen
+     * ohnehin. Ein privater Schlüssel unter `/var/www/vhosts/<abo>/` wäre über
+     * den SFTP-Zugang lesbar.
+     *
+     * **Geschrieben wird über `Acme\Store::write()`** und nicht mit eigenen
+     * `chmod`-Zeilen: Dort steht, dass die Kette `0644` und der Schlüssel
+     * `0600` trägt, und eine zweite Fassung davon wäre die, die veraltet.
+     *
+     * **Das Panel legt danach die Zeilen an** — ohne sie zeigte nichts auf die
+     * Dateien, und der Nachtlauf meldete sie als `orphan.row / certificate`,
+     * während `srvpanel tls --prune` sie entfernte.
+     *
+     * @return list<string> die Namen, unter denen das Material abgelegt wurde
+     */
+    private function certificates(string $archive): array
+    {
+        $zip = new ZipArchive;
+
+        if ($zip->open($archive) !== true) {
+            throw AgentException::badRequest('Die Sicherung liess sich nicht öffnen.', ['path' => $archive]);
+        }
+
+        $store = new AcmeStore;
+        $material = [];
+
+        try {
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $eintrag = $zip->getNameIndex($i);
+
+                if ($eintrag === false || ! str_starts_with($eintrag, Manifest::CERTS.'/')) {
+                    continue;
+                }
+
+                $rest = substr($eintrag, strlen(Manifest::CERTS) + 1);
+                $teile = explode('/', $rest);
+
+                if (count($teile) !== 2 || ! in_array($teile[1], ['fullchain.pem', 'privkey.pem'], true)) {
+                    continue;
+                }
+
+                // Über dieselbe Prüfung, die auch beim Anlegen gilt: Ein Name
+                // aus einem mitgebrachten Archiv ist ein Name von aussen.
+                $name = CertificateName::normalize($teile[0], 'name');
+
+                /*
+                 * **Am Stück und nicht strömend, und das ist der Unterschied
+                 * zu den Dumps.** Ein Schlüssel ist ein paar Kilobyte; ein Dump
+                 * ist ein paar hundert Megabyte. Wichtiger ist, dass
+                 * `Acme\Store::write()` beide Dateien zusammen ablegt — mit den
+                 * Rechten, die nur dort stehen (`0644` für die Kette, `0600`
+                 * für den Schlüssel). Sie hier noch einmal zu setzen wäre eine
+                 * zweite Fassung derselben Regel.
+                 */
+                $inhalt = $zip->getFromIndex($i);
+
+                if ($inhalt === false) {
+                    throw AgentException::execFailed('Ein Zertifikat liess sich nicht aus der Sicherung lesen.', [
+                        'certificate' => $name,
+                        'file' => $teile[1],
+                    ]);
+                }
+
+                $material[$name][$teile[1]] = $inhalt;
+            }
+        } finally {
+            $zip->close();
+        }
+
+        $namen = [];
+
+        foreach ($material as $name => $dateien) {
+            /*
+             * **Beide oder keins.** Ein `ssl_certificate` ohne
+             * `ssl_certificate_key` lässt nginx nicht starten; die halbe
+             * Wiederherstellung wäre schlimmer als gar keine, und sie fiele
+             * erst beim nächsten Neustart auf.
+             */
+            if (! isset($dateien['fullchain.pem'], $dateien['privkey.pem'])) {
+                throw AgentException::badRequest(sprintf(
+                    'Das Zertifikat %s liegt nur zur Hälfte in der Sicherung — nginx startet mit '
+                    .'einer Kette ohne Schlüssel nicht.',
+                    $name,
+                ));
+            }
+
+            $store->write($name, $dateien['fullchain.pem'], $dateien['privkey.pem']);
+            $namen[] = $name;
+        }
+
+        return $namen;
     }
 
     /**

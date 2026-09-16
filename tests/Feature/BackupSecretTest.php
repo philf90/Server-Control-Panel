@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\CertificateSource;
+use App\Enums\CertificateStatus;
+use App\Models\Certificate;
 use App\Models\CronJob;
 use App\Models\Database;
 use App\Models\DbUser;
@@ -61,7 +64,7 @@ final class BackupSecretTest extends TestCase
      * @var list<string>
      */
     private const SECTIONS = [
-        'subscription', 'domains', 'databases', 'db_users', 'cron', 'ssh_keys',
+        'subscription', 'domains', 'databases', 'db_users', 'cron', 'ssh_keys', 'certificates',
     ];
 
     /**
@@ -97,6 +100,31 @@ final class BackupSecretTest extends TestCase
         // `authorized_keys` des Kunden. Der private hat dieses Panel nie
         // gesehen (P6 Schritt 8).
         'ssh_keys' => ['label', 'type', 'bits', 'fingerprint', 'public_key'],
+
+        /*
+         * **Die hochgeladenen Zertifikate — und hier steht das Geheimnis
+         * ausdrücklich *nicht*.**
+         *
+         * Was hier steht, ist die **Zeile**: Name der Ablage, wofür das
+         * Zertifikat gilt, wer es ausgestellt hat, wie lange es gilt. Das
+         * Material selbst — `fullchain.pem` und `privkey.pem` — liegt als
+         * **Datei** unter `Manifest::CERTS` im Archiv und geht nicht durch die
+         * Beschreibung.
+         *
+         * Der Unterschied ist nicht kosmetisch: Die Beschreibung steht als
+         * `.srvpanel-manifest.json` im Klartext und wird von der
+         * Wiederherstellung gelesen, bevor irgendetwas entpackt ist —
+         * `Restore::manifest()` liest sie **im Panel**, also unter php-fpm.
+         * Ein privater Schlüssel darin wäre ein Geheimnis in einem Wert, den
+         * eine Seite anzeigt.
+         *
+         * > **Ein Geheimnis, das als Argument eines Vorgangs reist, steht auf
+         * > der Vorgangsseite.** (`docs/116` M4)
+         *
+         * `storage_name` ist dabei kein Pfad, sondern der Name, aus dem der
+         * Agent ihn baut — dieselbe Trennung wie überall sonst.
+         */
+        'certificates' => ['storage_name', 'names', 'issuer', 'serial', 'not_before', 'not_after'],
     ];
 
     /** Ein Abonnement mit je einem Eintrag in jedem Abschnitt. */
@@ -119,6 +147,29 @@ final class BackupSecretTest extends TestCase
             'fingerprint' => 'SHA256:'.str_repeat('a', 43),
             'bits' => 256,
             'public_key' => 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI'.str_repeat('B', 20).' notebook',
+        ]);
+
+        /*
+         * **Ein hochgeladenes Zertifikat, und ausdrücklich auch ein ACME.**
+         * Ohne das zweite bliebe unbelegt, dass der Abschnitt nur hochgeladene
+         * führt — und eine Liste, die alles nimmt, sähe hier genauso aus.
+         */
+        Certificate::query()->create([
+            'subscription_id' => $subscription->id,
+            'names' => ['shop.example.de'],
+            'storage_name' => '_uploaded.shop.example.de',
+            'status' => CertificateStatus::Active,
+            'source' => CertificateSource::Uploaded,
+            'issuer' => 'Beispiel CA',
+            'serial' => '01',
+        ]);
+
+        Certificate::query()->create([
+            'subscription_id' => $subscription->id,
+            'names' => ['acme.example.de'],
+            'storage_name' => 'acme.example.de',
+            'status' => CertificateStatus::Active,
+            'source' => CertificateSource::Acme,
         ]);
 
         // Ohne diese Zeile prüfte der Fall darunter eine leere Beschreibung.

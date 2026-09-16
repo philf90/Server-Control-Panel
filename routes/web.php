@@ -1016,7 +1016,7 @@ Route::middleware('auth')->group(function (): void {
      * `response()->download()` strömt (gemessen, `docs/116` M3).
      */
     Route::get('/subscriptions/{subscription}/backups/{backup}/download', [BackupController::class, 'download'])
-        ->middleware('can:manageBackups,subscription')
+        ->middleware('can:downloadBackup,subscription')
         ->name('backups.download');
 
     Route::delete('/subscriptions/{subscription}/backups/{backup}', [BackupController::class, 'destroy'])

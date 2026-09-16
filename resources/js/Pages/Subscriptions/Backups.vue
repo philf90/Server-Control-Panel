@@ -42,7 +42,7 @@ const props = defineProps<{
    * Adminfähigkeiten und keine Policy über ein Modell. Diese Seite gehört dem
    * Kunden, die Wiederherstellung dem Betreiber — sie legt ein Abonnement an.
    */
-  can: { restore: boolean }
+  can: { restore: boolean; download: boolean }
 }>()
 
 function anlegen(): void {
@@ -175,8 +175,15 @@ function inhalt(backup: BackupRow): string {
 
                 <td data-column="Aktion">
                   <div class="button-row">
+                    <!--
+                      **`can.download` und nicht `backup.usable` allein.** Seit
+                      die Sicherung den privaten Schlüssel eines hochgeladenen
+                      Zertifikats trägt, ist die Route enger als die Seite: Sie
+                      lässt den Betreiber und den Kunden durch, den
+                      Administrator nicht.
+                    -->
                     <a
-                      v-if="backup.usable"
+                      v-if="backup.usable && props.can.download"
                       :href="`/subscriptions/${props.subscription.id}/backups/${backup.id}/download`"
                       class="button"
                     >

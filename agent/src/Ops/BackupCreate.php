@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent\Ops;
 
+use SrvPanel\Agent\Acme\CertificateName;
+use SrvPanel\Agent\Acme\Store as AcmeStore;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Backup\Manifest;
 use SrvPanel\Agent\Backup\Packer;
@@ -79,6 +81,7 @@ final class BackupCreate implements Op
         $storage = Store::storageName(is_string($args['storage'] ?? null) ? $args['storage'] : '');
         $panel = Manifest::panelVersion($args['panel'] ?? null);
         $dumps = $this->dumps($args['dumps'] ?? []);
+        $certificates = $this->certificates($args['certificates'] ?? []);
         $description = is_array($args['description'] ?? null) ? $args['description'] : [];
 
         // Die beiden Werte sind eine **Auskunft** für die Wiederherstellung und
@@ -136,6 +139,9 @@ final class BackupCreate implements Op
         try {
             $context->progress(80, 'Datenbanken hineinlegen');
             $entries = $this->addDumps($target, $subscription, $dumps, $packed['entries']);
+
+            $context->progress(85, 'Zertifikate hineinlegen');
+            $entries = $this->addCertificates($target, $certificates, $entries);
 
             $context->progress(90, 'Verzeichnis schreiben');
             $this->addManifest($target, $subscription, $systemUser, $dbPrefix, $panel, $entries, $description, $dumps);
@@ -217,6 +223,115 @@ final class BackupCreate implements Op
         }
 
         return $dumps;
+    }
+
+    /**
+     * Die Namen der Zertifikate, deren Material mit hineingeht.
+     *
+     * **Nur Namen und keine Pfade.** Wo ein Zertifikat liegt, weiss
+     * `Acme\Store`; käme der Pfad von aussen, wäre das genau die Anweisung, die
+     * dieser Agent nicht entgegennimmt (`docs/20 §4.1`). Geprüft wird der Name
+     * mit demselben Ausdruck, mit dem er angelegt wurde.
+     *
+     * **Welche Zertifikate, entscheidet das Panel** — es kennt `source` und
+     * gibt nur hochgeladene her. Der Agent prüft die Form und nicht die
+     * Herkunft: Er hat keine Tabelle.
+     *
+     * @return list<string>
+     */
+    private function certificates(mixed $value): array
+    {
+        if (! is_array($value)) {
+            throw AgentException::badRequest('Die Liste der Zertifikate ist keine Liste.');
+        }
+
+        $namen = [];
+
+        foreach ($value as $eintrag) {
+            if (! is_string($eintrag) || $eintrag === '') {
+                throw AgentException::badRequest('Ein Eintrag der Zertifikatsliste ist kein Name.');
+            }
+
+            $namen[] = CertificateName::normalize($eintrag, 'name');
+        }
+
+        return array_values(array_unique($namen));
+    }
+
+    /**
+     * Das Material hochgeladener Zertifikate in die Sicherung legen.
+     *
+     * Unter {@see Manifest::CERTS}, je Zertifikat ein Verzeichnis mit
+     * `fullchain.pem` und `privkey.pem` — dieselbe Form wie im Ablageort, damit
+     * das Zurückschreiben keine zweite Zuordnung braucht.
+     *
+     * **Beide Dateien oder Abbruch.** Ein `ssl_certificate` ohne
+     * `ssl_certificate_key` lässt nginx nicht starten; eine Sicherung, die nur
+     * die Hälfte trägt, ist von einer vollständigen nicht zu unterscheiden und
+     * fällt erst beim Zurückspielen auf — also dann, wenn jemand darauf wartet.
+     * Dieselbe Entscheidung wie bei einem fehlenden Dump.
+     *
+     * > **Ein Archiv, das eine Datei still weglässt, ist das Problem.**
+     *
+     * **Der Modus kommt aus der Datei und nicht aus einer Zahl hier.** Ein
+     * privater Schlüssel liegt `0600`; stünde die Zahl in dieser Methode, wäre
+     * sie eine zweite Fassung dessen, was `Acme\Store` beim Schreiben setzt.
+     *
+     * @param  list<string>  $certificates
+     * @param  list<array{path: string, kind: string, mode: string, target?: string}>  $entries
+     * @return list<array{path: string, kind: string, mode: string, target?: string}>
+     */
+    private function addCertificates(string $target, array $certificates, array $entries): array
+    {
+        if ($certificates === []) {
+            return $entries;
+        }
+
+        $store = new AcmeStore;
+        $zip = $this->reopen($target);
+
+        try {
+            $zip->addEmptyDir(Manifest::CERTS);
+            $entries[] = Manifest::entry(Manifest::CERTS, Manifest::KIND_DIRECTORY, 0700);
+
+            foreach ($certificates as $name) {
+                $zip->addEmptyDir(Manifest::CERTS.'/'.$name);
+                $entries[] = Manifest::entry(Manifest::CERTS.'/'.$name, Manifest::KIND_DIRECTORY, 0700);
+
+                foreach (['fullchain.pem' => $store->certificate($name), 'privkey.pem' => $store->key($name)] as $datei => $quelle) {
+                    if (! is_file($quelle)) {
+                        throw AgentException::badRequest(sprintf(
+                            'Die Datei %s des Zertifikats %s liegt nicht — die Sicherung wäre ohne ihr '
+                            .'Schlüsselmaterial und von einer vollständigen nicht zu unterscheiden.',
+                            $datei,
+                            $name,
+                        ));
+                    }
+
+                    $inside = Manifest::CERTS.'/'.$name.'/'.$datei;
+
+                    if (! $zip->addFile($quelle, $inside)) {
+                        throw AgentException::execFailed('Ein Zertifikat liess sich nicht in die Sicherung legen.', [
+                            'certificate' => $name,
+                            'file' => $datei,
+                        ]);
+                    }
+
+                    $mode = @fileperms($quelle);
+                    $entries[] = Manifest::entry($inside, Manifest::KIND_FILE, $mode === false ? 0600 : $mode);
+                }
+            }
+
+            if ($zip->close() !== true) {
+                throw AgentException::execFailed('Die Sicherung liess sich nicht abschliessen.', ['path' => $target]);
+            }
+        } catch (AgentException $e) {
+            @$zip->close();
+
+            throw $e;
+        }
+
+        return $entries;
     }
 
     /**

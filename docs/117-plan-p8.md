@@ -121,6 +121,33 @@ und zeigt dem Kunden die Zuordnung alt → neu.
   Konfigurationsdatei anfasst. Für den häufigsten Fall — „ich habe aus Versehen
   gelöscht, spiel es zurück" — ist das die teure Antwort.
 
+**Was sich dabei ändert, ist weniger als „alles" — und mehr als eine Zeile.**
+Ausgezählt am Quelltext, nicht geschätzt:
+
+| Grösse | bei Form A | merkt der Kunde? |
+|---|---|---|
+| Abonnementname | **bleibt** — `subscriptions` wird seit `docs/35` hart gelöscht, `Rule::unique` gibt den Namen wieder frei | nein |
+| `/var/www/vhosts/<name>` | **derselbe Pfad** — er hängt am Abonnementnamen und nicht am Benutzer | nein |
+| UID und Eigentum | neu, aus dem neuen Systembenutzer **gesetzt** und nicht aus dem Archiv gelesen | nein |
+| Systembenutzer `p1000` → `p1005` | **neu** | **ja — es ist sein SFTP-Benutzername** (`SftpController` gibt `subscription->system_user` aus) |
+| `db_prefix` → Datenbanknamen | **neu** — `Lifecycle::claim()` vergibt ihn in derselben Zeile wie die Nummer | **ja — in `wp-config.php`** |
+| Datenbankpasswörter | neu; sie stehen nirgends und sind nicht zu sichern (§4) | **ja** |
+| Domains, DNS, Cron, Vhost-Datei | aus der Beschreibung **erzeugt**, inhaltlich gleich | nein |
+| SSH-Schlüssel der SFTP-Zugänge | in der Beschreibung, `authorized_keys` wird erzeugt | nein |
+
+**Der Pfad bleibt nur, solange der Name frei ist.** Hat der Betreiber in der
+Zwischenzeit ein neues Abonnement `shop` angelegt, weist `Rule::unique` ab, und
+die Wiederherstellung braucht einen anderen Namen — dann wandert auch das
+Verzeichnis. Das ist kein Fehler, sondern der Fall, für den es Bedingung 3 von
+Form B gibt; er gehört in die Meldung von §6 Schritt 8.
+
+**Drei Dinge also, die der Kunde anfasst, und der Plan nannte bis zum
+16. September nur eines.** Der SFTP-Benutzername stand nicht da — gemessen an
+`SftpController.php:109`, wo er als `system_user` hinausgeht.
+
+> **Eine Aufzählung, die einen von drei Preisen nennt, liest sich wie der ganze
+> Preis.**
+
 ### Form B — die eigene Reservierung zurückholen, unter Bedingungen
 
 Die Sicherung trägt in ihrem Verzeichnis die ursprüngliche **Nummer** und den

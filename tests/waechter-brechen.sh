@@ -28806,6 +28806,363 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupStoreTest passed
 
 echo
+echo "── BackupPromiseTest: die Rechte kommen aus dem Verzeichnis ──"
+#
+# Ohne das `chmod` nach dem Entpacken trägt jede Datei, was die umask hergibt —
+# ein privater Schlüssel mit `0600` käme als `0644` zurück. `extractTo()`
+# benutzt den Modus im Archiv gar nicht (`docs/116` M1b, Nachtrag).
+vorher_datei agent/src/Backup/Unpacker.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Unpacker.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            chmod($path, Manifest::modeFrom($entry['mode']));\n            $files++;", "            $files++;", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Unpacker.php "Rechte nach dem Entpacken nicht gesetzt" &&
+pruefe "Rechte nach dem Entpacken nicht gesetzt" \
+  BackupPromiseTest::test_the_manifest_carries_what_the_archive_loses failed
+wiederherstellen
+
+echo
+echo "── BackupPromiseTest: ein Verweis wird angelegt und nicht gepackt ──"
+#
+# Ein Zip trägt keine Verweise. Legt der Unpacker sie nicht an, fehlt beim
+# Kunden ein Teil seines Baums — und zwar lautlos, denn das Archiv ist heil.
+vorher_datei agent/src/Backup/Unpacker.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Unpacker.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if (! @symlink($target, $path)) {', 'if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Unpacker.php "Verweis nicht angelegt" &&
+pruefe "Verweis nicht angelegt" \
+  BackupPromiseTest::test_the_manifest_carries_what_the_archive_loses failed
+wiederherstellen
+
+echo
+echo "── BackupPromiseTest: der Packer folgt keinem Verweis ──"
+#
+# Ein Verweis auf ein Verzeichnis ausserhalb des Abonnements läge sonst mitsamt
+# seinem Inhalt in der Sicherung, die der Kunde herunterlädt.
+vorher_datei agent/src/Backup/Packer.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Packer.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('FilesystemIterator::SKIP_DOTS', 'FilesystemIterator::SKIP_DOTS | FilesystemIterator::FOLLOW_SYMLINKS', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Packer.php "Verweisen gefolgt" &&
+pruefe "Verweisen gefolgt" \
+  BackupPromiseTest::test_a_link_out_of_the_tree_is_noted_and_not_followed failed
+wiederherstellen
+
+echo
+echo "── BackupPromiseTest: ein Verweis trägt seinen eigenen Modus ──"
+#
+# `getPerms()` gäbe den Modus des **Ziels** zurück, und `chmod` auf einen
+# Verweis folgt ihm — die Wiederherstellung setzte damit das Ziel um.
+vorher_datei agent/src/Backup/Packer.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Packer.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('Manifest::KIND_LINK, 0777', 'Manifest::KIND_LINK, 0600', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Packer.php "Modus des Ziels statt des Verweises" &&
+pruefe "Modus des Ziels statt des Verweises" \
+  BackupPromiseTest::test_a_link_carries_its_own_mode_and_not_its_targets failed
+wiederherstellen
+
+echo
+echo "── BackupPromiseTest: logs, tmp und conf bleiben draussen ──"
+#
+# Sie sind der Teil, der am schnellsten wächst und am wenigsten
+# wiederherstellenswert ist. Was fehlt, steht im Verzeichnis.
+vorher_datei agent/src/Backup/Packer.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Packer.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('isset(self::SKIPPED[', 'isset([][', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Packer.php "logs, tmp und conf mitgepackt" &&
+pruefe "logs, tmp und conf mitgepackt" \
+  BackupPromiseTest::test_three_directories_stay_out_and_say_so failed
+wiederherstellen
+
+echo
+echo "── BackupPromiseTest: ein Name, den die Sicherung belegt, bricht den Lauf ──"
+#
+# `addFromString()` auf einen Namen, den `addFile()` schon geschrieben hat,
+# überschreibt ihn **wortlos** — gemessen. Die Datei des Kunden wäre aus seiner
+# eigenen Sicherung fort, und `close()` meldete Erfolg.
+vorher_datei agent/src/Backup/Packer.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Packer.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if (Manifest::reserves($relative)) {', 'if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Packer.php "belegter Name durchgelassen" &&
+pruefe "belegter Name durchgelassen" \
+  BackupPromiseTest::test_a_name_the_backup_owns_stops_the_run failed
+wiederherstellen
+
+echo
+echo "── BackupPromiseTest: belegt ist der Namensteil und nicht der Anfang ──"
+#
+# Mit `str_starts_with()` fiele `.srvpanel-databases-alt` mit, und der Kunde
+# könnte eine Datei dieses Namens nie wieder sichern.
+vorher_datei agent/src/Backup/Manifest.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Manifest.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $first = explode('/', $relative)[0];
+
+        return in_array($first, self::RESERVED, true);"""
+neu = """        foreach (self::RESERVED as $name) {
+            if (str_starts_with($relative, $name)) {
+                return true;
+            }
+        }
+
+        return false;"""
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Manifest.php "belegt am Anfang statt am Namensteil" &&
+pruefe "belegt am Anfang statt am Namensteil" \
+  BackupPromiseTest::test_a_name_that_only_looks_reserved_passes failed
+wiederherstellen
+echo
+echo "── BackupPromiseTest: die Dumps bleiben aus dem Kundenbaum ──"
+#
+# Sie liegen im Archiv unter `.srvpanel-databases`, also ausserhalb des Baums —
+# so wie auf dem Server. Ausgepackt fände der Kunde ein Verzeichnis, das er nie
+# hatte.
+vorher_datei agent/src/Backup/Unpacker.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Unpacker.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if ($name === false || Manifest::reserves($name)) {', 'if ($name === false || $name === Manifest::ENTRY) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Unpacker.php "Dumps in den Kundenbaum ausgepackt" &&
+pruefe "Dumps in den Kundenbaum ausgepackt" \
+  BackupPromiseTest::test_what_belongs_to_the_backup_never_reaches_the_customers_tree failed
+wiederherstellen
+
+echo
+echo "── BackupPromiseTest: dieselbe Frage auch beim Setzen der Rechte ──"
+#
+# Die Gegenrichtung: Was nie ausgepackt wurde, darf der Rechtelauf nicht als
+# fehlende Datei melden. Zwei Leser derselben Marken, und beide fragen mit
+# derselben Methode.
+vorher_datei agent/src/Backup/Unpacker.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Unpacker.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if (Manifest::reserves($entry['path'])) {
+                continue;
+            }"""
+neu = """            if (false) {
+                continue;
+            }"""
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Unpacker.php "Rechtelauf meldet die Dumps als fehlend" &&
+pruefe "Rechtelauf meldet die Dumps als fehlend" \
+  BackupPromiseTest::test_what_belongs_to_the_backup_never_reaches_the_customers_tree failed
+wiederherstellen
+
+pruefe "  … zurückgesetzt wieder grün" BackupPromiseTest passed
+
+echo
+echo "── BackupEntryLimitTest: die Grenze wächst über den Speicher hinaus ──"
+#
+# 200 000 Einträge sind 245 MiB — bei `MemoryMax=512M` nimmt der Kernel den
+# Vorgang, und das sieht aus wie ein hängender Agent.
+vorher_datei agent/src/Backup/Packer.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Packer.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('public const MAX_ENTRIES = 100_000;', 'public const MAX_ENTRIES = 200_000;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Packer.php "MAX_ENTRIES über den Speicher hinaus" &&
+pruefe "MAX_ENTRIES über den Speicher hinaus" \
+  BackupEntryLimitTest::test_the_entry_limit_fits_the_memory_the_unit_grants failed
+wiederherstellen
+
+echo
+echo "── BackupEntryLimitTest: MemoryMax gesenkt, MAX_ENTRIES nicht ──"
+#
+# Die Gegenrichtung desselben Verhältnisses — und die, an die niemand denkt,
+# weil sie in einer Unit-Datei steht und nicht in PHP.
+vorher_datei packaging/systemd/srvpanel-agentd.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-agentd.service'
+s = open(p, encoding='utf-8').read()
+s = s.replace('MemoryMax=512M', 'MemoryMax=256M', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/systemd/srvpanel-agentd.service "MemoryMax gesenkt" &&
+pruefe "MemoryMax gesenkt" \
+  BackupEntryLimitTest::test_the_entry_limit_fits_the_memory_the_unit_grants failed
+wiederherstellen
+
+echo
+echo "── BackupEntryLimitTest: MemoryMax ganz fort ──"
+#
+# Fehlt die Angabe, hat der Wächter keine Grenze, gegen die er rechnet. Er
+# erfindet keine — ein Rückfall auf eine Vorgabe wäre eine Messung gegen eine
+# Zahl, die auf diesem Server nicht gilt.
+vorher_datei packaging/systemd/srvpanel-agentd.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-agentd.service'
+s = open(p, encoding='utf-8').read()
+s = s.replace('MemoryMax=512M\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/systemd/srvpanel-agentd.service "MemoryMax ganz fort" &&
+pruefe "MemoryMax ganz fort" \
+  BackupEntryLimitTest::test_the_entry_limit_fits_the_memory_the_unit_grants failed
+wiederherstellen
+
+echo
+echo "── BackupEntryLimitTest: das Verzeichnis reist über den Socket ──"
+#
+# `Connection::CONTENT_MAX` ist bei rund 14 000 Einträgen zu Ende. Eine
+# Operation, die die Liste zurückgibt, läuft bei kleinen Abonnements tadellos
+# und stirbt bei einem grossen an einer Stelle, die mit Sicherungen nichts zu
+# tun hat.
+vorher_datei agent/src/Ops/BackupCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'entries' => count($entries),", "'entries' => $entries,", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupCreate.php "Verzeichnis über den Socket" &&
+pruefe "Verzeichnis über den Socket" \
+  BackupEntryLimitTest::test_the_operation_returns_a_count_and_not_the_manifest failed
+wiederherstellen
+
+echo
+echo "── BackupEntryLimitTest: ein Feld mehr je Eintrag ──"
+#
+# **Die Werte sind je Eintrag verschieden, und das ist tragend.** Ein
+# Feldliteral aus lauter Konstanten legt PHP einmal unveränderlich ab; alle
+# Einträge zeigten dann darauf, und der Eingriff mässe null Bytes Zuwachs.
+vorher_datei agent/src/Backup/Manifest.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Manifest.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'mode' => self::octal($mode),"
+neu = alt + "\n            'owner' => ['uid' => $mode, 'gid' => $mode, 'user' => 'p'.$mode.$path, 'group' => 'g'.$path],"
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Manifest.php "ein Feld mehr je Eintrag" &&
+pruefe "ein Feld mehr je Eintrag" \
+  BackupEntryLimitTest::test_the_entry_limit_fits_the_memory_the_unit_grants failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupEntryLimitTest passed
+
+echo
+echo "── BackupSeamTest: der Ablagename kommt beim Agenten an ──"
+#
+# Ein Abonnement darf einen Punkt im Namen tragen, ein Ablagename nicht — genau
+# ein Zeichen Unterschied zwischen zwei Prüfungen, die fast dasselbe erlauben.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("preg_replace('/[^a-z0-9_-]+/', '-', $name)", "preg_replace('/[^a-z0-9._-]+/', '-', $name)", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Backups.php "Punkt im Ablagenamen" &&
+pruefe "Punkt im Ablagenamen" \
+  BackupSeamTest::test_the_name_the_panel_builds_is_one_the_agent_takes failed
+wiederherstellen
+
+echo
+echo "── BackupSeamTest: zwei Sicherungen derselben Sekunde ──"
+#
+# Ohne die acht Hexziffern bekommen sie denselben Namen, die `unique`-Bedingung
+# schlägt zu, und wer zweimal klickt, bekommt einen 500er. `Dumps::record()`
+# löst das seit P5 mit genau diesen Ziffern.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(".'-'.bin2hex(random_bytes(4));", ";", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Backups.php "Ablagename ohne Zufallsteil" &&
+pruefe "Ablagename ohne Zufallsteil" \
+  BackupSeamTest::test_two_backups_of_the_same_subscription_never_share_a_name failed
+wiederherstellen
+
+echo
+echo "── BackupSeamTest: ein langer Abonnementname wird gekürzt ──"
+#
+# 63 Zeichen plus Zeitstempel plus Zufallsteil überschreiten die 96, die
+# `Store::storageName()` zulässt.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("return mb_substr($name, 0, 60)", "return $name", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Backups.php "Ablagename ungekürzt" &&
+pruefe "Ablagename ungekürzt" \
+  BackupSeamTest::test_the_name_the_panel_builds_is_one_the_agent_takes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupSeamTest passed
+
+echo
+echo "── BackupSeamTest: die Fassung des Panels kommt beim Agenten an ──"
+#
+# `config('app.version')` gibt im Quellbaum `Quellbaum` zurück und auf einem
+# Server die Freigabe. Ohne die Prüfung ginge jede Zeichenkette durch.
+vorher_datei agent/src/Backup/Manifest.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Manifest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! preg_match('/^[A-Za-z0-9._+-]{1,64}$/D', $value)) {"
+s = s.replace(alt, '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Manifest.php "jede Fassung durchgelassen" &&
+pruefe "jede Fassung durchgelassen" \
+  BackupSeamTest::test_a_version_the_agent_would_refuse_is_refused failed
+wiederherstellen
+
+echo
+echo "── BackupSeamTest: die Operation ruft die Prüfung auch ──"
+#
+# **Die zweite Richtung, und sie hat gefehlt.** Der erste Wurf dieses Wächters
+# hielt die Tür und nicht ihren Gebrauch: Nimmt man den Aufruf aus
+# `BackupCreate`, blieb er grün. Dieselbe Lücke, auf deren Schliessung
+# `SourceKeyFilterTest` seit A1 besteht.
+vorher_datei agent/src/Ops/BackupCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$panel = Manifest::panelVersion($args['panel'] ?? null);", "$panel = (string) ($args['panel'] ?? '');", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupCreate.php "Fassung ungeprüft übernommen" &&
+pruefe "Fassung ungeprüft übernommen" \
+  BackupSeamTest::test_the_operation_really_asks_for_the_version failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupSeamTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

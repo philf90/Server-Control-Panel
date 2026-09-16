@@ -432,7 +432,7 @@ findet hier die drei Bedingungen, unter denen sie tragen würde.
 
 | Art | Was | Wie sie in die Sicherung kommt |
 |---|---|---|
-| **Beschreibung** | Domains, Cron, SFTP-Schlüssel, Struktur der Datenbanken und Zugänge, Plan und Kontingente, PHP-Einstellungen | als `verzeichnis.json` im Archiv; die Wiederherstellung **erzeugt** daraus neu |
+| **Beschreibung** | Domains, Cron, SFTP-Schlüssel, Struktur der Datenbanken und Zugänge, Plan und Kontingente, PHP-Einstellungen | als `.srvpanel-manifest.json` im Archiv; die Wiederherstellung **erzeugt** daraus neu |
 | **Wörtlich** | Dateien des Kunden, Inhalt der Datenbanken | als Dateien im Archiv |
 | **Weder noch** | Schlüsselmaterial eines **hochgeladenen** Zertifikats, Datenbankpasswörter | siehe unten |
 
@@ -467,10 +467,16 @@ Das gilt für die Vhost-Datei, für `pg_hba.conf`, für die Cron-Dateien und fü
 ### Warum das Verzeichnis **in** das Archiv gehört und nicht durch den Socket
 
 Gemessen (`docs/116` M4): Ein Verzeichnis, das je Datei Rechte und Verweisziel
-trägt, ist bei rund **14 000 Einträgen** am Ende von `Connection::CONTENT_MAX`,
-während `Packer::MAX_ENTRIES` **20 000** zulässt.
+trägt, ist bei rund **14 000 Einträgen** am Ende von `Connection::CONTENT_MAX`.
 
 > **Ein Wert, der grösser ist als der Weg dorthin, ist keine Grenze.**
+
+**Die Zahl daneben stand hier bis zum Bau falsch.** Der Plan nannte
+`Packer::MAX_ENTRIES` mit 20 000; gebaut sind **100 000**, und zwar gemessen:
+Nicht das Format bindet (`ZipArchive` hat 70 000 Einträge geschrieben und
+gelesen — libzip schreibt zip64), sondern der Speicher des Agenten
+(`MemoryMax=512M`; 100 000 Einträge sind 122 MiB Spitze, also 24 %). Der Abstand
+zu den 14 000 ist damit grösser als gedacht und der Schluss derselbe.
 
 Es reist deshalb gar nicht über die Leitung. Der Agent schreibt es in das
 Archiv, das Panel liest aus dem Archiv, was es anzeigen muss.
@@ -688,3 +694,285 @@ Damit die Aufzählung eine Entscheidung ist und keine Lücke mit Überschrift
 
   > **Ein Panel, das die Dateien seiner Kunden bearbeitet, hat keinen Weg
   > zurück, wenn es sich irrt.**
+
+---
+
+## §11 · Was beim Bauen anders war als im Plan
+
+Geführt ab dem 16. September 2026, Schritt für Schritt — nach dem Vorbild von
+`docs/901 §8a` und `docs/904 §10a`. Was hier steht, ist gemessen und nicht
+erinnert.
+
+### a · Schritt 1 und 2 — die Ablage und das Verzeichnis
+
+**Der Pfad war deutsch und ist es nicht mehr.** `docs/117 §6` Schritt 1 schrieb
+`/var/lib/srvpanel/sicherungen`. Ausgezählt sind **23 von 23** Pfaden unter
+`/var/lib/srvpanel` und `/etc/srvpanel` englisch; `docs/19 §4a` sagt für einen
+Bezeichner englisch, und ein Pfad ist einer. Gebaut ist `backups`.
+
+**Und der Name des Verzeichnisses im Archiv ebenso.** §4 schrieb
+`verzeichnis.json`, gebaut ist `.srvpanel-manifest.json` — mit dem Punkt, damit
+er beim Auspacken nicht zwischen den Dateien des Kunden steht.
+
+### b · Schritt 3 — der Packer, und eine Messung, die zu schmal war
+
+**`docs/116` M1b sagte, `ZipArchive` gebe Verzeichnisse als `0777` zurück.**
+Nachgemessen trägt es **gar keinen** Modus: Jeder Eintrag bekommt `0777`
+beziehungsweise `0666` gegen die **umask**. Die `0777` waren die umask des
+Prüfstands (0), nicht ein Wert von `ZipArchive`. `srvpanel-agentd.service` setzt
+kein `UMask=`, dort gilt `0022` — ein privater Schlüssel mit `0600` käme ohne
+das Verzeichnis als **`0644`** zurück. Der Nachtrag steht in `docs/116` M1b.
+
+> **Ein gemessener Wert, dessen Bedingung niemand mitgeschrieben hat, ist auf
+> der nächsten Maschine eine Vermutung.**
+
+**`SplFileInfo::getPerms()` ist an einem Verweis zweimal falsch** — gemessen: An
+einem *heilen* gibt es den Modus des **Ziels** zurück (`100600`), an einem
+**toten** wirft es. Ein Kunde mit einem kaputten Symlink hätte jede Sicherung
+zum Absturz gebracht. Ein Verweis trägt jetzt immer `0777`, ein toter wird
+gemeldet statt fatal.
+
+**Und eine Begründung im Unpacker war falsch, während der Handgriff stimmte.**
+Die Verzeichnisrechte werden von innen nach aussen gesetzt; dastand, ein `0500`
+am Elternteil nähme dem eigenen Lauf das *Schreib*recht. Gemessen geht das
+**Durchqueren** verloren, und nur für einen unprivilegierten Aufrufer: als root
+gelingt das `chmod` am Kind, als `uid 65534` scheitert es mit `No such file or
+directory`. Der Agent läuft als root — die Reihenfolge ist dort wirkungslos. Sie
+bleibt, kostet nichts, und steht als **Frage** im Wächter statt als Zusage, weil
+ein Eingriff dafür grün bliebe.
+
+### c · Ein Loch, das erst der nächste Schritt gezeigt hat
+
+**`ZipArchive::addFromString()` überschreibt einen vorhandenen Eintrag
+wortlos** — gemessen: ein Eintrag statt zwei, keine Warnung, `close()` gibt
+`true`, und beim Auspacken liegt unsere Fassung da. Eine Datei
+`.srvpanel-manifest.json` im Wurzelverzeichnis eines Kunden wäre aus **seiner
+eigenen Sicherung** verschwunden, und aufgefallen wäre es erst beim
+Zurückspielen.
+
+> **Ein Schreiber, der einen vorhandenen Eintrag ersetzt und Erfolg meldet,
+> verliert Daten mit einem Rückgabewert, der wie ein Beleg aussieht.**
+
+`Manifest::RESERVED` nennt die Namen, die die Sicherung selbst belegt, und der
+Packer weist sie **beim Packen** ab — laut und mit dem Pfad in der Meldung.
+Gefragt wird am **ersten Namensteil**: `.srvpanel-databases-alt` gehört dem
+Kunden und kommt durch.
+
+### d · Schritt 4 — die Datenbanken, und zwei Operationen statt einer
+
+**`backup.remove` ist mitgebaut worden, und nicht aus Fleiss.**
+`RemovalPathTest` verlangt zu jeder anlegenden Operation ihren Rückweg; ohne ihn
+wäre `backup.create` gar nicht erst durch die Wächter gekommen. Die Regel ist
+älter als P8 und stammt aus `docs/35`:
+
+> **Wer etwas anlegt, das auf der Platte bleibt, baut den Weg zurück mit; sonst
+> findet ihn Jahre später eine Datenmigration.**
+
+**Die Reihenfolge stellt das Panel her.** `backup.create` ruft `db.dump.create`
+nicht — keine Operation dieses Agenten ruft eine andere. Sie bekommt die
+Ablagenamen und legt die fertigen Dateien hinein; **ein benannter Dump, der
+fehlt, bricht ab**, statt eine Sicherung ohne Datenbanken auszugeben, die von
+einer vollständigen nicht zu unterscheiden wäre.
+
+### e · `Packer::MAX_ENTRIES` — die Zahl stimmte, die Rechnung nicht
+
+Der Plan nannte in §4 **20 000**; gebaut sind **100 000**. Nicht das Format
+bindet (`ZipArchive` schreibt zip64 und hat 70 000 Einträge geschrieben und
+gelesen), sondern der Speicher des Agenten.
+
+**Die erste Messung dazu war keine.** Sie lief alle Fälle in *einem* Prozess und
+gab Faktoren zwischen 1,5 und 9,7 aus — der Heap wächst über die Fälle hinweg,
+und `memory_get_peak_usage(true)` misst ihn mit. Ein Fall je Prozess gibt
+stabile und wiederholbare Zahlen: 30 / 60 / **122 MiB** bei 25 000 / 50 000 /
+100 000.
+
+> **Ein Prüfkörper, der sich am gegenwärtigen Zustand bemisst, verändert den
+> Zustand, an dem er sich bemisst.**
+
+**Und die Spitze hängt nicht an der Länge der Pfade.** Zwei Prüfkörper, einer
+kurz (125 B je Eintrag als JSON) und einer in der Tiefe eines WordPress-Baums
+(171 B): **beide 122 MiB**. Was den Speicher füllt, ist das Feld aus 100 000
+kleinen Feldern und nicht die Zeichenkette daraus.
+
+> **Zwei Grössen, die man zusammen misst, sehen verbunden aus — und welche von
+> beiden die Zahl treibt, sagt erst der Prüfkörper, der nur eine von ihnen
+> ändert.**
+
+`BackupEntryLimitTest` misst deshalb mit **zwei** Messmitteln:
+`memory_get_usage(false)` für die Speicherfrage — additiv, gemessen Byte für
+Byte gleich in einem frischen Prozess und in einem mit gewachsenem Heap — und
+die JSON-Grösse für die Leitungsfrage.
+
+**Der Wächter hat beim ersten Lauf zugebissen**, und er hatte recht: Seine erste
+Fassung rechnete `JSON × 8,7` und meldete 142 MiB für einen Zustand, der
+gemessen 122 verbraucht. Der Faktor stammte aus der Messung mit den kurzen
+Pfaden — derselbe Fehler eine Ebene höher.
+
+**Und ein Eingriff dazu hat nichts gemessen.** „Das Verzeichnis bekommt ein
+Feld" ergab `1044 B` je Eintrag mit dem Feld und ohne, auf das Byte gleich: Ein
+Feldliteral aus lauter Konstanten legt PHP **einmal unveränderlich** ab, und
+alle 20 000 Einträge zeigten darauf. Mit Werten je Eintrag sind es 1484 B, und
+der Wächter wird rot.
+
+> **Ein Eingriff, der einen Zustand herstellt, den der Prüfling ohnehin gleich
+> beantwortet, misst die Regel nicht — er misst, dass sie unempfindlich ist.**
+
+### f · Was `backup.create` noch nicht tut, und wo es hingehört
+
+**Der private Schlüssel eines hochgeladenen Zertifikats ist nicht drin.** §4
+sagt, er gehöre in die Sicherung — er liegt unter `/etc/srvpanel/tls/certs`,
+also ausserhalb des Kundenbaums, und käme wie die Dumps als eigener Eintrag
+hinein. Gebaut ist er nicht. Das ist genau die Frage, die §7 dem Wächter
+**`BackupReachTest`** zuweist („jede Art aus §4 hat einen Weg"); er steht
+deshalb dort und nicht als stille Lücke hier.
+
+> **Eine stille Lücke meldet sich erst Jahre später.**
+
+### g · Der Wächter hat die Schrittgrenze verschoben
+
+**`AgentOperationReachTest` ist rot geworden**, sobald die beiden Operationen
+registriert waren: *„Diese Operationen kennt der Agent, und niemand ruft sie
+auf."* Er hat recht, und seine Begründung gilt über P8 hinaus:
+
+> **Code, der als root läuft und zu dem es keinen Weg gibt, ist Angriffsfläche
+> ohne Nutzen.**
+
+Damit ist die Trennung zwischen Schritt 3/4 (Agent) und Schritt 5 (Seite) keine,
+die man ausliefern kann. Gebaut ist deshalb mit den Operationen zusammen die
+**Grundlage** der Seite: `backups`-Tabelle, `App\Models\Backup`,
+`App\Enums\BackupStatus`, `App\Support\Backups\BackupLifecycle` (in
+`Lifecycles::HANDLERS`) und `App\Support\Backups\Backups` als Aufrufer. Was
+bleibt, ist die Seite selbst — Controller, Routen, `.vue`.
+
+> **Eine Operation des Agenten und ihr Aufrufer sind eine Arbeitseinheit und
+> nicht zwei.** Dasselbe von der anderen Seite wie `context` in `docs/66`: Ein
+> Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von einem zu
+> unterscheiden, das es nicht gibt.
+
+**`OperationSubject` bekommt dabei noch keinen Fall**, und das ist eine
+Entscheidung und keine Auslassung: Jeder Fall dort nennt einen **Ort**, und
+`OperationOriginTest` hält, dass der eine angemeldete GET-Route ist. Solange die
+Seite fehlt, wäre jeder genannte Ort erfunden. Der Lebenslauf findet seine Zeile
+bis dahin über `storage_name` — eindeutig, in der Antwort des Agenten, und
+derselbe Name, unter dem die Datei liegt. **Mit der Seite ersetzt `subject_id`
+diese Suche, nicht daneben**; zwei Wege von einem Vorgang zu seiner Zeile wären
+zwei Fassungen derselben Frage.
+
+### h · Zwei Wächter haben im eigenen neuen Code zugebissen
+
+**`CountedNounTest`** an zwei Stellen: `'%d Dateien'` und `'mehr als %d
+Dateien'`. Bei genau eins liest sich das als „1 Dateien". Behoben am **Wert**
+(`$files === 1 ? … : …`) und durch Umstellen des Satzes, sodass die Zahl kein
+Hauptwort hinter sich hat.
+
+**Und PHPStan an einer Zeile, die still durchgegangen wäre.**
+`Backups::create()` las `$subscription->db_prefix`; die Spalte gibt es dort
+nicht — sie steht auf `system_users` (`docs/38`, Migration vom 9. August).
+Eloquent hätte `null` geliefert, der Agent hätte es angenommen, und im
+Verzeichnis stünde **kein Präfix** — genau die Angabe, aus der eine
+Wiederherstellung nach Form A die Zuordnung alt → neu baut.
+
+> **Ein Wert, den ein Modell nicht hat, ist `null` und kein Fehler — und `null`
+> sieht aus wie „gibt es nicht".**
+
+**Und die Dateiliste für PHPStan war beim ersten Lauf zu kurz**, ohne dass etwas
+es gesagt hätte: `git status --porcelain` meldet ein **neues Verzeichnis** als
+eine Zeile, nicht als seine Dateien. Zwei der vierzehn Dateien — beide neu unter
+`app/Support/Backups/` — sind so aus dem Lauf gefallen, und genau in einer davon
+stand der Befund. Der Griff ist `--untracked-files=all`.
+
+> **Eine abgeschnittene Liste sieht aus wie eine vollständige — sie sagt nicht,
+> wo sie aufhört.**
+
+### i · Der Nahtwächter hat beim ersten Lauf einen Fehler in meinem Code gefunden
+
+**`BackupSeamTest`** hält, dass der Ablagename, den das Panel baut, einer ist,
+den der Agent nimmt. Der Grund ist gemessen: Zwei Zeichenmengen, die sich um
+**genau ein Zeichen** unterscheiden.
+
+| Wer | am Anfang | in der Mitte | Länge |
+|---|---|---|---|
+| Ein Abonnementname | `a-z0-9` | `a-z`, `0-9`, **Punkt**, Bindestrich | bis 63 |
+| Ein Ablagename | `a-z0-9` | `a-z`, `0-9`, Unterstrich, Bindestrich | bis 96 |
+
+Der Unterschied ist der **Punkt**, und ein Abonnement heisst regelmässig
+`shop.example`.
+
+**Die beiden Ausdrücke selbst stehen im Kopf von `BackupSeamTest` und nicht
+hier**, und dafür gibt es einen gemessenen Grund: `DocLinkTest` hat den ersten
+Wurf dieser Tabelle als toten Verweis gemeldet. Eine Zeichenklasse in eckigen
+Klammern, gefolgt von einer Gruppe in runden, ist buchstäblich die Form eines
+Markdown-Links — Text, dann Ziel.
+
+> **Ein regulärer Ausdruck in einem Dokument ist nicht nur schwer zu lesen — er
+> kann auch etwas anderes sein.**
+
+Und die Berichtigung ist demselben Wächter ein zweites Mal aufgefallen: Der
+Satz, der die Meldung *erklärte*, schrieb die Form noch einmal hin.
+
+> **Ein Text, der eine Meldung über einen toten Verweis zitiert, enthält den
+> toten Verweis.** (`docs/100`, zum zweiten Mal.)
+
+> **Zwei Prüfungen, die fast dasselbe erlauben, sind die gefährlichere Art von
+> Naht: Sie halten für jeden Prüfkörper, den man beiläufig wählt.**
+
+**Und der Wächter hat gleich einen zweiten Fehler gemeldet, an den ich nicht
+gedacht hatte.** Der Name endete auf `<hhmmss>`; zwei Sicherungen desselben
+Abonnements in **derselben Sekunde** bekamen denselben Namen, die
+`unique`-Bedingung schlug zu, und wer zweimal klickt, bekam einen 500er.
+`Dumps::record()` löst genau das seit P5 mit acht Hexziffern — **und schreibt
+den Grund daneben.** Ich habe den Fehler noch einmal gemacht.
+
+> **Ein Fehler, den man an einer Stelle vermieden hat, ist an der nächsten
+> wieder da, wenn die Vermeidung nicht die Regel wurde.** Zum fünften Mal in
+> diesem Repo.
+
+**Und die erste Fassung des Wächters hat die Mandantenklammer gemessen statt
+der Zeilen.** `Backup::query()->count()` gab `0` zurück — in einem Test ist
+niemand angemeldet, und die dritte Grenze steht im Grundzustand auf
+`whereRaw('0 = 1')`. Derselbe Fall wie bei `srvpanel tinker` in `docs/78`.
+
+> **Eine Frage, die im Grundzustand alles verweigert, antwortet mit einer leeren
+> Liste und nicht mit einem Fehler.**
+
+### j · Und ein Wächter, der die Tür hielt und nicht ihren Gebrauch
+
+Die Prüfung der Panel-Fassung stand zuerst **in** `BackupCreate` — privat, und
+damit vom Panel aus nicht messbar. Sie sitzt jetzt als
+`Manifest::panelVersion()` dort, wo das Feld wohnt, und `BackupSeamTest` fährt
+`config('app.version')` durch dieselbe Tür, durch die der Agent sie nimmt.
+Gemessen: In einem Quellbaum steht dort das Wort `Quellbaum`, auf einem Server
+die Freigabe; beide kommen durch.
+
+**Der erste Wurf des Wächters hatte trotzdem ein Loch, und ein Eingriff hat es
+gezeigt:** Nimmt man den *Aufruf* aus `BackupCreate`, bleibt er grün. Er misst
+die Tür und nicht, ob jemand hindurchgeht.
+
+> **Ein Wächter über eine Prüfung sagt nichts darüber, ob sie jemand benutzt.**
+
+Dieselbe zweite Richtung, auf der `SourceKeyFilterTest` seit A1 besteht —
+*rechnet richtig* **und** *wird gerufen*. Sie steht jetzt daneben, und der
+Eingriff beisst.
+
+### k · Was die Gegenlese des eigenen Diffs gefunden hat
+
+Drei Stellen, keine davon von einem Wächter gemeldet:
+
+- **`is_int($args['system_user'])`** hätte eine Nummer, die als `"1001"`
+  ankommt, wortlos zu `null` gemacht — und `null` heisst im Verzeichnis „das
+  Abonnement hatte keinen Systembenutzer". Über den Socket reist JSON; die Form
+  einer Zahl ist nichts, worauf man sich verlässt. Jetzt `is_numeric`.
+
+  > **Eine Null, die schon eine Bedeutung trägt, kann keine zweite bekommen.**
+
+- **`catch (AgentException)`** um das Hineinlegen der Dumps und das Schreiben
+  des Verzeichnisses. Ein `TypeError` aus einer Bibliothek hätte das halb
+  geschriebene Archiv liegen lassen — mit falschen Rechten und ohne
+  Verzeichnis, also eine Datei, die wie eine Sicherung aussieht. Jetzt
+  `Throwable`.
+
+  > **Ein Fehlerweg, der nur einen Teil der Fehler fängt, ist keiner.**
+
+- Und ein Kommentarblock, den eine frühere Berichtigung an einen anderen
+  gestossen hatte — zwei Begründungen ohne Leerzeile dazwischen, die sich als
+  eine lasen.

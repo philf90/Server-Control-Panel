@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Backup\Manifest;
 use SrvPanel\Agent\Backup\Packer;
 use SrvPanel\Agent\Backup\Unpacker;
 use ZipArchive;
@@ -313,6 +316,116 @@ final class BackupPromiseTest extends TestCase
         }
 
         $this->fail('Der Verweis fehlt im Verzeichnis.');
+    }
+
+    /**
+     * Ein Name, den die Sicherung selbst belegt, bricht den Lauf — laut.
+     *
+     * **Gemessen am 16. September 2026:** `ZipArchive::addFromString()` auf
+     * einen Namen, den `addFile()` schon geschrieben hat, ersetzt ihn
+     * **wortlos** — ein Eintrag statt zwei, `close()` gibt `true`, und beim
+     * Auspacken liegt unsere Fassung da. Die Datei des Kunden wäre aus seiner
+     * eigenen Sicherung fort.
+     *
+     * Der Fehler fiele erst beim Zurückspielen auf, weil `Unpacker` die fehlende
+     * Datei meldet — also dann, wenn der Kunde schon darauf wartet.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function reservedNames(): iterable
+    {
+        yield 'das Verzeichnis' => [Manifest::ENTRY];
+        yield 'der Ort der Dumps' => [Manifest::DUMPS];
+    }
+
+    #[DataProvider('reservedNames')]
+    public function test_a_name_the_backup_owns_stops_the_run(string $name): void
+    {
+        $root = $this->buildTree();
+        file_put_contents($root.'/'.$name, "die Datei des Kunden\n");
+
+        $this->expectException(AgentException::class);
+
+        Packer::packTree($root, $this->scratch.'/sicherung.zip');
+    }
+
+    /**
+     * **Die Gegenprobe**, und sie misst die Form der Frage.
+     *
+     * Gefragt wird am ersten Namensteil und nicht mit `str_starts_with()`. Ein
+     * Name, der nur so *anfängt*, gehört dem Kunden und kommt durch — sonst
+     * wüchse die Regel mit jedem Namen, der zufällig ähnlich aussieht.
+     */
+    public function test_a_name_that_only_looks_reserved_passes(): void
+    {
+        $root = $this->buildTree();
+        file_put_contents($root.'/'.Manifest::DUMPS.'-alt', "gehört dem Kunden\n");
+        file_put_contents($root.'/httpdocs/'.Manifest::ENTRY, "auch\n");
+
+        $packed = Packer::packTree($root, $this->scratch.'/sicherung.zip');
+        $paths = array_column($packed['entries'], 'path');
+
+        $this->assertContains(Manifest::DUMPS.'-alt', $paths);
+        $this->assertContains(
+            'httpdocs/'.Manifest::ENTRY,
+            $paths,
+            'Belegt ist der Name an der Wurzel — eine Datei desselben Namens eine Ebene tiefer kollidiert nicht.',
+        );
+    }
+
+    /**
+     * Was der Sicherung gehört, landet nicht im Baum des Kunden.
+     *
+     * Die Datenbankdumps liegen im Archiv unter {@see Manifest::DUMPS}, also
+     * ausserhalb des Kundenbaums — so, wie sie auf dem Server ausserhalb
+     * liegen. Packte der Unpacker sie mit aus, fände ein Kunde nach seiner
+     * Wiederherstellung ein `.srvpanel-databases/` mitten in seinen Dateien,
+     * das er nie hatte; die Wiederherstellung holt sie sich einzeln.
+     *
+     * **Gefragt wird mit derselben Methode wie beim Packen** — ein zweiter
+     * Ausdruck an dieser Stelle wäre die zweite Fassung derselben Regel, und
+     * die zweite ist die, die veraltet (`docs/81 §2.3o` M22).
+     *
+     * Das Archiv wird hier so gebaut, wie `backup.create` es baut: packen,
+     * wieder öffnen, die Dumps hineinlegen. Ein Prüfkörper, der sie anders
+     * hineinbrächte, prüfte eine andere Form als die des Prüflings.
+     */
+    public function test_what_belongs_to_the_backup_never_reaches_the_customers_tree(): void
+    {
+        $root = $this->buildTree();
+        $archive = $this->scratch.'/sicherung.zip';
+
+        $packed = Packer::packTree($root, $archive);
+
+        $zip = new ZipArchive;
+        $zip->open($archive);
+        $zip->addEmptyDir(Manifest::DUMPS);
+        $zip->addFromString(Manifest::DUMPS.'/shop_wp.sql.gz', 'der Inhalt einer Datenbank');
+        $zip->addFromString(Manifest::ENTRY, '{"format":1}');
+        $zip->close();
+
+        $entries = $packed['entries'];
+        $entries[] = Manifest::entry(Manifest::DUMPS, Manifest::KIND_DIRECTORY, 0700);
+        $entries[] = Manifest::entry(Manifest::DUMPS.'/shop_wp.sql.gz', Manifest::KIND_FILE, 0640);
+
+        $target = $this->scratch.'/zurueck';
+        mkdir($target, 0700, true);
+
+        // Ohne die Regel wirft dieser Aufruf schon: Die Dumps stünden im
+        // Verzeichnis und wären nicht ausgepackt, also fehlten sie.
+        Unpacker::unpack($archive, $target, $entries);
+
+        $this->assertDirectoryDoesNotExist(
+            $target.'/'.Manifest::DUMPS,
+            'Die Datenbanken der Sicherung gehören nicht in den Baum des Kunden.',
+        );
+
+        $this->assertFileDoesNotExist($target.'/'.Manifest::ENTRY, 'Und das Verzeichnis auch nicht.');
+
+        // **Die Gegenprobe**: Der Rest des Baums ist trotzdem da. Ohne sie
+        // bestünde der Fall auch bei einem Unpacker, der gar nichts auspackt.
+        $this->assertFileExists($target.'/httpdocs/index.php');
+        $this->assertSame(02750, $this->modeOf($target.'/httpdocs'));
     }
 
     /** Die zwölf Bits, die `chmod` setzt — ohne die Art der Datei. */

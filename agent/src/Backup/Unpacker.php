@@ -69,14 +69,25 @@ final class Unpacker
 
         try {
             // `extractTo` schreibt alles ausser den Verweisen — die trägt ein
-            // Zip nicht. Das Verzeichnis selbst bleibt draussen: Es gehört zur
-            // Sicherung und nicht in den Baum des Kunden.
+            // Zip nicht.
+            //
+            // **Was der Sicherung selbst gehört, bleibt draussen, und gefragt
+            // wird mit derselben Methode wie beim Packen.** Das Verzeichnis
+            // und die Datenbankdumps sind kein Teil des Kundenbaums; extrahiert
+            // landeten sie als `.srvpanel-databases/…` mitten darin, und ein
+            // Kunde fände nach einer Wiederherstellung Dateien, die er nie
+            // hatte. Die Dumps holt sich die Wiederherstellung einzeln.
+            //
+            // Ein zweiter Ausdruck an dieser Stelle wäre die zweite Fassung
+            // derselben Regel, und die zweite ist die, die veraltet —
+            // `Pg\Hba` und `ManagedBlock` haben das in P5b vorgeführt
+            // (`docs/81 §2.3o` M22).
             $names = [];
 
             for ($i = 0; $i < $zip->numFiles; $i++) {
                 $name = $zip->getNameIndex($i);
 
-                if ($name === false || $name === Manifest::ENTRY) {
+                if ($name === false || Manifest::reserves($name)) {
                     continue;
                 }
 
@@ -133,6 +144,14 @@ final class Unpacker
         $directories = [];
 
         foreach ($entries as $entry) {
+            // Dieselbe Frage wie beim Auspacken und beim Packen, und zwar mit
+            // derselben Methode: Was der Sicherung gehört, ist nie ausgepackt
+            // worden — ohne diese Zeile meldete der Lauf die Dumps als
+            // fehlende Dateien des Kunden.
+            if (Manifest::reserves($entry['path'])) {
+                continue;
+            }
+
             $path = $root.'/'.Manifest::relative($entry['path']);
 
             if ($entry['kind'] === Manifest::KIND_LINK) {

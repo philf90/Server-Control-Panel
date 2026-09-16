@@ -72,17 +72,38 @@ final class Packer
      * `srvpanel-agentd.service` trägt `MemoryMax=512M`, und darüber tötet der
      * Kernel den Prozess — ein Vorgang, der wortlos stirbt, sieht aus wie ein
      * hängender Agent. Gemessen am Verzeichnis, das vor dem Schreiben im
-     * Speicher steht:
+     * Speicher steht, **ein Fall je Prozess**:
      *
-     * |   Einträge | JSON | Spitze | von 512M |
-     * |---|---|---|---|
-     * |  50 000 |  7,0 MiB |  60 MiB | 12 % |
-     * | **100 000** | **14,0 MiB** | **122 MiB** | **24 %** |
-     * | 200 000 | 28,1 MiB | 244 MiB | 48 % |
+     * |   Einträge | Spitze | von 512M |
+     * |---|---|---|
+     * |  25 000 |  30 MiB |  6 % |
+     * |  50 000 |  60 MiB | 12 % |
+     * | **100 000** | **122 MiB** | **24 %** |
      *
-     * 100 000 lässt drei Viertel für alles andere. `BackupEntryLimitTest`
-     * rechnet das Verhältnis gegen die Unit-Datei nach, statt die Zahl zu
-     * glauben — wer `MemoryMax` senkt, bekommt es dort gesagt.
+     * 100 000 lässt drei Viertel für alles andere.
+     *
+     * **Und die Spitze hängt nicht an der Länge der Pfade** — gemessen am
+     * 16. September mit zwei Prüfkörpern, einem kurzen (`httpdocs/datei-…`,
+     * 125 B je Eintrag als JSON) und einem in der Tiefe eines WordPress-Baums
+     * (171 B): **beide 122 MiB**. Was den Speicher füllt, ist das Feld aus
+     * 100 000 kleinen Feldern und nicht die Zeichenkette daraus; in PHPs
+     * eigener Rechnung sind es **1042 Bytes je Eintrag**, gleich welcher Pfad
+     * darin steht.
+     *
+     * > **Zwei Grössen, die man zusammen misst, sehen verbunden aus — und
+     * > welche von beiden die Zahl treibt, sagt erst der Prüfkörper, der nur
+     * > eine von ihnen ändert.**
+     *
+     * Die erste Fassung dieser Messung lief alle Fälle in **einem** Prozess und
+     * gab Faktoren zwischen 1,5 und 9,7 aus — der Heap wächst über die Fälle
+     * hinweg, und `memory_get_peak_usage(true)` misst ihn mit.
+     *
+     * > **Ein Prüfkörper, der sich am gegenwärtigen Zustand bemisst, verändert
+     * > den Zustand, an dem er sich bemisst.**
+     *
+     * `BackupEntryLimitTest` rechnet das Verhältnis gegen die Unit-Datei nach,
+     * statt die Zahl zu glauben — wer `MemoryMax` senkt oder dem Verzeichnis
+     * ein Feld gibt, bekommt es dort gesagt.
      */
     public const MAX_ENTRIES = 100_000;
 
@@ -193,14 +214,36 @@ final class Packer
             foreach (self::walk($root) as $relative => $info) {
                 if (count($entries) >= self::MAX_ENTRIES) {
                     throw AgentException::denied(sprintf(
-                        'Dieses Abonnement hat mehr als %d Dateien. Eine Sicherung darüber passt nicht in den '
-                        .'Speicher, den der Agent hat (MemoryMax=512M) — sie würde wortlos abgebrochen.',
+                        'Dieses Abonnement hat mehr Einträge, als eine Sicherung fassen kann. Darüber passt '
+                        .'das Verzeichnis nicht in den Speicher, den der Agent hat (MemoryMax=512M), und der '
+                        .'Vorgang würde wortlos abgebrochen. Die Grenze liegt bei %d.',
                         self::MAX_ENTRIES,
                     ));
                 }
 
                 if ($abort !== null && count($entries) % self::REPORT_EVERY === 0 && $abort()) {
                     throw new AgentException(AgentException::CANCELLED, 'Die Sicherung wurde abgebrochen.');
+                }
+
+                /*
+                 * **Was die Sicherung selbst belegt, darf der Kunde nicht
+                 * mitbringen.** `addFromString()` auf einen Namen, den
+                 * `addFile()` schon geschrieben hat, überschreibt ihn wortlos
+                 * — die Datei des Kunden wäre aus seiner eigenen Sicherung
+                 * fort, und `close()` meldete Erfolg. Die Begründung samt
+                 * Messung steht bei {@see Manifest::RESERVED}.
+                 *
+                 * Abgewiesen wird hier und nicht beim Entpacken: Ein Archiv,
+                 * das eine Datei still weglässt, ist genau das, was diese
+                 * Klasse nicht sein darf.
+                 */
+                if (Manifest::reserves($relative)) {
+                    throw AgentException::denied(sprintf(
+                        'Der Pfad %s gehört der Sicherung selbst und kann nicht mitgesichert werden. '
+                        .'Wer ihn im Baum des Abonnements braucht, benennt ihn um — sonst verlöre die '
+                        .'Sicherung ihn wortlos.',
+                        $relative,
+                    ));
                 }
 
                 // **`isLink()` zuerst.** Ein Verweis auf ein Verzeichnis ist für
@@ -283,6 +326,52 @@ final class Packer
             'files' => $files,
             'bytes' => $size === false ? 0 : $size,
         ];
+    }
+
+    /**
+     * Wie gross der Baum ist, den {@see self::pack()} packen würde.
+     *
+     * **Durch dieselbe `walk()` und nicht durch eine zweite Zählung.** Eine
+     * eigene Rechnung wäre die zweite Fassung derselben Regel, und die zweite
+     * ist die, die veraltet: Käme ein Verzeichnis zu {@see self::SKIPPED}
+     * dazu, schätzte sie weiter mit — und ein Abonnement mit grossen
+     * Protokollen fiele an einer Schranke, die für es gar nicht gilt.
+     *
+     * **Der zweite Lauf ist gemessen und nicht geschätzt:** 32 813 Einträge in
+     * 135 bis 149 ms (zwei Läufe, also nicht der Zwischenspeicher). Gegen einen
+     * Zip-Lauf über denselben Baum ist das nichts.
+     *
+     * Was sie **nicht** sagt: wie gross das Archiv wird. Es wird kleiner —
+     * komprimiert —, die Schätzung fällt also zur sicheren Seite. Sie ist eine
+     * Schranke gegen das Offensichtliche und keine Buchhaltung.
+     */
+    public static function estimate(string $subscription): int
+    {
+        $root = SubscriptionProvision::VHOSTS.'/'.SubscriptionProvision::subscriptionName($subscription);
+
+        if (! is_dir($root)) {
+            return 0;
+        }
+
+        $bytes = 0;
+
+        foreach (self::walk($root) as $info) {
+            // **`isLink()` zuerst, und zwar aus demselben Grund wie beim
+            // Packen:** `getSize()` folgt dem Verweis und wirft an einem toten.
+            // Ein Kunde mit einem kaputten Symlink brächte sonst schon die
+            // Platzprüfung zu Fall — vor der ersten geschriebenen Zeile.
+            if ($info->isLink() || ! $info->isFile()) {
+                continue;
+            }
+
+            $size = @$info->getSize();
+
+            if ($size !== false) {
+                $bytes += $size;
+            }
+        }
+
+        return $bytes;
     }
 
     /**

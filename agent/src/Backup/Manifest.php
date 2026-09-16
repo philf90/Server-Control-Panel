@@ -76,6 +76,96 @@ final class Manifest
     public const ENTRY = '.srvpanel-manifest.json';
 
     /**
+     * Wohin die Datenbankdumps im Archiv kommen.
+     *
+     * Sie liegen ausserhalb des Kundenbaums (`/var/lib/srvpanel/dumps`) und
+     * bekommen deshalb einen eigenen Ort im Archiv, statt sich unter die
+     * Dateien des Kunden zu mischen.
+     */
+    public const DUMPS = '.srvpanel-databases';
+
+    /**
+     * Namen, die die Sicherung selbst belegt — und die der Kunde deshalb nicht
+     * mitbringen darf.
+     *
+     * **Gemessen am 16. September 2026, und es ist kein Schönheitsfehler:**
+     * `ZipArchive::addFromString()` auf einen Namen, den `addFile()` schon
+     * belegt hat, **überschreibt ihn wortlos**. Kein zweiter Eintrag, keine
+     * Warnung, `close()` gibt `true`. Eine Datei `.srvpanel-manifest.json` im
+     * Wurzelverzeichnis eines Kunden wäre aus seiner eigenen Sicherung
+     * verschwunden, und aufgefallen wäre es erst beim Zurückspielen — also
+     * dann, wenn er schon darauf wartet.
+     *
+     * > **Ein Schreiber, der einen vorhandenen Eintrag ersetzt und Erfolg
+     * > meldet, verliert Daten mit einem Rückgabewert, der wie ein Beleg
+     * > aussieht.**
+     *
+     * Deshalb wird beim **Packen** abgewiesen und nicht beim Entpacken
+     * geflickt. Laut und mit dem Pfad in der Meldung: Ein Archiv, das eine
+     * Datei still weglässt, ist das Problem, vor dem `Files\Packer` seit P6
+     * warnt.
+     *
+     * @var list<string>
+     */
+    public const RESERVED = [
+        self::ENTRY,
+        self::DUMPS,
+    ];
+
+    /**
+     * Die Fassung des Panels, die eine Sicherung geschrieben hat.
+     *
+     * **Der Agent kennt sie nicht, und das ist kein Versehen.** Er liegt im
+     * Fassungsverzeichnis und wird mit ausgetauscht; eine Zahl, die er über
+     * *das Panel* führte, wäre eine zweite Fassung derselben Angabe. Sie kommt
+     * aus dem Aufruf.
+     *
+     * Sie ist eine Auskunft für den, der später eine alte Sicherung ansieht —
+     * gelesen wird sie von nichts, und {@see self::FORMAT} entscheidet, ob eine
+     * Sicherung lesbar ist.
+     *
+     * **Die Prüfung steht hier und nicht in der Operation**, damit die Naht
+     * messbar ist: Was das Panel als Fassung hinausgibt, geht durch dieselbe
+     * Tür, durch die der Agent sie nimmt. Eine Prüfung, die nur im Agenten
+     * steht, lässt sich vom Panel aus nicht anders belegen als durch einen
+     * zweiten Ausdruck — und der zweite ist die Fassung, die veraltet.
+     *
+     * Gemessen am 16. September 2026: In einem Quellbaum gibt
+     * `config('app.version')` das Wort `Quellbaum` zurück, auf einem Server die
+     * Freigabe. Beide kommen durch.
+     */
+    public static function panelVersion(mixed $value): string
+    {
+        if (! is_string($value) || $value === '') {
+            throw AgentException::badRequest('Die Fassung des Panels fehlt.');
+        }
+
+        if (! preg_match('/^[A-Za-z0-9._+-]{1,64}$/D', $value)) {
+            throw AgentException::badRequest('Die Fassung des Panels hat eine unerwartete Form.', [
+                'panel' => mb_substr($value, 0, 64),
+            ]);
+        }
+
+        return $value;
+    }
+
+    /**
+     * Belegt die Sicherung diesen Pfad selbst?
+     *
+     * Gefragt wird am **ersten Namensteil**: `.srvpanel-databases/shop.sql.gz`
+     * kollidiert genauso wie das Verzeichnis selbst. Ein Pfad, der nur so
+     * *anfängt* — `.srvpanel-databases-alt` —, kollidiert nicht und kommt
+     * durch; deshalb wird an `/` zerlegt und nicht mit `str_starts_with()`
+     * verglichen.
+     */
+    public static function reserves(string $relative): bool
+    {
+        $first = explode('/', $relative)[0];
+
+        return in_array($first, self::RESERVED, true);
+    }
+
+    /**
      * Die Fassung dieses Formats.
      *
      * Sie steht in jeder Sicherung und wird beim Lesen geprüft. Eine Sicherung

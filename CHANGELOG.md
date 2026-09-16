@@ -28720,3 +28720,69 @@ Wächter nannte, den es noch nicht gibt.
 > **Ein Kommentar, der einen Wächter nennt, ist ein Versprechen, solange es ihn
 > nicht gibt.** Er gehört an den Packer und entsteht mit ihm — dort lässt sich
 > an der Wirkung halten, dass das Verzeichnis die Leitung nicht nimmt.
+
+### P8 Schritt 3 und 4 — der Packer, das Verzeichnis und `backup.create`
+
+`Backup\Packer` läuft den Baum eines Abonnements ab, `Backup\Unpacker` stellt
+ihn wieder her, und `backup.create` legt beides zusammen mit den schon erzeugten
+Datenbankdumps in ein Archiv. `backup.remove` ist mitgebaut, weil
+`RemovalPathTest` zu jeder anlegenden Operation ihren Rückweg verlangt.
+
+**`ZipArchive` trägt gar keinen Modus, und die erste Messung war zu schmal.**
+`docs/116` M1b sagte, Verzeichnisse kämen als `0777` zurück. Nachgemessen wendet
+`extractTo()` `0777` beziehungsweise `0666` gegen die **umask** an und benutzt
+den Modus im Archiv überhaupt nicht. Die `0777` waren die umask des Prüfstands.
+`srvpanel-agentd.service` setzt kein `UMask=`, dort gilt `0022` — ein privater
+Schlüssel mit `0600` käme ohne das Verzeichnis als `0644` zurück.
+
+> **Ein gemessener Wert, dessen Bedingung niemand mitgeschrieben hat, ist auf
+> der nächsten Maschine eine Vermutung.**
+
+**`addFromString()` überschreibt einen vorhandenen Eintrag wortlos** — gemessen:
+ein Eintrag statt zwei, `close()` gibt `true`, und beim Auspacken liegt unsere
+Fassung da. Eine Datei `.srvpanel-manifest.json` im Wurzelverzeichnis eines
+Kunden wäre aus seiner eigenen Sicherung verschwunden. Der Packer weist die
+Namen, die die Sicherung selbst belegt, jetzt **beim Packen** ab — laut und mit
+dem Pfad in der Meldung.
+
+> **Ein Schreiber, der einen vorhandenen Eintrag ersetzt und Erfolg meldet,
+> verliert Daten mit einem Rückgabewert, der wie ein Beleg aussieht.**
+
+**`SplFileInfo::getPerms()` ist an einem Verweis zweimal falsch:** an einem
+heilen gibt es den Modus des **Ziels**, an einem toten wirft es. Ein Kunde mit
+einem kaputten Symlink hätte jede Sicherung zum Absturz gebracht.
+
+**Der Wächter hat die Schrittgrenze verschoben.** `AgentOperationReachTest` ist
+rot geworden, sobald die Operationen registriert waren — *„Code, der als root
+läuft und zu dem es keinen Weg gibt, ist Angriffsfläche ohne Nutzen."* Gebaut
+ist deshalb mit ihnen zusammen die Grundlage der Seite: `backups`-Tabelle,
+`Backup`, `BackupStatus`, `BackupLifecycle` und `Backups` als Aufrufer.
+
+> **Eine Operation des Agenten und ihr Aufrufer sind eine Arbeitseinheit und
+> nicht zwei.**
+
+**`BackupSeamTest` hat beim ersten Lauf zwei Fehler in frischem Code
+gefunden.** Ein Abonnementname darf einen **Punkt** tragen, ein Ablagename
+nicht — genau ein Zeichen Unterschied zwischen zwei Prüfungen, die fast
+dasselbe erlauben. Und der Name endete auf der Sekunde: Zwei Sicherungen
+desselben Abonnements in derselben Sekunde bekamen denselben Namen, und wer
+zweimal klickt, bekam einen 500er. `Dumps::record()` löst genau das seit P5 mit
+acht Hexziffern und schreibt den Grund daneben.
+
+> **Ein Fehler, den man an einer Stelle vermieden hat, ist an der nächsten
+> wieder da, wenn die Vermeidung nicht die Regel wurde.**
+
+**`BackupEntryLimitTest` misst mit zwei Messmitteln, und das ist sein Kern.**
+Seine erste Fassung rechnete beide Fragen aus der JSON-Grösse mal einem Faktor
+und meldete 142 MiB für einen Zustand, der gemessen 122 verbraucht. Gemessen mit
+je einem Prozess je Fall hängt die Spitze **nicht** an der Länge der Pfade:
+125 B und 171 B je Eintrag als JSON, beide **122 MiB** — was den Speicher füllt,
+ist das Feld aus 100 000 kleinen Feldern.
+
+> **Zwei Grössen, die man zusammen misst, sehen verbunden aus — und welche von
+> beiden die Zahl treibt, sagt erst der Prüfkörper, der nur eine von ihnen
+> ändert.**
+
+Und ein Eingriff dazu hat nichts gemessen: Ein Feldliteral aus lauter
+Konstanten legt PHP **einmal unveränderlich** ab, also kostete „ein Feld mehr je
+Eintrag" null Bytes. Mit Werten je Eintrag beisst er.

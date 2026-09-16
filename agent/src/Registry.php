@@ -9,6 +9,8 @@ use SrvPanel\Agent\Ops\AcmeCertificate;
 use SrvPanel\Agent\Ops\AcmeCertificateInfo;
 use SrvPanel\Agent\Ops\AcmeCertificateRemove;
 use SrvPanel\Agent\Ops\AgentPing;
+use SrvPanel\Agent\Ops\BackupCreate;
+use SrvPanel\Agent\Ops\BackupRemove;
 use SrvPanel\Agent\Ops\CertificateUpload;
 use SrvPanel\Agent\Ops\ConfigValidate;
 use SrvPanel\Agent\Ops\CronApply;
@@ -278,6 +280,20 @@ final class Registry
         // wird.
         $this->register(new DbDumpRemove);
         $this->register(new DbDumpCreate);
+
+        /*
+         * Die Sicherung eines ganzen Abonnements — **`remove` zuerst und aus
+         * demselben Grund wie darüber**: Sie ist das Grösste, was dieses Panel
+         * auf der Platte hinterlässt (der ganze Kundenbaum plus seine
+         * Datenbanken), und ohne ihren Rückweg füllt sie den Datenträger.
+         *
+         * Sie steht **hinter** den Dumps, weil sie deren Ausgabe hineinlegt und
+         * sie nicht selbst erzeugt (`docs/117 §6` Schritt 4). Die Reihenfolge
+         * der beiden Aufrufe stellt das Panel her; keine Operation hier ruft
+         * eine andere.
+         */
+        $this->register(new BackupRemove);
+        $this->register(new BackupCreate);
         $this->register(new DbRestore);
 
         // Die Messung. Sie steht ausserhalb der Paare oben, weil sie nichts

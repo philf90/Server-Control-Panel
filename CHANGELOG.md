@@ -28543,3 +28543,57 @@ nicht gemessen; der Griff steht in `docs/117 §9`.
 > **Eine Erweiterung, die der Code benutzt und die Paketierung nicht nennt, ist
 > auf jedem Server vorhanden, auf dem sie zufällig jemand anderes mitgebracht
 > hat.**
+
+### Vier Panels, vier Wege — und die Empfehlung in §3 dreht sich um
+
+`docs/117 §3` hatte die offene Frage der Stufe mit **Form B** beantwortet: Eine
+Wiederherstellung dürfe ihre eigene Reservierung in `system_users` zurückholen,
+wenn Nummer, Abonnementname und das fehlende Unix-Konto zusammenpassen. Die
+Recherche am 16. September dreht das um.
+
+**HestiaCP liess sich am Quelltext messen**, und `bin/v-restore-user` fährt
+genau Form A: Es liest die alte UID aus dem `pam`-Behälter der Sicherung, die
+neue aus `/etc/passwd`, schreibt bei Abweichung das Eigentum jeder Datei um
+(`find … -user $old_uid -exec chown -h $user:$user`), streift das alte Präfix
+vom Datenbanknamen und setzt das neue davor. Die Konfigurationen werden dabei
+**neu gebaut** und nicht zurückgespielt.
+
+**Plesk kann den alten Namen zurückgeben — aber nicht wegen des besseren
+Rückwegs.** Sein Datenbankpräfix ist einstellbar statt zwingend, und sein
+Systembenutzer lässt sich nachträglich umbenennen. Ist der Name belegt, erfindet
+es einen (`sub_…`), warnt und verweist auf die Umbenennung.
+
+> **Ein Panel, das einen Namen zurückgeben kann, hat dafür nicht den besseren
+> Rückweg — es hat die schwächere Bindung.**
+
+Hier ist beides fest: Das Präfix ist zwingend, und `Names::belongsTo()` setzt es
+im Agenten durch. Form B brächte damit einen zweiten Weg an `system_users` und
+eine Ausnahme von der Regel aus `docs/35` — für genau eine Ersparnis, nämlich
+dass der Kunde seine `wp-config.php` nicht anfassen muss.
+
+> **Eine Ausnahme von einer Regel, die eine frühere Stufe ausdrücklich
+> geschlossen hat, muss mehr einbringen als eine Bequemlichkeit.**
+
+**Und der Fund, der nicht in der Frage stand: Kein Panel sagt dem Kunden, dass
+seine Datenbank jetzt anders heisst.** HestiaCP warnt an derselben Stelle über
+ein fehlendes Passwort und über den Namenswechsel nicht. Damit ist §8 Punkt 6
+kein Komfort, sondern die Stelle, an der sich etwas verbessern lässt — und
+bleibt Ausschlusskriterium.
+
+**Die beiden anderen Entscheidungen des Betreibers bestätigt die Recherche.**
+„Prüfen statt zurückspielen" ist das, was JetBackup als *Integrity Check* führt;
+„daneben und root" vermeidet den Dauerbefund von cPanel, dessen benutzerseitige
+Vollsicherung im Heimatverzeichnis gegen die Quota zählt.
+
+**Was cPanel mehr kann als §5**, und es steht als Vorschlag für später da: Es
+trennt serverweite Ziele des Betreibers von einem **einmaligen** Stoss des
+Kunden, bei dem dessen Zugangsdaten nur für die Dauer der Übertragung leben.
+
+> **Ein Geheimnis, das nur so lange lebt wie die Übertragung, ist kein
+> verwahrtes Geheimnis — und die Frage, wer es verwahren darf, stellt sich dann
+> nicht.**
+
+**Was die Recherche nicht sagt:** Für Plesk, cPanel und DirectAdmin steht hier
+Wissen aus zweiter Hand — der Egress-Proxy lässt ihre Dokumentation nicht durch.
+Gemessen ist allein HestiaCP, und die Tabelle in `docs/117 §3` sagt das je
+Zeile.

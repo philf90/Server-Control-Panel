@@ -146,6 +146,100 @@ wiederverwenden, wenn **alle drei** Bedingungen gelten:
 > Frage „darf dieses Abonnement sie zurückbekommen" — sie beantwortet nicht die
 > Frage, ob es dasselbe Abonnement ist.**
 
+### Was die anderen Panels tun — recherchiert am 16. September 2026
+
+**Die Frage ist nicht neu, und vier Panels beantworten sie verschieden.** Was
+hier steht, ist teils am **Quelltext gemessen** (HestiaCP) und teils aus
+Herstellerdokumentation und Wissensdatenbanken zusammengetragen — die Sperre des
+Egress-Proxys lässt `support.plesk.com`, `docs.plesk.com` und
+`docs.directadmin.com` nicht durch, für sie steht hier also Wissen aus zweiter
+Hand. **Wo das gilt, sagt es die Tabelle**, denn:
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen.**
+
+| | Systembenutzer bei der Wiederherstellung | Datenbankname | Vhost-Datei |
+|---|---|---|---|
+| **cPanel** | behält den Namen; ihn zu **ändern** ist ein eigener, gewarnter Vorgang | trägt den Benutzernamen als Präfix (`user_db`) | aus Vorlage |
+| **Plesk** | nimmt den alten Namen, **wenn er frei ist**; sonst erfindet er einen (`sub_1783193419`), **warnt** und lässt ihn nachträglich ändern | Präfix ist **einstellbar** und nicht zwingend | aus Vorlage |
+| **DirectAdmin** | Wiederherstellung geht in einen **benannten** Benutzer | trägt den Benutzernamen als Präfix | aus Vorlage, über einen Tokenizer — die Doku warnt ausdrücklich davor, die erzeugte Datei zu kopieren |
+| **HestiaCP** *(am Quelltext gemessen)* | **gibt den alten Namen nicht zurück** und **behält die UID nicht** | trägt den Benutzernamen als Präfix und wird **umbenannt** | wird **neu gebaut** (`rebuild_web_domain_conf`) |
+
+**HestiaCP ist der Fall, der sich messen liess**, und sein `bin/v-restore-user`
+tut genau das, was §3 als **Form A** beschreibt:
+
+    old_uid=$(cut -f 3 -d : $tmpdir/pam/passwd)
+    new_uid=$(grep "^$user:" /etc/passwd | cut -f 3 -d :)
+    …
+    # Re-chowning files if uid differs
+    if [ "$old_uid" -ne "$new_uid" ]; then
+        find $HOMEDIR/$user/web/$domain/ -user $old_uid -exec chown -h $user:$user {} \;
+    fi
+    …
+    DB=$(echo "$DB" | sed -e "s/${old_user}_//")
+    DB="${user}_${DB}"
+
+Also: neuer Benutzer, neue UID, **jede Datei umgeschrieben**, und der
+Datenbankname verliert das alte Präfix und bekommt das neue. Dasselbe für den
+FTP-Benutzer und für einen DocumentRoot, der den alten Pfad nannte. Die Konfigurationen
+werden **erzeugt** und nicht zurückgespielt — `rebuild_web_domain_conf`,
+`rebuild_dns_domain_conf`, `rebuild_mysql_database`.
+
+> **Vier Panels, vier Wege — und keines spielt die erzeugte Vhost-Datei
+> zurück.** §4 steht damit nicht allein da; es ist der Konsens.
+
+**Drei Dinge folgen daraus für §3.**
+
+**Erstens: Form A ist erprobt und nicht theoretisch.** HestiaCP fährt sie in
+einem ausgelieferten Panel, und der Handgriff, den sie kostet — das Umschreiben
+des Eigentums nach der Wiederherstellung — steht dort in vier Zeilen.
+
+**Zweitens: Plesk ist näher an Form B, und der Grund ist ein anderer Bau.** Dass
+es den alten Namen zurückgeben *kann*, liegt nicht an einem klügeren
+Wiederherstellen, sondern daran, dass sein Datenbankpräfix **einstellbar** ist
+und der Name des Systembenutzers sich nachträglich **ändern** lässt. Beides gibt
+es hier nicht: Der Präfix ist in SrvPanel zwingend, `Names::belongsTo()` setzt
+ihn im Agenten durch, und `system_users` kennt keine Freigabe.
+
+> **Ein Panel, das einen Namen zurückgeben kann, hat dafür nicht den besseren
+> Rückweg — es hat die schwächere Bindung.**
+
+**Drittens, und das ist der Fund, der nicht in der Frage stand: Kein Panel sagt
+dem Kunden, dass seine Datenbank jetzt anders heisst.** HestiaCP warnt an dieser
+Stelle über ein **fehlendes Passwort** (*„Please use the web interface to set a
+password after the restore process finishes."*) und über den Namenswechsel
+nicht; cPanel überlässt es der Wissensdatenbank; Plesk nennt den neuen
+Systembenutzer in einer Migrationswarnung, die der Kunde nie sieht. Die
+`wp-config.php` bleibt überall stehen, wie sie war.
+
+> **Ein Zustand, den vier Panels gleich schlecht lösen, ist keine
+> Selbstverständlichkeit — er ist die Stelle, an der sich etwas verbessern
+> lässt.**
+
+Deshalb ist **§8 Punkt 6 ein Ausschlusskriterium** und nicht eine
+Bequemlichkeit.
+
+**Und die beiden anderen Entscheidungen des Betreibers bestätigt die Recherche.**
+Entscheidung 1 („prüfen statt zurückspielen") ist das, was JetBackup — die
+verbreitetste Sicherungserweiterung für cPanel, DirectAdmin und Plesk — als
+**Integrity Check** führt: Es prüft die Sicherung und markiert sie als
+*Damaged*, statt sie probeweise einzuspielen. Entscheidung 2 („daneben, root")
+vermeidet genau den Dauerbefund von cPanel, dessen benutzerseitige
+Vollsicherung im Heimatverzeichnis landet und **gegen die Quota zählt** — die
+Empfehlung jeder Wissensdatenbank dazu lautet, sie dort nicht liegen zu lassen.
+
+**Ein Punkt, an dem cPanel mehr anbietet als §5**, und er gehört benannt: Es
+trennt **zwei** Wege nach draussen. Die serverweiten Ziele des Betreibers
+(WHM, *Additional Destinations*) und einen **einmaligen** Stoss des Kunden aus
+dem Sicherungsassistenten, bei dem er seine FTP- oder SCP-Zugangsdaten für genau
+diese eine Übertragung eintippt. Der zweite Weg ist mit Entscheidung 3
+vereinbar, denn **er legt nichts ab**: Das Geheimnis lebt so lange wie die
+Übertragung. Er steht trotzdem nicht in P8 (§10) — aber als Vorschlag für später
+ist er besser als „der Kunde bekommt ein dauerhaftes Ziel".
+
+> **Ein Geheimnis, das nur so lange lebt wie die Übertragung, ist kein
+> verwahrtes Geheimnis — und die Frage, wer es verwahren darf, stellt sich
+> dann nicht.**
+
 ### Was der Plan daraus macht
 
 **§4 bis §7 sind für beide Formen geschrieben.** Sie unterscheiden sich an genau
@@ -153,10 +247,24 @@ zwei Stellen, und die sind unten benannt: dem Schritt, der die Nummer besorgt
 (§6 Schritt 7), und dem, der dem Kunden sagt, was sich geändert hat (§6
 Schritt 8).
 
-**Vorgeschlagen ist B mit A als Rückfall** — B, wenn alle drei Bedingungen
-gelten, sonst A, und in beiden Fällen sagt die Seite vorher, welche der beiden
-es wird. Entschieden ist es nicht: Es ist die einzige Frage dieser Stufe, die
-eine Regel aus einer früheren berührt.
+**Vorgeschlagen ist nach der Recherche vom 16. September: A, und B nicht.**
+Der erste Wurf dieses Plans schlug B mit A als Rückfall vor. Die Panels, die den
+Namen zurückgeben können, tun das nicht, weil sie den besseren Rückweg haben,
+sondern weil ihre Bindung schwächer ist — Plesks Datenbankpräfix ist
+einstellbar, seine Systembenutzer sind umbenennbar. Hier ist beides fest, und
+`Names::belongsTo()` setzt es im Agenten durch.
+
+B brächte damit **einen zweiten Weg an `system_users`** und eine Ausnahme von
+der Regel aus `docs/35`, und beides kaufte genau eine Ersparnis: dass der Kunde
+seine `wp-config.php` nicht anfassen muss. A kostet ihn diese eine Änderung —
+und HestiaCP führt vor, dass ein ausgeliefertes Panel damit auskommt.
+
+> **Eine Ausnahme von einer Regel, die eine frühere Stufe ausdrücklich
+> geschlossen hat, muss mehr einbringen als eine Bequemlichkeit.**
+
+**Entschieden ist es nicht**, und B bleibt beschrieben: Es ist die einzige Frage
+dieser Stufe, die eine Regel aus einer früheren berührt, und wer sie umdreht,
+findet hier die drei Bedingungen, unter denen sie tragen würde.
 
 ---
 

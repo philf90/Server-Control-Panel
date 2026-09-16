@@ -5677,6 +5677,34 @@ Testen berücksichtigen:
   Liste, und npm und Composer fallen mit aus. `/root/.ccr/README.md` sagt zu
   `403` ausdrücklich: nicht wiederholen, nicht umgehen, sondern melden.
 
+  **Und der Ort ist nicht der, an dem man zuerst sucht — das hat am
+  16. September einen Anlauf gekostet.** Unter *claude.ai → Einstellungen →
+  Fähigkeiten* steht „Ausgehenden Netzwerkverkehr erlauben" mit einer
+  **Domain-Zulassungsliste**; auf „Alle Domains" gestellt ändert sich hier
+  **nichts** (gemessen, elf von elf weiter `403`). Dieser Schalter gilt der
+  **Sandbox von claude.ai**, also dem Analysewerkzeug im Chat. Eine
+  Cloud-Sitzung hängt an ihrer **Umgebung**, und `code.claude.com/docs/en/
+  cloud-environments` sagt dazu wörtlich: *„personal environments don't have a
+  separate page in your claude.ai account settings."*
+
+  Gefahren wird sie über die **Umgebungs-Auswahl** (Wolkensymbol) auf
+  `claude.ai/code`: Umgebung bearbeiten → **Network access** → **Custom** →
+  **Allowed domains**. Welche Umgebung diese Sitzung benutzt, sagt
+  `get_session` (hier `env_018PQMU6FfffMwQcgnLPWo69`, Name „Standard",
+  `anthropic_cloud`).
+
+  > **Zwei Schalter mit derselben Beschriftung an zwei Orten sind nicht
+  > derselbe Schalter — und der, den man findet, ist nicht der, der wirkt.**
+
+  **Die Doku dazu ist erreichbar, und das ist der schnellste Weg zur Antwort.**
+  `code.claude.com` kommt durch den Tunnel, während die Herstellerdoku es nicht
+  tut; `WebFetch` auf `/docs/en/cloud-environments` beantwortet die Frage nach
+  Ort und Stufen in einem Aufruf. Zwei Stunden Vermutung hätte ein Abruf
+  erspart.
+
+  > **Eine Sperre, die eine Doku betrifft, betrifft nicht jede Doku — und die
+  > eigene ist die, die sagt, wie man die Sperre löst.**
+
   **Eine Änderung wirkt erst in der nächsten Sitzung.** Die Dokumentation sagt
   das wörtlich für Umgebungsvariablen („sessions already running keep the
   values they started with") und für die Hosts nur mittelbar — eine Änderung

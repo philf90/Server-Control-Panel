@@ -137,6 +137,25 @@ final class Settings
      * meldet. Dass die beiden auseinanderlaufen können, ist kein Versehen,
      * sondern der Grund, aus dem A10 danach fragt.
      */
+    /**
+     * Was der Server von sich aus sichert (P8 Schritt 9 und 10).
+     *
+     * **Beide Schalter stehen aus beziehungsweise an, und beide Vorgaben sind
+     * eine Entscheidung und kein Zufall:**
+     *
+     * - `automatic` ist **aus**. Ein Update, das für jedes Abonnement des
+     *   Servers nächtliche Sicherungen anschaltet, füllt den Datenträger, ohne
+     *   dass jemand danach gefragt hätte.
+     * - `before_removal` ist **an**. Ein Rückbau ist der eine Griff dieses
+     *   Panels, der nichts zurücklässt; die Sicherung davor ist der Unterschied
+     *   zwischen „wiederherstellbar" und „fort".
+     *
+     * > **Der Fehler fällt damit zur sicheren Seite** — einmal heisst das
+     * > „nichts anlegen", einmal „etwas anlegen", und welche Seite die sichere
+     * > ist, entscheidet nicht die Vorgabe, sondern was ohne sie verloren geht.
+     */
+    private const BACKUPS = 'backups';
+
     private const MAINTENANCE = 'maintenance';
 
     /**
@@ -459,6 +478,36 @@ final class Settings
         Setting::query()->updateOrCreate(
             ['key' => self::MAINTENANCE],
             ['value' => ['enabled' => $enabled, 'until' => $until, 'since' => $enabled ? $since : null]],
+        );
+    }
+
+    /**
+     * Was der Server von sich aus sichert.
+     *
+     * @return array{automatic: bool, before_removal: bool}
+     */
+    public function backups(): array
+    {
+        $row = $this->read(self::BACKUPS);
+
+        return [
+            // **`=== true` und nicht `?? false` mit Umweg**: Eine Zeile aus der
+            // Zeit vor diesem Feld trägt gar nichts, und die soll denselben Weg
+            // nehmen wie ein ausdrückliches Nein.
+            'automatic' => ($row['automatic'] ?? false) === true,
+
+            // Und hier andersherum: Fehlt die Angabe, gilt **an**. Eine
+            // bestehende Installation, die dieses Feld nie gesehen hat, soll
+            // nach dem Update sichern und nicht schweigen.
+            'before_removal' => ($row['before_removal'] ?? true) === true,
+        ];
+    }
+
+    public function saveBackups(bool $automatic, bool $beforeRemoval): void
+    {
+        Setting::query()->updateOrCreate(
+            ['key' => self::BACKUPS],
+            ['value' => ['automatic' => $automatic, 'before_removal' => $beforeRemoval]],
         );
     }
 

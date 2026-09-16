@@ -15,8 +15,10 @@ use App\Models\Operation;
 use App\Models\Subscription;
 use App\Models\SystemUser;
 use App\Support\Databases\Dumps;
+use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use RuntimeException;
 use SrvPanel\Agent\Backup\Store;
 
@@ -47,6 +49,7 @@ final class Backups
         private readonly Tenancy $tenancy,
         private readonly Dumps $dumps,
         private readonly Description $description,
+        private readonly Settings $settings,
     ) {}
 
     /**
@@ -176,6 +179,88 @@ final class Backups
     }
 
     /**
+     * Die Sicherung vor einem Rückbau (`docs/117 §6` Schritt 10).
+     *
+     * ## Warum ausgerechnet vor dem Löschen und nicht vor jedem Griff
+     *
+     * `docs/20 §9` nennt drei riskante Handlungen — Löschen, PHP-Wechsel,
+     * Wiederherstellung. Gebaut ist die **erste**, und die beiden anderen
+     * stehen mit ihrem Grund in `docs/117 §16` statt stillschweigend zu fehlen:
+     * Ein PHP-Wechsel ist durch einen zweiten Wechsel zurückzunehmen, und eine
+     * Wiederherstellung legt in Form A ein **neues** Abonnement an und
+     * überschreibt nichts. Ein Rückbau ist der eine Griff dieses Panels, der
+     * nichts zurücklässt.
+     *
+     * > **Eine Vorsichtsmassnahme vor jedem Griff ist keine Vorsicht, sondern
+     * > eine Gewohnheit — und sie wird als Erstes abgeschaltet, wenn sie
+     * > stört.**
+     *
+     * ## Sie trägt nur, weil die Zeile den Rückbau überlebt
+     *
+     * `backups.subscription_id` steht auf `nullOnDelete`, und der Kopf der
+     * Migration sagt es wörtlich: *„Die Sicherung überlebt ihr Abonnement."*
+     * Ohne das wäre diese Sicherung in derselben Sekunde fort, in der sie
+     * gebraucht würde.
+     *
+     * ## Und kein zweiter Weg
+     *
+     * Es ist ein Aufruf von {@see self::create()} und keine eigene Mechanik —
+     * dieselbe Kette, dieselbe Reihenfolge, dieselbe Warteschlange. Weil
+     * `queue:work` einspurig ist und die Datenbank-Warteschlange FIFO liefert,
+     * läuft sie fertig, **bevor** `subscription.remove` das Verzeichnis
+     * abräumt.
+     *
+     * `null`, wenn der Betreiber sie abgeschaltet hat oder das Abonnement
+     * nichts hat, was zu sichern wäre.
+     */
+    public function beforeRemoval(Subscription $subscription): ?Backup
+    {
+        if ($this->settings->backups()['before_removal'] !== true) {
+            return null;
+        }
+
+        /*
+         * **Ohne die Funktion des Plans, und das ist Absicht.**
+         * {@see Feature::Backups} entscheidet, ob der **Kunde** sichern darf.
+         * Hier sichert der Betreiber, bevor er etwas unwiederbringlich
+         * entfernt — eine Frage an den Plan wäre die falsche.
+         *
+         * > **Eine Vorsichtsmassnahme, die der Tarif abschalten kann, schützt
+         * > den Betreiber nicht vor seinem eigenen Griff.**
+         *
+         * Was zählt, ist, ob es überhaupt ein Verzeichnis gibt: Ein Abonnement,
+         * das noch angelegt wird, hat keines, und eine Sicherung davon wäre ein
+         * Vorgang, der an einem fehlenden Pfad scheitert.
+         */
+        if (! $this->hasDirectory($subscription)) {
+            return null;
+        }
+
+        return $this->create($subscription);
+    }
+
+    /**
+     * Gibt es überhaupt ein Verzeichnis, das sich sichern liesse?
+     *
+     * **Eine Frage an einer Stelle und nicht an zweien.** Sie stand zuerst nur
+     * hier im Rückbau; der nächtliche Lauf aus Schritt 9 hat sie nicht gestellt
+     * und hätte für ein Abonnement ohne Systembenutzer jede Nacht einen Vorgang
+     * angelegt, der an einem fehlenden Pfad scheitert — und das Kommando
+     * meldete dafür jede Nacht einen Fehlschlag.
+     *
+     * > **Ein Fehler, den man an einer Stelle vermieden hat, ist an der
+     * > nächsten wieder da, wenn die Vermeidung nicht die Regel wurde.**
+     *
+     * Der Name des Systembenutzers ist die Frage und nicht sein Dasein auf der
+     * Platte: Das Verzeichnis gehört dem Agenten, und das Panel kennt nur den
+     * Namen, unter dem es angelegt wurde.
+     */
+    public function hasDirectory(Subscription $subscription): bool
+    {
+        return $subscription->system_user !== null && $subscription->system_user !== '';
+    }
+
+    /**
      * Eine Sicherung entfernen.
      *
      * **Die Zeile bleibt, bis der Agent geantwortet hat** — die zweite Grenze.
@@ -184,20 +269,60 @@ final class Backups
      */
     public function remove(Backup $backup): void
     {
-        $subscription = $backup->subscription;
+        /*
+         * **Ohne Mandantenklammer gefragt, und das ist eine Berichtigung vom
+         * 16. September 2026.**
+         *
+         * Hier stand `$backup->subscription` — eine faul geladene Beziehung,
+         * und die nimmt die Klammer. Aus einem Aufruf **ohne angemeldetes
+         * Konto** (der nächtliche Lauf der Aufbewahrung, Schritt 9) kam
+         * deshalb immer `null` zurück, und die Zeile ging den Zweig darunter:
+         * gelöscht, ohne den Agenten zu fragen. Die **Datei** wäre
+         * liegengeblieben, jede Nacht eine mehr.
+         *
+         * > **Eine Frage, die im Grundzustand alles verweigert, antwortet mit
+         * > einer leeren Liste und nicht mit einem Fehler.** (`docs/78`)
+         */
+        $subscription = $this->tenancy->withoutRestriction(
+            static fn (): ?Subscription => $backup->subscription()->first(),
+        );
 
-        if ($subscription === null) {
-            // Ein zurückgebautes Abonnement hat sein ganzes Verzeichnis
-            // verloren; die Zeile beschreibt eine Datei, die es nicht mehr
-            // gibt. Sie geht ohne Umweg über den Agenten.
+        if ($subscription !== null) {
+            $this->dispatch('backup.remove', $subscription, [
+                'storage' => $backup->storage_name,
+            ], 'Sicherung wird entfernt', $backup);
+
+            return;
+        }
+
+        /*
+         * **Und ohne Abonnement geht sie trotzdem über den Agenten.**
+         *
+         * Hier stand, ein zurückgebautes Abonnement habe „sein ganzes
+         * Verzeichnis verloren" und die Zeile beschreibe eine Datei, die es
+         * nicht mehr gibt. Das ist falsch, und der Kopf der Migration sagt es:
+         * `/var/lib/srvpanel/backups/<abo>` liegt ausserhalb von allem, was
+         * `subscription.remove` anfasst — *„Die Sicherung überlebt ihr
+         * Abonnement."* Ein `delete()` hier hinterliesse genau den Rest, vor
+         * dem `docs/117 §9` Punkt 7 warnt: eine Datei, die in keiner Liste
+         * steht.
+         *
+         * Der Name kommt aus der **Abschrift** auf der Zeile — er ist ja gerade
+         * das, was man nach einem Rückbau noch hat.
+         */
+        $name = (string) $backup->subscription_name;
+
+        if ($name === '') {
+            // Ohne Namen gibt es keinen Pfad und damit keine Frage, die der
+            // Agent beantworten könnte. Die Zeile beschreibt nichts Auffindbares.
             $backup->delete();
 
             return;
         }
 
-        $this->dispatch('backup.remove', $subscription, [
+        $this->dispatch('backup.remove', null, [
             'storage' => $backup->storage_name,
-        ], 'Sicherung wird entfernt', $backup);
+        ], 'Sicherung wird entfernt', $backup, $name);
     }
 
     /**
@@ -229,13 +354,37 @@ final class Backups
      */
     private function dispatch(
         string $task,
-        Subscription $subscription,
+        ?Subscription $subscription,
         array $payload,
         string $message,
         ?Backup $backup = null,
+        ?string $name = null,
     ): Operation {
+        /*
+         * **Ohne Abonnement muss der Name da sein — und zwar laut.**
+         *
+         * Ein Rückfall auf die leere Zeichenkette wäre der Fehler aus
+         * `docs/108`: Der Agent bekäme einen Pfad, der auf das Wurzelverzeichnis
+         * der Sicherungen zeigt, und die Meldung spräche von einem Abonnement
+         * ohne Namen.
+         *
+         * > **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine
+         * > falsche Auskunft.**
+         */
+        $abonnement = $subscription !== null ? (string) $subscription->name : (string) $name;
+
+        if ($abonnement === '') {
+            throw new InvalidArgumentException('Ein Vorgang der Sicherungen braucht den Namen seines Abonnements.');
+        }
+
         $operation = Operation::query()->create([
-            'subscription_id' => $subscription->id,
+            /*
+             * **`null` ist zulässig, und es ist der Fall, für den `docs/35` die
+             * Spalte nullable gemacht hat.** Eine Sicherung überlebt ihr
+             * Abonnement; ihr Entfernen ist danach ein Vorgang ohne Abonnement
+             * und keiner ohne Gegenstand.
+             */
+            'subscription_id' => $subscription?->id,
 
             /*
              * **Der Gegenstand, seit die Seite existiert.** Bis Schritt 5 stand
@@ -250,8 +399,15 @@ final class Backups
 
             'type' => $task,
             'task' => $task,
+            /*
+             * **Der Name kommt aus dem Abonnement, solange es eines gibt, und
+             * sonst aus der Abschrift auf der Zeile.** Beides ist derselbe
+             * Name; die Abschrift ist das, was nach einem Rückbau davon bleibt
+             * (`subscription_name`, seit `docs/35`). Der Agent bekommt hier
+             * ohnehin nur eine Zeichenkette und keine Zeile.
+             */
             'payload' => array_merge([
-                'subscription' => (string) $subscription->name,
+                'subscription' => $abonnement,
             ], $payload),
             'status' => OperationStatus::Queued,
             'progress' => 0,

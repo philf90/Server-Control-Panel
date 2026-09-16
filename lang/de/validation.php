@@ -180,6 +180,21 @@ return [
         'api_key' => 'API-Schlüssel',
         'api_password' => 'API-Passwort',
         'argument' => 'Argument',
+
+        /*
+         * Die beiden Schalter der Sicherungsseite (P8 Schritte 9 und 10).
+         * Sie tragen **die Überschrift ihres Bereichs** und nicht den Satz
+         * am Kästchen: „Das Feld Jede Nacht eine Sicherung je Abonnement
+         * anlegen muss wahr oder falsch sein" wäre ein Satz in einem Satz.
+         * Die Überschrift steht sichtbar darüber und ist das, wonach
+         * jemand auf der Seite sucht.
+         *
+         * > **Ein Wächter über die Vollständigkeit sagt nichts über die
+         * > Richtigkeit.** (`docs/66`)
+         */
+        'automatic' => 'Nächtlich sichern',
+        'before_removal' => 'Vor dem Rückbau sichern',
+
         'certificate' => 'Zertifikat',
         'cidr' => 'Netz',
         'city' => 'Ort',

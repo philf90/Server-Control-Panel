@@ -217,7 +217,25 @@ final class NavGroupTest extends TestCase
         $betrieb = array_filter($eintraege, static fn (array $e): bool => $e['gruppe'] === 'Betrieb');
         $verlauf = array_filter($eintraege, static fn (array $e): bool => $e['gruppe'] === 'Verlauf');
 
-        $this->assertCount(7, $einstellungen, 'Die Gruppe „Einstellungen" trägt sieben Punkte.');
+        /*
+         * **Acht seit dem 16. September 2026** — „Sicherungen" (P8 Schritt 9)
+         * steht neben dem Datenbankserver: was der Server von sich aus sichert
+         * und was beim Rückbau geschieht.
+         *
+         * Damit ist die Gruppe an der Grenze, die
+         * {@see self::test_no_group_grows_back_into_a_pot()} setzt, und dieser
+         * Halt ist der Ort, an dem das einmal entschieden gehört: Sie bleibt
+         * eine Gruppe, weil jeder ihrer Punkte dieselbe Frage beantwortet —
+         * *„wie ist dieser Server eingestellt"*. „Betrieb" war bei neun keine
+         * mehr, weil dort zwei Fragen standen: was **ist** und was **war**.
+         *
+         * > **Eine Gruppe ist zu gross, wenn sie zwei Fragen beantwortet — und
+         * > nicht, wenn sie viele Punkte hat.**
+         *
+         * Der nächste Punkt hier bricht die Obergrenze und erzwingt die
+         * Teilung. Das ist Absicht und keine Härte.
+         */
+        $this->assertCount(8, $einstellungen, 'Die Gruppe „Einstellungen" trägt acht Punkte.');
 
         /*
          * **Sechs und drei seit dem 5. September 2026.** „Betrieb" trug acht und

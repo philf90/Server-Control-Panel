@@ -29011,3 +29011,120 @@ muss. Fünf neue Eingriffe im Bruchskript, jeder einzeln belegt.
 ganze Weg ist nie auf einem Server gefahren, Punkt 5 des Abnahmekriteriums
 braucht nginx und einen Nachtlauf, und eine Wiederherstellung, die auf halbem Weg
 scheitert, räumt nicht auf — sie sagt in ihrem Ergebnis, was misslungen ist.
+
+### P8 Schritt 9 und 10 — Aufbewahrung, Zeitplan und der Griff davor
+
+Wie viele Sicherungen bleiben, steht als **Kontingent im Plan**
+(`Quota::Backups`) — je Plan gesetzt, je Abonnement übersteuerbar, wie die
+Domains und die Datenbanken. Unbegrenzt darf es nicht sein, und der Wächter hat
+den Grund erzwungen: Er ist rot geblieben, bis er danebenstand.
+
+> **Eine Aufbewahrung ohne Obergrenze ist keine Aufbewahrung, sondern ein
+> Wachstum.**
+
+`srvpanel-backups.timer` fährt nächtlich. Er **räumt immer ab** — die
+Aufbewahrungszahl gilt auch für Stände, die ein Kunde von Hand angelegt hat —
+und **legt nur an, wenn der Betreiber es eingeschaltet hat**: Ein Update, das
+für jedes Abonnement nächtliche Sicherungen anschaltet, füllt den Datenträger,
+ohne dass jemand gefragt hätte. Beide Schalter stehen auf `/settings/backups`.
+
+**Der grösste Fund liegt in Code aus Schritt 3+4.** `Backups::remove()` las
+`$backup->subscription` — eine faul geladene Beziehung, und die nimmt die
+Mandantenklammer. Aus dem nächtlichen Lauf, der kein angemeldetes Konto hat, kam
+immer `null`, und die Zeile ging den Zweig „ohne Umweg über den Agenten":
+gelöscht, und die **Datei** liegengeblieben. Jede Nacht eine mehr.
+
+> **Eine Frage, die im Grundzustand alles verweigert, antwortet mit einer leeren
+> Liste und nicht mit einem Fehler.**
+
+Der Kommentar daneben war ebenfalls falsch — er behauptete, ein zurückgebautes
+Abonnement habe sein Verzeichnis verloren. Der Kopf der Migration sagt das
+Gegenteil: `/var/lib/srvpanel/backups/<abo>` liegt ausserhalb von allem, was
+`subscription.remove` anfasst. Eine Sicherung ohne Abonnement geht seitdem
+trotzdem über den Agenten, mit dem abgeschriebenen Namen.
+
+**Der Zeitplan fragt das Alter und nicht den Kalender**, und das Fälligkeitsfenster
+ist 20 Stunden und nicht 24: Mit zwei Stunden Streuung liegen zwei Läufe zwischen
+22 und 26 Stunden auseinander, und bei 24 fiele jeder Lauf aus, den die Streuung
+nach vorn zieht — still.
+
+> **Ein Fälligkeitsfenster, das so gross ist wie der Takt, verliert jeden Lauf,
+> den die Streuung nach vorn zieht.**
+
+Der Wächter rechnet das **aus der Unit-Datei** nach.
+
+**Schritt 10 sichert vor dem Rückbau und sonst nirgends.** Die beiden anderen
+riskanten Handlungen aus `docs/20 §9` stehen mit ihrem Grund in `docs/117 §16`:
+Ein PHP-Wechsel ist durch einen zweiten zurückzunehmen, und eine
+Wiederherstellung legt in Form A ein neues Abonnement an und überschreibt nichts.
+
+> **Eine Vorsichtsmassnahme vor jedem Griff ist keine Vorsicht, sondern eine
+> Gewohnheit — und sie wird als Erstes abgeschaltet, wenn sie stört.**
+
+Sie fragt den Plan ausdrücklich **nicht**: `Feature::Backups` entscheidet, ob der
+Kunde sichern darf; hier sichert der Betreiber, bevor er etwas unwiederbringlich
+entfernt. Und sie trägt nur, weil die Zeile den Rückbau überlebt.
+
+**`BackupReachTest` hält, dass jede Art aus `docs/117 §4` einen Weg hat** — und
+benennt die beiden, die keinen haben: der private Schlüssel eines hochgeladenen
+Zertifikats (er gehört hinein, damit trüge eine Sicherung erstmals ein Geheimnis,
+gebaut ist es nicht) und die Datenbankpasswörter (die stehen nirgends). Er misst
+dazu, dass der Ablageort der Zertifikate **wirklich** ausserhalb des Kundenbaums
+liegt — sonst wäre die Ausnahme eine Zeile, die man auch dann noch läse, wenn der
+Schlüssel längst in jeder heruntergeladenen Sicherung stünde.
+
+**Und die Behebung davon war beim ersten Wurf eine zweite Fassung derselben
+Regel:** eine eigene anlegende Methode für den Fall ohne Abonnement, vier Zeilen
+unter der gemeinsamen. Aufgefallen ist es an dem Feld, das die beiden verschieden
+gefüllt haben — `account_id` setzte nur die neue, und dieselbe Handlung hätte auf
+`/audit` je nach Bestand des Abonnements einmal einen Namen und einmal „System"
+ergeben.
+
+> **Zwei Stellen, die dasselbe anlegen, unterscheiden sich zuerst an dem Feld, an
+> das beim Schreiben der zweiten niemand gedacht hat.**
+
+Es legt jetzt **eine** Stelle an, und der fehlende Name ist kein Rückfall,
+sondern ein Wurf.
+
+**Die Bilderrunde hat einen Fehler gefunden, für den es keine Zahl gibt.** Alle
+vier Lagen der Einstellungsseite meldeten `dokument = 0`, Gegenprobe 200/200,
+nichts schiebt — und bei 1440 px stand „Speichern" oben rechts neben einer
+Bereichsüberschrift statt unter dem Formular. Die Knopfreihe war ein direktes
+Kind von `.sections`, und nur `.form > .button-row` trägt `flex-basis: 100%`:
+Die Regel gilt nach dem Elternteil und nicht nach der Klasse.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+Dieselbe Regel stand seit P7 als Kommentar in `Settings/Tls.vue`, wo sie an
+einem fehlenden Abstand bezahlt worden war. `ButtonRowPlacementTest` hält sie
+jetzt, samt ihrer Voraussetzung.
+
+**Und sein Leser hat dabei einen Fehler freigelegt, den es seit P6 gibt.**
+`link` steht in der Liste der leeren HTML-Elemente, weil `<link>` kein Ende hat
+— Inertias `<Link>` ist eine Komponente mit Inhalt und Ende, und der Leser
+wandelte den Namen um, bevor er fragte. Ab der ersten `<Link>` verschob sich sein
+Stapel um eins. Gemessen an der Bilanz: von 82 Vorlagen endeten **23** ungleich
+null, mit der Berichtigung keine einzige. `TemplateSpacingTest` trägt denselben
+Leser und war die ganze Zeit grün.
+
+> **Eine Liste leerer HTML-Elemente trifft eine Komponente, die zufällig so
+> heisst — und Vue unterscheidet die beiden allein an der Grossschreibung.**
+
+Die Prüfung, die das sofort gemeldet hätte, steht jetzt daneben: Jede Vorlage
+muss mit einem leeren Stapel enden.
+
+Zwölf neue Eingriffe im Bruchskript, jeder einzeln belegt.
+
+**Und drei bestehende Wächter haben am Schluss zugebissen**, alle an der neuen
+Einstellungsseite: ein `back()` statt eines benannten Ziels, zwei Felder ohne
+deutschen Namen — und dann `AttributeLabelTest`, der den frisch eingetragenen
+Namen gegen die **sichtbare** Beschriftung gehalten hat. Neben den Kästchen steht
+ein ganzer Satz („Jede Nacht eine Sicherung je Abonnement anlegen"); eingesetzt
+ergäbe er einen Satz in einem Satz. Genommen ist die **Überschrift des
+Bereichs** — sie steht sichtbar darüber und ist ein Name.
+
+> **Ein Wächter über die Vollständigkeit sagt nichts über die Richtigkeit.**
+
+Entschieden hat das nicht das Nachdenken, sondern der Wächter: Seine Meldung
+nennt beide Ausgänge, und seine Ausnahmeliste trug denselben Fall schon dreimal.

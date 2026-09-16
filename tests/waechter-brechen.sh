@@ -29637,6 +29637,261 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupFormTest passed
 
 echo
+echo "── BackupRetentionTest: die Zeile geht ohne den Agenten ──"
+#
+# **Der Fund aus Schritt 9.** `$backup->subscription` ist eine faul geladene
+# Beziehung und nimmt die Mandantenklammer; aus dem naechtlichen Lauf, der kein
+# angemeldetes Konto hat, kommt sie immer `null`. Die Zeile ginge dann fort und
+# die Datei bliebe liegen — jede Nacht eine mehr.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $name = (string) $backup->subscription_name;
+
+        if ($name === '') {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        $name = '';
+
+        if ($name === '') {""", 1))
+PY2
+griff_datei app/Support/Backups/Backups.php "verwaiste Zeile ohne Agenten" &&
+pruefe "verwaiste Zeile ohne Agenten" \
+  BackupRetentionTest::test_a_backup_without_a_subscription_still_goes_through_the_agent failed
+wiederherstellen
+
+echo
+echo "── BackupRetentionTest: die Aufbewahrung raeumt von der falschen Seite ──"
+#
+# `orderByDesc` haelt die juengsten. Andersherum ginge genau das fort, was man
+# behalten will — und der Kunde merkt es an dem Tag, an dem er es braucht.
+vorher_datei app/Support/Backups/Retention.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Retention.php'
+s = open(p, encoding='utf-8').read()
+alt = "                ->orderByDesc('id')\n                ->skip($behalten)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                ->orderBy('id')\n                ->skip($behalten)", 1))
+PY2
+griff_datei app/Support/Backups/Retention.php "von der falschen Seite abgeraeumt" &&
+pruefe "von der falschen Seite abgeraeumt" \
+  BackupRetentionTest::test_the_oldest_go_and_the_newest_stay failed
+wiederherstellen
+
+echo
+echo "── BackupRetentionTest: ohne Zahl wird alles abgeraeumt ──"
+#
+# `null` heisst „keine Regel, die greifen kann" und nicht „null Staende". Ein
+# zurueckgebautes Abonnement hat keinen Plan mehr — und seine Sicherung ist
+# gerade das, was man dann noch hat.
+vorher_datei app/Support/Backups/Retention.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Retention.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if ($behalten === null) {
+            return [];
+        }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        $behalten ??= 0;", 1))
+PY2
+griff_datei app/Support/Backups/Retention.php "ohne Zahl alles abgeraeumt" &&
+pruefe "ohne Zahl alles abgeraeumt" \
+  BackupRetentionTest::test_without_a_number_nothing_is_pruned failed
+wiederherstellen
+
+echo
+echo "── BackupRetentionTest: die laufende Sicherung wird mitgeraeumt ──"
+#
+# Sie ist eine halbe Datei; sie zu entfernen hiesse, dem laufenden Vorgang das
+# Ziel unter den Haenden wegzunehmen.
+vorher_datei app/Support/Backups/Retention.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Retention.php'
+s = open(p, encoding='utf-8').read()
+alt = "                ->where('status', BackupStatus::Ready->value)\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Backups/Retention.php "laufende Sicherung mitgeraeumt" &&
+pruefe "laufende Sicherung mitgeraeumt" \
+  BackupRetentionTest::test_a_running_backup_is_left_alone failed
+wiederherstellen
+
+echo
+echo "── BackupRetentionTest: das Faelligkeitsfenster ist so gross wie der Takt ──"
+#
+# Zwei Laeufe liegen mit zwei Stunden Streuung zwischen 22 und 26 Stunden
+# auseinander. Ein Fenster von 24 verliert jeden Lauf, den die Streuung nach
+# vorn zieht — still, denn es entsteht einfach keine Sicherung.
+vorher_datei app/Console/Commands/RunBackups.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/RunBackups.php'
+s = open(p, encoding='utf-8').read()
+alt = 'private const DUE_AFTER_HOURS = 20;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'private const DUE_AFTER_HOURS = 24;', 1))
+PY2
+griff_datei app/Console/Commands/RunBackups.php "Fenster so gross wie der Takt" &&
+pruefe "Fenster so gross wie der Takt" \
+  BackupRetentionTest::test_the_due_window_survives_the_timer_jitter failed
+wiederherstellen
+
+echo
+echo "── BackupRetentionTest: der Rueckbau sichert nicht mehr vorher ──"
+#
+# Ein Rueckbau ist der eine Griff dieses Panels, der nichts zuruecklaesst.
+vorher_datei app/Http/Controllers/SubscriptionController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/SubscriptionController.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $backups->beforeRemoval($subscription);\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/SubscriptionController.php "Rueckbau ohne Sicherung" &&
+pruefe "Rueckbau ohne Sicherung" \
+  BackupReachTest::test_a_removal_is_preceded_by_a_backup failed
+wiederherstellen
+
+echo
+echo "── BackupRetentionTest: der Schalter entscheidet nichts ──"
+#
+# Ohne ihn waere die Vorgabe ein Wert, den niemand gewaehlt hat — und die
+# Gegenprobe zum Fall darueber faellt aus.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($this->settings->backups()['before_removal'] !== true) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        if (false) {', 1))
+PY2
+griff_datei app/Support/Backups/Backups.php "Schalter entscheidet nichts" &&
+pruefe "Schalter entscheidet nichts" \
+  BackupRetentionTest::test_the_operator_can_switch_it_off failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupRetentionTest passed
+
+echo
+echo "── BackupRetentionTest: der naechtliche Lauf verliert sein Abonnement ──"
+#
+# **Die zweite Haelfte des Fundes aus Schritt 9.** Die Beziehung ist faul
+# geladen und nimmt die Mandantenklammer; der Nachtlauf hat kein angemeldetes
+# Konto. Ohne die Klammer haengt der Vorgang an keinem Abonnement — der Agent
+# entfernt die Datei zu Recht, und niemand findet den Vorgang danach wieder.
+#
+# Der Eingriff daneben ("verwaiste Zeile ohne Agenten") faengt diesen Fall
+# nicht: Dort ist das Abonnement wirklich fort, und dann antwortet die Frage
+# mit und ohne Klammer gleich.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $subscription = $this->tenancy->withoutRestriction(
+            static fn (): ?Subscription => $backup->subscription()->first(),
+        );"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, '        $subscription = $backup->subscription()->first();', 1)
+)
+PY2
+griff_datei app/Support/Backups/Backups.php "Nachtlauf ohne Abonnement" &&
+pruefe "Nachtlauf ohne Abonnement" \
+  BackupRetentionTest::test_the_oldest_go_and_the_newest_stay failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupRetentionTest passed
+
+echo
+echo "── BackupRetentionTest: der Nachtlauf fragt nicht nach dem Verzeichnis ──"
+#
+# Die Frage stand zuerst nur im Rueckbau. Fuer ein aktives Abonnement ohne
+# Systembenutzer legte der Lauf sonst jede Nacht einen Vorgang an, der an einem
+# fehlenden Pfad scheitert — und meldete jede Nacht einen Fehlschlag.
+vorher_datei app/Console/Commands/RunBackups.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/RunBackups.php'
+s = open(p, encoding='utf-8').read()
+alt = '        return $backups->hasDirectory($subscription);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        return true;', 1))
+PY2
+griff_datei app/Console/Commands/RunBackups.php "Nachtlauf ohne Verzeichnisfrage" &&
+pruefe "Nachtlauf ohne Verzeichnisfrage" \
+  BackupRetentionTest::test_the_nightly_run_skips_a_subscription_without_a_directory failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupRetentionTest passed
+
+echo
+echo "── ButtonRowPlacementTest: die Knopfreihe zieht ins Raster ──"
+#
+# Bei 1440 px laeuft sie dann als weiteres Flexkind neben den Bereichen mit —
+# "Speichern" steht oben rechts neben einer Ueberschrift statt unter dem
+# Formular. Keine Zahl beschwert sich: dokument = 0, nichts schiebt.
+vorher_datei resources/js/Pages/Settings/Backups.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Backups.vue'
+s = open(p, encoding='utf-8').read()
+alt = """        </Section>
+      </div>
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "        </Section>\n", 1)
+alt2 = """      </div>
+    </form>"""
+assert s.count(alt2) == 1, 'Zweite Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt2, """      </div>
+      </div>
+    </form>""", 1))
+PY2
+griff_datei resources/js/Pages/Settings/Backups.vue "Knopfreihe im Raster" &&
+pruefe "Knopfreihe im Raster" \
+  ButtonRowPlacementTest::test_no_button_row_is_a_direct_child_of_the_sections_wrapper failed
+wiederherstellen
+
+echo
+echo "── ButtonRowPlacementTest: der Leser haelt <Link> fuer <link> ──"
+#
+# Vue trennt Komponente und Element an der Grossschreibung. Kleingeschrieben
+# faellt Inertias <Link> in die Liste der leeren Elemente, und ab der ersten
+# steht jeder Elternteil daneben — gemessen 23 von 82 Vorlagen.
+vorher_datei tests/Feature/ButtonRowPlacementTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/ButtonRowPlacementTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $name = $tag[2];
+            $leer = $name === strtolower($name) && in_array($name, self::VOID, true);"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            $name = strtolower($tag[2]);
+            $leer = in_array($name, self::VOID, true);""", 1))
+PY2
+griff_datei tests/Feature/ButtonRowPlacementTest.php "Leser verliert den Faden" &&
+pruefe "Leser verliert den Faden" \
+  ButtonRowPlacementTest::test_the_reader_keeps_track failed
+wiederherstellen
+
+echo
+echo "── ButtonRowPlacementTest: die Voraussetzung faellt weg ──"
+#
+# Nur `.form > .button-row` gibt der Reihe ihre eigene Zeile. Ohne diese Zeile
+# sagt die Stelle im Baum nichts mehr ueber die Anzeige — und der Waechter
+# prueft eine Regel ohne Gegenstand.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = """.form > .button-row {
+  flex-basis: 100%;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """.form > .button-row {
+  flex-basis: auto;""", 1))
+PY2
+griff_datei resources/css/app.css "Voraussetzung faellt weg" &&
+pruefe "Voraussetzung faellt weg" \
+  ButtonRowPlacementTest::test_the_premise_of_this_guard_holds failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ButtonRowPlacementTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

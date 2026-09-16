@@ -1,0 +1,53 @@
+[Unit]
+Description=SrvPanel — fällige Sicherungen anlegen und abräumen
+Documentation=https://repo.cloudsrv24.de/
+After=srvpanel-agentd.service
+Requires=srvpanel-agentd.service
+
+[Service]
+# Type=oneshot und kein Restart: Der Timer startet den nächsten Lauf.
+Type=oneshot
+User=srvpanel
+Group=srvpanel
+WorkingDirectory=/opt/srvpanel/current
+ExecStart=/opt/srvpanel/bin/php artisan srvpanel:backups
+
+# **Eine halbe Stunde, und der Lauf braucht sie nicht.**
+#
+# Dieses Kommando **reiht ein** und sichert nicht selbst: `Backups::create()`
+# legt je Datenbank einen Dump-Vorgang und dann `backup.create` in die
+# Warteschlange, und `srvpanel-worker` arbeitet sie einspurig ab. Der Lauf hier
+# ist damit eine Schleife über die Abonnements und ein paar Einfügungen.
+#
+# Die eigentliche Arbeit kann danach Stunden dauern — sie steht als Vorgang da,
+# mit Fortschritt, und nicht als hängende Unit.
+#
+#   Ein Zeitgeber, der die Arbeit selbst tut, ist so lange blockiert wie die
+#   Arbeit dauert — und wer nachsieht, findet eine Unit in `activating` und
+#   keine Auskunft.
+#
+# Ein `Type=oneshot` **ohne** eigene Angabe läuft ohne Frist — gemessen am
+# 22. August 2026 auf cloudsrv24: `TimeoutStartUSec=infinity` (`docs/74`,
+# Befund 4). `OneshotDeadlineTest` rechnet nach, dass sie unter dem Takt liegt.
+TimeoutStartSec=1800
+
+# Dieser Lauf liest den Bestand, fragt den Agenten und schreibt in die
+# Datenbank. Die Archive fasst er nicht an — das tut `backup.create` im Agenten,
+# und nur der darf es: `/var/lib/srvpanel/backups` gehört root.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/srvpanel /var/log/srvpanel
+
+MemoryMax=192M
+TasksMax=32

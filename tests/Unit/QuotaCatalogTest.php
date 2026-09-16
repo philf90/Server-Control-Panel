@@ -90,6 +90,16 @@ final class QuotaCatalogTest extends TestCase
         // belegen; eine unbegrenzte Hochladegröße füllt Datenträger und
         // Speicher zugleich; ein Skript ohne Laufzeitgrenze hält einen der
         // gedeckelten FPM-Plätze, bis jemand nachsieht.
+        //
+        // **Und die Aufbewahrung der Sicherungen, seit P8 Schritt 9.** Eine
+        // Sicherung ist das Grösste, was dieses Panel je Abonnement auf die
+        // Platte schreibt — der ganze Kundenbaum plus seine Datenbanken.
+        // „Unbegrenzt" hiesse, dass ein einziges Abonnement den Datenträger
+        // füllt und jedes andere mitnimmt; das ist wörtlich die Begründung
+        // über `disk_mb`, nur an einer Datei, die das Panel selbst anlegt.
+        //
+        //   Eine Aufbewahrung ohne Obergrenze ist keine Aufbewahrung, sondern
+        //   ein Wachstum.
         $bounded = array_values(array_filter(
             Quota::cases(),
             static fn (Quota $quota): bool => ! $quota->allowsUnlimited(),
@@ -97,6 +107,7 @@ final class QuotaCatalogTest extends TestCase
 
         $this->assertSame([
             Quota::DiskMb,
+            Quota::Backups,
             Quota::FpmProcesses,
             Quota::PhpMemoryMb,
             Quota::PhpUploadMb,

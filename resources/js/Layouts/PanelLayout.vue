@@ -586,6 +586,14 @@ const navigation = computed<{ group: string | null; items: NavItem[] }[]>(() => 
        * anzudeuten, den die Gruppe schon macht.
        */
       { name: 'Datenbankserver', href: '/settings/database', icon: 'databases', ability: 'operate-server' },
+      /*
+       * **Dasselbe Zeichen wie „Sicherungen", und aus demselben Grund wie beim
+       * Datenbankserver:** Die beiden Einträge stehen in verschiedenen Gruppen
+       * — „Verwaltung" führt zu den Sicherungen der Kunden, „Einstellungen" zu
+       * der Frage, was der Server von sich aus sichert.
+       */
+      { name: 'Sicherungen', href: '/settings/backups', icon: 'backups', ability: 'operate-server' },
+
       { name: 'Mailversand', href: '/settings/mail', icon: 'mail', ability: 'operate-server' },
       { name: 'Zertifikat', href: '/settings/tls', icon: 'tls', ability: 'operate-server' },
       { name: 'DNS-Zugang', href: '/settings/dns', icon: 'dns', ability: 'operate-server' },

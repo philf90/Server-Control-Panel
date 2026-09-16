@@ -1583,3 +1583,378 @@ einer zweiten Fassung — ohne Konto, ohne Quota, ohne Schema.
   wurde, bleibt. Der Lauf sagt in seinem Ergebnis, was misslungen ist; ein
   Rückbau von Hand ist `subscription.remove`. Ein automatischer wäre ein zweiter
   Weg, der im Fehlerfall läuft — also der, der am wenigsten geprüft ist.
+
+---
+
+## §16 · Schritt 9 und 10 — Aufbewahrung, Zeitplan und der Griff davor
+
+Gebaut am 16. September 2026. Damit ist der Bau von P8 durch; was auf einem
+Server zu messen bleibt, steht in `§9`.
+
+### Die Aufbewahrung ist ein Kontingent und keine Servereinstellung
+
+`Quota::Backups` — je Plan gesetzt, je Abonnement übersteuerbar, genau wie die
+Domains und die Datenbanken. Eine Zahl an einer anderen Stelle wäre eine zweite
+Fassung derselben Regel.
+
+**Sie darf nicht unbegrenzt sein**, und der Wächter hat den Grund erzwungen:
+`QuotaCatalogTest::test_only_shared_resources_have_no_unlimited` ist rot
+geworden, bis er danebenstand. Er lautet wörtlich wie die Begründung über
+`disk_mb` — eine Sicherung ist das Grösste, was dieses Panel je Abonnement auf
+die Platte schreibt.
+
+> **Eine Aufbewahrung ohne Obergrenze ist keine Aufbewahrung, sondern ein
+> Wachstum.**
+
+Die drei Zahlen daneben sind ebenfalls entschieden und nicht gegriffen:
+**mindestens 1** (eine Aufbewahrung von 0 löschte jede Sicherung in dem
+Augenblick, in dem sie fertig ist — das ist kein enges Paket, sondern ein
+kaputtes), **höchstens 365** (ein Jahr täglicher Stände, als Vertipper-Fang) und
+**drei als Vorgabe** (zwei reichen nicht für „gestern war auch schon kaputt").
+
+### Befund 1 · Die Aufbewahrung hätte jede Nacht eine Datei liegengelassen
+
+**Der grösste Fund dieses Schritts, und er liegt in Code aus Schritt 3+4.**
+`Backups::remove()` las `$backup->subscription` — eine **faul geladene
+Beziehung**, und die nimmt die Mandantenklammer. Aus einem Aufruf ohne
+angemeldetes Konto — also aus genau dem nächtlichen Lauf, den Schritt 9 baut —
+kam immer `null` zurück, und die Zeile ging den Zweig „ohne Umweg über den
+Agenten": gelöscht, ohne dass die Datei je angefasst worden wäre.
+
+> **Eine Frage, die im Grundzustand alles verweigert, antwortet mit einer leeren
+> Liste und nicht mit einem Fehler.** (`docs/78`)
+
+**Und der Kommentar daneben war auch falsch.** Er behauptete, ein
+zurückgebautes Abonnement habe „sein ganzes Verzeichnis verloren" und die Zeile
+beschreibe eine Datei, die es nicht mehr gibt. Der Kopf der Migration sagt das
+Gegenteil, und er hat recht: `/var/lib/srvpanel/backups/<abo>` liegt ausserhalb
+von allem, was `subscription.remove` anfasst — *„Die Sicherung überlebt ihr
+Abonnement."*
+
+> **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch dann
+> falsch, wenn der Handgriff daneben richtig ist.**
+
+Eine Sicherung ohne Abonnement geht seitdem trotzdem über den Agenten, mit dem
+**abgeschriebenen** Namen und einem Vorgang ohne `subscription_id`. Das ist
+zugleich die Antwort auf `§9` Punkt 7: Die Lücke, die dort benannt stand, wäre
+ab Schritt 9 keine seltene mehr gewesen, sondern eine nächtliche.
+
+### Der Zeitplan fragt das Alter und nicht den Kalender
+
+`Retention::isDue()` fragt, wie alt der jüngste Stand ist. Ein Lauf, der zweimal
+am Tag fährt, legt damit trotzdem nur eine Sicherung an, und ein Server, der
+zwei Tage aus war, holt genau eine nach.
+
+> **Ein Zeitgeber, der fragt „wie alt ist der letzte Stand", ist wiederholbar.
+> Einer, der fragt „welcher Tag ist heute", ist es nicht.**
+
+**Das Fenster ist 20 Stunden und nicht 24, und die Zahl ist gerechnet.** Der
+Timer steht auf `OnCalendar=daily` mit `RandomizedDelaySec=2h`; zwei
+aufeinanderfolgende Läufe liegen damit zwischen **22 und 26 Stunden**
+auseinander. Bei 24 fiele jeder Lauf aus, dessen Abstand die Streuung nach vorn
+gezogen hat — still, denn es entstünde einfach keine Sicherung.
+
+> **Ein Fälligkeitsfenster, das so gross ist wie der Takt, verliert jeden Lauf,
+> den die Streuung nach vorn zieht.**
+
+`BackupRetentionTest` rechnet das **aus der Unit-Datei** nach und nicht gegen
+eine Zahl im Test: Ändert jemand die Streuung, wird der Wächter rot und nicht
+der Lauf still.
+
+### Abräumen immer, anlegen nur auf Ansage
+
+Die beiden Hälften des Nachtlaufs hängen nicht zusammen:
+
+- **Aufräumen ist Hygiene.** Die Aufbewahrungszahl steht im Plan und gilt auch
+  für Stände, die ein Kunde von Hand angelegt hat. Sie nur dann greifen zu
+  lassen, wenn die Automatik an ist, hiesse: Wer nicht automatisch sichert, hat
+  gar keine Grenze.
+- **Anlegen ist eine Entscheidung.** `automatic` steht auf **aus**; ein Update,
+  das für jedes Abonnement nächtliche Sicherungen anschaltet, füllt den
+  Datenträger, ohne dass jemand gefragt hätte.
+
+Beides steht auf `/settings/backups` — `operate-server`, wie PHP und die
+Datenbanken. Was den Datenträger füllt und was beim Rückbau geschieht, gehört
+dem Betreiber.
+
+### Schritt 10 · Nur vor dem Rückbau, und die anderen beiden mit Grund
+
+`docs/20 §9` nennt drei riskante Handlungen. Gebaut ist **eine**, und die beiden
+anderen stehen hier statt stillschweigend zu fehlen:
+
+| Handlung | gebaut | warum |
+|---|---|---|
+| **Löschen eines Abonnements** | ja | Der eine Griff dieses Panels, der nichts zurücklässt. |
+| **PHP-Wechsel** | nein | Durch einen zweiten Wechsel zurückzunehmen. Eine Sicherung des ganzen Baums dafür wäre Minuten für einen Griff, der Sekunden dauert. |
+| **Wiederherstellung** | nein | Sie legt in Form A ein **neues** Abonnement an und überschreibt nichts (`§3`). Es gibt nichts, was verloren ginge. |
+
+> **Eine Vorsichtsmassnahme vor jedem Griff ist keine Vorsicht, sondern eine
+> Gewohnheit — und sie wird als Erstes abgeschaltet, wenn sie stört.**
+
+**Die Sicherung vor dem Rückbau fragt den Plan ausdrücklich nicht.**
+`Feature::Backups` entscheidet, ob der **Kunde** sichern darf; hier sichert der
+Betreiber, bevor er etwas unwiederbringlich entfernt.
+
+> **Eine Vorsichtsmassnahme, die der Tarif abschalten kann, schützt den
+> Betreiber nicht vor seinem eigenen Griff.**
+
+**Und sie trägt nur, weil die Zeile den Rückbau überlebt.** Ohne
+`nullOnDelete` wäre sie in derselben Sekunde fort, in der sie gebraucht würde.
+
+### Befund 2 · Ein Wächter, der die Gruppe zählt
+
+`NavGroupTest` ist rot geworden: „Einstellungen" hat mit `/settings/backups`
+**acht** Punkte und damit die Obergrenze erreicht, die
+`test_no_group_grows_back_into_a_pot` setzt. Das ist die bekannte Aufräumfalle
+in ihrer nützlichen Richtung — ein Halt, an dem jemand einmal entscheiden muss.
+
+Entschieden: Sie bleibt eine Gruppe, weil jeder ihrer Punkte dieselbe Frage
+beantwortet. „Betrieb" war bei neun keine mehr, weil dort **zwei** Fragen
+standen — was ist und was war.
+
+> **Eine Gruppe ist zu gross, wenn sie zwei Fragen beantwortet — und nicht, wenn
+> sie viele Punkte hat.**
+
+### Befund 3 · Zwei Prüfkörper, die etwas anderes gemessen haben als gedacht
+
+`created_at` steht nicht in `Backup::$fillable`; Eloquent lässt es wortlos
+fallen. Jede Zeile des ersten Wurfs trug `now()`, und der Fall über das Alter
+prüfte nichts.
+
+> **Ein Prüfkörper, der einen Wert setzt, den das Modell nicht annimmt, misst
+> den Vorgabewert.**
+
+Und `SubscriptionFactory` lässt `system_user` auf `null`. Der Fall über die
+Sicherung vor dem Rückbau mass damit die Vorbedingung, die
+`Backups::beforeRemoval()` zu Recht abweist — und sah aus wie ein Fehler am
+Prüfling.
+
+> **Ein Prüfkörper, der eine Vorbedingung nicht herstellt, misst die
+> Vorbedingung.**
+
+### Was `BackupReachTest` hält — und was er benennt
+
+Jede Art aus `§4` hat einen Weg, oder sie steht mit ihrem Grund da. Zwei stehen
+da:
+
+- **Der private Schlüssel eines hochgeladenen Zertifikats.** `§4` will ihn in
+  der Sicherung, und gebaut ist es nicht: Damit trüge eine Sicherung erstmals
+  ein Geheimnis, und die Datei geht über `response()->download()` an den Kunden.
+  Der Wächter misst dazu, dass der Ablageort **wirklich** ausserhalb des
+  Kundenbaums liegt — sonst wäre die Ausnahme eine Zeile, die man auch dann noch
+  läse, wenn der Schlüssel längst in jeder Sicherung stünde.
+- **Die Datenbankpasswörter**, und die sind kein Rest: Dieses Panel hält keine
+  und kann sie nicht sichern. Die Wiederherstellung benennt es.
+
+### Befund 4 · Drei bestehende Wächter am Schluss, und der dritte hat entschieden
+
+`AttributeNameTest`, `RedirectTargetTest` und `AttributeLabelTest` sind am
+vollen Lauf rot geworden, alle drei an derselben neuen Datei
+(`BackupSettingsController` mit seiner Seite). Der zweite war ein Handgriff —
+`back()` statt eines benannten Ziels.
+
+**Die beiden anderen sind ein Paar, und sie haben genau die Frage gestellt, die
+`docs/66` Befund 15 gekostet hat.** `AttributeNameTest` verlangt, dass jedes
+validierte Feld einen deutschen Namen **hat**; `AttributeLabelTest` verlangt,
+dass dieser Name der ist, der auf der Seite **steht**. Der erste war mit
+„Nächtlich sichern" und „Vor dem Rückbau sichern" zufrieden, der zweite nicht:
+Neben den Kästchen steht ein ganzer Satz — „Jede Nacht eine Sicherung je
+Abonnement anlegen".
+
+> **Ein Wächter über die Vollständigkeit sagt nichts über die Richtigkeit.**
+
+**Entschieden hat der Wächter selbst, nicht das Nachdenken.** Seine Meldung
+nennt beide Ausgänge — den Namen am Aufruf setzen, oder die Beschriftung mit
+Begründung nach `KEIN_NAME` —, und seine Liste trug den Fall bereits dreimal:
+„Ausgeliefert wird" ist ein Satzanfang, „Erreichbar von — für {{ … }}" trägt
+einen eingesetzten Wert, und bei den Ankündigungen gehört die Beschriftung dem
+einzelnen Kästchen, während der Name des Feldes als `span` darübersteht.
+
+Genau das ist die Lage hier: Der Satz am Kästchen ist kein Name, die
+**Überschrift des Bereichs** ist einer und steht sichtbar darüber. Eingesetzt
+ergäbe der Satz „Das Feld Jede Nacht eine Sicherung je Abonnement anlegen muss
+wahr oder falsch sein" — ein Satz in einem Satz.
+
+> **Ein Wächter, der beim Melden sagt, welche Ausgänge es gibt, erspart dem
+> Nächsten die Überlegung, welcher der richtige ist — und seine Ausnahmeliste
+> ist die Sammlung der Fälle, in denen jemand sie schon einmal angestellt hat.**
+
+Die Ausnahme ist in **beide Richtungen** gegengeprüft: Zeigt ihr Schlüssel auf
+ein Feld, das es nicht gibt, meldet `test_every_exception_still_points_somewhere`
+sie — und dasselbe Feld steht gleichzeitig wieder als Abweichung da. Was sie
+**nicht** kann, steht im Kopf des Wächters: Sie schweigt für dieses Feld
+dauerhaft, auch wenn der allgemeine Name später ein anderer wird.
+
+Keiner der drei kam aus dem Bruchlauf, sondern aus dem vollen Testlauf vor dem
+Commit. Sie stehen hier, weil die Reihenfolge das Tragende ist: Wäre committet
+worden, bevor er durch war, stünde eine englische Meldung im Repo.
+
+### Befund 5 · Die Behebung von Befund 1 war eine zweite Fassung derselben Regel
+
+Der erste Wurf der Berichtigung an `Backups::remove()` hat für den Fall „ohne
+Abonnement" eine **eigene** anlegende Methode bekommen —
+`dispatchWithoutSubscription()`, mit ihrem eigenen `Operation::create()`. Sie
+stand vier Zeilen unter der gemeinsamen `dispatch()`, und die gemeinsame
+verlangte ein `Subscription` im Typ.
+
+Gefunden hat es die Gegenlese des eigenen Diffs, und zwar an einem Feld, das die
+beiden **verschieden** gefüllt haben: Die neue setzte `account_id` aus der
+Anfrage, die gemeinsame setzt es gar nicht. Dieselbe Handlung hätte damit auf
+`/audit` je nach Bestand des Abonnements einmal „Anna Berger" und einmal
+„System" ergeben — genau die Spalte, die `docs/901` sichtbar gemacht hat.
+
+> **Zwei Stellen, die dasselbe anlegen, unterscheiden sich zuerst an dem Feld,
+> an das beim Schreiben der zweiten niemand gedacht hat.**
+
+Gebaut ist jetzt **eine** Stelle: `dispatch()` nimmt ein `?Subscription` und
+daneben den abgeschriebenen Namen. Der Rückfall ist dabei ausdrücklich keiner —
+fehlen beide, wirft sie:
+
+> **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine falsche
+> Auskunft.** Eine leere Zeichenkette ergäbe einen Pfad auf die Wurzel der
+> Sicherungen und eine Meldung über ein Abonnement ohne Namen.
+
+Der Fall im Wächter misst seitdem auch den **Gegenstand** des Vorgangs: Ohne
+Abonnement ist die Zeile der Sicherung das Einzige, worüber ein Fehlschlag noch
+auffindbar ist. Gegengeprüft — nimmt man `dispatch()` den Gegenstand weg, meldet
+er es.
+
+**Und eine Annahme darin war falsch und hat nichts gekostet:** `subject_type`
+ist auf `Operation` **nicht** als Aufzählung gegossen, sondern eine
+Zeichenkette. Der erste Wurf der Behauptung las `?->value` darauf und starb an
+„Attempt to read property \"value\" on string".
+
+**Und dabei fiel auf, dass die Klammer selbst ungemessen war.** Der Eingriff zu
+Befund 1 bricht `$name` und nicht die Klammer — und der Fall, an dem er hängt,
+kann sie gar nicht messen: Dort ist das Abonnement wirklich fort, und
+`subscription()->first()` antwortet mit und ohne Klammer `null`.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+Gemessen wird sie jetzt an dem Fall, an dem das Abonnement **lebt**:
+`test_the_oldest_go_and_the_newest_stay` läuft ohne angemeldetes Konto — genau
+der Zustand des Nachtlaufs — und prüft, dass jeder der drei Vorgänge sein
+Abonnement trägt. Ohne die Klammer hinge er an keinem; der Agent entfernte die
+Datei zu Recht, und der Vorgang stünde in keiner Liste des Kunden.
+
+> **Ein Vorgang, der seinen Gegenstand verliert, tut trotzdem das Richtige — und
+> niemand findet ihn danach wieder.**
+
+Der achte Eingriff hält es.
+
+**Und die Behebung hat einen Kommentar falsch werden lassen.**
+`Retention::prune()` zog die ganze Schleife in die Klammer, begründet damit,
+dass `remove()` ungeklammert las. Seit `remove()` selbst klammert, stimmt die
+Begründung nicht mehr — und schlimmer: Eine zweite Klammer um den Aufruf machte
+ausgerechnet den einen Aufrufer blind, an dem ein Rückfall auffiele. Sie steht
+jetzt um die Abfrage und nicht um die Schleife.
+
+> **Eine Vorsichtsmassnahme, die den Fall verdeckt, für den sie gedacht war, ist
+> keine mehr.**
+
+### Befund 6 · Die Frage nach dem Verzeichnis stand nur an einer der zwei Stellen
+
+`Backups::beforeRemoval()` fragt seit Schritt 10, ob das Abonnement überhaupt
+einen Systembenutzer hat — ohne ihn gibt es kein Verzeichnis, und die Sicherung
+wäre ein Vorgang, der an einem fehlenden Pfad scheitert. `RunBackups::eligible()`
+fragte den Zustand, die Funktion des Plans und das Kontingent, und diese Frage
+nicht.
+
+Für ein aktives Abonnement ohne Systembenutzer hätte der Nachtlauf damit **jede
+Nacht** einen scheiternden Vorgang angelegt und **jede Nacht** einen Fehlschlag
+des Kommandos gemeldet.
+
+> **Ein Fehler, den man an einer Stelle vermieden hat, ist an der nächsten
+> wieder da, wenn die Vermeidung nicht die Regel wurde.**
+
+Sie steht jetzt als `Backups::hasDirectory()` an **einer** Stelle, und beide
+Aufrufer fragen sie. Der Fall misst dabei **beide** Richtungen in einem Lauf:
+Ein Prüfkörper ohne Verzeichnis allein liefe auch dann grün durch, wenn das
+Kommando gar nichts anlegte — das Abonnement daneben sagt, dass es angelegt
+hätte.
+
+**Und im selben Rumpf stand ein Kontingent als Wort.** `$subscription->quota('backups')`
+statt `Quota::Backups->value`, zwei Dateien neben einem `Retention::keeps()`, das
+es richtig macht — dieselbe Zeichenkette ohne geprüften Bezug, die dieses Repo am
+häufigsten bezahlt hat.
+
+### Befund 7 · Die Bilderrunde hat den Knopf gefunden, und keine Zahl hat sich beschwert
+
+Die Einstellungsseite mass in allen vier Lagen `dokument = 0`, Gegenprobe
+200/200, `schiebt = []`, `rollt = []`. Und bei 1440 px stand **„Speichern" oben
+rechts neben der Überschrift des zweiten Bereichs** statt unter dem Formular.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+Die Knopfreihe war ein **direktes Kind** von `.sections`. Gemessen ist der
+Mechanismus eine einzige Zeile in `app.css`: `.form > .button-row` trägt
+`flex-basis: 100%`, `.sections > .button-row` nichts dergleichen — die Regel
+gilt nach dem **Elternteil** und nicht nach der Klasse. Als Flexkind von
+`.sections` lief die Reihe neben den Bereichen mit; bei 390 px ist daneben kein
+Platz, und dort sah sie richtig aus.
+
+**Die Regel gab es schon, und zwar als Kommentar.** `Settings/Tls.vue` hält seit
+P7 fest: *„Die Knopfreihe steht neben dem Bereich und nicht darin — so wie in
+jeder anderen Maske des Panels."* Dort war sie an einem fehlenden Abstand
+bezahlt worden, hier an einer Spalte.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+`ButtonRowPlacementTest` hält sie jetzt, mit der Voraussetzung daneben: Fällt
+`flex-basis: 100%` weg, sagt die Stelle im Baum nichts mehr über die Anzeige,
+und der Wächter wird rot statt still.
+
+### Befund 8 · Und sein Leser hat einen Fehler geerbt, den es seit P6 gibt
+
+Der erste Lauf des neuen Wächters meldete eine Knopfreihe in `.sections`, die in
+Wahrheit in einem Bereich steht — `Subscriptions/Backups.vue:219`. Der Leser
+zählt Elemente auf einen Stapel und fragt den Elternteil; `link` steht in seiner
+Liste der leeren Elemente, weil `<link>` in HTML kein Ende hat.
+
+**Inertias `<Link>` ist eine Komponente mit Inhalt und Ende.** Kleingeschrieben
+sehen die beiden gleich aus — und der Leser wandelte den Namen um, bevor er
+fragte. Ab der ersten `<Link>` verschob sich der Stapel um eins, und jeder
+Elternteil danach stand daneben.
+
+> **Eine Liste leerer HTML-Elemente trifft eine Komponente, die zufällig so
+> heisst — und Vue unterscheidet die beiden allein an der Grossschreibung.**
+
+**`TemplateSpacingTest` trägt denselben Leser und denselben Fehler, seit es ihn
+gibt.** Gemessen an der Bilanz: Von 82 Vorlagen endeten **23** mit einem Stapel
+ungleich null, mit der Berichtigung **keine einzige**. Der Wächter blieb dabei
+grün — der Fehler hat heute nichts verdeckt, und das ist Glück und keine
+Eigenschaft.
+
+> **Ein Wächter, der grün ist, während sein Leser den Faden verloren hat, sagt
+> über die Regel nichts — er sagt, dass niemand hingesehen hat.**
+
+Die Prüfung, die das sofort gemeldet hätte, steht jetzt daneben:
+`test_the_reader_keeps_track` verlangt, dass **jede** Vorlage mit einem leeren
+Stapel endet. Gegengeprüft an genau dem Fehler, der sie ausgelöst hat — mit der
+alten Fassung meldet sie 23 Dateien.
+
+> **Ein Leser, der den Faden verliert, meldet nicht sich selbst — er meldet die
+> Datei.**
+
+### Was danach offen bleibt
+
+- **Der ganze Weg ist nie auf einem Server gefahren** — das gilt unverändert aus
+  `§15` und jetzt auch für den Nachtlauf.
+- **Dass die Warteschlange die Sicherung vor dem Rückbau abarbeitet, ist eine
+  Eigenschaft der Umgebung** (`queue:work` einspurig, Datenbank-Warteschlange
+  FIFO) und keine Zusage des Codes. `BackupReachTest` hält die **Reihenfolge im
+  Rumpf**; die Reihenfolge in der Warteschlange gehört auf `cloudsrv24`.
+- **Ein Fernziel gibt es nicht** (`§5`, `§8` Punkt 8). S3 ist entworfen und nicht
+  gebaut; `§2` Entscheidung 3 und die Messung dazu stehen, der Weg fehlt.
+- **`Backups::removeAll()` hat weiterhin keinen Aufrufer.** Es war für den
+  Rückbau gedacht und widerspricht damit dem, was die Migration entschieden hat:
+  Die Sicherung überlebt ihr Abonnement. Es zu rufen wäre falsch, es zu löschen
+  eine eigene Entscheidung — es steht hier, damit die nächste Sitzung nicht
+  dieselbe halbe Stunde damit verbringt, den Widerspruch noch einmal zu finden.
+
+  > **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
+  > einem zu unterscheiden, das es nicht gibt** — und eine Methode, die niemand
+  > ruft, genauso.

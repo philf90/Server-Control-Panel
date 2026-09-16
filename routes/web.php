@@ -10,6 +10,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Auth\TwoFactorSetupController;
 use App\Http\Controllers\BackupController;
+use App\Http\Controllers\BackupSettingsController;
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DatabaseController;
@@ -1254,6 +1255,21 @@ Route::middleware('auth')->group(function (): void {
     Route::put('/settings/general', [GeneralSettingsController::class, 'update'])
         ->middleware('can:manage-settings')
         ->name('settings.general.update');
+
+    /*
+     * **Was der Server von sich aus sichert** (P8 Schritt 9 und 10).
+     *
+     * `operate-server` wie bei PHP und den Datenbanken: Was den Datenträger
+     * füllt und was beim Rückbau geschieht, gehört dem Betreiber. **Wie viele
+     * Stände bleiben, steht nicht hier** — das ist ein Kontingent des Plans.
+     */
+    Route::get('/settings/backups', [BackupSettingsController::class, 'show'])
+        ->middleware('can:operate-server')
+        ->name('settings.backups');
+
+    Route::put('/settings/backups', [BackupSettingsController::class, 'update'])
+        ->middleware('can:operate-server')
+        ->name('settings.backups.update');
 
     Route::get('/settings/php', [PhpSettingsController::class, 'show'])
         ->middleware('can:operate-server')

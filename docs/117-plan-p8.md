@@ -148,14 +148,20 @@ wiederverwenden, wenn **alle drei** Bedingungen gelten:
 
 ### Was die anderen Panels tun — recherchiert am 16. September 2026
 
-**Die Frage ist nicht neu, und vier Panels beantworten sie verschieden.** Was
-hier steht, ist teils am **Quelltext gemessen** (HestiaCP) und teils aus
-Herstellerdokumentation und Wissensdatenbanken zusammengetragen — die Sperre des
-Egress-Proxys lässt `support.plesk.com`, `docs.plesk.com` und
-`docs.directadmin.com` nicht durch, für sie steht hier also Wissen aus zweiter
-Hand. **Wo das gilt, sagt es die Tabelle**, denn:
+**Die Frage ist nicht neu, und sechs Panels beantworten sie verschieden.** Was
+hier steht, ist teils am **Quelltext gemessen** (HestiaCP, Virtualmin,
+CyberPanel) und teils aus Herstellerdokumentation und Wissensdatenbanken
+zusammengetragen (cPanel, Plesk, DirectAdmin) — deren Doku lässt der
+Egress-Proxy nicht durch, elf Hosts mit `403` am CONNECT, zweimal gemessen am
+16. September. **Wo Wissen aus zweiter Hand steht, sagt es die Tabelle**, denn:
 
 > **Wissen aus zweiter Hand sieht aus wie Wissen.**
+
+**Die drei gemessenen sind die quelloffenen**, und das ist kein Zufall, sondern
+die Auswahl: Wo die Doku gesperrt ist und der Quelltext offenliegt, ist der
+Quelltext der bessere Weg und nicht der Ersatzweg.
+
+> **Ein Panel, dessen Quelltext man lesen kann, muss man nicht nachlesen.**
 
 | | Systembenutzer bei der Wiederherstellung | Datenbankname | Vhost-Datei |
 |---|---|---|---|
@@ -163,6 +169,8 @@ Hand. **Wo das gilt, sagt es die Tabelle**, denn:
 | **Plesk** | nimmt den alten Namen, **wenn er frei ist**; sonst erfindet er einen (`sub_1783193419`), **warnt** und lässt ihn nachträglich ändern | Präfix ist **einstellbar** und nicht zwingend | aus Vorlage |
 | **DirectAdmin** | Wiederherstellung geht in einen **benannten** Benutzer | trägt den Benutzernamen als Präfix | aus Vorlage, über einen Tokenizer — die Doku warnt ausdrücklich davor, die erzeugte Datei zu kopieren |
 | **HestiaCP** *(am Quelltext gemessen)* | **gibt den alten Namen nicht zurück** und **behält die UID nicht** | trägt den Benutzernamen als Präfix und wird **umbenannt** | wird **neu gebaut** (`rebuild_web_domain_conf`) |
+| **Virtualmin** *(am Quelltext gemessen)* | **behält den Namen**, vergibt die **Nummer neu** (`$reuid = 1`, `$reuser = 0`); der Name wechselt nur bei echter Kollision und nur, wenn man es verlangt | **bleibt, wie er war** — das Präfix wird beim Zurückspielen nie angefasst | aus Vorlage |
+| **CyberPanel** *(am Quelltext gemessen)* | behält den Namen | **bleibt, wie er war** (`prepareDatabaseForRestore(dbName, …)` aus der Sicherungsbeschreibung) | aus Vorlage |
 
 **HestiaCP ist der Fall, der sich messen liess**, und sein `bin/v-restore-user`
 tut genau das, was §3 als **Form A** beschreibt:
@@ -184,8 +192,48 @@ FTP-Benutzer und für einen DocumentRoot, der den alten Pfad nannte. Die Konfigu
 werden **erzeugt** und nicht zurückgespielt — `rebuild_web_domain_conf`,
 `rebuild_dns_domain_conf`, `rebuild_mysql_database`.
 
-> **Vier Panels, vier Wege — und keines spielt die erzeugte Vhost-Datei
-> zurück.** §4 steht damit nicht allein da; es ist der Konsens.
+**Virtualmin ist der Gegenfall, und er liess sich ebenfalls messen.** Sein
+`backups-lib.pl` trennt die beiden Grössen, die HestiaCP zusammen wegwirft:
+
+    elsif ($opts->{'reuid'}) {
+            # Re-allocate the UID and GID
+            $d->{'gid'} = &allocate_gid(\%gtaken);
+            $d->{'uid'} = &allocate_uid(\%taken);
+            }
+    …
+    if (!$parentdom && $opts->{'reuser'} && $usertaken{$d->{'user'}}) {
+            # Re-allocated user name if there is a clash
+            $d->{'restoreolduser'} = $d->{'user'};
+            $d->{'user'} = $newuser;
+            }
+
+Die Vorgaben stehen in `restore-domain.pl` Zeile 141/142 und im Formular als
+`ui_yesno_radio("reuid", 1)` / `("reuser", 0)`: **die Nummer wird neu vergeben,
+der Name bleibt.** Ein Namenswechsel kostet ausdrücklich zwei Bedingungen — man
+muss ihn verlangen *und* es muss eine echte Kollision geben. Danach wird das
+Eigentum umgeschrieben (`set_home_ownership($d)` in `feature-dir.pl`), genau wie
+HestiaCPs vier `chown`-Zeilen.
+
+**Und das Präfix fasst der Rückweg nie an.** Ausgezählt: `prefix` kommt in den
+7920 Zeilen von `backups-lib.pl` **sechsmal** vor, und keiner der sechs Treffer
+ist das Präfix einer Domain — es sind Pfad- und Protokollpräfixe.
+*(Gegenprobe: `'user'}` steht in derselben Datei 27-mal. Eine Null wäre sonst
+keine Messung.)*
+
+> **Ein Panel, das keinen Bestand an vergebenen Namen führt, kann einen Namen
+> zurückgeben, ohne ihn zurückzuholen — er war nie fort.**
+
+**Der teuerste Fund an Virtualmin steht in einer Zahl.** `restoreolduser` — das
+Feld, das den alten Benutzernamen über die Wiederherstellung rettet — wird an
+**genau einer** Stelle gelesen: in `feature-mail.pl`, um ein Postfach
+umzubenennen. Kein Leser schreibt damit eine Kundendatei um.
+
+> **Ein Panel, das den alten Namen aufhebt, hebt ihn für seine eigenen Objekte
+> auf und nicht für die des Kunden.**
+
+> **Sechs Panels, fünf Wege — und keines spielt die erzeugte Vhost-Datei
+> zurück.** §4 steht damit nicht allein da; es ist der Konsens. *(Froxlor sagt
+> dazu nichts: siehe den Prüfmittelbefund unten.)*
 
 **Drei Dinge folgen daraus für §3.**
 
@@ -193,27 +241,51 @@ werden **erzeugt** und nicht zurückgespielt — `rebuild_web_domain_conf`,
 einem ausgelieferten Panel, und der Handgriff, den sie kostet — das Umschreiben
 des Eigentums nach der Wiederherstellung — steht dort in vier Zeilen.
 
-**Zweitens: Plesk ist näher an Form B, und der Grund ist ein anderer Bau.** Dass
-es den alten Namen zurückgeben *kann*, liegt nicht an einem klügeren
-Wiederherstellen, sondern daran, dass sein Datenbankpräfix **einstellbar** ist
-und der Name des Systembenutzers sich nachträglich **ändern** lässt. Beides gibt
-es hier nicht: Der Präfix ist in SrvPanel zwingend, `Names::belongsTo()` setzt
-ihn im Agenten durch, und `system_users` kennt keine Freigabe.
+**Zweitens: Vier Panels sind näher an Form B, und bei allen vieren ist der Grund
+ein anderer Bau.** Dass Plesk, cPanel, Virtualmin und CyberPanel den alten Namen
+zurückgeben *können*, liegt nicht an einem klügeren Wiederherstellen, sondern an
+einer schwächeren Bindung: Plesks Datenbankpräfix ist **einstellbar** und sein
+Systembenutzer nachträglich **umbenennbar**, Virtualmins Präfix wohnt **im
+Datensatz der Domain** und in keiner Vergabeliste, CyberPanel liest den
+Datenbanknamen aus der Sicherungsbeschreibung. Hier ist beides fest: Der Präfix
+ist zwingend, `Names::belongsTo()` setzt ihn im Agenten durch, und
+`system_users` kennt keine Freigabe.
+
+**Und die gemessenen Fassungen sagen, woran es wirklich hängt.** Virtualmins
+`generate_random_available_user` fragt `getpwnam`, `getgrnam` und die
+**vorhandenen** Domains — also: *ist der Name jetzt frei?* `system_users` fragt
+seit `docs/35`: *war er jemals vergeben?*
+
+> **Wer nur fragt, ob ein Name jetzt frei ist, kann ihn zurückgeben. Wer
+> festhält, dass er einmal vergeben war, kann es nicht — und beide Antworten
+> sind richtig, weil es zwei verschiedene Fragen sind.**
 
 > **Ein Panel, das einen Namen zurückgeben kann, hat dafür nicht den besseren
 > Rückweg — es hat die schwächere Bindung.**
 
-**Drittens, und das ist der Fund, der nicht in der Frage stand: Kein Panel sagt
-dem Kunden, dass seine Datenbank jetzt anders heisst.** HestiaCP warnt an dieser
-Stelle über ein **fehlendes Passwort** (*„Please use the web interface to set a
+**Drittens, und das ist der Fund, der nicht in der Frage stand: Von sechs Panels
+benennt genau eines die Datenbank um — und genau dieses sagt es dem Kunden
+nicht.** HestiaCP schreibt `DB="${user}_${DB}"` und warnt an derselben Stelle
+über ein **fehlendes Passwort** (*„Please use the web interface to set a
 password after the restore process finishes."*) und über den Namenswechsel
-nicht; cPanel überlässt es der Wissensdatenbank; Plesk nennt den neuen
-Systembenutzer in einer Migrationswarnung, die der Kunde nie sieht. Die
-`wp-config.php` bleibt überall stehen, wie sie war.
+nicht. Die übrigen fünf haben nichts zu sagen, weil sich nichts geändert hat.
 
-> **Ein Zustand, den vier Panels gleich schlecht lösen, ist keine
-> Selbstverständlichkeit — er ist die Stelle, an der sich etwas verbessern
-> lässt.**
+**Das dreht den ersten Wurf dieses Absatzes um.** Er lautete „kein Panel sagt es
+dem Kunden" und las sich wie ein gemeinsames Versäumnis von vieren. Gemessen ist
+es das Versäumnis von **einem** — und die fünf daneben sind kein Vorbild,
+sondern ein anderer Fall.
+
+> **Ein Versäumnis, das man fünf Unbeteiligten mit zuschreibt, sieht aus wie ein
+> unvermeidlicher Zustand.**
+
+**Und damit gibt es für SrvPanels Lage kein Vorbild.** Form A stellt es in
+HestiaCPs Position — der Name *muss* wechseln —, und das ist die einzige
+Position, in der ein Panel diese Auskunft schuldet. Genau dort gibt es keine,
+die man abschreiben könnte.
+
+> **Ein Zustand, den nur ein einziges Panel hat und dort schlecht löst, ist
+> keine Selbstverständlichkeit — er ist die Stelle, an der sich etwas
+> verbessern lässt.**
 
 Deshalb ist **§8 Punkt 6 ein Ausschlusskriterium** und nicht eine
 Bequemlichkeit.
@@ -240,6 +312,21 @@ ist er besser als „der Kunde bekommt ein dauerhaftes Ziel".
 > verwahrtes Geheimnis — und die Frage, wer es verwahren darf, stellt sich
 > dann nicht.**
 
+**Ein Befund am Prüfmittel gehört dazu, und er hätte ein siebtes Panel
+erfunden.** `froxlor/Froxlor` war geklont und durchsucht: kein Treffer auf
+`backup`, keine Datei mit `ackup` im Namen — daraus wäre „Froxlor liefert gar
+keine Sicherung aus" geworden. Der Baum enthält aber nur `artisan`, `config`,
+`public` und `resources`; die Logik wohnt seit dem Umbau in `froxlor/framework`,
+einem eigenen Paket, das `composer.json` in Zeile 41 nennt. Gemessen war ein
+leeres Gehäuse.
+
+> **Ein leerer Griff in die falsche Datei sieht aus wie ein Befund.** Zum
+> zweiten Mal nach `docs/78`, diesmal an einem ganzen Repository.
+
+**Froxlor sagt hier deshalb nichts** — weder dass es eine Sicherung hat noch
+dass es keine hat. Es steht als Nichtmessung da und nicht als Zeile in der
+Tabelle.
+
 ### Was der Plan daraus macht
 
 **§4 bis §7 sind für beide Formen geschrieben.** Sie unterscheiden sich an genau
@@ -248,11 +335,14 @@ zwei Stellen, und die sind unten benannt: dem Schritt, der die Nummer besorgt
 Schritt 8).
 
 **Vorgeschlagen ist nach der Recherche vom 16. September: A, und B nicht.**
-Der erste Wurf dieses Plans schlug B mit A als Rückfall vor. Die Panels, die den
-Namen zurückgeben können, tun das nicht, weil sie den besseren Rückweg haben,
-sondern weil ihre Bindung schwächer ist — Plesks Datenbankpräfix ist
-einstellbar, seine Systembenutzer sind umbenennbar. Hier ist beides fest, und
-`Names::belongsTo()` setzt es im Agenten durch.
+Der erste Wurf dieses Plans schlug B mit A als Rückfall vor. Die vier Panels, die
+den Namen zurückgeben können, tun das nicht, weil sie den besseren Rückweg
+haben, sondern weil ihre Bindung schwächer ist — Plesks Datenbankpräfix ist
+einstellbar und sein Systembenutzer umbenennbar, Virtualmins Präfix wohnt im
+Datensatz der Domain und in keiner Vergabeliste, und keines der vier führt
+Buch darüber, welcher Name einmal vergeben *war*. Hier ist beides fest,
+`Names::belongsTo()` setzt es im Agenten durch, und `system_users` führt genau
+dieses Buch.
 
 B brächte damit **einen zweiten Weg an `system_users`** und eine Ausnahme von
 der Regel aus `docs/35`, und beides kaufte genau eine Ersparnis: dass der Kunde

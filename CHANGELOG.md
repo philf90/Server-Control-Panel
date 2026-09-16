@@ -28597,3 +28597,61 @@ Kunden, bei dem dessen Zugangsdaten nur für die Dauer der Übertragung leben.
 Wissen aus zweiter Hand — der Egress-Proxy lässt ihre Dokumentation nicht durch.
 Gemessen ist allein HestiaCP, und die Tabelle in `docs/117 §3` sagt das je
 Zeile.
+
+## Der Panelvergleich, am Quelltext nachgemessen — und eine eigene Zahl korrigiert
+
+Der Betreiber hat die Herstellerdoku freigegeben und um eine zweite Recherche
+gebeten. **Gemessen ist die Sperre unverändert: elf von elf mit `403` am
+CONNECT.** Was daraus folgt, steht in `CLAUDE.md` — und was daraus *nicht*
+folgt, auch: Ein unveränderter Messwert trennt „noch nicht wirksam" nicht von
+„nicht geschehen".
+
+**Statt die Doku zu wiederholen, ist der Vergleich am Quelltext gewachsen.**
+Virtualmin war einer der gesperrten Hersteller und ist quelloffen; mit
+CyberPanel sind es jetzt **drei gemessene Panels** gegen drei aus zweiter Hand.
+
+> **Ein Panel, dessen Quelltext man lesen kann, muss man nicht nachlesen.**
+
+**Virtualmin trennt, was HestiaCP zusammen wegwirft.** `$reuid = 1`,
+`$reuser = 0`: Die Nummer wird neu vergeben, der Name bleibt, und er wechselt
+nur, wenn man es verlangt *und* es eine echte Kollision gibt. Das Präfix — und
+damit der Datenbankname — wird beim Zurückspielen nie angefasst: `prefix` kommt
+in den 7920 Zeilen von `backups-lib.pl` sechsmal vor, und keiner der sechs
+Treffer ist das Präfix einer Domain. *(Gegenprobe: `'user'}` steht dort 27-mal.)*
+
+> **Wer nur fragt, ob ein Name jetzt frei ist, kann ihn zurückgeben. Wer
+> festhält, dass er einmal vergeben war, kann es nicht — und beide Antworten
+> sind richtig, weil es zwei verschiedene Fragen sind.**
+
+Damit steht die Empfehlung für Form A auf vier Panels statt auf einem: Alle
+vier, die den Namen zurückgeben können, haben dafür keinen besseren Rückweg,
+sondern gar keinen Bestand an vergebenen Namen. `system_users` führt genau
+dieses Buch, seit `docs/35`.
+
+**Ein Satz dieses Vergleichs war falsch und ist berichtigt.** Er lautete „kein
+Panel sagt dem Kunden, dass seine Datenbank jetzt anders heisst" und las sich
+wie ein gemeinsames Versäumnis von vieren. Gemessen benennt **genau eines** die
+Datenbank überhaupt um; die anderen haben nichts zu sagen, weil sich nichts
+geändert hat.
+
+> **Ein Versäumnis, das man fünf Unbeteiligten mit zuschreibt, sieht aus wie
+> ein unvermeidlicher Zustand.**
+
+§8 Punkt 6 bleibt Ausschlusskriterium — und zwar mit einer schärferen
+Begründung: Für SrvPanels Lage gibt es kein Vorbild, das man abschreiben
+könnte.
+
+**Und zwei Befunde am Prüfmittel.** `froxlor/Froxlor` wurde geklont und
+durchsucht: null Treffer auf `backup`. Daraus wäre „Froxlor liefert gar keine
+Sicherung aus" geworden — der Baum enthält aber nur `artisan`, `config` und
+`public`, die Logik wohnt in `froxlor/framework`. Gemessen war ein leeres
+Gehäuse, und Froxlor steht deshalb als Nichtmessung da und nicht als Zeile in
+der Tabelle.
+
+> **Ein leerer Griff in die falsche Datei sieht aus wie ein Befund.**
+
+Der zweite ist eine Zahl in `CLAUDE.md`: Über einer Liste mit elf Hosts stand
+„zwölf von zwölf" — der Gegenprobe-Host war in die Summe gerutscht.
+
+> **Eine Zahl neben einer Aufzählung wird nicht dadurch richtig, dass die
+> Aufzählung stimmt — sie ist die einzige Stelle, an der niemand nachzählt.**

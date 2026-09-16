@@ -5647,9 +5647,15 @@ Testen berücksichtigen:
   am 16. September 2026: `docs.plesk.com`, `support.plesk.com`, `plesk.com`,
   `docs.cpanel.net`, `api.docs.cpanel.net`, `support.cpanel.net`,
   `docs.directadmin.com`, `forum.directadmin.com`, `www.virtualmin.com`,
-  `forum.virtualmin.com`, `docs.jetbackup.com` — **zwölf von zwölf mit `403` am
+  `forum.virtualmin.com`, `docs.jetbackup.com` — **elf von elf mit `403` am
   CONNECT**. Gegenprobe: `github.com` kommt durch den Tunnel (die `400` danach
   ist GitHubs eigene Antwort und nicht die des Proxys).
+
+  Hier stand bis zum 16. September „zwölf von zwölf" über einer Liste mit elf
+  Namen: Der Gegenprobe-Host war in die Summe gerutscht.
+
+  > **Eine Zahl neben einer Aufzählung wird nicht dadurch richtig, dass die
+  > Aufzählung stimmt — sie ist die einzige Stelle, an der niemand nachzählt.**
 
   **Zwei Schichten sehen gleich aus und sind es nicht.** `WebFetch` meldet
   `EGRESS_BLOCKED` als eigenen Fehler, und `recentRelayFailures` des lokalen
@@ -5677,12 +5683,44 @@ Testen berücksichtigen:
   der *allowed network hosts* baut den Zwischenspeicher neu, und das geschieht
   beim nächsten Start. **Wörtlich gemessen ist es nicht.**
 
+  **Am selben Tag ein zweites Mal gemessen, nachdem der Betreiber die Hosts
+  freigegeben hatte: unverändert elf von elf `403`**, und
+  `recentRelayFailures` nennt jeden mit Zeitstempel. Das sagt, dass die Sperre
+  **jetzt** steht. Es sagt **nicht**, ob die Freigabe noch keine Sitzung
+  gesehen hat oder ob sie nicht gespeichert wurde — beide Zustände sehen von
+  hier aus gleich aus, und der Unterschied ist erst in einer frischen Sitzung
+  messbar.
+
+  > **Ein unveränderter Messwert nach einer Änderung trennt „noch nicht
+  > wirksam" nicht von „nicht geschehen" — dafür braucht es die Bedingung, auf
+  > die sich das „noch nicht" beruft.**
+
   **Was ohne jede Änderung geht**, und in der Panel-Recherche vom 16. September
   auch gereicht hat: `WebSearch` liefert zusammengefasste Inhalte gesperrter
-  Seiten, und **offene Panels lassen sich klonen** — HestiaCP über
-  `git clone https://github.com/…`, das über den eigenen GitHub-Proxy läuft und
-  von der Liste gar nicht betroffen ist. Das ist der bessere Weg: Was am
-  Quelltext gemessen ist, ist kein Wissen aus zweiter Hand.
+  Seiten, und **offene Panels lassen sich klonen** — HestiaCP, Virtualmin,
+  CyberPanel und Webmin über `git clone https://github.com/…`, das über den
+  eigenen GitHub-Proxy läuft und von der Liste gar nicht betroffen ist. Das ist
+  der bessere Weg: Was am Quelltext gemessen ist, ist kein Wissen aus zweiter
+  Hand — und für einen quelloffenen Hersteller ist die gesperrte Doku gar kein
+  Verlust.
+
+  > **Ein Panel, dessen Quelltext man lesen kann, muss man nicht nachlesen.**
+
+  **Zwei Fallen beim Klonen, beide am 16. September bezahlt.** `add_repo` lehnt
+  einen fremden Eigentümer ab, solange die Sitzung schon Quellen von `philf90`
+  trägt (*„cross-tier adds are not supported in v1"*) — der Griff ist also
+  **nicht** `add_repo`, sondern das blosse `git clone`, und das geht für
+  beliebige öffentliche Repositories.
+
+  Und **ein falscher Name sieht aus wie eine Sperre**: `webmin/virtualmin-gpl`
+  gibt *„could not read Username for 'https://github.com'"*, weil GitHub für
+  ein nicht vorhandenes Repository nach Anmeldung fragt statt 404 zu sagen.
+  Das Repository heisst `virtualmin/virtualmin-gpl` und klont wortlos. Die
+  Gegenprobe, die es entschieden hat, war ein zweiter Klon von `hestiacp`, der
+  in derselben Minute durchlief.
+
+  > **Eine Abweisung, die nach Anmeldung fragt, sagt über die Erreichbarkeit
+  > nichts — sie sagt, dass der Name nicht getroffen hat.**
 
 - **Eine Freigabe lässt sich aus diesem Container nicht setzen — der Tag ist
   der Griff des Betreibers.** Gemessen am 8. September 2026 an

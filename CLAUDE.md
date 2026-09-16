@@ -5642,6 +5642,48 @@ Testen berücksichtigen:
   eines Wächters ist das der Weg zurück — und wenn im selben Verzeichnis noch
   nicht Eingechecktes liegt, ist es danach fort. `tests/waechter-brechen.sh`
   weigert sich deshalb bei schmutzigem `resources/`; von Hand gilt dasselbe.
+- **Die Dokumentation der anderen Hosting-Panels sperrt der Egress-Proxy — und
+  das ist eine Einstellung der Umgebung, kein Mangel des Containers.** Gemessen
+  am 16. September 2026: `docs.plesk.com`, `support.plesk.com`, `plesk.com`,
+  `docs.cpanel.net`, `api.docs.cpanel.net`, `support.cpanel.net`,
+  `docs.directadmin.com`, `forum.directadmin.com`, `www.virtualmin.com`,
+  `forum.virtualmin.com`, `docs.jetbackup.com` — **zwölf von zwölf mit `403` am
+  CONNECT**. Gegenprobe: `github.com` kommt durch den Tunnel (die `400` danach
+  ist GitHubs eigene Antwort und nicht die des Proxys).
+
+  **Zwei Schichten sehen gleich aus und sind es nicht.** `WebFetch` meldet
+  `EGRESS_BLOCKED` als eigenen Fehler, und `recentRelayFailures` des lokalen
+  Proxys blieb dabei **leer** — das liest sich, als sperre das Werkzeug. Erst
+  `curl` durch denselben Proxy trägt den Fehlschlag ein und nennt ihn beim
+  Namen: `gateway answered 403 to CONNECT (policy denial or upstream failure)`.
+
+  > **Ein Werkzeug, das eine Sperre meldet, sagt nicht, wer sie gesetzt hat —
+  > und der Statusendpunkt schweigt, solange man das Werkzeug fragt statt die
+  > Leitung.**
+
+  **Der Griff ist der des Betreibers und liegt ausserhalb dieses Containers**,
+  wie beim Freigabe-Tag darunter: Die Umgebung steht auf **Trusted**, und deren
+  Liste führt Paketquellen, GitHub und Cloud-SDKs — keine Herstellerdoku. Wer
+  sie braucht, stellt die Umgebung auf **Custom**, trägt die Hosts je Zeile
+  unter *Allowed domains* ein (`*.plesk.com` trifft jede Unterdomain, die
+  Wurzel braucht eine eigene Zeile) und lässt **„Also include default list of
+  common package managers" angehakt** — ohne den Haken gilt nur noch die eigene
+  Liste, und npm und Composer fallen mit aus. `/root/.ccr/README.md` sagt zu
+  `403` ausdrücklich: nicht wiederholen, nicht umgehen, sondern melden.
+
+  **Eine Änderung wirkt erst in der nächsten Sitzung.** Die Dokumentation sagt
+  das wörtlich für Umgebungsvariablen („sessions already running keep the
+  values they started with") und für die Hosts nur mittelbar — eine Änderung
+  der *allowed network hosts* baut den Zwischenspeicher neu, und das geschieht
+  beim nächsten Start. **Wörtlich gemessen ist es nicht.**
+
+  **Was ohne jede Änderung geht**, und in der Panel-Recherche vom 16. September
+  auch gereicht hat: `WebSearch` liefert zusammengefasste Inhalte gesperrter
+  Seiten, und **offene Panels lassen sich klonen** — HestiaCP über
+  `git clone https://github.com/…`, das über den eigenen GitHub-Proxy läuft und
+  von der Liste gar nicht betroffen ist. Das ist der bessere Weg: Was am
+  Quelltext gemessen ist, ist kein Wissen aus zweiter Hand.
+
 - **Eine Freigabe lässt sich aus diesem Container nicht setzen — der Tag ist
   der Griff des Betreibers.** Gemessen am 8. September 2026 an
   `v0.7.3-rc.29`: Ein Branch-Ref liess sich fortschreiben

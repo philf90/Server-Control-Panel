@@ -64,9 +64,25 @@ final class BackupDiagnoseTest extends TestCase
 
         $zeilen = Finding::query()->where('check', FindingCheck::BackupFile->value)->get();
 
-        $this->assertCount(1, $zeilen, 'Der Lauf hat die Sicherung nicht gesehen — steht die Mandantenklammer offen?');
-        $this->assertSame('shop-20260916-120000-abcdef01', $zeilen[0]->subject);
-        $this->assertSame(FindingCheck::UNREACHABLE, $zeilen[0]->reason);
+        /*
+         * **Zwei Zeilen und nicht eine, seit der Lauf auch den Ablageort
+         * fragt.** Die erste gilt der Sicherung, die zweite der Auflistung
+         * (`backup.list`) — und auch die ist am schweigenden Agenten
+         * gescheitert. Sie trägt keinen Ablagenamen, sondern
+         * {@see Backups::LISTING}: Hier ist keine einzelne Sicherung
+         * unerreichbar, sondern die Frage „was liegt überhaupt da".
+         */
+        $namen = $zeilen->pluck('subject')->map(static fn ($wert): string => (string) $wert)->sort()->values()->all();
+
+        $this->assertSame(
+            [Backups::LISTING, 'shop-20260916-120000-abcdef01'],
+            $namen,
+            'Der Lauf hat die Sicherung nicht gesehen — steht die Mandantenklammer offen?',
+        );
+
+        foreach ($zeilen as $zeile) {
+            $this->assertSame(FindingCheck::UNREACHABLE, $zeile->reason);
+        }
     }
 
     /**
@@ -94,7 +110,18 @@ final class BackupDiagnoseTest extends TestCase
 
         app(Backups::class)->run(Carbon::now(), app(FindingLog::class));
 
-        $this->assertSame(0, Finding::query()->where('check', FindingCheck::BackupFile->value)->count());
+        /*
+         * **Eine Zeile und nicht null**, und sie gilt nicht den Sicherungen:
+         * Der Lauf fragt seit dem 16. September auch den **Ablageort** ab, und
+         * in diesem Container antwortet kein Agent. Über die beiden Zeilen, um
+         * die es hier geht, sagt sie nichts — und genau das wird gemessen.
+         */
+        $zeilen = Finding::query()->where('check', FindingCheck::BackupFile->value)->get();
+
+        $this->assertSame([Backups::LISTING], $zeilen->pluck('subject')->all(), implode("\n", [
+            'Eine Sicherung, die noch läuft oder gescheitert ist, hat keine Datei, über die',
+            'sich urteilen liesse — sie gehört nicht in den Bestand der Befunde.',
+        ]));
     }
 
     /**
@@ -121,9 +148,13 @@ final class BackupDiagnoseTest extends TestCase
 
         $zeilen = Finding::query()->where('check', FindingCheck::BackupFile->value)->get();
 
-        $this->assertCount(1, $zeilen, 'Die Zeile wurde übersprungen, und niemand erfährt davon.');
-        $this->assertSame(BackupVerify::MISSING, $zeilen[0]->reason);
-        $this->assertSame('namenlos-20260916-120000-abcdef01', $zeilen[0]->subject);
+        // Die zweite Zeile gilt dem Ablageort, den der schweigende Agent nicht
+        // auflisten konnte — sie gehört nicht zu diesem Fall.
+        $eigene = $zeilen->filter(static fn ($zeile): bool => $zeile->subject !== Backups::LISTING)->values();
+
+        $this->assertCount(1, $eigene, 'Die Zeile wurde übersprungen, und niemand erfährt davon.');
+        $this->assertSame(BackupVerify::MISSING, $eigene[0]->reason);
+        $this->assertSame('namenlos-20260916-120000-abcdef01', $eigene[0]->subject);
     }
 
     /**
@@ -177,6 +208,89 @@ final class BackupDiagnoseTest extends TestCase
     }
 
     /**
+     * Eine Datei, zu der es keine Zeile gibt — `docs/117 §9` Punkt 7.
+     *
+     * **Die Gegenrichtung zum Rest der Prüfung.** Sie geht von den Zeilen aus
+     * und findet deshalb nur, was das Panel kennt; ein Rest ist gerade das, was
+     * es nicht kennt. Er entsteht, wenn ein `backup.remove` scheitert, nachdem
+     * die Zeile fort ist.
+     *
+     * > **Ein Wächter, der vom Bestand des Panels ausgeht, sieht nur, was das
+     * > Panel kennt — und ein Rest ist gerade das, was es nicht kennt.**
+     *
+     * **Gemessen an der Regel und nicht am Weg dahin**: {@see Client} ist
+     * `final`, also lässt sich der Aufruf nicht ersetzen. Die Vergleichsregel
+     * steht deshalb als eigene Naht da.
+     */
+    public function test_a_file_without_a_row_is_reported(): void
+    {
+        $dateien = [
+            ['subscription' => 'shop', 'storage' => 'shop-20260916-120000-abcdef01'],
+            ['subscription' => 'shop', 'storage' => 'shop-20260101-000000-deadbeef'],
+            ['subscription' => 'blog', 'storage' => 'blog-20260916-120000-cafe0001'],
+        ];
+
+        $bekannt = ['shop/shop-20260916-120000-abcdef01', 'blog/blog-20260916-120000-cafe0001'];
+
+        $findings = Backups::orphansOf($dateien, $bekannt);
+
+        $this->assertSame(['shop/shop-20260101-000000-deadbeef'], array_column($findings, 'subject'), implode("\n", [
+            'Die Datei ohne Zeile wurde nicht gemeldet — oder eine mit Zeile wurde es.',
+            'Beides ist derselbe Fehler aus zwei Richtungen: Der Befund zeigt auf den',
+            'falschen Gegenstand.',
+        ]));
+
+        $this->assertSame([Backups::ORPHAN], array_column($findings, 'reason'));
+        $this->assertStringContainsString('shop-20260101-000000-deadbeef.zip', (string) $findings[0]['detail']);
+    }
+
+    /**
+     * **Und eine Datei, die zu einer laufenden Sicherung gehört, ist keiner.**
+     *
+     * Eine Sicherung auf `pending` hat ihre Datei schon; sie als Rest zu melden
+     * hiesse, jeden laufenden Vorgang anzuzeigen. Deshalb wird gegen **alle**
+     * Zeilen verglichen und nicht nur gegen die fertigen.
+     *
+     * > **Ein Rest ist, was niemand mehr nennt — nicht, was noch niemand fertig
+     * > genannt hat.**
+     */
+    public function test_a_running_backup_is_not_an_orphan(): void
+    {
+        $subscription = Subscription::factory()->create(['name' => 'shop']);
+
+        Backup::query()->create([
+            'subscription_id' => $subscription->id,
+            'subscription_name' => 'shop',
+            'storage_name' => 'shop-laeuft-noch',
+            'status' => BackupStatus::Pending,
+        ]);
+
+        /*
+         * **Die Menge kommt aus der Prüfung selbst und wird nicht nachgebaut.**
+         * Der erste Wurf hat sie hier abgeschrieben — und ein Filter auf
+         * `ready` in der Prüfung liess diesen Fall grün, weil er seine eigene
+         * Menge mass.
+         *
+         * > **Ein Prüfkörper, der die Stelle nachbaut, an der der Fehler
+         * > entstehen würde, misst sie nicht.**
+         */
+        $bekannt = app(Backups::class)->known();
+
+        $findings = Backups::orphansOf(
+            [['subscription' => 'shop', 'storage' => 'shop-laeuft-noch']],
+            $bekannt,
+        );
+
+        $this->assertSame([], $findings, 'Eine Sicherung, die gerade läuft, wurde als Rest gemeldet.');
+
+        // Die Gegenprobe: Ein Name daneben schlägt sehr wohl an.
+        $this->assertCount(1, Backups::orphansOf(
+            [['subscription' => 'shop', 'storage' => 'shop-laeuft-nicht']],
+            $bekannt,
+        ), 'Die Regel meldet gar nichts — dann misst der Fall darüber nichts.');
+    }
+
+    /**
      * Jeder Grund des Agenten steht in {@see Backups::REASONS}.
      *
      * **Aus der Aufzählung des Agenten abgeleitet und nicht abgeschrieben.**
@@ -195,6 +309,19 @@ final class BackupDiagnoseTest extends TestCase
         }
 
         $this->assertContains(FindingCheck::UNREACHABLE, $gemeldet, 'Ohne `unreachable` hätte ein ausgefallener Lauf keinen Grund.');
-        $this->assertCount(count(BackupVerify::REASONS) + 1, $gemeldet, 'Die Prüfung führt einen Grund, den der Agent nicht ausspricht.');
+
+        /*
+         * **Zwei Gründe kommen nicht vom Agenten, und beide mit Grund.**
+         * `unreachable` sagt, dass die Frage nicht beantwortet wurde;
+         * {@see Backups::ORPHAN} urteilt über eine Datei, die **niemand**
+         * nennt — der Agent listet sie nur auf, das Urteil fällt hier, weil nur
+         * das Panel die Zeilen kennt.
+         *
+         * Die Zahl steht daneben, damit ein **dritter** auffällt: Ein Grund
+         * mehr wäre sonst eine zweite Liste, die neben der des Agenten
+         * herläuft.
+         */
+        $this->assertContains(Backups::ORPHAN, $gemeldet, 'Ohne `orphan` gäbe es für eine Datei ohne Zeile keinen Grund.');
+        $this->assertCount(count(BackupVerify::REASONS) + 2, $gemeldet, 'Die Prüfung führt einen Grund, den weder der Agent noch das Panel ausspricht.');
     }
 }

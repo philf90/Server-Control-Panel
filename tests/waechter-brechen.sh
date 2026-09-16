@@ -30073,6 +30073,52 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupCertificateTest passed
 
 echo
+echo "── BackupDiagnoseTest: jede Datei gilt als Rest ──"
+#
+# Ohne den Vergleich gegen die Zeilen meldete der Nachtlauf jede Sicherung, die
+# es gibt — und ein Betreiber, der jede Nacht eine Liste seines eigenen
+# Bestandes bekommt, hoert auf hinzusehen.
+vorher_datei app/Support/Diagnose/Checks/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($abonnement === '' || $ablage === '' || isset($gesucht[$abonnement.'/'.$ablage])) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            if ($abonnement === '' || $ablage === '') {", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Backups.php "jede Datei gilt als Rest" &&
+pruefe "jede Datei gilt als Rest" \
+  BackupDiagnoseTest::test_a_file_without_a_row_is_reported failed
+wiederherstellen
+
+echo
+echo "── BackupDiagnoseTest: nur fertige Zeilen zaehlen ──"
+#
+# Eine Sicherung auf `pending` hat ihre Datei schon. Ein Filter auf `ready`
+# machte aus jedem laufenden Vorgang einen gemeldeten Rest.
+#
+# **Der Eingriff trifft `known()` und nicht den Rumpf von `orphans()`** — der
+# erste Wurf des Waechters baute die Menge daneben nach, und dann blieb dieser
+# Bruch gruen.
+vorher_datei app/Support/Diagnose/Checks/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = """        return $this->tenancy->withoutRestriction(static fn (): array => Backup::query()
+            ->get(['subscription_name', 'storage_name'])"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        return $this->tenancy->withoutRestriction(static fn (): array => Backup::query()
+            ->where('status', BackupStatus::Ready->value)
+            ->get(['subscription_name', 'storage_name'])"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Backups.php "nur fertige Zeilen zaehlen" &&
+pruefe "nur fertige Zeilen zaehlen" \
+  BackupDiagnoseTest::test_a_running_backup_is_not_an_orphan failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupDiagnoseTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

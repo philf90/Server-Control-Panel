@@ -13,6 +13,7 @@ use App\Support\Diagnose\FindingLog;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Support\Carbon;
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Backup\Store;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Ops\BackupVerify;
 
@@ -78,6 +79,24 @@ use SrvPanel\Agent\Ops\BackupVerify;
 final class Backups implements Check
 {
     /**
+     * **`orphan` kommt nicht aus `BackupVerify`, und das ist richtig so.** Die
+     * Prüfung dort urteilt über ein Archiv, das jemand nennt; dieser Grund
+     * urteilt über eines, das **niemand** nennt. Er entsteht hier und nirgends
+     * sonst.
+     */
+    public const ORPHAN = 'orphan';
+
+    /**
+     * Der Gegenstand, unter dem ein Ausfall **der Auflistung** steht.
+     *
+     * **Kein Ablagename, und das ist Absicht.** Die übrigen `unreachable`-Zeilen
+     * nennen die Sicherung, an der der Agent gescheitert ist; hier ist keine
+     * einzelne gescheitert, sondern die Frage „was liegt überhaupt da". Ein
+     * Ablagename hier hiesse, es gebe eine Sicherung dieses Namens.
+     */
+    public const LISTING = 'Ablageort';
+
+    /**
      * Die Gründe, die diese Prüfung ausspricht — je Schlüssel.
      *
      * **Sie kommen aus dem Agenten und nicht aus einer Liste hier.**
@@ -88,7 +107,7 @@ final class Backups implements Check
      * @var array<string, list<string>>
      */
     public const REASONS = [
-        'backup.file' => [...BackupVerify::REASONS, FindingCheck::UNREACHABLE],
+        'backup.file' => [...BackupVerify::REASONS, self::ORPHAN, FindingCheck::UNREACHABLE],
     ];
 
     public function __construct(
@@ -105,17 +124,20 @@ final class Backups implements Check
     {
         $backups = $this->ready();
 
-        if ($backups === []) {
-            // **Und das ist eine Messung und kein Ausfall.** Ein Server ohne
-            // Sicherungen hat nichts, was kaputt sein könnte; `replace()` mit
-            // einer leeren Liste räumt die Befunde von gestern ab, und genau
-            // das ist richtig — die Sicherungen, auf die sie sich bezogen,
-            // gibt es nicht mehr.
-            $log->replace(FindingCheck::BackupFile, [], $measuredAt);
-
-            return;
-        }
-
+        /*
+         * **Kein früher Ausstieg bei null Zeilen, und das ist eine
+         * Berichtigung vom 16. September 2026.**
+         *
+         * Hier stand `if ($backups === []) { replace([]); return; }` mit der
+         * Begründung, ein Server ohne Sicherungen habe nichts, was kaputt sein
+         * könnte. Das stimmt für die Zeilen und nicht für die Dateien: **Null
+         * Zeilen und eine Datei auf der Platte ist genau der Zustand, den
+         * `docs/117 §9` Punkt 7 meint** — und der Ausstieg hätte ihn als
+         * Erstes übersprungen.
+         *
+         * > **Ein Ausstieg, der aus dem Bestand des Panels folgt, überspringt
+         * > gerade das, was das Panel nicht kennt.**
+         */
         $findings = [];
         $ungeprueft = [];
 
@@ -190,11 +212,141 @@ final class Backups implements Check
          * > **Eine Reihenfolge, die aus einer Eigenschaft des Werkzeugs folgt,
          * > gehört neben den Aufruf und nicht in die Erinnerung.**
          */
+        /*
+         * **Und die Gegenrichtung** (`docs/117 §9` Punkt 7): eine Datei, zu der
+         * es keine Zeile gibt. Sie entsteht, wenn ein `backup.remove`
+         * scheitert, nachdem die Zeile fort ist — und sie kostet Platz, den
+         * niemand zuordnet.
+         */
+        try {
+            foreach ($this->orphans() as $finding) {
+                $findings[] = $finding;
+            }
+        } catch (AgentException $e) {
+            $ungeprueft[self::LISTING] = $e->getMessage();
+        }
+
         $log->replace(FindingCheck::BackupFile, $findings, $measuredAt);
 
         foreach ($ungeprueft as $storage => $meldung) {
             $log->unreachable(FindingCheck::BackupFile, [(string) $storage], $measuredAt, $meldung);
         }
+    }
+
+    /**
+     * Dateien, zu denen es keine Zeile gibt.
+     *
+     * **Gefragt wird der Agent und nicht `glob()`.** Der Ablageort ist `0710
+     * root:srvpanel` — durchsuchbar für die Gruppe, nicht auflistbar. Das Panel
+     * kommt an eine Datei heran, deren Namen es kennt; welche es gibt, weiss
+     * nur der Agent.
+     *
+     * **Verglichen wird gegen *alle* Zeilen und nicht nur die fertigen.** Eine
+     * Sicherung, die gerade geschrieben wird, steht auf `pending` und hat ihre
+     * Datei schon — sie als Rest zu melden hiesse, jeden laufenden Vorgang
+     * anzuzeigen.
+     *
+     * > **Ein Rest ist, was niemand mehr nennt — nicht, was noch niemand
+     * > fertig genannt hat.**
+     *
+     * **Und der Name kommt aus der Abschrift.** `subscription_name` steht auch
+     * dann noch da, wenn das Abonnement fort ist — und genau dann liegen die
+     * Dateien noch, um die es hier geht.
+     *
+     * @return list<array{subject: string, reason: string, detail: null|string}>
+     */
+    private function orphans(): array
+    {
+        $antwort = $this->agent->call('backup.list');
+        $dateien = is_array($antwort['files'] ?? null) ? $antwort['files'] : [];
+
+        return self::orphansOf($dateien, $this->known());
+    }
+
+    /**
+     * `<abo>/<ablage>` je Zeile, die das Panel führt.
+     *
+     * **Alle Zeilen und nicht nur die fertigen**, und das ist die Stelle, an
+     * der sich der Fehler machen liesse: Eine Sicherung auf `pending` hat ihre
+     * Datei schon, und ein Filter auf `ready` machte aus jedem laufenden
+     * Vorgang einen gemeldeten Rest.
+     *
+     * > **Ein Rest ist, was niemand mehr nennt — nicht, was noch niemand fertig
+     * > genannt hat.**
+     *
+     * **Sie steht als eigene Methode da, damit ein Wächter sie fahren kann.**
+     * Der erste Wurf hatte die Abfrage im Rumpf von {@see self::orphans()}, und
+     * der Prüfkörper baute sie daneben nach — ein Filter auf `ready` blieb dann
+     * grün, weil der Test seine eigene Menge mass.
+     *
+     * > **Ein Prüfkörper, der die Stelle nachbaut, an der der Fehler entstehen
+     * > würde, misst sie nicht.**
+     *
+     * **Der Name kommt aus der Abschrift.** `subscription_name` steht auch dann
+     * noch da, wenn das Abonnement fort ist — und genau dann liegen die
+     * Dateien, um die es hier geht.
+     *
+     * @return list<string>
+     */
+    public function known(): array
+    {
+        return $this->tenancy->withoutRestriction(static fn (): array => Backup::query()
+            ->get(['subscription_name', 'storage_name'])
+            ->map(static fn (Backup $backup): string => $backup->subscription_name.'/'.$backup->storage_name)
+            ->all());
+    }
+
+    /**
+     * Die Regel selbst — was ist ein Rest, und was nicht.
+     *
+     * **Sie steht getrennt, weil {@see Client} `final` ist.** Der Weg dahinter
+     * liesse sich sonst nicht messen; dieselbe Naht wie bei
+     * {@see self::findingsOf()}, und aus demselben Grund.
+     *
+     * > **Eine Klasse, die sich nicht ersetzen lässt, hat keinen Test — und der
+     * > Weg dahinter auch nicht.**
+     *
+     * @param  list<mixed>  $dateien  was der Agent aufgelistet hat
+     * @param  list<string>  $bekannt  `<abo>/<ablage>` je Zeile des Panels
+     * @return list<array{subject: string, reason: string, detail: null|string}>
+     */
+    public static function orphansOf(array $dateien, array $bekannt): array
+    {
+        $gesucht = array_fill_keys($bekannt, true);
+        $findings = [];
+
+        foreach ($dateien as $datei) {
+            if (! is_array($datei)) {
+                continue;
+            }
+
+            $abonnement = is_string($datei['subscription'] ?? null) ? $datei['subscription'] : '';
+            $ablage = is_string($datei['storage'] ?? null) ? $datei['storage'] : '';
+
+            /*
+             * **Ein Eintrag ohne Namen wird übersprungen und nicht gemeldet.**
+             * Er sagt nichts über eine Datei; ihn als Rest zu führen hiesse,
+             * einen Befund über einen Gegenstand anzulegen, den niemand
+             * aufsuchen kann.
+             */
+            if ($abonnement === '' || $ablage === '' || isset($gesucht[$abonnement.'/'.$ablage])) {
+                continue;
+            }
+
+            $findings[] = [
+                'subject' => $abonnement.'/'.$ablage,
+                'reason' => self::ORPHAN,
+                'detail' => sprintf(
+                    'Zu dieser Datei gibt es keine Zeile: %s/%s/%s.zip. Sie bleibt liegen, bis '
+                    .'jemand sie entfernt — der nächtliche Lauf räumt sie nicht ab.',
+                    Store::ROOT,
+                    $abonnement,
+                    $ablage,
+                ),
+            ];
+        }
+
+        return $findings;
     }
 
     /**

@@ -553,6 +553,23 @@ enum FindingCheck: string
                     'state' => FindingState::Fail,
                     'text' => 'Die Bytes einer Datei im Archiv stimmen nicht mit ihrer Prüfsumme überein.',
                 ],
+
+                /*
+                 * **Die Gegenrichtung, und `warn` und nicht `fail`.** Eine
+                 * Datei ohne Zeile ist kein Schaden an einer Sicherung — es
+                 * ist Platz, den niemand zuordnet. Sie entsteht, wenn ein
+                 * `backup.remove` scheitert, nachdem die Zeile fort ist.
+                 *
+                 * Ein `fail` wäre die falsche Dringlichkeit: Nichts ist kaputt,
+                 * und niemand muss nachts aufstehen. Ein Betreiber, der jede
+                 * Nacht ein rotes Urteil für einen liegengebliebenen Rest
+                 * bekäme, hörte auf hinzusehen.
+                 */
+                'orphan' => [
+                    'state' => FindingState::Warn,
+                    'text' => 'Zu dieser Datei gibt es keine Zeile — sie gehört keiner Sicherung, die das Panel kennt.',
+                ],
+
                 ...$unreachable,
             ],
         };

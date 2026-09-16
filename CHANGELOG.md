@@ -29271,3 +29271,38 @@ hat es `DocblockAnchorTest`.
 
 > **Ein Werkzeug bemerkt den fehlenden Kommentar. Den falschen bemerkt es
 > nicht.**
+
+### Eine Sicherungsdatei ohne Zeile meldet sich jetzt
+
+`docs/117 §9` Punkt 7, seit Schritt 6 benannt offen: `Checks\Backups` geht von
+den **Zeilen** aus und findet deshalb nur, was das Panel kennt. Die
+Gegenrichtung — eine Datei unter `/var/lib/srvpanel/backups`, die in keiner Zeile
+steht — prüfte niemand. Sie entsteht, wenn ein `backup.remove` scheitert,
+nachdem die Zeile fort ist.
+
+> **Ein Wächter, der vom Bestand des Panels ausgeht, sieht nur, was das Panel
+> kennt — und ein Rest ist gerade das, was es nicht kennt.**
+
+Es braucht dafür eine Operation und kein `glob()`: Der Ablageort ist `0710
+root:srvpanel` — durchsuchbar für die Gruppe, **nicht auflistbar**. Das Panel
+kommt an eine Datei heran, deren Namen es kennt, und kann nicht nachsehen, welche
+es gibt. `backup.list` beantwortet das, ändert nichts und meldet **gemeldet statt
+gelöscht**, wie jeder andere Rest seit A10. Der Grund ist `warn` und nicht
+`fail`: Nichts ist kaputt, es ist Platz, den niemand zuordnet.
+
+**Zwei Dinge sind beim Bauen umgefallen.** Der frühe Ausstieg bei null Zeilen
+hätte genau diesen Zustand als Erstes übersprungen — null Zeilen und eine Datei
+auf der Platte ist der Fall.
+
+> **Ein Ausstieg, der aus dem Bestand des Panels folgt, überspringt gerade das,
+> was das Panel nicht kennt.**
+
+Und der Wächter mass die Regel, während er die **Menge** daneben nachbaute: Der
+Bruch, der einen Filter auf `ready` einsetzt, blieb grün.
+
+> **Ein Prüfkörper, der die Stelle nachbaut, an der der Fehler entstehen würde,
+> misst sie nicht.**
+
+Die Grösse der Datei steht bewusst **nicht** im Befundtext: Sie wäre die
+nützlichere Auskunft und kostete eine vierte Fassung von `formatBytes`. Der Pfad
+steht da, und `ls -l` liegt daneben.

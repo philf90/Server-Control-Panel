@@ -10,6 +10,7 @@ use SrvPanel\Agent\Ops\AcmeCertificateInfo;
 use SrvPanel\Agent\Ops\AcmeCertificateRemove;
 use SrvPanel\Agent\Ops\AgentPing;
 use SrvPanel\Agent\Ops\BackupCreate;
+use SrvPanel\Agent\Ops\BackupList;
 use SrvPanel\Agent\Ops\BackupRemove;
 use SrvPanel\Agent\Ops\BackupRestore;
 use SrvPanel\Agent\Ops\BackupVerify;
@@ -296,6 +297,7 @@ final class Registry
          */
         $this->register(new BackupRemove);
         $this->register(new BackupCreate);
+        $this->register(new BackupList);
 
         /*
          * Und die Prüfung daneben — sie steht **ausserhalb** des Paares oben,

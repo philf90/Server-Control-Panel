@@ -728,20 +728,39 @@ Die ersten vier stehen schon in `docs/116`.
    `cloudsrv24` ist nicht diese; der Griff ist `time srvpanel backup-verify`
    neben `du -sh /var/lib/srvpanel/backups`.
 
-7. **Eine Sicherungsdatei, zu der es keine Zeile gibt.** Aufgefallen beim Bau
-   von Schritt 6: `Checks\Backups` geht von den **Zeilen** aus und findet
-   deshalb nur, was das Panel kennt. Die Gegenrichtung — eine Datei unter
-   `/var/lib/srvpanel/backups`, die in keiner Zeile steht — prüft niemand;
-   {@see \App\Support\Diagnose\Checks\Orphans} kennt Zertifikate,
-   Systembenutzer und Cron-Dateien und keine Sicherungen.
-
-   Das ist **kein** Befund von Schritt 6, sondern eine benannte Lücke: Sie
-   entsteht, wenn ein `backup.remove` scheitert, nachdem die Zeile fort ist —
-   und sie kostet Platz, den niemand zuordnet. Sie gehört zu Schritt 9
-   (Aufbewahrung) und nicht hierher.
+7. **Eine Sicherungsdatei, zu der es keine Zeile gibt.** ~~Offen.~~ **Gebaut am
+   16. September 2026** als `backup.list` im Agenten plus die Gegenrichtung in
+   `Checks\Backups`.
 
    > **Ein Wächter, der vom Bestand des Panels ausgeht, sieht nur, was das Panel
    > kennt — und ein Rest ist gerade das, was es nicht kennt.**
+
+   **Es braucht eine Operation und kein `glob()`:** Der Ablageort ist `0710
+   root:srvpanel` — durchsuchbar für die Gruppe, nicht auflistbar. Das Panel
+   kommt an eine Datei heran, deren Namen es kennt, und kann nicht nachsehen,
+   welche es gibt. `Diagnose\LocalHost::cronFiles()` darf `glob()`, weil
+   `/etc/cron.d` für alle lesbar ist; hier nicht.
+
+   **Sie sitzt in `Checks\Backups` und nicht in `Orphans`** — dort ist der
+   Agent schon, dort steht `writes()` auf `BackupFile`, und `DiagnoseRunTest`
+   verlangt **einen** Schreiber je Schlüssel.
+
+   **Der Grund ist `warn` und nicht `fail`.** Nichts ist kaputt; es ist Platz,
+   den niemand zuordnet. Ein Betreiber, der jede Nacht ein rotes Urteil für
+   einen liegengebliebenen Rest bekäme, hörte auf hinzusehen. Und **gemeldet,
+   nicht gelöscht** — dieselbe Regel wie bei jedem anderen Rest seit A10.
+
+   **Zwei Dinge sind beim Bauen umgefallen.** Der frühe Ausstieg bei null Zeilen
+   (`if ($backups === []) { … return; }`) hätte genau diesen Zustand als Erstes
+   übersprungen — null Zeilen und eine Datei auf der Platte ist der Fall.
+
+   > **Ein Ausstieg, der aus dem Bestand des Panels folgt, überspringt gerade
+   > das, was das Panel nicht kennt.**
+
+   Und die Grösse der Datei steht **nicht** im Befund: Sie wäre die nützlichere
+   Auskunft und kostete eine vierte Fassung von `formatBytes`. `SizeUnitTest`
+   hält fest, dass eine Byte-Zahl eine bleibt, bis sie jemand **anzeigt**. Wer
+   aufräumt, hat den Pfad — er steht im Text — und `ls -l` daneben.
 
 ---
 
@@ -2170,6 +2189,42 @@ Dasselbe ist im Agenten passiert (`BackupRestore::certificates()` erbte den
 Block von `dumps()`), nur dort vor dem Lauf aufgefallen. **Zweimal in einer
 Stunde** heisst: Wer eine Methode vor eine bestehende setzt, sieht nach, wessen
 Block darüber steht.
+
+### Befund 18 · Ein Prüfkörper, der die fehleranfällige Stelle nachgebaut hat
+
+Der Wächter zur Gegenrichtung mass die **Regel** (`orphansOf()`) und baute die
+**Menge** daneben nach — dieselbe Abfrage noch einmal im Test. Der Bruch, der
+einen Filter auf `ready` einsetzt, blieb damit grün: Er traf die Prüfung, und
+der Test mass seine eigene Kopie.
+
+> **Ein Prüfkörper, der die Stelle nachbaut, an der der Fehler entstehen würde,
+> misst sie nicht.**
+
+Gefallen ist es, weil der Bruch nach dem Schreiben gefahren wurde und nicht nur
+geschrieben — der zweite von zwei, und der erste biss. `known()` steht seitdem
+als eigene Methode da, und der Test fragt sie.
+
+Das ist die Familie von „Eine Gegenprobe, die den Fall nicht enthält, in dem der
+Filter zuschlägt, belegt den Filter nicht" — hier ist es nicht der Filter,
+sondern der Gegenstand.
+
+### Befund 19 · Derselbe verwaiste Dokumentblock zum dritten Mal — an einem Tag
+
+`orphans()` und `known()` wurden **vor** `private function ready()` eingesetzt,
+und dessen Dokumentblock blieb stehen — er beschrieb seitdem `orphans()`. Am
+Konstantenblock dasselbe: Der Block von `REASONS` blieb über der neu
+eingesetzten Konstante `ORPHAN` liegen.
+
+Beide Male hat PHPStan die Hälfte gemeldet, die ein Werkzeug sehen kann (ein
+fehlendes `@return`), und `DocblockAnchorTest` die andere.
+
+> **Ein Werkzeug bemerkt den fehlenden Kommentar. Den falschen bemerkt es
+> nicht.**
+
+**Dreimal am 16. September**, und die Ursache ist jedes Mal dieselbe: Ein
+Einfügen, das am **Namen der folgenden Deklaration** ankert, setzt sich zwischen
+sie und ihren Block. Wer vor eine bestehende Deklaration einfügt, ankert an
+deren **Dokumentblock** und nicht an ihrer Signatur.
 
 ### Was danach offen bleibt
 

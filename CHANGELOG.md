@@ -28675,3 +28675,48 @@ Was Plesk, cPanel und DirectAdmin noch trügen, ist entschieden (JetBackups
 *Integrity Check* stützt Entscheidung 1) oder steht in `docs/117 §10` als
 Vorschlag für später. Die drei Zeilen der Tabelle bleiben deshalb als Wissen aus
 zweiter Hand stehen — eine benannte Grenze und kein Mangel.
+
+## P8 Schritt 1 und 2 — die Ablage und das Verzeichnis einer Sicherung
+
+**Form A ist entschieden** (`docs/117 §3`, 16. September 2026): Eine
+Wiederherstellung holt keine Reservierung zurück, sondern nimmt die nächste
+freie Nummer. `docs/35` bleibt damit unberührt, und §8 Punkt 6 — die Seite sagt,
+was sich geändert hat — ist genau deshalb ein Ausschlusskriterium.
+
+`Backup\Store` ist die Ablage, `Backup\Manifest` das Verzeichnis. Was ein Zip
+nicht tragen kann, trägt das Verzeichnis: **Rechte und Verweisziele**, je
+Eintrag. Den Eigentümer trägt es ausdrücklich nicht — er ändert sich bei Form A
+ohnehin und wird aus dem neuen Systembenutzer gesetzt statt aus dem Archiv
+gelesen.
+
+**Die Rechteregel steht nicht zweimal da.** `DumpAccessTest` hielt sie seit P5
+für die Dumps und rechnet sie, statt sie abzuschreiben; seit P8 läuft er über
+**beide** Ablagen. Eine zweite Fassung wäre die, die veraltet. Sein Name ist
+damit enger als sein Gegenstand — das steht in seinem Kopf statt einer
+Umbenennung, die in `waechter-brechen.sh` und zwei Dokumenten tote Einträge
+hinterliesse.
+
+**Ein deutscher Pfad wäre der erste dieses Servers gewesen.** Der Plan schrieb
+`/var/lib/srvpanel/sicherungen`; ausgezählt sind **23 von 23** Pfaden unter
+`/var/lib/srvpanel` und `/etc/srvpanel` englisch. Ein Pfad ist ein Bezeichner
+(`docs/19 §4a`), und es heisst jetzt `backups`.
+
+> **Eine Regel, die für Klassennamen offensichtlich gilt, gilt für einen Pfad
+> genauso — nur prüft sie dort kein Wächter.**
+
+**Die Rechte reisen als Oktalwort und nicht als Zahl.** `"0644"` und nicht
+`420`: Ein Verzeichnis ist die Datei, die ein Mensch aufmacht, wenn etwas
+schiefgegangen ist — und wer `420` in ein `chmod` tippt, setzt `0420`. Die
+Umrechnung steht an einer Stelle, und `BackupStoreTest` misst den Rundlauf.
+
+**Drei Wächter haben beim Bauen zugebissen, und keiner in der CI.** PHPStan
+fand `AgentException::denied()` mit zwei Argumenten, wo es eines nimmt.
+`SandboxReachTest` verlangte, dass ein neuer Aufrufer von
+`Filesystem::removeTree()` benannt wird — als root über einen Baum zu laufen,
+in den ein Kunde schreibt, hat in 5 von 120 Durchgängen Dateien ausserhalb des
+Abonnements gelöscht. Und `GuardReachTest` fand einen Kommentar, der einen
+Wächter nannte, den es noch nicht gibt.
+
+> **Ein Kommentar, der einen Wächter nennt, ist ein Versprechen, solange es ihn
+> nicht gibt.** Er gehört an den Packer und entsteht mit ihm — dort lässt sich
+> an der Wirkung halten, dass das Verzeichnis die Leitung nicht nimmt.

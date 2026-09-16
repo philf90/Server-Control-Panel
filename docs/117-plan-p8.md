@@ -96,7 +96,17 @@ und ist damit der Vorläufer für jedes Fernziel.
 
 ---
 
-## §3 · Die eine Frage, die noch offen ist — und sie entscheidet die Form
+## §3 · Die Frage, die die Form entscheidet — **entschieden am 16. September 2026**
+
+> **Der Betreiber hat Form A entschieden.** Damit bleibt `docs/35` unberührt:
+> Eine Wiederherstellung holt keine Reservierung zurück, sondern nimmt die
+> nächste freie Nummer. §6 Schritt 7 baut A, Schritt 8 sagt dem Kunden, was
+> sich geändert hat, und §8 Punkt 6 ist genau deshalb ein Ausschlusskriterium.
+>
+> **Form B bleibt unten stehen und ist nicht gebaut.** Sie steht da, weil eine
+> Entscheidung ohne ihre verworfene Alternative in einem Jahr wie eine
+> Selbstverständlichkeit aussieht — und weil der Nächste, der sie umdrehen
+> will, hier die drei Bedingungen findet, unter denen sie tragen würde.
 
 **Die Messrunde hat sie erzeugt; `docs/115 §6.2` kannte sie nicht.**
 
@@ -511,10 +521,19 @@ Zurück kommt der Name des Ziels und sein Anbieter.
 Zehn Schritte. Die Reihenfolge ist so gewählt, dass jeder für sich auf einem
 Server messbar ist.
 
-1. **Der Ablageort.** `Backup\Store` im Agenten — `/var/lib/srvpanel/sicherungen`,
+1. **Der Ablageort.** `Backup\Store` im Agenten — `/var/lib/srvpanel/backups`,
    `root:srvpanel 0640`, Verzeichnis `0710`, nach dem Vorbild von `Db\Dump`.
    Dessen Lehre gilt hier wörtlich: Ohne `x` auf **jedem** Verzeichnis darüber
    nützt das `r` an der Datei nichts.
+
+   **Hier stand `sicherungen`, und das wäre der erste deutsche Pfad dieses
+   Servers gewesen.** Ausgezählt am 16. September: **23 von 23** Pfaden unter
+   `/var/lib/srvpanel` und `/etc/srvpanel` sind englisch — `dumps`, `metrics`,
+   `acme-challenge`, `php-source`. Ein Pfad ist ein Bezeichner, und `docs/19
+   §4a` sagt dazu englisch; deutsch ist, was auf dem Bildschirm steht.
+
+   > **Eine Regel, die für Klassennamen offensichtlich gilt, gilt für einen
+   > Pfad genauso — nur prüft sie dort kein Wächter.**
 2. **Das Verzeichnis.** `Backup\Manifest` — Fassung, Zeitpunkt, Abonnementname,
    ursprüngliche Systembenutzernummer, je Datei Pfad, Rechte und Verweisziel,
    dazu die Beschreibung aus §4. Framework- und abhängigkeitsfrei, damit beide

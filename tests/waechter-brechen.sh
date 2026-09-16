@@ -28750,6 +28750,62 @@ pruefe "  … zurückgesetzt wieder grün" LogFooterTest passed
 
 
 echo
+echo "── DumpAccessTest: die Ablage der Sicherungen wird auflistbar ──"
+#
+# Dieselbe Regel wie beim Dump-Verzeichnis darüber, nur an der zweiten Ablage.
+# Sie steht hier als eigener Eingriff, weil die Regel seit P8 über einen
+# Datenlieferanten läuft: Ein Eingriff am Dump beweist nicht, dass der Wächter
+# auch an der Sicherung hinsieht — er beweist nur, dass er an einer hinsieht.
+vorher_datei agent/src/Backup/Store.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Store.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('public const DIRECTORY_MODE = 0710;', 'public const DIRECTORY_MODE = 0750;')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Store.php "Sicherungsverzeichnis auflistbar" &&
+pruefe "Sicherungsverzeichnis auflistbar" \
+  DumpAccessTest::test_the_group_may_not_list_the_directory failed
+wiederherstellen
+
+echo
+echo "── BackupStoreTest: ein Pfad mit .. kommt in die Sicherung ──"
+#
+# Der Aufstieg ist die eine Prüfung, ohne die ein Verzeichnis beim Entpacken
+# irgendwohin schreiben lässt. Sie steht beim Lesen und beim Schreiben; der
+# Eingriff nimmt sie an ihrer einen Stelle heraus.
+vorher_datei agent/src/Backup/Manifest.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Manifest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("if ($part === '..') {", "if ($part === '...') {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Manifest.php "Aufstieg im Pfad" &&
+pruefe "Aufstieg im Pfad" \
+  BackupStoreTest::test_a_path_never_leaves_the_backup failed
+wiederherstellen
+
+echo
+echo "── BackupStoreTest: die Art der Datei bleibt in den Rechten ──"
+#
+# `stat()` liefert `0100644` für eine gewöhnliche Datei. Ohne die Maske steht
+# das im Verzeichnis, und was ein Mensch daraus in ein `chmod` tippt, ist nicht
+# der Wert, der gemeint war.
+vorher_datei agent/src/Backup/Manifest.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Manifest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("sprintf('%04o', $mode & 07777)", "sprintf('%04o', $mode)", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Manifest.php "Dateiart in den Rechten" &&
+pruefe "Dateiart in den Rechten" \
+  BackupStoreTest::test_the_file_type_bits_never_reach_the_manifest failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupStoreTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

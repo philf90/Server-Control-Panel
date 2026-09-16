@@ -28655,3 +28655,23 @@ Der zweite ist eine Zahl in `CLAUDE.md`: Über einer Liste mit elf Hosts stand
 
 > **Eine Zahl neben einer Aufzählung wird nicht dadurch richtig, dass die
 > Aufzählung stimmt — sie ist die einzige Stelle, an der niemand nachzählt.**
+
+## Der Panelvergleich ist geschlossen — und die drei gesperrten Dokus fehlen nicht
+
+Die Frage, die `docs/117 §3` entscheidet, lautet nicht „gibt das Panel den Namen
+zurück", sondern „führt es Buch darüber, welcher Name einmal vergeben war". Das
+ist interne Buchführung und keine Zusage an den Benutzer.
+
+> **Eine Doku beschreibt, was ein Panel anbietet — nicht, welches Buch es
+> führt.**
+
+Die drei gemessenen Panels haben die Frage nur deshalb beantwortet, weil ihr
+Quelltext lesbar ist — und sie decken beide Richtungen ab: HestiaCP wirft Name,
+Nummer und Präfix weg, Virtualmin und CyberPanel behalten alles, weil bei ihnen
+nie etwas verbraucht wurde. Ein vierter Datenpunkt für eine der beiden
+Richtungen verschiebt nichts.
+
+Was Plesk, cPanel und DirectAdmin noch trügen, ist entschieden (JetBackups
+*Integrity Check* stützt Entscheidung 1) oder steht in `docs/117 §10` als
+Vorschlag für später. Die drei Zeilen der Tabelle bleiben deshalb als Wissen aus
+zweiter Hand stehen — eine benannte Grenze und kein Mangel.

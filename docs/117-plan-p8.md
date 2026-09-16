@@ -327,6 +327,37 @@ leeres Gehäuse.
 dass es keine hat. Es steht als Nichtmessung da und nicht als Zeile in der
 Tabelle.
 
+### Warum der Vergleich hier endet und die drei gesperrten Dokus nicht fehlen
+
+**Die Frage von §3 ist keine, die eine Herstellerdoku beantwortet.** Sie lautet
+nicht „gibt das Panel den Namen zurück" — das steht in jeder Doku — sondern
+„führt es Buch darüber, welcher Name einmal vergeben war". Das ist interne
+Buchführung und keine Zusage an den Benutzer; sie steht in keinem Handbuch,
+weil niemand sie dort suchen würde.
+
+> **Eine Doku beschreibt, was ein Panel anbietet — nicht, welches Buch es
+> führt.** Die drei gemessenen haben die Frage nur deshalb beantwortet, weil
+> ihr Quelltext lesbar ist.
+
+**Und die drei gemessenen decken beide Richtungen ab.** HestiaCP wirft Name,
+Nummer und Präfix weg und schreibt jede Datei um — das ist Form A, in einem
+ausgelieferten Panel. Virtualmin und CyberPanel behalten Name und Präfix, und
+gemessen ist auch der Grund: Es gibt bei ihnen nichts zurückzuholen, weil nie
+etwas verbraucht wurde. Ein vierter Datenpunkt für eine der beiden Richtungen
+verschiebt nichts.
+
+**Was die gesperrten drei noch trügen, ist bereits entschieden oder steht in
+§10.** JetBackups *Integrity Check* stützt Entscheidung 1, cPanels Trennung von
+serverweitem Ziel und einmaligem Kundenstoss ist ein Vorschlag für später, und
+keiner der drei benennt beim Zurückspielen eine Datenbank um — es gibt dort
+also auch nichts zu der Auskunft zu sagen, um die es in §8 Punkt 6 geht.
+
+**Die drei Zeilen bleiben deshalb als Wissen aus zweiter Hand stehen, und das
+ist eine benannte Grenze und kein Mangel.** Wer sie später misst, misst eine
+Bestätigung; wer §3 anders entscheiden will, braucht keine vierte Zeile,
+sondern eine Entscheidung — **denn den Weg, den Form B ginge, ist keines der
+sechs Panels gegangen.**
+
 ### Was der Plan daraus macht
 
 **§4 bis §7 sind für beide Formen geschrieben.** Sie unterscheiden sich an genau

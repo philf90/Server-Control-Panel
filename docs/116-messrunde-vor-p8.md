@@ -89,9 +89,33 @@ leer.
 
 | Schreiber | zurück wie vorher | was fehlt |
 |---|---|---|
-| `ZipArchive` (der Weg, den `Packer` geht) | **1 von 5** | Eigentümer, Verweis; Verzeichnisse kommen als **0777** zurück |
+| `ZipArchive` (der Weg, den `Packer` geht) | **1 von 5** | Eigentümer, Verweis; **jeder Modus** — siehe darunter |
 | `PharData` (Tar aus PHP) | **1 von 5** | Eigentümer, Verweis, setgid — und das **leere Verzeichnis ganz** |
 | `tar(1)` von aussen | **5 von 5** | — |
+
+**Nachgemessen am 16. September 2026, und die Zeile oben war zu schmal.**
+`ZipArchive::extractTo()` trägt nicht etwa die Verzeichnisrechte nicht — es
+trägt **gar keinen** Modus. Es legt jeden Eintrag mit `0777` beziehungsweise
+`0666` gegen die **umask** an, und der Modus im Archiv bleibt unbenutzt:
+
+| umask | `httpdocs` (war `2750`) | `.env` (war `0600`) |
+|---|---|---|
+| `0022` (die Vorgabe von systemd) | `0755` | **`0644`** |
+| `0000` | `0777` | `0666` |
+
+Die `0777` der ersten Messung war also kein Wert von `ZipArchive`, sondern die
+umask des Prüfstands. **`srvpanel-agentd.service` setzt kein `UMask=`**, also
+gilt dort `0022` — ein privater Schlüssel käme aus einer Wiederherstellung ohne
+Verzeichnis als `0644` zurück, und das ist der teurere der beiden Schäden.
+
+> **Ein gemessener Wert, dessen Bedingung niemand mitgeschrieben hat, ist auf
+> der nächsten Maschine eine Vermutung.**
+
+Umask-unabhängig belegt das der Vergleich zweier Quellen: `index.php` mit `0644`
+und `.env` mit `0600` kommen nach `extractTo` mit **demselben** Modus zurück.
+
+> **Eine Anzeige, die zwei verschiedene Werte gleich aussehen lässt, behauptet
+> etwas, das sie nicht weiss.**
 
 **`tar` von aussen ist die Gegenprobe.** Trüge auch das nichts, läge der Fehler
 in der Messung und nicht in den Schreibern.

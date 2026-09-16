@@ -6,6 +6,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Finding;
 use App\Support\Diagnose\RunLog;
+use App\Support\Diagnose\SettingsRunLog;
+use App\Support\Settings\Settings;
 use App\Support\Time\Clock;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -38,7 +40,7 @@ use Inertia\Response;
  */
 final class DiagnoseController extends Controller
 {
-    public function show(RunLog $runs): Response
+    public function show(RunLog $runs, Settings $settings): Response
     {
         // **`operate-server` und nicht der Kontotyp.** Dieselbe Policy, die
         // `/logs` bewacht — eine zweite Fassung wäre die, die veraltet.
@@ -54,6 +56,27 @@ final class DiagnoseController extends Controller
              * Abnahmekriteriums verlangt die Angabe aber genau für diesen Fall.
              */
             'ran_at' => fn (): ?string => Clock::displayText($runs->lastRunAt()),
+
+            /*
+             * **Und derselbe Wert für den zweiten Lauf** (`docs/117 §13`).
+             *
+             * Seit P8 Schritt 6 schreibt nicht ein Nachtlauf in diese Liste,
+             * sondern zwei: die Bestandsdiagnose und die Prüfung der
+             * Sicherungen, jede in ihrer eigenen Unit. Ein einziges „zuletzt
+             * gemessen" wäre für die Befunde des anderen Laufs falsch — und
+             * zwar in beide Richtungen.
+             *
+             * > **Zwei Läufe, die sich einen Zeitstempel teilen, sagen beide
+             * > die Wahrheit über den letzten von beiden und über keinen etwas
+             * > Verlässliches.**
+             *
+             * Der `RunLog` oben ist der der Bestandsdiagnose; dieser hier wird
+             * ausgeschrieben gebaut, weil er einen anderen Schlüssel liest und
+             * es für einen zweiten keine zweite Bindung gibt.
+             */
+            'backups_ran_at' => fn (): ?string => Clock::displayText(
+                (new SettingsRunLog($settings, Settings::DIAGNOSE_BACKUPS))->lastRunAt(),
+            ),
 
             // Ob der Betrachter den Wortlaut überhaupt bekommt. Die Seite sagt
             // es dem Administrator, statt eine leere Spalte zu zeigen: Eine

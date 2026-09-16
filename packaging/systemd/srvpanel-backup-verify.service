@@ -1,0 +1,60 @@
+[Unit]
+Description=SrvPanel — die Sicherungen prüfen
+Documentation=https://repo.cloudsrv24.de/
+After=srvpanel-agentd.service
+Requires=srvpanel-agentd.service
+
+[Service]
+# Type=oneshot und kein Restart: Der Timer startet den nächsten Lauf.
+Type=oneshot
+User=srvpanel
+Group=srvpanel
+WorkingDirectory=/opt/srvpanel/current
+ExecStart=/opt/srvpanel/bin/php artisan srvpanel:backup-verify
+
+# **Zwei Stunden, und die Zahl kommt aus einer Messung.**
+#
+# Geprüft wird strömend über `hash_update('crc32b')`: 300 MiB in 248–257 ms
+# (`docs/117 §13` M9), also gut 1,2 GB/s auf der Platte dieses Containers. Zwei
+# Stunden decken damit ein Vielfaches dessen, was ein Server dieser Grösse an
+# Sicherungen hält — und über einer echten Platte bleibt Luft, denn die Zahl ist
+# an einem Dateisystem gemessen und nicht an einer Leitung.
+#
+# Ein `Type=oneshot` **ohne** eigene Angabe läuft ohne Frist — gemessen am
+# 22. August 2026 auf cloudsrv24: `TimeoutStartUSec=infinity` (`docs/74`,
+# Befund 4). Hängt so ein Lauf, bleibt die Unit in `activating`, und systemd
+# startet sie beim nächsten Termin **nicht noch einmal**.
+#
+#   Ein Deckel gegen das Hängenbleiben muss nicht knapp sein — er muss endlich
+#   sein.
+#
+# Er liegt unter dem Takt des Timers, damit ein Hänger höchstens einen Termin
+# kostet. `OneshotDeadlineTest` rechnet beides nach.
+TimeoutStartSec=7200
+
+# Dieser Lauf fragt den Agenten und schreibt in die Datenbank. **Die Archive
+# liest er nicht selbst** — das tut `backup.verify` im Agenten, und nur der darf
+# es: `/var/lib/srvpanel/backups` gehört root (`Backup\Store`). Deshalb steht
+# das Verzeichnis hier auch nicht in `ReadWritePaths`; stünde es da, wäre es ein
+# zweiter Weg zu den Sicherungen, den niemand bestellt hat.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/srvpanel /var/log/srvpanel
+
+# Dieselbe Grenze wie beim Bestandslauf: Was hier an Speicher anfällt, sind die
+# Zeilen der Sicherungen und ihre Befunde. Die Bytes der Archive laufen durch
+# den Agenten, und der hat seine eigene Grenze — 512M, und der Grund, aus dem
+# `backup.verify` strömt statt zu laden.
+MemoryMax=192M
+TasksMax=32

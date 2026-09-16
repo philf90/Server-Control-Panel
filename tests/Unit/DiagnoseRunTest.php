@@ -165,11 +165,30 @@ final class DiagnoseRunTest extends TestCase
             $dateien[] = 'App\\Support\\Diagnose\\Checks\\'.basename($pfad, '.php');
         }
 
-        $katalog = Catalog::CHECKS;
+        // **`every()` und nicht `CHECKS`.** Seit P8 Schritt 6 gibt es zwei
+        // Läufe: den der Bestandsdiagnose und den, der die Sicherungen prüft
+        // (`docs/117 §13`). Gegen `CHECKS` allein gemessen wäre diese Zusage
+        // rot, sobald eine Prüfung in eine eigene Unit zieht — und die Regel,
+        // die sie hält, ist eine über den Bestand und nicht über einen
+        // Zeitgeber.
+        //
+        // > **Eine Zusage, die man an einer von zwei Listen misst, gilt für die
+        // > andere nicht — und welche der beiden gemeint war, sagt die Messung
+        // > nicht.**
+        $katalog = Catalog::every();
         sort($dateien);
         sort($katalog);
 
         $this->assertSame($dateien, $katalog, 'Der Katalog und das Verzeichnis laufen auseinander.');
+
+        // Und beide Listen sind überschneidungsfrei: Eine Prüfung, die in
+        // beiden Läufen steht, schriebe ihre Schlüssel zweimal je Nacht — der
+        // zweite `replace()` löschte die Befunde des ersten.
+        $this->assertSame(
+            [],
+            array_intersect(Catalog::CHECKS, Catalog::BACKUP_CHECKS),
+            'Eine Prüfung steht in beiden Läufen — der zweite replace() löschte die Befunde des ersten.',
+        );
         $this->assertGreaterThanOrEqual(6, count($katalog), 'Zu wenige Prüfungen — der Ausdruck misst nichts.');
 
         foreach ($dateien as $klasse) {
@@ -187,7 +206,7 @@ final class DiagnoseRunTest extends TestCase
     {
         $schreiber = [];
 
-        foreach (Catalog::CHECKS as $klasse) {
+        foreach (Catalog::every() as $klasse) {
             $spiegel = new \ReflectionClass($klasse);
             $writes = $spiegel->getMethod('writes');
             $quelle = (string) file_get_contents((string) $spiegel->getFileName());

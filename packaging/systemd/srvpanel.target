@@ -48,6 +48,7 @@ Wants=srvpanel-tls.timer
 Wants=srvpanel-cron.timer
 Wants=srvpanel-dns.timer
 Wants=srvpanel-diagnose.timer
+Wants=srvpanel-backup-verify.timer
 
 After=srvpanel-agentd.service
 

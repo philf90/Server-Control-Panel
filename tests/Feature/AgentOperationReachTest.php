@@ -87,6 +87,8 @@ final class AgentOperationReachTest extends TestCase
         'system.time' => 'Liest den Zustand des Zeitabgleichs. Kein Bestand im Panel, und der Aufruf steht in GeneralSettingsController::zeit().',
 
         'system.cron' => 'Liest die Zeitpläne des Systems — /etc/crontab, /etc/cron.d und die cron.*-Verzeichnisse (A6). Kein Bestand im Panel und kein Vorgang: Sie liest vier Dateiquellen und ruft run-parts --test, das ausdrücklich nichts ausführt. Der Aufruf steht in SchedulesController::show().',
+        'backup.verify' => 'Prüft ein Archiv und legt nichts an (Entscheidung 1 des Betreibers, `docs/117 §2`). Kein Lebenslauf und kein Vorgang: Sie läuft am Zeitgeber `srvpanel-backup-verify.timer` und nicht an einem Klick, und ihr Ergebnis ist ein Befund im Bestand des Panels — kein Zustand des Agenten. Der Aufruf steht in App\\Support\\Diagnose\\Checks\\Backups::run().',
+
         'system.ports' => 'Liest, welche Ports lauschen und was im Regelwerk steht (A3, erster Wurf). Kein Bestand im Panel und kein Vorgang: Sie ruft vier Programme, gibt einen Zustand zurück und ändert nichts — jedes Schreiben ist der zweite Wurf und steht in P9b. Der Aufruf steht in ServicesController::show().',
 
         /*

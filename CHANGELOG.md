@@ -28841,3 +28841,89 @@ wie ein Ergebnis. Gefangen hat es die Klassenprobe neben der Messung: eine
 Tabelle statt zweier.
 
 > **Ein Ladebeleg gehört in die Messung und nicht in die Erinnerung.**
+
+### P8 Schritt 6 — `backup.verify`, und eine Prüfung, die nichts anlegt
+
+Entscheidung 1 des Betreibers: Der Prüflauf prüft Archiv und Verzeichnis auf
+Lesbarkeit und Vollständigkeit und spielt **nichts** zurück. `mutating()` gibt
+`false`, die Operation schreibt keine Datei und ruft kein Programm.
+
+Sie läuft **nächtlich in einer eigenen Unit** — `srvpanel-backup-verify.timer`
+und `srvpanel:backup-verify` —, und zwar neben der Bestandsdiagnose und nicht in
+ihr. Der Bestandslauf kostet gemessen 391 ms; eine Prüfung, die jedes Archiv des
+Servers von der Platte liest, gehört nicht hinein. Die **Befunde** liegen
+trotzdem in derselben Liste: Wer sie liest, fragt „was ist auf diesem Server
+nicht in Ordnung" und nicht „welcher Zeitgeber hat das gemessen".
+
+**Die Messrunde davor hat die naheliegende Bauform zweimal umgeworfen.** Jeden
+Eintrag zu lesen findet ein gekipptes Byte **nicht** — `getStream()` gibt die
+entpackten Bytes zurück, ohne die Prüfsumme anzusehen; `CHECKCONS` findet es
+ebenfalls nicht. Nur der Vergleich gegen die CRC im Verzeichnis des Archivs tut
+es.
+
+> **Eine Prüfung, die teurer ist, ist deshalb nicht gründlicher — und welche
+> Schäden sie findet, sagt erst der Prüfkörper, der sie herstellt.**
+
+Und sie **strömt**: 300 MiB in 248–257 ms bei 2 MiB Spitze, gegen 394–426 ms bei
+302 MiB, wenn der Eintrag ganz geladen wird. Der Agent trägt `MemoryMax=512M`;
+eine Kundendatei von 600 MB hätte den Vorgang wortlos getötet.
+
+**Der grösste Befund beim Bauen stand im ersten Wurf und hätte die Datenbanken
+ungeprüft gelassen.** Die Prüfung filterte über `Manifest::reserves()` — dieselbe
+Zeile, die Packer und Unpacker tragen und dort zu Recht, denn dort geht es um
+den Baum des Kunden. Hier geht es um den Inhalt des Archivs, und
+`.srvpanel-databases/shop.sql.gz` ist eine Datei wie jede andere. Eine Sicherung,
+der **jede** Datenbank fehlt, wäre als heil gemeldet worden.
+
+> **Dieselbe Frage an zwei Stellen hat nicht dieselbe Antwort, wenn die Stellen
+> verschiedene Gegenstände haben — und die übernommene Zeile sieht aus wie
+> Sorgfalt.**
+
+**Der zweite hätte die Diagnoseseite zum Lügen gebracht.** `SettingsRunLog`
+schrieb nach `Settings::DIAGNOSE`, also in den Wert, den die Seite als „Zuletzt
+gemessen" zeigt. Ein zweiter Nachtlauf darauf hätte die Angabe für die Hälfte
+der Befunde falsch gemacht.
+
+> **Zwei Läufe, die sich einen Zeitstempel teilen, sagen beide die Wahrheit über
+> den letzten von beiden und über keinen etwas Verlässliches.**
+
+Jeder Lauf hat jetzt seinen Schlüssel, `Settings::RUN_KEYS` ist eine
+Positivliste statt freiem Text, und die Seite nennt beide Zeitpunkte — wo die
+Sicherungen noch nie geprüft wurden, steht das ausgeschrieben da und nicht als
+Lücke.
+
+**Und eine Zusage war an der falschen Liste gemessen.** `DiagnoseRunTest` hielt
+„jeder Schlüssel hat genau einen Schreiber" über `Catalog::CHECKS`; mit dem
+zweiten Lauf war sie rot, obwohl nichts kaputt war. Die Regel ist eine über den
+Bestand der Befunde und nicht über einen Zeitgeber — gemessen wird jetzt
+`Catalog::every()`, dazu neu, dass die beiden Läufe überschneidungsfrei sind:
+`FindingLog::replace()` ersetzt alle Zeilen einer Prüfung, und die zweite
+löschte jede Nacht die Befunde der ersten.
+
+**Der Wächter ist `BackupVerifyTest`** und baut seine Archive Byte für Byte
+selbst, weil die Frage an libzip hängt und nicht an unserem Quelltext. Ein Fall
+darin ist die Gegenprobe zur Bauart: Derselbe Schaden, mit „jeden Eintrag lesen"
+gemessen, kommt ohne Fehler durch. Dazu `BackupDiagnoseTest` für die Naht ins
+Panel — die Mandantenklammer, die beiden übergangenen Zustände und ein Grund,
+den das Panel nicht kennt.
+
+**Drei bestehende Eingriffe des Bruchskripts hat das neue Kommando stumpf
+gemacht**: Sie lasen die `case`-Zeile des Wrappers bis zu ihrem Ende. Gemeldet
+hat es `BreakScriptTest`; behoben ist es nicht durch nachgetragene Literale,
+sondern durch kürzere Zielstellen.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand sie um zwei Leerzeichen verschiebt.**
+
+**Und zwei Wächter trugen eine Zahl des Tages.** `UnitCatalogTest` prüfte
+`assertCount(16, …)`, während beide Richtungen darüber die Gleichheit von
+Katalog und Paketierung schon hielten; die neue Unit hat sie rot gemacht, ohne
+dass etwas kaputt war. Sie sind jetzt Untergrenzen.
+
+**Was diese Prüfung nicht sagt**, steht in `docs/117 §14` und nicht als Zusage
+im Code: ob sich eine Sicherung zurückspielen lässt, und ob eine Datei im Archiv
+dasselbe enthält wie am Tag der Sicherung — geprüft wird gegen die Prüfsumme,
+die im Archiv steht.
+
+> **Eine Prüfsumme, die neben ihrem Gegenstand liegt, belegt die Übertragung und
+> nicht die Herkunft.**

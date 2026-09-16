@@ -1,0 +1,31 @@
+[Unit]
+Description=SrvPanel — tägliche Prüfung der Sicherungen
+Documentation=https://repo.cloudsrv24.de/
+
+# Gehört zu `srvpanel.target`: Ein `stop` oder `restart` des Ziels nimmt
+# diese Unit mit. Ohne diese Zeile wäre das Ziel ein Griff, der nur
+# anschaltet — und das ist ein halber Griff.
+PartOf=srvpanel.target
+
+[Timer]
+# **Täglich, und getrennt vom Bestandslauf** (`docs/117 §13`). Eine Sicherung
+# ändert sich nicht von selbst; was sich ändert, ist der Datenträger unter ihr,
+# und dafür ist täglich der richtige Takt: Ein Schaden, der zwei Wochen
+# unbemerkt bleibt, hat zwei Wochen lang jede neue Sicherung mitgenommen.
+OnCalendar=daily
+
+# Ein Server, der über Nacht aus war, prüft nach dem Einschalten nach.
+Persistent=true
+
+# **Zwei Stunden Streuung, und das ist keine Zusage über die Trennung.** Sie
+# sorgt dafür, dass zwanzig Server nicht in derselben Sekunde ihre Platten
+# lesen. Ob dieser Lauf mit `srvpanel-diagnose.timer` zusammenfällt, entscheidet
+# sie nicht — und sie muss es auch nicht: Der Bestandslauf kostet gemessen
+# 391 ms (`docs/100` M19), und ein Zusammentreffen kostet nichts, was man messen
+# könnte.
+#
+#   Eine Streuung ist eine Verteilung und kein Abstand.
+RandomizedDelaySec=2h
+
+[Install]
+WantedBy=timers.target

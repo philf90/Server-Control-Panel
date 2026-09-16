@@ -196,6 +196,7 @@ restart_services() {
     systemctl enable --now srvpanel-cron.timer >/dev/null 2>&1 || true
     systemctl enable --now srvpanel-dns.timer >/dev/null 2>&1 || true
     systemctl enable --now srvpanel-diagnose.timer >/dev/null 2>&1 || true
+    systemctl enable --now srvpanel-backup-verify.timer >/dev/null 2>&1 || true
 
     # Das Ziel zuletzt und mit `--now`.
     #

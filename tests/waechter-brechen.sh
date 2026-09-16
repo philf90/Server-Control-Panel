@@ -17596,9 +17596,12 @@ vorher_datei packaging/bin/srvpanel
 python3 - <<'PY2'
 p = 'packaging/bin/srvpanel'
 s = open(p, encoding='utf-8').read()
-alt = '|admin|access|version|diagnose)'
+# Die Zielstelle endet **vor** dem letzten Eintrag der Liste: Die frühere
+# Fassung las die `case`-Zeile bis `)`, und jedes neue Kommando nahm dem
+# Eingriff seinen Text weg, ohne dass er etwas gemeldet hätte.
+alt = '|admin|access|version|'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|version|diagnose)', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|version|', 1))
 PY2
 griff_datei packaging/bin/srvpanel "Wrapper ohne access" &&
 pruefe "Wrapper ohne access" \
@@ -17616,9 +17619,11 @@ vorher_datei packaging/bin/srvpanel
 python3 - <<'PY2'
 p = 'packaging/bin/srvpanel'
 s = open(p, encoding='utf-8').read()
-alt = '|admin|access|version|diagnose)'
+# Der tote Eintrag kommt an den **Anfang** der Liste und nicht ans Ende:
+# Dort ist die Zielstelle von jedem neuen Kommando unabhängig.
+alt = 'setup|update|'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|access|version|diagnose|dns-verify)', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'setup|update|dns-verify|', 1))
 PY2
 griff_datei packaging/bin/srvpanel "Wrapper mit totem Eintrag" &&
 pruefe "Wrapper mit totem Eintrag" \
@@ -23787,9 +23792,10 @@ vorher_datei packaging/bin/srvpanel
 python3 - <<'PY2'
 p = 'packaging/bin/srvpanel'
 s = open(p, encoding='utf-8').read()
-alt = """|access|version|diagnose)"""
+# Siehe oben: kurz gegriffen, damit der nächste Eintrag den Text nicht mitnimmt.
+alt = """|version|diagnose|"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, """|access|version)""", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """|version|""", 1))
 PY2
 griff_datei packaging/bin/srvpanel "Wrapper ohne diagnose" &&
 pruefe "Wrapper ohne diagnose" \
@@ -29297,6 +29303,234 @@ pruefe "Beschreibung in der Klammer" \
   BackupSecretTest::test_the_list_does_not_outlive_the_description failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupSecretTest passed
+
+echo
+echo "── BackupVerifyTest: die Dumps fallen aus dem Verzeichnisvergleich ──"
+#
+# **Der Befund, der diesen Wächter ausgelöst hat.** Der erste Wurf hat die
+# Dumps über `Manifest::reserves()` herausgefiltert — so wie Packer und
+# Unpacker es tun, dort zu Recht. Hier hiesse es: Eine Sicherung, der jede
+# Datenbank fehlt, wird als heil gemeldet.
+vorher_datei agent/src/Ops/BackupVerify.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupVerify.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            if ($entry['kind'] !== Manifest::KIND_FILE) {", "            if ($entry['kind'] !== Manifest::KIND_FILE || Manifest::reserves($entry['path'])) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupVerify.php "Dumps nicht erwartet" &&
+pruefe "Dumps nicht erwartet" \
+  BackupVerifyTest::test_a_missing_database_dump_is_a_finding failed
+wiederherstellen
+
+echo
+echo "── BackupVerifyTest: die Dumps werden nicht gelesen ──"
+#
+# Dieselbe Zeile an der anderen Seite. Filtert nur das Archiv, bleiben die
+# Bytes der Datenbanken ungeprüft — und ein gekipptes Byte in einem Dump
+# fällt niemandem auf, bis jemand ihn einspielt.
+vorher_datei agent/src/Ops/BackupVerify.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupVerify.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            if ($name === false) {", "            if ($name === false || Manifest::reserves($name)) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupVerify.php "Dumps nicht gelesen" &&
+pruefe "Dumps nicht gelesen" \
+  BackupVerifyTest::test_a_flipped_byte_in_a_dump_is_a_finding failed
+wiederherstellen
+
+echo
+echo "── BackupVerifyTest: die Prüfsumme wird nicht verglichen ──"
+#
+# Der Kern der Bauart. Ohne diesen Vergleich prüft der Lauf nur, ob sich jeder
+# Eintrag lesen lässt — und gemessen findet das ein gekipptes Byte **nicht**
+# (`docs/117 §13` M8): `getStream()` gibt die entpackten Bytes zurück, ohne die
+# Prüfsumme anzusehen.
+vorher_datei agent/src/Ops/BackupVerify.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupVerify.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if (hash_final($ctx) !== sprintf('%08x', $stat['crc'])) {", "        if (false) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupVerify.php "Prüfsumme nicht verglichen" &&
+pruefe "Prüfsumme nicht verglichen" \
+  BackupVerifyTest::test_a_flipped_byte_in_a_customer_file_is_a_finding failed
+wiederherstellen
+
+echo
+echo "── BackupVerifyTest: das Verzeichnis prüft seine eigenen Bytes nicht ──"
+#
+# Es steht nicht in seiner eigenen Einträgeliste und ist deshalb vom Vergleich
+# ausgenommen — seine Bytes sind es nicht. Ein gekipptes Byte darin ändert
+# einen Modus oder einen Pfad, ohne dass `decode()` etwas merkt.
+vorher_datei agent/src/Ops/BackupVerify.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupVerify.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            if (str_ends_with($name, '/')) {", "            if (str_ends_with($name, '/') || $name === Manifest::ENTRY) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupVerify.php "Verzeichnis ungeprüft" &&
+pruefe "Verzeichnis ungeprüft" \
+  BackupVerifyTest::test_a_healthy_archive_is_healthy failed
+wiederherstellen
+
+echo
+echo "── BackupVerifyTest: der Prüflauf ändert doch etwas ──"
+#
+# Entscheidung 1 des Betreibers (`docs/117 §2`): Er prüft und spielt nichts
+# zurück. `mutating()` ist die Zusage, an der der Agent das festmacht.
+vorher_datei agent/src/Ops/BackupVerify.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupVerify.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    public static function mutating(): bool\n    {\n        return false;\n    }", "    public static function mutating(): bool\n    {\n        return true;\n    }", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupVerify.php "Prüflauf ändert etwas" &&
+pruefe "Prüflauf ändert etwas" \
+  BackupVerifyTest::test_it_changes_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupVerifyTest passed
+
+echo
+echo "── BackupDiagnoseTest: die Mandantenklammer bleibt zu ──"
+#
+# Ein Nachtlauf hat kein angemeldetes Konto. Ohne `withoutRestriction()` steht
+# die Klammer auf `whereRaw('0 = 1')` — der Lauf sieht keine einzige Sicherung
+# und meldet „keine Befunde". Derselbe Befund wie `Cron::store()` in P6.
+vorher_datei app/Support/Diagnose/Checks/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        return $this->tenancy->withoutRestriction(fn (): array => Backup::query()", "        return (fn (): array => Backup::query()", 1)
+s = s.replace("            ->get()\n            ->all());", "            ->get()\n            ->all())();", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Diagnose/Checks/Backups.php "Klammer bleibt zu" &&
+pruefe "Klammer bleibt zu" \
+  BackupDiagnoseTest::test_the_nightly_run_sees_the_backups_without_an_account failed
+wiederherstellen
+
+echo
+echo "── BackupDiagnoseTest: eine laufende Sicherung wird mitgeprüft ──"
+#
+# Sie wird in diesem Augenblick geschrieben; sie zu lesen gäbe `unreadable` —
+# jede Nacht, in der ein Lauf sich mit einer Sicherung überschneidet, ein
+# Befund über etwas, das in Ordnung ist.
+vorher_datei app/Support/Diagnose/Checks/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            ->where('status', BackupStatus::Ready->value)\n", "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Diagnose/Checks/Backups.php "laufende Sicherung mitgeprüft" &&
+pruefe "laufende Sicherung mitgeprüft" \
+  BackupDiagnoseTest::test_a_pending_or_failed_backup_is_left_alone failed
+wiederherstellen
+
+echo
+echo "── BackupDiagnoseTest: ein unbekannter Grund wird durchgereicht ──"
+#
+# Käme aus dem Agenten ein Wort, das der Katalog nicht führt, würfe
+# `FindingCheck::state()` — nachts, in einem Lauf, den niemand sieht, und der
+# ganze Lauf wäre fort.
+vorher_datei app/Support/Diagnose/Checks/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            if (! is_string($reason) || ! in_array($reason, BackupVerify::REASONS, true)) {", "            if (! is_string($reason)) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Diagnose/Checks/Backups.php "unbekannter Grund durchgereicht" &&
+pruefe "unbekannter Grund durchgereicht" \
+  BackupDiagnoseTest::test_a_reason_the_panel_does_not_know_becomes_a_finding_and_not_a_crash failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupDiagnoseTest passed
+
+echo
+echo "── BackupDiagnoseTest: eine Zeile ohne Abonnement wird übersprungen ──"
+#
+# Zu ihr lässt sich kein Pfad bauen. Ein stilles `continue` hiesse: Die Zeile
+# steht in der Liste des Kunden und in keinem Befund — und `orphan.row` fängt
+# sie nicht, das kennt Zertifikate, Systembenutzer und Cron-Dateien.
+vorher_datei app/Support/Diagnose/Checks/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = """                $findings[] = [
+                    'subject' => $backup->storage_name,
+                    'reason' => BackupVerify::MISSING,
+                    'detail' => 'Diese Zeile nennt kein Abonnement — zu ihr lässt sich keine Datei finden.',
+                ];
+
+                continue;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '                continue;', 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Backups.php "Zeile ohne Abonnement übersprungen" &&
+pruefe "Zeile ohne Abonnement übersprungen" \
+  BackupDiagnoseTest::test_a_row_without_a_subscription_name_is_reported failed
+wiederherstellen
+
+echo
+echo "── DiagnoseWiringTest: der zweite Lauf hängt am falschen Kommando ──"
+#
+# `Run` ist `final`, der Lauf der Sicherungen hängt deshalb an einer
+# **kontextuellen** Bindung. Zeigt sie auf das falsche Kommando, bekommt
+# `srvpanel:backup-verify` den Vorgabe-Lauf — also die Prüfungen der
+# Bestandsdiagnose und ihren Zeitstempel.
+vorher_datei app/Providers/SrvPanelServiceProvider.php
+python3 - <<'PY2'
+p = 'app/Providers/SrvPanelServiceProvider.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$this->app->when(VerifyBackups::class)", "$this->app->when(\\App\\Console\\Commands\\Diagnose::class)", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Providers/SrvPanelServiceProvider.php "Bindung am falschen Kommando" &&
+pruefe "Bindung am falschen Kommando" \
+  DiagnoseWiringTest::test_the_backup_run_writes_its_own_key_and_its_own_timestamp failed
+wiederherstellen
+
+echo
+echo "── DiagnoseWiringTest: beide Läufe teilen sich den Zeitstempel ──"
+#
+# Dann stünde auf der Diagnoseseite der Zeitpunkt des zuletzt gefahrenen Laufs,
+# und „zuletzt gemessen" wäre für die Hälfte der Befunde falsch.
+vorher_datei app/Providers/SrvPanelServiceProvider.php
+python3 - <<'PY2'
+p = 'app/Providers/SrvPanelServiceProvider.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("new SettingsRunLog($app->make(Settings::class), Settings::DIAGNOSE_BACKUPS),", "new SettingsRunLog($app->make(Settings::class)),", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Providers/SrvPanelServiceProvider.php "Zeitstempel geteilt" &&
+pruefe "Zeitstempel geteilt" \
+  DiagnoseWiringTest::test_the_backup_run_writes_its_own_key_and_its_own_timestamp failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseWiringTest passed
+
+echo
+echo "── DiagnoseRunTest: eine Prüfung steht in beiden Läufen ──"
+#
+# `FindingLog::replace()` ersetzt **alle** Zeilen einer Prüfung. Stünde eine in
+# beiden Läufen, löschte der zweite jede Nacht die Befunde des ersten.
+vorher_datei app/Support/Diagnose/Catalog.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Catalog.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        MaintenanceFlag::class,\n    ];", "        MaintenanceFlag::class,\n        Backups::class,\n    ];", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Diagnose/Catalog.php "Prüfung in beiden Läufen" &&
+pruefe "Prüfung in beiden Läufen" \
+  DiagnoseRunTest::test_the_catalogue_names_every_check_that_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

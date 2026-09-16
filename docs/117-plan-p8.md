@@ -668,6 +668,27 @@ Die ersten vier stehen schon in `docs/116`.
    > ist auf jedem Server vorhanden, auf dem sie zufällig jemand anderes
    > mitgebracht hat.**
 
+6. **Wie lange ein Prüflauf über echte Kundenarchive wirklich braucht.**
+   `srvpanel-backup-verify.service` trägt `TimeoutStartSec=7200`, gerechnet
+   gegen 1,2 GB/s — die Zahl dieses Containers (`§13` M9). Die Platte von
+   `cloudsrv24` ist nicht diese; der Griff ist `time srvpanel backup-verify`
+   neben `du -sh /var/lib/srvpanel/backups`.
+
+7. **Eine Sicherungsdatei, zu der es keine Zeile gibt.** Aufgefallen beim Bau
+   von Schritt 6: `Checks\Backups` geht von den **Zeilen** aus und findet
+   deshalb nur, was das Panel kennt. Die Gegenrichtung — eine Datei unter
+   `/var/lib/srvpanel/backups`, die in keiner Zeile steht — prüft niemand;
+   {@see \App\Support\Diagnose\Checks\Orphans} kennt Zertifikate,
+   Systembenutzer und Cron-Dateien und keine Sicherungen.
+
+   Das ist **kein** Befund von Schritt 6, sondern eine benannte Lücke: Sie
+   entsteht, wenn ein `backup.remove` scheitert, nachdem die Zeile fort ist —
+   und sie kostet Platz, den niemand zuordnet. Sie gehört zu Schritt 9
+   (Aufbewahrung) und nicht hierher.
+
+   > **Ein Wächter, der vom Bestand des Panels ausgeht, sieht nur, was das Panel
+   > kennt — und ein Rest ist gerade das, was es nicht kennt.**
+
 ---
 
 ## §10 · Was P8 ausdrücklich **nicht** wird
@@ -1117,3 +1138,259 @@ in der `<th>Inhalt</th>` weiter stand.
 
 Seitdem trägt **jede** Ersetzung ihre Zusicherung; die nächste hat sofort
 zugebissen, weil ein `colspan` schon berichtigt war.
+
+---
+
+## §13 · Die Messrunde vor Schritt 6
+
+Gefahren am 16. September 2026, **vor** der ersten Zeile von `backup.verify`.
+Sie hat die naheliegende Bauform zweimal umgeworfen.
+
+### M8 · Welche Prüfung findet welchen Schaden?
+
+Vier Arten, ein Zip zu prüfen, gegen vier Arten von Schaden. Der Prüfkörper ist
+jedes Mal ein Archiv, das vorher heil war.
+
+| Schaden | `open()` | `open(CHECKCONS)` | jeden Eintrag **lesen** | CRC gegen das Verzeichnis |
+|---|---|---|---|---|
+| heil | ok | ok | ok | ok |
+| ein Byte in den Daten gekippt | ok | **ok** | **ok** | **findet ihn** |
+| die letzten 4 KiB abgeschnitten | rc=19 | rc=19 | — | — |
+| die ersten 100 Bytes genullt | ok | rc=19 | 1 unlesbar | 1 unlesbar |
+
+**Zwei Zeilen darin sind das Ergebnis.**
+
+**Jeden Eintrag zu lesen findet ein gekipptes Byte nicht.** Das fühlt sich nach
+der gründlichsten Prüfung an und ist die teuerste, die den Schaden nicht sieht:
+PHPs `getStream()` gibt die entpackten Bytes zurück, ohne die CRC zu prüfen.
+
+> **Eine Prüfung, die teurer ist, ist deshalb nicht gründlicher — und welche
+> Schäden sie findet, sagt erst der Prüfkörper, der sie herstellt.**
+
+**Und `CHECKCONS` findet ihn auch nicht** — obwohl die **erste** Messung genau
+das behauptet hat (`rc=21`). Der Unterschied: Dort war das gekippte Byte an
+Offset 200 und traf ein Kopffeld; die zweite Runde hat drei Bytes in echten
+Nutzdaten gekippt und dreimal `ok` bekommen.
+
+**Die zweite Runde war dabei selbst keine Messung**, und das ist der teuerste
+Fehler dieses Vormittags: Sie kippte ein Byte und fragte die Prüfungen, **ohne
+zu belegen, dass der Schaden entstanden ist**. Dreimal `ok` sah wie ein Ergebnis
+aus. Erst die dritte Runde sucht den Offset, an dem sich der **entpackte Inhalt
+messbar ändert**, und fragt erst dann.
+
+> **Ein Prüfkörper, dessen Wirkung man nicht belegt, misst nicht — und sein
+> erstes Ergebnis sieht wie die Antwort aus.**
+
+Damit bleibt **eine** Prüfung, die den Schaden findet, vor dem eine Sicherung
+schützen soll: der Vergleich der CRC jedes Eintrags mit der im Verzeichnis des
+Archivs.
+
+### M9 · Was sie kostet — und warum sie strömen muss
+
+Ein Fall je Prozess, ein Archiv von 300 MiB mit **einem** Eintrag von 300 MiB:
+
+| Art | Zeit | Spitze |
+|---|---|---|
+| **strömend** (`getStream` + `hash_update('crc32b')`) | 248–257 ms | **2 MiB** |
+| ganzer Eintrag (`getFromIndex` + `crc32`) | 394–426 ms | **302 MiB** |
+
+Die strömende Fassung ist **schneller und braucht ein Hundertfünfzigstel des
+Speichers**. Das ist kein Feinschliff: `srvpanel-agentd.service` trägt
+`MemoryMax=512M`, und ein Kunde mit einer Datei von 600 MB im Archiv hätte den
+Vorgang wortlos getötet — dieselbe Grenze, an der schon `Packer::MAX_ENTRIES`
+hängt.
+
+**Die erste Messung dazu gab 602 MiB Spitze für die strömende Fassung** und
+damit das Gegenteil. Der Grund stand im Prüfkörper: Das `file_get_contents()`
+für die Gegenprobe lag im selben Prozess, und `memory_get_peak_usage()` misst
+den Prozess.
+
+> **Ein Prüfkörper, der sich am gegenwärtigen Zustand bemisst, verändert den
+> Zustand, an dem er sich bemisst.** Zum zweiten Mal in dieser Stufe.
+
+**Und die Gegenprobe ist gefahren**: Mit einem gekippten Byte meldet die
+strömende Fassung genau einen kaputten Eintrag, und zwar den richtigen.
+
+### Was daraus für den Bau folgt
+
+1. **`backup.verify` strömt und vergleicht CRCs.** Nichts anderes findet den
+   Schaden, vor dem eine Sicherung schützen soll.
+2. **Sie läuft in einer eigenen Unit und nicht im Nachtlauf der
+   Bestandsdiagnose.** Der kostet gemessen 391 ms (`docs/100` M19); eine Prüfung,
+   die Kundenarchive von der Platte liest, gehört nicht hinein.
+
+   > **Ein `check`, der den Bestand des Kunden liest, gehört nicht in denselben
+   > Lauf wie einer, der eine Konfigurationsdatei prüft — auch wenn beide
+   > dieselbe Form von Befund erzeugen.** (`docs/98 §4`, für A13 geschrieben.)
+3. **Was der Container nicht sagen kann**, steht in `§9` und nicht hier als
+   Zusage: Der Durchsatz auf der Platte des Servers ist ungemessen. 1173 bis
+   1382 MiB/s sind die Zahl dieses Containers, und seine Platte ist nicht die
+   von `cloudsrv24`.
+
+---
+
+## §14 · Schritt 6 — `backup.verify`, und was beim Bauen anders war
+
+Gebaut am 16. September 2026. Die Messrunde aus `§13` hat die Bauform
+entschieden; was hier steht, ist das, was sie **nicht** entschieden hatte.
+
+### M10 · Ist `hash('crc32b')` die CRC, die ein Zip führt?
+
+Gemessen, weil der Kopf von `BackupVerify` es behauptet hätte und niemand es
+nachgesehen hätte. 100 029 Bytes Zufall plus Umlaute, vier Wege zum selben
+Wert:
+
+| Weg | Wert |
+|---|---|
+| `crc32()` | `a3a5aeeb` |
+| `hash('crc32b')` | `a3a5aeeb` |
+| `hash_init`/`hash_update` in Stücken zu 256 KiB | `a3a5aeeb` |
+| `statIndex()['crc']` eines echten Zips | `a3a5aeeb` |
+
+**Gegenprobe:** ein gekipptes Byte ergibt einen anderen Wert. Ohne sie belegte
+die Gleichheit oben nur, dass alle vier Wege dasselbe raten.
+
+Verglichen wird seitdem als **Zeichenkette** gegen `sprintf('%08x', …)` und
+nicht über `hexdec()`: Das gibt `int|float` und machte aus `!==` eine Frage nach
+dem Typ.
+
+### M11 · Greift eine kontextuelle Bindung auch bei `handle()`?
+
+Die Frage entstand, weil `Run` `final` ist: Es gibt keinen zweiten Typ, an den
+sich der Lauf der Sicherungen binden liesse. Laravel 13, drei Fälle in einem
+Prozess:
+
+| Aufruf | geliefert |
+|---|---|
+| ohne Kontext, `handle()` | `vorgabe` |
+| mit Kontext, Konstruktor | `kontext` |
+| mit Kontext, `handle()` | **`kontext`** |
+
+Die erste Zeile ist die Gegenprobe und trägt die Messung — ohne sie sagte das
+`kontext` darunter nichts darüber, ob die Bindung etwas bewirkt hat.
+
+**Gemessen heisst hier nicht zugesagt.** Das ist eine Eigenschaft des
+Frameworks, und dieses Repo hat für einen Kommentar über eine Framework-Zusage
+schon einmal bezahlt (`FindingLog::record()`, `updateOrCreate`). Gehalten wird
+sie deshalb von `DiagnoseWiringTest` an der **Wirkung**: Das Kommando läuft, und
+danach steht der Zeitstempel unter `diagnose.backups` und **nicht** unter
+`diagnose`.
+
+> **Ein Kommentar, der eine Zusage des Frameworks behauptet, ist keine Prüfung —
+> er ist eine Zeile, die aussieht wie eine.**
+
+### Befund 1 · Die Datenbanken wären ungeprüft geblieben
+
+**Der grösste Fund dieses Schritts, und er stand im ersten Wurf.** Die Prüfung
+filterte über `Manifest::reserves()` — dieselbe Zeile, die `Packer` und
+`Unpacker` tragen. Dort ist sie richtig: Es geht um den Baum des Kunden, und was
+der Sicherung selbst gehört, hat darin nichts zu suchen.
+
+Hier ging es um den **Inhalt des Archivs**, und `.srvpanel-databases/shop.sql.gz`
+ist eine Datei wie jede andere — `BackupCreate::addDumps()` schreibt für jede
+einen Eintrag ins Verzeichnis. Gefiltert hätte die Prüfung eine Sicherung, der
+**jede Datenbank** fehlt, als heil gemeldet.
+
+> **Dieselbe Frage an zwei Stellen hat nicht dieselbe Antwort, wenn die Stellen
+> verschiedene Gegenstände haben — und die übernommene Zeile sieht aus wie
+> Sorgfalt.**
+
+Aufgefallen ist es nicht beim Nachdenken, sondern beim Schreiben der Messung zu
+M10: Beim zweiten Lesen der Schleife stand die Zeile da, die den Satz aus dem
+Kopf derselben Klasse verletzt — *„Ein Archiv, das stillschweigend weniger
+enthält, ist schlimmer als keines."*
+
+Zwei Eingriffe halten die beiden Richtungen einzeln, denn sie erzeugen
+verschiedene Befunde: filtert nur die Erwartung, meldet der Lauf
+`entry_unexpected`; filtert nur das Archiv, meldet er `entry_missing`.
+
+### Befund 2 · Zwei Läufe hätten sich einen Zeitstempel geteilt
+
+`SettingsRunLog` schrieb nach `Settings::DIAGNOSE` — dem Wert, den die
+Diagnoseseite als „Zuletzt gemessen" zeigt. Ein zweiter Nachtlauf darauf hätte
+die Angabe für die Hälfte der Befunde falsch gemacht, und zwar in beide
+Richtungen.
+
+> **Zwei Läufe, die sich einen Zeitstempel teilen, sagen beide die Wahrheit über
+> den letzten von beiden und über keinen etwas Verlässliches.**
+
+`Settings::RUN_KEYS` ist seitdem eine **Positivliste** und kein freier Text: Ein
+Tippfehler legte sonst wortlos einen dritten Schlüssel an, der für immer nach
+„noch nie gemessen" aussähe. Und die Seite nennt beide Zeitpunkte — wo die
+Sicherungen noch nie geprüft wurden, steht das ausgeschrieben da und nicht als
+Lücke.
+
+### Befund 3 · Eine Zusage, die an einer von zwei Listen gemessen wurde
+
+`DiagnoseRunTest` hält, dass jeder Schlüssel des Katalogs genau einen Schreiber
+hat — gemessen über `Catalog::CHECKS`. Mit dem zweiten Lauf war die Zusage rot,
+obwohl nichts kaputt war: Die Regel ist eine über den **Bestand der Befunde**
+und nicht über einen Zeitgeber.
+
+> **Eine Zusage, die man an einer von zwei Listen misst, gilt für die andere
+> nicht — und welche der beiden gemeint war, sagt die Messung nicht.**
+
+`Catalog::every()` ist die Liste, über die die Wächter gehen. Dazu eine neue
+Zusage, die es vorher nicht brauchte: Die beiden Läufe sind
+**überschneidungsfrei**. `FindingLog::replace()` ersetzt alle Zeilen einer
+Prüfung; stünde eine in beiden, löschte der zweite Lauf jede Nacht die Befunde
+des ersten.
+
+### Befund 4 · Drei bestehende Eingriffe lasen die `case`-Zeile bis zum Ende
+
+`backup-verify` im Wrapper hat drei Eingriffen des Bruchskripts ihren Text
+weggenommen. Gemeldet hat es `BreakScriptTest`, und das ist der Satz aus dem
+A3-Lauf noch einmal:
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand sie um zwei Leerzeichen verschiebt.**
+
+Behoben ist es nicht, indem die Literale nachgetragen wurden, sondern indem die
+Zielstellen **kürzer** greifen: Der tote Eintrag kommt an den Anfang der Liste,
+die beiden anderen greifen ein Stück in der Mitte. Damit ist das nächste
+Kommando kein Anlass mehr.
+
+### Befund 5 · Zwei Wächter über eine Zahl des Tages
+
+`UnitCatalogTest` prüfte `assertCount(16, …)` — und beide Richtungen darüber
+hielten die Gleichheit von Katalog und Paketierung schon. Die Zahl war keine
+Zusage, sondern der Stand ihres Tages; die neue Unit hat sie rot gemacht, ohne
+dass etwas kaputt war. Das ist die bekannte Falle in ihrer harmlosen Form:
+
+> **Ein Wächter, der beim Aufräumen zubeisst, wird beim Aufräumen abgeschaltet.**
+
+Sie ist jetzt eine Untergrenze, und was sie allein trägt — der Boden gegen „beide
+Seiten leer" — steht in ihrem Kopf.
+
+### Befund 6 und 7 · Zwei alte Bekannte im angezeigten Text
+
+`CountedNounTest` an `'%d Einträge geprüft'` — bei genau einem Eintrag „1
+Einträge". Dass `REPORT_EVERY` bei 500 steht und die Eins deshalb nie vorkommt,
+ist eine Eigenschaft der Konstante und keine des Satzes. Und `WordChoiceTest` an
+„die Fassungen gehen auseinander": `docs/19 §3` führt *Fassung* als verbrauchtes
+Wort.
+
+### Was Schritt 6 ausdrücklich **nicht** sagt
+
+- **Ob sich eine Sicherung zurückspielen lässt.** Ein Archiv, dessen Bytes
+  stimmen, kann eine Beschreibung tragen, die zu keinem Server dieser Fassung
+  mehr passt. Das zu beantworten hiesse zurückzuspielen, und genau das hat der
+  Betreiber ausgeschlossen.
+
+  > **Ein Beleg für den Weg ist keiner für das Ziel.**
+
+- **Ob eine Datei im Archiv dasselbe enthält wie am Tag der Sicherung.** Geprüft
+  wird gegen die Prüfsumme, die **im Archiv** steht; wer beides ändert, kommt
+  durch.
+
+  > **Eine Prüfsumme, die neben ihrem Gegenstand liegt, belegt die Übertragung
+  > und nicht die Herkunft.**
+
+- **Wie sich ein deflationierter Eintrag mit gekipptem Byte verhält.** Die
+  Prüfkörper legen unkomprimiert ab, damit ein Byte gezielt kippbar ist. Der
+  deflationierte bricht beim Lesen meist schon ab — ein anderer Weg zum selben
+  Befund, hier nicht gemessen.
+
+- **Was ein Lauf über echte Kundenarchive kostet.** `TimeoutStartSec=7200` ist
+  gegen 1,2 GB/s dieses Containers gerechnet. Die Platte von `cloudsrv24` ist
+  nicht diese; die Zahl gehört auf den Server (`§9`).

@@ -11,6 +11,7 @@ use App\Support\Web\MaintenanceMode;
 use App\Support\Web\PhpSelection;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Schema;
+use InvalidArgumentException;
 use Throwable;
 
 /**
@@ -100,7 +101,32 @@ final class Settings
      * > **Eine leere Liste, die zwei Dinge bedeuten kann, bedeutet keins von
      * > beiden.**
      */
-    private const DIAGNOSE = 'diagnose';
+    public const DIAGNOSE = 'diagnose';
+
+    /**
+     * Und derselbe Wert für den Lauf, der die Sicherungen prüft.
+     *
+     * **Ein eigener Schlüssel, und das ist der ganze Grund, dass es ihn gibt.**
+     * Die Prüfung der Sicherungen läuft in einer eigenen Unit (`docs/117 §13`);
+     * schriebe sie in {@see self::DIAGNOSE}, stünde auf der Diagnoseseite „vor
+     * zwei Minuten gemessen", während die Bestandsprüfung seit Tagen nicht
+     * gelaufen wäre — oder umgekehrt.
+     *
+     * > **Zwei Läufe, die sich einen Zeitstempel teilen, sagen beide die
+     * > Wahrheit über den letzten von beiden und über keinen etwas
+     * > Verlässliches.**
+     */
+    public const DIAGNOSE_BACKUPS = 'diagnose.backups';
+
+    /**
+     * Die Schlüssel, unter denen ein Lauf seinen Zeitpunkt ablegen darf.
+     *
+     * Eine Positivliste, damit ein Tippfehler nicht wortlos einen dritten
+     * anlegt — der sähe für immer nach „noch nie gemessen" aus.
+     *
+     * @var list<string>
+     */
+    public const RUN_KEYS = [self::DIAGNOSE, self::DIAGNOSE_BACKUPS];
 
     /**
      * Der Wartungsmodus: ob er an ist, und bis wann er voraussichtlich läuft.
@@ -443,23 +469,39 @@ final class Settings
      * ersten Lauf schweigt die Seite, statt Entwarnung zu geben — dieselbe
      * Regel wie bei {@see self::diskQuota()}.
      */
-    public function diagnoseRunAt(): ?string
+    public function diagnoseRunAt(string $key = self::DIAGNOSE): ?string
     {
-        $at = $this->read(self::DIAGNOSE)['ran_at'] ?? null;
+        $at = $this->read($this->runKey($key))['ran_at'] ?? null;
 
         return is_string($at) ? $at : null;
     }
 
     /** Den Zeitpunkt eines Laufs festhalten — mit dem Wert, den der Lauf trägt. */
-    public function saveDiagnoseRun(string $ranAt): void
+    public function saveDiagnoseRun(string $ranAt, string $key = self::DIAGNOSE): void
     {
         Setting::query()->updateOrCreate(
-            ['key' => self::DIAGNOSE],
+            ['key' => $this->runKey($key)],
             // Derselbe Wert, den die Befunde tragen, und nicht `now()`: Sonst
             // stünde neben einer Zeile von 03:00:07 ein „zuletzt gemessen
             // 03:00:09", und die beiden wären dieselbe Messung.
             ['value' => ['ran_at' => $ranAt]],
         );
+    }
+
+    /**
+     * Den Schlüssel eines Laufs gegen die Positivliste halten.
+     *
+     * **Laut und nicht stillschweigend.** Ein unbekannter Schlüssel wäre beim
+     * Schreiben eine Zeile, die niemand liest, und beim Lesen ein dauerhaftes
+     * „noch nie gemessen" — zwei Zustände, die von aussen richtig aussehen.
+     */
+    private function runKey(string $key): string
+    {
+        if (! in_array($key, self::RUN_KEYS, true)) {
+            throw new InvalidArgumentException(sprintf('Kein Lauf legt seinen Zeitpunkt unter "%s" ab.', $key));
+        }
+
+        return $key;
     }
 
     /**

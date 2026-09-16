@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Enums\FindingCheck;
+use App\Support\Diagnose\Checks\Backups;
 use App\Support\Diagnose\Checks\Certificates;
 use App\Support\Diagnose\Checks\MaintenanceFlag;
 use App\Support\Diagnose\Checks\MaintenanceWindow;
@@ -161,6 +162,7 @@ final class DiagnoseSeamTest extends TestCase
         'Orphans' => Orphans::REASONS,
         'MaintenanceWindow' => MaintenanceWindow::REASONS,
         'MaintenanceFlag' => MaintenanceFlag::REASONS,
+        'Backups' => Backups::REASONS,
     ];
 
     /**

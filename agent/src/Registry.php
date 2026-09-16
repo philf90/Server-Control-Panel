@@ -11,6 +11,7 @@ use SrvPanel\Agent\Ops\AcmeCertificateRemove;
 use SrvPanel\Agent\Ops\AgentPing;
 use SrvPanel\Agent\Ops\BackupCreate;
 use SrvPanel\Agent\Ops\BackupRemove;
+use SrvPanel\Agent\Ops\BackupVerify;
 use SrvPanel\Agent\Ops\CertificateUpload;
 use SrvPanel\Agent\Ops\ConfigValidate;
 use SrvPanel\Agent\Ops\CronApply;
@@ -294,6 +295,21 @@ final class Registry
          */
         $this->register(new BackupRemove);
         $this->register(new BackupCreate);
+
+        /*
+         * Und die Prüfung daneben — sie steht **ausserhalb** des Paares oben,
+         * weil sie nichts anlegt: `RemovalPathTest` fragt sie deshalb nicht
+         * nach einem Gegenstück, und `AgentOperationReachTest` führt sie mit
+         * demselben Grund ohne Lebenslauf wie `db.usage`. Sie läuft an einem
+         * Zeitgeber und nicht an einem Klick.
+         *
+         * **In einer eigenen Unit und nicht im Nachtlauf der Bestandsdiagnose**
+         * (`docs/117 §13`): Der kostet gemessen 391 ms (`docs/100` M19), und
+         * eine Prüfung, die Kundenarchive von der Platte liest, gehört nicht
+         * hinein — derselbe Schnitt, mit dem `docs/81 §11` A13 aus A10 gelöst
+         * hat.
+         */
+        $this->register(new BackupVerify);
         $this->register(new DbRestore);
 
         // Die Messung. Sie steht ausserhalb der Paare oben, weil sie nichts

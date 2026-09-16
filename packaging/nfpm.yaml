@@ -138,6 +138,10 @@ contents:
     dst: /lib/systemd/system/srvpanel-diagnose.service
   - src: ./packaging/systemd/srvpanel-diagnose.timer
     dst: /lib/systemd/system/srvpanel-diagnose.timer
+  - src: ./packaging/systemd/srvpanel-backup-verify.service
+    dst: /lib/systemd/system/srvpanel-backup-verify.service
+  - src: ./packaging/systemd/srvpanel-backup-verify.timer
+    dst: /lib/systemd/system/srvpanel-backup-verify.timer
 
   # Und dasselbe für den DNS-Abgleich (P7). Ohne die .timer-Datei stünde an
   # jeder Domain „noch nie geprüft", bis jemand den Knopf drückt — also genau

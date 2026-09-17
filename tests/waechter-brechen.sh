@@ -30165,6 +30165,45 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupTeardownTest passed
 
 echo
+echo "── BackupEngineSeamTest: der Agent kennt das System des Panels nicht ──"
+#
+# Der Originalfehler aus dem Abnahmelauf von P8, 17. September 2026. Das Panel
+# schickt `postgres`, die Positivliste des Agenten trug `postgresql` — jede
+# Sicherung eines Abonnements mit PostgreSQL scheiterte daran.
+vorher_datei agent/src/Ops/BackupCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("public const ENGINES = ['mariadb', 'postgres'];",
+              "public const ENGINES = ['mariadb', 'postgresql'];", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupCreate.php "System des Panels abgewiesen" &&
+pruefe "System des Panels abgewiesen" \
+  BackupEngineSeamTest::test_the_old_spelling_is_refused failed
+wiederherstellen
+
+echo
+echo "── BackupEngineSeamTest: ein Literal an der Konstante vorbei ──"
+#
+# Die Konstante bleibt richtig, die Tür prüft wieder gegen ein Literal. Ein
+# Wächter, der nur ENGINES gegen das Enum hielte, bliebe hier grün — genau
+# deshalb misst dieser die Wirkung durch dumps().
+vorher_datei agent/src/Ops/BackupCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("if (! in_array($engine, self::ENGINES, true)) {",
+              "if (! in_array($engine, ['mariadb', 'postgresql'], true)) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupCreate.php "Literal an der Konstante vorbei" &&
+pruefe "Literal an der Konstante vorbei" \
+  BackupEngineSeamTest::test_the_old_spelling_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupEngineSeamTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

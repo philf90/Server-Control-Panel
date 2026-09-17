@@ -53,6 +53,39 @@ use ZipArchive;
 final class BackupCreate implements Op
 {
     /**
+     * Die Datenbanksysteme, die in einer Sicherung vorkommen dürfen.
+     *
+     * **Sie stand als Literal in der Prüfung, und sie war falsch.** Bis zum
+     * 17. September 2026 hiess der zweite Wert hier `postgresql`; das Panel
+     * schickt `App\Enums\DatabaseEngine::Postgres`, und das ist `postgres`.
+     * Jede Sicherung eines Abonnements mit einer PostgreSQL-Datenbank
+     * scheiterte damit an dieser Zeile — gefunden im Abnahmelauf von P8, beim
+     * allerersten Griff auf „Jetzt sichern".
+     *
+     * Der Wert konnte von dort gar nicht kommen, und zurücklesen könnte das
+     * Panel ihn auch nicht: `RestoreLifecycle` nimmt `DatabaseEngine::tryFrom()`.
+     * Die Liste war in **beide** Richtungen falsch.
+     *
+     * > **Ein Wert, den der Absender nicht senden und der Empfänger nicht lesen
+     * > kann, ist keine Positivliste mit einem Tippfehler — er ist eine Wand.**
+     *
+     * Der Grund für die Schreibweise steht ausgeschrieben im Kopf des Enums
+     * („Warum `postgres` und nicht `postgresql`") — in einer Datei, die dieser
+     * Agent nicht lesen darf und nicht lesen kann. Dass die Begründung
+     * dasteht, hat den Fehler nicht verhindert; sie stand auf der anderen Seite
+     * der Naht.
+     *
+     * Die Werte bleiben hier als Konstante und werden **nicht** aus dem Panel
+     * geholt — die erste Grenze (`docs/20 §4.1`) verbietet dem Agenten genau
+     * das. Gehalten wird die Naht stattdessen von aussen:
+     * `BackupEngineSeamTest` misst an der **Wirkung**, dass jeder Fall des
+     * Enums durch {@see self::dumps()} kommt und die alte Schreibweise nicht.
+     *
+     * @var list<string>
+     */
+    public const ENGINES = ['mariadb', 'postgres'];
+
+    /**
      * Wie viel freier Platz mindestens übrig bleiben muss.
      *
      * Dieselbe Zahl und derselbe Grund wie in {@see DbDumpCreate}: Ein
@@ -203,7 +236,7 @@ final class BackupCreate implements Op
 
             $engine = is_string($entry['engine'] ?? null) ? $entry['engine'] : '';
 
-            if (! in_array($engine, ['mariadb', 'postgresql'], true)) {
+            if (! in_array($engine, self::ENGINES, true)) {
                 throw AgentException::badRequest('Unbekanntes Datenbanksystem in der Dumpliste.', [
                     'engine' => $engine,
                 ]);

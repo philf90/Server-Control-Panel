@@ -134,9 +134,27 @@ class BackupController extends Controller
      * Stunden weiter ist — `docs/40` hat dafür die eine Stelle gebaut, über die
      * achtzehn Lesestellen gehen.
      */
-    public function show(Subscription $subscription): Response
+    /**
+     * Die Zeilen der Liste — als eigene Methode, damit die Angabe ein
+     * Verschluss sein kann.
+     *
+     * **Inertia siebt die Angaben, bevor es sie auflöst.** Die Seite fragt
+     * `backups` alle drei Sekunden nach, solange eine Sicherung läuft; stünde
+     * im Steuerungscode ein fertiger Wert, wäre diese Abfrage schon gelaufen,
+     * wenn das Sieb sie sieht. Jede Nachfrage kostete dann die ganze Seite und
+     * lieferte einen Teil.
+     *
+     * > **Ein fertiger Wert läuft bei jeder Anfrage, auch bei einer, die ihn
+     * > gar nicht mitschickt.**
+     *
+     * `PartialReloadTest` hält das und hat den ersten Wurf der Nachfrage genau
+     * hier angehalten — noch bevor sie einen Server gesehen hat.
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function rows(Subscription $subscription): array
     {
-        $backups = Backup::query()
+        return Backup::query()
             ->where('subscription_id', (int) $subscription->id)
             ->orderByDesc('created_at')
             ->orderByDesc('id')
@@ -155,13 +173,16 @@ class BackupController extends Controller
                 'created_at' => Clock::display($backup->created_at),
             ])
             ->all();
+    }
 
+    public function show(Subscription $subscription): Response
+    {
         return Inertia::render('Subscriptions/Backups', [
             'subscription' => [
                 'id' => $subscription->id,
                 'name' => $subscription->name,
             ],
-            'backups' => $backups,
+            'backups' => fn (): array => $this->rows($subscription),
 
             /*
              * **Was eine Sicherung nicht enthält, steht auf der Seite und nicht

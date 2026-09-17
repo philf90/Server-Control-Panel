@@ -375,6 +375,45 @@ final class Backups
         ], 'Sicherung wird entfernt', $backup, $name);
     }
 
+    /**
+     * Das leere Verzeichnis eines zurückgebauten Abonnements abräumen.
+     *
+     * **Der Aufrufer ist {@see BackupLifecycle::afterSuccess()}**, und zwar der
+     * eine Augenblick, in dem die Frage entschieden ist: Die letzte Zeile eines
+     * Abonnements, das es nicht mehr gibt, ist gerade verschwunden.
+     *
+     * ## Warum das nicht gegen „melden statt löschen" verstösst
+     *
+     * Die Regel seit A10 schützt davor, dass ein **Nachtlauf** von sich aus
+     * etwas wegnimmt: Niemand sieht hin, und ein Fehlurteil ist unumkehrbar.
+     * Hier ist es das Gegenteil — jemand hat gerade auf „Entfernen" gedrückt,
+     * und was bleibt, ist die Hülle dessen, was er entfernt hat.
+     *
+     * > **Ein Rückweg, der die Hälfte zurücknimmt, ist keiner.**
+     * > {@see Store::prepare()} legt Datei **und**
+     * > Verzeichnis an; wer das eine entfernt, entfernt auch das andere.
+     *
+     * **Und der Griff kann nichts zerstören**: `Store::removeDirectory()` ruft
+     * `rmdir(2)` und scheitert an einem Verzeichnis, in dem noch etwas liegt.
+     * Eine Datei ohne Zeile bleibt damit liegen und wird weiter als `orphan`
+     * gemeldet — das ist der Befund, für den es die Diagnose gibt.
+     *
+     * **Kein `$backup`**: Der Vorgang trägt keinen Gegenstand, denn die Zeile
+     * ist fort. Ohne ihn geht {@see BackupLifecycle::afterSuccess()} bei der
+     * Antwort früh zurück, und das ist richtig — es gibt nichts mehr zu ändern.
+     */
+    public function removeDirectory(string $subscriptionName): Operation
+    {
+        return $this->dispatch(
+            'backup.remove',
+            null,
+            [],
+            'Leeres Verzeichnis der Sicherungen wird entfernt',
+            null,
+            $subscriptionName,
+        );
+    }
+
     /*
      * **Hier stand `removeAll()`, und es hatte nie einen Aufrufer.**
      *
@@ -388,12 +427,15 @@ final class Backups
      * > unterscheiden, die es nicht gibt — und eine, deren einziger denkbarer
      * > Ort ihr widerspricht, ist schlimmer als keine.**
      *
-     * **Der Weg zurück bleibt trotzdem da, im Agenten.** `backup.remove` ohne
-     * `storage` räumt das Verzeichnis eines Abonnements ab
-     * ({@see \SrvPanel\Agent\Backup\Store::removeDirectory()}), und das ist
-     * der Griff, den `docs/35` verlangt. Automatisch geht ihn niemand; was
-     * liegenbleibt, **meldet** die Bestandsdiagnose, statt es zu löschen —
-     * dieselbe Regel wie bei jedem anderen Rest seit A10.
+     * **Der Weg zurück bleibt trotzdem da, im Agenten** — und seit dem
+     * 17. September 2026 hat er einen Aufrufer: {@see self::removeDirectory()},
+     * gerufen aus dem Lebenslauf, wenn die letzte Zeile eines zurückgebauten
+     * Abonnements verschwindet. Nicht beim Rückbau, wo er das Merkmal aus
+     * Schritt 10 zerstörte.
+     *
+     * **Und er räumt nur ein leeres Verzeichnis ab** (`rmdir`, nicht
+     * `removeTree`). Was darin liegenbleibt, **meldet** die Bestandsdiagnose,
+     * statt es zu löschen — dieselbe Regel wie bei jedem anderen Rest seit A10.
      *
      * `BackupTeardownTest` hält beides.
      */

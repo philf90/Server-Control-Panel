@@ -30496,6 +30496,106 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupDiagnoseTest passed
 
 echo
+echo "── BackupTeardownTest: das leere Verzeichnis bleibt liegen ──"
+#
+# Befund 10 aus docs/119, zweite Hälfte (17. September 2026): Die Diagnose
+# meldet ein leeres Sicherungsverzeichnis, und der Griff dafür lag im Agenten
+# ohne Aufrufer. Er wird jetzt gerufen, wenn die letzte Zeile eines
+# zurückgebauten Abonnements verschwindet.
+vorher_datei app/Support/Backups/BackupLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/BackupLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""                if ($verwaist && $this->abandoned($name)) {
+                    $this->backups->removeDirectory($name);
+                }
+
+""", "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/BackupLifecycle.php "Verzeichnis bleibt liegen" &&
+pruefe "Verzeichnis bleibt liegen" \
+  BackupTeardownTest::test_the_last_backup_of_a_dead_subscription_clears_its_directory failed
+wiederherstellen
+
+echo
+echo "── BackupTeardownTest: abgeräumt, obwohl noch eine Zeile daneben steht ──"
+#
+# Eine Sicherung auf `pending` hat ihre Datei schon; ihr Verzeichnis abzuräumen
+# träfe einen laufenden Vorgang. Die gefährliche Richtung dieses Merkmals.
+vorher_datei app/Support/Backups/BackupLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/BackupLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""        if (Backup::query()->where('subscription_name', $name)->exists()) {
+            return false;
+        }
+
+""", "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/BackupLifecycle.php "Abgeraeumt trotz zweiter Zeile" &&
+pruefe "Abgeraeumt trotz zweiter Zeile" \
+  BackupTeardownTest::test_the_directory_stays_when_someone_still_needs_it failed
+wiederherstellen
+
+echo
+echo "── BackupTeardownTest: abgeräumt, obwohl das Abonnement lebt ──"
+#
+# Ein Name kann nach einem Rückbau wieder vergeben werden; dann gehört das
+# Verzeichnis dem neuen Abonnement, und die nächste Sicherung füllt es.
+vorher_datei app/Support/Backups/BackupLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/BackupLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("return ! Subscription::query()->where('name', $name)->exists();", "return true;", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/BackupLifecycle.php "Abgeraeumt trotz lebendem Abo" &&
+pruefe "Abgeraeumt trotz lebendem Abo" \
+  BackupTeardownTest::test_the_directory_stays_when_someone_still_needs_it failed
+wiederherstellen
+
+echo
+echo "── BackupTeardownTest: abgeräumt, obwohl das Abonnement nur gelöscht wurde ──"
+#
+# `$verwaist` liest `subscription_id` VOR dem Löschen der Zeile. Fällt die
+# Frage weg, räumt jede letzte Sicherung ihr Verzeichnis ab — auch die eines
+# Abonnements, das weiterlebt.
+vorher_datei app/Support/Backups/BackupLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/BackupLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("if ($verwaist && $this->abandoned($name)) {", "if ($this->abandoned($name)) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/BackupLifecycle.php "Abgeraeumt ohne Verwaistsein" &&
+pruefe "Abgeraeumt ohne Verwaistsein" \
+  BackupTeardownTest::test_the_directory_stays_when_someone_still_needs_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupTeardownTest passed
+
+echo
+echo "── BackupStoreTest: removeDirectory trägt wieder einen Baum ab ──"
+#
+# Die Sicherheitszusage des ganzen Entwurfs: Der Griff ist selbstbegrenzend,
+# weil rmdir(2) an einem nicht leeren Verzeichnis scheitert. Ein removeTree
+# nähme die Datei ohne Zeile mit — und genau die meldet die Diagnose als
+# `orphan`.
+vorher_datei agent/src/Backup/Store.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Store.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("return @rmdir($directory);", "Filesystem::removeTree($directory);\n\n        return true;", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Store.php "removeDirectory traegt einen Baum ab" &&
+pruefe "removeDirectory traegt einen Baum ab" \
+  BackupStoreTest::test_the_directory_is_removed_with_rmdir_and_not_as_a_tree failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupStoreTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

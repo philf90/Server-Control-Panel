@@ -160,6 +160,31 @@ ls -l /var/lib/srvpanel/backups/<abo>/
 **Gemessen wird der Vorgang und nicht das Verschwinden der Zeile.** Ein
 `delete()` ohne den Agenten liesse genau den Rest liegen, den Punkt 6 sucht.
 
+**Und danach steht ein zweiter Vorgang da** (seit dem 17. September): War das
+die letzte Sicherung dieses Abonnements, räumt das Panel sein Verzeichnis ab —
+`backup.remove` **ohne** `storage`, ohne Gegenstand, mit dem Namen aus der
+Abschrift. Zu messen:
+
+```
+ls -la /var/lib/srvpanel/backups/
+```
+
+**Erwartet:** Das Verzeichnis ist fort, und die Wurzel daneben steht unberührt.
+
+**Die Gegenprobe entscheidet den Punkt und nicht die Abwesenheit:** Vorher eine
+**zweite** Sicherung desselben Abonnements anlegen und nur die erste entfernen —
+dann darf **kein** Abräumvorgang entstehen, und das Verzeichnis bleibt mit der
+zweiten Datei darin stehen.
+
+> **Eine Abwesenheit belegt eine Grenze erst, wenn daneben etwas anwesend ist,
+> das dieselbe Hülle braucht.**
+
+**Und die Sicherheitszusage gehört auf einen Server:** Eine Datei ohne Zeile in
+demselben Verzeichnis (von Hand hineingelegt, dann die letzte Zeile entfernen)
+muss **liegen bleiben** — `rmdir(2)` scheitert daran, und die Diagnose meldet
+sie weiter als `orphan`. Im Container ist das an `rmdir` gemessen und nicht am
+Agenten.
+
 > **Ein Griff, den es gibt und zu dem kein Weg führt, ist von einem, den es
 > nicht gibt, nicht zu unterscheiden.**
 
@@ -209,9 +234,10 @@ meldete die Prüfung jede Nacht jedes Abonnement, das gerade keine Sicherung hat
 > **Eine Abwesenheit belegt eine Grenze erst, wenn daneben etwas anwesend ist,
 > das dieselbe Hülle braucht.**
 
-**Und danach ist der Befund nicht klärbar**, und das gehört mitgeschrieben: Der
-Griff (`backup.remove` ohne `storage`) hat keinen Aufrufer im Panel. Wie der
-Betreiber die Zeile loswird, ist eine offene Entscheidung aus `docs/119 §12`.
+**Und danach wird er geklärt, seit dem 17. September** — die Entscheidung aus
+`docs/119 §12` ist gefallen: Das Panel räumt das Verzeichnis ab, wenn die
+**letzte** Zeile eines zurückgebauten Abonnements verschwindet. Gemessen wird
+das in Punkt 4.
 
 ---
 

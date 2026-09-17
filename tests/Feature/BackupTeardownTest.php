@@ -5,16 +5,20 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\BackupStatus;
+use App\Enums\OperationStatus;
+use App\Enums\OperationSubject;
 use App\Models\Account;
 use App\Models\Backup;
 use App\Models\Operation;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Support\Backups\BackupLifecycle;
 use App\Support\Plans\Quota;
 use App\Support\Settings\Settings;
 use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\WithoutMarkupComments;
 use Tests\TestCase;
 
@@ -379,6 +383,158 @@ final class BackupTeardownTest extends TestCase
             $quelle,
             'Die Zeile trägt kein Bedienelement, das die Tür ruft — die Funktion allein erreicht niemand.',
         );
+    }
+
+    /**
+     * **Die letzte Zeile eines zurückgebauten Abonnements räumt sein
+     * Verzeichnis ab.**
+     *
+     * Befund 10 aus `docs/119`, zweite Hälfte. Die Bestandsdiagnose meldet ein
+     * leeres Verzeichnis seit dem 17. September; der Griff dafür lag im
+     * Agenten und hatte keinen Aufrufer.
+     *
+     * > **Ein Griff, den es gibt und zu dem kein Weg führt, ist von einem, den
+     * > es nicht gibt, nicht zu unterscheiden.**
+     *
+     * Gemessen am **Vorgang** und nicht am Verschwinden des Verzeichnisses:
+     * Dieser Prüfstand hat keinen Agenten, und was auf der Platte geschieht,
+     * ist dessen Sache. Gefragt ist, ob das Panel ihn überhaupt beauftragt —
+     * mit dem Namen aus der Abschrift und **ohne** `storage`, denn genau daran
+     * unterscheidet `BackupRemove` seine beiden Gegenstände.
+     */
+    public function test_the_last_backup_of_a_dead_subscription_clears_its_directory(): void
+    {
+        $name = 'p8-fort.invalid';
+
+        $zeile = Backup::query()->create([
+            'subscription_id' => null,
+            'subscription_name' => $name,
+            'storage_name' => 'letzte-20260917-120000',
+            'status' => BackupStatus::Ready,
+        ]);
+
+        $this->lebenslauf($zeile);
+
+        $aufraeumen = $this->aufraeumvorgang();
+
+        $this->assertNotNull(
+            $aufraeumen,
+            'Die letzte Zeile ist fort, und das Verzeichnis bleibt — der Griff im Agenten hat weiter keinen Aufrufer.',
+        );
+
+        $payload = is_array($aufraeumen->payload) ? $aufraeumen->payload : [];
+
+        $this->assertSame($name, $payload['subscription'] ?? null, 'Der Vorgang nennt ein anderes Abonnement.');
+
+        // **Ohne `storage`, und daran hängt alles.** Mit dem Schlüssel nähme
+        // `BackupRemove` den Zweig für eine einzelne Ablage und räumte nichts
+        // ab — der Vorgang liefe durch und meldete Erfolg.
+        $this->assertArrayNotHasKey('storage', $payload, 'Der Vorgang nennt eine Ablage — dann räumt er kein Verzeichnis ab.');
+    }
+
+    /**
+     * **Und in den drei Lagen, in denen jemand das Verzeichnis noch braucht,
+     * geschieht es nicht.**
+     *
+     * Das ist die Hälfte, die wehtut: Ein Abräumen, das nicht hätte laufen
+     * dürfen, trifft ein Verzeichnis, das gleich wieder gefüllt wird — oder
+     * eines, in dem noch eine Sicherung liegt.
+     *
+     * `rmdir(2)` fängt die letzte Lage auf der Platte auf; hier wird gemessen,
+     * dass das Panel gar nicht erst fragt.
+     *
+     * @param  'lebt'|'zweite'|'pending'  $lage
+     */
+    #[DataProvider('lagen')]
+    public function test_the_directory_stays_when_someone_still_needs_it(string $lage): void
+    {
+        $abo = $this->subscription();
+        $name = (string) $abo->name;
+
+        $zeile = $this->backup($abo, 'geht-fort');
+
+        if ($lage === 'lebt') {
+            // Das Abonnement lebt: Die nächste Sicherung füllt das Verzeichnis
+            // wieder. Es hier abzuräumen wäre Arbeit gegen den Normalfall.
+            $zeile->forceFill(['subscription_id' => $abo->id])->save();
+        }
+
+        if ($lage !== 'lebt') {
+            // Zurückgebaut — aber es steht noch eine Zeile daneben.
+            $zeile->forceFill(['subscription_id' => null])->save();
+
+            Backup::query()->create([
+                'subscription_id' => null,
+                'subscription_name' => $name,
+                'storage_name' => 'bleibt-20260917-120000',
+                'status' => $lage === 'pending' ? BackupStatus::Pending : BackupStatus::Ready,
+            ]);
+        }
+
+        $this->lebenslauf($zeile);
+
+        $this->assertNull(
+            $this->aufraeumvorgang(),
+            sprintf('Lage „%s": Das Panel räumt ein Verzeichnis ab, das noch gebraucht wird.', $lage),
+        );
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function lagen(): array
+    {
+        return [
+            'das Abonnement lebt noch' => ['lebt'],
+            'eine zweite Sicherung liegt daneben' => ['zweite'],
+            'eine Sicherung wird gerade geschrieben' => ['pending'],
+        ];
+    }
+
+    /**
+     * Der Abräumvorgang — oder `null`, wenn es keinen gibt.
+     *
+     * **Gelesen mit gelöster Mandantenklammer, und das ist keine
+     * Bequemlichkeit.** `Operation` trägt `BelongsToSubscription`, und ein
+     * Abräumvorgang hat **kein** Abonnement — das ist ja sein Fall. Geklammert
+     * gäbe diese Abfrage immer `null` zurück: Der Fall darüber wäre rot,
+     * obwohl der Vorgang dasteht, und die drei Fälle darunter wären grün, ohne
+     * je etwas angesehen zu haben.
+     *
+     * Genau so ist es beim ersten Wurf gewesen — drei grüne Fälle aus dem
+     * falschen Grund, und nur der vierte hat sich gemeldet.
+     *
+     * > **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall,
+     * > misst nicht** — und eine Null, die „nicht nachgesehen" bedeutet, sieht
+     * > aus wie „nichts geschehen".
+     */
+    private function aufraeumvorgang(): ?Operation
+    {
+        return app(Tenancy::class)->withoutRestriction(static fn (): ?Operation => Operation::query()
+            ->where('task', 'backup.remove')
+            ->whereNull('subject_id')
+            ->latest('id')
+            ->first());
+    }
+
+    /**
+     * Den Lebenslauf über eine gelungene `backup.remove` fahren.
+     *
+     * Über die echte Klasse aus dem Container und nicht über einen Nachbau:
+     * Gemessen werden soll die Entscheidung, die dort steht.
+     */
+    private function lebenslauf(Backup $backup): void
+    {
+        $vorgang = Operation::query()->create([
+            'subscription_id' => $backup->subscription_id,
+            'subject_type' => OperationSubject::Backup->value,
+            'subject_id' => $backup->id,
+            'type' => 'backup.remove',
+            'task' => 'backup.remove',
+            'payload' => ['subscription' => (string) $backup->subscription_name, 'storage' => (string) $backup->storage_name],
+            'status' => OperationStatus::Succeeded,
+            'progress' => 100,
+        ]);
+
+        app(BackupLifecycle::class)->afterSuccess($vorgang);
     }
 
     private function admin(): Account

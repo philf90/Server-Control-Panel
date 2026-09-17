@@ -36,6 +36,121 @@ use SrvPanel\Agent\Ops\SubscriptionProvision;
 final class BackupStoreTest extends TestCase
 {
     /**
+     * **`rmdir` kann keine Daten zerstören — gemessen, nicht angenommen.**
+     *
+     * Das ist die Zusage, auf der die Abräumung aus `docs/119` Befund 10 ruht:
+     * Das Panel darf {@see Store::removeDirectory()} ohne Rückfrage rufen, weil
+     * der Griff **selbstbegrenzend** ist. Stimmte das nicht, nähme er die Datei
+     * ohne Zeile mit — und genau die meldet die Bestandsdiagnose als `orphan`.
+     *
+     * Gemessen an einem Wegwerf-Verzeichnis und in beide Richtungen: Das leere
+     * geht, das mit einer Datei darin bleibt samt seiner Datei stehen.
+     *
+     * > **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist
+     * > auch dann falsch, wenn der Handgriff daneben richtig ist.**
+     */
+    public function test_an_rmdir_refuses_a_directory_that_still_holds_something(): void
+    {
+        $wurzel = sys_get_temp_dir().'/p8-rmdir-'.bin2hex(random_bytes(6));
+
+        $this->assertTrue(mkdir($wurzel.'/leer', 0o700, true), 'Der Prüfkörper liess sich nicht anlegen.');
+        $this->assertTrue(mkdir($wurzel.'/voll', 0o700, true), 'Der Prüfkörper liess sich nicht anlegen.');
+        $this->assertNotFalse(file_put_contents($wurzel.'/voll/rest.zip', 'x'), 'Der Prüfkörper liess sich nicht füllen.');
+
+        try {
+            $this->assertTrue(@rmdir($wurzel.'/leer'), 'Ein leeres Verzeichnis liess sich nicht entfernen — dann räumt der Griff nie etwas ab.');
+            $this->assertDirectoryDoesNotExist($wurzel.'/leer');
+
+            $this->assertFalse(@rmdir($wurzel.'/voll'), 'rmdir hat ein nicht leeres Verzeichnis entfernt — dann ist der Griff nicht selbstbegrenzend.');
+            $this->assertFileExists($wurzel.'/voll/rest.zip', 'Die Datei darin ist fort.');
+        } finally {
+            @unlink($wurzel.'/voll/rest.zip');
+            @rmdir($wurzel.'/voll');
+            @rmdir($wurzel.'/leer');
+            @rmdir($wurzel);
+        }
+    }
+
+    /**
+     * **Und genau dieser Griff steht im Rumpf — nicht `removeTree`.**
+     *
+     * Die Hälfte, die der Fall darüber nicht kann: Er misst `rmdir`, nicht
+     * unseren Aufruf. `Store::ROOT` ist ein fester Pfad und keine Einstellung,
+     * also lässt sich `removeDirectory()` hier nicht an einem Wegwerfbaum
+     * fahren — der Beleg für die Wirkung ist der Abnahmelauf auf einem Server.
+     *
+     * Gelesen wird der **Rumpf der Methode** und nicht die Datei: Ein
+     * `removeTree` steht an anderer Stelle zu Recht, und ein Wächter über die
+     * ganze Datei wäre rot für etwas, das in Ordnung ist — oder grün, sobald
+     * `rmdir` irgendwo sonst vorkommt.
+     *
+     * > **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie
+     * > irgendwo steht.**
+     */
+    public function test_the_directory_is_removed_with_rmdir_and_not_as_a_tree(): void
+    {
+        $rumpf = $this->rumpfVon('removeDirectory');
+
+        $this->assertStringContainsString(
+            'rmdir(',
+            $rumpf,
+            'removeDirectory() ruft kein rmdir — dann ist der Griff nicht mehr selbstbegrenzend.',
+        );
+
+        $this->assertStringNotContainsString(
+            'removeTree(',
+            $rumpf,
+            'removeDirectory() trägt wieder ein removeTree — das nimmt die Datei ohne Zeile mit, von der der Befund daneben handelt.',
+        );
+    }
+
+    /**
+     * Der Rumpf einer Methode von {@see Store}, Kommentare abgestreift.
+     *
+     * Gezählt werden die geschweiften Klammern ab der Signatur; die Kommentare
+     * fallen über `token_get_all()` weg, weil jede Behebung in diesem Repo
+     * ihren Vorzustand im Kommentar festhält — hier steht `removeTree` wörtlich
+     * in der Begründung, warum es nicht mehr gerufen wird.
+     *
+     * > **Ein Kommentar, der die entfernte Zeile zitiert, stellt sie für einen
+     * > Wächter wieder her.**
+     */
+    private function rumpfVon(string $methode): string
+    {
+        $quelle = file_get_contents((string) (new \ReflectionClass(Store::class))->getFileName());
+
+        $this->assertIsString($quelle);
+
+        $ohne = '';
+
+        foreach (token_get_all($quelle) as $token) {
+            $ohne .= is_array($token)
+                ? (in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true) ? ' ' : $token[1])
+                : $token;
+        }
+
+        $ab = strpos($ohne, 'function '.$methode.'(');
+
+        $this->assertIsInt($ab, sprintf('Store kennt keine Methode %s() mehr.', $methode));
+
+        $auf = strpos($ohne, '{', $ab);
+
+        $this->assertIsInt($auf, sprintf('%s() hat keinen Rumpf.', $methode));
+
+        $tiefe = 0;
+
+        for ($i = $auf; $i < strlen($ohne); $i++) {
+            $tiefe += $ohne[$i] === '{' ? 1 : ($ohne[$i] === '}' ? -1 : 0);
+
+            if ($tiefe === 0) {
+                return substr($ohne, $auf, $i - $auf + 1);
+            }
+        }
+
+        $this->fail(sprintf('Der Rumpf von %s() hört nicht auf.', $methode));
+    }
+
+    /**
      * Der Ablageort liegt nicht im Raum des Kunden — gemessen am Pfad.
      *
      * Nicht an einer Zeichenkette im Quelltext, sondern an dem, was

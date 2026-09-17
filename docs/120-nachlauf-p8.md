@@ -227,12 +227,29 @@ srvpanel diagnose
 p8-abnahme.invalid`, und im Text der Pfad.
 
 **Die Gegenprobe gehört dazu, und sie entscheidet den Punkt:** Ein Verzeichnis
-eines **lebenden** Abonnements ohne Sicherungen darf **nicht** gemeldet werden.
-Steht nach Punkt 1 ein solcher Fall da, muss die Zeile dafür fehlen — sonst
-meldete die Prüfung jede Nacht jedes Abonnement, das gerade keine Sicherung hat.
+eines **lebenden** Abonnements ohne Sicherungen darf **nicht** gemeldet werden —
+sonst meldete die Prüfung jede Nacht jedes Abonnement, das gerade keine
+Sicherung hat.
 
 > **Eine Abwesenheit belegt eine Grenze erst, wenn daneben etwas anwesend ist,
 > das dieselbe Hülle braucht.**
+
+**Sie steht hier und nicht nach Punkt 1**, und das ist am 17. September
+berichtigt worden: Der erste Wurf verwies auf einen Zustand, den erst Punkt 1
+herstellt — und Punkt 6 läuft vor Punkt 1, weil der seinen Gegenstand
+verbraucht. Damit wäre die Gegenprobe an dieser Stelle nicht fahrbar gewesen.
+
+> **Eine Gegenprobe, die auf einen Zustand verweist, den der Punkt davor nicht
+> hat, ist keine — sie ist eine Zeile, die man beim Abhaken überliest.**
+
+Hergestellt wird sie von Hand und in einem Zug mit der Messung: ein **leeres**
+Verzeichnis unter dem Namen eines Abonnements, das es gibt. Beide stehen dann
+nebeneinander, und die Prüfung muss genau **eines** von beiden melden. Der
+Prüfkörper wird vorher belegt und hinterher weggeräumt — `rmdir`, damit er
+nichts mitnehmen kann.
+
+> **Wer eine Vorbereitung von Hand trifft, belegt sie, bevor er misst.**
+> (`docs/78`)
 
 **Und danach wird er geklärt, seit dem 17. September** — die Entscheidung aus
 `docs/119 §12` ist gefallen: Das Panel räumt das Verzeichnis ab, wenn die

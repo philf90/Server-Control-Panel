@@ -29565,9 +29565,9 @@ vorher_datei agent/src/Ops/BackupRestore.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/BackupRestore.php'
 s = open(p, encoding='utf-8').read()
-alt = "? @lchown($pfad, $uid) && @lchgrp($pfad, $gid)"
+alt = "? @lchown($pfad, $eigen) && @lchgrp($pfad, $sippe)"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, "? @chown($pfad, $uid) && @chgrp($pfad, $gid)", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "? @chown($pfad, $eigen) && @chgrp($pfad, $sippe)", 1))
 PY2
 griff_datei agent/src/Ops/BackupRestore.php "Verweis wird gechownt" &&
 pruefe "Verweis wird gechownt" \
@@ -30208,6 +30208,34 @@ pruefe "Literal an der Konstante vorbei" \
   BackupEngineSeamTest::test_the_old_spelling_is_refused failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupEngineSeamTest passed
+
+echo
+echo "── BackupRestoreTest: das Schema gibt die eigene Gruppe zurück ──"
+#
+# Der Ausfall von Punkt 4 des Abnahmelaufs (17. September 2026), an seiner
+# Quelle: Gäbe `area()` für `httpdocs` die Gruppe des Benutzers statt
+# `www-data`, trügen die Dateien nach einer Wiederherstellung wieder die
+# falsche Gruppe, und der Webserver bekäme HTTP 403.
+#
+# **Der Eingriff daneben steht nicht hier, und das ist kein Versehen.** Setzt
+# man in `own()` wieder `[$uid, $gid]` ein, wird nur der Fall rot, der einen
+# echten Baum anfasst — und der braucht root. In der CI läuft der Lauf als
+# `runner`, dort überspringt er, und ein übersprungener Fall liest sich hier
+# als bestanden. Er ist von Hand gegengeprüft (1 rot, Meldung „Die Datei unter
+# httpdocs trägt nicht www-data").
+vorher_datei agent/src/Ops/SubscriptionProvision.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SubscriptionProvision.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            $group === '%g' ? $user : $group,\n        ];\n    }\n\n    public static function applyTree",
+              "            $user,\n        ];\n    }\n\n    public static function applyTree", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/SubscriptionProvision.php "Schema ohne fremde Gruppe" &&
+pruefe "Schema ohne fremde Gruppe" \
+  BackupRestoreTest::test_the_scheme_names_a_foreign_group_for_the_document_root failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupRestoreTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

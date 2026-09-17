@@ -334,6 +334,41 @@ final class SubscriptionProvision implements Op
      * nicht nach: Eine zweite Aufzählung wäre die, die beim nächsten Zuwachs
      * von {@see self::TREE} veraltet.
      */
+    /**
+     * Eigentümer und Gruppe eines Bereichs des Schemas — oder `null`.
+     *
+     * **Sie steht hier, weil das Schema hier steht.** {@see self::applyTree()}
+     * setzt es **an** den Verzeichnissen; was **darunter** liegt, geht
+     * `BackupRestore::own()` an, und das braucht dieselbe Auskunft. Eine
+     * zweite Aufzählung dort wäre die, die beim nächsten Zuwachs von
+     * {@see self::TREE} veraltet.
+     *
+     * **Der Befund, der diese Methode ausgelöst hat** (P8, 17. September 2026):
+     * Nach einer Wiederherstellung trugen die Dateien unter `httpdocs` die
+     * primäre Gruppe des Benutzers statt `www-data`, und der Webserver konnte
+     * sie nicht mehr lesen — gemessen `HTTP 403` an einer echten Domain. Das
+     * Verzeichnis selbst war richtig; `applyTree()` hatte es zurückgeholt.
+     *
+     * > **Eine Behebung, die eine Ebene zu hoch ansetzt, sieht aus wie die
+     * > Lösung des Problems, das sie beschreibt.**
+     *
+     * @param  string  $part  der erste Pfadteil unterhalb der Wurzel
+     * @return array{0: string, 1: string}|null Eigentümer und Gruppe
+     */
+    public static function area(string $part, string $user): ?array
+    {
+        if (! array_key_exists($part, self::TREE)) {
+            return null;
+        }
+
+        [$owner, $group] = self::TREE[$part];
+
+        return [
+            $owner === '%u' ? $user : $owner,
+            $group === '%g' ? $user : $group,
+        ];
+    }
+
     public static function applyTree(string $root, string $user): void
     {
         Filesystem::directory($root, 'root', 'root', 0755);

@@ -29536,3 +29536,72 @@ zwar erst im vollen Lauf der CI, nach 1341 anderen. Einzeln und lokal wäre er i
 > **Ein Eingriff, der einzeln beisst, beisst nicht unbedingt im Lauf** — und die
 > Umkehrung gilt genauso: Einer, der im Lauf nicht beisst, ist deshalb nicht
 > falsch geschrieben.
+
+### Nach einer Wiederherstellung antwortete die Website mit 403
+
+**Der Ausfall von Punkt 4 des P8-Abnahmelaufs**, gemessen am 17. September 2026
+auf `cloudsrv24`:
+
+    runuser -u www-data -- test -r …/httpdocs/index.html   NICHT lesbar
+    curl -H 'Host: p8-abnahme.invalid' http://127.0.0.1/   HTTP 403
+
+Der Vergleich mit einem unberührten Abonnement sagt, wie es aussehen müsste:
+`p6-abnahme.invalid` trägt `-rw-r----- p1139 www-data`. Beide Male Modus `640` —
+der Unterschied ist allein die **Gruppe**: aus `p1141:www-data` war `p1142:p1142`
+geworden.
+
+`SubscriptionProvision` schreibt die Absicht wörtlich hin: *„`httpdocs` gehört
+`<benutzer>:www-data`, und der Webserver kommt über die Gruppe heran — jede
+Datei, die dort entsteht, trägt `p1132:www-data 0640`."* Dafür trägt `httpdocs`
+setgid, und jede Kundendatei erbt `www-data`.
+
+`BackupRestore::own()` setzte über den **ganzen Baum** `uid:gid` des Benutzers
+und hob damit die setgid-Vererbung auf. `applyTree()` holte danach das Schema
+zurück — für die **Verzeichnisse**; rekursiv ist es nicht.
+
+**Und der Kopf von `BackupRestore` beschreibt genau diesen Schaden**, eine Ebene
+zu hoch: *„Ein `chown` über den ganzen Baum macht daraus dreimal `%u:%u`, und der
+Webserver käme an das Dokumentenverzeichnis nicht mehr heran."*
+
+> **Eine Behebung, die eine Ebene zu hoch ansetzt, sieht aus wie die Lösung des
+> Problems, das sie beschreibt.**
+
+**Die Kennung folgt jetzt dem Bereich, in dem ein Pfad liegt**, und die Auskunft
+kommt aus der Stelle, der das Schema gehört: `SubscriptionProvision::area()`.
+Eine zweite Aufzählung in `BackupRestore` wäre die, die beim nächsten Zuwachs von
+`TREE` veraltet. Aufgelöst wird **träge und je Bereich einmal** — ein Baum mit
+100 000 Einträgen fragte sonst 100 000 Mal nach `www-data`, und ein Aufrufer ohne
+Bereich des Schemas braucht die Gruppen gar nicht zu haben.
+
+Nennt das Schema ein Konto, das es auf dem Server nicht gibt, bricht der Vorgang
+ab statt auf den Benutzer auszuweichen: Ein Ausweichen lieferte genau den
+Zustand, der diesen Befund ausgelöst hat — und meldete Erfolg dazu.
+
+**Warum kein Wächter ihn sah.** `BackupFormTest::test_the_directory_scheme_is_really_rebuilt`
+misst das Verzeichnisschema — die **Verzeichnisse**. Über die Dateien darin sagte
+nichts etwas, und in der CI scheitert ein `chown` ohnehin an der Kennung.
+
+`BackupRestoreTest` hält die Regel jetzt in drei Teilen, und die ersten beiden
+laufen **ohne Rechte**: das Schema nennt für `httpdocs` eine fremde Gruppe, und
+mindestens drei Bereiche tragen überhaupt eine fremde Kennung — sonst wäre die
+Regel gegenstandslos. Der dritte misst die **Wirkung** an einem echten Baum und
+braucht root; er trägt seine Gegenprobe im selben Fall (wäre die eigene Gruppe
+`www-data`, sagte der Vergleich nichts).
+
+**Und ein bestehender Wächter hat beim Beheben etwas gemeldet, das kein Mensch
+gesucht hätte:** `test_the_directory_scheme_is_really_rebuilt` stellte seinen
+Schaden mit `BackupRestore::own()` her — und seit der Behebung richtet `own()`
+diesen Schaden nicht mehr an. Gefallen ist es an der Zusicherung, mit der der
+Fall seine eigene Voraussetzung prüft.
+
+> **Ein Prüfkörper, der seinen Schaden von dem Code herstellen lässt, den eine
+> Behebung repariert, hört mit der Behebung auf zu messen.**
+
+Er stellt ihn jetzt direkt her — der Fall gehört `applyTree()` und nicht `own()`.
+
+**Im Bruchskript steht nur der Eingriff am Schema**, und das ist kein Versehen:
+Ein Eingriff an `own()` macht allein den Fall rot, der einen echten Baum anfasst,
+und der braucht root. In der CI läuft der Lauf als `runner`, dort überspringt er,
+und ein übersprungener Fall liest sich als bestanden. Er ist von Hand
+gegengeprüft — 1 rot, mit der Meldung „Die Datei unter httpdocs trägt nicht
+www-data".

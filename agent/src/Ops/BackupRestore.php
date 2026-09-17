@@ -258,13 +258,83 @@ final class BackupRestore implements Op
             RecursiveIteratorIterator::SELF_FIRST,
         );
 
+        /**
+         * **Die Kennungen je Bereich des Schemas, und erst wenn einer vorkommt.**
+         *
+         * Hier stand nur `$uid`/`$gid` für den ganzen Baum, und das war der
+         * Ausfall von Punkt 4 des Abnahmelaufs (17. September 2026): Die Dateien
+         * unter `httpdocs` bekamen die primäre Gruppe des Benutzers statt
+         * `www-data`, und der Webserver konnte sie nicht mehr lesen — gemessen
+         * `HTTP 403` an einer echten Domain, gegen `p1139 www-data` an einem
+         * unberührten Abonnement daneben.
+         *
+         * `httpdocs` trägt setgid, damit jede Datei des Kunden `www-data` erbt;
+         * ein ausdrückliches `chgrp` über den Baum hebt genau das auf.
+         * {@see SubscriptionProvision::applyTree()} holt danach das Schema
+         * zurück — für die **Verzeichnisse**. Der Kopf dieser Klasse beschreibt
+         * den Schaden und setzte eine Ebene zu hoch an.
+         *
+         * > **Eine Behebung, die eine Ebene zu hoch ansetzt, sieht aus wie die
+         * > Lösung des Problems, das sie beschreibt.**
+         *
+         * **Aufgelöst wird träge und je Bereich einmal.** Ein Baum mit 100 000
+         * Einträgen fragte sonst 100 000 Mal nach `www-data`; und ein Aufrufer,
+         * dessen Baum gar keinen Bereich des Schemas enthält — der Wächter tut
+         * das —, fragt nie und braucht die Gruppen nicht zu haben.
+         *
+         * @var array<string, array{0: int, 1: int}>
+         */
+        $bereiche = [];
+
+        $kennung = static function (string $teil) use (&$bereiche, $user, $uid, $gid): array {
+            if (array_key_exists($teil, $bereiche)) {
+                return $bereiche[$teil];
+            }
+
+            $schema = SubscriptionProvision::area($teil, $user);
+
+            if ($schema === null) {
+                return $bereiche[$teil] = [$uid, $gid];
+            }
+
+            [$besitzer, $gruppe] = $schema;
+
+            $konto = posix_getpwnam($besitzer);
+            $sippe = posix_getgrnam($gruppe);
+
+            if ($konto === false || $sippe === false) {
+                /*
+                 * **Laut und nicht ersatzweise.** Eine Wiederherstellung, die
+                 * hier auf den Benutzer ausweicht, liefert genau den Zustand,
+                 * der diesen Befund ausgelöst hat — und meldet Erfolg dazu.
+                 */
+                throw AgentException::execFailed(
+                    'Das Verzeichnisschema nennt ein Konto, das es auf diesem Server nicht gibt.',
+                    ['part' => $teil, 'owner' => $besitzer, 'group' => $gruppe],
+                );
+            }
+
+            return $bereiche[$teil] = [(int) $konto['uid'], (int) $sippe['gid']];
+        };
+
+        $ab = strlen($root) + 1;
+
         foreach ($lauf as $info) {
             $pfad = $info->getPathname();
 
+            /*
+             * Der erste Pfadteil unterhalb der Wurzel entscheidet — `httpdocs`
+             * für alles darunter, und für alles andere der Benutzer selbst.
+             * Ein Pfad ohne Schrägstrich ist der Bereich selbst.
+             */
+            $rest = substr($pfad, $ab);
+            $schnitt = strpos($rest, '/');
+            [$eigen, $sippe] = $kennung($schnitt === false ? $rest : substr($rest, 0, $schnitt));
+
             $ok = $info->isLink()
                 // **`lchown` und nicht `chown`** — gemessen, `docs/117 §15` M12.
-                ? @lchown($pfad, $uid) && @lchgrp($pfad, $gid)
-                : @chown($pfad, $uid) && @chgrp($pfad, $gid);
+                ? @lchown($pfad, $eigen) && @lchgrp($pfad, $sippe)
+                : @chown($pfad, $eigen) && @chgrp($pfad, $sippe);
 
             if (! $ok && count($misslungen) < self::MAX_REPORTED) {
                 // **Gesammelt und nicht verschluckt.** Eine Datei, die dem

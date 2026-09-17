@@ -29536,3 +29536,322 @@ zwar erst im vollen Lauf der CI, nach 1341 anderen. Einzeln und lokal wäre er i
 > **Ein Eingriff, der einzeln beisst, beisst nicht unbedingt im Lauf** — und die
 > Umkehrung gilt genauso: Einer, der im Lauf nicht beisst, ist deshalb nicht
 > falsch geschrieben.
+
+### Nach einer Wiederherstellung antwortete die Website mit 403
+
+**Der Ausfall von Punkt 4 des P8-Abnahmelaufs**, gemessen am 17. September 2026
+auf `cloudsrv24`:
+
+    runuser -u www-data -- test -r …/httpdocs/index.html   NICHT lesbar
+    curl -H 'Host: p8-abnahme.invalid' http://127.0.0.1/   HTTP 403
+
+Der Vergleich mit einem unberührten Abonnement sagt, wie es aussehen müsste:
+`p6-abnahme.invalid` trägt `-rw-r----- p1139 www-data`. Beide Male Modus `640` —
+der Unterschied ist allein die **Gruppe**: aus `p1141:www-data` war `p1142:p1142`
+geworden.
+
+`SubscriptionProvision` schreibt die Absicht wörtlich hin: *„`httpdocs` gehört
+`<benutzer>:www-data`, und der Webserver kommt über die Gruppe heran — jede
+Datei, die dort entsteht, trägt `p1132:www-data 0640`."* Dafür trägt `httpdocs`
+setgid, und jede Kundendatei erbt `www-data`.
+
+`BackupRestore::own()` setzte über den **ganzen Baum** `uid:gid` des Benutzers
+und hob damit die setgid-Vererbung auf. `applyTree()` holte danach das Schema
+zurück — für die **Verzeichnisse**; rekursiv ist es nicht.
+
+**Und der Kopf von `BackupRestore` beschreibt genau diesen Schaden**, eine Ebene
+zu hoch: *„Ein `chown` über den ganzen Baum macht daraus dreimal `%u:%u`, und der
+Webserver käme an das Dokumentenverzeichnis nicht mehr heran."*
+
+> **Eine Behebung, die eine Ebene zu hoch ansetzt, sieht aus wie die Lösung des
+> Problems, das sie beschreibt.**
+
+**Die Kennung folgt jetzt dem Bereich, in dem ein Pfad liegt**, und die Auskunft
+kommt aus der Stelle, der das Schema gehört: `SubscriptionProvision::area()`.
+Eine zweite Aufzählung in `BackupRestore` wäre die, die beim nächsten Zuwachs von
+`TREE` veraltet. Aufgelöst wird **träge und je Bereich einmal** — ein Baum mit
+100 000 Einträgen fragte sonst 100 000 Mal nach `www-data`, und ein Aufrufer ohne
+Bereich des Schemas braucht die Gruppen gar nicht zu haben.
+
+Nennt das Schema ein Konto, das es auf dem Server nicht gibt, bricht der Vorgang
+ab statt auf den Benutzer auszuweichen: Ein Ausweichen lieferte genau den
+Zustand, der diesen Befund ausgelöst hat — und meldete Erfolg dazu.
+
+**Warum kein Wächter ihn sah.** `BackupFormTest::test_the_directory_scheme_is_really_rebuilt`
+misst das Verzeichnisschema — die **Verzeichnisse**. Über die Dateien darin sagte
+nichts etwas, und in der CI scheitert ein `chown` ohnehin an der Kennung.
+
+`BackupRestoreTest` hält die Regel jetzt in drei Teilen, und die ersten beiden
+laufen **ohne Rechte**: das Schema nennt für `httpdocs` eine fremde Gruppe, und
+mindestens drei Bereiche tragen überhaupt eine fremde Kennung — sonst wäre die
+Regel gegenstandslos. Der dritte misst die **Wirkung** an einem echten Baum und
+braucht root; er trägt seine Gegenprobe im selben Fall (wäre die eigene Gruppe
+`www-data`, sagte der Vergleich nichts).
+
+**Und ein bestehender Wächter hat beim Beheben etwas gemeldet, das kein Mensch
+gesucht hätte:** `test_the_directory_scheme_is_really_rebuilt` stellte seinen
+Schaden mit `BackupRestore::own()` her — und seit der Behebung richtet `own()`
+diesen Schaden nicht mehr an. Gefallen ist es an der Zusicherung, mit der der
+Fall seine eigene Voraussetzung prüft.
+
+> **Ein Prüfkörper, der seinen Schaden von dem Code herstellen lässt, den eine
+> Behebung repariert, hört mit der Behebung auf zu messen.**
+
+Er stellt ihn jetzt direkt her — der Fall gehört `applyTree()` und nicht `own()`.
+
+**Im Bruchskript steht nur der Eingriff am Schema**, und das ist kein Versehen:
+Ein Eingriff an `own()` macht allein den Fall rot, der einen echten Baum anfasst,
+und der braucht root. In der CI läuft der Lauf als `runner`, dort überspringt er,
+und ein übersprungener Fall liest sich als bestanden. Er ist von Hand
+gegengeprüft — 1 rot, mit der Meldung „Die Datei unter httpdocs trägt nicht
+www-data".
+
+### Eine Sicherung ohne Abonnement liess sich nicht entfernen
+
+Gemeldet vom Betreiber im Abnahmelauf von P8 (17. September 2026): Der Bereich
+„Ohne Abonnement" auf `/backups` trug keine Spalte „Aktion" — und die Route
+konnte es auch nicht.
+
+```php
+// BackupController::destroy()
+abort_unless($backup->subscription_id === $subscription->id, 404);
+```
+
+Bei einer verwaisten Zeile ist `subscription_id` **`null`**; die Bedingung kann
+nie zutreffen, und die Adresse `/subscriptions/{subscription}/backups/{backup}`
+verlangt ohnehin ein Abonnement, das es nicht mehr gibt.
+
+**Der Griff selbst war gebaut.** `Backups::remove()` hat seit dem 16. September
+einen eigenen Zweig für genau diesen Fall, mit einer Berichtigung und einem
+langen Kommentar. Ausgezählt, wer ihn erreichen kann: `destroy()` sperrt ihn aus,
+`Retention::prune()` fragt `where('subscription_id', …)`. **Er hatte keinen
+erreichbaren Aufrufer.**
+
+> **Ein Griff, den es gibt und zu dem kein Weg führt, ist von einem, den es nicht
+> gibt, nicht zu unterscheiden.**
+
+Die Ironie ist der Punkt: `Backups::removeAll()` wurde am **16. September**
+gelöscht, *weil* es keinen Aufrufer hatte — und am selben Tag entstand dieser
+Zweig, der auch keinen hatte.
+
+**Die Tür ist jetzt die Geschwister der Wiederherstellung:** `DELETE
+/backups/{backup}`, ohne `{subscription}` im Pfad, aus demselben Grund wie dort —
+der Fall, für den es sie gibt, ist der, in dem das Abonnement fehlt.
+
+**Und sie fragt eine eigene Fähigkeit.** `BackupController::pick()` fragte bisher
+`create, Subscription`, um zu entscheiden, wer verwaiste Sicherungen **sieht** —
+eine Fähigkeit, die etwas anderes bedeutet und heute dasselbe ergibt. Würde sie
+je gelockert, bekäme derselbe Aufrufer die Sicherungen fremder Abonnements zu
+sehen. Beide Stellen fragen jetzt `SubscriptionPolicy::manageOrphanedBackups()`.
+
+> **Zwei Fragen, die heute dieselbe Antwort haben, bleiben nicht dieselbe Frage —
+> und welche der beiden sich ändert, entscheidet niemand, der die andere gemeint
+> hat.**
+
+**Die Gegenrichtung ist die wichtigere und steht als eigener Fall:** Die neue
+Adresse trägt kein `can:manageBackups,subscription`. Nähme sie eine Zeile mit
+Abonnement an, wäre sie eine zweite Tür, die die Frage „darf dieser Aufrufer
+*dieses* Abonnement verwalten?" gar nicht erst stellt.
+
+> **Zwei Adressen für dieselbe Zeile sind zwei Türen — und die zweite muss
+> dieselbe Frage stellen oder eine engere.**
+
+`BackupTeardownTest` hält vier Dinge: dass eine verwaiste Zeile über den
+**Agenten** geht (gemessen am Vorgang, nicht am Verschwinden — ein `delete()`
+hinterliesse genau den Rest, den `backup.verify` als `orphan` meldet), dass jede
+Tür die Sorte der anderen abweist, und dass die Seite den Griff anbietet.
+
+**Der letzte Fall verlangt Aufruf *und* Bedienelement**, und das ist kein
+Formalismus: Nimmt jemand die Zelle aus der Tabelle und lässt die Funktion
+stehen, ist genau der Zustand wieder da, der diesen Befund ausgelöst hat — der
+Griff da, der Weg fort. Beide Hälften sind mit einem eigenen Eingriff belegt.
+
+### Jede Wiederherstellung meldete einen Fehlschlag für etwas, das gelungen war
+
+Befund 5 des P8-Abnahmelaufs (17. September 2026), abgelesen auf der
+Vorgangsseite einer **gelungenen** Wiederherstellung:
+
+```json
+"failures": [{ "gegenstand": "p8-abnahme.invalid",
+               "grund": "Diese Sorte Domain lässt sich nicht anlegen." }]
+```
+
+Die Domain war da — `type=main`, Vhost-Datei gelegt, und die Bestandsdiagnose
+fand keinen einzigen `web.%`-Befund.
+
+`rebuildDomains()` lief über **alle** Domains der Beschreibung und rief
+`Domains::create()`. `DomainType::creatable()` gibt `[Addon, Subdomain, Alias]`
+zurück; die Hauptdomain legt `subscription.provision` an, und der Vorgang läuft
+vorher (gemessen: 889 vor 890). Die Abweisung war richtig — sie als Fehlschlag
+zu melden war es nicht.
+
+> **Ein gemeldeter Fehlschlag für etwas, das gelungen ist, ist schlimmer als kein
+> Bericht — er schickt den Leser dorthin, wo nichts zu beheben ist.**
+
+**Die zweite Wirkung wog schwerer als die erste, und sie stand in keinem
+Protokoll.** Eine Subdomain sucht ihren Elternteil in `$nachName`, und dort
+standen nur die *angelegten*. Ein Kunde mit `shop.seine-domain.de` bekam sie
+nicht zurück — „Die Domain …, unter der sie hängt, ist nicht angelegt worden".
+Der Prüfkörper des Abnahmelaufs hatte nur die Hauptdomain, und deshalb hat es
+niemand gesehen.
+
+> **Ein Prüfkörper, der die Bedingung nicht herstellt, unter der der Fehler
+> entsteht, misst ihn nicht.**
+
+**Gefragt wird nach dem Dasein und nicht nach der Art.** Eine Regel über
+`DomainType::Main` beantwortete dieselbe Frage einmal mehr — und fehlte die
+Hauptdomain wirklich, verschwiege sie den Fehlschlag, den es dann zu Recht gibt.
+`$nachName` ist deshalb mit dem vorgefunden Bestand vorbefüllt, und der Fall der
+Subdomain fällt als Nebenwirkung mit ab.
+
+**Ohne eine zweite Mandantenklammer**: `afterSuccess()` löst sie für seinen
+ganzen Rumpf, und eine zweite darum machte ausgerechnet die eine Stelle blind,
+an der ein Rückfall auffiele.
+
+### Und der Wächter dazu hat seinen eigenen Rahmen gemessen
+
+`RestoreDomainsTest` ruft `rebuildDomains()` über Reflexion — `Restore` ist
+`final`, der volle Lebenslauf bräuchte Manifest, Vorgang und zwei
+Datenbankserver. Sein erster Wurf rief die Stelle **ohne** die Mandantenklammer
+und war rot, mit genau den beiden Meldungen, die er verhindern soll: `$nachName`
+kam leer zurück, weil ein `Domain`-Modell im Grundzustand auf `whereRaw('0 = 1')`
+steht.
+
+> **Ein Prüfkörper, der eine Stelle aus ihrem Rahmen herausgelöst aufruft, misst
+> sie unter einer Bedingung, die es im Betrieb nicht gibt — und sein Rot sieht
+> aus wie ein Befund am Prüfling.**
+
+Dasselbe eine Stelle weiter: Die **Nachmessung** zählte `Domain::query()->count()`
+ebenfalls geklammert und gab null, gleich ob angelegt worden war oder nicht. Die
+`failures` waren zu diesem Zeitpunkt schon leer — die Behebung wirkte, und die
+zwei Zeilen darunter meldeten trotzdem Rot.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts
+> angelegt".**
+
+**Damit die mitgebrachte Klammer keine zweite Fassung einer Regel wird, hält der
+Wächter den Rahmen selbst**: `afterSuccess()` muss `rebuildDomains()` *innerhalb*
+der gelösten Klammer rufen. Gefragt wird nach der **Verschachtelung** und nicht
+nach dem Vorkommen — gezählt werden die Klammern ab dem Aufruf. Der Eingriff dazu
+schiebt den Aufruf hinter die Klammer und lässt sie in der Datei stehen: Ein
+Wächter, der nur die Zeichenkette `withoutRestriction(` suchte, wäre dabei grün.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht.**
+
+### Der alte Systembenutzer stand als Zahl neben dem neuen als Name
+
+Befund 6 des P8-Abnahmelaufs, auf der Vorgangsseite einer Wiederherstellung:
+
+```json
+"system_user": { "alt": 1141, "neu": "p1142" }
+```
+
+Dieselbe Grösse, nebeneinander, in zwei Fassungen. Das Verzeichnis der Sicherung
+führt die **Nummer**, weil `Lifecycle::claim()` eine vergibt; jede Anzeige dieses
+Panels führt den **Namen**. Wer die beiden vergleichen wollte, musste die
+Umrechnung im Kopf machen.
+
+> **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine doppelte Auskunft,
+> sondern eine widersprüchliche.** (`docs/91`, Befund 5)
+
+Umgerechnet wird über `Lifecycle::userName()` und nicht über ein `'p'.$zahl` an
+der Anzeigestelle — der Kopf jener Methode sagt wörtlich „an dieser einen
+Stelle". `null` bleibt `null`: Eine Sicherung, deren Verzeichnis keine Nummer
+nennt, sagt etwas anderes als eine mit Nummer 0.
+
+`RestoreResultFormTest` hält zwei Dinge: diesen einen Wert, und die Regel über
+**jedes** Paar des Berichts — zwei vorhandene Werte unter `alt` und `neu` tragen
+denselben Typ. Die Zahl der gefundenen Paare steht daneben, weil der Ausdruck
+sonst ins Leere greifen kann, ohne es zu melden.
+
+### Der Betreiber hatte keinen Menüpunkt zu den Sicherungen
+
+Befund 7, gemeldet vom Betreiber. `Sicherungen → /backups` stand nur im
+**Kundenzweig**; der Betreiber sah unter *Einstellungen* nur
+`/settings/backups`, also die Frage, was der Server von sich aus sichert.
+
+Der Bereich **„Ohne Abonnement"** auf `/backups` ist nach `docs/117` allein
+seiner und der einzige Weg, eine Sicherung ohne Abonnement zurückzuspielen oder
+zu entfernen.
+
+> **Die eine Handlung, die nur der Betreiber ausführen kann, lag auf der einen
+> Seite, zu der nur der Kunde einen Menüpunkt hatte.**
+
+Und der Quelltext behauptete das Gegenteil: Der Kommentar an der
+Einstellungsseite nannte einen Eintrag unter „Verwaltung", den es nicht gab.
+
+> **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung — und
+> nichts prüft sie.**
+
+Das ist die **vierte** Wiederholung derselben Familie — Dateimanager (`docs/55`
+Befund 8), SFTP-Zugang (`docs/59` Befund 19), „Job anlegen" (`docs/64`
+Befund 13). Jedes Mal hat der Betreiber es gemeldet.
+
+**Der Eintrag steht jetzt unter „Verwaltung"**, serverweit wie Domains und
+Datenbanken und am Ende der Gruppe, aus demselben Grund wie im Kundenzweig.
+Ohne `ability`, weil die Route keine trägt — sie siebt im Rumpf.
+
+**Und die Einstellungsseite heisst jetzt „Automatische Sicherung".** Zwei
+Einträge desselben Namens mit demselben Zeichen hätten den Leser gezwungen, die
+Gruppenüberschrift mitzulesen — dieselbe Frage, die „Datenbanken" und
+„Datenbankserver" schon einmal beantwortet haben. Der Name ist wörtlich die
+Unterzeile der Seite und deckt beide Schalter darauf.
+
+`NavGroupTest` hält seitdem, dass **ein Name auf genau eine Adresse zeigt** —
+über beide Zweige zusammen, denn derselbe Name in beiden ist kein Fehler,
+solange er dieselbe Adresse meint. Was er **nicht** halten kann, steht in seinem
+Kopf als Frage: *Wo sucht jemand diese Handlung, und steht sie dort?*
+
+### Ein leeres Verzeichnis blieb liegen und wurde nicht gemeldet
+
+Befund 10. Nach dem Entfernen aller Stände stand
+`/var/lib/srvpanel/backups/<abo>/` leer da, und `backup-verify` meldete „Keine
+Befunde an den Sicherungen". Die Prüfung sucht Dateien ohne Zeile — ein leeres
+Verzeichnis hat keine Datei.
+
+> **Eine Abwesenheit ist nur dann ein Befund, wenn die Anwesenheit im
+> Erfolgsfall belegt ist.**
+
+`backup.list` gibt jetzt neben den Dateien die **Verzeichnisse** heraus, die es
+ohnehin abläuft. Was gefehlt hat, war nicht die Auskunft, sondern dass jemand
+sie weitergibt.
+
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+> keine.**
+
+**Gemeldet und nicht gelöscht**, wie jeder Rest seit A10. Es sind vier Kilobyte,
+und darum geht es nicht: Stehen bleibt der **Name** eines zurückgebauten
+Abonnements in einem Verzeichnis, das nichts mehr erreicht.
+
+**Drei Bedingungen, und jede einzeln begründet.** Gemeldet wird nur, was keine
+Datei trägt, was keine Zeile nennt und wozu es kein Abonnement gibt:
+
+- Mit Datei ist es kein leeres Verzeichnis — und eine Datei ohne Zeile meldet
+  `orphansOf()` bereits, je Datei und mit ihrem Namen.
+- Eine Zeile auf `pending` hat ihre Datei noch nicht. *Ein Rest ist, was niemand
+  mehr nennt — nicht, was noch niemand fertig genannt hat.*
+- Ein **lebendes** Abonnement bekommt sein Verzeichnis bei der nächsten
+  Sicherung wieder gefüllt; jede Nacht einen Befund dafür hiesse, dem Betreiber
+  das Hinsehen abzugewöhnen.
+
+**Und der erste Prüfkörper dazu hat eine der drei nicht gemessen.** Das
+Verzeichnis mit Datei trug auch eine Zeile — der Eingriff auf die erste
+Bedingung blieb wirkungslos, weil die zweite ihn auffing.
+
+> **Ein Eingriff, der einen Zustand herstellt, den der Prüfling ohnehin gleich
+> beantwortet, misst die Regel nicht — er misst, dass sie unempfindlich ist.**
+
+**Ein bestehender Wächter hat den neuen Grund gemeldet**, und das ist der Punkt
+seiner Zahl: `BackupDiagnoseTest` zählte zwei Gründe, die nicht vom Agenten
+kommen, und fand drei.
+
+> **Eine Untergrenze ist kein Formalismus — sie ist die einzige Stelle, an der
+> ein Wächter merkt, dass sich sein Gegenstand geändert hat.**
+
+**Was offen bleibt und benannt ist:** Der Griff, der ein solches Verzeichnis
+abräumt, gibt es im Agenten (`backup.remove` ohne `storage`) und hat weiterhin
+keinen Aufrufer. Der Betreiber bekommt damit einen Befund, den er aus dem Panel
+nicht klären kann. Ob das Panel ein leeres Verzeichnis von sich aus entfernen
+darf — und an welcher Stelle —, ist eine Entscheidung und keine Ableitung; sie
+gehört vor die Abnahme von P8 und nicht in diese Behebung.

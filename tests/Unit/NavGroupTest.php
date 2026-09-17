@@ -283,4 +283,89 @@ final class NavGroupTest extends TestCase
             }
         }
     }
+
+    /**
+     * **Ein Name zeigt auf genau eine Adresse.**
+     *
+     * Befund 7 des P8-Abnahmelaufs hat zwei Hälften; das hier ist die zweite.
+     * „Sicherungen" stand als `/backups` im Kundenzweig und als
+     * `/settings/backups` im Betreiberzweig — und als der fehlende Eintrag
+     * nachgetragen wurde, hätte der Betreiber zweimal „Sicherungen" mit
+     * demselben Zeichen in derselben Leiste gesehen.
+     *
+     * > **Zwei Einträge mit demselben Namen zwingen den Leser, die
+     * > Gruppenüberschrift mitzulesen — und auf dem Telefon steht sie nicht
+     * > neben dem Punkt, sondern darüber.**
+     *
+     * Dieselbe Frage haben „Datenbanken" und „Datenbankserver" schon einmal
+     * beantwortet; die Antwort war bis heute eine Gewohnheit und keine Regel.
+     *
+     * **Gefragt wird über beide Zweige zusammen und nicht je Zweig.** Derselbe
+     * Name in beiden ist kein Fehler, solange er dieselbe Adresse meint — „Mein
+     * Konto", „Vorgänge" und „Protokoll" stehen in beiden. Ein Fehler ist er,
+     * sobald zwei **verschiedene** Adressen ihn tragen.
+     */
+    public function test_a_name_points_at_exactly_one_address(): void
+    {
+        $adressen = [];
+
+        foreach ($this->eintraege() as $eintrag) {
+            $adressen[$eintrag['name']][$eintrag['href']] = true;
+        }
+
+        foreach ($adressen as $name => $ziele) {
+            $this->assertCount(
+                1,
+                $ziele,
+                sprintf('„%s" führt an %d verschiedene Orte: %s.', $name, count($ziele), implode(', ', array_keys($ziele))),
+            );
+        }
+
+        // **Die Untergrenze.** Findet der Leser keinen Eintrag, ist die
+        // Schleife leer und dieser Fall grün, ohne etwas angesehen zu haben.
+        $this->assertGreaterThanOrEqual(
+            20,
+            count($adressen),
+            'Der Leser findet weniger als zwanzig Namen — dann greift er ins Leere und meldet es nicht.',
+        );
+    }
+
+    /**
+     * **Der Betreiber erreicht die Sicherungen ohne Abonnement.**
+     *
+     * Befund 7, erste Hälfte, gemeldet vom Betreiber: `Sicherungen → /backups`
+     * stand nur im Kundenzweig. Der Bereich „Ohne Abonnement" auf dieser Seite
+     * ist nach `docs/117` allein seiner und der einzige Weg, eine Sicherung
+     * ohne Abonnement zurückzuspielen oder zu entfernen — `BackupController`
+     * fragt dafür an zwei Stellen `manageOrphanedBackups`.
+     *
+     * **Die eine Handlung, die nur der Betreiber ausführen kann, lag auf der
+     * einen Seite, zu der nur der Kunde einen Menüpunkt hatte.**
+     *
+     * ## Was dieser Fall nicht kann, und das ist der grössere Teil
+     *
+     * Er hält **diese** Adresse und nicht die Frage dahinter. Ob ein Kunde eine
+     * Handlung dort sucht, wo sie steht, hängt an einer Erwartung und nicht an
+     * einer Eigenschaft des Quelltextes — es ist die vierte Wiederholung
+     * derselben Familie (Dateimanager `docs/55`, SFTP-Zugang `docs/59`, „Job
+     * anlegen" `docs/64`), und jedes Mal hat sie der Betreiber gemeldet und
+     * kein Wächter.
+     *
+     * > **Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht
+     * > sie dort?** Nicht „ist sie erreichbar" — erreichbar ist alles, was man
+     * > findet, wenn man lange genug rollt.
+     *
+     * > **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und
+     * > nicht als Zusage.**
+     */
+    public function test_the_operator_reaches_the_orphaned_backups(): void
+    {
+        $ziele = array_column($this->navigationen()['Betreiber'] ?? [], 'href');
+
+        $this->assertContains(
+            '/backups',
+            $ziele,
+            'Der Betreiber hat keinen Menüpunkt zu den Sicherungen — und der Bereich „Ohne Abonnement" darauf ist der einzige Weg zu einer Sicherung, deren Abonnement es nicht mehr gibt.',
+        );
+    }
 }

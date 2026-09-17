@@ -217,8 +217,28 @@ final class BackupFormTest extends TestCase
         mkdir($root.'/httpdocs', 0700, true);
         mkdir($root.'/logs', 0700, true);
 
-        // Der Schaden, den ein rekursiver Griff anrichtet.
-        BackupRestore::own($root, 'daemon');
+        /*
+         * **Der Schaden, von Hand hergestellt — und das ist eine Berichtigung
+         * vom 17. September 2026.**
+         *
+         * Hier stand `BackupRestore::own($root, 'daemon')`. Seit der Behebung
+         * von Punkt 4 des Abnahmelaufs richtet `own()` diesen Schaden nicht
+         * mehr an: Es fragt das Schema und gibt `httpdocs` seine Gruppe.
+         * Gemerkt hat es die Zusicherung darunter, die ihre eigene
+         * Voraussetzung prüft.
+         *
+         * > **Ein Prüfkörper, der seinen Schaden von dem Code herstellen
+         * > lässt, den eine Behebung repariert, hört mit der Behebung auf zu
+         * > messen.**
+         *
+         * Dieser Fall gehört `applyTree()` und nicht `own()`. Der Schaden
+         * kommt deshalb direkt, und er bleibt derselbe: ein rekursiver Griff,
+         * der die Gruppen einebnet.
+         */
+        foreach ([$root, $root.'/httpdocs', $root.'/logs'] as $pfad) {
+            chown($pfad, 'daemon');
+            chgrp($pfad, posix_getpwnam('daemon')['gid']);
+        }
 
         $this->assertSame(
             posix_getpwnam('daemon')['gid'],

@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\Ops\BackupRestore;
+use SrvPanel\Agent\Ops\SubscriptionProvision;
 
 /**
  * Der Eigentümerwechsel nach dem Auspacken folgt keinem Verweis.
@@ -272,6 +273,127 @@ final class BackupRestoreTest extends TestCase
             $this->uidOf(self::WER),
             stat($opfer)['uid'],
             'Ein gewöhnliches chown() folgt dem Verweis hier nicht — dann misst der Fall darüber etwas anderes als gedacht.',
+        );
+    }
+
+    /**
+     * Das Schema entscheidet die Gruppe — und `httpdocs` ist der Fall.
+     *
+     * **Der Ausfall von Punkt 4 des Abnahmelaufs** (17. September 2026): Nach
+     * einer Wiederherstellung trugen die Dateien unter `httpdocs` die primäre
+     * Gruppe des Benutzers statt `www-data`, und der Webserver konnte sie nicht
+     * mehr lesen — gemessen `HTTP 403` an einer echten Domain.
+     *
+     * Dieser Fall fragt die Auskunft, aus der `own()` seine Kennung zieht, und
+     * er läuft **ohne Rechte**: Er liest das Schema und fasst keine Datei an.
+     */
+    public function test_the_scheme_names_a_foreign_group_for_the_document_root(): void
+    {
+        $this->assertSame(
+            ['p1141', 'www-data'],
+            SubscriptionProvision::area('httpdocs', 'p1141'),
+            'Das Dokumentenverzeichnis gehört nicht mehr www-data — dann kommt der Webserver nicht mehr an die Dateien des Kunden.',
+        );
+
+        $this->assertSame(['p1141', 'adm'], SubscriptionProvision::area('logs', 'p1141'));
+        $this->assertSame(['root', 'root'], SubscriptionProvision::area('conf', 'p1141'));
+
+        // `%g` löst auf den Benutzer auf — dieselbe Kennung wie ohne Schema,
+        // und trotzdem eine Antwort und kein `null`.
+        $this->assertSame(['p1141', 'p1141'], SubscriptionProvision::area('tmp', 'p1141'));
+
+        $this->assertNull(
+            SubscriptionProvision::area('httpdocs2', 'p1141'),
+            'Ein Name, den das Schema nicht führt, bekommt keine Kennung — sonst trüge jedes Kundenverzeichnis eine fremde Gruppe.',
+        );
+    }
+
+    /**
+     * **Die Untergrenze, und sie kommt vor der Wirkung.**
+     *
+     * Trüge kein Bereich des Schemas eine fremde Gruppe, wäre die ganze Regel
+     * gegenstandslos: `own()` dürfte dann überall die Kennung des Benutzers
+     * setzen, und der Fall darunter bliebe grün, ohne etwas zu messen.
+     *
+     * > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als
+     * > Null steht.**
+     */
+    public function test_at_least_one_area_carries_a_foreign_identity(): void
+    {
+        $fremd = 0;
+
+        foreach (['httpdocs', 'logs', 'tmp', 'conf', '.ssh', 'mail'] as $teil) {
+            $schema = SubscriptionProvision::area($teil, 'p1141');
+
+            $this->assertIsArray($schema, sprintf('Den Bereich %s führt das Schema nicht mehr.', $teil));
+
+            if ($schema !== ['p1141', 'p1141']) {
+                $fremd++;
+            }
+        }
+
+        $this->assertGreaterThanOrEqual(
+            3,
+            $fremd,
+            'Weniger als drei Bereiche mit fremder Kennung — dann prüft der Fall über die Wirkung eine Regel ohne Gegenstand.',
+        );
+    }
+
+    /**
+     * Und die Wirkung: Der Rundlauf setzt unter `httpdocs` die fremde Gruppe.
+     *
+     * **Nur als root**, und das ist keine Bequemlichkeit: Ein `chgrp` auf eine
+     * Gruppe, der man nicht angehört, ist einem unprivilegierten Aufrufer
+     * verwehrt. Der Fall stellt seinen Zustand sonst nicht her — und ihn
+     * trotzdem laufen zu lassen hiesse, eine Fähigkeit zu messen statt der
+     * Regel.
+     *
+     * Die Auskunft darüber hält der Fall ohne Rechte; **hier** steht, dass
+     * `own()` sie auch benutzt.
+     */
+    public function test_the_walk_gives_the_document_root_its_own_group(): void
+    {
+        if (posix_geteuid() !== 0) {
+            $this->markTestSkipped('Ein chgrp auf eine fremde Gruppe braucht root — der Prüfkörper stellt seinen Zustand nicht her.');
+        }
+
+        $sippe = posix_getgrnam('www-data');
+
+        $this->assertIsArray($sippe, 'Die Gruppe www-data gibt es hier nicht — dann misst dieser Fall nichts.');
+
+        $ich = $this->ich();
+        $eigen = posix_getpwnam($ich);
+
+        $this->assertIsArray($eigen);
+
+        /*
+         * **Die Gegenprobe, und sie kommt zuerst.** Wären die beiden Gruppen
+         * dieselbe, zeigte der Vergleich darunter auch dann keinen Unterschied,
+         * wenn `own()` das Schema gar nicht fragt.
+         */
+        $this->assertNotSame(
+            (int) $eigen['gid'],
+            (int) $sippe['gid'],
+            'Die eigene Gruppe ist www-data — dann sagt der Vergleich darunter nichts über das Schema.',
+        );
+
+        mkdir($this->scratch.'/baum/httpdocs', 0700, true);
+        mkdir($this->scratch.'/baum/eigenes', 0700, true);
+        file_put_contents($this->scratch.'/baum/httpdocs/seite.html', 'x');
+        file_put_contents($this->scratch.'/baum/eigenes/notiz.txt', 'x');
+
+        BackupRestore::own($this->scratch.'/baum', $ich);
+
+        $this->assertSame(
+            (int) $sippe['gid'],
+            stat($this->scratch.'/baum/httpdocs/seite.html')['gid'],
+            'Die Datei unter httpdocs trägt nicht www-data — der Webserver kann sie dann nicht lesen.',
+        );
+
+        $this->assertSame(
+            (int) $eigen['gid'],
+            stat($this->scratch.'/baum/eigenes/notiz.txt')['gid'],
+            'Ein Verzeichnis ausserhalb des Schemas hat eine fremde Gruppe bekommen — die Regel greift zu weit.',
         );
     }
 

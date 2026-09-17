@@ -412,7 +412,7 @@ nicht geschätzt.
 
 ## 10 · Wann er durch ist
 
-**Alle sieben Punkte erfüllt**, und **5 und 6 dürfen nicht ausfallen**. Fällt
+**Alle acht Punkte erfüllt**, und **5 und 6 dürfen nicht ausfallen**. Fällt
 einer der übrigen als „nicht herstellbar" aus, wird er benannt — und „nicht
 herstellbar" heisst am **Gegenstand** gescheitert und nicht am Werkzeug.
 

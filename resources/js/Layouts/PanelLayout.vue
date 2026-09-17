@@ -353,6 +353,41 @@ const navigation = computed<{ group: string | null; items: NavItem[] }[]>(() => 
       // Serverweit und aus demselben Grund wie die Domains: „Welche Datenbank
       // liegt in welchem Abonnement" ist eine Frage des Betreibers.
       { name: 'Datenbanken', href: '/databases', icon: 'databases' },
+
+      /*
+       * **Befund 7 des P8-Abnahmelaufs, gemeldet vom Betreiber.**
+       *
+       * `Sicherungen → /backups` stand nur im **Kundenzweig**. Der Betreiber
+       * hatte zu dieser Seite keinen Menüpunkt — und der Bereich „Ohne
+       * Abonnement" darauf ist nach `docs/117` allein seiner und der einzige
+       * Weg, eine Sicherung ohne Abonnement zurückzuspielen.
+       *
+       * **Die eine Handlung, die nur der Betreiber ausführen kann, lag auf der
+       * einen Seite, zu der nur der Kunde einen Menüpunkt hatte.**
+       *
+       * Und der Quelltext behauptete das Gegenteil: Der Kommentar an
+       * „Automatische Sicherung" nannte einen Eintrag unter „Verwaltung", den
+       * es nicht gab.
+       *
+       * > **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung —
+       * > und nichts prüft sie.**
+       *
+       * Das ist die **vierte** Wiederholung derselben Familie — Dateimanager
+       * (`docs/55` Befund 8), SFTP-Zugang (`docs/59` Befund 19), „Job anlegen"
+       * (`docs/64` Befund 13). Jedes Mal hat der Betreiber es gemeldet, und
+       * jedes Mal war die Frage dieselbe:
+       *
+       * > **Wo sucht jemand diese Handlung, und steht sie dort?**
+       *
+       * Serverweit und deshalb hier, wie Domains und Datenbanken: `pick()`
+       * zeigt dem Betreiber **jedes** Abonnement, für das er `manageBackups`
+       * hat. Ohne `ability`, weil die Route keine trägt — sie siebt im Rumpf.
+       *
+       * **Am Ende der Gruppe**, aus demselben Grund wie im Kundenzweig: Eine
+       * Sicherung sucht man, wenn etwas schiefgegangen ist oder bevor man etwas
+       * wagt, und nicht vor der täglichen Arbeit.
+       */
+      { name: 'Sicherungen', href: '/backups', icon: 'backups' },
     ] },
     /*
      * **„Betrieb" und „Einstellungen" waren bis zum 30. August 2026 eine
@@ -591,8 +626,22 @@ const navigation = computed<{ group: string | null; items: NavItem[] }[]>(() => 
        * Datenbankserver:** Die beiden Einträge stehen in verschiedenen Gruppen
        * — „Verwaltung" führt zu den Sicherungen der Kunden, „Einstellungen" zu
        * der Frage, was der Server von sich aus sichert.
+       *
+       * **Dieser Satz war bis zum 17. September 2026 falsch**, und zwar in der
+       * Hälfte, die er behauptete: Den Eintrag unter „Verwaltung" gab es nicht
+       * (Befund 7 des P8-Laufs). Er steht jetzt oben — und weil damit zwei
+       * Einträge desselben Namens und desselben Zeichens in derselben Leiste
+       * stünden, heisst dieser hier wie das, was er einstellt.
+       *
+       * > **Zwei Einträge mit demselben Namen und demselben Zeichen zwingen den
+       * > Leser, die Gruppenüberschrift mitzulesen — dieselbe Frage, die
+       * > „Datenbanken" und „Datenbankserver" schon einmal beantwortet haben.**
+       *
+       * „Automatische Sicherung" ist wörtlich die Unterzeile der Seite („Was
+       * der Server von sich aus sichert") und deckt beide Schalter darauf: den
+       * nächtlichen Lauf und den vor dem Rückbau.
        */
-      { name: 'Sicherungen', href: '/settings/backups', icon: 'backups', ability: 'operate-server' },
+      { name: 'Automatische Sicherung', href: '/settings/backups', icon: 'backups', ability: 'operate-server' },
 
       { name: 'Mailversand', href: '/settings/mail', icon: 'mail', ability: 'operate-server' },
       { name: 'Zertifikat', href: '/settings/tls', icon: 'tls', ability: 'operate-server' },

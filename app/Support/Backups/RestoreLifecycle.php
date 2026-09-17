@@ -18,6 +18,7 @@ use App\Support\Databases\Databases;
 use App\Support\Databases\Dumps;
 use App\Support\Databases\RemoteAccess;
 use App\Support\Operations\AfterOperation;
+use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Web\Domains;
 use Illuminate\Validation\ValidationException;
@@ -285,12 +286,53 @@ final class RestoreLifecycle implements AfterOperation
             $zuerst[] = $eintrag;
         }
 
-        $nachName = [];
+        /*
+         * **Was schon dasteht, wird nicht noch einmal angelegt.**
+         *
+         * `subscription.provision` legt die **Hauptdomain** an — sie trägt den
+         * Namen des Abonnements, und der Vorgang läuft vor dieser Stelle
+         * (gemessen im Abnahmelauf von P8: `subscription.provision` als 889,
+         * `backup.restore` als 890). Die Beschreibung nennt sie trotzdem, denn
+         * sie ist eine Domain des Abonnements wie jede andere.
+         *
+         * Hier stand nichts dergleichen, und der Aufruf ging jedes Mal an
+         * {@see Domains::create()}. Das weist `DomainType::Main` zu Recht ab —
+         * die Hauptdomain entsteht beim Bereitstellen und nicht über diesen Weg
+         * —, und der Fehlschlag landete in `failures`. **Jede Wiederherstellung
+         * meldete damit einen Fehlschlag für etwas, das gelungen war.**
+         *
+         * > **Ein gemeldeter Fehlschlag für etwas, das gelungen ist, ist
+         * > schlimmer als kein Bericht — er schickt den Leser dorthin, wo nichts
+         * > zu beheben ist.**
+         *
+         * Und die zweite Wirkung wog schwerer als die erste: Ein Kunde, der
+         * eine **Subdomain unter seiner Hauptdomain** hatte, bekam sie nicht
+         * zurück. Sie sucht ihren Elternteil in `$nachName`, und dort stand er
+         * nie — die Zeile darunter meldete „Die Domain …, unter der sie hängt,
+         * ist nicht angelegt worden". Der Prüfkörper des Abnahmelaufs hatte nur
+         * die Hauptdomain, und deshalb hat es niemand gesehen.
+         *
+         * **Gefragt wird nach dem Dasein und nicht nach der Art.** Eine Regel
+         * über `DomainType::Main` beantwortete dieselbe Frage einmal mehr; und
+         * fehlte die Hauptdomain wirklich, verschwiege sie den Fehlschlag, den
+         * es dann zu Recht gibt.
+         *
+         * **Ohne eine zweite Klammer**: `afterSuccess()` hat die Mandantenklammer
+         * schon gelöst, und eine zweite darum machte ausgerechnet die eine
+         * Stelle blind, an der ein Rückfall auffiele.
+         *
+         * @var array<string, \App\Models\Domain>
+         */
+        $nachName = $subscription->domains()->get()->keyBy('name')->all();
 
         foreach ([...$zuerst, ...$danach] as $eintrag) {
             $name = is_string($eintrag['name'] ?? null) ? $eintrag['name'] : null;
 
             if ($name === null) {
+                continue;
+            }
+
+            if (isset($nachName[$name])) {
                 continue;
             }
 
@@ -418,7 +460,32 @@ final class RestoreLifecycle implements AfterOperation
         $ergebnis['restored'] = [
             'subscription' => (string) $subscription->name,
             'from' => (string) ($manifest['subscription'] ?? ''),
-            'system_user' => ['alt' => $manifest['system_user'] ?? null, 'neu' => (string) $subscription->system_user],
+            /*
+             * **Beide Seiten tragen den Namen und nicht zweierlei.**
+             *
+             * Befund 6 des P8-Abnahmelaufs: Hier stand `"alt": 1141` neben
+             * `"neu": "p1142"` — dieselbe Grösse, nebeneinander, in zwei
+             * Fassungen. Das Verzeichnis führt die **Nummer**, weil
+             * {@see \App\Support\Subscriptions\Lifecycle::claim()} eine
+             * vergibt; jede Anzeige dieses Panels führt den **Namen**.
+             *
+             * > **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine
+             * > doppelte Auskunft, sondern eine widersprüchliche.**
+             *
+             * Umgerechnet wird über `Lifecycle::userName()` und nicht über ein
+             * `'p'.$zahl` an dieser Stelle — der Kopf jener Methode sagt
+             * wörtlich „an dieser einen Stelle", und eine zweite hier wäre die
+             * Fassung, die veraltet.
+             *
+             * `null` bleibt `null`: Eine Sicherung, deren Verzeichnis keine
+             * Nummer nennt, sagt etwas anderes als eine mit Nummer 0.
+             */
+            'system_user' => [
+                'alt' => is_numeric($manifest['system_user'] ?? null)
+                    ? Lifecycle::userName((int) $manifest['system_user'])
+                    : null,
+                'neu' => (string) $subscription->system_user,
+            ],
             /*
              * **Das Präfix kommt aus `system_users` und nicht vom
              * Abonnement.** `subscriptions` führt keine solche Spalte;

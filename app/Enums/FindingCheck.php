@@ -570,6 +570,27 @@ enum FindingCheck: string
                     'text' => 'Zu dieser Datei gibt es keine Zeile — sie gehört keiner Sicherung, die das Panel kennt.',
                 ],
 
+                /*
+                 * **Dieselbe Richtung eine Ebene höher, und aus demselben Grund
+                 * `warn`.** Befund 10 des P8-Abnahmelaufs: Nach dem Entfernen
+                 * aller Stände blieb das Verzeichnis eines Abonnements leer
+                 * liegen, und die Prüfung meldete „Keine Befunde" — sie sucht
+                 * Dateien ohne Zeile, und ein leeres Verzeichnis hat keine.
+                 *
+                 * **Gemeldet und nicht gelöscht**, wie jeder Rest seit A10. Der
+                 * Griff dafür gibt es im Agenten (`backup.remove` ohne
+                 * `storage`); ihn nachts von selbst gehen zu lassen hiesse, ein
+                 * Verzeichnis abzuräumen, ohne dass jemand hingesehen hat.
+                 *
+                 * Es kostet vier Kilobyte, und darum geht es nicht: Stehen
+                 * bleibt der **Name** eines zurückgebauten Abonnements, in
+                 * einem Verzeichnis, das niemand mehr anfasst.
+                 */
+                'empty_directory' => [
+                    'state' => FindingState::Warn,
+                    'text' => 'Hier liegt ein leeres Verzeichnis für ein Abonnement, das es nicht mehr gibt — und keine Sicherung, zu der es gehörte.',
+                ],
+
                 ...$unreachable,
             ],
         };

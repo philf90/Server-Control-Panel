@@ -6,6 +6,7 @@ namespace App\Policies;
 
 use App\Enums\Permission;
 use App\Models\Account;
+use App\Models\Backup;
 use App\Models\Subscription;
 use App\Support\Plans\Feature;
 
@@ -176,6 +177,35 @@ final class SubscriptionPolicy
     public function manageBackups(Account $account, Subscription $subscription): bool
     {
         return $this->useFeature($account, $subscription, Permission::Backups);
+    }
+
+    /**
+     * Die Sicherungen **ohne** Abonnement — ansehen und entfernen.
+     *
+     * **Sie gehören keinem Kunden mehr**, und deshalb kann keine Frage an ein
+     * Abonnement sie beantworten: `backups.subscription_id` steht auf
+     * `nullOnDelete`, damit die Sicherung ihren Rückbau überlebt
+     * ({@see Backup}). Was bleibt, ist der abgeschriebene Name —
+     * und die Frage, wer ihn sehen darf.
+     *
+     * **Der Befund, für den es diese Methode gibt** (P8, 17. September 2026):
+     * `BackupController::pick()` fragte hier `create, Subscription` — eine
+     * Fähigkeit, die etwas anderes bedeutet und heute dasselbe ergibt. Würde
+     * sie je gelockert (etwa: ein Kunde darf ein Abonnement anlegen), bekäme
+     * derselbe Kunde damit die Sicherungen **fremder** Abonnements zu sehen.
+     *
+     * > **Zwei Fragen, die heute dieselbe Antwort haben, bleiben nicht
+     * > dieselbe Frage — und welche der beiden sich ändert, entscheidet
+     * > niemand, der die andere gemeint hat.**
+     *
+     * Am **Typ** und nicht an der Rolle: Ein Administrator verwaltet die
+     * Abonnements dieses Servers, und eine Sicherung ohne Abonnement ist genau
+     * das. Wer die Datei **herausgeben** darf, ist eine engere Frage und steht
+     * in {@see self::downloadBackup()}.
+     */
+    public function manageOrphanedBackups(Account $account): bool
+    {
+        return $account->isAdmin();
     }
 
     /**

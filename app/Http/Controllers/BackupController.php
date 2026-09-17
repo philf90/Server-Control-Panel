@@ -88,7 +88,7 @@ class BackupController extends Controller
          * zurückgebaut, und `backups.subscription_id` steht auf `nullOnDelete`,
          * damit die Sicherung ihn überlebt.
          */
-        $verwaist = Gate::allows('create', Subscription::class)
+        $verwaist = Gate::allows('manageOrphanedBackups', Subscription::class)
             ? $this->backups->orphaned()
             : collect();
 
@@ -393,6 +393,52 @@ class BackupController extends Controller
         );
 
         return redirect()->route('operations.show', $operation);
+    }
+
+    /**
+     * Eine Sicherung **ohne** Abonnement entfernen.
+     *
+     * **Die Spiegelung von {@see self::destroy()}, und die Bedingung ist die
+     * umgekehrte:** Dort muss die Zeile zum Abonnement des Pfades gehören, hier
+     * zu keinem. Ohne sie nähme diese Adresse auch die Sicherungen lebender
+     * Abonnements — unter Umgehung von `manageBackups`, also der Frage, ob der
+     * Aufrufer dieses eine Abonnement überhaupt verwalten darf.
+     *
+     * > **Zwei Adressen für dieselbe Zeile sind zwei Türen — und die zweite
+     * > muss dieselbe Frage stellen oder eine engere.**
+     *
+     * Entfernt wird über {@see Backups::remove()} und nicht mit einem
+     * `delete()`: Die Datei liegt `root:srvpanel` und geht nur über den Agenten
+     * fort; die Zeile bleibt stehen, bis er geantwortet hat. Ein `delete()`
+     * hier hinterliesse genau den Rest, den `backup.verify` als `orphan`
+     * meldet.
+     */
+    public function destroyOrphan(Backup $backup): RedirectResponse
+    {
+        abort_unless($backup->subscription_id === null, 404);
+
+        $storage = (string) $backup->storage_name;
+
+        try {
+            $this->backups->remove($backup);
+        } catch (RuntimeException|AgentException $error) {
+            throw ValidationException::withMessages(['backup' => $error->getMessage()]);
+        }
+
+        /*
+         * **Ohne `subscriptionId`, und das ist die Wahrheit und keine Lücke.**
+         * Es gibt kein Abonnement mehr; eine Nummer hier wäre erfunden. Der
+         * abgeschriebene Name steht im Kontext — er ist das, was von dem
+         * Abonnement bleibt.
+         */
+        $this->audit->record(
+            'backup.removed',
+            target: $backup,
+            context: ['storage' => $storage, 'subscription' => (string) $backup->subscription_name],
+        );
+
+        return to_route('backups.pick')
+            ->with('status', 'Die Sicherung wird entfernt.');
     }
 
     public function destroy(Subscription $subscription, Backup $backup): RedirectResponse

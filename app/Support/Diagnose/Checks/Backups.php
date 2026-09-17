@@ -7,6 +7,7 @@ namespace App\Support\Diagnose\Checks;
 use App\Enums\BackupStatus;
 use App\Enums\FindingCheck;
 use App\Models\Backup;
+use App\Models\Subscription;
 use App\Support\Diagnose\Catalog;
 use App\Support\Diagnose\Check;
 use App\Support\Diagnose\FindingLog;
@@ -87,6 +88,17 @@ final class Backups implements Check
     public const ORPHAN = 'orphan';
 
     /**
+     * **Dieselbe Richtung eine Ebene höher.** `orphan` urteilt über eine
+     * Datei, die niemand nennt; dieser Grund über ein **Verzeichnis**, das
+     * keine Datei mehr trägt und zu dem es weder eine Zeile noch ein
+     * Abonnement gibt.
+     *
+     * Er entsteht hier und nirgends sonst — der Agent sagt, was liegt, und
+     * urteilt nicht.
+     */
+    public const EMPTY_DIRECTORY = 'empty_directory';
+
+    /**
      * Der Gegenstand, unter dem ein Ausfall **der Auflistung** steht.
      *
      * **Kein Ablagename, und das ist Absicht.** Die übrigen `unreachable`-Zeilen
@@ -107,7 +119,7 @@ final class Backups implements Check
      * @var array<string, list<string>>
      */
     public const REASONS = [
-        'backup.file' => [...BackupVerify::REASONS, self::ORPHAN, FindingCheck::UNREACHABLE],
+        'backup.file' => [...BackupVerify::REASONS, self::ORPHAN, self::EMPTY_DIRECTORY, FindingCheck::UNREACHABLE],
     ];
 
     public function __construct(
@@ -259,8 +271,125 @@ final class Backups implements Check
     {
         $antwort = $this->agent->call('backup.list');
         $dateien = is_array($antwort['files'] ?? null) ? $antwort['files'] : [];
+        $verzeichnisse = is_array($antwort['directories'] ?? null) ? $antwort['directories'] : [];
 
-        return self::orphansOf($dateien, $this->known());
+        $bekannt = $this->known();
+
+        return [
+            ...self::orphansOf($dateien, $bekannt),
+            ...self::abandonedOf($verzeichnisse, $dateien, $bekannt, $this->living()),
+        ];
+    }
+
+    /**
+     * Die Namen der Abonnements, die es noch gibt — ohne Mandantenklammer.
+     *
+     * **Gefragt wird der Name und nicht die Kennung**, weil der Ablageort nach
+     * dem Namen heisst: {@see Store::directory()}
+     * baut den Pfad daraus, und der Agent kennt nichts anderes.
+     *
+     * Ein Nachtlauf hat kein angemeldetes Konto; ohne die gelöste Klammer käme
+     * eine leere Liste zurück — und dann sähe **jedes** Verzeichnis nach einem
+     * Rest aus. Das ist die gefährlichere Richtung: Der Lauf meldete jede Nacht
+     * jedes lebende Abonnement.
+     *
+     * > **Eine Frage, die im Grundzustand alles verweigert, antwortet mit einer
+     * > leeren Liste und nicht mit einem Fehler.**
+     *
+     * @return list<string>
+     */
+    public function living(): array
+    {
+        return $this->tenancy->withoutRestriction(static fn (): array => Subscription::query()
+            ->pluck('name')
+            ->map(static fn (mixed $name): string => (string) $name)
+            ->all());
+    }
+
+    /**
+     * Verzeichnisse, die niemand mehr anfasst — Befund 10 aus `docs/119`.
+     *
+     * ## Drei Bedingungen, und jede einzeln begründet
+     *
+     * Ein Verzeichnis ist ein Rest, wenn es **keine Datei** trägt, **keine
+     * Zeile** es nennt und **kein Abonnement** so heisst. Fiele eine davon weg,
+     * meldete die Prüfung einen Zustand, der in Ordnung ist:
+     *
+     * - Mit Datei ist es kein leeres Verzeichnis, sondern der Normalfall — und
+     *   eine Datei ohne Zeile meldet {@see self::orphansOf()} bereits, je Datei
+     *   und mit ihrem Namen. Zweimal dasselbe zu melden hiesse, den Betreiber
+     *   zweimal an denselben Ort zu schicken.
+     * - Eine Zeile auf `pending` hat ihre Datei **noch nicht**. Ihr Verzeichnis
+     *   ist in diesem Augenblick leer, und es als Rest zu führen hiesse, jeden
+     *   laufenden Vorgang anzuzeigen.
+     *
+     *   > **Ein Rest ist, was niemand mehr nennt — nicht, was noch niemand
+     *   > fertig genannt hat.**
+     * - Ein **lebendes** Abonnement, dessen Stände die Aufbewahrung gerade
+     *   abgeräumt hat, bekommt sein Verzeichnis bei der nächsten Sicherung
+     *   wieder gefüllt. Es steht zu Recht da, und jede Nacht einen Befund dafür
+     *   zu bekommen hiesse, dem Betreiber das Hinsehen abzugewöhnen.
+     *
+     * ## Was es nicht ist
+     *
+     * Es sind vier Kilobyte, und darum geht es nicht. Stehen bleibt der
+     * **Name** eines zurückgebauten Abonnements, in einem Verzeichnis, das
+     * nichts mehr erreicht.
+     *
+     * **Sie steht als statische Regel da, weil {@see Client} `final` ist** —
+     * dieselbe Naht wie bei {@see self::orphansOf()}, und aus demselben Grund.
+     *
+     * @param  list<mixed>  $verzeichnisse  was der Agent aufgelistet hat
+     * @param  list<mixed>  $dateien  seine Dateien, aus demselben Aufruf
+     * @param  list<string>  $bekannt  `<abo>/<ablage>` je Zeile des Panels
+     * @param  list<string>  $lebende  die Namen der Abonnements, die es gibt
+     * @return list<array{subject: string, reason: string, detail: null|string}>
+     */
+    public static function abandonedOf(array $verzeichnisse, array $dateien, array $bekannt, array $lebende): array
+    {
+        $mitDatei = [];
+
+        foreach ($dateien as $datei) {
+            if (is_array($datei) && is_string($datei['subscription'] ?? null)) {
+                $mitDatei[$datei['subscription']] = true;
+            }
+        }
+
+        $genannt = [];
+
+        foreach ($bekannt as $paar) {
+            $schnitt = strpos($paar, '/');
+            $genannt[$schnitt === false ? $paar : substr($paar, 0, $schnitt)] = true;
+        }
+
+        $lebt = array_fill_keys($lebende, true);
+        $findings = [];
+
+        foreach ($verzeichnisse as $name) {
+            // Ein Eintrag ohne Namen wird übersprungen und nicht gemeldet — er
+            // sagt nichts über ein Verzeichnis, und ein Befund über einen
+            // Gegenstand, den niemand aufsuchen kann, ist keiner.
+            if (! is_string($name) || $name === '') {
+                continue;
+            }
+
+            if (isset($mitDatei[$name]) || isset($genannt[$name]) || isset($lebt[$name])) {
+                continue;
+            }
+
+            $findings[] = [
+                'subject' => $name,
+                'reason' => self::EMPTY_DIRECTORY,
+                'detail' => sprintf(
+                    'Hier liegt ein leeres Verzeichnis: %s/%s. Das Abonnement ist zurückgebaut und '
+                    .'keine Sicherung gehört hierher — es bleibt liegen, bis jemand es entfernt.',
+                    Store::ROOT,
+                    $name,
+                ),
+            ];
+        }
+
+        return $findings;
     }
 
     /**

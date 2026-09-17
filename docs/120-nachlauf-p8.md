@@ -220,11 +220,31 @@ Der Zustand ist der, den `docs/119 §8b` hinterlassen hat: ein leeres
 
 ```
 ls -la /var/lib/srvpanel/backups/
-srvpanel diagnose
+srvpanel backup-verify
 ```
 
 **Erwartet:** eine Zeile `warn backup.file · empty_directory ·
 p8-abnahme.invalid`, und im Text der Pfad.
+
+**`backup-verify` und nicht `diagnose`, und das ist am 17. September bezahlt
+worden.** Die Vorschrift nannte zuerst `srvpanel diagnose`; gefahren meldete
+das acht Prüfungen und **keine** `backup.file`-Zeile — was wie ein Befund am
+Prüfling aussah und keiner war. `Checks\Backups` steht in
+`Catalog::BACKUP_CHECKS` und läuft in einer **eigenen** Unit
+(`srvpanel-backup-verify.service`), weil sie jedes Archiv von der Platte liest;
+die acht anderen prüfen Konfigurationsdateien. Die Trennung ist an A13
+entschieden und richtig.
+
+> **Ein Lauf, der die gesuchte Prüfung gar nicht fährt, meldet nicht „ich habe
+> sie nicht gefahren" — er meldet, was er stattdessen gefunden hat.**
+
+Unterschieden hat die beiden Fälle nicht die Zahl, sondern die Frage, ob der
+**Agent** den Gegenstand überhaupt herausgibt: `backup.list` nannte
+`p8-abnahme.invalid` unter `directories`, und damit war die Prüfung als Ursache
+ausgeschlossen, bevor jemand sie ändern konnte.
+
+> **Zwei Ursachen, die dasselbe Ergebnis erzeugen, trennt man an einer Stelle,
+> die nur eine von beiden berührt.**
 
 **Die Gegenprobe gehört dazu, und sie entscheidet den Punkt:** Ein Verzeichnis
 eines **lebenden** Abonnements ohne Sicherungen darf **nicht** gemeldet werden —

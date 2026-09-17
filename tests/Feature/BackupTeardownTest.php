@@ -433,42 +433,79 @@ final class BackupTeardownTest extends TestCase
     }
 
     /**
-     * **Und in den drei Lagen, in denen jemand das Verzeichnis noch braucht,
+     * **Und in jeder Lage, in der jemand das Verzeichnis noch braucht,
      * geschieht es nicht.**
      *
      * Das ist die Hälfte, die wehtut: Ein Abräumen, das nicht hätte laufen
      * dürfen, trifft ein Verzeichnis, das gleich wieder gefüllt wird — oder
-     * eines, in dem noch eine Sicherung liegt.
+     * eines, in dem noch eine Sicherung liegt. `rmdir(2)` fängt die letzte Lage
+     * auf der Platte auf; hier wird gemessen, dass das Panel gar nicht erst
+     * fragt.
      *
-     * `rmdir(2)` fängt die letzte Lage auf der Platte auf; hier wird gemessen,
-     * dass das Panel gar nicht erst fragt.
+     * ## Jede Lage isoliert genau **eine** Bedingung, und das ist der Punkt
      *
-     * @param  'lebt'|'zweite'|'pending'  $lage
+     * **Der erste Wurf tat das nicht, und drei Eingriffe blieben wirkungslos.**
+     * Er legte für „zweite Zeile" und „pending" ein Abonnement an und setzte
+     * nur `subscription_id` der Zeile auf `null` — das Abonnement blieb also
+     * stehen. Damit blockten zwei Bedingungen gleichzeitig, und wer eine davon
+     * herausnahm, wurde von der anderen aufgefangen. Gemeldet hat es der volle
+     * Lauf des Bruchskripts.
+     *
+     * > **Ein Eingriff, der einen Zustand herstellt, den der Prüfling ohnehin
+     * > gleich beantwortet, misst die Regel nicht — er misst, dass sie
+     * > unempfindlich ist.**
+     *
+     * | Lage | verwaist | Abo des Namens | zweite Zeile | blockt allein |
+     * |---|---|---|---|---|
+     * | `zweite` | ja | nein | ja | die Frage nach weiteren Zeilen |
+     * | `pending` | ja | nein | ja, auf `pending` | dieselbe |
+     * | `wiederverwendet` | ja | **ja** | nein | die Frage nach dem Abo |
+     * | `umbenannt` | **nein** | ja, anderer Name | nein | `$verwaist` |
+     *
+     * **`umbenannt` ist der Fall, der `$verwaist` überhaupt nötig macht.**
+     * `subscription_name` ist eine **Abschrift** vom Zeitpunkt der Sicherung;
+     * benennt jemand sein Abonnement danach um, nennt die Zeile einen Namen,
+     * unter dem kein Abonnement mehr zu finden ist. Ohne `$verwaist` sähe das
+     * aus wie ein zurückgebautes — und das Panel räumte ein Verzeichnis ab,
+     * dessen Abonnement lebt.
+     *
+     * @param  'zweite'|'pending'|'wiederverwendet'|'umbenannt'  $lage
      */
     #[DataProvider('lagen')]
     public function test_the_directory_stays_when_someone_still_needs_it(string $lage): void
     {
-        $abo = $this->subscription();
-        $name = (string) $abo->name;
+        $name = 'p8-bleibt.invalid';
 
-        $zeile = $this->backup($abo, 'geht-fort');
+        $zeile = Backup::query()->create([
+            'subscription_id' => null,
+            'subscription_name' => $name,
+            'storage_name' => 'geht-fort-20260917-120000',
+            'status' => BackupStatus::Ready,
+        ]);
 
-        if ($lage === 'lebt') {
-            // Das Abonnement lebt: Die nächste Sicherung füllt das Verzeichnis
-            // wieder. Es hier abzuräumen wäre Arbeit gegen den Normalfall.
-            $zeile->forceFill(['subscription_id' => $abo->id])->save();
-        }
-
-        if ($lage !== 'lebt') {
-            // Zurückgebaut — aber es steht noch eine Zeile daneben.
-            $zeile->forceFill(['subscription_id' => null])->save();
-
+        if ($lage === 'zweite' || $lage === 'pending') {
+            // Kein Abonnement dieses Namens — sonst blockte dessen Dasein
+            // genauso, und der Eingriff an dieser Bedingung bliebe wirkungslos.
             Backup::query()->create([
                 'subscription_id' => null,
                 'subscription_name' => $name,
                 'storage_name' => 'bleibt-20260917-120000',
                 'status' => $lage === 'pending' ? BackupStatus::Pending : BackupStatus::Ready,
             ]);
+        }
+
+        if ($lage === 'wiederverwendet') {
+            // Der Name ist nach einem Rückbau neu vergeben worden. Keine zweite
+            // Zeile — allein das lebende Abonnement hält das Verzeichnis.
+            $this->subscription($name);
+        }
+
+        if ($lage === 'umbenannt') {
+            // Das Abonnement lebt und heisst inzwischen anders; die Abschrift
+            // auf der Zeile nennt den alten Namen. Allein `$verwaist` blockt.
+            $abo = $this->subscription('p8-jetzt-anders.invalid');
+
+            $zeile->forceFill(['subscription_id' => $abo->id])->save();
         }
 
         $this->lebenslauf($zeile);
@@ -483,9 +520,10 @@ final class BackupTeardownTest extends TestCase
     public static function lagen(): array
     {
         return [
-            'das Abonnement lebt noch' => ['lebt'],
             'eine zweite Sicherung liegt daneben' => ['zweite'],
             'eine Sicherung wird gerade geschrieben' => ['pending'],
+            'der Name ist neu vergeben' => ['wiederverwendet'],
+            'das Abonnement ist umbenannt worden' => ['umbenannt'],
         ];
     }
 
@@ -543,16 +581,17 @@ final class BackupTeardownTest extends TestCase
     }
 
     /** Ein Abonnement mit Verzeichnis — ohne Systembenutzer sichert der Rückbau zu Recht nicht. */
-    private function subscription(): Subscription
+    private function subscription(?string $name = null): Subscription
     {
         app(Settings::class)->saveBackups(automatic: false, beforeRemoval: true);
 
         $plan = Plan::factory()->create(['quotas' => [Quota::Backups->value => 3]]);
 
-        $subscription = Subscription::factory()->create([
+        $subscription = Subscription::factory()->create(array_filter([
             'plan_id' => $plan->id,
             'system_user' => 'p'.random_int(2000, 9999),
-        ]);
+            'name' => $name,
+        ]));
 
         $this->assertNotNull($subscription->system_user, 'Der Prüfkörper hat kein Verzeichnis.');
 

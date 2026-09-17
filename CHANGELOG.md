@@ -29919,3 +29919,46 @@ mehr tut — und der Nächste läse ihn als Zusage.
 
 > **Ein Wächter, der eine Erlaubnisliste in beide Richtungen hält, meldet auch
 > das Aufräumen — und genau dann ist er nützlich.**
+
+### Der Wächterlauf hat drei Eingriffe gemeldet, die nicht gebissen haben
+
+Gemeldet von `waechter.yml` auf PR #251, an genau der Stelle, die beim Öffnen
+als verdächtig benannt war. **Zwei Fehler von mir, und der zweite wiegt mehr.**
+
+**Der erste steckte im Prüfkörper.** Die drei Lagen, in denen das Verzeichnis
+stehenbleiben soll, legten ein Abonnement an und setzten nur `subscription_id`
+der Zeile auf `null` — das Abonnement blieb also da. Damit blockten zwei
+Bedingungen gleichzeitig, und wer eine herausnahm, wurde von der anderen
+aufgefangen.
+
+> **Ein Eingriff, der einen Zustand herstellt, den der Prüfling ohnehin gleich
+> beantwortet, misst die Regel nicht — er misst, dass sie unempfindlich ist.**
+
+Jede Lage isoliert jetzt **eine** Bedingung. Dabei ist ein Fall dazugekommen,
+den es vorher nicht gab und der `$verwaist` überhaupt erst nötig macht:
+**`subscription_name` ist eine Abschrift.** Benennt jemand sein Abonnement nach
+der Sicherung um, nennt die Zeile einen Namen, unter dem kein Abonnement mehr zu
+finden ist — ohne `$verwaist` sähe das aus wie ein zurückgebautes, und das Panel
+räumte ein Verzeichnis ab, dessen Abonnement lebt.
+
+**Der zweite steckte in meinem Prüfgriff, und er hat den ersten verdeckt.** Er
+las das Ergebnis mit `grep -cE '^OK'`. PHPUnits Schlusszeile beginnt aber mit
+einer ANSI-Folge und nicht mit `OK` — der Griff zählte also **immer** null und
+meldete **immer** „beisst". Vier Eingriffe waren damit als belegt notiert, und
+drei davon bissen nie.
+
+> **Ein Prüfgriff, der einen seiner beiden Ausgänge gar nicht erreichen kann,
+> ist kein Prüfgriff — er ist eine Behauptung mit einer Zahl daneben.**
+
+Das ist „Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als
+Null steht" an der Stelle, an der es am teuersten ist: am Werkzeug, mit dem die
+Belege entstehen. Gemessen wird seitdem am **Rückgabewert** von PHPUnit, und die
+Zahl der gefahrenen Fälle steht daneben — sonst ist „rot" von „nichts gelaufen"
+nicht zu unterscheiden.
+
+**`pruefe()` im Bruchskript war die ganze Zeit richtig gebaut**: Es sucht
+`*'OK ('*` als Teilzeichenkette und kennt „kein Test" als eigenen Ausgang. Der
+Lauf hat genau das getan, wofür es ihn gibt.
+
+> **Ein Eingriff, der einzeln beisst, beisst nicht unbedingt im Lauf** — und
+> wessen Handgriff das Einzelne falsch misst, erfährt es erst dort.

@@ -29100,6 +29100,12 @@ echo "── BackupSeamTest: zwei Sicherungen derselben Sekunde ──"
 # Ohne die acht Hexziffern bekommen sie denselben Namen, die `unique`-Bedingung
 # schlägt zu, und wer zweimal klickt, bekommt einen 500er. `Dumps::record()`
 # löst das seit P5 mit genau diesen Ziffern.
+#
+# **Dieser Eingriff hat am 17. September 2026 in der CI nicht gebissen**, und
+# der Fehler lag nicht bei ihm: Der Wächter setzte seine beiden Aufrufe nackt
+# untereinander und traf die Sekundengrenze — nachgemessen 1 grüner Lauf von
+# 25. Er wartet seitdem auf den Beginn einer frischen Sekunde und belegt sie mit
+# einer Gegenprobe; danach 25 von 25 rot.
 vorher_datei app/Support/Backups/Backups.php
 python3 - <<'PY2'
 p = 'app/Support/Backups/Backups.php'

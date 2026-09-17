@@ -217,16 +217,49 @@ final class BackupSeamTest extends TestCase
      * Einfügen — sie wären zwei Vorgänge, die auf dieselbe Zeile zeigen.
      *
      * Die Auflösung des Zeitstempels ist **eine Sekunde**; zwei Sicherungen in
-     * derselben Sekunde sind der Fall, den das trifft. Hier wird er gemessen
-     * und nicht angenommen.
+     * derselben Sekunde sind der Fall, den das trifft.
+     *
+     * **Hier stand, er werde „gemessen und nicht angenommen", und das war
+     * falsch.** Die beiden Aufrufe standen nackt untereinander und lagen
+     * *meistens* in derselben Sekunde — fiel die Sekundengrenze dazwischen,
+     * unterschieden sich die Namen schon am Zeitstempel, und die Zeile darunter
+     * sagte nichts mehr über den Zufallsteil. Aufgefallen ist es nicht am Test,
+     * der ja grün war, sondern am **Eingriff des Bruchskripts**, der ihn rot
+     * machen soll: Er meldete am 17. September 2026 in der CI
+     * `passed (erwartet: failed)`. Nachgemessen sind es 1 von 25 Läufen.
+     *
+     * > **Ein Prüfkörper, der einen Zustand behauptet, statt ihn herzustellen,
+     * > misst ihn fast immer — und die Läufe, in denen er es nicht tut, sehen
+     * > aus wie ein Wächter, der seine Regel nicht hält.**
+     *
+     * Der Zustand wird jetzt hergestellt: gewartet wird auf den Beginn einer
+     * frischen Sekunde, und damit liegen rund 999 ms vor zwei Aufrufen, die
+     * zusammen wenige Millisekunden brauchen. Und er wird **belegt** — die
+     * Gegenprobe darunter hält die beiden Zeitstempel aneinander. Ohne sie
+     * wäre eine verfehlte Ausrichtung wieder ein stilles Grün.
      */
     public function test_two_backups_of_the_same_subscription_never_share_a_name(): void
     {
         $subscription = Subscription::factory()->create(['name' => 'shop']);
         $backups = app(Backups::class);
 
+        $this->frischeSekundeAbwarten();
+
         $first = $backups->create($subscription);
         $second = $backups->create($subscription);
+
+        /*
+         * **Die Gegenprobe, und sie kommt zuerst.** Liegen die beiden in zwei
+         * Sekunden, unterscheiden sich ihre Namen schon am Zeitstempel, und die
+         * Behauptung darunter ist wahr, ohne etwas über den Zufallsteil gesagt
+         * zu haben. Rot und nicht still: Der Fall ist dann nicht gemessen
+         * worden.
+         */
+        $this->assertSame(
+            $this->zeitstempelIn($first->storage_name),
+            $this->zeitstempelIn($second->storage_name),
+            'Die beiden Sicherungen liegen in zwei verschiedenen Sekunden — dann prüft die Zeile darunter den Zufallsteil nicht.',
+        );
 
         $this->assertNotSame(
             $first->storage_name,
@@ -246,5 +279,42 @@ final class BackupSeamTest extends TestCase
             Backup::query()->withoutGlobalScopes()->count(),
             'Zwei Aufrufe müssen zwei Zeilen ergeben und nicht eine überschriebene.',
         );
+    }
+
+    /**
+     * Bis zum Beginn der nächsten Sekunde warten.
+     *
+     * **Nicht `Carbon::setTestNow()`**, und das ist gemessen und nicht
+     * geraten: Der Zeitstempel des Ablagenamens kommt aus `gmdate()`, also aus
+     * PHP und nicht aus Laravels Uhr — eine eingefrorene Testzeit ändert daran
+     * nichts.
+     *
+     * > **Eine Uhr, die man anhält, hält nur die an, die auf sie hört.**
+     */
+    private function frischeSekundeAbwarten(): void
+    {
+        $rest = 1.0 - fmod(microtime(true), 1.0);
+
+        usleep((int) ($rest * 1_000_000) + 1_000);
+    }
+
+    /**
+     * Der Zeitstempel aus einem Ablagenamen — `shop-20260917-121600-a1b2c3d4`.
+     *
+     * Der Zufallsteil darf fehlen: Genau ihn nimmt der Eingriff des
+     * Bruchskripts weg, und ein Ausdruck, der ihn verlangte, gäbe dort `null`
+     * und machte die Gegenprobe zu einer Aussage über zwei Nullen.
+     */
+    private function zeitstempelIn(string $ablagename): string
+    {
+        $treffer = [];
+
+        $this->assertSame(
+            1,
+            preg_match('/-(\d{8}-\d{6})(?:-|$)/D', $ablagename, $treffer),
+            'In diesem Ablagenamen steht kein Zeitstempel — dann misst die Gegenprobe nichts: '.$ablagename,
+        );
+
+        return $treffer[1];
     }
 }

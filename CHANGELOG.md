@@ -29492,3 +29492,47 @@ jetzt ein Verschluss, und die Abbildung steht als eigene Methode daneben.
 misst diese Seite bei 390 px. Ein Takt ändert daran nichts, ein Verweis von der
 Zeile zum Vorgang schon — dass es ihn nicht gibt, bleibt als Befund stehen und
 wird nach dem Lauf entschieden.
+
+### Ein Eingriff, der die Sekundengrenze traf — und ein Wächter, der seinen Fall behauptete
+
+Der Wächterlauf zu PR #249 meldete am 17. September 2026 **eine** Prüfung ohne
+Biss: `Ablagename ohne Zufallsteil — passed (erwartet: failed)`, davon null ohne
+Messung. Der Eingriff nimmt `bin2hex(random_bytes(4))` aus dem Ablagenamen;
+`BackupSeamTest::test_two_backups_of_the_same_subscription_never_share_a_name`
+soll daran rot werden und blieb grün.
+
+Der Fehler lag nicht im Eingriff. Der Wächter setzte seine beiden `create()`
+nackt untereinander und verliess sich darauf, dass sie in **derselben Sekunde**
+landen — der Fall, um den es geht, denn der Zeitstempel hat Sekundenauflösung.
+Fällt die Sekundengrenze dazwischen, unterscheiden sich die Namen schon am
+Zeitstempel, und die Behauptung darunter ist wahr, ohne etwas über den
+Zufallsteil gesagt zu haben.
+
+**Sein eigener Kopf behauptete das Gegenteil** — „Hier wird er gemessen und
+nicht angenommen". Nachgemessen: mit dem Eingriff **1 grüner Lauf von 25**.
+
+> **Ein Prüfkörper, der einen Zustand behauptet, statt ihn herzustellen, misst
+> ihn fast immer — und die Läufe, in denen er es nicht tut, sehen aus wie ein
+> Wächter, der seine Regel nicht hält.**
+
+Der Zustand wird jetzt hergestellt: gewartet wird auf den Beginn einer frischen
+Sekunde, womit rund 999 ms vor zwei Aufrufen liegen, die zusammen wenige
+Millisekunden brauchen. **Nicht über `Carbon::setTestNow()`** — der Zeitstempel
+kommt aus `gmdate()`, also aus PHP und nicht aus Laravels Uhr.
+
+> **Eine Uhr, die man anhält, hält nur die an, die auf sie hört.**
+
+Und er wird **belegt**: Eine Gegenprobe hält die beiden Zeitstempel aneinander
+und macht den Wächter rot, wenn die Ausrichtung verfehlt wurde — „nicht
+gemessen" ist dann ein Befund und kein stilles Grün. Gemessen in beide
+Richtungen und mit einer dritten Probe: heil 25 von 25 grün, mit dem Eingriff
+25 von 25 rot, und mit einem eingeschobenen `usleep(1,1 s)` meldet die
+Gegenprobe wörtlich ihren eigenen Satz.
+
+**Gefunden hat es kein Test, sondern der Eingriff, der ihn brechen soll** — und
+zwar erst im vollen Lauf der CI, nach 1341 anderen. Einzeln und lokal wäre er in
+24 von 25 Fällen als heil durchgegangen.
+
+> **Ein Eingriff, der einzeln beisst, beisst nicht unbedingt im Lauf** — und die
+> Umkehrung gilt genauso: Einer, der im Lauf nicht beisst, ist deshalb nicht
+> falsch geschrieben.

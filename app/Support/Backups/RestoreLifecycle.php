@@ -285,12 +285,53 @@ final class RestoreLifecycle implements AfterOperation
             $zuerst[] = $eintrag;
         }
 
-        $nachName = [];
+        /*
+         * **Was schon dasteht, wird nicht noch einmal angelegt.**
+         *
+         * `subscription.provision` legt die **Hauptdomain** an — sie trägt den
+         * Namen des Abonnements, und der Vorgang läuft vor dieser Stelle
+         * (gemessen im Abnahmelauf von P8: `subscription.provision` als 889,
+         * `backup.restore` als 890). Die Beschreibung nennt sie trotzdem, denn
+         * sie ist eine Domain des Abonnements wie jede andere.
+         *
+         * Hier stand nichts dergleichen, und der Aufruf ging jedes Mal an
+         * {@see Domains::create()}. Das weist `DomainType::Main` zu Recht ab —
+         * die Hauptdomain entsteht beim Bereitstellen und nicht über diesen Weg
+         * —, und der Fehlschlag landete in `failures`. **Jede Wiederherstellung
+         * meldete damit einen Fehlschlag für etwas, das gelungen war.**
+         *
+         * > **Ein gemeldeter Fehlschlag für etwas, das gelungen ist, ist
+         * > schlimmer als kein Bericht — er schickt den Leser dorthin, wo nichts
+         * > zu beheben ist.**
+         *
+         * Und die zweite Wirkung wog schwerer als die erste: Ein Kunde, der
+         * eine **Subdomain unter seiner Hauptdomain** hatte, bekam sie nicht
+         * zurück. Sie sucht ihren Elternteil in `$nachName`, und dort stand er
+         * nie — die Zeile darunter meldete „Die Domain …, unter der sie hängt,
+         * ist nicht angelegt worden". Der Prüfkörper des Abnahmelaufs hatte nur
+         * die Hauptdomain, und deshalb hat es niemand gesehen.
+         *
+         * **Gefragt wird nach dem Dasein und nicht nach der Art.** Eine Regel
+         * über `DomainType::Main` beantwortete dieselbe Frage einmal mehr; und
+         * fehlte die Hauptdomain wirklich, verschwiege sie den Fehlschlag, den
+         * es dann zu Recht gibt.
+         *
+         * **Ohne eine zweite Klammer**: `afterSuccess()` hat die Mandantenklammer
+         * schon gelöst, und eine zweite darum machte ausgerechnet die eine
+         * Stelle blind, an der ein Rückfall auffiele.
+         *
+         * @var array<string, \App\Models\Domain>
+         */
+        $nachName = $subscription->domains()->get()->keyBy('name')->all();
 
         foreach ([...$zuerst, ...$danach] as $eintrag) {
             $name = is_string($eintrag['name'] ?? null) ? $eintrag['name'] : null;
 
             if ($name === null) {
+                continue;
+            }
+
+            if (isset($nachName[$name])) {
                 continue;
             }
 

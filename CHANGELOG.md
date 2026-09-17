@@ -29665,3 +29665,76 @@ Tür die Sorte der anderen abweist, und dass die Seite den Griff anbietet.
 Formalismus: Nimmt jemand die Zelle aus der Tabelle und lässt die Funktion
 stehen, ist genau der Zustand wieder da, der diesen Befund ausgelöst hat — der
 Griff da, der Weg fort. Beide Hälften sind mit einem eigenen Eingriff belegt.
+
+### Jede Wiederherstellung meldete einen Fehlschlag für etwas, das gelungen war
+
+Befund 5 des P8-Abnahmelaufs (17. September 2026), abgelesen auf der
+Vorgangsseite einer **gelungenen** Wiederherstellung:
+
+```json
+"failures": [{ "gegenstand": "p8-abnahme.invalid",
+               "grund": "Diese Sorte Domain lässt sich nicht anlegen." }]
+```
+
+Die Domain war da — `type=main`, Vhost-Datei gelegt, und die Bestandsdiagnose
+fand keinen einzigen `web.%`-Befund.
+
+`rebuildDomains()` lief über **alle** Domains der Beschreibung und rief
+`Domains::create()`. `DomainType::creatable()` gibt `[Addon, Subdomain, Alias]`
+zurück; die Hauptdomain legt `subscription.provision` an, und der Vorgang läuft
+vorher (gemessen: 889 vor 890). Die Abweisung war richtig — sie als Fehlschlag
+zu melden war es nicht.
+
+> **Ein gemeldeter Fehlschlag für etwas, das gelungen ist, ist schlimmer als kein
+> Bericht — er schickt den Leser dorthin, wo nichts zu beheben ist.**
+
+**Die zweite Wirkung wog schwerer als die erste, und sie stand in keinem
+Protokoll.** Eine Subdomain sucht ihren Elternteil in `$nachName`, und dort
+standen nur die *angelegten*. Ein Kunde mit `shop.seine-domain.de` bekam sie
+nicht zurück — „Die Domain …, unter der sie hängt, ist nicht angelegt worden".
+Der Prüfkörper des Abnahmelaufs hatte nur die Hauptdomain, und deshalb hat es
+niemand gesehen.
+
+> **Ein Prüfkörper, der die Bedingung nicht herstellt, unter der der Fehler
+> entsteht, misst ihn nicht.**
+
+**Gefragt wird nach dem Dasein und nicht nach der Art.** Eine Regel über
+`DomainType::Main` beantwortete dieselbe Frage einmal mehr — und fehlte die
+Hauptdomain wirklich, verschwiege sie den Fehlschlag, den es dann zu Recht gibt.
+`$nachName` ist deshalb mit dem vorgefunden Bestand vorbefüllt, und der Fall der
+Subdomain fällt als Nebenwirkung mit ab.
+
+**Ohne eine zweite Mandantenklammer**: `afterSuccess()` löst sie für seinen
+ganzen Rumpf, und eine zweite darum machte ausgerechnet die eine Stelle blind,
+an der ein Rückfall auffiele.
+
+### Und der Wächter dazu hat seinen eigenen Rahmen gemessen
+
+`RestoreDomainsTest` ruft `rebuildDomains()` über Reflexion — `Restore` ist
+`final`, der volle Lebenslauf bräuchte Manifest, Vorgang und zwei
+Datenbankserver. Sein erster Wurf rief die Stelle **ohne** die Mandantenklammer
+und war rot, mit genau den beiden Meldungen, die er verhindern soll: `$nachName`
+kam leer zurück, weil ein `Domain`-Modell im Grundzustand auf `whereRaw('0 = 1')`
+steht.
+
+> **Ein Prüfkörper, der eine Stelle aus ihrem Rahmen herausgelöst aufruft, misst
+> sie unter einer Bedingung, die es im Betrieb nicht gibt — und sein Rot sieht
+> aus wie ein Befund am Prüfling.**
+
+Dasselbe eine Stelle weiter: Die **Nachmessung** zählte `Domain::query()->count()`
+ebenfalls geklammert und gab null, gleich ob angelegt worden war oder nicht. Die
+`failures` waren zu diesem Zeitpunkt schon leer — die Behebung wirkte, und die
+zwei Zeilen darunter meldeten trotzdem Rot.
+
+> **Eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie „nichts
+> angelegt".**
+
+**Damit die mitgebrachte Klammer keine zweite Fassung einer Regel wird, hält der
+Wächter den Rahmen selbst**: `afterSuccess()` muss `rebuildDomains()` *innerhalb*
+der gelösten Klammer rufen. Gefragt wird nach der **Verschachtelung** und nicht
+nach dem Vorkommen — gezählt werden die Klammern ab dem Aufruf. Der Eingriff dazu
+schiebt den Aufruf hinter die Klammer und lässt sie in der Datei stehen: Ein
+Wächter, der nur die Zeichenkette `withoutRestriction(` suchte, wäre dabei grün.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht.**

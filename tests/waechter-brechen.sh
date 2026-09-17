@@ -30277,6 +30277,72 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupTeardownTest passed
 
 echo
+echo "── RestoreDomainsTest: was schon dasteht, wird noch einmal angelegt ──"
+#
+# Befund 5 des P8-Laufs (17. September 2026): `rebuildDomains()` rief für
+# **jede** Domain der Beschreibung `Domains::create()` — auch für die
+# Hauptdomain, die `subscription.provision` eine Stufe vorher angelegt hat.
+# `DomainType::creatable()` weist sie zu Recht ab, und der Fehlschlag landete
+# in `failures`. Jede Wiederherstellung meldete damit einen Fehlschlag für
+# etwas, das gelungen war.
+vorher_datei app/Support/Backups/RestoreLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/RestoreLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            if (isset($nachName[$name])) {\n                continue;\n            }\n\n", "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/RestoreLifecycle.php "Hauptdomain noch einmal angelegt" &&
+pruefe "Hauptdomain noch einmal angelegt" \
+  RestoreDomainsTest::test_the_existing_main_domain_is_not_rebuilt failed
+wiederherstellen
+
+echo
+echo "── RestoreDomainsTest: die Subdomain findet ihren Elternteil nicht ──"
+#
+# Die zweite Wirkung desselben Befundes, und sie wog schwerer: Eine Subdomain
+# sucht ihren Elternteil in `$nachName`. Stand der nicht schon darin, weil er
+# nicht *angelegt*, sondern *vorgefunden* wurde, bekam der Kunde sie gar nicht
+# zurück — mit der Meldung „… ist nicht angelegt worden".
+vorher_datei app/Support/Backups/RestoreLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/RestoreLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$nachName = $subscription->domains()->get()->keyBy('name')->all();", "$nachName = [];", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/RestoreLifecycle.php "Subdomain ohne Elternteil" &&
+pruefe "Subdomain ohne Elternteil" \
+  RestoreDomainsTest::test_a_subdomain_finds_the_parent_that_was_already_there failed
+wiederherstellen
+
+echo
+echo "── RestoreDomainsTest: der Aufruf steht ausserhalb der Mandantenklammer ──"
+#
+# **Die Voraussetzung des Wächters darüber.** Er ruft `rebuildDomains()` über
+# Reflexion und bringt seine eigene gelöste Klammer mit — weil `afterSuccess()`
+# eine hat. Fiele sie dort weg, bliebe er grün, während im Betrieb keine
+# einzige Domain zurückkäme.
+#
+# Der Eingriff schiebt den Aufruf **hinter** die Klammer und lässt sie in der
+# Datei stehen: Ein Wächter, der nur die Zeichenkette `withoutRestriction(`
+# suchte, wäre hier grün.
+vorher_datei app/Support/Backups/RestoreLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/RestoreLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            $this->rebuildDomains($subscription, $beschreibung, $fehler);\n", "", 1)
+s = s.replace("            $this->record($operation, $manifest, $subscription, $datenbanken, $fehler);\n        });",
+              "            $this->record($operation, $manifest, $subscription, $datenbanken, $fehler);\n        });\n\n        $this->rebuildDomains($subscription, $beschreibung, $fehler);", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/RestoreLifecycle.php "Aufruf ausserhalb der Klammer" &&
+pruefe "Aufruf ausserhalb der Klammer" \
+  RestoreDomainsTest::test_the_lifecycle_opens_the_clamp_around_this_call failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RestoreDomainsTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

@@ -593,16 +593,38 @@ entstanden ist.
 
 ## 12 · Was offen bleibt
 
-**Zu bauen, bevor P8 abgenommen werden kann:**
+**Gebaut am 17. September 2026, und keine dieser Behebungen hat einen Server
+gesehen** — der Nachlauf dazu steht unten:
 
-1. **Befund 4** — die Gruppe unter `httpdocs`. Ohne ihn läuft die Website eines
-   wiederhergestellten Abonnements nicht.
-2. **Befund 8** — ein Weg, eine verwaiste Sicherung zu entfernen.
-3. **Befund 5, 6, 7** — der unechte Fehlschlag, die zwei Formen, der Menüpunkt.
-4. **Befund 9** — die Ursache der Verdopplung, und dann die Behebung.
-5. **Befund 10** — entweder abräumen oder melden; heute tut es keines von beiden.
+1. **Befund 4** — die Gruppe unter `httpdocs`. `BackupRestore::own()` löst die
+   Kennung je Bereich des Schemas auf, das Schema nennt
+   `SubscriptionProvision::area()`.
+2. **Befund 8** — `DELETE /backups/{backup}` und der Knopf auf der Auswahlseite.
+3. **Befund 5** — `rebuildDomains()` überspringt, was schon dasteht; damit
+   findet auch eine Subdomain unter der Hauptdomain ihren Elternteil wieder.
+4. **Befund 6** — beide Seiten des Paares tragen den Namen.
+5. **Befund 7** — der Menüpunkt unter „Verwaltung"; die Einstellungsseite heisst
+   jetzt „Automatische Sicherung".
+6. **Befund 10** — `backup.list` gibt die Verzeichnisse heraus, und die Diagnose
+   meldet ein leeres als Rest.
 
-**Neu zu messen nach den Behebungen**, in **einer** Runde:
+**Offen:**
+
+- **Befund 9** — die Ursache der Verdopplung. Sie entscheidet die nächste Runde
+  mit **einer** Ablesung unmittelbar nach dem Zurückspielen; vorher ist jede
+  Behebung geraten.
+- **Der Griff zu Befund 10 hat weiterhin keinen Aufrufer.** `backup.remove` ohne
+  `storage` räumt das Verzeichnis ab, und kein Weg im Panel führt dorthin — der
+  Betreiber bekommt einen Befund, den er aus dem Panel nicht klären kann. Ob das
+  Panel ein leeres Verzeichnis von sich aus entfernen darf und an welcher
+  Stelle, ist eine **Entscheidung** und keine Ableitung; sie gehört vor die
+  Abnahme.
+
+  > **Ein Griff, den es gibt und zu dem kein Weg führt, ist von einem, den es
+  > nicht gibt, nicht zu unterscheiden.**
+
+**Der Nachlauf dazu ist `docs/120`**, ausgeschrieben vor dem Fahren. Er misst in
+**einer** Runde:
 
 - **Punkt 4** vollständig, gegen die behobene Fassung.
 - **Der Fortschritt** aus Punkt 3 — an einem Prüfkörper, der lange genug braucht.

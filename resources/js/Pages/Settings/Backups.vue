@@ -22,9 +22,9 @@ const form = useForm({
 </script>
 
 <template>
-  <Head title="Sicherungen" />
+  <Head title="Automatische Sicherung" />
 
-  <PanelLayout title="Sicherungen" subline="Was der Server von sich aus sichert">
+  <PanelLayout title="Automatische Sicherung" subline="Was der Server von sich aus sichert">
     <FormErrors />
 
     <form class="form" @submit.prevent="form.put('/settings/backups')">

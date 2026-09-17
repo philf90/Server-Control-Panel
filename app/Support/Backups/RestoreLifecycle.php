@@ -18,6 +18,7 @@ use App\Support\Databases\Databases;
 use App\Support\Databases\Dumps;
 use App\Support\Databases\RemoteAccess;
 use App\Support\Operations\AfterOperation;
+use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Web\Domains;
 use Illuminate\Validation\ValidationException;
@@ -459,7 +460,32 @@ final class RestoreLifecycle implements AfterOperation
         $ergebnis['restored'] = [
             'subscription' => (string) $subscription->name,
             'from' => (string) ($manifest['subscription'] ?? ''),
-            'system_user' => ['alt' => $manifest['system_user'] ?? null, 'neu' => (string) $subscription->system_user],
+            /*
+             * **Beide Seiten tragen den Namen und nicht zweierlei.**
+             *
+             * Befund 6 des P8-Abnahmelaufs: Hier stand `"alt": 1141` neben
+             * `"neu": "p1142"` — dieselbe Grösse, nebeneinander, in zwei
+             * Fassungen. Das Verzeichnis führt die **Nummer**, weil
+             * {@see \App\Support\Subscriptions\Lifecycle::claim()} eine
+             * vergibt; jede Anzeige dieses Panels führt den **Namen**.
+             *
+             * > **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine
+             * > doppelte Auskunft, sondern eine widersprüchliche.**
+             *
+             * Umgerechnet wird über `Lifecycle::userName()` und nicht über ein
+             * `'p'.$zahl` an dieser Stelle — der Kopf jener Methode sagt
+             * wörtlich „an dieser einen Stelle", und eine zweite hier wäre die
+             * Fassung, die veraltet.
+             *
+             * `null` bleibt `null`: Eine Sicherung, deren Verzeichnis keine
+             * Nummer nennt, sagt etwas anderes als eine mit Nummer 0.
+             */
+            'system_user' => [
+                'alt' => is_numeric($manifest['system_user'] ?? null)
+                    ? Lifecycle::userName((int) $manifest['system_user'])
+                    : null,
+                'neu' => (string) $subscription->system_user,
+            ],
             /*
              * **Das Präfix kommt aus `system_users` und nicht vom
              * Abonnement.** `subscriptions` führt keine solche Spalte;

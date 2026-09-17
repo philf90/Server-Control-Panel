@@ -15,6 +15,7 @@ use App\Support\Diagnose\FindingLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use SrvPanel\Agent\Ops\BackupVerify;
+use Tests\Support\WithoutPhpComments;
 use Tests\TestCase;
 use Tests\Unit\BackupVerifyTest;
 
@@ -28,6 +29,7 @@ use Tests\Unit\BackupVerifyTest;
 final class BackupDiagnoseTest extends TestCase
 {
     use RefreshDatabase;
+    use WithoutPhpComments;
 
     /**
      * **Der Lauf sieht die Sicherungen, obwohl niemand angemeldet ist.**
@@ -291,6 +293,88 @@ final class BackupDiagnoseTest extends TestCase
     }
 
     /**
+     * **Ein leeres Verzeichnis eines zurückgebauten Abonnements ist ein Rest.**
+     *
+     * Befund 10 des P8-Abnahmelaufs (17. September 2026): Nach dem Entfernen
+     * aller Stände blieb `/var/lib/srvpanel/backups/p8-abnahme.invalid/` leer
+     * liegen, und `backup-verify` meldete „Keine Befunde an den Sicherungen".
+     * Die Prüfung sucht Dateien ohne Zeile — ein leeres Verzeichnis hat keine.
+     *
+     * > **Eine Abwesenheit ist nur dann ein Befund, wenn die Anwesenheit im
+     * > Erfolgsfall belegt ist.**
+     *
+     * ## Fünf Zustände, und nur einer ist ein Rest
+     *
+     * Der Fall führt sie nebeneinander, weil jeder einzeln richtig aussieht und
+     * erst der Vergleich zeigt, dass die Regel unterscheidet. Ein Prüfkörper
+     * mit nur dem Rest darin bliebe grün für eine Regel, die **jedes**
+     * Verzeichnis meldet — und die meldete jede Nacht jedes lebende Abonnement.
+     */
+    public function test_only_a_directory_nobody_reaches_is_a_rest(): void
+    {
+        $findings = Backups::abandonedOf(
+            ['fort', 'lebt', 'mit-datei', 'wird-gerade-geschrieben', 'datei-ohne-zeile'],
+            [
+                ['subscription' => 'mit-datei', 'storage' => 'mit-datei-20260917-120000'],
+
+                /*
+                 * **Der Zustand, an dem sich die erste Bedingung allein
+                 * messen lässt.** Eine Datei ohne Zeile, deren Abonnement es
+                 * nicht mehr gibt: Sie meldet {@see Backups::orphansOf()}
+                 * bereits, je Datei und mit ihrem Namen. Ohne diesen Eintrag
+                 * fienge `$genannt` das Verzeichnis „mit-datei" mit ab, und der
+                 * Eingriff auf `$mitDatei` bliebe wirkungslos — gemessen, er
+                 * war es.
+                 *
+                 * > **Ein Eingriff, der einen Zustand herstellt, den der
+                 * > Prüfling ohnehin gleich beantwortet, misst die Regel nicht
+                 * > — er misst, dass sie unempfindlich ist.**
+                 */
+                ['subscription' => 'datei-ohne-zeile', 'storage' => 'rest-20260917-120000'],
+            ],
+            ['mit-datei/mit-datei-20260917-120000', 'wird-gerade-geschrieben/noch-nicht-fertig'],
+            ['lebt'],
+        );
+
+        $this->assertSame(
+            ['fort'],
+            array_column($findings, 'subject'),
+            'Die Regel trennt die fünf Zustände nicht: gemeldet gehört allein das Verzeichnis, das keine Datei trägt, das keine Zeile nennt und zu dem es kein Abonnement gibt.',
+        );
+
+        $this->assertSame(Backups::EMPTY_DIRECTORY, $findings[0]['reason'] ?? null, 'Der Befund trägt einen anderen Grund.');
+
+        $this->assertStringContainsString(
+            '/fort',
+            (string) ($findings[0]['detail'] ?? ''),
+            'Der Befund nennt den Ort nicht — und wer aufräumen will, sucht ihn dann selbst.',
+        );
+    }
+
+    /**
+     * **Und der Agent gibt die Verzeichnisse überhaupt heraus.**
+     *
+     * Die Regel darüber ist statisch und bekommt ihre Liste übergeben; ohne
+     * diesen Fall bliebe sie grün, während der Agent gar keine schickt — und
+     * der Nachtlauf sähe wieder nur Dateien.
+     *
+     * > **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut
+     * > wie keine.**
+     */
+    public function test_the_agent_hands_out_the_directories_it_walked(): void
+    {
+        $quelle = file_get_contents(dirname(__DIR__, 2).'/agent/src/Ops/BackupList.php');
+
+        $this->assertIsString($quelle);
+
+        $this->assertStringContainsString(
+            "return ['files' => \$dateien, 'directories' => \$verzeichnisse];",
+            $this->withoutComments($quelle),
+            'backup.list gibt die Verzeichnisse nicht mit heraus — dann bekommt die Regel für den leeren Fall nie einen.',
+        );
+    }
+
+    /**
      * Jeder Grund des Agenten steht in {@see Backups::REASONS}.
      *
      * **Aus der Aufzählung des Agenten abgeleitet und nicht abgeschrieben.**
@@ -311,17 +395,24 @@ final class BackupDiagnoseTest extends TestCase
         $this->assertContains(FindingCheck::UNREACHABLE, $gemeldet, 'Ohne `unreachable` hätte ein ausgefallener Lauf keinen Grund.');
 
         /*
-         * **Zwei Gründe kommen nicht vom Agenten, und beide mit Grund.**
+         * **Drei Gründe kommen nicht vom Agenten, und jeder mit Grund.**
          * `unreachable` sagt, dass die Frage nicht beantwortet wurde;
          * {@see Backups::ORPHAN} urteilt über eine Datei, die **niemand**
-         * nennt — der Agent listet sie nur auf, das Urteil fällt hier, weil nur
-         * das Panel die Zeilen kennt.
+         * nennt, und {@see Backups::EMPTY_DIRECTORY} über ein Verzeichnis, das
+         * keine trägt. Der Agent listet beides nur auf — das Urteil fällt hier,
+         * weil nur das Panel die Zeilen und die Abonnements kennt.
          *
-         * Die Zahl steht daneben, damit ein **dritter** auffällt: Ein Grund
-         * mehr wäre sonst eine zweite Liste, die neben der des Agenten
-         * herläuft.
+         * **Es waren bis zum 17. September 2026 zwei**, und die Zahl daneben
+         * hat den dritten gemeldet, als er dazukam. Sie steht genau dafür da:
+         * Ein Grund, den niemand hier benennt, wäre eine zweite Liste, die
+         * neben der des Agenten herläuft.
+         *
+         * > **Eine Untergrenze ist kein Formalismus — sie ist die einzige
+         * > Stelle, an der ein Wächter merkt, dass sich sein Gegenstand
+         * > geändert hat.**
          */
         $this->assertContains(Backups::ORPHAN, $gemeldet, 'Ohne `orphan` gäbe es für eine Datei ohne Zeile keinen Grund.');
-        $this->assertCount(count(BackupVerify::REASONS) + 2, $gemeldet, 'Die Prüfung führt einen Grund, den weder der Agent noch das Panel ausspricht.');
+        $this->assertContains(Backups::EMPTY_DIRECTORY, $gemeldet, 'Ohne `empty_directory` gäbe es für ein leeres Verzeichnis keinen Grund.');
+        $this->assertCount(count(BackupVerify::REASONS) + 3, $gemeldet, 'Die Prüfung führt einen Grund, den weder der Agent noch das Panel ausspricht.');
     }
 }

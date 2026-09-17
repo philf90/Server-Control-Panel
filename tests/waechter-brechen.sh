@@ -30343,6 +30343,159 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RestoreDomainsTest passed
 
 echo
+echo "── RestoreResultFormTest: die nackte Nummer neben dem Namen ──"
+#
+# Befund 6 des P8-Laufs: `"system_user": { "alt": 1141, "neu": "p1142" }` —
+# dieselbe Grösse, nebeneinander, in zwei Fassungen. Das Verzeichnis führt die
+# Nummer, jede Anzeige des Panels den Namen.
+vorher_datei app/Support/Backups/RestoreLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/RestoreLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""                'alt' => is_numeric($manifest['system_user'] ?? null)
+                    ? Lifecycle::userName((int) $manifest['system_user'])
+                    : null,""", "                'alt' => $manifest['system_user'] ?? null,", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/RestoreLifecycle.php "Nummer statt Name im Bericht" &&
+pruefe "Nummer statt Name im Bericht" \
+  RestoreResultFormTest::test_the_old_system_user_is_reported_as_a_name failed
+wiederherstellen
+
+echo
+echo "── RestoreResultFormTest: der Ausdruck greift ins Leere ──"
+#
+# **Die Untergrenze, und sie ist hier die halbe Prüfung.** Benennt jemand die
+# Schlüssel um, findet die Schleife kein Paar mehr — und ohne die Zahl daneben
+# wäre der Fall grün, ohne etwas angesehen zu haben.
+vorher_datei app/Support/Backups/RestoreLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/RestoreLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'alt' => is_numeric", "'vorher' => is_numeric", 1)
+s = s.replace("'neu' => (string) $subscription->system_user,", "'nachher' => (string) $subscription->system_user,", 1)
+s = s.replace("'db_prefix' => ['alt' => $manifest['db_prefix'] ?? null, 'neu' => $this->backups->prefixOf($subscription)],",
+              "'db_prefix' => ['vorher' => $manifest['db_prefix'] ?? null, 'nachher' => $this->backups->prefixOf($subscription)],", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/RestoreLifecycle.php "Bericht ohne Paare" &&
+pruefe "Bericht ohne Paare" \
+  RestoreResultFormTest::test_every_pair_of_the_report_carries_one_form failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RestoreResultFormTest passed
+
+echo
+echo "── NavGroupTest: der Betreiber verliert den Weg zu den Sicherungen ──"
+#
+# Befund 7 des P8-Laufs, gemeldet vom Betreiber: `Sicherungen → /backups` stand
+# nur im Kundenzweig. Der Bereich „Ohne Abonnement" darauf ist allein seiner
+# und der einzige Weg zu einer Sicherung ohne Abonnement.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("      { name: 'Sicherungen', href: '/backups', icon: 'backups' },\n    ] },", "    ] },", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Betreiber ohne Sicherungen" &&
+pruefe "Betreiber ohne Sicherungen" \
+  NavGroupTest::test_the_operator_reaches_the_orphaned_backups failed
+wiederherstellen
+
+echo
+echo "── NavGroupTest: ein Name an zwei Orten ──"
+#
+# Die zweite Hälfte desselben Befundes: Mit dem nachgetragenen Eintrag stünde
+# „Sicherungen" zweimal in der Leiste des Betreibers — einmal für die
+# Sicherungen der Kunden, einmal für die Frage, was der Server von sich aus
+# sichert. Dieselbe Frage haben „Datenbanken" und „Datenbankserver" schon
+# einmal beantwortet.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("{ name: 'Automatische Sicherung', href: '/settings/backups'", "{ name: 'Sicherungen', href: '/settings/backups'", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Ein Name an zwei Orten" &&
+pruefe "Ein Name an zwei Orten" \
+  NavGroupTest::test_a_name_points_at_exactly_one_address failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
+
+echo
+echo "── BackupDiagnoseTest: Verzeichnis mit Datei gemeldet ──"
+#
+# Befund 10 des P8-Laufs, eine der drei Bedingungen. Gemeldet gehört allein das
+# Verzeichnis, das keine Datei trägt, das keine Zeile nennt und zu dem es kein
+# Abonnement gibt.
+# Eine Datei ohne Zeile meldet `orphansOf()` schon, je Datei und mit ihrem\n# Namen. Ohne diese Bedingung stünde derselbe Ort zweimal im Bericht.
+vorher_datei app/Support/Diagnose/Checks/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('isset($mitDatei[$name]) || ', "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Diagnose/Checks/Backups.php "Verzeichnis mit Datei gemeldet" &&
+pruefe "Verzeichnis mit Datei gemeldet" \
+  BackupDiagnoseTest::test_only_a_directory_nobody_reaches_is_a_rest failed
+wiederherstellen
+echo
+echo "── BackupDiagnoseTest: Verzeichnis mit Zeile gemeldet ──"
+#
+# Befund 10 des P8-Laufs, eine der drei Bedingungen. Gemeldet gehört allein das
+# Verzeichnis, das keine Datei trägt, das keine Zeile nennt und zu dem es kein
+# Abonnement gibt.
+# Eine Zeile auf `pending` hat ihre Datei noch nicht; ihr Verzeichnis ist in\n# diesem Augenblick leer. Ohne diese Bedingung meldete jeder laufende Vorgang\n# einen Rest.
+vorher_datei app/Support/Diagnose/Checks/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('isset($genannt[$name]) || ', "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Diagnose/Checks/Backups.php "Verzeichnis mit Zeile gemeldet" &&
+pruefe "Verzeichnis mit Zeile gemeldet" \
+  BackupDiagnoseTest::test_only_a_directory_nobody_reaches_is_a_rest failed
+wiederherstellen
+echo
+echo "── BackupDiagnoseTest: Verzeichnis eines lebenden Abos gemeldet ──"
+#
+# Befund 10 des P8-Laufs, eine der drei Bedingungen. Gemeldet gehört allein das
+# Verzeichnis, das keine Datei trägt, das keine Zeile nennt und zu dem es kein
+# Abonnement gibt.
+# Ein lebendes Abonnement, dessen Stände die Aufbewahrung abgeräumt hat,\n# bekommt sein Verzeichnis bei der nächsten Sicherung wieder gefüllt. Ohne\n# diese Bedingung bekäme der Betreiber jede Nacht einen Befund dafür.
+vorher_datei app/Support/Diagnose/Checks/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(' || isset($lebt[$name])', "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Diagnose/Checks/Backups.php "Verzeichnis eines lebenden Abos gemeldet" &&
+pruefe "Verzeichnis eines lebenden Abos gemeldet" \
+  BackupDiagnoseTest::test_only_a_directory_nobody_reaches_is_a_rest failed
+wiederherstellen
+echo
+echo "── BackupDiagnoseTest: der Agent gibt die Verzeichnisse nicht heraus ──"
+#
+# Die Regel darüber ist statisch und bekommt ihre Liste übergeben. Schickt der
+# Agent keine, bliebe sie grün, während der Nachtlauf wieder nur Dateien sieht.
+vorher_datei agent/src/Ops/BackupList.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupList.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("return ['files' => $dateien, 'directories' => $verzeichnisse];", "return ['files' => $dateien];", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupList.php "Auflistung ohne Verzeichnisse" &&
+pruefe "Auflistung ohne Verzeichnisse" \
+  BackupDiagnoseTest::test_the_agent_hands_out_the_directories_it_walked failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupDiagnoseTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

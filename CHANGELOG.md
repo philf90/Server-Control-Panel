@@ -29738,3 +29738,120 @@ Wächter, der nur die Zeichenkette `withoutRestriction(` suchte, wäre dabei gr�
 
 > **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
 > steht.**
+
+### Der alte Systembenutzer stand als Zahl neben dem neuen als Name
+
+Befund 6 des P8-Abnahmelaufs, auf der Vorgangsseite einer Wiederherstellung:
+
+```json
+"system_user": { "alt": 1141, "neu": "p1142" }
+```
+
+Dieselbe Grösse, nebeneinander, in zwei Fassungen. Das Verzeichnis der Sicherung
+führt die **Nummer**, weil `Lifecycle::claim()` eine vergibt; jede Anzeige dieses
+Panels führt den **Namen**. Wer die beiden vergleichen wollte, musste die
+Umrechnung im Kopf machen.
+
+> **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine doppelte Auskunft,
+> sondern eine widersprüchliche.** (`docs/91`, Befund 5)
+
+Umgerechnet wird über `Lifecycle::userName()` und nicht über ein `'p'.$zahl` an
+der Anzeigestelle — der Kopf jener Methode sagt wörtlich „an dieser einen
+Stelle". `null` bleibt `null`: Eine Sicherung, deren Verzeichnis keine Nummer
+nennt, sagt etwas anderes als eine mit Nummer 0.
+
+`RestoreResultFormTest` hält zwei Dinge: diesen einen Wert, und die Regel über
+**jedes** Paar des Berichts — zwei vorhandene Werte unter `alt` und `neu` tragen
+denselben Typ. Die Zahl der gefundenen Paare steht daneben, weil der Ausdruck
+sonst ins Leere greifen kann, ohne es zu melden.
+
+### Der Betreiber hatte keinen Menüpunkt zu den Sicherungen
+
+Befund 7, gemeldet vom Betreiber. `Sicherungen → /backups` stand nur im
+**Kundenzweig**; der Betreiber sah unter *Einstellungen* nur
+`/settings/backups`, also die Frage, was der Server von sich aus sichert.
+
+Der Bereich **„Ohne Abonnement"** auf `/backups` ist nach `docs/117` allein
+seiner und der einzige Weg, eine Sicherung ohne Abonnement zurückzuspielen oder
+zu entfernen.
+
+> **Die eine Handlung, die nur der Betreiber ausführen kann, lag auf der einen
+> Seite, zu der nur der Kunde einen Menüpunkt hatte.**
+
+Und der Quelltext behauptete das Gegenteil: Der Kommentar an der
+Einstellungsseite nannte einen Eintrag unter „Verwaltung", den es nicht gab.
+
+> **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung — und
+> nichts prüft sie.**
+
+Das ist die **vierte** Wiederholung derselben Familie — Dateimanager (`docs/55`
+Befund 8), SFTP-Zugang (`docs/59` Befund 19), „Job anlegen" (`docs/64`
+Befund 13). Jedes Mal hat der Betreiber es gemeldet.
+
+**Der Eintrag steht jetzt unter „Verwaltung"**, serverweit wie Domains und
+Datenbanken und am Ende der Gruppe, aus demselben Grund wie im Kundenzweig.
+Ohne `ability`, weil die Route keine trägt — sie siebt im Rumpf.
+
+**Und die Einstellungsseite heisst jetzt „Automatische Sicherung".** Zwei
+Einträge desselben Namens mit demselben Zeichen hätten den Leser gezwungen, die
+Gruppenüberschrift mitzulesen — dieselbe Frage, die „Datenbanken" und
+„Datenbankserver" schon einmal beantwortet haben. Der Name ist wörtlich die
+Unterzeile der Seite und deckt beide Schalter darauf.
+
+`NavGroupTest` hält seitdem, dass **ein Name auf genau eine Adresse zeigt** —
+über beide Zweige zusammen, denn derselbe Name in beiden ist kein Fehler,
+solange er dieselbe Adresse meint. Was er **nicht** halten kann, steht in seinem
+Kopf als Frage: *Wo sucht jemand diese Handlung, und steht sie dort?*
+
+### Ein leeres Verzeichnis blieb liegen und wurde nicht gemeldet
+
+Befund 10. Nach dem Entfernen aller Stände stand
+`/var/lib/srvpanel/backups/<abo>/` leer da, und `backup-verify` meldete „Keine
+Befunde an den Sicherungen". Die Prüfung sucht Dateien ohne Zeile — ein leeres
+Verzeichnis hat keine Datei.
+
+> **Eine Abwesenheit ist nur dann ein Befund, wenn die Anwesenheit im
+> Erfolgsfall belegt ist.**
+
+`backup.list` gibt jetzt neben den Dateien die **Verzeichnisse** heraus, die es
+ohnehin abläuft. Was gefehlt hat, war nicht die Auskunft, sondern dass jemand
+sie weitergibt.
+
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+> keine.**
+
+**Gemeldet und nicht gelöscht**, wie jeder Rest seit A10. Es sind vier Kilobyte,
+und darum geht es nicht: Stehen bleibt der **Name** eines zurückgebauten
+Abonnements in einem Verzeichnis, das nichts mehr erreicht.
+
+**Drei Bedingungen, und jede einzeln begründet.** Gemeldet wird nur, was keine
+Datei trägt, was keine Zeile nennt und wozu es kein Abonnement gibt:
+
+- Mit Datei ist es kein leeres Verzeichnis — und eine Datei ohne Zeile meldet
+  `orphansOf()` bereits, je Datei und mit ihrem Namen.
+- Eine Zeile auf `pending` hat ihre Datei noch nicht. *Ein Rest ist, was niemand
+  mehr nennt — nicht, was noch niemand fertig genannt hat.*
+- Ein **lebendes** Abonnement bekommt sein Verzeichnis bei der nächsten
+  Sicherung wieder gefüllt; jede Nacht einen Befund dafür hiesse, dem Betreiber
+  das Hinsehen abzugewöhnen.
+
+**Und der erste Prüfkörper dazu hat eine der drei nicht gemessen.** Das
+Verzeichnis mit Datei trug auch eine Zeile — der Eingriff auf die erste
+Bedingung blieb wirkungslos, weil die zweite ihn auffing.
+
+> **Ein Eingriff, der einen Zustand herstellt, den der Prüfling ohnehin gleich
+> beantwortet, misst die Regel nicht — er misst, dass sie unempfindlich ist.**
+
+**Ein bestehender Wächter hat den neuen Grund gemeldet**, und das ist der Punkt
+seiner Zahl: `BackupDiagnoseTest` zählte zwei Gründe, die nicht vom Agenten
+kommen, und fand drei.
+
+> **Eine Untergrenze ist kein Formalismus — sie ist die einzige Stelle, an der
+> ein Wächter merkt, dass sich sein Gegenstand geändert hat.**
+
+**Was offen bleibt und benannt ist:** Der Griff, der ein solches Verzeichnis
+abräumt, gibt es im Agenten (`backup.remove` ohne `storage`) und hat weiterhin
+keinen Aufrufer. Der Betreiber bekommt damit einen Befund, den er aus dem Panel
+nicht klären kann. Ob das Panel ein leeres Verzeichnis von sich aus entfernen
+darf — und an welcher Stelle —, ist eine Entscheidung und keine Ableitung; sie
+gehört vor die Abnahme von P8 und nicht in diese Behebung.

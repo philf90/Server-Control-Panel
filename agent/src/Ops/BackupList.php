@@ -63,9 +63,11 @@ final class BackupList implements Op
         $context->progress(50, 'Ablageort lesen');
 
         $dateien = [];
+        $verzeichnisse = [];
 
         foreach ($this->directories() as $verzeichnis) {
             $abonnement = basename($verzeichnis);
+            $verzeichnisse[] = $abonnement;
 
             foreach ((array) glob($verzeichnis.'/*.zip') as $pfad) {
                 if (! is_string($pfad) || ! is_file($pfad)) {
@@ -95,7 +97,30 @@ final class BackupList implements Op
 
         $context->progress(100, 'fertig');
 
-        return ['files' => $dateien];
+        /*
+         * **Die Verzeichnisse stehen daneben, und nicht nur ihre Dateien.**
+         *
+         * Befund 10 des P8-Abnahmelaufs: Nach dem Entfernen aller Stände blieb
+         * `/var/lib/srvpanel/backups/<abo>/` leer liegen, und die
+         * Bestandsdiagnose meldete „Keine Befunde an den Sicherungen". Sie
+         * sucht Dateien ohne Zeile — ein leeres Verzeichnis hat keine Datei.
+         *
+         * > **Eine Abwesenheit ist nur dann ein Befund, wenn die Anwesenheit im
+         * > Erfolgsfall belegt ist.** Aus der Dateiliste allein lässt sich „es
+         * > liegt hier nichts" nicht von „es gibt hier nichts" trennen.
+         *
+         * Die Namen liegen ohnehin vor — {@see self::directories()} läuft sie
+         * schon ab. Was gefehlt hat, war nicht die Auskunft, sondern dass
+         * jemand sie weitergibt.
+         *
+         * > **Eine Auskunft, die entsteht und die niemand weitergibt, ist so
+         * > gut wie keine.**
+         *
+         * **Geurteilt wird hier nicht.** Ob ein leeres Verzeichnis ein Rest
+         * ist, hängt an Zeilen und Abonnements, die der Agent nicht kennt; er
+         * sagt, was liegt.
+         */
+        return ['files' => $dateien, 'directories' => $verzeichnisse];
     }
 
     /**

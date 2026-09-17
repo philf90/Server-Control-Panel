@@ -32,6 +32,15 @@ type Finding = {
 const props = defineProps<{
   findings: Finding[]
   ran_at: string | null
+
+  /**
+   * Wann die **Sicherungen** zuletzt geprüft wurden — `null`, wenn noch nie.
+   *
+   * Ein eigener Wert, weil es seit P8 Schritt 6 zwei Nachtläufe gibt
+   * (`docs/117 §13`). Ein gemeinsamer wäre für die Befunde des jeweils anderen
+   * Laufs falsch.
+   */
+  backups_ran_at: string | null
   verbatim: boolean
 }>()
 
@@ -47,6 +56,31 @@ const hinsehen = computed(() => props.findings.filter((f) => f.state === 'warn')
  * die Seite Entwarnung für etwas, das niemand angesehen hat.
  */
 const gemessen = computed(() => props.ran_at !== null)
+
+/**
+ * Die Notiz am Bereich — **zwei Läufe, zwei Zeitpunkte**.
+ *
+ * Seit P8 Schritt 6 schreibt nicht ein Nachtlauf in diese Liste, sondern zwei:
+ * die Bestandsdiagnose und die Prüfung der Sicherungen, jede in einer eigenen
+ * Unit (`docs/117 §13`). Stünde hier nur einer, wäre er für die Befunde des
+ * anderen falsch.
+ *
+ * > **Zwei Läufe, die sich einen Zeitstempel teilen, sagen beide die Wahrheit
+ * > über den letzten von beiden und über keinen etwas Verlässliches.**
+ *
+ * `noch nie` wird ausgeschrieben und nicht weggelassen: Eine fehlende Angabe
+ * sähe aus wie „steht nicht dabei", und gemeint ist „ist nie gelaufen".
+ */
+const notiz = computed<string | undefined>(() => {
+  if (props.ran_at === null) return undefined
+
+  const sicherungen = props.backups_ran_at === null
+    ? 'Die Sicherungen sind noch nicht geprüft worden.'
+    : `Sicherungen zuletzt geprüft: ${props.backups_ran_at}.`
+
+  return `Zuletzt gemessen: ${props.ran_at}. ${sicherungen} `
+    + 'Ein Befund verschwindet von selbst, sobald der nächste Lauf ihn nicht mehr findet.'
+})
 </script>
 
 <template>
@@ -97,7 +131,7 @@ const gemessen = computed(() => props.ran_at !== null)
       <Section
         title="Befunde"
         full
-        :note="ran_at ? `Zuletzt gemessen: ${ran_at}. Ein Befund verschwindet von selbst, sobald der nächste Lauf ihn nicht mehr findet.` : undefined"
+        :note="notiz"
       >
         <!--
           **Ohne Befunde steht hier ein Satz und keine leere Tabelle.** Eine

@@ -310,6 +310,23 @@ const navigation = computed<{ group: string | null; items: NavItem[] }[]>(() => 
                * mehreren zur Auswahl.
                */
               { name: 'Cronjobs', href: '/cron', icon: 'cron' },
+
+              /*
+               * **Und derselbe Weg für die Sicherungen** (P8 Schritt 5). Das
+               * ist das vierte Merkmal mit dieser Frage; die Antwort ist die
+               * Regel und keine Entdeckung mehr.
+               *
+               * `/backups` ohne Kennung, weil eine Sicherung an *einem*
+               * Abonnement hängt — bei genau einem führt die Adresse hinein,
+               * bei mehreren zur Auswahl.
+               *
+               * **Und sie steht am Ende dieser Gruppe, nicht am Anfang.** Wer
+               * das Panel öffnet, will meistens an seine Dateien, seine
+               * Datenbank oder seine Domain; eine Sicherung sucht man, wenn
+               * etwas schiefgegangen ist oder bevor man etwas wagt. Sie gehört
+               * sichtbar in die Liste und nicht vor die tägliche Arbeit.
+               */
+              { name: 'Sicherungen', href: '/backups', icon: 'backups' },
             ]
           : []),
 
@@ -569,6 +586,14 @@ const navigation = computed<{ group: string | null; items: NavItem[] }[]>(() => 
        * anzudeuten, den die Gruppe schon macht.
        */
       { name: 'Datenbankserver', href: '/settings/database', icon: 'databases', ability: 'operate-server' },
+      /*
+       * **Dasselbe Zeichen wie „Sicherungen", und aus demselben Grund wie beim
+       * Datenbankserver:** Die beiden Einträge stehen in verschiedenen Gruppen
+       * — „Verwaltung" führt zu den Sicherungen der Kunden, „Einstellungen" zu
+       * der Frage, was der Server von sich aus sichert.
+       */
+      { name: 'Sicherungen', href: '/settings/backups', icon: 'backups', ability: 'operate-server' },
+
       { name: 'Mailversand', href: '/settings/mail', icon: 'mail', ability: 'operate-server' },
       { name: 'Zertifikat', href: '/settings/tls', icon: 'tls', ability: 'operate-server' },
       { name: 'DNS-Zugang', href: '/settings/dns', icon: 'dns', ability: 'operate-server' },

@@ -74,6 +74,13 @@ final class AttributeLabelTest extends TestCase
             '(„Betreiber", „Administrator", „Kunde") und nicht dem Feld. Das Feld ist die Gruppe, '.
             'und ihr Name steht als eigener `span` darüber: „Publikum". Wer „Das Feld Publikum muss …" '.
             'liest, findet ihn dort.',
+        'Settings/Backups.vue:automatic' => 'Die Beschriftung ist ein ganzer Satz („Jede Nacht eine '.
+            'Sicherung je Abonnement anlegen") und kein Name; eingesetzt ergäbe sie einen Satz in '.
+            'einem Satz. Der Name des Feldes ist die Überschrift seines Bereichs — „Nächtlich '.
+            'sichern" steht sichtbar darüber, und genau das sagt der Server.',
+        'Settings/Backups.vue:before_removal' => 'Dasselbe eine Zeile tiefer: Der Satz am Kästchen '.
+            '(„Beim Löschen eines Abonnements zuerst eine Sicherung anlegen") ist kein Name, die '.
+            'Überschrift „Vor dem Rückbau sichern" ist einer und steht darüber.',
     ];
 
     /** Jede sichtbare Beschriftung stimmt mit dem Namen überein, den der Server benutzt. */

@@ -11,6 +11,7 @@ use App\Support\Web\MaintenanceMode;
 use App\Support\Web\PhpSelection;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Schema;
+use InvalidArgumentException;
 use Throwable;
 
 /**
@@ -100,7 +101,32 @@ final class Settings
      * > **Eine leere Liste, die zwei Dinge bedeuten kann, bedeutet keins von
      * > beiden.**
      */
-    private const DIAGNOSE = 'diagnose';
+    public const DIAGNOSE = 'diagnose';
+
+    /**
+     * Und derselbe Wert für den Lauf, der die Sicherungen prüft.
+     *
+     * **Ein eigener Schlüssel, und das ist der ganze Grund, dass es ihn gibt.**
+     * Die Prüfung der Sicherungen läuft in einer eigenen Unit (`docs/117 §13`);
+     * schriebe sie in {@see self::DIAGNOSE}, stünde auf der Diagnoseseite „vor
+     * zwei Minuten gemessen", während die Bestandsprüfung seit Tagen nicht
+     * gelaufen wäre — oder umgekehrt.
+     *
+     * > **Zwei Läufe, die sich einen Zeitstempel teilen, sagen beide die
+     * > Wahrheit über den letzten von beiden und über keinen etwas
+     * > Verlässliches.**
+     */
+    public const DIAGNOSE_BACKUPS = 'diagnose.backups';
+
+    /**
+     * Die Schlüssel, unter denen ein Lauf seinen Zeitpunkt ablegen darf.
+     *
+     * Eine Positivliste, damit ein Tippfehler nicht wortlos einen dritten
+     * anlegt — der sähe für immer nach „noch nie gemessen" aus.
+     *
+     * @var list<string>
+     */
+    public const RUN_KEYS = [self::DIAGNOSE, self::DIAGNOSE_BACKUPS];
 
     /**
      * Der Wartungsmodus: ob er an ist, und bis wann er voraussichtlich läuft.
@@ -111,6 +137,25 @@ final class Settings
      * meldet. Dass die beiden auseinanderlaufen können, ist kein Versehen,
      * sondern der Grund, aus dem A10 danach fragt.
      */
+    /**
+     * Was der Server von sich aus sichert (P8 Schritt 9 und 10).
+     *
+     * **Beide Schalter stehen aus beziehungsweise an, und beide Vorgaben sind
+     * eine Entscheidung und kein Zufall:**
+     *
+     * - `automatic` ist **aus**. Ein Update, das für jedes Abonnement des
+     *   Servers nächtliche Sicherungen anschaltet, füllt den Datenträger, ohne
+     *   dass jemand danach gefragt hätte.
+     * - `before_removal` ist **an**. Ein Rückbau ist der eine Griff dieses
+     *   Panels, der nichts zurücklässt; die Sicherung davor ist der Unterschied
+     *   zwischen „wiederherstellbar" und „fort".
+     *
+     * > **Der Fehler fällt damit zur sicheren Seite** — einmal heisst das
+     * > „nichts anlegen", einmal „etwas anlegen", und welche Seite die sichere
+     * > ist, entscheidet nicht die Vorgabe, sondern was ohne sie verloren geht.
+     */
+    private const BACKUPS = 'backups';
+
     private const MAINTENANCE = 'maintenance';
 
     /**
@@ -437,29 +482,75 @@ final class Settings
     }
 
     /**
+     * Was der Server von sich aus sichert.
+     *
+     * @return array{automatic: bool, before_removal: bool}
+     */
+    public function backups(): array
+    {
+        $row = $this->read(self::BACKUPS);
+
+        return [
+            // **`=== true` und nicht `?? false` mit Umweg**: Eine Zeile aus der
+            // Zeit vor diesem Feld trägt gar nichts, und die soll denselben Weg
+            // nehmen wie ein ausdrückliches Nein.
+            'automatic' => ($row['automatic'] ?? false) === true,
+
+            // Und hier andersherum: Fehlt die Angabe, gilt **an**. Eine
+            // bestehende Installation, die dieses Feld nie gesehen hat, soll
+            // nach dem Update sichern und nicht schweigen.
+            'before_removal' => ($row['before_removal'] ?? true) === true,
+        ];
+    }
+
+    public function saveBackups(bool $automatic, bool $beforeRemoval): void
+    {
+        Setting::query()->updateOrCreate(
+            ['key' => self::BACKUPS],
+            ['value' => ['automatic' => $automatic, 'before_removal' => $beforeRemoval]],
+        );
+    }
+
+    /**
      * Wann der Nachtlauf zuletzt gefahren ist — `null`, wenn noch nie.
      *
      * `null` heisst „noch nie gemessen" und nicht „nichts gefunden". Vor dem
      * ersten Lauf schweigt die Seite, statt Entwarnung zu geben — dieselbe
      * Regel wie bei {@see self::diskQuota()}.
      */
-    public function diagnoseRunAt(): ?string
+    public function diagnoseRunAt(string $key = self::DIAGNOSE): ?string
     {
-        $at = $this->read(self::DIAGNOSE)['ran_at'] ?? null;
+        $at = $this->read($this->runKey($key))['ran_at'] ?? null;
 
         return is_string($at) ? $at : null;
     }
 
     /** Den Zeitpunkt eines Laufs festhalten — mit dem Wert, den der Lauf trägt. */
-    public function saveDiagnoseRun(string $ranAt): void
+    public function saveDiagnoseRun(string $ranAt, string $key = self::DIAGNOSE): void
     {
         Setting::query()->updateOrCreate(
-            ['key' => self::DIAGNOSE],
+            ['key' => $this->runKey($key)],
             // Derselbe Wert, den die Befunde tragen, und nicht `now()`: Sonst
             // stünde neben einer Zeile von 03:00:07 ein „zuletzt gemessen
             // 03:00:09", und die beiden wären dieselbe Messung.
             ['value' => ['ran_at' => $ranAt]],
         );
+    }
+
+    /**
+     * Den Schlüssel eines Laufs gegen die Positivliste halten.
+     *
+     * **Laut und nicht stillschweigend.** Ein unbekannter Schlüssel wäre beim
+     * Schreiben eine Zeile, die niemand liest, und beim Lesen ein dauerhaftes
+     * „noch nie gemessen" — zwei Zustände, die von aussen richtig aussehen.
+     */
+    private function runKey(string $key): string
+    {
+        if (! in_array($key, self::RUN_KEYS, true)) {
+            throw new InvalidArgumentException(sprintf('Kein Lauf legt seinen Zeitpunkt unter "%s" ab.', $key));
+        }
+
+        return $key;
     }
 
     /**

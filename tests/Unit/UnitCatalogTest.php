@@ -88,11 +88,25 @@ final class UnitCatalogTest extends TestCase
     /**
      * Ohne diese Zahl wären beide Richtungen auch dann grün, wenn Katalog und
      * Paketierung zugleich leer wären.
+     *
+     * **Eine Untergrenze und keine Volkszählung, und das ist eine Berichtigung
+     * vom 16. September 2026.** Hier stand `assertCount(16, …)`, und die Zahl
+     * war keine Zusage, sondern der Stand jenes Tages: Die neue Unit aus P8
+     * Schritt 6 hat sie rot gemacht, obwohl beide Richtungen darüber stimmten.
+     * Das ist die bekannte Falle dieses Repos in ihrer harmlosen Form —
+     *
+     * > **Ein Wächter, der beim Aufräumen zubeisst, wird beim Aufräumen
+     * > abgeschaltet.**
+     *
+     * — und hier kostet sie nichts, weil die **Gleichheit** der beiden Mengen
+     * schon oben gehalten wird. Was dieser Fall allein trägt, ist der Boden
+     * gegen „beide Seiten leer".
      */
     public function test_the_comparison_has_something_to_compare(): void
     {
-        $this->assertCount(16, Catalog::OWN, 'Zehn Dienste und sechs Timer — gemessen an packaging/systemd.');
-        $this->assertCount(16, self::packaged());
+        $this->assertGreaterThanOrEqual(16, count(Catalog::OWN), 'Zu wenige eigene Units — gemessen an packaging/systemd.');
+        $this->assertGreaterThanOrEqual(16, count(self::packaged()));
+        $this->assertCount(count(Catalog::OWN), self::packaged(), 'Katalog und Paketierung zählen verschieden.');
     }
 
     public function test_what_the_catalogue_calls_controlled_is_allowed(): void
@@ -247,7 +261,16 @@ final class UnitCatalogTest extends TestCase
             'Eine fremde Unit gilt als steuerbar — dann ist das eine Entscheidung, die jemand treffen muss.',
         );
 
+        // Untergrenze und nicht Zahl des Tages — die Begründung steht an
+        // {@see self::test_the_comparison_has_something_to_compare()}. Gemessen
+        // wird, dass *jede* eigene Unit steuerbar ist, und nicht wie viele es
+        // gerade sind.
         $eigeneGesteuert = array_filter(Catalog::all(), static fn (array $z): bool => $z['controlled']);
-        $this->assertCount(16, $eigeneGesteuert, 'Die sechzehn eigenen Units sind steuerbar — sonst prüft das nichts.');
+        $this->assertCount(
+            count(Catalog::OWN),
+            $eigeneGesteuert,
+            'Nicht jede eigene Unit gilt als steuerbar — sonst prüft das nichts.',
+        );
+        $this->assertGreaterThanOrEqual(16, count($eigeneGesteuert));
     }
 }

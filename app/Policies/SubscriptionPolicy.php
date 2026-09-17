@@ -150,6 +150,78 @@ final class SubscriptionPolicy
         return $this->useFeature($account, $subscription, Permission::Cron);
     }
 
+    /**
+     * Sicherungen verwalten — ansehen, anlegen, herunterladen, entfernen.
+     *
+     * **Am Recht `Backups`, und das ist der Befund, der diese Methode
+     * ausgelöst hat.** `Permission::Backups` und `Feature::Backups` gibt es
+     * seit P0, beide sind aufeinander abgebildet — und **bis P8 hat niemand
+     * sie gefragt.** Ein Plan konnte „Sicherungen" freigeben oder verweigern,
+     * und es bedeutete nichts.
+     *
+     * > **Ein Recht, das keine Policy fragt, ist von aussen nicht von einem zu
+     * > unterscheiden, das es nicht gibt.** Derselbe Fall wie `context` im
+     * > Protokoll (`docs/66`) und `Settings::saveDnsAddresses()` (`docs/74`),
+     * > nur an einer Berechtigung.
+     *
+     * **Und ausdrücklich nicht `FilesRead`.** Eine Sicherung enthält den
+     * ganzen Baum des Abonnements samt seinen Datenbanken — und nach
+     * `docs/117 §4` auch den privaten Schlüssel eines hochgeladenen
+     * Zertifikats. Wer eine einzelne Datei lesen darf, hat damit nicht die
+     * Erlaubnis, alles auf einmal herunterzuladen.
+     *
+     * > **Etwas ansehen zu dürfen ist nicht dasselbe, wie es mitnehmen zu
+     * > dürfen.**
+     */
+    public function manageBackups(Account $account, Subscription $subscription): bool
+    {
+        return $this->useFeature($account, $subscription, Permission::Backups);
+    }
+
+    /**
+     * Und die fertige Datei herausgeben — enger als sie verwalten.
+     *
+     * **Seit P8 trägt eine Sicherung ein Geheimnis**: den privaten Schlüssel
+     * eines *hochgeladenen* Zertifikats. Er steht nirgends sonst
+     * (`certificates` führt `storage_name` und kein Schlüsselmaterial), und
+     * ohne ihn ist ein hochgeladenes Zertifikat nach einer Wiederherstellung
+     * verloren — deshalb gehört er hinein (`docs/117 §4`).
+     *
+     * **Damit reicht {@see self::manageBackups()} für diesen einen Griff
+     * nicht.** Es löst über {@see self::useFeature()} auf, und das gibt bei
+     * `isAdmin()` sofort durch — und `isAdmin()` fragt den **Typ** und nicht
+     * die Rolle. Jeder Administrator hätte mit jeder Sicherung den privaten
+     * Schlüssel jedes Kunden bekommen, der eines hochgeladen hat.
+     *
+     * > **Ein Ablageort, der ein Geheimnis vor dem Dateisystem schützt, sagt
+     * > nichts darüber, wer den Knopf drücken darf, der es herausgibt.**
+     *
+     * `docs/117 §4` hat den Schlüssel gegen das Dateisystem abgewogen
+     * (`root:srvpanel 0640`, ausserhalb des Kunden-Chroots) und gegen den
+     * Kunden, der seine eigene Sicherung lädt. Die Rolle aus A9 kam darin nicht
+     * vor.
+     *
+     * **Dieselbe Grenze wie bei `/logs`:** Ein Stacktrace trägt die
+     * Zugangsdaten der Datenbank, deshalb gehört die Seite dem Betreiber
+     * allein. Ein privater TLS-Schlüssel ist dieselbe Art Inhalt.
+     *
+     * **Der Kunde bleibt drin**, und das ist keine Ausnahme: Es ist sein
+     * Schlüssel, den er selbst hochgeladen hat.
+     *
+     * Dies ist die **erste** Policy dieses Panels, die nach der Rolle fragt.
+     * Die anderen Betreiberstellen sind Routen ohne Modell und tragen deshalb
+     * `can:operate-server`; hier geht das nicht, weil der Kunde durchkommen
+     * muss und der Gate ihn abwiese.
+     */
+    public function downloadBackup(Account $account, Subscription $subscription): bool
+    {
+        if ($account->isAdmin()) {
+            return $account->isOperator();
+        }
+
+        return $this->useFeature($account, $subscription, Permission::Backups);
+    }
+
     public function browseFiles(Account $account, Subscription $subscription): bool
     {
         return $this->useFeature($account, $subscription, Permission::FilesRead);

@@ -1,0 +1,26 @@
+[Unit]
+Description=SrvPanel — tägliche Sicherungen
+Documentation=https://repo.cloudsrv24.de/
+
+# Gehört zu `srvpanel.target`: Ein `stop` oder `restart` des Ziels nimmt
+# diese Unit mit. Ohne diese Zeile wäre das Ziel ein Griff, der nur
+# anschaltet — und das ist ein halber Griff.
+PartOf=srvpanel.target
+
+[Timer]
+# **Täglich.** Ein Kunde, der einen Tag Arbeit verliert, verliert einen Tag;
+# ein wöchentlicher Takt macht daraus bis zu sieben.
+OnCalendar=daily
+
+# Ein Server, der über Nacht aus war, sichert nach dem Einschalten nach.
+Persistent=true
+
+# **Zwei Stunden Streuung — und die Zahl steht auch im Kommando.**
+# `RunBackups::DUE_AFTER_HOURS` ist deshalb 20 und nicht 24: Zwei Läufe liegen
+# mit dieser Streuung zwischen 22 und 26 Stunden auseinander, und ein
+# Fälligkeitsfenster von 24 verlöre jeden Lauf, den die Streuung nach vorn
+# zieht — still, denn es entstünde einfach keine Sicherung.
+RandomizedDelaySec=2h
+
+[Install]
+WantedBy=timers.target

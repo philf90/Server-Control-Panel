@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Console\Commands\VerifyBackups;
 use App\Enums\AccountType;
 use App\Models\Account;
 use App\Support\Authorization\AdminAbility;
@@ -87,6 +88,36 @@ final class SrvPanelServiceProvider extends ServiceProvider
             $app->make(FindingLog::class),
             $app->make(DiagnoseRunLog::class),
         ));
+
+        /*
+         * Und der zweite Lauf — die Prüfung der Sicherungen in ihrer eigenen
+         * Unit (`docs/117 §13`).
+         *
+         * **Zwei Dinge unterscheiden ihn, und beide sind tragend.** Er fährt
+         * {@see DiagnoseCatalog::BACKUP_CHECKS}, und er schreibt seinen
+         * Zeitpunkt unter einen **eigenen** Schlüssel: Teilten sich die beiden
+         * einen, stünde auf der Diagnoseseite der des zuletzt gefahrenen.
+         *
+         * > **Zwei Läufe, die sich einen Zeitstempel teilen, sagen beide die
+         * > Wahrheit über den letzten von beiden und über keinen etwas
+         * > Verlässliches.**
+         *
+         * **Kontextuell, weil `Run` `final` ist** und es damit keinen zweiten
+         * Typ gibt, an den man ihn binden könnte. Dass eine kontextuelle
+         * Bindung auch bei der Injektion in `handle()` greift, ist am
+         * 16. September 2026 gegen Laravel 13 gemessen (`docs/117 §13` M11) —
+         * mit der Gegenprobe, dass derselbe Aufruf ohne sie den Vorgabewert
+         * bekommt. `DiagnoseWiringTest` hält es an der Wirkung, denn eine
+         * Zusage des Frameworks, die niemand misst, ist eine Vermutung mit
+         * Fussnote.
+         */
+        $this->app->when(VerifyBackups::class)
+            ->needs(DiagnoseRun::class)
+            ->give(static fn ($app): DiagnoseRun => new DiagnoseRun(
+                array_map(static fn (string $check): DiagnoseCheck => $app->make($check), DiagnoseCatalog::BACKUP_CHECKS),
+                $app->make(FindingLog::class),
+                new SettingsRunLog($app->make(Settings::class), Settings::DIAGNOSE_BACKUPS),
+            ));
 
         $this->app->singleton(Store::class, static fn (): Store => new Store(
             (string) config('srvpanel.metrics.directory'),

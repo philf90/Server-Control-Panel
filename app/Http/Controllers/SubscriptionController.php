@@ -13,6 +13,7 @@ use App\Models\Operation;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Support\Audit\Audit;
+use App\Support\Backups\Backups;
 use App\Support\Databases\Databases;
 use App\Support\Databases\Dumps;
 use App\Support\Plans\Feature;
@@ -670,7 +671,30 @@ final class SubscriptionController extends Controller
         Lifecycle $lifecycle,
         Databases $databases,
         Dumps $dumps,
+        Backups $backups,
     ): RedirectResponse {
+        /*
+         * **Die Sicherung zuerst** (`docs/117 §6` Schritt 10).
+         *
+         * Sie steht vor allem anderen, und die Reihenfolge ist tragend:
+         * `queue:work` ist einspurig und die Datenbank-Warteschlange liefert
+         * FIFO, also läuft sie fertig, bevor `subscription.remove` das
+         * Verzeichnis abräumt. Stünde sie hinter dem Rückbau, sicherte sie
+         * einen leeren Baum — und meldete dabei Erfolg.
+         *
+         * Dass sie den Rückbau **überlebt**, steht im Kopf der Migration:
+         * `backups.subscription_id` ist `nullOnDelete`, und der Name ist
+         * abgeschrieben. Ohne das wäre sie in derselben Sekunde fort, in der
+         * sie gebraucht würde.
+         *
+         * > **Eine Sicherung, die mit ihrem Gegenstand verschwindet, ist
+         * > keine.**
+         *
+         * Ob sie überhaupt entsteht, entscheidet der Betreiber unter
+         * Einstellungen; die Vorgabe ist **an**.
+         */
+        $backups->beforeRemoval($subscription);
+
         $databases->removeAllFor($subscription);
 
         // **Und das Verzeichnis der Sicherungen.** Es liegt unter

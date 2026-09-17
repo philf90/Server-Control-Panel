@@ -234,7 +234,26 @@ final class TemplateSpacingTest extends TestCase
                 continue;
             }
 
-            if ($selfClosing || in_array($name, self::VOID, true)) {
+            /*
+             * **Nach dem Namen in seiner Schreibweise gefragt.** `link` steht
+             * in {@see self::VOID}, weil `<link>` in HTML kein Ende hat;
+             * Inertias `<Link>` ist eine Komponente mit Inhalt und Ende.
+             * Kleingeschrieben sehen die beiden gleich aus, und der Stapel
+             * verschob sich ab der ersten `<Link>` um eins. **Gemessen an der
+             * Bilanz**: Von 82 Vorlagen endeten 23 mit einem Stapel ungleich
+             * null, mit der Berichtigung keine einzige.
+             *
+             * > **Eine Liste leerer HTML-Elemente trifft eine Komponente, die
+             * > zufällig so heisst — und Vue unterscheidet die beiden allein
+             * > an der Grossschreibung.**
+             *
+             * Gefunden hat es nicht dieser Wächter, sondern ein neuer, der
+             * denselben Leser geerbt hat (`ButtonRowPlacementTest`, P8
+             * Schritt 9).
+             */
+            $leer = $name === strtolower($tag[2][0]) && in_array($name, self::VOID, true);
+
+            if ($selfClosing || $leer) {
                 continue;
             }
 

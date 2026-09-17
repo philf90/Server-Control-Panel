@@ -9,6 +9,11 @@ use SrvPanel\Agent\Ops\AcmeCertificate;
 use SrvPanel\Agent\Ops\AcmeCertificateInfo;
 use SrvPanel\Agent\Ops\AcmeCertificateRemove;
 use SrvPanel\Agent\Ops\AgentPing;
+use SrvPanel\Agent\Ops\BackupCreate;
+use SrvPanel\Agent\Ops\BackupList;
+use SrvPanel\Agent\Ops\BackupRemove;
+use SrvPanel\Agent\Ops\BackupRestore;
+use SrvPanel\Agent\Ops\BackupVerify;
 use SrvPanel\Agent\Ops\CertificateUpload;
 use SrvPanel\Agent\Ops\ConfigValidate;
 use SrvPanel\Agent\Ops\CronApply;
@@ -278,6 +283,44 @@ final class Registry
         // wird.
         $this->register(new DbDumpRemove);
         $this->register(new DbDumpCreate);
+
+        /*
+         * Die Sicherung eines ganzen Abonnements — **`remove` zuerst und aus
+         * demselben Grund wie darüber**: Sie ist das Grösste, was dieses Panel
+         * auf der Platte hinterlässt (der ganze Kundenbaum plus seine
+         * Datenbanken), und ohne ihren Rückweg füllt sie den Datenträger.
+         *
+         * Sie steht **hinter** den Dumps, weil sie deren Ausgabe hineinlegt und
+         * sie nicht selbst erzeugt (`docs/117 §6` Schritt 4). Die Reihenfolge
+         * der beiden Aufrufe stellt das Panel her; keine Operation hier ruft
+         * eine andere.
+         */
+        $this->register(new BackupRemove);
+        $this->register(new BackupCreate);
+        $this->register(new BackupList);
+
+        /*
+         * Und die Prüfung daneben — sie steht **ausserhalb** des Paares oben,
+         * weil sie nichts anlegt: `RemovalPathTest` fragt sie deshalb nicht
+         * nach einem Gegenstück, und `AgentOperationReachTest` führt sie mit
+         * demselben Grund ohne Lebenslauf wie `db.usage`. Sie läuft an einem
+         * Zeitgeber und nicht an einem Klick.
+         *
+         * **In einer eigenen Unit und nicht im Nachtlauf der Bestandsdiagnose**
+         * (`docs/117 §13`): Der kostet gemessen 391 ms (`docs/100` M19), und
+         * eine Prüfung, die Kundenarchive von der Platte liest, gehört nicht
+         * hinein — derselbe Schnitt, mit dem `docs/81 §11` A13 aus A10 gelöst
+         * hat.
+         */
+        $this->register(new BackupVerify);
+
+        /*
+         * Und der Weg zurück (`docs/117 §6` Schritt 8). Er steht **hinter**
+         * `create`, weil er dessen Ausgabe liest — dieselbe Ordnung wie bei den
+         * Dumps. Ein `remove` braucht er nicht: Was er anlegt, gehört dem
+         * Abonnement, und dessen Rückweg ist `subscription.remove`.
+         */
+        $this->register(new BackupRestore);
         $this->register(new DbRestore);
 
         // Die Messung. Sie steht ausserhalb der Paare oben, weil sie nichts

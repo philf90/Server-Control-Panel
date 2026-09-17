@@ -145,6 +145,14 @@ final class SandboxReachTest extends TestCase
         // Abonnements. Kein Kundenpfad, kein Zeitfenster.
         'agent/src/Db/Dump.php' => 'das Dump-Verzeichnis, ausserhalb der Abonnements',
 
+        // **Dieselbe Begründung, zweite Ablage** (P8): `/var/lib/srvpanel/backups`
+        // gehört `root:srvpanel 0710`, liegt ausserhalb von `/var/www/vhosts`
+        // und ist über den SFTP-Zugang nicht erreichbar — in diesen Baum
+        // schreibt kein Kunde. Der Eintrag steht hier und nicht neben dem
+        // darüber, damit `BackupStoreTest` und dieser Wächter denselben Grund
+        // nennen: Was ein Kunde nicht erreicht, kann er auch nicht unterschieben.
+        'agent/src/Backup/Store.php' => 'das Sicherungsverzeichnis, ausserhalb der Abonnements',
+
         // **Die zweite Begründung:** Der Aufruf steht in der Arbeitsfunktion
         // einer Sandbox, läuft also bereits im Chroot und ohne Rechte. Dort ist
         // der Baumlauf das richtige Werkzeug und nicht das gefährliche — ein

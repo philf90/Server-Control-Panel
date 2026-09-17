@@ -28431,3 +28431,982 @@ einen toten Pfad rc=0 und keine Ausgabe gibt. Gemessen in einem Wegwerf-Repo.
 **Der Wächter des Skills heisst `StewardSkillTest` und ist mit ihm gegangen.**
 Er steht seitdem in `ChangelogTest::REMOVED`, mit Datum und Grund — genau dafür
 gibt es diese Liste.
+
+### Die Messrunde vor P8 steht — und sie hat die Form umgeworfen
+
+`docs/116` beantwortet die sieben Fragen aus `docs/115 §6.1`, **bevor** eine
+Zeile Plan entsteht; die Messvorschrift liegt als `tests/sicherung-messen.php`
+daneben und nicht in einem Sitzungsverlauf. Jede Messung nennt ihre Gegenprobe
+und das, was sie nicht sagt.
+
+**Vier Ergebnisse ändern, was P8 bauen kann.**
+
+Kein Schreiber in PHP trägt, was eine Wiederherstellung braucht. Gemessen an
+fünf Eigenschaften — Rechte, Eigentümer, Verweis, setgid und ein leeres
+Verzeichnis — bringt `ZipArchive` **1 von 5** zurück, `PharData` ebenfalls 1 von
+5 (es lässt leere Verzeichnisse ganz fallen), und `tar(1)` von aussen **5 von
+5**. `tar` steht nicht auf der Positivliste des Runners.
+
+> **Ein Archiv, das den Eigentümer nicht trägt, ist keine Sicherung eines
+> Abonnements — es ist eine Sicherung seiner Dateinamen.**
+
+Ein Verzeichnis je Datei passt nicht durch die Leitung zum Agenten: Bei rund
+**14 000** Einträgen ist `Connection::CONTENT_MAX` erreicht, während
+`Packer::MAX_ENTRIES` **20 000** zulässt. Das Archiv nimmt mehr, als die Leitung
+beschreiben kann — derselbe Fehler wie bei `FilesRead::MAX_BYTES` gegen
+`REQUEST_MAX`, eine Stufe weiter draussen.
+
+Ein wiederhergestelltes Abonnement bekommt einen **neuen** Systembenutzer und
+ein **neues** Datenbankpräfix, und `Names::belongsTo()` weist die alten
+Datenbanknamen ab (gemessen in beide Richtungen). `SystemUser` hat fünf
+Zugriffsstellen in `app/`, und keine fragt nach `subscription`.
+
+> **Eine Wiederherstellung kann die Datenbanken des Kunden nicht unter ihren
+> alten Namen zurückbringen — und die Konfigurationsdatei seines Auftritts, die
+> sie beim Namen nennt, liegt als Kundendatei in derselben Sicherung.**
+
+Und eine wörtlich zurückgespielte Vhost-Datei aus einer älteren Fassung meldet
+der Nachtlauf als `directive_lost` — gemessen an der echten Vorlage und am
+echten Leser, mit der unveränderten Datei als Gegenprobe.
+
+**Eine Begründung im Quelltext war falsch.** `FilesCompress` sagte seit P6,
+`phar.readonly` erlaube `PharData` nur das Lesen. Gemessen mit `Phar` als
+Gegenprobe sperrt `phar.readonly` **`Phar`** und nicht `PharData`. Die
+Entscheidung — Zip statt Tar — trägt trotzdem, und der Kommentar sagt jetzt,
+warum.
+
+> **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch dann
+> falsch, wenn der Handgriff daneben richtig ist — und er hält länger als der
+> Handgriff, weil ihn der Nächste liest und glaubt.**
+
+**Zwei Zeilen in `docs/115` sind berichtigt.** `/var/www/vhosts/<…>` hängt am
+Abonnementnamen und nicht am Systembenutzer; am Benutzer hängen das Eigentum und
+`/etc/cron.d/srvpanel-<benutzer>`. Und die Frage „Beschreibung oder erzeugte
+Datei" hat eine dritte Antwort: Das Schlüsselmaterial eines hochgeladenen
+Zertifikats und die Datenbankpasswörter stehen in keiner von beiden.
+
+**Der erste Anlauf einer Messung war keine.** M3 benutzte `ob_start()` ohne
+Stückgrösse, sammelte die Antwort im Speicher und starb bei 1 GiB an
+`Allowed memory size exhausted` — ein Befund am Prüfstand, der sich wie einer am
+Prüfling las.
+
+> **Ein Prüfkörper, der seinen Gegenstand beim Messen verändert, meldet den
+> Unterschied als Fehler des Gemessenen.**
+
+### Der Plan von P8 steht — und das Abnahmekriterium der Stufe ist neu gefasst
+
+`docs/117`, geschrieben nach der Messrunde und nach den drei Entscheidungen des
+Betreibers: Der Prüflauf **prüft und spielt nicht zurück** — jede
+Wiederherstellung verbrennt sonst eine Systembenutzernummer, und ein nächtlicher
+Lauf jede Nacht eine. Eine Sicherung liegt **daneben und gehört `root`**, wie
+die Datenbank-Sicherungen seit P5; was sie von der Quota des Kunden fernhält,
+ist ihr Eigentümer und nicht ihr Ablageort. Und **nur der Betreiber richtet ein
+Fernziel ein** — der Kunde wählt eines aus und sieht nur dessen Namen.
+
+**Beim Ausschreiben sind drei Zeilen umgefallen.** Die erste ist das
+Abnahmekriterium aus `docs/20 §9` selbst: *„danach funktionieren Webseiten,
+Datenbanken, DNS und Cron"* ist nach der Messrunde keine Eigenschaft der
+Wiederherstellung, weil die Datenbanknamen wechseln und die Konfigurationsdatei
+des Kunden — eine Kundendatei in derselben Sicherung — die alten nennt. Neu
+gefasst hat es acht Punkte, zwei davon dürfen nicht ausfallen.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+Die zweite: Der Prüflauf aus `docs/20 §9` war als Rückspiellauf beschrieben und
+ist keiner mehr. Das bewegt eine Zeile in `docs/20 §9`, und es steht
+ausgeschrieben da, damit es nicht still geschieht. Die dritte: S3 und FTP kosten
+kein Programm auf der Positivliste — der Agent hat mit `Acme\Outbound` seit P4
+eine geprüfte Naht nach draussen, `ext-curl` ist Paketabhängigkeit und `ext-ftp`
+im Grundbestand. SFTP kostet `ext-ssh2` oder ein Programm und ist deshalb
+vertagt.
+
+**Die Positivliste des Runners wächst in P8 um kein Programm**, und der Grund
+ist gemessen: Der Eigentümer, den weder `ZipArchive` noch `PharData` trägt, wird
+beim Zurückspielen ohnehin neu gesetzt. Gebraucht werden Rechte und
+Verweisziele, und die trägt das Verzeichnis im Archiv.
+
+> **Ein Wert, der sich beim Zurückspielen sowieso ändert, gehört nicht in die
+> Sicherung — er gehört neu gerechnet.**
+
+**Eine Frage bleibt offen, und sie ist die einzige, die der Plan nicht selbst
+trifft** (`docs/117 §3`): ob eine Wiederherstellung ihre eigene Reservierung in
+`system_users` zurückholen darf, wenn Nummer, Abonnementname und das fehlende
+Unix-Konto zusammenpassen. Sie berührt die Regel, die `docs/35` ausdrücklich
+zugemacht hat. Vorgeschlagen ist sie mit drei Bedingungen und mit der neuen
+Nummer als Rückfall; entschieden ist sie nicht.
+
+**Und ein Befund ausserhalb von P8 fiel beim Planen heraus:** Drei Dateien des
+Agenten benutzen `ZipArchive`, und weder `packaging/nfpm.yaml` noch
+`composer.json` nennen `ext-zip`. Ob `php8.4-zip` auf dem Zielserver liegt, ist
+nicht gemessen; der Griff steht in `docs/117 §9`.
+
+> **Eine Erweiterung, die der Code benutzt und die Paketierung nicht nennt, ist
+> auf jedem Server vorhanden, auf dem sie zufällig jemand anderes mitgebracht
+> hat.**
+
+### Vier Panels, vier Wege — und die Empfehlung in §3 dreht sich um
+
+`docs/117 §3` hatte die offene Frage der Stufe mit **Form B** beantwortet: Eine
+Wiederherstellung dürfe ihre eigene Reservierung in `system_users` zurückholen,
+wenn Nummer, Abonnementname und das fehlende Unix-Konto zusammenpassen. Die
+Recherche am 16. September dreht das um.
+
+**HestiaCP liess sich am Quelltext messen**, und `bin/v-restore-user` fährt
+genau Form A: Es liest die alte UID aus dem `pam`-Behälter der Sicherung, die
+neue aus `/etc/passwd`, schreibt bei Abweichung das Eigentum jeder Datei um
+(`find … -user $old_uid -exec chown -h $user:$user`), streift das alte Präfix
+vom Datenbanknamen und setzt das neue davor. Die Konfigurationen werden dabei
+**neu gebaut** und nicht zurückgespielt.
+
+**Plesk kann den alten Namen zurückgeben — aber nicht wegen des besseren
+Rückwegs.** Sein Datenbankpräfix ist einstellbar statt zwingend, und sein
+Systembenutzer lässt sich nachträglich umbenennen. Ist der Name belegt, erfindet
+es einen (`sub_…`), warnt und verweist auf die Umbenennung.
+
+> **Ein Panel, das einen Namen zurückgeben kann, hat dafür nicht den besseren
+> Rückweg — es hat die schwächere Bindung.**
+
+Hier ist beides fest: Das Präfix ist zwingend, und `Names::belongsTo()` setzt es
+im Agenten durch. Form B brächte damit einen zweiten Weg an `system_users` und
+eine Ausnahme von der Regel aus `docs/35` — für genau eine Ersparnis, nämlich
+dass der Kunde seine `wp-config.php` nicht anfassen muss.
+
+> **Eine Ausnahme von einer Regel, die eine frühere Stufe ausdrücklich
+> geschlossen hat, muss mehr einbringen als eine Bequemlichkeit.**
+
+**Und der Fund, der nicht in der Frage stand: Kein Panel sagt dem Kunden, dass
+seine Datenbank jetzt anders heisst.** HestiaCP warnt an derselben Stelle über
+ein fehlendes Passwort und über den Namenswechsel nicht. Damit ist §8 Punkt 6
+kein Komfort, sondern die Stelle, an der sich etwas verbessern lässt — und
+bleibt Ausschlusskriterium.
+
+**Die beiden anderen Entscheidungen des Betreibers bestätigt die Recherche.**
+„Prüfen statt zurückspielen" ist das, was JetBackup als *Integrity Check* führt;
+„daneben und root" vermeidet den Dauerbefund von cPanel, dessen benutzerseitige
+Vollsicherung im Heimatverzeichnis gegen die Quota zählt.
+
+**Was cPanel mehr kann als §5**, und es steht als Vorschlag für später da: Es
+trennt serverweite Ziele des Betreibers von einem **einmaligen** Stoss des
+Kunden, bei dem dessen Zugangsdaten nur für die Dauer der Übertragung leben.
+
+> **Ein Geheimnis, das nur so lange lebt wie die Übertragung, ist kein
+> verwahrtes Geheimnis — und die Frage, wer es verwahren darf, stellt sich dann
+> nicht.**
+
+**Was die Recherche nicht sagt:** Für Plesk, cPanel und DirectAdmin steht hier
+Wissen aus zweiter Hand — der Egress-Proxy lässt ihre Dokumentation nicht durch.
+Gemessen ist allein HestiaCP, und die Tabelle in `docs/117 §3` sagt das je
+Zeile.
+
+## Der Panelvergleich, am Quelltext nachgemessen — und eine eigene Zahl korrigiert
+
+Der Betreiber hat die Herstellerdoku freigegeben und um eine zweite Recherche
+gebeten. **Gemessen ist die Sperre unverändert: elf von elf mit `403` am
+CONNECT.** Was daraus folgt, steht in `CLAUDE.md` — und was daraus *nicht*
+folgt, auch: Ein unveränderter Messwert trennt „noch nicht wirksam" nicht von
+„nicht geschehen".
+
+**Statt die Doku zu wiederholen, ist der Vergleich am Quelltext gewachsen.**
+Virtualmin war einer der gesperrten Hersteller und ist quelloffen; mit
+CyberPanel sind es jetzt **drei gemessene Panels** gegen drei aus zweiter Hand.
+
+> **Ein Panel, dessen Quelltext man lesen kann, muss man nicht nachlesen.**
+
+**Virtualmin trennt, was HestiaCP zusammen wegwirft.** `$reuid = 1`,
+`$reuser = 0`: Die Nummer wird neu vergeben, der Name bleibt, und er wechselt
+nur, wenn man es verlangt *und* es eine echte Kollision gibt. Das Präfix — und
+damit der Datenbankname — wird beim Zurückspielen nie angefasst: `prefix` kommt
+in den 7920 Zeilen von `backups-lib.pl` sechsmal vor, und keiner der sechs
+Treffer ist das Präfix einer Domain. *(Gegenprobe: `'user'}` steht dort 27-mal.)*
+
+> **Wer nur fragt, ob ein Name jetzt frei ist, kann ihn zurückgeben. Wer
+> festhält, dass er einmal vergeben war, kann es nicht — und beide Antworten
+> sind richtig, weil es zwei verschiedene Fragen sind.**
+
+Damit steht die Empfehlung für Form A auf vier Panels statt auf einem: Alle
+vier, die den Namen zurückgeben können, haben dafür keinen besseren Rückweg,
+sondern gar keinen Bestand an vergebenen Namen. `system_users` führt genau
+dieses Buch, seit `docs/35`.
+
+**Ein Satz dieses Vergleichs war falsch und ist berichtigt.** Er lautete „kein
+Panel sagt dem Kunden, dass seine Datenbank jetzt anders heisst" und las sich
+wie ein gemeinsames Versäumnis von vieren. Gemessen benennt **genau eines** die
+Datenbank überhaupt um; die anderen haben nichts zu sagen, weil sich nichts
+geändert hat.
+
+> **Ein Versäumnis, das man fünf Unbeteiligten mit zuschreibt, sieht aus wie
+> ein unvermeidlicher Zustand.**
+
+§8 Punkt 6 bleibt Ausschlusskriterium — und zwar mit einer schärferen
+Begründung: Für SrvPanels Lage gibt es kein Vorbild, das man abschreiben
+könnte.
+
+**Und zwei Befunde am Prüfmittel.** `froxlor/Froxlor` wurde geklont und
+durchsucht: null Treffer auf `backup`. Daraus wäre „Froxlor liefert gar keine
+Sicherung aus" geworden — der Baum enthält aber nur `artisan`, `config` und
+`public`, die Logik wohnt in `froxlor/framework`. Gemessen war ein leeres
+Gehäuse, und Froxlor steht deshalb als Nichtmessung da und nicht als Zeile in
+der Tabelle.
+
+> **Ein leerer Griff in die falsche Datei sieht aus wie ein Befund.**
+
+Der zweite ist eine Zahl in `CLAUDE.md`: Über einer Liste mit elf Hosts stand
+„zwölf von zwölf" — der Gegenprobe-Host war in die Summe gerutscht.
+
+> **Eine Zahl neben einer Aufzählung wird nicht dadurch richtig, dass die
+> Aufzählung stimmt — sie ist die einzige Stelle, an der niemand nachzählt.**
+
+## Der Panelvergleich ist geschlossen — und die drei gesperrten Dokus fehlen nicht
+
+Die Frage, die `docs/117 §3` entscheidet, lautet nicht „gibt das Panel den Namen
+zurück", sondern „führt es Buch darüber, welcher Name einmal vergeben war". Das
+ist interne Buchführung und keine Zusage an den Benutzer.
+
+> **Eine Doku beschreibt, was ein Panel anbietet — nicht, welches Buch es
+> führt.**
+
+Die drei gemessenen Panels haben die Frage nur deshalb beantwortet, weil ihr
+Quelltext lesbar ist — und sie decken beide Richtungen ab: HestiaCP wirft Name,
+Nummer und Präfix weg, Virtualmin und CyberPanel behalten alles, weil bei ihnen
+nie etwas verbraucht wurde. Ein vierter Datenpunkt für eine der beiden
+Richtungen verschiebt nichts.
+
+Was Plesk, cPanel und DirectAdmin noch trügen, ist entschieden (JetBackups
+*Integrity Check* stützt Entscheidung 1) oder steht in `docs/117 §10` als
+Vorschlag für später. Die drei Zeilen der Tabelle bleiben deshalb als Wissen aus
+zweiter Hand stehen — eine benannte Grenze und kein Mangel.
+
+## P8 Schritt 1 und 2 — die Ablage und das Verzeichnis einer Sicherung
+
+**Form A ist entschieden** (`docs/117 §3`, 16. September 2026): Eine
+Wiederherstellung holt keine Reservierung zurück, sondern nimmt die nächste
+freie Nummer. `docs/35` bleibt damit unberührt, und §8 Punkt 6 — die Seite sagt,
+was sich geändert hat — ist genau deshalb ein Ausschlusskriterium.
+
+`Backup\Store` ist die Ablage, `Backup\Manifest` das Verzeichnis. Was ein Zip
+nicht tragen kann, trägt das Verzeichnis: **Rechte und Verweisziele**, je
+Eintrag. Den Eigentümer trägt es ausdrücklich nicht — er ändert sich bei Form A
+ohnehin und wird aus dem neuen Systembenutzer gesetzt statt aus dem Archiv
+gelesen.
+
+**Die Rechteregel steht nicht zweimal da.** `DumpAccessTest` hielt sie seit P5
+für die Dumps und rechnet sie, statt sie abzuschreiben; seit P8 läuft er über
+**beide** Ablagen. Eine zweite Fassung wäre die, die veraltet. Sein Name ist
+damit enger als sein Gegenstand — das steht in seinem Kopf statt einer
+Umbenennung, die in `waechter-brechen.sh` und zwei Dokumenten tote Einträge
+hinterliesse.
+
+**Ein deutscher Pfad wäre der erste dieses Servers gewesen.** Der Plan schrieb
+`/var/lib/srvpanel/sicherungen`; ausgezählt sind **23 von 23** Pfaden unter
+`/var/lib/srvpanel` und `/etc/srvpanel` englisch. Ein Pfad ist ein Bezeichner
+(`docs/19 §4a`), und es heisst jetzt `backups`.
+
+> **Eine Regel, die für Klassennamen offensichtlich gilt, gilt für einen Pfad
+> genauso — nur prüft sie dort kein Wächter.**
+
+**Die Rechte reisen als Oktalwort und nicht als Zahl.** `"0644"` und nicht
+`420`: Ein Verzeichnis ist die Datei, die ein Mensch aufmacht, wenn etwas
+schiefgegangen ist — und wer `420` in ein `chmod` tippt, setzt `0420`. Die
+Umrechnung steht an einer Stelle, und `BackupStoreTest` misst den Rundlauf.
+
+**Drei Wächter haben beim Bauen zugebissen, und keiner in der CI.** PHPStan
+fand `AgentException::denied()` mit zwei Argumenten, wo es eines nimmt.
+`SandboxReachTest` verlangte, dass ein neuer Aufrufer von
+`Filesystem::removeTree()` benannt wird — als root über einen Baum zu laufen,
+in den ein Kunde schreibt, hat in 5 von 120 Durchgängen Dateien ausserhalb des
+Abonnements gelöscht. Und `GuardReachTest` fand einen Kommentar, der einen
+Wächter nannte, den es noch nicht gibt.
+
+> **Ein Kommentar, der einen Wächter nennt, ist ein Versprechen, solange es ihn
+> nicht gibt.** Er gehört an den Packer und entsteht mit ihm — dort lässt sich
+> an der Wirkung halten, dass das Verzeichnis die Leitung nicht nimmt.
+
+### P8 Schritt 3 und 4 — der Packer, das Verzeichnis und `backup.create`
+
+`Backup\Packer` läuft den Baum eines Abonnements ab, `Backup\Unpacker` stellt
+ihn wieder her, und `backup.create` legt beides zusammen mit den schon erzeugten
+Datenbankdumps in ein Archiv. `backup.remove` ist mitgebaut, weil
+`RemovalPathTest` zu jeder anlegenden Operation ihren Rückweg verlangt.
+
+**`ZipArchive` trägt gar keinen Modus, und die erste Messung war zu schmal.**
+`docs/116` M1b sagte, Verzeichnisse kämen als `0777` zurück. Nachgemessen wendet
+`extractTo()` `0777` beziehungsweise `0666` gegen die **umask** an und benutzt
+den Modus im Archiv überhaupt nicht. Die `0777` waren die umask des Prüfstands.
+`srvpanel-agentd.service` setzt kein `UMask=`, dort gilt `0022` — ein privater
+Schlüssel mit `0600` käme ohne das Verzeichnis als `0644` zurück.
+
+> **Ein gemessener Wert, dessen Bedingung niemand mitgeschrieben hat, ist auf
+> der nächsten Maschine eine Vermutung.**
+
+**`addFromString()` überschreibt einen vorhandenen Eintrag wortlos** — gemessen:
+ein Eintrag statt zwei, `close()` gibt `true`, und beim Auspacken liegt unsere
+Fassung da. Eine Datei `.srvpanel-manifest.json` im Wurzelverzeichnis eines
+Kunden wäre aus seiner eigenen Sicherung verschwunden. Der Packer weist die
+Namen, die die Sicherung selbst belegt, jetzt **beim Packen** ab — laut und mit
+dem Pfad in der Meldung.
+
+> **Ein Schreiber, der einen vorhandenen Eintrag ersetzt und Erfolg meldet,
+> verliert Daten mit einem Rückgabewert, der wie ein Beleg aussieht.**
+
+**`SplFileInfo::getPerms()` ist an einem Verweis zweimal falsch:** an einem
+heilen gibt es den Modus des **Ziels**, an einem toten wirft es. Ein Kunde mit
+einem kaputten Symlink hätte jede Sicherung zum Absturz gebracht.
+
+**Der Wächter hat die Schrittgrenze verschoben.** `AgentOperationReachTest` ist
+rot geworden, sobald die Operationen registriert waren — *„Code, der als root
+läuft und zu dem es keinen Weg gibt, ist Angriffsfläche ohne Nutzen."* Gebaut
+ist deshalb mit ihnen zusammen die Grundlage der Seite: `backups`-Tabelle,
+`Backup`, `BackupStatus`, `BackupLifecycle` und `Backups` als Aufrufer.
+
+> **Eine Operation des Agenten und ihr Aufrufer sind eine Arbeitseinheit und
+> nicht zwei.**
+
+**`BackupSeamTest` hat beim ersten Lauf zwei Fehler in frischem Code
+gefunden.** Ein Abonnementname darf einen **Punkt** tragen, ein Ablagename
+nicht — genau ein Zeichen Unterschied zwischen zwei Prüfungen, die fast
+dasselbe erlauben. Und der Name endete auf der Sekunde: Zwei Sicherungen
+desselben Abonnements in derselben Sekunde bekamen denselben Namen, und wer
+zweimal klickt, bekam einen 500er. `Dumps::record()` löst genau das seit P5 mit
+acht Hexziffern und schreibt den Grund daneben.
+
+> **Ein Fehler, den man an einer Stelle vermieden hat, ist an der nächsten
+> wieder da, wenn die Vermeidung nicht die Regel wurde.**
+
+**`BackupEntryLimitTest` misst mit zwei Messmitteln, und das ist sein Kern.**
+Seine erste Fassung rechnete beide Fragen aus der JSON-Grösse mal einem Faktor
+und meldete 142 MiB für einen Zustand, der gemessen 122 verbraucht. Gemessen mit
+je einem Prozess je Fall hängt die Spitze **nicht** an der Länge der Pfade:
+125 B und 171 B je Eintrag als JSON, beide **122 MiB** — was den Speicher füllt,
+ist das Feld aus 100 000 kleinen Feldern.
+
+> **Zwei Grössen, die man zusammen misst, sehen verbunden aus — und welche von
+> beiden die Zahl treibt, sagt erst der Prüfkörper, der nur eine von ihnen
+> ändert.**
+
+Und ein Eingriff dazu hat nichts gemessen: Ein Feldliteral aus lauter
+Konstanten legt PHP **einmal unveränderlich** ab, also kostete „ein Feld mehr je
+Eintrag" null Bytes. Mit Werten je Eintrag beisst er.
+
+### P8 Schritt 5 — die Seite der Sicherungen
+
+`/backups` steht als eigener Menüpunkt im Kundenmenü und beantwortet „welches
+Abonnement" selbst — bei genau einem führt die Adresse hinein, bei mehreren zur
+Auswahl. Dazu `BackupController` mit Anlegen, Herunterladen (über
+`response()->download()`, das gemessen strömt) und Entfernen, und
+`OperationSubject::Backup`, damit ein Vorgang zu seiner Sicherung zurückführt.
+
+**Das ist das vierte Merkmal mit derselben Frage**, und die Antwort stand schon
+im Quelltext: `/files`, `/sftp` und `/cron` liegen alle so. Jedes lag vorher
+drei Klicks tief, jedes hat der Betreiber gemeldet.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+**`Permission::Backups` gab es seit P0, und keine Policy hat es je gefragt.**
+Ein Plan konnte „Sicherungen" freigeben oder verweigern, ein Konto das Recht
+bekommen oder nicht, und es bedeutete nichts.
+
+> **Ein Recht, das keine Policy fragt, ist von aussen nicht von einem zu
+> unterscheiden, das es nicht gibt.** Ein Recht, das nichts durchsetzt, sieht
+> aus wie Sicherheit.
+
+`PermissionReachTest` hält das seitdem — und hat beim Bauen gleich einen zweiten
+Fall gefunden, den niemand gesucht hat: `Permission::Statistics`, ohne Policy,
+ohne Plan-Feature, ohne Oberfläche. `BackupSecretTest` hält die andere Richtung:
+Die Beschreibung einer Sicherung reist als `payload` an den Agenten, und
+`Operations/Show.vue` rendert `payload` als JSON — jeder erlaubte Schlüssel
+steht deshalb in einer Positivliste, kein Ausdruck über verdächtige Wörter.
+
+**Die Bilderrunde hat drei Fehler gefunden, und keinen davon eine Zahl.** Die
+Knöpfe lagen bei 1440 px ausserhalb des Sichtbaren, obwohl `dokument = 0` und
+der Roller erlaubt war; unter dem Namen stand bei zwei Zeilen ein nackter
+Gedankenstrich; und die Tabelle „Was nicht mitgesichert wird" schnitt ihre
+Gründe bei 390 px ab.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+**Der Deckel für eine Begründung in einer Tabellenzeile steht jetzt in
+`app.css`, und er behebt auch die Dump-Tabelle aus P5** (gemessen 217 px
+Überlauf, dieselbe Meldung). Zwei Anläufe lagen daneben: Als `inline-block`
+steht die Meldung neben der Zustandsmarke und der Überlauf wurde **grösser** als
+ohne Regel; `display: block` allein änderte gar nichts.
+
+> **Zwei Angaben, von denen jede allein nichts tut, sind keine Verzierung — sie
+> sind eine Regel, die man nicht halbieren kann.**
+
+**Und die erste Messrunde hat die falsche Seite gemessen** — nach der Anmeldung
+stand `/settings/two-factor`, und `dokument: 0` mit Gegenprobe 200/200 sah aus
+wie ein Ergebnis. Gefangen hat es die Klassenprobe neben der Messung: eine
+Tabelle statt zweier.
+
+> **Ein Ladebeleg gehört in die Messung und nicht in die Erinnerung.**
+
+### P8 Schritt 6 — `backup.verify`, und eine Prüfung, die nichts anlegt
+
+Entscheidung 1 des Betreibers: Der Prüflauf prüft Archiv und Verzeichnis auf
+Lesbarkeit und Vollständigkeit und spielt **nichts** zurück. `mutating()` gibt
+`false`, die Operation schreibt keine Datei und ruft kein Programm.
+
+Sie läuft **nächtlich in einer eigenen Unit** — `srvpanel-backup-verify.timer`
+und `srvpanel:backup-verify` —, und zwar neben der Bestandsdiagnose und nicht in
+ihr. Der Bestandslauf kostet gemessen 391 ms; eine Prüfung, die jedes Archiv des
+Servers von der Platte liest, gehört nicht hinein. Die **Befunde** liegen
+trotzdem in derselben Liste: Wer sie liest, fragt „was ist auf diesem Server
+nicht in Ordnung" und nicht „welcher Zeitgeber hat das gemessen".
+
+**Die Messrunde davor hat die naheliegende Bauform zweimal umgeworfen.** Jeden
+Eintrag zu lesen findet ein gekipptes Byte **nicht** — `getStream()` gibt die
+entpackten Bytes zurück, ohne die Prüfsumme anzusehen; `CHECKCONS` findet es
+ebenfalls nicht. Nur der Vergleich gegen die CRC im Verzeichnis des Archivs tut
+es.
+
+> **Eine Prüfung, die teurer ist, ist deshalb nicht gründlicher — und welche
+> Schäden sie findet, sagt erst der Prüfkörper, der sie herstellt.**
+
+Und sie **strömt**: 300 MiB in 248–257 ms bei 2 MiB Spitze, gegen 394–426 ms bei
+302 MiB, wenn der Eintrag ganz geladen wird. Der Agent trägt `MemoryMax=512M`;
+eine Kundendatei von 600 MB hätte den Vorgang wortlos getötet.
+
+**Der grösste Befund beim Bauen stand im ersten Wurf und hätte die Datenbanken
+ungeprüft gelassen.** Die Prüfung filterte über `Manifest::reserves()` — dieselbe
+Zeile, die Packer und Unpacker tragen und dort zu Recht, denn dort geht es um
+den Baum des Kunden. Hier geht es um den Inhalt des Archivs, und
+`.srvpanel-databases/shop.sql.gz` ist eine Datei wie jede andere. Eine Sicherung,
+der **jede** Datenbank fehlt, wäre als heil gemeldet worden.
+
+> **Dieselbe Frage an zwei Stellen hat nicht dieselbe Antwort, wenn die Stellen
+> verschiedene Gegenstände haben — und die übernommene Zeile sieht aus wie
+> Sorgfalt.**
+
+**Der zweite hätte die Diagnoseseite zum Lügen gebracht.** `SettingsRunLog`
+schrieb nach `Settings::DIAGNOSE`, also in den Wert, den die Seite als „Zuletzt
+gemessen" zeigt. Ein zweiter Nachtlauf darauf hätte die Angabe für die Hälfte
+der Befunde falsch gemacht.
+
+> **Zwei Läufe, die sich einen Zeitstempel teilen, sagen beide die Wahrheit über
+> den letzten von beiden und über keinen etwas Verlässliches.**
+
+Jeder Lauf hat jetzt seinen Schlüssel, `Settings::RUN_KEYS` ist eine
+Positivliste statt freiem Text, und die Seite nennt beide Zeitpunkte — wo die
+Sicherungen noch nie geprüft wurden, steht das ausgeschrieben da und nicht als
+Lücke.
+
+**Und eine Zusage war an der falschen Liste gemessen.** `DiagnoseRunTest` hielt
+„jeder Schlüssel hat genau einen Schreiber" über `Catalog::CHECKS`; mit dem
+zweiten Lauf war sie rot, obwohl nichts kaputt war. Die Regel ist eine über den
+Bestand der Befunde und nicht über einen Zeitgeber — gemessen wird jetzt
+`Catalog::every()`, dazu neu, dass die beiden Läufe überschneidungsfrei sind:
+`FindingLog::replace()` ersetzt alle Zeilen einer Prüfung, und die zweite
+löschte jede Nacht die Befunde der ersten.
+
+**Der Wächter ist `BackupVerifyTest`** und baut seine Archive Byte für Byte
+selbst, weil die Frage an libzip hängt und nicht an unserem Quelltext. Ein Fall
+darin ist die Gegenprobe zur Bauart: Derselbe Schaden, mit „jeden Eintrag lesen"
+gemessen, kommt ohne Fehler durch. Dazu `BackupDiagnoseTest` für die Naht ins
+Panel — die Mandantenklammer, die beiden übergangenen Zustände und ein Grund,
+den das Panel nicht kennt.
+
+**Drei bestehende Eingriffe des Bruchskripts hat das neue Kommando stumpf
+gemacht**: Sie lasen die `case`-Zeile des Wrappers bis zu ihrem Ende. Gemeldet
+hat es `BreakScriptTest`; behoben ist es nicht durch nachgetragene Literale,
+sondern durch kürzere Zielstellen.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand sie um zwei Leerzeichen verschiebt.**
+
+**Und zwei Wächter trugen eine Zahl des Tages.** `UnitCatalogTest` prüfte
+`assertCount(16, …)`, während beide Richtungen darüber die Gleichheit von
+Katalog und Paketierung schon hielten; die neue Unit hat sie rot gemacht, ohne
+dass etwas kaputt war. Sie sind jetzt Untergrenzen.
+
+**Was diese Prüfung nicht sagt**, steht in `docs/117 §14` und nicht als Zusage
+im Code: ob sich eine Sicherung zurückspielen lässt, und ob eine Datei im Archiv
+dasselbe enthält wie am Tag der Sicherung — geprüft wird gegen die Prüfsumme,
+die im Archiv steht.
+
+> **Eine Prüfsumme, die neben ihrem Gegenstand liegt, belegt die Übertragung und
+> nicht die Herkunft.**
+
+### P8 Schritt 7 und 8 — die Wiederherstellung, in Form A
+
+Aus einer Sicherung wird wieder ein Abonnement. `backup.restore` packt den Baum
+aus, setzt den Eigentümer, stellt das Verzeichnisschema wieder her und legt die
+Dumps dorthin, wo `db.dump.restore` sie erwartet; `RestoreLifecycle` **erzeugt**
+danach Datenbanken, Zugänge, Domains und Cronjobs aus der Beschreibung. Der Weg
+führt über `/backups/{backup}/restore` — an der **Sicherung** und nicht am
+Abonnement, denn der häufigste Fall ist der, für den es Sicherungen gibt: Das
+Abonnement ist fort.
+
+> **Ein Weg, den es nur gibt, solange man ihn nicht braucht, ist keiner.**
+
+**Form A** (`docs/117 §3`, vom Betreiber entschieden): Die Wiederherstellung
+nimmt die nächste freie Nummer und holt keine Reservierung zurück — `docs/35`
+bleibt unberührt. Was das kostet, steht **vor** dem Knopf und nicht danach: neuer
+Systembenutzer (der SFTP-Benutzername des Kunden), neues Präfix (die
+Datenbanknamen in seiner Konfigurationsdatei), neue Passwörter.
+
+**Der gefährlichste Fund kam vor der ersten Zeile.** Gemessen: `chown()` auf
+einen Verweis setzt den Eigentümer **des Ziels**, `lchown()` den des Verweises.
+`Unpacker` prüft Verweisziele mit Absicht nicht — ein `chown -R` nach dem
+Auspacken hätte daraus einen Weg nach draussen gemacht: ein Verweis auf
+`/etc/shadow` im Archiv, und die Datei gehörte danach dem Kunden.
+
+> **Ein Verweis, dessen Ziel man nicht prüft, ist harmlos, solange niemand ihm
+> folgt — und ein rekursiver Griff folgt ihm, ohne es zu sagen.**
+
+**Und die Vorbedingungszeile des eigenen Wächters hat den zweiten gefunden:**
+`chgrp($pfad, $user)` war eine Annahme über einen Namen — dass es zum Benutzer
+eine Gruppe gleichen Namens gibt —, und `@` davor hat den Fehlschlag
+verschluckt. Die Gruppe wäre `root` geblieben, über den ganzen Baum.
+
+> **Eine Annahme über einen Namen, die meistens stimmt, ist mit `@` davor nicht
+> mehr von einer zu unterscheiden, die immer stimmt.**
+
+Gefragt wird jetzt die primäre Gruppe des Benutzers, **einmal** aufgelöst statt je
+Eintrag, und ein misslungener Wechsel wird gesammelt und geworfen.
+
+**Drei Funde liegen in Code, der schon gebaut war.**
+
+`BackupCreate::addManifest()` schrieb die Dumpliste unter `databases` — denselben
+Schlüssel, unter dem die Beschreibung die **Struktur** der Datenbanken ablegt.
+Beschriftung, Zeichensatz und Sortierung waren damit in jeder geschriebenen
+Sicherung fort, und eine Wiederherstellung legte jede Datenbank mit der Vorgabe
+des Servers an.
+
+> **Ein geteilter Schlüssel, den eine Seite auch benutzt, ist auf genau dieser
+> Seite fort.** Zum dritten Mal nach `can` gegen `abilities` und `errors` auf
+> `/updates`.
+
+Die Beschreibung reichte ausserdem für eine **Subdomain** nicht: `Domains::create()`
+verlangt die Zeile, unter der sie hängt, und die Beschreibung trägt keine
+Kennungen. Sie nennt den Elternteil jetzt beim Namen, und die Wiederherstellung
+legt Haupt- und Addon-Domains zuerst an.
+
+Und der volle Bruchlauf hat einen Wächter aus Schritt 5 gemeldet, der nie
+beissen konnte: Die Kürzung des Ablagenamens auf 60 Zeichen war mit einer Zahl
+begründet, die niemand gezählt hatte — 63 plus 25 sind 88 und liegen unter den
+96, die der Agent zulässt.
+
+> **Eine Zahl in einer Erwartung, die man nicht gezählt hat, ist eine Vermutung
+> mit Anspruch.**
+
+Tragend ist die Kürzung trotzdem, und zwar dort, wo der Prüfer des Formulars
+nicht hinkommt: `subscriptions.name` ist ein `varchar(255)`, `max:63` gilt nur
+für den Weg über das Formular. Der Platz wird jetzt aus `Store::MAX_NAME`
+gerechnet, und der Prüfkörper misst an der Breite der Spalte.
+
+**Die neuen Datenbankpasswörter nennt die Wiederherstellung nicht**, und das ist
+eine Entscheidung: Sie entstehen im Hintergrund, und ein Passwort im
+Vorgangsergebnis stünde auf der Vorgangsseite. Die Zugänge stehen mit ihren
+Rechten und ihren Netzen wieder da, und das Ergebnis sagt, dass jeder eines neu
+braucht.
+
+**Wächter:** `BackupRestoreTest` misst den Eigentümerwechsel an einem echten Baum
+— mit der Gegenprobe, dass ein gewöhnliches `chown()` dem Verweis wirklich folgen
+würde —, `BackupFormTest` hält die drei Stellen, an denen die Beschreibung tragen
+muss. Fünf neue Eingriffe im Bruchskript, jeder einzeln belegt.
+
+**Was offen bleibt**, steht in `docs/117 §15` und nicht als Zusage im Code: Der
+ganze Weg ist nie auf einem Server gefahren, Punkt 5 des Abnahmekriteriums
+braucht nginx und einen Nachtlauf, und eine Wiederherstellung, die auf halbem Weg
+scheitert, räumt nicht auf — sie sagt in ihrem Ergebnis, was misslungen ist.
+
+### P8 Schritt 9 und 10 — Aufbewahrung, Zeitplan und der Griff davor
+
+Wie viele Sicherungen bleiben, steht als **Kontingent im Plan**
+(`Quota::Backups`) — je Plan gesetzt, je Abonnement übersteuerbar, wie die
+Domains und die Datenbanken. Unbegrenzt darf es nicht sein, und der Wächter hat
+den Grund erzwungen: Er ist rot geblieben, bis er danebenstand.
+
+> **Eine Aufbewahrung ohne Obergrenze ist keine Aufbewahrung, sondern ein
+> Wachstum.**
+
+`srvpanel-backups.timer` fährt nächtlich. Er **räumt immer ab** — die
+Aufbewahrungszahl gilt auch für Stände, die ein Kunde von Hand angelegt hat —
+und **legt nur an, wenn der Betreiber es eingeschaltet hat**: Ein Update, das
+für jedes Abonnement nächtliche Sicherungen anschaltet, füllt den Datenträger,
+ohne dass jemand gefragt hätte. Beide Schalter stehen auf `/settings/backups`.
+
+**Der grösste Fund liegt in Code aus Schritt 3+4.** `Backups::remove()` las
+`$backup->subscription` — eine faul geladene Beziehung, und die nimmt die
+Mandantenklammer. Aus dem nächtlichen Lauf, der kein angemeldetes Konto hat, kam
+immer `null`, und die Zeile ging den Zweig „ohne Umweg über den Agenten":
+gelöscht, und die **Datei** liegengeblieben. Jede Nacht eine mehr.
+
+> **Eine Frage, die im Grundzustand alles verweigert, antwortet mit einer leeren
+> Liste und nicht mit einem Fehler.**
+
+Der Kommentar daneben war ebenfalls falsch — er behauptete, ein zurückgebautes
+Abonnement habe sein Verzeichnis verloren. Der Kopf der Migration sagt das
+Gegenteil: `/var/lib/srvpanel/backups/<abo>` liegt ausserhalb von allem, was
+`subscription.remove` anfasst. Eine Sicherung ohne Abonnement geht seitdem
+trotzdem über den Agenten, mit dem abgeschriebenen Namen.
+
+**Der Zeitplan fragt das Alter und nicht den Kalender**, und das Fälligkeitsfenster
+ist 20 Stunden und nicht 24: Mit zwei Stunden Streuung liegen zwei Läufe zwischen
+22 und 26 Stunden auseinander, und bei 24 fiele jeder Lauf aus, den die Streuung
+nach vorn zieht — still.
+
+> **Ein Fälligkeitsfenster, das so gross ist wie der Takt, verliert jeden Lauf,
+> den die Streuung nach vorn zieht.**
+
+Der Wächter rechnet das **aus der Unit-Datei** nach.
+
+**Schritt 10 sichert vor dem Rückbau und sonst nirgends.** Die beiden anderen
+riskanten Handlungen aus `docs/20 §9` stehen mit ihrem Grund in `docs/117 §16`:
+Ein PHP-Wechsel ist durch einen zweiten zurückzunehmen, und eine
+Wiederherstellung legt in Form A ein neues Abonnement an und überschreibt nichts.
+
+> **Eine Vorsichtsmassnahme vor jedem Griff ist keine Vorsicht, sondern eine
+> Gewohnheit — und sie wird als Erstes abgeschaltet, wenn sie stört.**
+
+Sie fragt den Plan ausdrücklich **nicht**: `Feature::Backups` entscheidet, ob der
+Kunde sichern darf; hier sichert der Betreiber, bevor er etwas unwiederbringlich
+entfernt. Und sie trägt nur, weil die Zeile den Rückbau überlebt.
+
+**`BackupReachTest` hält, dass jede Art aus `docs/117 §4` einen Weg hat** — und
+benennt die beiden, die keinen haben: der private Schlüssel eines hochgeladenen
+Zertifikats (er gehört hinein, damit trüge eine Sicherung erstmals ein Geheimnis,
+gebaut ist es nicht) und die Datenbankpasswörter (die stehen nirgends). Er misst
+dazu, dass der Ablageort der Zertifikate **wirklich** ausserhalb des Kundenbaums
+liegt — sonst wäre die Ausnahme eine Zeile, die man auch dann noch läse, wenn der
+Schlüssel längst in jeder heruntergeladenen Sicherung stünde.
+
+**Und die Behebung davon war beim ersten Wurf eine zweite Fassung derselben
+Regel:** eine eigene anlegende Methode für den Fall ohne Abonnement, vier Zeilen
+unter der gemeinsamen. Aufgefallen ist es an dem Feld, das die beiden verschieden
+gefüllt haben — `account_id` setzte nur die neue, und dieselbe Handlung hätte auf
+`/audit` je nach Bestand des Abonnements einmal einen Namen und einmal „System"
+ergeben.
+
+> **Zwei Stellen, die dasselbe anlegen, unterscheiden sich zuerst an dem Feld, an
+> das beim Schreiben der zweiten niemand gedacht hat.**
+
+Es legt jetzt **eine** Stelle an, und der fehlende Name ist kein Rückfall,
+sondern ein Wurf.
+
+**Die Bilderrunde hat einen Fehler gefunden, für den es keine Zahl gibt.** Alle
+vier Lagen der Einstellungsseite meldeten `dokument = 0`, Gegenprobe 200/200,
+nichts schiebt — und bei 1440 px stand „Speichern" oben rechts neben einer
+Bereichsüberschrift statt unter dem Formular. Die Knopfreihe war ein direktes
+Kind von `.sections`, und nur `.form > .button-row` trägt `flex-basis: 100%`:
+Die Regel gilt nach dem Elternteil und nicht nach der Klasse.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+Dieselbe Regel stand seit P7 als Kommentar in `Settings/Tls.vue`, wo sie an
+einem fehlenden Abstand bezahlt worden war. `ButtonRowPlacementTest` hält sie
+jetzt, samt ihrer Voraussetzung.
+
+**Und sein Leser hat dabei einen Fehler freigelegt, den es seit P6 gibt.**
+`link` steht in der Liste der leeren HTML-Elemente, weil `<link>` kein Ende hat
+— Inertias `<Link>` ist eine Komponente mit Inhalt und Ende, und der Leser
+wandelte den Namen um, bevor er fragte. Ab der ersten `<Link>` verschob sich sein
+Stapel um eins. Gemessen an der Bilanz: von 82 Vorlagen endeten **23** ungleich
+null, mit der Berichtigung keine einzige. `TemplateSpacingTest` trägt denselben
+Leser und war die ganze Zeit grün.
+
+> **Eine Liste leerer HTML-Elemente trifft eine Komponente, die zufällig so
+> heisst — und Vue unterscheidet die beiden allein an der Grossschreibung.**
+
+Die Prüfung, die das sofort gemeldet hätte, steht jetzt daneben: Jede Vorlage
+muss mit einem leeren Stapel enden.
+
+Zwölf neue Eingriffe im Bruchskript, jeder einzeln belegt.
+
+**Und drei bestehende Wächter haben am Schluss zugebissen**, alle an der neuen
+Einstellungsseite: ein `back()` statt eines benannten Ziels, zwei Felder ohne
+deutschen Namen — und dann `AttributeLabelTest`, der den frisch eingetragenen
+Namen gegen die **sichtbare** Beschriftung gehalten hat. Neben den Kästchen steht
+ein ganzer Satz („Jede Nacht eine Sicherung je Abonnement anlegen"); eingesetzt
+ergäbe er einen Satz in einem Satz. Genommen ist die **Überschrift des
+Bereichs** — sie steht sichtbar darüber und ist ein Name.
+
+> **Ein Wächter über die Vollständigkeit sagt nichts über die Richtigkeit.**
+
+Entschieden hat das nicht das Nachdenken, sondern der Wächter: Seine Meldung
+nennt beide Ausgänge, und seine Ausnahmeliste trug denselben Fall schon dreimal.
+
+### `php8.4-zip` fehlte in der Paketierung — seit P6, und seit P8 trägt es eine Stufe
+
+**Acht Dateien benutzen `ZipArchive`, und `depends:` nannte `zip` nicht.**
+Gemessen am 16. September 2026: `zip.so` kommt aus einem **eigenen** Paket,
+während `posix` und `sockets` in `php8.4-common` liegen und `pcntl` und
+`openssl` eingebaut sind. Von sieben benutzten Erweiterungen war das die
+einzige, die ohne eigene Zeile fehlen kann.
+
+> **Eine Erweiterung, die der Code benutzt und die Paketierung nicht nennt, ist
+> auf jedem Server vorhanden, auf dem sie zufällig jemand anderes mitgebracht
+> hat.**
+
+Seit P6 war das ein Merkmal (`files.compress`), seit P8 ist es eine Stufe — und
+**eine der acht Dateien läuft unter php-fpm**: Das Panel liest das Verzeichnis
+einer Sicherung im Web-Request. `PackagedExtensionTest` hält es seitdem in beide
+Richtungen. `composer.json` nennt weiterhin keine Erweiterung, auch keine der
+schon paketierten; der Zielserver bekommt `vendor/` fertig im `.deb`, dort läuft
+nie ein `composer install`.
+
+**Drei Fehler beim Bauen dieses Wächters, und alle drei stehen schon in
+CLAUDE.md.**
+
+Der erste hat eine Datei gekostet: Der Wächter hiess im ersten Wurf
+`PhpExtensionTest`, und den gibt es seit dem 9. August über etwas ganz anderes.
+Geschrieben mit `cat >`, also ohne hinzusehen. Gemeldet hat es
+`BreakScriptTest`, zurückgeholt `git checkout --`.
+
+> **Ein Name, den man für frei hält, ist nicht frei, solange niemand
+> nachgesehen hat.**
+
+Der zweite: Der Wächter fragte `str_contains($nfpm, 'php8.4-zip')` — und blieb
+grün, als der Eingriff die Zeile **auskommentierte**. Der Absatz darüber, der
+die Messung erklärt, schreibt den Paketnamen wörtlich hin.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht — und ein Kommentar, der die entfernte Zeile zitiert, stellt sie für ihn
+> wieder her.**
+
+Der dritte: Pint hat aus der `{@see}`-Marke im Dokumentblock zum dritten Mal
+einen echten Import gemacht.
+
+Dazu ein Handgriff, der beim Berichtigen des ersten Fehlers zwei bestehende
+Eingriffe mitgenommen hätte — ein `sed` über die ganze Datei. Gefunden hat es
+der Diff und kein Test.
+
+> **Ein `sed` über eine ganze Datei trifft jede Zeile, die zufällig so aussieht
+> — und der Diff ist die einzige Stelle, an der man es sieht.**
+
+### `Backups::removeAll()` ist fort — es hatte nie einen Aufrufer
+
+Die Methode stand seit P8 Schritt 3 da, und ihr Dokumentblock nannte den
+**Rückbau** als ihren Ort. Genau dort darf sie nicht laufen:
+`backups.subscription_id` steht auf `nullOnDelete`, weil die Sicherung ihr
+Abonnement überleben soll — und seit Schritt 10 legt der Rückbau **selbst** eine
+an, die sie als Erste träfe. Ein Griff, der sichert und die Sicherung im selben
+Zug löscht, ist schlimmer als keiner: Er sieht aus wie Vorsicht.
+
+> **Eine Methode, die niemand ruft, ist von aussen nicht von einer zu
+> unterscheiden, die es nicht gibt — und eine, deren einziger denkbarer Ort ihr
+> widerspricht, ist schlimmer als keine.**
+
+**Der Weg zurück bleibt im Agenten**, wo `docs/35` ihn verlangt: `backup.remove`
+ohne `storage` räumt das Verzeichnis eines Abonnements ab. Automatisch geht ihn
+niemand — was liegenbleibt, meldet die Bestandsdiagnose, statt es zu löschen.
+
+`BackupTeardownTest` hält beides an der **Wirkung**: die echte Route, danach der
+`forceDelete()`, mit dem `Lifecycle::withdraw()` endet.
+
+**Und sein erster Wurf mass vor der Wirkung.** Er sah unmittelbar nach der Route
+nach und fand das Abonnement noch vor — zu Recht, denn `destroy()` reiht nur
+ein.
+
+> **Ein Prüfkörper, der vor der Wirkung misst, misst den Klick und nicht den
+> Zustand.**
+
+Der erste Bruch dazu löschte *alle* Sicherungen und liess damit schon die
+Vorbedingung fallen; die eigentliche Behauptung kam nie an die Reihe.
+
+> **Ein Bruch, der die Vorbedingung mitnimmt, belegt die Regel nicht — er belegt,
+> dass der Prüfkörper seine Vorbedingung prüft.**
+
+### Der private Schlüssel eines hochgeladenen Zertifikats geht mit — und die Datei wird enger
+
+`docs/117 §4` verlangt ihn seit dem Plan: Ein **hochgeladenes** Zertifikat hat
+seinen privaten Schlüssel nirgends sonst, und ohne ihn ist es nach einer
+Wiederherstellung verloren. Ein ACME-Zertifikat wird neu bestellt; den Weg geht
+P4 ohnehin.
+
+Im Archiv liegt das Material unter `.srvpanel-certs`, einem **reservierten**
+Namen — damit überspringt der Unpacker es, und der Schlüssel landet nie im Baum
+des Kunden, wo der SFTP-Zugang ihn läse. Zurückgeschrieben wird über
+`Acme\Store::write()`, weil dort steht, dass die Kette `0644` trägt und der
+Schlüssel `0600`. Und die **Zeile** gehört dazu: Ohne sie zeigte nichts auf die
+Dateien, der Nachtlauf meldete `orphan.row / certificate`, und `srvpanel tls
+--prune` entfernte den Schlüssel unter einer Website, die ihn gerade
+zurückbekommen hat.
+
+> **Eine Datei ohne ihre Zeile ist ein Rest, auch wenn sie gerade erst
+> entstanden ist.**
+
+**Beim Bauen fiel auf, dass §4 eine Hälfte übersprungen hatte.** Er wägt den
+Schlüssel gegen das Dateisystem ab und gegen den Kunden. Wer den Knopf sonst
+noch drücken darf, stand dort nicht — und gemessen ist es **jeder
+Administrator**: `manageBackups` löst über `useFeature()` auf, und das gibt bei
+`isAdmin()` sofort durch; `isAdmin()` fragt den Typ und nicht die Rolle.
+
+> **Ein Ablageort, der ein Geheimnis vor dem Dateisystem schützt, sagt nichts
+> darüber, wer den Knopf drücken darf, der es herausgibt.**
+
+Das **Herunterladen** ist deshalb enger: `SubscriptionPolicy::downloadBackup()`
+lässt den Betreiber und den Kunden des Abonnements an die Datei, den
+Administrator nicht — dieselbe Grenze wie bei `/logs` seit A9. Liste, Anlegen
+und Entfernen bleiben, wo sie waren, und der Wächter misst das mit: Eine
+Verengung, die zu viel mitnimmt, sähe sonst aus wie die gewollte.
+
+Es ist die **erste** Policy dieses Panels, die nach der Rolle fragt. Die anderen
+Betreiberstellen sind Routen ohne Modell und tragen `can:operate-server`; hier
+geht das nicht, weil der Kunde durchkommen muss.
+
+**Drei bestehende Wächter haben dabei zugebissen** — `BackupSecretTest` an einem
+Abschnitt der Beschreibung, der entschieden werden will, `BackupReachTest` an der
+Ausnahme, die dadurch überholt war, und `BreakScriptTest` an einem Eingriff, dem
+die neue Zeile den Anker nahm.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand daneben eine Zeile einfügt.**
+
+**Und ein `git checkout --` hat den halben Tagesstand einer Datei weggeworfen**,
+um einen Eingriff zurückzunehmen. Der Satz steht seit dem A9-Lauf in CLAUDE.md:
+Gesichert wird mit `cp`. Gerettet hat es eine Kopie im Scratchpad, die eine halbe
+Stunde vorher für einen anderen Zweck entstanden war.
+
+> **Ein Rückweg, der nur zufällig da ist, ist keiner.**
+
+**Und ein verwaister Dokumentblock, zweimal in einer Stunde.** Eine neue Methode
+rutschte zwischen eine bestehende und deren Block; PHPStan meldete die Hälfte,
+die ein Werkzeug sehen kann. Die Behebung hat den Fehler verdoppelt — zwei
+Blöcke übereinander, und PHPStan war zufrieden, weil beide dastehen. Gemeldet
+hat es `DocblockAnchorTest`.
+
+> **Ein Werkzeug bemerkt den fehlenden Kommentar. Den falschen bemerkt es
+> nicht.**
+
+### Eine Sicherungsdatei ohne Zeile meldet sich jetzt
+
+`docs/117 §9` Punkt 7, seit Schritt 6 benannt offen: `Checks\Backups` geht von
+den **Zeilen** aus und findet deshalb nur, was das Panel kennt. Die
+Gegenrichtung — eine Datei unter `/var/lib/srvpanel/backups`, die in keiner Zeile
+steht — prüfte niemand. Sie entsteht, wenn ein `backup.remove` scheitert,
+nachdem die Zeile fort ist.
+
+> **Ein Wächter, der vom Bestand des Panels ausgeht, sieht nur, was das Panel
+> kennt — und ein Rest ist gerade das, was es nicht kennt.**
+
+Es braucht dafür eine Operation und kein `glob()`: Der Ablageort ist `0710
+root:srvpanel` — durchsuchbar für die Gruppe, **nicht auflistbar**. Das Panel
+kommt an eine Datei heran, deren Namen es kennt, und kann nicht nachsehen, welche
+es gibt. `backup.list` beantwortet das, ändert nichts und meldet **gemeldet statt
+gelöscht**, wie jeder andere Rest seit A10. Der Grund ist `warn` und nicht
+`fail`: Nichts ist kaputt, es ist Platz, den niemand zuordnet.
+
+**Zwei Dinge sind beim Bauen umgefallen.** Der frühe Ausstieg bei null Zeilen
+hätte genau diesen Zustand als Erstes übersprungen — null Zeilen und eine Datei
+auf der Platte ist der Fall.
+
+> **Ein Ausstieg, der aus dem Bestand des Panels folgt, überspringt gerade das,
+> was das Panel nicht kennt.**
+
+Und der Wächter mass die Regel, während er die **Menge** daneben nachbaute: Der
+Bruch, der einen Filter auf `ready` einsetzt, blieb grün.
+
+> **Ein Prüfkörper, der die Stelle nachbaut, an der der Fehler entstehen würde,
+> misst sie nicht.**
+
+Die Grösse der Datei steht bewusst **nicht** im Befundtext: Sie wäre die
+nützlichere Auskunft und kostete eine vierte Fassung von `formatBytes`. Der Pfad
+steht da, und `ls -l` liegt daneben.
+
+### §8 Punkt 8 ist gestrichen — S3 steht in P9b
+
+Das Abnahmekriterium von P8 verlangte, dass eine Sicherung auf einem S3-Ziel
+ankommt. **Kein einziger der zehn Bauschritte stellt eines her**; `docs/117 §5`
+führt S3 als Vorschlag. Ein Kriterium, das etwas misst, das kein Schritt baut,
+macht den Lauf unfahrbar — und weich gelesen wäre es keines mehr.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+Entschieden vom Betreiber: Der Punkt fällt, und S3 bekommt seinen Ort in **P9b**
+— neben A3s zweitem Wurf und A4, mit derselben Begründung, mit der SFTP und FTP
+schon vertagt sind. Es gehört zu einer Härtungsstufe, weil sein Kern die
+Zugangsdaten sind.
+
+**Und dabei fiel auf, dass zwei Zeilen in `docs/20 §9` seit dem 15. September
+auf ihre Verschiebung warteten.** `docs/117 §0` hat sie angekündigt — das
+unerfüllbare Abnahmekriterium und den Prüflauf, der nicht mehr zurückspielt —
+mit dem Satz „damit es nicht still geschieht". Geschehen ist es trotzdem nicht;
+gesehen hat es nur, wer denselben Abschnitt aus einem anderen Grund geöffnet hat.
+
+> **Eine Zeile, die eine Absicht festhält, ist keine Änderung — und beide sehen
+> im Bestand gleich aus.**
+
+### Eine Sicherung ohne Abonnement stand in keiner Liste
+
+**Gefunden beim Ausschreiben des Abnahmelaufs** — und das ist der Grund, aus dem
+er vor dem Fahren geschrieben wird. Das Kriterium löscht in Punkt 2 das
+Abonnement vollständig und spielt in Punkt 3 die Sicherung zurück; dazwischen war
+sie **unerreichbar**. Jede Liste dieses Panels führt über ein Abonnement, und
+übrig blieb eine Adresse, deren Kennung niemand kennt.
+
+> **Vor jedem neuen Merkmal: Wo sucht jemand diese Handlung, und steht sie
+> dort?**
+
+Das ist ausgerechnet der Fall, für den es die Stufe gibt: `backups.subscription_id`
+steht auf `nullOnDelete`, damit die Sicherung ihren Rückbau überlebt, und seit
+Schritt 10 legt der Rückbau selbst eine an.
+
+**Die Abkürzung der Seite machte es schlimmer**: Bei genau einem erreichbaren
+Abonnement sprang `/backups` weiter — auf einem Server mit einem Kunden bekam den
+Bereich also niemand zu sehen.
+
+> **Eine Weiterleitung, die den Sonderfall überspringt, macht ihn unerreichbar
+> und sieht dabei aus wie Bequemlichkeit.**
+
+`/backups` trägt jetzt den Bereich „Ohne Abonnement" — nur für den Betreiber, nur
+wenn es solche Sicherungen gibt. Der Wächter misst, **dass** es einen Weg gibt;
+ob jemand dort sucht, hängt an einer Erwartung und steht daneben als Frage.
+
+**Und der volle Bruchlauf hat zwei fremde Eingriffe gefunden, die stumpf
+geworden sind.** Sie brechen `PermissionReachTest`, indem sie
+`Permission::Backups` durch ein anderes Recht ersetzen — mit `, 1`, also nur an
+der ersten Stelle. Seit `downloadBackup()` daneben steht, fragt eine zweite
+Methode dasselbe Recht, und der Wächter blieb zu Recht grün.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand daneben eine zweite baut, die dieselbe Frage beantwortet.**
+
+Gefunden hat es **nur der volle Lauf** — einzeln biss jeder neu gebaute Eingriff
+dieser Runde. Beide treffen jetzt jeden Frager, mit einer Zusicherung daneben,
+dass sie überhaupt einen finden.
+
+**Und die CI hat drei Wächter dieser Runde rot gemeldet, die hier grün waren.**
+`BackupRestoreTest` und die eine Hälfte von `BackupFormTest` massen einen
+Eigentümerwechsel auf einen **anderen** Benutzer — das darf nur root. Dieser
+Container läuft als root, der Lauf in der CI als `runner`, und dort scheitert
+jedes `chown` auf `nobody`. Fünf Fälle waren hier grün und dort rot, und rot aus
+einem Grund, der mit ihrer Regel nichts zu tun hat.
+
+Im Kopf des Wächters stand die Grenze sogar — „Er läuft als root" —, und der Satz
+war für diesen Container wahr und für die CI falsch.
+
+> **Ein Wächter, der in einer Umgebung entsteht und nur dort gefahren wird, hält
+> seine Umgebung für die Regel.**
+
+Gefragt wird jetzt, was **jeder** Aufrufer fragen darf, und das ist dieselbe
+Unterscheidung an einem anderen Gegenstand. Gemessen am 16. September 2026, als
+root und als `nobody`, mit identischer Antwort:
+
+| Griff auf einen **hängenden** Verweis | root | nobody |
+|---|---|---|
+| `chown()` | `false` | `false` |
+| `lchown()` | `true` | `true` |
+
+`chown` löst den Verweis auf und scheitert an einem Ziel, das es nicht gibt;
+`lchown` fasst ihn selbst an und kommt durch. Die Reichweite misst daneben der
+**Zähler**: Was der Rundlauf nicht betreten hat, zählt er nicht — mit Gegenprobe,
+dass er sehr wohl zählt, was unter ihm liegt. Beide Fälle laufen damit überall,
+und beide Eingriffe beissen als root **und** als `nobody` (gemessen, in beide
+Richtungen).
+
+**Die Kennung selbst bleibt root-Sache**, und sie steht jetzt mit ihrem Grund
+daneben statt als stiller Fehlschlag. `BackupFormTest` ist dafür geteilt: Die
+Reihenfolge im Rumpf von `execute()` liest jeder, das Verzeichnisschema an einem
+echten Baum nur root.
+
+> **Zwei Zusagen mit verschiedenen Voraussetzungen in einem Fall teilen sich die
+> schwächere Umgebung — und die stärkere Hälfte fällt mit aus.**
+
+Was die CI damit nicht mehr sieht, holt der Abnahmelauf: `docs/118 §0.5` legt
+**vor** der Sicherung einen Verweis aus dem Baum hinaus auf eine Wegwerfdatei in
+`/root`, und Punkt 4 liest hinterher deren Eigentümer. Kein `/etc/shadow` —
+schlägt die Regel fehl, soll die Datei eine sein, an der nichts hängt.

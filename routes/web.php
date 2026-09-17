@@ -9,6 +9,8 @@ use App\Http\Controllers\AuditController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Auth\TwoFactorSetupController;
+use App\Http\Controllers\BackupController;
+use App\Http\Controllers\BackupSettingsController;
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DatabaseController;
@@ -984,6 +986,67 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:manageCron,subscription')
         ->name('cron.runs');
 
+    /*
+     * **Die Sicherungen** (P8 Schritt 5). `/backups` ohne Kennung, aus
+     * demselben Grund wie `/files`, `/sftp` und `/cron`: Das Merkmal hängt an
+     * *einem* Abonnement, und die Adresse beantwortet die Frage „welches" —
+     * bei genau einem führt sie hinein, bei mehreren zur Auswahl.
+     *
+     * Das ist das **vierte** Merkmal mit dieser Frage. Die ersten drei lagen
+     * jeweils drei Klicks tief, und jedes Mal hat es der Betreiber gemeldet.
+     *
+     * > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten
+     * > Merkmal wieder da, wenn die Behebung nicht die Regel wurde.**
+     */
+    Route::get('/backups', [BackupController::class, 'pick'])
+        ->name('backups.pick');
+
+    Route::get('/subscriptions/{subscription}/backups', [BackupController::class, 'show'])
+        ->middleware('can:manageBackups,subscription')
+        ->name('backups.show');
+
+    Route::post('/subscriptions/{subscription}/backups', [BackupController::class, 'store'])
+        ->middleware('can:manageBackups,subscription')
+        ->name('backups.store');
+
+    /*
+     * **Das Herunterladen ist eine eigene Route und kein Feld der Seite.** Eine
+     * Sicherung wird mehrere Gigabyte gross; sie durch den Inertia-Payload zu
+     * reichen wäre dieselbe Art Fehler wie das Verzeichnis über den Socket.
+     * `response()->download()` strömt (gemessen, `docs/116` M3).
+     */
+    Route::get('/subscriptions/{subscription}/backups/{backup}/download', [BackupController::class, 'download'])
+        ->middleware('can:downloadBackup,subscription')
+        ->name('backups.download');
+
+    Route::delete('/subscriptions/{subscription}/backups/{backup}', [BackupController::class, 'destroy'])
+        ->middleware('can:manageBackups,subscription')
+        ->name('backups.destroy');
+
+    /*
+     * **Die Wiederherstellung hängt an der Sicherung und nicht am Abonnement.**
+     *
+     * Der häufigste Fall ist der, für den es Sicherungen gibt: Das Abonnement
+     * ist fort. Eine Adresse mit `{subscription}` verlangte genau das, was
+     * fehlt — und wäre ausgerechnet dann nicht erreichbar, wenn man sie
+     * braucht.
+     *
+     * > **Ein Weg, den es nur gibt, solange man ihn nicht braucht, ist
+     * > keiner.**
+     *
+     * **`can:create,Subscription` und nicht `manageBackups`**: Eine
+     * Wiederherstellung legt ein Abonnement an, und das tut in diesem Panel nur
+     * der Betreiber. Sie braucht ausserdem Kunde und Plan — zwei Angaben, die
+     * in keiner Sicherung stehen und auch nicht hineingehören.
+     */
+    Route::get('/backups/{backup}/restore', [BackupController::class, 'restoreForm'])
+        ->middleware('can:create,'.Subscription::class)
+        ->name('backups.restore.form');
+
+    Route::post('/backups/{backup}/restore', [BackupController::class, 'restore'])
+        ->middleware('can:create,'.Subscription::class)
+        ->name('backups.restore');
+
     Route::get('/databases', [DatabaseController::class, 'index'])
         ->middleware('can:viewAny,'.Database::class)
         ->name('databases.index');
@@ -1192,6 +1255,21 @@ Route::middleware('auth')->group(function (): void {
     Route::put('/settings/general', [GeneralSettingsController::class, 'update'])
         ->middleware('can:manage-settings')
         ->name('settings.general.update');
+
+    /*
+     * **Was der Server von sich aus sichert** (P8 Schritt 9 und 10).
+     *
+     * `operate-server` wie bei PHP und den Datenbanken: Was den Datenträger
+     * füllt und was beim Rückbau geschieht, gehört dem Betreiber. **Wie viele
+     * Stände bleiben, steht nicht hier** — das ist ein Kontingent des Plans.
+     */
+    Route::get('/settings/backups', [BackupSettingsController::class, 'show'])
+        ->middleware('can:operate-server')
+        ->name('settings.backups');
+
+    Route::put('/settings/backups', [BackupSettingsController::class, 'update'])
+        ->middleware('can:operate-server')
+        ->name('settings.backups.update');
 
     Route::get('/settings/php', [PhpSettingsController::class, 'show'])
         ->middleware('can:operate-server')

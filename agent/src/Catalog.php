@@ -91,6 +91,10 @@ final class Catalog
         'srvpanel-dns.timer',
         'srvpanel-diagnose.service',
         'srvpanel-diagnose.timer',
+        'srvpanel-backup-verify.service',
+        'srvpanel-backup-verify.timer',
+        'srvpanel-backups.service',
+        'srvpanel-backups.timer',
     ];
 
     /**

@@ -79,6 +79,7 @@ final class AgentIndependenceTest extends TestCase
         'FilesystemIterator',
         'RecursiveDirectoryIterator',
         'RecursiveIteratorIterator',
+        'RecursiveCallbackFilterIterator',
         'ZipArchive',
         'PharData',
 

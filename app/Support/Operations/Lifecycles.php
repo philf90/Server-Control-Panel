@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Support\Operations;
 
 use App\Models\Operation;
+use App\Support\Backups\BackupLifecycle;
+use App\Support\Backups\RestoreLifecycle;
 use App\Support\Databases\DbLifecycle;
 use App\Support\Databases\DumpLifecycle;
 use App\Support\Databases\PgLifecycle;
@@ -53,6 +55,16 @@ final class Lifecycles
          * stehen in `DumpLifecycle::tasks()`.
          */
         DumpLifecycle::class,
+
+        /*
+         * **P8: die Sicherung eines ganzen Abonnements.** Sie steht neben und
+         * nicht in `DumpLifecycle` — dieselbe Begründung wie bei `PgLifecycle`:
+         * Der Gegenstand ist ein anderer. Ein Dump ist eine Datenbank, eine
+         * Sicherung ist ein Abonnement samt seinen Dumps, und die Antworten der
+         * beiden Operationen haben nicht dieselbe Form.
+         */
+        BackupLifecycle::class,
+        RestoreLifecycle::class,
     ];
 
     /**

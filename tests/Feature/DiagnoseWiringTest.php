@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Console\Commands\Diagnose;
+use App\Console\Commands\VerifyBackups;
+use App\Enums\FindingCheck;
+use App\Models\Finding;
 use App\Support\Diagnose\Catalog;
 use App\Support\Diagnose\Check;
 use App\Support\Diagnose\Run;
+use App\Support\Settings\Settings;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
@@ -51,17 +56,19 @@ use Tests\TestCase;
  */
 final class DiagnoseWiringTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_the_container_builds_every_check_of_the_catalogue(): void
     {
         // **Die Untergrenze zählt.** Ein leerer Katalog ergäbe eine Schleife
         // ohne Durchlauf und damit einen Wächter, der nichts gesehen hat.
         $this->assertGreaterThanOrEqual(
             6,
-            count(Catalog::CHECKS),
+            count(Catalog::every()),
             'Der Katalog nennt kaum Prüfungen — dann misst dieser Wächter nichts.',
         );
 
-        foreach (Catalog::CHECKS as $klasse) {
+        foreach (Catalog::every() as $klasse) {
             $gebaut = $this->app->make($klasse);
 
             $this->assertInstanceOf($klasse, $gebaut, sprintf(
@@ -87,6 +94,62 @@ final class DiagnoseWiringTest extends TestCase
     {
         $this->assertInstanceOf(Run::class, $this->app->make(Run::class));
         $this->assertInstanceOf(Diagnose::class, $this->app->make(Diagnose::class));
+        $this->assertInstanceOf(VerifyBackups::class, $this->app->make(VerifyBackups::class));
+    }
+
+    /**
+     * Und der **zweite** Lauf bekommt seine eigenen Prüfungen und seinen eigenen
+     * Zeitstempel.
+     *
+     * ## Warum das hier gemessen wird und nicht im Provider nachgelesen
+     *
+     * `Run` ist `final`, es gibt also keinen zweiten Typ, an den sich der
+     * Lauf der Sicherungen binden liesse; er hängt an einer **kontextuellen**
+     * Bindung. Dass die auch bei der Injektion in `handle()` greift und nicht
+     * nur im Konstruktor, ist eine Zusage des Frameworks — gemessen am
+     * 16. September 2026 gegen Laravel 13, und genau deshalb steht sie hier als
+     * Wächter und nicht als Kommentar.
+     *
+     * > **Ein Kommentar, der eine Zusage des Frameworks behauptet, ist keine
+     * > Prüfung — er ist eine Zeile, die aussieht wie eine.**
+     *
+     * ## Gemessen an der Wirkung, und mit der Gegenprobe im selben Lauf
+     *
+     * Griffe die Bindung nicht, bekäme das Kommando den Vorgabe-`Run`: Der
+     * schriebe die Schlüssel der Bestandsdiagnose und seinen Zeitstempel unter
+     * {@see Settings::DIAGNOSE}. Beide Fälle fallen damit auf —
+     * `backup.file` bliebe ungeschrieben **und** der falsche Schlüssel stünde
+     * da.
+     */
+    public function test_the_backup_run_writes_its_own_key_and_its_own_timestamp(): void
+    {
+        $settings = $this->app->make(Settings::class);
+
+        $this->assertNull($settings->diagnoseRunAt(Settings::DIAGNOSE_BACKUPS), 'Vorbedingung: noch kein Lauf.');
+        $this->assertNull($settings->diagnoseRunAt(Settings::DIAGNOSE), 'Vorbedingung: noch kein Bestandslauf.');
+
+        $this->artisan('srvpanel:backup-verify')->assertExitCode(0);
+
+        $this->assertNotNull(
+            $settings->diagnoseRunAt(Settings::DIAGNOSE_BACKUPS),
+            'Der Lauf der Sicherungen hat seinen Zeitpunkt nicht festgehalten.',
+        );
+
+        // **Die Gegenprobe, und sie trägt den Fall.** Ohne die kontextuelle
+        // Bindung stünde hier der Zeitpunkt der Bestandsdiagnose — für einen
+        // Lauf, der keine ihrer Prüfungen gefahren hat.
+        $this->assertNull(
+            $settings->diagnoseRunAt(Settings::DIAGNOSE),
+            'Der Lauf der Sicherungen hat den Zeitstempel der Bestandsdiagnose überschrieben.',
+        );
+
+        // Und er hat wirklich seine Prüfung gefahren: Ohne Sicherungen schreibt
+        // sie keine Zeile, aber auch keine Zeile einer anderen Prüfung.
+        $this->assertSame(
+            0,
+            Finding::query()->where('check', '!=', FindingCheck::BackupFile->value)->count(),
+            'Der Lauf der Sicherungen hat Befunde einer anderen Prüfung geschrieben.',
+        );
     }
 
     /**
@@ -102,7 +165,7 @@ final class DiagnoseWiringTest extends TestCase
     {
         $ungebunden = [];
 
-        foreach (Catalog::CHECKS as $klasse) {
+        foreach (Catalog::every() as $klasse) {
             $spiegel = new \ReflectionClass($klasse);
             $bauplan = $spiegel->getConstructor();
 

@@ -17596,9 +17596,12 @@ vorher_datei packaging/bin/srvpanel
 python3 - <<'PY2'
 p = 'packaging/bin/srvpanel'
 s = open(p, encoding='utf-8').read()
-alt = '|admin|access|version|diagnose)'
+# Die Zielstelle endet **vor** dem letzten Eintrag der Liste: Die frühere
+# Fassung las die `case`-Zeile bis `)`, und jedes neue Kommando nahm dem
+# Eingriff seinen Text weg, ohne dass er etwas gemeldet hätte.
+alt = '|admin|access|version|'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|version|diagnose)', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|version|', 1))
 PY2
 griff_datei packaging/bin/srvpanel "Wrapper ohne access" &&
 pruefe "Wrapper ohne access" \
@@ -17616,9 +17619,11 @@ vorher_datei packaging/bin/srvpanel
 python3 - <<'PY2'
 p = 'packaging/bin/srvpanel'
 s = open(p, encoding='utf-8').read()
-alt = '|admin|access|version|diagnose)'
+# Der tote Eintrag kommt an den **Anfang** der Liste und nicht ans Ende:
+# Dort ist die Zielstelle von jedem neuen Kommando unabhängig.
+alt = 'setup|update|'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '|admin|access|version|diagnose|dns-verify)', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'setup|update|dns-verify|', 1))
 PY2
 griff_datei packaging/bin/srvpanel "Wrapper mit totem Eintrag" &&
 pruefe "Wrapper mit totem Eintrag" \
@@ -23787,9 +23792,10 @@ vorher_datei packaging/bin/srvpanel
 python3 - <<'PY2'
 p = 'packaging/bin/srvpanel'
 s = open(p, encoding='utf-8').read()
-alt = """|access|version|diagnose)"""
+# Siehe oben: kurz gegriffen, damit der nächste Eintrag den Text nicht mitnimmt.
+alt = """|version|diagnose|"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, """|access|version)""", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """|version|""", 1))
 PY2
 griff_datei packaging/bin/srvpanel "Wrapper ohne diagnose" &&
 pruefe "Wrapper ohne diagnose" \
@@ -28748,6 +28754,1415 @@ pruefe "Knopf am falschen Urteil" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LogFooterTest passed
 
+
+echo
+echo "── DumpAccessTest: die Ablage der Sicherungen wird auflistbar ──"
+#
+# Dieselbe Regel wie beim Dump-Verzeichnis darüber, nur an der zweiten Ablage.
+# Sie steht hier als eigener Eingriff, weil die Regel seit P8 über einen
+# Datenlieferanten läuft: Ein Eingriff am Dump beweist nicht, dass der Wächter
+# auch an der Sicherung hinsieht — er beweist nur, dass er an einer hinsieht.
+vorher_datei agent/src/Backup/Store.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Store.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('public const DIRECTORY_MODE = 0710;', 'public const DIRECTORY_MODE = 0750;')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Store.php "Sicherungsverzeichnis auflistbar" &&
+pruefe "Sicherungsverzeichnis auflistbar" \
+  DumpAccessTest::test_the_group_may_not_list_the_directory failed
+wiederherstellen
+
+echo
+echo "── BackupStoreTest: ein Pfad mit .. kommt in die Sicherung ──"
+#
+# Der Aufstieg ist die eine Prüfung, ohne die ein Verzeichnis beim Entpacken
+# irgendwohin schreiben lässt. Sie steht beim Lesen und beim Schreiben; der
+# Eingriff nimmt sie an ihrer einen Stelle heraus.
+vorher_datei agent/src/Backup/Manifest.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Manifest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("if ($part === '..') {", "if ($part === '...') {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Manifest.php "Aufstieg im Pfad" &&
+pruefe "Aufstieg im Pfad" \
+  BackupStoreTest::test_a_path_never_leaves_the_backup failed
+wiederherstellen
+
+echo
+echo "── BackupStoreTest: die Art der Datei bleibt in den Rechten ──"
+#
+# `stat()` liefert `0100644` für eine gewöhnliche Datei. Ohne die Maske steht
+# das im Verzeichnis, und was ein Mensch daraus in ein `chmod` tippt, ist nicht
+# der Wert, der gemeint war.
+vorher_datei agent/src/Backup/Manifest.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Manifest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("sprintf('%04o', $mode & 07777)", "sprintf('%04o', $mode)", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Manifest.php "Dateiart in den Rechten" &&
+pruefe "Dateiart in den Rechten" \
+  BackupStoreTest::test_the_file_type_bits_never_reach_the_manifest failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupStoreTest passed
+
+echo
+echo "── BackupPromiseTest: die Rechte kommen aus dem Verzeichnis ──"
+#
+# Ohne das `chmod` nach dem Entpacken trägt jede Datei, was die umask hergibt —
+# ein privater Schlüssel mit `0600` käme als `0644` zurück. `extractTo()`
+# benutzt den Modus im Archiv gar nicht (`docs/116` M1b, Nachtrag).
+vorher_datei agent/src/Backup/Unpacker.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Unpacker.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            chmod($path, Manifest::modeFrom($entry['mode']));\n            $files++;", "            $files++;", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Unpacker.php "Rechte nach dem Entpacken nicht gesetzt" &&
+pruefe "Rechte nach dem Entpacken nicht gesetzt" \
+  BackupPromiseTest::test_the_manifest_carries_what_the_archive_loses failed
+wiederherstellen
+
+echo
+echo "── BackupPromiseTest: ein Verweis wird angelegt und nicht gepackt ──"
+#
+# Ein Zip trägt keine Verweise. Legt der Unpacker sie nicht an, fehlt beim
+# Kunden ein Teil seines Baums — und zwar lautlos, denn das Archiv ist heil.
+vorher_datei agent/src/Backup/Unpacker.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Unpacker.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if (! @symlink($target, $path)) {', 'if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Unpacker.php "Verweis nicht angelegt" &&
+pruefe "Verweis nicht angelegt" \
+  BackupPromiseTest::test_the_manifest_carries_what_the_archive_loses failed
+wiederherstellen
+
+echo
+echo "── BackupPromiseTest: der Packer folgt keinem Verweis ──"
+#
+# Ein Verweis auf ein Verzeichnis ausserhalb des Abonnements läge sonst mitsamt
+# seinem Inhalt in der Sicherung, die der Kunde herunterlädt.
+vorher_datei agent/src/Backup/Packer.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Packer.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('FilesystemIterator::SKIP_DOTS', 'FilesystemIterator::SKIP_DOTS | FilesystemIterator::FOLLOW_SYMLINKS', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Packer.php "Verweisen gefolgt" &&
+pruefe "Verweisen gefolgt" \
+  BackupPromiseTest::test_a_link_out_of_the_tree_is_noted_and_not_followed failed
+wiederherstellen
+
+echo
+echo "── BackupPromiseTest: ein Verweis trägt seinen eigenen Modus ──"
+#
+# `getPerms()` gäbe den Modus des **Ziels** zurück, und `chmod` auf einen
+# Verweis folgt ihm — die Wiederherstellung setzte damit das Ziel um.
+vorher_datei agent/src/Backup/Packer.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Packer.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('Manifest::KIND_LINK, 0777', 'Manifest::KIND_LINK, 0600', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Packer.php "Modus des Ziels statt des Verweises" &&
+pruefe "Modus des Ziels statt des Verweises" \
+  BackupPromiseTest::test_a_link_carries_its_own_mode_and_not_its_targets failed
+wiederherstellen
+
+echo
+echo "── BackupPromiseTest: logs, tmp und conf bleiben draussen ──"
+#
+# Sie sind der Teil, der am schnellsten wächst und am wenigsten
+# wiederherstellenswert ist. Was fehlt, steht im Verzeichnis.
+vorher_datei agent/src/Backup/Packer.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Packer.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('isset(self::SKIPPED[', 'isset([][', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Packer.php "logs, tmp und conf mitgepackt" &&
+pruefe "logs, tmp und conf mitgepackt" \
+  BackupPromiseTest::test_three_directories_stay_out_and_say_so failed
+wiederherstellen
+
+echo
+echo "── BackupPromiseTest: ein Name, den die Sicherung belegt, bricht den Lauf ──"
+#
+# `addFromString()` auf einen Namen, den `addFile()` schon geschrieben hat,
+# überschreibt ihn **wortlos** — gemessen. Die Datei des Kunden wäre aus seiner
+# eigenen Sicherung fort, und `close()` meldete Erfolg.
+vorher_datei agent/src/Backup/Packer.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Packer.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if (Manifest::reserves($relative)) {', 'if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Packer.php "belegter Name durchgelassen" &&
+pruefe "belegter Name durchgelassen" \
+  BackupPromiseTest::test_a_name_the_backup_owns_stops_the_run failed
+wiederherstellen
+
+echo
+echo "── BackupPromiseTest: belegt ist der Namensteil und nicht der Anfang ──"
+#
+# Mit `str_starts_with()` fiele `.srvpanel-databases-alt` mit, und der Kunde
+# könnte eine Datei dieses Namens nie wieder sichern.
+vorher_datei agent/src/Backup/Manifest.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Manifest.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $first = explode('/', $relative)[0];
+
+        return in_array($first, self::RESERVED, true);"""
+neu = """        foreach (self::RESERVED as $name) {
+            if (str_starts_with($relative, $name)) {
+                return true;
+            }
+        }
+
+        return false;"""
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Manifest.php "belegt am Anfang statt am Namensteil" &&
+pruefe "belegt am Anfang statt am Namensteil" \
+  BackupPromiseTest::test_a_name_that_only_looks_reserved_passes failed
+wiederherstellen
+echo
+echo "── BackupPromiseTest: die Dumps bleiben aus dem Kundenbaum ──"
+#
+# Sie liegen im Archiv unter `.srvpanel-databases`, also ausserhalb des Baums —
+# so wie auf dem Server. Ausgepackt fände der Kunde ein Verzeichnis, das er nie
+# hatte.
+vorher_datei agent/src/Backup/Unpacker.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Unpacker.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if ($name === false || Manifest::reserves($name)) {', 'if ($name === false || $name === Manifest::ENTRY) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Unpacker.php "Dumps in den Kundenbaum ausgepackt" &&
+pruefe "Dumps in den Kundenbaum ausgepackt" \
+  BackupPromiseTest::test_what_belongs_to_the_backup_never_reaches_the_customers_tree failed
+wiederherstellen
+
+echo
+echo "── BackupPromiseTest: dieselbe Frage auch beim Setzen der Rechte ──"
+#
+# Die Gegenrichtung: Was nie ausgepackt wurde, darf der Rechtelauf nicht als
+# fehlende Datei melden. Zwei Leser derselben Marken, und beide fragen mit
+# derselben Methode.
+vorher_datei agent/src/Backup/Unpacker.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Unpacker.php'
+s = open(p, encoding='utf-8').read()
+alt = """            if (Manifest::reserves($entry['path'])) {
+                continue;
+            }"""
+neu = """            if (false) {
+                continue;
+            }"""
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Unpacker.php "Rechtelauf meldet die Dumps als fehlend" &&
+pruefe "Rechtelauf meldet die Dumps als fehlend" \
+  BackupPromiseTest::test_what_belongs_to_the_backup_never_reaches_the_customers_tree failed
+wiederherstellen
+
+pruefe "  … zurückgesetzt wieder grün" BackupPromiseTest passed
+
+echo
+echo "── BackupEntryLimitTest: die Grenze wächst über den Speicher hinaus ──"
+#
+# 200 000 Einträge sind 245 MiB — bei `MemoryMax=512M` nimmt der Kernel den
+# Vorgang, und das sieht aus wie ein hängender Agent.
+vorher_datei agent/src/Backup/Packer.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Packer.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('public const MAX_ENTRIES = 100_000;', 'public const MAX_ENTRIES = 200_000;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Packer.php "MAX_ENTRIES über den Speicher hinaus" &&
+pruefe "MAX_ENTRIES über den Speicher hinaus" \
+  BackupEntryLimitTest::test_the_entry_limit_fits_the_memory_the_unit_grants failed
+wiederherstellen
+
+echo
+echo "── BackupEntryLimitTest: MemoryMax gesenkt, MAX_ENTRIES nicht ──"
+#
+# Die Gegenrichtung desselben Verhältnisses — und die, an die niemand denkt,
+# weil sie in einer Unit-Datei steht und nicht in PHP.
+vorher_datei packaging/systemd/srvpanel-agentd.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-agentd.service'
+s = open(p, encoding='utf-8').read()
+s = s.replace('MemoryMax=512M', 'MemoryMax=256M', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/systemd/srvpanel-agentd.service "MemoryMax gesenkt" &&
+pruefe "MemoryMax gesenkt" \
+  BackupEntryLimitTest::test_the_entry_limit_fits_the_memory_the_unit_grants failed
+wiederherstellen
+
+echo
+echo "── BackupEntryLimitTest: MemoryMax ganz fort ──"
+#
+# Fehlt die Angabe, hat der Wächter keine Grenze, gegen die er rechnet. Er
+# erfindet keine — ein Rückfall auf eine Vorgabe wäre eine Messung gegen eine
+# Zahl, die auf diesem Server nicht gilt.
+vorher_datei packaging/systemd/srvpanel-agentd.service
+python3 - <<'PY2'
+p = 'packaging/systemd/srvpanel-agentd.service'
+s = open(p, encoding='utf-8').read()
+s = s.replace('MemoryMax=512M\n', '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/systemd/srvpanel-agentd.service "MemoryMax ganz fort" &&
+pruefe "MemoryMax ganz fort" \
+  BackupEntryLimitTest::test_the_entry_limit_fits_the_memory_the_unit_grants failed
+wiederherstellen
+
+echo
+echo "── BackupEntryLimitTest: das Verzeichnis reist über den Socket ──"
+#
+# `Connection::CONTENT_MAX` ist bei rund 14 000 Einträgen zu Ende. Eine
+# Operation, die die Liste zurückgibt, läuft bei kleinen Abonnements tadellos
+# und stirbt bei einem grossen an einer Stelle, die mit Sicherungen nichts zu
+# tun hat.
+vorher_datei agent/src/Ops/BackupCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'entries' => count($entries),", "'entries' => $entries,", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupCreate.php "Verzeichnis über den Socket" &&
+pruefe "Verzeichnis über den Socket" \
+  BackupEntryLimitTest::test_the_operation_returns_a_count_and_not_the_manifest failed
+wiederherstellen
+
+echo
+echo "── BackupEntryLimitTest: ein Feld mehr je Eintrag ──"
+#
+# **Die Werte sind je Eintrag verschieden, und das ist tragend.** Ein
+# Feldliteral aus lauter Konstanten legt PHP einmal unveränderlich ab; alle
+# Einträge zeigten dann darauf, und der Eingriff mässe null Bytes Zuwachs.
+vorher_datei agent/src/Backup/Manifest.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Manifest.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'mode' => self::octal($mode),"
+neu = alt + "\n            'owner' => ['uid' => $mode, 'gid' => $mode, 'user' => 'p'.$mode.$path, 'group' => 'g'.$path],"
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Manifest.php "ein Feld mehr je Eintrag" &&
+pruefe "ein Feld mehr je Eintrag" \
+  BackupEntryLimitTest::test_the_entry_limit_fits_the_memory_the_unit_grants failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupEntryLimitTest passed
+
+echo
+echo "── BackupSeamTest: der Ablagename kommt beim Agenten an ──"
+#
+# Ein Abonnement darf einen Punkt im Namen tragen, ein Ablagename nicht — genau
+# ein Zeichen Unterschied zwischen zwei Prüfungen, die fast dasselbe erlauben.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("preg_replace('/[^a-z0-9_-]+/', '-', $name)", "preg_replace('/[^a-z0-9._-]+/', '-', $name)", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Backups.php "Punkt im Ablagenamen" &&
+pruefe "Punkt im Ablagenamen" \
+  BackupSeamTest::test_the_name_the_panel_builds_is_one_the_agent_takes failed
+wiederherstellen
+
+echo
+echo "── BackupSeamTest: zwei Sicherungen derselben Sekunde ──"
+#
+# Ohne die acht Hexziffern bekommen sie denselben Namen, die `unique`-Bedingung
+# schlägt zu, und wer zweimal klickt, bekommt einen 500er. `Dumps::record()`
+# löst das seit P5 mit genau diesen Ziffern.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(".'-'.bin2hex(random_bytes(4));", ";", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Backups.php "Ablagename ohne Zufallsteil" &&
+pruefe "Ablagename ohne Zufallsteil" \
+  BackupSeamTest::test_two_backups_of_the_same_subscription_never_share_a_name failed
+wiederherstellen
+
+echo
+echo "── BackupSeamTest: ein langer Abonnementname wird gekürzt ──"
+#
+# **Die Zahl daneben stand hier falsch, und der Eingriff hat deshalb nie
+# gebissen.** 63 Zeichen plus 25 für Zeitstempel und Zufallsteil sind 88 und
+# liegen unter den 96, die `Store::storageName()` zulaesst — es gab nichts zu
+# kuerzen. Gemessen wird jetzt an der Breite der **Spalte**: `subscriptions.name`
+# ist ein `varchar(255)`, und `max:63` gilt nur fuer den Weg ueber das Formular.
+#
+#   Eine Zahl in einer Erwartung, die man nicht gezaehlt hat, ist eine
+#   Vermutung mit Anspruch.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = 'mb_substr($name, 0, Store::MAX_NAME - mb_strlen($anhang)).$anhang'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$name.$anhang', 1))
+PY2
+griff_datei app/Support/Backups/Backups.php "Ablagename ungekürzt" &&
+pruefe "Ablagename ungekürzt" \
+  BackupSeamTest::test_the_name_the_panel_builds_is_one_the_agent_takes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupSeamTest passed
+
+echo
+echo "── BackupSeamTest: die Fassung des Panels kommt beim Agenten an ──"
+#
+# `config('app.version')` gibt im Quellbaum `Quellbaum` zurück und auf einem
+# Server die Freigabe. Ohne die Prüfung ginge jede Zeichenkette durch.
+vorher_datei agent/src/Backup/Manifest.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Manifest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! preg_match('/^[A-Za-z0-9._+-]{1,64}$/D', $value)) {"
+s = s.replace(alt, '        if (false) {', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Backup/Manifest.php "jede Fassung durchgelassen" &&
+pruefe "jede Fassung durchgelassen" \
+  BackupSeamTest::test_a_version_the_agent_would_refuse_is_refused failed
+wiederherstellen
+
+echo
+echo "── BackupSeamTest: die Operation ruft die Prüfung auch ──"
+#
+# **Die zweite Richtung, und sie hat gefehlt.** Der erste Wurf dieses Wächters
+# hielt die Tür und nicht ihren Gebrauch: Nimmt man den Aufruf aus
+# `BackupCreate`, blieb er grün. Dieselbe Lücke, auf deren Schliessung
+# `SourceKeyFilterTest` seit A1 besteht.
+vorher_datei agent/src/Ops/BackupCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$panel = Manifest::panelVersion($args['panel'] ?? null);", "$panel = (string) ($args['panel'] ?? '');", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupCreate.php "Fassung ungeprüft übernommen" &&
+pruefe "Fassung ungeprüft übernommen" \
+  BackupSeamTest::test_the_operation_really_asks_for_the_version failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupSeamTest passed
+
+echo
+echo "── PermissionReachTest: ein Recht, das keine Policy fragt ──"
+#
+# Der Befund, der diesen Wächter ausgelöst hat: `Permission::Backups` gab es
+# seit P0, und bis P8 hat niemand es gefragt. Ein Plan konnte „Sicherungen"
+# freigeben, und es bedeutete nichts.
+vorher_datei app/Policies/SubscriptionPolicy.php
+python3 - <<'PY2'
+p = 'app/Policies/SubscriptionPolicy.php'
+s = open(p, encoding='utf-8').read()
+# **Beide Frager und nicht nur den ersten.** Seit P8 fragt neben
+# `manageBackups()` auch `downloadBackup()` dieses Recht; mit `, 1` blieb der
+# zweite stehen, und der Waechter war zu Recht gruen — die Regel lautet „*eine*
+# Policy fragt es", und eine tat es noch.
+anzahl = s.count('return $this->useFeature($account, $subscription, Permission::Backups);')
+assert anzahl >= 1, 'Zielzeile nicht gefunden — der Bruch waere blind'
+s = s.replace(
+    'return $this->useFeature($account, $subscription, Permission::Backups);',
+    'return $this->useFeature($account, $subscription, Permission::FilesRead);')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Policies/SubscriptionPolicy.php "Recht ohne Policy" &&
+pruefe "Recht ohne Policy" \
+  PermissionReachTest::test_every_permission_is_asked_by_a_policy failed
+wiederherstellen
+
+echo
+echo "── PermissionReachTest: das Recht steht nur noch im Kommentar ──"
+#
+# Jede Behebung in diesem Repo hält ihren Vorzustand im Kommentar fest. Ohne
+# `token_get_all()` stellte genau dieser Kommentar die entfernte Zeile für den
+# Ausdruck wieder her.
+vorher_datei app/Policies/SubscriptionPolicy.php
+python3 - <<'PY2'
+p = 'app/Policies/SubscriptionPolicy.php'
+s = open(p, encoding='utf-8').read()
+# Auch hier beide — siehe den Eingriff darueber.
+anzahl = s.count('return $this->useFeature($account, $subscription, Permission::Backups);')
+assert anzahl >= 1, 'Zielzeile nicht gefunden — der Bruch waere blind'
+s = s.replace(
+    'return $this->useFeature($account, $subscription, Permission::Backups);',
+    '// return $this->useFeature($account, $subscription, Permission::Backups);\n        '
+    'return $this->useFeature($account, $subscription, Permission::FilesRead);')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Policies/SubscriptionPolicy.php "Recht nur im Kommentar" &&
+pruefe "Recht nur im Kommentar" \
+  PermissionReachTest::test_every_permission_is_asked_by_a_policy failed
+wiederherstellen
+
+echo
+echo "── PermissionReachTest: eine Ausnahme, die überholt ist ──"
+#
+# Die Gegenrichtung. So entsteht ein toter Eintrag wirklich: Jemand baut die
+# Policy nach, der Eintrag bleibt, und das Recht ist dauerhaft ausgenommen.
+vorher_datei tests/Feature/PermissionReachTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/PermissionReachTest.php'
+s = open(p, encoding='utf-8').read()
+anker = "        'statistics' => 'Reserviert"
+s = s.replace(anker, "        'backups' => 'Ein Eintrag, der nicht mehr stimmt.',\n" + anker, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/PermissionReachTest.php "veraltete Rechte-Ausnahme" &&
+pruefe "veraltete Rechte-Ausnahme" \
+  PermissionReachTest::test_an_exemption_does_not_outlive_its_reason failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PermissionReachTest passed
+
+echo
+echo "── BackupSecretTest: ein Passwort in der Beschreibung ──"
+#
+# Sie geht als `payload` an `backup.create`, und `Operations/Show.vue` rendert
+# `payload` als JSON — jeder Admin und der Kunde sehen ihn.
+vorher_datei app/Support/Backups/Description.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Description.php'
+s = open(p, encoding='utf-8').read()
+a = "                'host' => $user->host,"
+s = s.replace(a, a + "\n                'password' => 'geheim',", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Description.php "Passwort in der Beschreibung" &&
+pruefe "Passwort in der Beschreibung" \
+  BackupSecretTest::test_the_description_carries_only_declared_keys failed
+wiederherstellen
+
+echo
+echo "── BackupSecretTest: eine Kennung in der Beschreibung ──"
+#
+# Eine Wiederherstellung legt neue Zeilen an; eine alte `id` darin führt ins
+# Leere oder verleitet dazu, sie zu übernehmen — und nach Form A ist das falsch.
+vorher_datei app/Support/Backups/Description.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Description.php'
+s = open(p, encoding='utf-8').read()
+a = "                'name' => $domain->name,"
+s = s.replace(a, "                'id' => $domain->id,\n" + a, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Description.php "Kennung in der Beschreibung" &&
+pruefe "Kennung in der Beschreibung" \
+  BackupSecretTest::test_the_description_carries_no_identifiers failed
+wiederherstellen
+
+echo
+echo "── BackupSecretTest: ein Abschnitt fällt weg ──"
+#
+# Eine Sicherung ohne die SFTP-Schlüssel gäbe dem Kunden nach der
+# Wiederherstellung keinen Zugang mehr — und sähe vollständig aus.
+vorher_datei app/Support/Backups/Description.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Description.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'ssh_keys' => $this->sshKeys($subscription),\n", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Description.php "Abschnitt der Beschreibung fort" &&
+pruefe "Abschnitt der Beschreibung fort" \
+  BackupSecretTest::test_the_description_carries_only_declared_keys failed
+wiederherstellen
+
+echo
+echo "── BackupSecretTest: die Mandantenklammer bleibt zu ──"
+#
+# Ein nächtlicher Lauf hat kein angemeldetes Konto. Ohne `withoutRestriction()`
+# stünde die Klammer auf `whereRaw('0 = 1')`, und die Beschreibung wäre leer —
+# wortlos, und die Sicherung sähe vollständig aus. Derselbe Befund, den
+# `Cron::store()` in P6 gekostet hat.
+vorher_datei app/Support/Backups/Description.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Description.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('return $this->tenancy->withoutRestriction(fn (): array => [', 'return ((fn (): array => [', 1)
+s = s.replace("""            'certificates' => $this->certificates($subscription),
+        ]);""", """            'certificates' => $this->certificates($subscription),
+        ]))();""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Description.php "Beschreibung in der Klammer" &&
+pruefe "Beschreibung in der Klammer" \
+  BackupSecretTest::test_the_list_does_not_outlive_the_description failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupSecretTest passed
+
+echo
+echo "── BackupVerifyTest: die Dumps fallen aus dem Verzeichnisvergleich ──"
+#
+# **Der Befund, der diesen Wächter ausgelöst hat.** Der erste Wurf hat die
+# Dumps über `Manifest::reserves()` herausgefiltert — so wie Packer und
+# Unpacker es tun, dort zu Recht. Hier hiesse es: Eine Sicherung, der jede
+# Datenbank fehlt, wird als heil gemeldet.
+vorher_datei agent/src/Ops/BackupVerify.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupVerify.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            if ($entry['kind'] !== Manifest::KIND_FILE) {", "            if ($entry['kind'] !== Manifest::KIND_FILE || Manifest::reserves($entry['path'])) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupVerify.php "Dumps nicht erwartet" &&
+pruefe "Dumps nicht erwartet" \
+  BackupVerifyTest::test_a_missing_database_dump_is_a_finding failed
+wiederherstellen
+
+echo
+echo "── BackupVerifyTest: die Dumps werden nicht gelesen ──"
+#
+# Dieselbe Zeile an der anderen Seite. Filtert nur das Archiv, bleiben die
+# Bytes der Datenbanken ungeprüft — und ein gekipptes Byte in einem Dump
+# fällt niemandem auf, bis jemand ihn einspielt.
+vorher_datei agent/src/Ops/BackupVerify.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupVerify.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            if ($name === false) {", "            if ($name === false || Manifest::reserves($name)) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupVerify.php "Dumps nicht gelesen" &&
+pruefe "Dumps nicht gelesen" \
+  BackupVerifyTest::test_a_flipped_byte_in_a_dump_is_a_finding failed
+wiederherstellen
+
+echo
+echo "── BackupVerifyTest: die Prüfsumme wird nicht verglichen ──"
+#
+# Der Kern der Bauart. Ohne diesen Vergleich prüft der Lauf nur, ob sich jeder
+# Eintrag lesen lässt — und gemessen findet das ein gekipptes Byte **nicht**
+# (`docs/117 §13` M8): `getStream()` gibt die entpackten Bytes zurück, ohne die
+# Prüfsumme anzusehen.
+vorher_datei agent/src/Ops/BackupVerify.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupVerify.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if (hash_final($ctx) !== sprintf('%08x', $stat['crc'])) {", "        if (false) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupVerify.php "Prüfsumme nicht verglichen" &&
+pruefe "Prüfsumme nicht verglichen" \
+  BackupVerifyTest::test_a_flipped_byte_in_a_customer_file_is_a_finding failed
+wiederherstellen
+
+echo
+echo "── BackupVerifyTest: das Verzeichnis prüft seine eigenen Bytes nicht ──"
+#
+# Es steht nicht in seiner eigenen Einträgeliste und ist deshalb vom Vergleich
+# ausgenommen — seine Bytes sind es nicht. Ein gekipptes Byte darin ändert
+# einen Modus oder einen Pfad, ohne dass `decode()` etwas merkt.
+vorher_datei agent/src/Ops/BackupVerify.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupVerify.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            if (str_ends_with($name, '/')) {", "            if (str_ends_with($name, '/') || $name === Manifest::ENTRY) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupVerify.php "Verzeichnis ungeprüft" &&
+pruefe "Verzeichnis ungeprüft" \
+  BackupVerifyTest::test_a_healthy_archive_is_healthy failed
+wiederherstellen
+
+echo
+echo "── BackupVerifyTest: der Prüflauf ändert doch etwas ──"
+#
+# Entscheidung 1 des Betreibers (`docs/117 §2`): Er prüft und spielt nichts
+# zurück. `mutating()` ist die Zusage, an der der Agent das festmacht.
+vorher_datei agent/src/Ops/BackupVerify.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupVerify.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    public static function mutating(): bool\n    {\n        return false;\n    }", "    public static function mutating(): bool\n    {\n        return true;\n    }", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupVerify.php "Prüflauf ändert etwas" &&
+pruefe "Prüflauf ändert etwas" \
+  BackupVerifyTest::test_it_changes_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupVerifyTest passed
+
+echo
+echo "── BackupDiagnoseTest: die Mandantenklammer bleibt zu ──"
+#
+# Ein Nachtlauf hat kein angemeldetes Konto. Ohne `withoutRestriction()` steht
+# die Klammer auf `whereRaw('0 = 1')` — der Lauf sieht keine einzige Sicherung
+# und meldet „keine Befunde". Derselbe Befund wie `Cron::store()` in P6.
+vorher_datei app/Support/Diagnose/Checks/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        return $this->tenancy->withoutRestriction(fn (): array => Backup::query()", "        return (fn (): array => Backup::query()", 1)
+s = s.replace("            ->get()\n            ->all());", "            ->get()\n            ->all())();", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Diagnose/Checks/Backups.php "Klammer bleibt zu" &&
+pruefe "Klammer bleibt zu" \
+  BackupDiagnoseTest::test_the_nightly_run_sees_the_backups_without_an_account failed
+wiederherstellen
+
+echo
+echo "── BackupDiagnoseTest: eine laufende Sicherung wird mitgeprüft ──"
+#
+# Sie wird in diesem Augenblick geschrieben; sie zu lesen gäbe `unreadable` —
+# jede Nacht, in der ein Lauf sich mit einer Sicherung überschneidet, ein
+# Befund über etwas, das in Ordnung ist.
+vorher_datei app/Support/Diagnose/Checks/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            ->where('status', BackupStatus::Ready->value)\n", "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Diagnose/Checks/Backups.php "laufende Sicherung mitgeprüft" &&
+pruefe "laufende Sicherung mitgeprüft" \
+  BackupDiagnoseTest::test_a_pending_or_failed_backup_is_left_alone failed
+wiederherstellen
+
+echo
+echo "── BackupDiagnoseTest: ein unbekannter Grund wird durchgereicht ──"
+#
+# Käme aus dem Agenten ein Wort, das der Katalog nicht führt, würfe
+# `FindingCheck::state()` — nachts, in einem Lauf, den niemand sieht, und der
+# ganze Lauf wäre fort.
+vorher_datei app/Support/Diagnose/Checks/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            if (! is_string($reason) || ! in_array($reason, BackupVerify::REASONS, true)) {", "            if (! is_string($reason)) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Diagnose/Checks/Backups.php "unbekannter Grund durchgereicht" &&
+pruefe "unbekannter Grund durchgereicht" \
+  BackupDiagnoseTest::test_a_reason_the_panel_does_not_know_becomes_a_finding_and_not_a_crash failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupDiagnoseTest passed
+
+echo
+echo "── BackupDiagnoseTest: eine Zeile ohne Abonnement wird übersprungen ──"
+#
+# Zu ihr lässt sich kein Pfad bauen. Ein stilles `continue` hiesse: Die Zeile
+# steht in der Liste des Kunden und in keinem Befund — und `orphan.row` fängt
+# sie nicht, das kennt Zertifikate, Systembenutzer und Cron-Dateien.
+vorher_datei app/Support/Diagnose/Checks/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = """                $findings[] = [
+                    'subject' => $backup->storage_name,
+                    'reason' => BackupVerify::MISSING,
+                    'detail' => 'Diese Zeile nennt kein Abonnement — zu ihr lässt sich keine Datei finden.',
+                ];
+
+                continue;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '                continue;', 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Backups.php "Zeile ohne Abonnement übersprungen" &&
+pruefe "Zeile ohne Abonnement übersprungen" \
+  BackupDiagnoseTest::test_a_row_without_a_subscription_name_is_reported failed
+wiederherstellen
+
+echo
+echo "── DiagnoseWiringTest: der zweite Lauf hängt am falschen Kommando ──"
+#
+# `Run` ist `final`, der Lauf der Sicherungen hängt deshalb an einer
+# **kontextuellen** Bindung. Zeigt sie auf das falsche Kommando, bekommt
+# `srvpanel:backup-verify` den Vorgabe-Lauf — also die Prüfungen der
+# Bestandsdiagnose und ihren Zeitstempel.
+vorher_datei app/Providers/SrvPanelServiceProvider.php
+python3 - <<'PY2'
+p = 'app/Providers/SrvPanelServiceProvider.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$this->app->when(VerifyBackups::class)", "$this->app->when(\\App\\Console\\Commands\\Diagnose::class)", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Providers/SrvPanelServiceProvider.php "Bindung am falschen Kommando" &&
+pruefe "Bindung am falschen Kommando" \
+  DiagnoseWiringTest::test_the_backup_run_writes_its_own_key_and_its_own_timestamp failed
+wiederherstellen
+
+echo
+echo "── DiagnoseWiringTest: beide Läufe teilen sich den Zeitstempel ──"
+#
+# Dann stünde auf der Diagnoseseite der Zeitpunkt des zuletzt gefahrenen Laufs,
+# und „zuletzt gemessen" wäre für die Hälfte der Befunde falsch.
+vorher_datei app/Providers/SrvPanelServiceProvider.php
+python3 - <<'PY2'
+p = 'app/Providers/SrvPanelServiceProvider.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("new SettingsRunLog($app->make(Settings::class), Settings::DIAGNOSE_BACKUPS),", "new SettingsRunLog($app->make(Settings::class)),", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Providers/SrvPanelServiceProvider.php "Zeitstempel geteilt" &&
+pruefe "Zeitstempel geteilt" \
+  DiagnoseWiringTest::test_the_backup_run_writes_its_own_key_and_its_own_timestamp failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseWiringTest passed
+
+echo
+echo "── DiagnoseRunTest: eine Prüfung steht in beiden Läufen ──"
+#
+# `FindingLog::replace()` ersetzt **alle** Zeilen einer Prüfung. Stünde eine in
+# beiden Läufen, löschte der zweite jede Nacht die Befunde des ersten.
+vorher_datei app/Support/Diagnose/Catalog.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Catalog.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        MaintenanceFlag::class,\n    ];", "        MaintenanceFlag::class,\n        Backups::class,\n    ];", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Diagnose/Catalog.php "Prüfung in beiden Läufen" &&
+pruefe "Prüfung in beiden Läufen" \
+  DiagnoseRunTest::test_the_catalogue_names_every_check_that_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "── BackupRestoreTest: der Eigentümerwechsel folgt dem Verweis ──"
+#
+# **Der gefaehrlichste Handgriff dieser Stufe.** `chown()` auf einen Verweis
+# setzt den Eigentuemer des ZIELS, `lchown()` den des Verweises (gemessen,
+# `docs/117 §15` M12). `Unpacker` prueft Verweisziele mit Absicht nicht — ein
+# Verweis auf /etc/shadow im Archiv, und die Datei gehoert danach dem Kunden.
+vorher_datei agent/src/Ops/BackupRestore.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupRestore.php'
+s = open(p, encoding='utf-8').read()
+alt = "? @lchown($pfad, $uid) && @lchgrp($pfad, $gid)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "? @chown($pfad, $uid) && @chgrp($pfad, $gid)", 1))
+PY2
+griff_datei agent/src/Ops/BackupRestore.php "Verweis wird gechownt" &&
+pruefe "Verweis wird gechownt" \
+  BackupRestoreTest::test_the_owner_change_never_follows_a_link failed
+wiederherstellen
+
+echo
+echo "── BackupRestoreTest: der Rundlauf folgt einem Verzeichnisverweis ──"
+#
+# Dieselbe Familie eine Ebene hoeher: Mit `FOLLOW_SYMLINKS` fuehrt der Rundlauf
+# aus dem Baum hinaus, und dann trifft `chown()` jede Datei dahinter — ohne dass
+# ein einziger Verweis gechownt wuerde.
+vorher_datei agent/src/Ops/BackupRestore.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupRestore.php'
+s = open(p, encoding='utf-8').read()
+alt = 'new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS | FilesystemIterator::FOLLOW_SYMLINKS)', 1))
+PY2
+griff_datei agent/src/Ops/BackupRestore.php "Rundlauf folgt Verzeichnisverweis" &&
+pruefe "Rundlauf folgt Verzeichnisverweis" \
+  BackupRestoreTest::test_the_walk_does_not_descend_into_a_linked_directory failed
+wiederherstellen
+
+echo
+echo "── BackupRestoreTest: das Schema wird vor dem Eigentümer gesetzt ──"
+#
+# Ein rekursiver Eigentuemerwechsel ebnet das Schema ein: `httpdocs` gehoert
+# `%u:www-data`, `logs` gehoert `%u:adm`. Steht `applyTree()` davor, ist es
+# danach fort — und der Webserver kommt an das Dokumentenverzeichnis nicht mehr
+# heran.
+vorher_datei agent/src/Ops/BackupRestore.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupRestore.php'
+s = open(p, encoding='utf-8').read()
+alt = "SubscriptionProvision::applyTree($root, $user);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '// ' + alt, 1))
+PY2
+griff_datei agent/src/Ops/BackupRestore.php "Schema nicht wiederhergestellt" &&
+pruefe "Schema nicht wiederhergestellt" \
+  BackupFormTest::test_the_restore_puts_the_directory_scheme_back_after_the_owner_change failed
+wiederherstellen
+
+echo
+echo "── BackupFormTest: die Beschreibung nennt den Elternteil nicht ──"
+#
+# Ohne ihn laesst sich eine Subdomain nicht wiederherstellen: `Domains::create()`
+# verlangt die Zeile, unter der sie haengt, und weist sonst ab.
+vorher_datei app/Support/Backups/Description.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Description.php'
+s = open(p, encoding='utf-8').read()
+alt = "                'parent' => $domain->parent?->name,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Backups/Description.php "Elternteil fehlt" &&
+pruefe "Elternteil fehlt" \
+  BackupFormTest::test_a_subdomain_can_be_restored_at_all failed
+wiederherstellen
+
+echo
+echo "── BackupFormTest: die Dumpliste überschreibt die Struktur ──"
+#
+# `$description['databases'] = $dumps` loescht Beschriftung, Zeichensatz und
+# Sortierung, die `Description` unter demselben Schluessel ablegt — und eine
+# Wiederherstellung legte jede Datenbank mit der Vorgabe des Servers an.
+vorher_datei agent/src/Ops/BackupCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupCreate.php'
+s = open(p, encoding='utf-8').read()
+alt = "$description['dumps'] = $dumps;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$description['databases'] = $dumps;", 1))
+PY2
+griff_datei agent/src/Ops/BackupCreate.php "Dumpliste ueberschreibt Struktur" &&
+pruefe "Dumpliste ueberschreibt Struktur" \
+  BackupFormTest::test_the_dump_list_never_overwrites_the_structure failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupFormTest passed
+
+echo
+echo "── BackupRetentionTest: die Zeile geht ohne den Agenten ──"
+#
+# **Der Fund aus Schritt 9.** `$backup->subscription` ist eine faul geladene
+# Beziehung und nimmt die Mandantenklammer; aus dem naechtlichen Lauf, der kein
+# angemeldetes Konto hat, kommt sie immer `null`. Die Zeile ginge dann fort und
+# die Datei bliebe liegen — jede Nacht eine mehr.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $name = (string) $backup->subscription_name;
+
+        if ($name === '') {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        $name = '';
+
+        if ($name === '') {""", 1))
+PY2
+griff_datei app/Support/Backups/Backups.php "verwaiste Zeile ohne Agenten" &&
+pruefe "verwaiste Zeile ohne Agenten" \
+  BackupRetentionTest::test_a_backup_without_a_subscription_still_goes_through_the_agent failed
+wiederherstellen
+
+echo
+echo "── BackupRetentionTest: die Aufbewahrung raeumt von der falschen Seite ──"
+#
+# `orderByDesc` haelt die juengsten. Andersherum ginge genau das fort, was man
+# behalten will — und der Kunde merkt es an dem Tag, an dem er es braucht.
+vorher_datei app/Support/Backups/Retention.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Retention.php'
+s = open(p, encoding='utf-8').read()
+alt = "                ->orderByDesc('id')\n                ->skip($behalten)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                ->orderBy('id')\n                ->skip($behalten)", 1))
+PY2
+griff_datei app/Support/Backups/Retention.php "von der falschen Seite abgeraeumt" &&
+pruefe "von der falschen Seite abgeraeumt" \
+  BackupRetentionTest::test_the_oldest_go_and_the_newest_stay failed
+wiederherstellen
+
+echo
+echo "── BackupRetentionTest: ohne Zahl wird alles abgeraeumt ──"
+#
+# `null` heisst „keine Regel, die greifen kann" und nicht „null Staende". Ein
+# zurueckgebautes Abonnement hat keinen Plan mehr — und seine Sicherung ist
+# gerade das, was man dann noch hat.
+vorher_datei app/Support/Backups/Retention.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Retention.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if ($behalten === null) {
+            return [];
+        }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        $behalten ??= 0;", 1))
+PY2
+griff_datei app/Support/Backups/Retention.php "ohne Zahl alles abgeraeumt" &&
+pruefe "ohne Zahl alles abgeraeumt" \
+  BackupRetentionTest::test_without_a_number_nothing_is_pruned failed
+wiederherstellen
+
+echo
+echo "── BackupRetentionTest: die laufende Sicherung wird mitgeraeumt ──"
+#
+# Sie ist eine halbe Datei; sie zu entfernen hiesse, dem laufenden Vorgang das
+# Ziel unter den Haenden wegzunehmen.
+vorher_datei app/Support/Backups/Retention.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Retention.php'
+s = open(p, encoding='utf-8').read()
+alt = "                ->where('status', BackupStatus::Ready->value)\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Backups/Retention.php "laufende Sicherung mitgeraeumt" &&
+pruefe "laufende Sicherung mitgeraeumt" \
+  BackupRetentionTest::test_a_running_backup_is_left_alone failed
+wiederherstellen
+
+echo
+echo "── BackupRetentionTest: das Faelligkeitsfenster ist so gross wie der Takt ──"
+#
+# Zwei Laeufe liegen mit zwei Stunden Streuung zwischen 22 und 26 Stunden
+# auseinander. Ein Fenster von 24 verliert jeden Lauf, den die Streuung nach
+# vorn zieht — still, denn es entsteht einfach keine Sicherung.
+vorher_datei app/Console/Commands/RunBackups.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/RunBackups.php'
+s = open(p, encoding='utf-8').read()
+alt = 'private const DUE_AFTER_HOURS = 20;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'private const DUE_AFTER_HOURS = 24;', 1))
+PY2
+griff_datei app/Console/Commands/RunBackups.php "Fenster so gross wie der Takt" &&
+pruefe "Fenster so gross wie der Takt" \
+  BackupRetentionTest::test_the_due_window_survives_the_timer_jitter failed
+wiederherstellen
+
+echo
+echo "── BackupRetentionTest: der Rueckbau sichert nicht mehr vorher ──"
+#
+# Ein Rueckbau ist der eine Griff dieses Panels, der nichts zuruecklaesst.
+vorher_datei app/Http/Controllers/SubscriptionController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/SubscriptionController.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $backups->beforeRemoval($subscription);\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/SubscriptionController.php "Rueckbau ohne Sicherung" &&
+pruefe "Rueckbau ohne Sicherung" \
+  BackupReachTest::test_a_removal_is_preceded_by_a_backup failed
+wiederherstellen
+
+echo
+echo "── BackupRetentionTest: der Schalter entscheidet nichts ──"
+#
+# Ohne ihn waere die Vorgabe ein Wert, den niemand gewaehlt hat — und die
+# Gegenprobe zum Fall darueber faellt aus.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($this->settings->backups()['before_removal'] !== true) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        if (false) {', 1))
+PY2
+griff_datei app/Support/Backups/Backups.php "Schalter entscheidet nichts" &&
+pruefe "Schalter entscheidet nichts" \
+  BackupRetentionTest::test_the_operator_can_switch_it_off failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupRetentionTest passed
+
+echo
+echo "── BackupRetentionTest: der naechtliche Lauf verliert sein Abonnement ──"
+#
+# **Die zweite Haelfte des Fundes aus Schritt 9.** Die Beziehung ist faul
+# geladen und nimmt die Mandantenklammer; der Nachtlauf hat kein angemeldetes
+# Konto. Ohne die Klammer haengt der Vorgang an keinem Abonnement — der Agent
+# entfernt die Datei zu Recht, und niemand findet den Vorgang danach wieder.
+#
+# Der Eingriff daneben ("verwaiste Zeile ohne Agenten") faengt diesen Fall
+# nicht: Dort ist das Abonnement wirklich fort, und dann antwortet die Frage
+# mit und ohne Klammer gleich.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $subscription = $this->tenancy->withoutRestriction(
+            static fn (): ?Subscription => $backup->subscription()->first(),
+        );"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, '        $subscription = $backup->subscription()->first();', 1)
+)
+PY2
+griff_datei app/Support/Backups/Backups.php "Nachtlauf ohne Abonnement" &&
+pruefe "Nachtlauf ohne Abonnement" \
+  BackupRetentionTest::test_the_oldest_go_and_the_newest_stay failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupRetentionTest passed
+
+echo
+echo "── BackupRetentionTest: der Nachtlauf fragt nicht nach dem Verzeichnis ──"
+#
+# Die Frage stand zuerst nur im Rueckbau. Fuer ein aktives Abonnement ohne
+# Systembenutzer legte der Lauf sonst jede Nacht einen Vorgang an, der an einem
+# fehlenden Pfad scheitert — und meldete jede Nacht einen Fehlschlag.
+vorher_datei app/Console/Commands/RunBackups.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/RunBackups.php'
+s = open(p, encoding='utf-8').read()
+alt = '        return $backups->hasDirectory($subscription);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        return true;', 1))
+PY2
+griff_datei app/Console/Commands/RunBackups.php "Nachtlauf ohne Verzeichnisfrage" &&
+pruefe "Nachtlauf ohne Verzeichnisfrage" \
+  BackupRetentionTest::test_the_nightly_run_skips_a_subscription_without_a_directory failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupRetentionTest passed
+
+echo
+echo "── ButtonRowPlacementTest: die Knopfreihe zieht ins Raster ──"
+#
+# Bei 1440 px laeuft sie dann als weiteres Flexkind neben den Bereichen mit —
+# "Speichern" steht oben rechts neben einer Ueberschrift statt unter dem
+# Formular. Keine Zahl beschwert sich: dokument = 0, nichts schiebt.
+vorher_datei resources/js/Pages/Settings/Backups.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Backups.vue'
+s = open(p, encoding='utf-8').read()
+alt = """        </Section>
+      </div>
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "        </Section>\n", 1)
+alt2 = """      </div>
+    </form>"""
+assert s.count(alt2) == 1, 'Zweite Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt2, """      </div>
+      </div>
+    </form>""", 1))
+PY2
+griff_datei resources/js/Pages/Settings/Backups.vue "Knopfreihe im Raster" &&
+pruefe "Knopfreihe im Raster" \
+  ButtonRowPlacementTest::test_no_button_row_is_a_direct_child_of_the_sections_wrapper failed
+wiederherstellen
+
+echo
+echo "── ButtonRowPlacementTest: der Leser haelt <Link> fuer <link> ──"
+#
+# Vue trennt Komponente und Element an der Grossschreibung. Kleingeschrieben
+# faellt Inertias <Link> in die Liste der leeren Elemente, und ab der ersten
+# steht jeder Elternteil daneben — gemessen 23 von 82 Vorlagen.
+vorher_datei tests/Feature/ButtonRowPlacementTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/ButtonRowPlacementTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $name = $tag[2];
+            $leer = $name === strtolower($name) && in_array($name, self::VOID, true);"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            $name = strtolower($tag[2]);
+            $leer = in_array($name, self::VOID, true);""", 1))
+PY2
+griff_datei tests/Feature/ButtonRowPlacementTest.php "Leser verliert den Faden" &&
+pruefe "Leser verliert den Faden" \
+  ButtonRowPlacementTest::test_the_reader_keeps_track failed
+wiederherstellen
+
+echo
+echo "── ButtonRowPlacementTest: die Voraussetzung faellt weg ──"
+#
+# Nur `.form > .button-row` gibt der Reihe ihre eigene Zeile. Ohne diese Zeile
+# sagt die Stelle im Baum nichts mehr ueber die Anzeige — und der Waechter
+# prueft eine Regel ohne Gegenstand.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = """.form > .button-row {
+  flex-basis: 100%;"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """.form > .button-row {
+  flex-basis: auto;""", 1))
+PY2
+griff_datei resources/css/app.css "Voraussetzung faellt weg" &&
+pruefe "Voraussetzung faellt weg" \
+  ButtonRowPlacementTest::test_the_premise_of_this_guard_holds failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ButtonRowPlacementTest passed
+
+echo
+echo "── PackagedExtensionTest: die Paketierung nennt zip nicht mehr ──"
+#
+# Acht Dateien benutzen ZipArchive, eine davon unter php-fpm. Ohne
+# `php8.4-zip` in den depends stirbt jede Sicherung auf einem Server, auf dem
+# das Paket nicht zufaellig schon jemand anderes mitgebracht hat.
+#
+# **Der Eingriff kommentiert die Zeile aus und loescht sie nicht** — genau so
+# blieb der erste Wurf des Waechters gruen: Der Absatz darueber schreibt
+# `php8.4-zip` woertlich hin.
+vorher_datei packaging/nfpm.yaml
+python3 - <<'PY2'
+p = 'packaging/nfpm.yaml'
+s = open(p, encoding='utf-8').read()
+alt = '\n  - php8.4-zip\n'
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '\n  # - php8.4-zip\n', 1))
+PY2
+griff_datei packaging/nfpm.yaml "zip fehlt in der Paketierung" &&
+pruefe "zip fehlt in der Paketierung" \
+  PackagedExtensionTest::test_every_extension_the_code_uses_is_named_in_the_packaging failed
+wiederherstellen
+
+echo
+echo "── PackagedExtensionTest: eine Ausnahme ohne Gegenstand ──"
+#
+# So entsteht ein toter Eintrag wirklich: Eine Erweiterung fliegt aus dem Code,
+# die Zeile bleibt liegen — und der Naechste liest eine Messung ueber etwas,
+# das es nicht mehr gibt.
+vorher_datei tests/Unit/PackagedExtensionTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/PackagedExtensionTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'openssl' => 'Eingebaut"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        'gibtesnicht' => 'Eingebaut", 1))
+PY2
+griff_datei tests/Unit/PackagedExtensionTest.php "Ausnahme ohne Gegenstand" &&
+pruefe "Ausnahme ohne Gegenstand" \
+  PackagedExtensionTest::test_no_exemption_stands_for_an_extension_nobody_uses failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PackagedExtensionTest passed
+
+echo
+echo "── BackupTeardownTest: der Rueckbau nimmt die Sicherungen mit ──"
+#
+# `backups.subscription_id` steht auf nullOnDelete, damit die Sicherung ihren
+# Rueckbau ueberlebt — und seit Schritt 10 legt der Rueckbau selbst eine an,
+# die es sonst als Erste traefe.
+vorher_datei app/Http/Controllers/SubscriptionController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/SubscriptionController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $backups->beforeRemoval($subscription);\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+eingriff = "        \\App\\Models\\Backup::query()->where('storage_name', 'von-hand')->delete();\n"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt + eingriff, 1))
+PY2
+griff_datei app/Http/Controllers/SubscriptionController.php "Rueckbau nimmt die Sicherung mit" &&
+pruefe "Rueckbau nimmt die Sicherung mit" \
+  BackupTeardownTest::test_the_backup_taken_before_a_teardown_survives_it failed
+wiederherstellen
+
+echo
+echo "── BackupTeardownTest: ein backup.remove ohne storage ──"
+#
+# Ohne `storage` raeumt die Operation das **ganze** Verzeichnis ab. Genau das
+# tat `Backups::removeAll()`, und genau deshalb hatte es nie einen Aufrufer.
+vorher_datei app/Http/Controllers/SubscriptionController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/SubscriptionController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $backups->beforeRemoval($subscription);\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+eingriff = (
+    "        \\App\\Models\\Operation::query()->create(["
+    "'subscription_id' => $subscription->id, 'type' => 'backup.remove', "
+    "'task' => 'backup.remove', 'payload' => ['subscription' => (string) $subscription->name], "
+    "'status' => \\App\\Enums\\OperationStatus::Queued, 'progress' => 0, 'message' => 'x']);\n"
+)
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt + eingriff, 1))
+PY2
+griff_datei app/Http/Controllers/SubscriptionController.php "backup.remove ohne storage" &&
+pruefe "backup.remove ohne storage" \
+  BackupTeardownTest::test_no_operation_wipes_the_whole_directory failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupTeardownTest passed
+
+echo
+echo "── BackupDownloadTest: die Datei geht wieder an jeden Admin ──"
+#
+# Seit P8 traegt eine Sicherung den privaten Schluessel eines hochgeladenen
+# Zertifikats. `manageBackups` loest ueber `useFeature()` auf, und das gibt bei
+# `isAdmin()` sofort durch — `isAdmin()` fragt den Typ und nicht die Rolle.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+alt = "->middleware('can:downloadBackup,subscription')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "->middleware('can:manageBackups,subscription')", 1))
+PY2
+griff_datei routes/web.php "Datei an jeden Admin" &&
+pruefe "Datei an jeden Admin" \
+  BackupDownloadTest::test_an_administrator_is_refused_the_file failed
+wiederherstellen
+
+echo
+echo "── BackupDownloadTest: der Knopf fragt nicht mehr nach ──"
+#
+# Ein Knopf, der einen 403 gibt, ist schlimmer als keiner.
+vorher_datei app/Http/Controllers/BackupController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/BackupController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'download' => Gate::allows('downloadBackup', $subscription),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'download' => true,", 1))
+PY2
+griff_datei app/Http/Controllers/BackupController.php "Knopf fragt nicht nach" &&
+pruefe "Knopf fragt nicht nach" \
+  BackupDownloadTest::test_the_page_tells_the_button_which_way_to_go failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupDownloadTest passed
+
+echo
+echo "── BackupCertificateTest: die Beschreibung nimmt jedes Zertifikat ──"
+#
+# Ein ACME-Zertifikat wird neu bestellt; sein Material geht nicht mit. Eine
+# Zeile dafuer liesse die Wiederherstellung eine anlegen, auf die keine Datei
+# zeigt — und der Nachtlauf meldete sie als orphan.row.
+vorher_datei app/Support/Backups/Description.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Description.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ->where('source', CertificateSource::Uploaded->value)\n"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Backups/Description.php "Beschreibung nimmt jedes Zertifikat" &&
+pruefe "Beschreibung nimmt jedes Zertifikat" \
+  BackupCertificateTest::test_only_uploaded_certificates_are_described failed
+wiederherstellen
+
+echo
+echo "── BackupCertificateTest: der Vorgang nennt eine zweite Quelle ──"
+#
+# Eine Quelle und nicht zwei: Eine eigene Abfrage liefe irgendwann neben der
+# Beschreibung her, und dann traegt die Sicherung Dateien ohne Zeile.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = "is_array($description['certificates'] ?? null) ? $description['certificates'] : []"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '[]', 1))
+PY2
+griff_datei app/Support/Backups/Backups.php "Vorgang nennt eine zweite Quelle" &&
+pruefe "Vorgang nennt eine zweite Quelle" \
+  BackupCertificateTest::test_the_operation_names_the_same_certificates failed
+wiederherstellen
+
+echo
+echo "── BackupCertificateTest: der Ablageort ist nicht mehr reserviert ──"
+#
+# Dann packt der Unpacker das Schluesselmaterial in den Baum des Kunden — und
+# der private Schluessel ist ueber den SFTP-Zugang lesbar.
+vorher_datei agent/src/Backup/Manifest.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Manifest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        self::CERTS,\n"
+assert s.count(alt) == 1, 'Zielzeile nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Backup/Manifest.php "Ablageort nicht reserviert" &&
+pruefe "Ablageort nicht reserviert" \
+  BackupCertificateTest::test_the_material_lives_under_a_reserved_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupCertificateTest passed
+
+echo
+echo "── BackupDiagnoseTest: jede Datei gilt als Rest ──"
+#
+# Ohne den Vergleich gegen die Zeilen meldete der Nachtlauf jede Sicherung, die
+# es gibt — und ein Betreiber, der jede Nacht eine Liste seines eigenen
+# Bestandes bekommt, hoert auf hinzusehen.
+vorher_datei app/Support/Diagnose/Checks/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($abonnement === '' || $ablage === '' || isset($gesucht[$abonnement.'/'.$ablage])) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            if ($abonnement === '' || $ablage === '') {", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Backups.php "jede Datei gilt als Rest" &&
+pruefe "jede Datei gilt als Rest" \
+  BackupDiagnoseTest::test_a_file_without_a_row_is_reported failed
+wiederherstellen
+
+echo
+echo "── BackupDiagnoseTest: nur fertige Zeilen zaehlen ──"
+#
+# Eine Sicherung auf `pending` hat ihre Datei schon. Ein Filter auf `ready`
+# machte aus jedem laufenden Vorgang einen gemeldeten Rest.
+#
+# **Der Eingriff trifft `known()` und nicht den Rumpf von `orphans()`** — der
+# erste Wurf des Waechters baute die Menge daneben nach, und dann blieb dieser
+# Bruch gruen.
+vorher_datei app/Support/Diagnose/Checks/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Diagnose/Checks/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = """        return $this->tenancy->withoutRestriction(static fn (): array => Backup::query()
+            ->get(['subscription_name', 'storage_name'])"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        return $this->tenancy->withoutRestriction(static fn (): array => Backup::query()
+            ->where('status', BackupStatus::Ready->value)
+            ->get(['subscription_name', 'storage_name'])"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/Backups.php "nur fertige Zeilen zaehlen" &&
+pruefe "nur fertige Zeilen zaehlen" \
+  BackupDiagnoseTest::test_a_running_backup_is_not_an_orphan failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupDiagnoseTest passed
+
+echo
+echo "── BackupTeardownTest: der kurze Weg ueberspringt den Sonderfall ──"
+#
+# Bei genau einem Abonnement springt `/backups` weiter — und die Sicherungen
+# ohne Abonnement stehen in keiner anderen Liste dieses Panels.
+vorher_datei app/Http/Controllers/BackupController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/BackupController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($erreichbar->count() === 1 && $verwaist->isEmpty()) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        if ($erreichbar->count() === 1) {", 1))
+PY2
+griff_datei app/Http/Controllers/BackupController.php "kurzer Weg ueberspringt" &&
+pruefe "kurzer Weg ueberspringt" \
+  BackupTeardownTest::test_a_backup_without_a_subscription_is_findable failed
+wiederherstellen
+
+echo
+echo "── BackupTeardownTest: die Liste der verwaisten bleibt leer ──"
+#
+# Dann ist eine Sicherung, die ihren Rueckbau ueberlebt hat, nur ueber eine
+# Adresse erreichbar, deren Kennung niemand kennt.
+vorher_datei app/Http/Controllers/BackupController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/BackupController.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ? $this->backups->orphaned()"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            ? collect()", 1))
+PY2
+griff_datei app/Http/Controllers/BackupController.php "verwaiste Liste leer" &&
+pruefe "verwaiste Liste leer" \
+  BackupTeardownTest::test_a_backup_without_a_subscription_is_findable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupTeardownTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

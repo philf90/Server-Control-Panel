@@ -123,6 +123,20 @@ enum FindingCheck: string
      */
     case MaintenanceFlag = 'maintenance.flag';
 
+    /**
+     * Eine Sicherung, gemessen an ihren eigenen Bytes (`docs/117 §6` Schritt 6).
+     *
+     * **Sie wird nicht im Nachtlauf der Bestandsdiagnose geschrieben**, sondern
+     * in einem eigenen (`Catalog::BACKUP_CHECKS`). Der Grund steht dort: Diese
+     * Prüfung liest Kundenarchive von der Platte, und der Bestandslauf kostet
+     * gemessen 391 ms.
+     *
+     * Der Schlüssel liegt trotzdem in **diesem** Katalog, denn die Liste der
+     * Befunde ist eine. Wer sie liest, fragt „was ist auf diesem Server nicht
+     * in Ordnung" und nicht „welcher Zeitgeber hat das gemessen".
+     */
+    case BackupFile = 'backup.file';
+
     /** Der Grund, der überall „die Prüfung lief nicht" heisst. */
     public const UNREACHABLE = 'unreachable';
 
@@ -145,6 +159,7 @@ enum FindingCheck: string
             self::AptKey => 'Signaturschlüssel der Paketquelle',
             self::MaintenanceWindow => 'Wartungsmodus',
             self::MaintenanceFlag => 'Schalter des Wartungsmodus',
+            self::BackupFile => 'Sicherung',
         };
     }
 
@@ -168,6 +183,7 @@ enum FindingCheck: string
             self::AptKey => 'Schlüssel',
             self::MaintenanceWindow => 'Server',
             self::MaintenanceFlag => 'Datei',
+            self::BackupFile => 'Sicherung',
         };
     }
 
@@ -493,6 +509,67 @@ enum FindingCheck: string
                     'state' => FindingState::Fail,
                     'text' => 'Die Datei liegt, obwohl der Wartungsmodus als ausgeschaltet geführt wird — alle Kundenwebsites antworten mit 503.',
                 ],
+                ...$unreachable,
+            ],
+
+            /*
+             * **Fünf Arten von Schaden und ein Missgriff — und alle fünf sind
+             * `fail`.** Eine Sicherung hat genau eine Aufgabe, und sie stellt
+             * sich erst an dem Tag, an dem jemand sie braucht. Bis dahin sieht
+             * eine kaputte wie eine heile aus; das ist der Grund, aus dem es
+             * diese Prüfung gibt, und es ist auch der Grund, aus dem keine
+             * Abstufung hilft.
+             *
+             * > **Ein Schaden, der erst auffällt, wenn man den Gegenstand
+             * > braucht, hat keine Vorstufe.**
+             *
+             * `entry_unexpected` ist die Ausnahme und steht auf `warn`: Da ist
+             * etwas **mehr** drin, nicht weniger. Es ist ein Zeichen, dass
+             * jemand am Archiv war — und das gehört gemeldet —, aber es kostet
+             * keine Datei.
+             */
+            self::BackupFile => [
+                'missing' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Das Panel führt diese Sicherung, und ihre Datei liegt nicht mehr da.',
+                ],
+                'unreadable' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Das Archiv lässt sich nicht öffnen — es ist abgeschnitten oder beschädigt.',
+                ],
+                'no_manifest' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Das Archiv trägt kein lesbares Verzeichnis; was darin fehlt, lässt sich nicht sagen.',
+                ],
+                'entry_missing' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Das Verzeichnis nennt eine Datei, die im Archiv nicht liegt.',
+                ],
+                'entry_unexpected' => [
+                    'state' => FindingState::Warn,
+                    'text' => 'Im Archiv liegt eine Datei, die sein Verzeichnis nicht kennt.',
+                ],
+                'corrupt' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Die Bytes einer Datei im Archiv stimmen nicht mit ihrer Prüfsumme überein.',
+                ],
+
+                /*
+                 * **Die Gegenrichtung, und `warn` und nicht `fail`.** Eine
+                 * Datei ohne Zeile ist kein Schaden an einer Sicherung — es
+                 * ist Platz, den niemand zuordnet. Sie entsteht, wenn ein
+                 * `backup.remove` scheitert, nachdem die Zeile fort ist.
+                 *
+                 * Ein `fail` wäre die falsche Dringlichkeit: Nichts ist kaputt,
+                 * und niemand muss nachts aufstehen. Ein Betreiber, der jede
+                 * Nacht ein rotes Urteil für einen liegengebliebenen Rest
+                 * bekäme, hörte auf hinzusehen.
+                 */
+                'orphan' => [
+                    'state' => FindingState::Warn,
+                    'text' => 'Zu dieser Datei gibt es keine Zeile — sie gehört keiner Sicherung, die das Panel kennt.',
+                ],
+
                 ...$unreachable,
             ],
         };

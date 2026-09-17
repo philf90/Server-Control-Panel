@@ -77,6 +77,22 @@ enum Quota: string
     case DatabaseMb = 'database_mb';
     case FtpAccounts = 'ftp_accounts';
     case CronJobs = 'cron_jobs';
+
+    /*
+     * Wie viele Sicherungen je Abonnement aufgehoben werden (P8 Schritt 9).
+     *
+     * **Eine Aufbewahrungsregel und kein Schalter.** Ob ein Kunde überhaupt
+     * sichern darf, entscheidet {@see \App\Support\Plans\Feature::Backups};
+     * hier steht, wie viele Stände er behält. Die älteste geht, wenn die
+     * nächste entsteht.
+     *
+     * **Sie steht als Kontingent und nicht als Servereinstellung**, weil sie
+     * genau das ist, was ein Paket vom anderen unterscheidet: Eine Sicherung
+     * ist das Grösste, was dieses Panel je Abonnement auf die Platte schreibt
+     * (der ganze Kundenbaum plus seine Datenbanken).
+     */
+    case Backups = 'backups';
+
     case FpmProcesses = 'fpm_processes';
     case PhpVersions = 'php_versions';
 
@@ -105,6 +121,7 @@ enum Quota: string
             self::DatabaseMb => 'Datenbankgröße',
             self::FtpAccounts => 'FTP-Konten',
             self::CronJobs => 'Cronjobs',
+            self::Backups => 'Aufbewahrte Sicherungen',
             self::FpmProcesses => 'FPM-Prozesse',
             self::PhpVersions => 'PHP-Versionen',
             self::PhpMemoryMb => 'PHP-Speicher je Anfrage',
@@ -147,6 +164,7 @@ enum Quota: string
              * > ist eine Anleitung zum Danebengreifen.**
              */
             self::CronJobs => 'Zeitgesteuerte Befehle je Abonnement. Sie laufen als der Systembenutzer, und ihr Zeitplan gilt in der Zeit des Servers.',
+            self::Backups => 'Wie viele Stände aufgehoben werden. Entsteht eine weitere, geht die älteste — auch eine von Hand angelegte. Ob überhaupt gesichert werden darf, entscheidet die Funktion „Sicherungen".',
             self::FpmProcesses => 'Obergrenze des PHP-FPM-Pools (pm.max_children). Bestimmt, wie viele Anfragen gleichzeitig laufen.',
             self::PhpVersions => 'Welche Handler in den vhost-Vorlagen ausgewählt werden dürfen.',
             self::PhpMemoryMb => 'Obergrenze für memory_limit je Domain. Ein Skript darüber bricht mit einem Speicherfehler ab.',
@@ -189,6 +207,19 @@ enum Quota: string
             self::DiskMb,
             self::FpmProcesses,
 
+            /*
+             * **Und die Sicherungen, aus demselben Grund** (P8 Schritt 9): Eine
+             * Sicherung ist das Grösste, was dieses Panel je Abonnement auf die
+             * Platte schreibt — der ganze Kundenbaum plus seine Datenbanken.
+             * „Unbegrenzt" hiesse, dass ein einziges Abonnement den Datenträger
+             * füllt und jedes andere mitnimmt; das ist wörtlich die Begründung
+             * über `disk_mb`, nur an einer Datei, die das Panel selbst anlegt.
+             *
+             * > **Eine Aufbewahrung ohne Obergrenze ist keine Aufbewahrung,
+             * > sondern ein Wachstum.**
+             */
+            self::Backups,
+
             // Die drei PHP-Deckel, und jeder aus demselben Grund wie die
             // beiden darüber: Sie geben eine Ressource frei, die der ganze
             // Server teilt. `memory_limit = -1` lässt eine einzige Anfrage
@@ -212,6 +243,12 @@ enum Quota: string
         return match ($this) {
             self::DiskMb => 64,
             self::FpmProcesses => 1,
+
+            // **Eine und nicht null.** Eine Aufbewahrung von 0 löschte jede
+            // Sicherung in dem Augenblick, in dem sie fertig ist — das ist kein
+            // enges Paket, sondern ein kaputtes. Wer gar keine Sicherungen
+            // anbieten will, nimmt die Funktion aus dem Plan.
+            self::Backups => 1,
 
             // Ein Deckel auf 0 wäre kein enges Paket, sondern ein kaputtes:
             // Kein PHP-Skript läuft mit 0 MB, keines in 0 Sekunden.
@@ -239,6 +276,11 @@ enum Quota: string
             self::FpmProcesses => 512,
             self::PhpMemoryMb => 8_192,
             self::PhpUploadMb => 4_096,
+
+            // Ein Jahr täglicher Sicherungen. Die Zahl ist ein Vertipper-Fang
+            // und keine Empfehlung: Wer 3650 einträgt, merkt es hier und nicht,
+            // wenn der Datenträger voll ist.
+            self::Backups => 365,
 
             // Mehr als der Pool zulässt, wäre eine Zusage, die das System
             // nicht hält: `request_terminate_timeout` beendet jede Anfrage
@@ -268,6 +310,10 @@ enum Quota: string
             self::Databases => 5,
             self::DatabaseMb => 2_048,
             self::FtpAccounts => 5,
+            // **Drei, und die Zahl hat einen Grund**: Zwei reichen nicht für
+            // den häufigsten Fall — „gestern war auch schon kaputt" —, und
+            // jede weitere kostet den ganzen Baum noch einmal.
+            self::Backups => 3,
             self::CronJobs => 10,
             self::FpmProcesses => 10,
             self::PhpVersions => ['8.3', '8.4'],

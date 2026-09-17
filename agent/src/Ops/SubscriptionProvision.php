@@ -314,10 +314,32 @@ final class SubscriptionProvision implements Op
      */
     private function tree(string $root, string $user): void
     {
-        $this->directory($root, 'root', 'root', 0755);
+        self::applyTree($root, $user);
+    }
+
+    /**
+     * Das Schema setzen — von aussen, und deshalb statisch.
+     *
+     * **Seit P8 Schritt 8 gibt es einen zweiten Aufrufer.** `backup.restore`
+     * setzt nach dem Auspacken den Eigentümer über den ganzen Baum, und ein
+     * rekursiver Griff ebnet dabei ein, was hier steht: `httpdocs` gehört
+     * `%u:www-data`, `logs` gehört `%u:adm`, `conf` gehört `root:root`. Danach
+     * käme der Webserver an das Dokumentenverzeichnis nicht mehr heran.
+     *
+     * > **Ein Schema, das eine Stelle kennt, wird von jedem rekursiven Griff
+     * > eingeebnet — und der Schaden sieht aus wie ein Rechteproblem irgendwo
+     * > anders.**
+     *
+     * Die Wiederherstellung ruft deshalb **diese** Stelle und baut das Schema
+     * nicht nach: Eine zweite Aufzählung wäre die, die beim nächsten Zuwachs
+     * von {@see self::TREE} veraltet.
+     */
+    public static function applyTree(string $root, string $user): void
+    {
+        Filesystem::directory($root, 'root', 'root', 0755);
 
         foreach (self::TREE as $part => [$owner, $group, $mode]) {
-            $this->directory(
+            Filesystem::directory(
                 $root.'/'.$part,
                 $owner === '%u' ? $user : $owner,
                 $group === '%g' ? $user : $group,
@@ -354,11 +376,6 @@ final class SubscriptionProvision implements Op
      * Verzeichnis gehört dann dem Benutzer allein — enger als vorgesehen, nicht
      * weiter.
      */
-    private function directory(string $path, string $owner, string $group, int $mode): void
-    {
-        Filesystem::directory($path, $owner, $group, $mode);
-    }
-
     /**
      * Die Dateisystem-Quota setzen.
      *

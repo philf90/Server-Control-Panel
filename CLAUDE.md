@@ -4378,6 +4378,106 @@ für einen toten Pfad rc=0 und keine Ausgabe.
 
 ---
 
+## Die Messrunde vor P8 — 15. September 2026
+
+**P7b ist durch, und P8 ist noch nicht geplant.** Die Übergabe ist `docs/115`,
+die Messrunde davor **`docs/116`**, die Messvorschrift
+**`tests/sicherung-messen.php`**. Sie beantwortet die sieben Fragen aus
+`docs/115 §6.1` — jede mit Gegenprobe und jede mit dem, was sie nicht sagt.
+
+**Vier Ergebnisse ändern die Form, die `docs/115` sich gedacht hatte.**
+
+> **Ein Archiv, das den Eigentümer nicht trägt, ist keine Sicherung eines
+> Abonnements — es ist eine Sicherung seiner Dateinamen.** Gemessen an fünf
+> Eigenschaften (Rechte, UID, Verweis, setgid, leeres Verzeichnis): `ZipArchive`
+> **1 von 5**, `PharData` **1 von 5**, `tar(1)` von aussen **5 von 5** — und
+> `tar` steht nicht auf der Positivliste des Runners.
+
+> **Ein Wert, der grösser ist als der Weg dorthin, ist keine Grenze.** Ein
+> Verzeichnis je Datei ist bei rund **14 000** Einträgen zu Ende
+> (`Connection::CONTENT_MAX`), während `Packer::MAX_ENTRIES` **20 000** zulässt.
+> Derselbe Satz wie bei `FilesRead::MAX_BYTES` gegen `REQUEST_MAX`
+> (`docs/62` Punkt 12b), eine Stufe weiter draussen.
+
+> **Eine Wiederherstellung kann die Datenbanken des Kunden nicht unter ihren
+> alten Namen zurückbringen — und die Konfigurationsdatei seines Auftritts, die
+> sie beim Namen nennt, liegt als Kundendatei in derselben Sicherung.** Ein
+> wiederhergestelltes Abonnement bekommt einen **neuen** Systembenutzer und ein
+> **neues** `db_prefix`; `Names::belongsTo()` weist die alten Namen ab (gemessen
+> in beide Richtungen). `SystemUser` hat fünf Zugriffsstellen in `app/`, und
+> **keine fragt nach `subscription`** — es gibt keinen Weg zurück.
+
+> **Ein Geheimnis, das als Argument eines Vorgangs reist, steht auf der
+> Vorgangsseite.** `Operations/Show.vue` rendert `payload` als JSON, und
+> `OperationPolicy::view()` lässt jeden Admin und den Kunden des Abonnements
+> hindurch. `DnsCredentialStore` nennt genau das als Grund, **keinen** Vorgang
+> einzureihen — der Vorläufer für jedes Fernziel von P8.
+
+**Und eine Begründung im Quelltext war falsch.** `FilesCompress` sagte seit P6,
+`phar.readonly` erlaube `PharData` nur das Lesen. Gemessen mit `Phar` als
+Gegenprobe: `phar.readonly` sperrt **`Phar`** und nicht `PharData`. Die
+Entscheidung (Zip statt Tar) trägt trotzdem, und der Kommentar sagt jetzt,
+warum — `PharData` lässt leere Verzeichnisse ganz fallen.
+
+> **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch dann
+> falsch, wenn der Handgriff daneben richtig ist — und er hält länger als der
+> Handgriff, weil ihn der Nächste liest und glaubt.**
+
+**Zwei Zeilen in `docs/115` sind berichtigt** (`docs/116`, letzter Abschnitt):
+`/var/www/vhosts/<…>` hängt am **Abonnementnamen** und nicht am Benutzer — am
+Benutzer hängen das Eigentum und `/etc/cron.d/srvpanel-<benutzer>` —, und die
+Frage „Beschreibung oder erzeugte Datei" hat eine **dritte** Antwort:
+Schlüsselmaterial eines hochgeladenen Zertifikats und Datenbankpasswörter stehen
+in keiner von beiden.
+
+**Und der erste Anlauf von M3 war keine Messung.** Er benutzte `ob_start()` ohne
+Stückgrösse, sammelte die Antwort im Speicher und starb bei 1 GiB an
+`Allowed memory size exhausted`.
+
+> **Ein Prüfkörper, der seinen Gegenstand beim Messen verändert, meldet den
+> Unterschied als Fehler des Gemessenen.**
+
+**Was im Container nicht messbar ist, steht in `docs/116` als eigener
+Abschnitt** und nicht als Zusage: die greifende Quota (der Kernel kennt das
+Format nicht — `quotaon` rc=1, und ein Dateisystem mit der ext4-eigenen Quota
+lässt sich gar nicht einhängen), der Weg zum Kunden bei mehreren GB hinter
+echtem nginx, der Durchsatz auf der Platte des Servers, und ob `retry_after`
+(90 s) einem Lauf von 1800 s in die Quere kommt.
+
+**Der Plan ist `docs/117`**, geschrieben nach der Messrunde und nach den drei
+Entscheidungen des Betreibers vom 15. September: der Prüflauf **prüft und spielt
+nicht zurück**, eine Sicherung liegt **daneben und gehört root** — wie die Dumps
+seit P5 —, und **nur der Betreiber richtet ein Fernziel ein**.
+
+**Beim Ausschreiben sind drei Zeilen umgefallen** (`docs/117 §0`), und die erste
+ist das Abnahmekriterium der Stufe selbst: *„danach funktionieren die
+Webseiten"* ist nach M5 keine Eigenschaft der Wiederherstellung — die
+Konfigurationsdatei des Kunden nennt eine Datenbank, die es nach dem
+Namenswechsel nicht mehr gibt.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den Verfasser.**
+
+**Und eine Frage bleibt offen, die `docs/115 §6.2` nicht kannte** (`docs/117
+§3`): ob eine Wiederherstellung ihre **eigene** Reservierung zurückholen darf,
+wenn Nummer, Name und das fehlende Unix-Konto zusammenpassen. Sie berührt die
+eine Regel, die `docs/35` ausdrücklich zugemacht hat, und sie ist die einzige
+Entscheidung dieser Stufe, die der Plan nicht selbst trifft.
+
+> **Eine Reservierung, die festhält, wem eine Nummer gehörte, beantwortet die
+> Frage „darf dieses Abonnement sie zurückbekommen" — sie beantwortet nicht die
+> Frage, ob es dasselbe Abonnement ist.**
+
+**Ein Befund ausserhalb von P8 steht in `docs/117 §9` Punkt 5**, weil er beim
+Planen herausfiel: Drei Dateien des Agenten benutzen `ZipArchive`, und weder
+`packaging/nfpm.yaml` noch `composer.json` nennen `ext-zip`. Ob `php8.4-zip` auf
+`cloudsrv24` liegt, ist **nicht gemessen**.
+
+> **Eine Erweiterung, die der Code benutzt und die Paketierung nicht nennt, ist
+> auf jedem Server vorhanden, auf dem sie zufällig jemand anderes mitgebracht
+> hat.**
+
+---
+
 ## Befehle
 
 ```bash
@@ -4864,6 +4964,40 @@ Testen berücksichtigen:
 
   Wer hier misst, räumt seinen Prüfkörper hinterher weg; wer einen Wächter baut,
   gibt ihm einen Prüfkörper, den die Umgebung nicht liefern kann.
+
+  **Und der grösste Unterschied zur CI ist eine Zeile: `id`.** Hier läuft alles
+  als **root**, der Lauf in der CI als `runner` (uid 1001). Gemessen am
+  16. September 2026 an fünf frisch gebauten Fällen, die hier grün waren und
+  dort rot: Ein `chown` auf einen **anderen** Benutzer darf nur root, und ein
+  Wächter, der eine Kennung setzt, misst damit eine Fähigkeit und nicht seine
+  Regel. Im Kopf des Wächters stand die Grenze sogar — „Er läuft als root" —,
+  und der Satz war für diesen Container wahr und für die CI falsch.
+
+  > **Ein Wächter, der in einer Umgebung entsteht und nur dort gefahren wird,
+  > hält seine Umgebung für die Regel.**
+
+  Die Richtung ist dabei beides: Als root **gelingt** zuviel (`is_executable()`
+  sagt für jedes Verzeichnis `true`, ein Schreibschutz greift nicht —
+  `MaintenanceSwitchTest` überspringt genau deshalb), als `runner` **scheitert**
+  zuviel. Wer einen Wächter baut, der Rechte, Eigentümer oder Schreibschutz
+  anfasst, fährt ihn deshalb **unter beiden Kennungen**, bevor er pusht:
+
+      setpriv --reuid=65534 --regid=65534 --clear-groups \
+        env TMPDIR=/var/tmp/<eigenes> ./vendor/bin/phpunit --filter <Fall>
+
+  `/tmp` ist hier `0755 root:root` und **nicht** 1777 — ohne ein eigenes
+  `TMPDIR` scheitert `sys_get_temp_dir()` wortlos, und das sieht aus wie ein
+  Befund am Prüfling. Die Gegenprobe gehört dazu: derselbe Aufruf als root.
+
+  > **Eine Messung, die nur unter einer Kennung läuft, sagt über die andere
+  > nichts — und welche von beiden die CI hat, entscheidet nicht, wer recht
+  > hat.**
+
+  Was eine Kennung wirklich braucht, gehört als Frage daneben und wird dort
+  gemessen, wo es geht: `BackupRestoreTest` trägt seine Regel am **hängenden
+  Verweis** und am **Zähler** (beides rechtefrei, gemessen als root und als
+  `nobody` mit identischer Antwort), und den Eigentümer liest der Abnahmelauf
+  auf einem echten Server.
 
   **Und zwei weitere setzten voraus, dass hier niemand gebaut hat** — bis zum
   26. August 2026. `PreviousUrlTest` schickte `X-Inertia-Version: ''`, und
@@ -5542,6 +5676,114 @@ Testen berücksichtigen:
   eines Wächters ist das der Weg zurück — und wenn im selben Verzeichnis noch
   nicht Eingechecktes liegt, ist es danach fort. `tests/waechter-brechen.sh`
   weigert sich deshalb bei schmutzigem `resources/`; von Hand gilt dasselbe.
+- **Die Dokumentation der anderen Hosting-Panels sperrt der Egress-Proxy — und
+  das ist eine Einstellung der Umgebung, kein Mangel des Containers.** Gemessen
+  am 16. September 2026: `docs.plesk.com`, `support.plesk.com`, `plesk.com`,
+  `docs.cpanel.net`, `api.docs.cpanel.net`, `support.cpanel.net`,
+  `docs.directadmin.com`, `forum.directadmin.com`, `www.virtualmin.com`,
+  `forum.virtualmin.com`, `docs.jetbackup.com` — **elf von elf mit `403` am
+  CONNECT**. Gegenprobe: `github.com` kommt durch den Tunnel (die `400` danach
+  ist GitHubs eigene Antwort und nicht die des Proxys).
+
+  Hier stand bis zum 16. September „zwölf von zwölf" über einer Liste mit elf
+  Namen: Der Gegenprobe-Host war in die Summe gerutscht.
+
+  > **Eine Zahl neben einer Aufzählung wird nicht dadurch richtig, dass die
+  > Aufzählung stimmt — sie ist die einzige Stelle, an der niemand nachzählt.**
+
+  **Zwei Schichten sehen gleich aus und sind es nicht.** `WebFetch` meldet
+  `EGRESS_BLOCKED` als eigenen Fehler, und `recentRelayFailures` des lokalen
+  Proxys blieb dabei **leer** — das liest sich, als sperre das Werkzeug. Erst
+  `curl` durch denselben Proxy trägt den Fehlschlag ein und nennt ihn beim
+  Namen: `gateway answered 403 to CONNECT (policy denial or upstream failure)`.
+
+  > **Ein Werkzeug, das eine Sperre meldet, sagt nicht, wer sie gesetzt hat —
+  > und der Statusendpunkt schweigt, solange man das Werkzeug fragt statt die
+  > Leitung.**
+
+  **Der Griff ist der des Betreibers und liegt ausserhalb dieses Containers**,
+  wie beim Freigabe-Tag darunter: Die Umgebung steht auf **Trusted**, und deren
+  Liste führt Paketquellen, GitHub und Cloud-SDKs — keine Herstellerdoku. Wer
+  sie braucht, stellt die Umgebung auf **Custom**, trägt die Hosts je Zeile
+  unter *Allowed domains* ein (`*.plesk.com` trifft jede Unterdomain, die
+  Wurzel braucht eine eigene Zeile) und lässt **„Also include default list of
+  common package managers" angehakt** — ohne den Haken gilt nur noch die eigene
+  Liste, und npm und Composer fallen mit aus. `/root/.ccr/README.md` sagt zu
+  `403` ausdrücklich: nicht wiederholen, nicht umgehen, sondern melden.
+
+  **Und der Ort ist nicht der, an dem man zuerst sucht — das hat am
+  16. September einen Anlauf gekostet.** Unter *claude.ai → Einstellungen →
+  Fähigkeiten* steht „Ausgehenden Netzwerkverkehr erlauben" mit einer
+  **Domain-Zulassungsliste**; auf „Alle Domains" gestellt ändert sich hier
+  **nichts** (gemessen, elf von elf weiter `403`). Dieser Schalter gilt der
+  **Sandbox von claude.ai**, also dem Analysewerkzeug im Chat. Eine
+  Cloud-Sitzung hängt an ihrer **Umgebung**, und `code.claude.com/docs/en/
+  cloud-environments` sagt dazu wörtlich: *„personal environments don't have a
+  separate page in your claude.ai account settings."*
+
+  Gefahren wird sie über die **Umgebungs-Auswahl** (Wolkensymbol) auf
+  `claude.ai/code`: Umgebung bearbeiten → **Network access** → **Custom** →
+  **Allowed domains**. Welche Umgebung diese Sitzung benutzt, sagt
+  `get_session` (hier `env_018PQMU6FfffMwQcgnLPWo69`, Name „Standard",
+  `anthropic_cloud`).
+
+  > **Zwei Schalter mit derselben Beschriftung an zwei Orten sind nicht
+  > derselbe Schalter — und der, den man findet, ist nicht der, der wirkt.**
+
+  **Die Doku dazu ist erreichbar, und das ist der schnellste Weg zur Antwort.**
+  `code.claude.com` kommt durch den Tunnel, während die Herstellerdoku es nicht
+  tut; `WebFetch` auf `/docs/en/cloud-environments` beantwortet die Frage nach
+  Ort und Stufen in einem Aufruf. Zwei Stunden Vermutung hätte ein Abruf
+  erspart.
+
+  > **Eine Sperre, die eine Doku betrifft, betrifft nicht jede Doku — und die
+  > eigene ist die, die sagt, wie man die Sperre löst.**
+
+  **Eine Änderung wirkt erst in der nächsten Sitzung.** Die Dokumentation sagt
+  das wörtlich für Umgebungsvariablen („sessions already running keep the
+  values they started with") und für die Hosts nur mittelbar — eine Änderung
+  der *allowed network hosts* baut den Zwischenspeicher neu, und das geschieht
+  beim nächsten Start. **Wörtlich gemessen ist es nicht.**
+
+  **Am selben Tag ein zweites Mal gemessen, nachdem der Betreiber die Hosts
+  freigegeben hatte: unverändert elf von elf `403`**, und
+  `recentRelayFailures` nennt jeden mit Zeitstempel. Das sagt, dass die Sperre
+  **jetzt** steht. Es sagt **nicht**, ob die Freigabe noch keine Sitzung
+  gesehen hat oder ob sie nicht gespeichert wurde — beide Zustände sehen von
+  hier aus gleich aus, und der Unterschied ist erst in einer frischen Sitzung
+  messbar.
+
+  > **Ein unveränderter Messwert nach einer Änderung trennt „noch nicht
+  > wirksam" nicht von „nicht geschehen" — dafür braucht es die Bedingung, auf
+  > die sich das „noch nicht" beruft.**
+
+  **Was ohne jede Änderung geht**, und in der Panel-Recherche vom 16. September
+  auch gereicht hat: `WebSearch` liefert zusammengefasste Inhalte gesperrter
+  Seiten, und **offene Panels lassen sich klonen** — HestiaCP, Virtualmin,
+  CyberPanel und Webmin über `git clone https://github.com/…`, das über den
+  eigenen GitHub-Proxy läuft und von der Liste gar nicht betroffen ist. Das ist
+  der bessere Weg: Was am Quelltext gemessen ist, ist kein Wissen aus zweiter
+  Hand — und für einen quelloffenen Hersteller ist die gesperrte Doku gar kein
+  Verlust.
+
+  > **Ein Panel, dessen Quelltext man lesen kann, muss man nicht nachlesen.**
+
+  **Zwei Fallen beim Klonen, beide am 16. September bezahlt.** `add_repo` lehnt
+  einen fremden Eigentümer ab, solange die Sitzung schon Quellen von `philf90`
+  trägt (*„cross-tier adds are not supported in v1"*) — der Griff ist also
+  **nicht** `add_repo`, sondern das blosse `git clone`, und das geht für
+  beliebige öffentliche Repositories.
+
+  Und **ein falscher Name sieht aus wie eine Sperre**: `webmin/virtualmin-gpl`
+  gibt *„could not read Username for 'https://github.com'"*, weil GitHub für
+  ein nicht vorhandenes Repository nach Anmeldung fragt statt 404 zu sagen.
+  Das Repository heisst `virtualmin/virtualmin-gpl` und klont wortlos. Die
+  Gegenprobe, die es entschieden hat, war ein zweiter Klon von `hestiacp`, der
+  in derselben Minute durchlief.
+
+  > **Eine Abweisung, die nach Anmeldung fragt, sagt über die Erreichbarkeit
+  > nichts — sie sagt, dass der Name nicht getroffen hat.**
+
 - **Eine Freigabe lässt sich aus diesem Container nicht setzen — der Tag ist
   der Griff des Betreibers.** Gemessen am 8. September 2026 an
   `v0.7.3-rc.29`: Ein Branch-Ref liess sich fortschreiben

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use SrvPanel\Agent\Backup\Store;
 use SrvPanel\Agent\Db\Dump;
 use SrvPanel\Agent\Ops\DbDumpCreate;
 use Tests\Support\ReadsMethodSource;
@@ -43,6 +45,29 @@ final class DumpAccessTest extends TestCase
 {
     use ReadsMethodSource;
 
+    /**
+     * Jede Ablage, aus der das Panel eine Datei herunterlädt.
+     *
+     * **Seit P8 sind es zwei**, und die Regel ist eine. `Backup\Store` stellt
+     * dieselbe Frage wie `Db\Dump` — der Agent schreibt als root, das Panel
+     * liest über die Gruppe —, und ihre Antwort ein zweites Mal hinzuschreiben
+     * hiesse, zwei Fassungen derselben Regel zu führen. Die zweite ist die, die
+     * veraltet.
+     *
+     * **Der Name dieses Wächters ist damit enger als sein Gegenstand**, und das
+     * steht hier statt einer Umbenennung: Er wird in `tests/waechter-brechen.sh`
+     * und in zwei Dokumenten genannt, und ein Umzug erzeugt dort genau die
+     * toten Einträge, vor denen `docs/113` warnt. Wer ihn später umbenennt,
+     * nimmt die fünf Zeilen des Bruchskripts mit.
+     *
+     * @return iterable<string, array{class-string}>
+     */
+    public static function stores(): iterable
+    {
+        yield 'Dumps' => [Dump::class];
+        yield 'Sicherungen' => [Store::class];
+    }
+
     /** Das Bit, das ein Verzeichnis durchsuchbar macht — für die Gruppe. */
     private const GROUP_EXECUTE = 0010;
 
@@ -59,17 +84,18 @@ final class DumpAccessTest extends TestCase
      * keine Sparsamkeit: Ein `x` auf dem einen nützt nichts, wenn es auf dem
      * anderen fehlt. Der Pfad wird ganz durchlaufen.
      */
-    public function test_the_group_may_walk_down_to_the_file(): void
+    #[DataProvider('stores')]
+    public function test_the_group_may_walk_down_to_the_file(string $store): void
     {
         $this->assertNotSame(
             0,
-            Dump::DIRECTORY_MODE & self::GROUP_EXECUTE,
+            $store::DIRECTORY_MODE & self::GROUP_EXECUTE,
             'Ohne das x-Bit kommt das Panel nicht in das Verzeichnis — und dann ist das r an der Datei wertlos.',
         );
 
         $this->assertNotSame(
             0,
-            Dump::FILE_MODE & self::GROUP_READ,
+            $store::FILE_MODE & self::GROUP_READ,
             'Und lesen muss es sie auch dürfen.',
         );
     }
@@ -81,20 +107,22 @@ final class DumpAccessTest extends TestCase
      * Wer eine Sicherung herunterlädt, kennt ihren Namen aus dem Bestand. `--x`
      * heisst hingehen, wenn man den Namen kennt; `ls` bleibt verwehrt.
      */
-    public function test_the_group_may_not_list_the_directory(): void
+    #[DataProvider('stores')]
+    public function test_the_group_may_not_list_the_directory(string $store): void
     {
         $this->assertSame(
             0,
-            Dump::DIRECTORY_MODE & self::GROUP_READ,
+            $store::DIRECTORY_MODE & self::GROUP_READ,
             'Ein auflistbares Verzeichnis verrät, welche Sicherungen es gibt — auch die fremder Abonnements.',
         );
     }
 
     /** Und „andere" bekommen an keiner Stelle etwas. */
-    public function test_nothing_is_open_to_others(): void
+    #[DataProvider('stores')]
+    public function test_nothing_is_open_to_others(string $store): void
     {
-        $this->assertSame(0, Dump::DIRECTORY_MODE & self::OTHERS);
-        $this->assertSame(0, Dump::FILE_MODE & self::OTHERS);
+        $this->assertSame(0, $store::DIRECTORY_MODE & self::OTHERS);
+        $this->assertSame(0, $store::FILE_MODE & self::OTHERS);
     }
 
     /**
@@ -104,9 +132,10 @@ final class DumpAccessTest extends TestCase
      * stimmten schon vorher; falsch war, wem sie gehörten. Ein Verzeichnis
      * `root:root 0750` gibt der Gruppe `root` alles und dem Panel nichts.
      */
-    public function test_every_directory_belongs_to_the_group_that_reads_the_files(): void
+    #[DataProvider('stores')]
+    public function test_every_directory_belongs_to_the_group_that_reads_the_files(string $store): void
     {
-        $prepare = (string) $this->methodSource(Dump::class, 'prepare');
+        $prepare = (string) $this->methodSource($store, 'prepare');
 
         $this->assertStringContainsString(
             'chgrp($path, self::GROUP)',

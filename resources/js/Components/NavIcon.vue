@@ -186,6 +186,22 @@ const PATHS: Record<string, string> = {
   sftp: 'M9 20V5M5.5 8.5L9 5l3.5 3.5M15 4v15M18.5 15.5L15 19l-3.5-3.5',
   cron: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 7v5l3.5 2',
 
+  /*
+   * Sicherungen: eine Archivkiste — Deckel, Körper, Griffschlitz.
+   *
+   * **Kein Zylinder**, obwohl es um Daten geht: Den hat `databases`, und ein
+   * Zeichen, das an zwei Stellen steht, sagt an der zweiten nichts mehr.
+   *
+   * **Und keine Uhr mit Rückwärtspfeil**, so naheliegend „Wiederherstellung"
+   * das macht: Die Uhr ist `cron`, und die beiden Punkte stehen im Menü des
+   * Kunden direkt nebeneinander. Auf 17 px unterscheidet sie dann niemand.
+   *
+   * Die Kiste trägt die Sache, um die es geht — etwas wird weggelegt, damit man
+   * es später wiederhat. Der Schlitz im Deckel ist das, was sie auf dieser
+   * Grösse von einem Rechteck unterscheidet.
+   */
+  backups: 'M3 7.5h18v3.5H3zM5 11v8.5h14V11M9.5 14.5h5',
+
   // Mein Konto: eine Person.
   account: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4.5 20a7.5 7.5 0 0115 0',
 

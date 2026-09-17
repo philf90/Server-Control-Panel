@@ -29100,6 +29100,12 @@ echo "── BackupSeamTest: zwei Sicherungen derselben Sekunde ──"
 # Ohne die acht Hexziffern bekommen sie denselben Namen, die `unique`-Bedingung
 # schlägt zu, und wer zweimal klickt, bekommt einen 500er. `Dumps::record()`
 # löst das seit P5 mit genau diesen Ziffern.
+#
+# **Dieser Eingriff hat am 17. September 2026 in der CI nicht gebissen**, und
+# der Fehler lag nicht bei ihm: Der Wächter setzte seine beiden Aufrufe nackt
+# untereinander und traf die Sekundengrenze — nachgemessen 1 grüner Lauf von
+# 25. Er wartet seitdem auf den Beginn einer frischen Sekunde und belegt sie mit
+# einer Gegenprobe; danach 25 von 25 rot.
 vorher_datei app/Support/Backups/Backups.php
 python3 - <<'PY2'
 p = 'app/Support/Backups/Backups.php'
@@ -30163,6 +30169,45 @@ pruefe "verwaiste Liste leer" \
   BackupTeardownTest::test_a_backup_without_a_subscription_is_findable failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupTeardownTest passed
+
+echo
+echo "── BackupEngineSeamTest: der Agent kennt das System des Panels nicht ──"
+#
+# Der Originalfehler aus dem Abnahmelauf von P8, 17. September 2026. Das Panel
+# schickt `postgres`, die Positivliste des Agenten trug `postgresql` — jede
+# Sicherung eines Abonnements mit PostgreSQL scheiterte daran.
+vorher_datei agent/src/Ops/BackupCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("public const ENGINES = ['mariadb', 'postgres'];",
+              "public const ENGINES = ['mariadb', 'postgresql'];", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupCreate.php "System des Panels abgewiesen" &&
+pruefe "System des Panels abgewiesen" \
+  BackupEngineSeamTest::test_the_old_spelling_is_refused failed
+wiederherstellen
+
+echo
+echo "── BackupEngineSeamTest: ein Literal an der Konstante vorbei ──"
+#
+# Die Konstante bleibt richtig, die Tür prüft wieder gegen ein Literal. Ein
+# Wächter, der nur ENGINES gegen das Enum hielte, bliebe hier grün — genau
+# deshalb misst dieser die Wirkung durch dumps().
+vorher_datei agent/src/Ops/BackupCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("if (! in_array($engine, self::ENGINES, true)) {",
+              "if (! in_array($engine, ['mariadb', 'postgresql'], true)) {", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/BackupCreate.php "Literal an der Konstante vorbei" &&
+pruefe "Literal an der Konstante vorbei" \
+  BackupEngineSeamTest::test_the_old_spelling_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupEngineSeamTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

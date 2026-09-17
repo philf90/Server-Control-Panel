@@ -29410,3 +29410,129 @@ Was die CI damit nicht mehr sieht, holt der Abnahmelauf: `docs/118 §0.5` legt
 **vor** der Sicherung einen Verweis aus dem Baum hinaus auf eine Wegwerfdatei in
 `/root`, und Punkt 4 liest hinterher deren Eigentümer. Kein `/etc/shadow` —
 schlägt die Regel fehl, soll die Datei eine sein, an der nichts hängt.
+
+### Keine Sicherung für PostgreSQL — der Agent kannte den Wert nicht, den das Panel schickt
+
+Gefunden im **Abnahmelauf von P8**, am 17. September 2026, beim allerersten
+Griff auf „Jetzt sichern": *„Unbekanntes Datenbanksystem in der Dumpliste."*
+
+Die Positivliste in `BackupCreate::dumps()` lautete `['mariadb', 'postgresql']`.
+Das Panel schickt `App\Enums\DatabaseEngine::Postgres->value`, und das ist
+`postgres`. **Jedes Abonnement mit einer PostgreSQL-Datenbank bekam damit keine
+Sicherung** — von Hand mit sichtbarem Fehlschlag, im nächtlichen Lauf als je ein
+fehlgeschlagener Vorgang pro Nacht. MariaDB allein ging durch, und deshalb sah
+das Merkmal beim Ausprobieren funktionsfähig aus.
+
+Die Liste war in **beide** Richtungen falsch: `postgresql` konnte vom Panel gar
+nicht kommen, und zurücklesen könnte es den Wert auch nicht —
+`RestoreLifecycle` nimmt `DatabaseEngine::tryFrom()`.
+
+> **Ein Wert, den der Absender nicht senden und der Empfänger nicht lesen kann,
+> ist keine Positivliste mit einem Tippfehler — er ist eine Wand.**
+
+**Warum kein Wächter ihn sah.** `DatabaseEngineTest` besteht darauf, dass den
+Wert im *Panel* niemand tippt. Der Agent liegt ausserhalb seiner Reichweite und
+darf das Enum nicht importieren — die erste Grenze (`docs/20 §4.1`) verbietet
+ihm genau das. Jede Seite für sich war in Ordnung; zwischen ihnen stand nichts.
+
+> **Fehler an Nähten zwischen zwei Dateien** — dieselbe Stelle wie die sechs
+> Befunde von A10.
+
+Und die schärfste Zeile dieses Befundes: Der Kopf von `DatabaseEngine` schreibt
+ausdrücklich hin, *warum* der Wert `postgres` heisst und nicht `postgresql` —
+„Ein Wert, der anders heisst als das, was daneben steht, ist eine Einladung, ihn
+falsch zu tippen." Der Satz stand da und hat nichts verhindert, weil er auf der
+anderen Seite der Naht steht.
+
+> **Eine Begründung schützt die Datei, in der sie steht.**
+
+**`BackupEngineSeamTest` hält die Naht, und zwar an der Wirkung.** Jeder Fall des
+Enums geht durch dieselbe Prüfung, an der der echte Aufruf gescheitert ist;
+`postgresql` muss abgewiesen werden, und die Untergrenze verlangt zwei Systeme —
+mit einem wäre die Schleife eine Aussage über MariaDB und über sonst nichts. Die
+Gegenrichtung hält den toten Eintrag auf, der bei einer Umbenennung entsteht.
+
+Ein Wächter über die Konstante allein hätte nicht gereicht, und das ist gemessen:
+Mit richtiger Konstante und einem Literal in `dumps()` bleibt die Richtung
+„jeder Wert ist ein Fall des Enums" **grün**, und nur die Messung an der Wirkung
+wird rot. Beide Eingriffe stehen in `tests/waechter-brechen.sh`, beide beissen —
+der erste mit genau der Meldung, die auf der Seite stand.
+
+### Die Seite der Sicherungen stand still, während der Vorgang lief
+
+Gemeldet vom Betreiber im selben Lauf, an derselben Sicherung: Nach „Jetzt
+sichern" blieb die Zeile auf dem Stand des Seitenaufbaus stehen. Der Vorgang
+war längst fehlgeschlagen, und die Seite sagte weiterhin `wird erstellt`.
+
+`BackupController::store()` leitet auf dieselbe Seite zurück, und die hatte
+keinen Takt — von 58 Seiten dieses Panels fragte nur die Übersicht nach (ausgezählt).
+Der Hinweis *„Ihr Fortschritt steht unter Vorgänge"* nennt einen anderen Ort;
+er ersetzt die Auskunft auf der Seite nicht, auf der man steht.
+
+> **Eine Anzeige, die den Zustand vor der Änderung zeigt, verleitet zu der
+> Handlung, die die Änderung zurücknimmt.** Derselbe Satz wie bei `form.reset()`
+> auf der Zugangsseite (`docs/84`) — dort war es eine gelöschte Zeile, hier ein
+> Vorgang, den man ein zweites Mal auslöst.
+
+Die Seite fragt jetzt alle drei Sekunden nach, **solange eine Zeile `pending`
+trägt** — am Zustand der Zeilen und nicht an einem Merker, den `anlegen()`
+setzt: Der wüsste nichts von einer Sicherung des nächtlichen Laufs oder eines
+zweiten Reiters und stünde nach einem Neuladen auf falsch.
+
+**Und `PartialReloadTest` hat den ersten Wurf angehalten**, bevor er einen
+Server gesehen hat: `only: ['backups']` zeigte auf eine Angabe, die der
+Steuerungscode **fertig** übergab. Inertia siebt vor dem Auflösen — jede
+Nachfrage hätte die ganze Seite gekostet und einen Teil geliefert. `backups` ist
+jetzt ein Verschluss, und die Abbildung steht als eigene Methode daneben.
+
+> **Ein fertiger Wert läuft bei jeder Anfrage, auch bei einer, die ihn gar nicht
+> mitschickt.**
+
+**Kein neues Bedienelement**, und das ist Absicht: Punkt 8 des Abnahmelaufs
+misst diese Seite bei 390 px. Ein Takt ändert daran nichts, ein Verweis von der
+Zeile zum Vorgang schon — dass es ihn nicht gibt, bleibt als Befund stehen und
+wird nach dem Lauf entschieden.
+
+### Ein Eingriff, der die Sekundengrenze traf — und ein Wächter, der seinen Fall behauptete
+
+Der Wächterlauf zu PR #249 meldete am 17. September 2026 **eine** Prüfung ohne
+Biss: `Ablagename ohne Zufallsteil — passed (erwartet: failed)`, davon null ohne
+Messung. Der Eingriff nimmt `bin2hex(random_bytes(4))` aus dem Ablagenamen;
+`BackupSeamTest::test_two_backups_of_the_same_subscription_never_share_a_name`
+soll daran rot werden und blieb grün.
+
+Der Fehler lag nicht im Eingriff. Der Wächter setzte seine beiden `create()`
+nackt untereinander und verliess sich darauf, dass sie in **derselben Sekunde**
+landen — der Fall, um den es geht, denn der Zeitstempel hat Sekundenauflösung.
+Fällt die Sekundengrenze dazwischen, unterscheiden sich die Namen schon am
+Zeitstempel, und die Behauptung darunter ist wahr, ohne etwas über den
+Zufallsteil gesagt zu haben.
+
+**Sein eigener Kopf behauptete das Gegenteil** — „Hier wird er gemessen und
+nicht angenommen". Nachgemessen: mit dem Eingriff **1 grüner Lauf von 25**.
+
+> **Ein Prüfkörper, der einen Zustand behauptet, statt ihn herzustellen, misst
+> ihn fast immer — und die Läufe, in denen er es nicht tut, sehen aus wie ein
+> Wächter, der seine Regel nicht hält.**
+
+Der Zustand wird jetzt hergestellt: gewartet wird auf den Beginn einer frischen
+Sekunde, womit rund 999 ms vor zwei Aufrufen liegen, die zusammen wenige
+Millisekunden brauchen. **Nicht über `Carbon::setTestNow()`** — der Zeitstempel
+kommt aus `gmdate()`, also aus PHP und nicht aus Laravels Uhr.
+
+> **Eine Uhr, die man anhält, hält nur die an, die auf sie hört.**
+
+Und er wird **belegt**: Eine Gegenprobe hält die beiden Zeitstempel aneinander
+und macht den Wächter rot, wenn die Ausrichtung verfehlt wurde — „nicht
+gemessen" ist dann ein Befund und kein stilles Grün. Gemessen in beide
+Richtungen und mit einer dritten Probe: heil 25 von 25 grün, mit dem Eingriff
+25 von 25 rot, und mit einem eingeschobenen `usleep(1,1 s)` meldet die
+Gegenprobe wörtlich ihren eigenen Satz.
+
+**Gefunden hat es kein Test, sondern der Eingriff, der ihn brechen soll** — und
+zwar erst im vollen Lauf der CI, nach 1341 anderen. Einzeln und lokal wäre er in
+24 von 25 Fällen als heil durchgegangen.
+
+> **Ein Eingriff, der einzeln beisst, beisst nicht unbedingt im Lauf** — und die
+> Umkehrung gilt genauso: Einer, der im Lauf nicht beisst, ist deshalb nicht
+> falsch geschrieben.

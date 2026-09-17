@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import Badge from '../../Components/Badge.vue'
 import FormErrors from '../../Components/FormErrors.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
@@ -48,6 +49,74 @@ const props = defineProps<{
 function anlegen(): void {
   router.post(`/subscriptions/${props.subscription.id}/backups`)
 }
+
+/**
+ * Wie oft nachgefragt wird, solange eine Sicherung läuft.
+ *
+ * Drei Sekunden, und die Zahl hat einen Grund: Eine Sicherung dauert Sekunden
+ * bis Minuten, und der Betrachter steht davor und wartet. Ein langsamerer Takt
+ * liesse ihn neu laden, und genau das soll er nicht müssen.
+ */
+const NACHFRAGE_MS = 3000
+
+let takt: ReturnType<typeof setInterval> | undefined
+
+/**
+ * Läuft gerade eine Sicherung?
+ *
+ * **Am Zustand der Zeilen und nicht an einem eigenen Merker.** Ein Merker, den
+ * {@link anlegen} setzt, wüsste nichts von einer Sicherung, die der nächtliche
+ * Lauf angelegt hat oder ein zweiter Reiter — und er stünde nach einem
+ * Neuladen auf falsch, während die Zeile `wird erstellt` sagt.
+ */
+const laeuft = computed((): boolean => props.backups.some((zeile) => zeile.status === 'pending'))
+
+/**
+ * Nur die Liste, und nur solange sich etwas ändern kann.
+ *
+ * **Der Befund, der das ausgelöst hat.** Im Abnahmelauf von P8 (17. September
+ * 2026) blieb die Zeile nach „Jetzt sichern" auf dem Stand des Seitenaufbaus
+ * stehen — der Vorgang war längst fehlgeschlagen, und die Seite zeigte
+ * unverändert `wird erstellt`. {@link anlegen} leitet auf dieselbe Seite
+ * zurück, und die hatte keinen Takt: Von allen Seiten dieses Panels fragt nur
+ * die Übersicht nach.
+ *
+ * > **Eine Anzeige, die den Zustand vor der Änderung zeigt, verleitet zu der
+ * > Handlung, die die Änderung zurücknimmt.** Derselbe Satz wie bei
+ * > `form.reset()` auf der Zugangsseite (`docs/84`) — dort war es eine
+ * > gelöschte Zeile, hier ein Vorgang, den man ein zweites Mal auslöst.
+ *
+ * Der Hinweis „Ihr Fortschritt steht unter Vorgänge" bleibt und wird dadurch
+ * nicht überflüssig: Er nennt den Ort, an dem die Ausgabe des Agenten steht.
+ * Was er nicht ersetzt, ist die Auskunft auf der Seite, auf der man steht.
+ */
+function nachsehen(): void {
+  router.reload({ only: ['backups'] })
+}
+
+/**
+ * Den Takt an den Zustand hängen — und den alten vorher anhalten.
+ *
+ * `setInterval` kennt keine Änderung; ohne das Anhalten liefen nach zwei
+ * Wechseln drei. Dieselbe Stelle und derselbe Grund wie in `Overview.vue`.
+ */
+function stellen(): void {
+  clearInterval(takt)
+  takt = undefined
+
+  if (laeuft.value) takt = setInterval(nachsehen, NACHFRAGE_MS)
+}
+
+watch(laeuft, stellen)
+onMounted(stellen)
+
+/**
+ * Inertia tauscht die Seite im selben Dokument aus. Ein Takt überlebt das und
+ * fragt bis zum Schliessen des Reiters weiter — `TeardownTest` besteht darauf.
+ */
+onUnmounted((): void => {
+  clearInterval(takt)
+})
 
 /**
  * Entfernen — mit Rückfrage, weil es nicht zurückzunehmen ist.

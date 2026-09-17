@@ -25,11 +25,17 @@ use SrvPanel\Agent\Op;
  *
  * - eine einzelne Ablage (`storage` gesetzt) — wenn eine Aufbewahrungsfrist
  *   abläuft oder jemand aufräumt,
- * - das ganze Verzeichnis eines Abonnements (`storage` fehlt) — beim Rückbau.
+ * - das **leere** Verzeichnis eines Abonnements (`storage` fehlt) — wenn die
+ *   letzte Sicherung eines zurückgebauten Abonnements entfernt worden ist.
  *   `subscription.remove` räumt auf, was zum Abo-Verzeichnis gehört, und
  *   `/var/lib/srvpanel/backups/<abo>` gehört nicht dazu. Dieselbe Lage wie bei
  *   den Dumps und bei den Zertifikatsverzeichnissen, die `docs/35` zutage
  *   gebracht hat.
+ *
+ *   **Leer und nicht als Baum**, seit dieser Zweig seinen Aufrufer hat
+ *   (17. September 2026): Was in einem solchen Verzeichnis noch liegt, ist eine
+ *   Datei ohne Zeile — und genau die meldet die Bestandsdiagnose als `orphan`.
+ *   Die Begründung steht bei {@see Store::removeDirectory()}.
  *
  * **Wiederholbar.** Eine Ablage, die es nicht mehr gibt, ist der gewünschte
  * Zustand; der Aufruf meldet das und scheitert nicht.
@@ -60,6 +66,11 @@ final class BackupRemove implements Op
 
             $removed = Store::removeDirectory($subscription);
 
+            // **„Nichts zu entfernen" deckt hier zwei Zustände**, und beide
+            // sind in Ordnung: Das Verzeichnis gibt es nicht mehr, oder es
+            // liegt noch etwas darin. Zu unterscheiden wäre es nur für einen
+            // Leser, den es nicht gibt — was noch liegt, meldet die
+            // Bestandsdiagnose je Datei und mit ihrem Namen.
             $context->progress(100, $removed ? 'entfernt' : 'nichts zu entfernen');
 
             return ['scope' => 'directory', 'removed' => $removed];

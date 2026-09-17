@@ -8,6 +8,7 @@ use App\Enums\BackupStatus;
 use App\Enums\OperationSubject;
 use App\Models\Backup;
 use App\Models\Operation;
+use App\Models\Subscription;
 use App\Support\Operations\AfterOperation;
 use App\Support\Tenancy\Tenancy;
 
@@ -35,7 +36,10 @@ use App\Support\Tenancy\Tenancy;
  */
 final class BackupLifecycle implements AfterOperation
 {
-    public function __construct(private readonly Tenancy $tenancy) {}
+    public function __construct(
+        private readonly Tenancy $tenancy,
+        private readonly Backups $backups,
+    ) {}
 
     /**
      * Die Aufgaben, die dieser Lebenslauf beantwortet.
@@ -62,8 +66,20 @@ final class BackupLifecycle implements AfterOperation
 
         $this->tenancy->withoutRestriction(function () use ($operation, $backup): void {
             if (($operation->task ?? '') === 'backup.remove') {
+                /*
+                 * **Abgelesen, bevor gelöscht wird.** Nach `delete()` sagt die
+                 * Zeile über ihr Abonnement nichts mehr — und `subscription_id`
+                 * ist die Angabe, an der hängt, ob es das Abonnement noch gibt.
+                 */
+                $verwaist = $backup->subscription_id === null;
+                $name = (string) $backup->subscription_name;
+
                 // Die Datei ist fort; die Zeile hat nichts mehr zu beschreiben.
                 $backup->delete();
+
+                if ($verwaist && $this->abandoned($name)) {
+                    $this->backups->removeDirectory($name);
+                }
 
                 return;
             }
@@ -115,6 +131,51 @@ final class BackupLifecycle implements AfterOperation
                 'last_error' => $this->reason($operation),
             ])->save();
         });
+    }
+
+    /**
+     * Rührt noch irgendjemand dieses Verzeichnis an?
+     *
+     * **Dieselben drei Bedingungen wie die Bestandsdiagnose** — die vierte, ob
+     * das Verzeichnis wirklich leer ist, beantwortet der Agent selbst, weil nur
+     * er hinsehen kann: `Store::removeDirectory()` ruft `rmdir(2)` und
+     * scheitert an allem, was noch darin liegt.
+     *
+     * - **Keine Zeile mehr**, auch keine auf `pending`. Eine Sicherung, die
+     *   gerade geschrieben wird, hat ihre Datei schon; ihr Verzeichnis
+     *   abzuräumen hiesse, einen laufenden Vorgang zu treffen.
+     *
+     *   > **Ein Rest ist, was niemand mehr nennt — nicht, was noch niemand
+     *   > fertig genannt hat.**
+     *
+     * - **Kein lebendes Abonnement dieses Namens.** Ein Name kann nach einem
+     *   Rückbau wieder vergeben werden; dann gehört das Verzeichnis dem neuen
+     *   Abonnement, und die nächste Sicherung füllt es.
+     *
+     * **Ohne Namen ist die Frage nicht zu stellen** — und `false` ist die
+     * Antwort, die nichts anfasst. Ein Rückfall auf die leere Zeichenkette
+     * zeigte auf die Wurzel der Sicherungen; `Backups::dispatch()` weist ihn
+     * deshalb laut ab, und hier kommt er gar nicht erst hin.
+     *
+     * > **Wenn eine Zuordnung schiefgehen kann, entscheidet die Richtung, in
+     * > die sie schiefgeht.**
+     *
+     * Der Aufruf steht **innerhalb** der gelösten Mandantenklammer von
+     * {@see self::afterSuccess()}; ein Nachtlauf hat kein angemeldetes Konto,
+     * und geklammert gäben beide Abfragen wortlos leer zurück — also „räum ab"
+     * für jedes Verzeichnis dieses Servers.
+     */
+    private function abandoned(string $name): bool
+    {
+        if ($name === '') {
+            return false;
+        }
+
+        if (Backup::query()->where('subscription_name', $name)->exists()) {
+            return false;
+        }
+
+        return ! Subscription::query()->where('name', $name)->exists();
     }
 
     /**

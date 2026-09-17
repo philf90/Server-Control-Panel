@@ -145,13 +145,22 @@ final class SandboxReachTest extends TestCase
         // Abonnements. Kein Kundenpfad, kein Zeitfenster.
         'agent/src/Db/Dump.php' => 'das Dump-Verzeichnis, ausserhalb der Abonnements',
 
-        // **Dieselbe Begründung, zweite Ablage** (P8): `/var/lib/srvpanel/backups`
-        // gehört `root:srvpanel 0710`, liegt ausserhalb von `/var/www/vhosts`
-        // und ist über den SFTP-Zugang nicht erreichbar — in diesen Baum
-        // schreibt kein Kunde. Der Eintrag steht hier und nicht neben dem
-        // darüber, damit `BackupStoreTest` und dieser Wächter denselben Grund
-        // nennen: Was ein Kunde nicht erreicht, kann er auch nicht unterschieben.
-        'agent/src/Backup/Store.php' => 'das Sicherungsverzeichnis, ausserhalb der Abonnements',
+        // **Hier stand `agent/src/Backup/Store.php`, und der Eintrag ist am
+        // 17. September 2026 gefallen.** Begründet war er mit dem Ablageort:
+        // `/var/lib/srvpanel/backups` gehört `root:srvpanel 0710` und ist über
+        // den SFTP-Zugang nicht erreichbar, in diesen Baum schreibt kein Kunde.
+        // Das stimmt weiterhin — nur trägt `Store::removeDirectory()` keinen
+        // Baum mehr ab: Es ruft `rmdir(2)` und scheitert an allem, was noch
+        // darin liegt (Befund 10 aus `docs/119`).
+        //
+        // **Gefallen ist er, weil dieser Wächter zugebissen hat**, und das ist
+        // die Richtung, die eine solche Liste selten hält: Ein Eintrag, dessen
+        // Aufruf verschwindet, bleibt sonst als Erlaubnis für etwas stehen, das
+        // niemand mehr tut — und der Nächste liest ihn als Zusage, dass der
+        // Baumlauf dort in Ordnung wäre.
+        //
+        // > **Ein Wächter, der eine Erlaubnisliste in beide Richtungen hält,
+        // > meldet auch das Aufräumen — und genau dann ist er nützlich.**
 
         // **Die zweite Begründung:** Der Aufruf steht in der Arbeitsfunktion
         // einer Sandbox, läuft also bereits im Chroot und ohne Rechte. Dort ist

@@ -240,16 +240,41 @@ final class Store
     }
 
     /**
-     * Das Verzeichnis eines Abonnements wieder entfernen — beim Rückbau.
-     *
-     * Über {@see Filesystem::removeTree()}, also mit denselben Schranken wie
-     * `subscription.remove`: keinem Symlink folgen, und der aufgelöste Pfad
-     * muss derselbe sein.
+     * Das leere Verzeichnis eines Abonnements wieder entfernen.
      *
      * **Das ist der Weg zurück, den `docs/35` verlangt.** Wer etwas anlegt,
      * das auf der Platte bleibt, baut ihn mit — sonst findet ihn Jahre später
-     * eine Datenmigration, und dann liegen dort die Sicherungen jedes je
+     * eine Datenmigration, und dann liegen dort die Verzeichnisse jedes je
      * zurückgebauten Abonnements.
+     *
+     * ## `rmdir` und nicht `removeTree`, und das ist der Kern
+     *
+     * Hier stand {@see Filesystem::removeTree()} — ein Abtragen des **Baums**,
+     * gedacht für einen Rückbau, den es nie gab: `backups.subscription_id`
+     * steht auf `nullOnDelete`, weil die Sicherung ihr Abonnement überleben
+     * soll, und `Backups.php` schreibt ausdrücklich hin, dass ein Aufrufer beim
+     * Rückbau genau das Merkmal zerstörte, für das es Schritt 10 gibt.
+     *
+     * Seit dem 17. September 2026 hat dieser Griff einen Aufrufer: Das Panel
+     * ruft ihn, nachdem die **letzte** Zeile eines zurückgebauten Abonnements
+     * entfernt wurde. Und für diesen Aufrufer wäre das Abtragen eines Baums
+     * falsch — was dort noch liegt, ist eine Datei **ohne Zeile**, und genau
+     * die meldet die Bestandsdiagnose als `orphan`. Ein `removeTree` nähme sie
+     * wortlos mit.
+     *
+     * > **Ein Griff, der mehr kann als sein einziger Aufrufer braucht, nimmt
+     * > irgendwann das mit, wovon der Befund daneben handelt.**
+     *
+     * `rmdir(2)` kann das nicht: Es scheitert an einem Verzeichnis, in dem noch
+     * etwas liegt. Der Griff ist damit **selbstbegrenzend** — er kann keine
+     * Daten zerstören, und deshalb darf ihn das Panel ohne Rückfrage gehen.
+     *
+     * **Ein nicht leeres Verzeichnis ist kein Fehlschlag**, sondern `false`:
+     * Es ist der Zustand, in dem etwas anderes zu tun ist, und das Melden davon
+     * ist die Aufgabe der Diagnose und nicht dieses Aufrufs.
+     *
+     * Die Schranken bleiben wie bei `subscription.remove`: keinem Symlink
+     * folgen, und der aufgelöste Pfad muss derselbe sein.
      */
     public static function removeDirectory(string $subscription): bool
     {
@@ -263,8 +288,6 @@ final class Store
             throw AgentException::denied('Der aufgelöste Pfad weicht ab — es wird nichts entfernt.');
         }
 
-        Filesystem::removeTree($directory);
-
-        return true;
+        return @rmdir($directory);
     }
 }

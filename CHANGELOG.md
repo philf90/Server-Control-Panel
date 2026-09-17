@@ -29855,3 +29855,110 @@ keinen Aufrufer. Der Betreiber bekommt damit einen Befund, den er aus dem Panel
 nicht klären kann. Ob das Panel ein leeres Verzeichnis von sich aus entfernen
 darf — und an welcher Stelle —, ist eine Entscheidung und keine Ableitung; sie
 gehört vor die Abnahme von P8 und nicht in diese Behebung.
+
+### Das leere Sicherungsverzeichnis wird jetzt auch abgeräumt
+
+Befund 10 aus `docs/119` hatte zwei Hälften. Die erste — es wird gemeldet —
+stand seit heute früh. Die zweite fehlte: Der Griff dafür lag im Agenten und
+hatte keinen Aufrufer, der Betreiber bekam also einen Befund, den er aus dem
+Panel nicht loswurde.
+
+> **Ein Griff, den es gibt und zu dem kein Weg führt, ist von einem, den es
+> nicht gibt, nicht zu unterscheiden.**
+
+**Gerufen wird er an dem einen Augenblick, in dem die Frage entschieden ist:**
+wenn die **letzte** Zeile eines Abonnements verschwindet, **das es nicht mehr
+gibt**. Nicht im Nachtlauf — dort schützt die Regel seit A10 davor, dass ohne
+Zuschauer etwas verschwindet. Hier hat gerade jemand auf „Entfernen" gedrückt,
+und was bleibt, ist die Hülle dessen, was er entfernt hat.
+
+> **Ein Rückweg, der die Hälfte zurücknimmt, ist keiner.** `Store::prepare()`
+> legt Datei **und** Verzeichnis an.
+
+**Der Kern der Behebung ist ein Wort:** `Store::removeDirectory()` ruft jetzt
+`rmdir(2)` statt `Filesystem::removeTree()`. Das Abtragen eines Baums war für
+einen Rückbau gedacht, den es nie gab — und für den einen Aufrufer, den der
+Griff jetzt hat, wäre es falsch: Was in einem solchen Verzeichnis noch liegt,
+ist eine Datei **ohne Zeile**, und genau die meldet die Diagnose als `orphan`.
+Ein `removeTree` nähme sie wortlos mit.
+
+> **Ein Griff, der mehr kann als sein einziger Aufrufer braucht, nimmt
+> irgendwann das mit, wovon der Befund daneben handelt.**
+
+`rmdir` kann das nicht — es scheitert an allem, was noch darin liegt. Der Griff
+ist damit **selbstbegrenzend**, und nur deshalb darf das Panel ihn ohne
+Rückfrage gehen. Gemessen ist das und nicht angenommen: leeres Verzeichnis geht,
+volles bleibt samt seiner Datei stehen.
+
+**Drei Bedingungen entscheiden, und jede hat ihren eigenen Eingriff.** Gerufen
+wird nur, wenn die Zeile verwaist war, keine weitere Zeile denselben Namen nennt
+(auch keine auf `pending`) und kein lebendes Abonnement so heisst. Die vierte —
+ob das Verzeichnis wirklich leer ist — beantwortet der Agent, weil nur er
+hinsehen kann.
+
+**Und der erste Wurf des Wächters hat drei seiner vier Fälle aus dem falschen
+Grund grün gehabt.** Die Zusicherungen lasen `Operation` **ausserhalb** der
+Mandantenklammer, und ein Abräumvorgang hat kein Abonnement — geklammert kommt
+dort immer `null` zurück. Der positive Fall war rot und hat sich gemeldet; die
+drei Verneinungsfälle hätten nie etwas angesehen.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht** — und eine Null, die „nicht nachgesehen" bedeutet, sieht aus wie
+> „nichts geschehen".
+
+Das ist derselbe Fehler wie bei `RestoreDomainsTest` am selben Tag, eine Stunde
+vorher, in einem anderen Wächter. **Zweimal dieselbe Falle heisst: Wer in einem
+Test ein Modell mit `BelongsToSubscription` liest, fragt zuerst, ob sein
+Gegenstand überhaupt ein Abonnement hat.**
+
+**Ein bestehender Wächter hat das Aufräumen gemeldet, und das ist die seltene
+Richtung.** `SandboxReachTest` führt die Stellen, die als root einen Baum
+abtragen dürfen; `Store.php` stand darin und tut es nicht mehr. Ohne die
+Gegenrichtung bliebe der Eintrag als Erlaubnis für etwas stehen, das niemand
+mehr tut — und der Nächste läse ihn als Zusage.
+
+> **Ein Wächter, der eine Erlaubnisliste in beide Richtungen hält, meldet auch
+> das Aufräumen — und genau dann ist er nützlich.**
+
+### Der Wächterlauf hat drei Eingriffe gemeldet, die nicht gebissen haben
+
+Gemeldet von `waechter.yml` auf PR #251, an genau der Stelle, die beim Öffnen
+als verdächtig benannt war. **Zwei Fehler von mir, und der zweite wiegt mehr.**
+
+**Der erste steckte im Prüfkörper.** Die drei Lagen, in denen das Verzeichnis
+stehenbleiben soll, legten ein Abonnement an und setzten nur `subscription_id`
+der Zeile auf `null` — das Abonnement blieb also da. Damit blockten zwei
+Bedingungen gleichzeitig, und wer eine herausnahm, wurde von der anderen
+aufgefangen.
+
+> **Ein Eingriff, der einen Zustand herstellt, den der Prüfling ohnehin gleich
+> beantwortet, misst die Regel nicht — er misst, dass sie unempfindlich ist.**
+
+Jede Lage isoliert jetzt **eine** Bedingung. Dabei ist ein Fall dazugekommen,
+den es vorher nicht gab und der `$verwaist` überhaupt erst nötig macht:
+**`subscription_name` ist eine Abschrift.** Benennt jemand sein Abonnement nach
+der Sicherung um, nennt die Zeile einen Namen, unter dem kein Abonnement mehr zu
+finden ist — ohne `$verwaist` sähe das aus wie ein zurückgebautes, und das Panel
+räumte ein Verzeichnis ab, dessen Abonnement lebt.
+
+**Der zweite steckte in meinem Prüfgriff, und er hat den ersten verdeckt.** Er
+las das Ergebnis mit `grep -cE '^OK'`. PHPUnits Schlusszeile beginnt aber mit
+einer ANSI-Folge und nicht mit `OK` — der Griff zählte also **immer** null und
+meldete **immer** „beisst". Vier Eingriffe waren damit als belegt notiert, und
+drei davon bissen nie.
+
+> **Ein Prüfgriff, der einen seiner beiden Ausgänge gar nicht erreichen kann,
+> ist kein Prüfgriff — er ist eine Behauptung mit einer Zahl daneben.**
+
+Das ist „Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als
+Null steht" an der Stelle, an der es am teuersten ist: am Werkzeug, mit dem die
+Belege entstehen. Gemessen wird seitdem am **Rückgabewert** von PHPUnit, und die
+Zahl der gefahrenen Fälle steht daneben — sonst ist „rot" von „nichts gelaufen"
+nicht zu unterscheiden.
+
+**`pruefe()` im Bruchskript war die ganze Zeit richtig gebaut**: Es sucht
+`*'OK ('*` als Teilzeichenkette und kennt „kein Test" als eigenen Ausgang. Der
+Lauf hat genau das getan, wofür es ihn gibt.
+
+> **Ein Eingriff, der einzeln beisst, beisst nicht unbedingt im Lauf** — und
+> wessen Handgriff das Einzelne falsch misst, erfährt es erst dort.

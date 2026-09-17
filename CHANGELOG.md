@@ -29605,3 +29605,63 @@ und der braucht root. In der CI läuft der Lauf als `runner`, dort überspringt 
 und ein übersprungener Fall liest sich als bestanden. Er ist von Hand
 gegengeprüft — 1 rot, mit der Meldung „Die Datei unter httpdocs trägt nicht
 www-data".
+
+### Eine Sicherung ohne Abonnement liess sich nicht entfernen
+
+Gemeldet vom Betreiber im Abnahmelauf von P8 (17. September 2026): Der Bereich
+„Ohne Abonnement" auf `/backups` trug keine Spalte „Aktion" — und die Route
+konnte es auch nicht.
+
+```php
+// BackupController::destroy()
+abort_unless($backup->subscription_id === $subscription->id, 404);
+```
+
+Bei einer verwaisten Zeile ist `subscription_id` **`null`**; die Bedingung kann
+nie zutreffen, und die Adresse `/subscriptions/{subscription}/backups/{backup}`
+verlangt ohnehin ein Abonnement, das es nicht mehr gibt.
+
+**Der Griff selbst war gebaut.** `Backups::remove()` hat seit dem 16. September
+einen eigenen Zweig für genau diesen Fall, mit einer Berichtigung und einem
+langen Kommentar. Ausgezählt, wer ihn erreichen kann: `destroy()` sperrt ihn aus,
+`Retention::prune()` fragt `where('subscription_id', …)`. **Er hatte keinen
+erreichbaren Aufrufer.**
+
+> **Ein Griff, den es gibt und zu dem kein Weg führt, ist von einem, den es nicht
+> gibt, nicht zu unterscheiden.**
+
+Die Ironie ist der Punkt: `Backups::removeAll()` wurde am **16. September**
+gelöscht, *weil* es keinen Aufrufer hatte — und am selben Tag entstand dieser
+Zweig, der auch keinen hatte.
+
+**Die Tür ist jetzt die Geschwister der Wiederherstellung:** `DELETE
+/backups/{backup}`, ohne `{subscription}` im Pfad, aus demselben Grund wie dort —
+der Fall, für den es sie gibt, ist der, in dem das Abonnement fehlt.
+
+**Und sie fragt eine eigene Fähigkeit.** `BackupController::pick()` fragte bisher
+`create, Subscription`, um zu entscheiden, wer verwaiste Sicherungen **sieht** —
+eine Fähigkeit, die etwas anderes bedeutet und heute dasselbe ergibt. Würde sie
+je gelockert, bekäme derselbe Aufrufer die Sicherungen fremder Abonnements zu
+sehen. Beide Stellen fragen jetzt `SubscriptionPolicy::manageOrphanedBackups()`.
+
+> **Zwei Fragen, die heute dieselbe Antwort haben, bleiben nicht dieselbe Frage —
+> und welche der beiden sich ändert, entscheidet niemand, der die andere gemeint
+> hat.**
+
+**Die Gegenrichtung ist die wichtigere und steht als eigener Fall:** Die neue
+Adresse trägt kein `can:manageBackups,subscription`. Nähme sie eine Zeile mit
+Abonnement an, wäre sie eine zweite Tür, die die Frage „darf dieser Aufrufer
+*dieses* Abonnement verwalten?" gar nicht erst stellt.
+
+> **Zwei Adressen für dieselbe Zeile sind zwei Türen — und die zweite muss
+> dieselbe Frage stellen oder eine engere.**
+
+`BackupTeardownTest` hält vier Dinge: dass eine verwaiste Zeile über den
+**Agenten** geht (gemessen am Vorgang, nicht am Verschwinden — ein `delete()`
+hinterliesse genau den Rest, den `backup.verify` als `orphan` meldet), dass jede
+Tür die Sorte der anderen abweist, und dass die Seite den Griff anbietet.
+
+**Der letzte Fall verlangt Aufruf *und* Bedienelement**, und das ist kein
+Formalismus: Nimmt jemand die Zelle aus der Tabelle und lässt die Funktion
+stehen, ist genau der Zustand wieder da, der diesen Befund ausgelöst hat — der
+Griff da, der Weg fort. Beide Hälften sind mit einem eigenen Eingriff belegt.

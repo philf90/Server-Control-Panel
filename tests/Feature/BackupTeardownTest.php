@@ -15,6 +15,7 @@ use App\Support\Settings\Settings;
 use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\WithoutMarkupComments;
 use Tests\TestCase;
 
 /**
@@ -54,6 +55,7 @@ use Tests\TestCase;
 final class BackupTeardownTest extends TestCase
 {
     use RefreshDatabase;
+    use WithoutMarkupComments;
 
     /**
      * Die Sicherung **vor** dem Rückbau überlebt den Rückbau.
@@ -240,6 +242,143 @@ final class BackupTeardownTest extends TestCase
         $this->actingAs($this->admin())
             ->get('/backups')
             ->assertRedirect();
+    }
+
+    /**
+     * **Und sie lässt sich auch wieder entfernen** — der Befund des Betreibers
+     * vom 17. September 2026.
+     *
+     * Der Bereich „Ohne Abonnement" trug keine Handlung, und die Adresse von
+     * `backups.destroy` steht unter `/subscriptions/{subscription}/…`: Bei
+     * einer verwaisten Zeile ist `subscription_id` `null`, und
+     * `abort_unless($backup->subscription_id === $subscription->id)` kann nie
+     * zutreffen. Der Griff dahinter war gebaut — `Backups::remove()` hat seit
+     * dem 16. September einen eigenen Zweig für genau diesen Fall — und von
+     * niemandem erreichbar.
+     *
+     * > **Ein Griff, den es gibt und zu dem kein Weg führt, ist von einem, den
+     * > es nicht gibt, nicht zu unterscheiden.**
+     *
+     * **Gemessen wird der Weg über den Agenten und nicht ein Verschwinden.**
+     * Die Datei liegt `root:srvpanel`; die Zeile bleibt stehen, bis er
+     * geantwortet hat. Ein `delete()` hier hinterliesse genau den Rest, den
+     * `backup.verify` als `orphan` meldet — und der Fall wäre grün, weil die
+     * Zeile ja fort ist.
+     */
+    public function test_a_backup_without_a_subscription_can_be_removed(): void
+    {
+        $subscription = $this->subscription();
+        $backup = $this->backup($subscription, 'verwaist');
+
+        app(Tenancy::class)->withoutRestriction(static fn () => $subscription->forceDelete());
+
+        $this->actingAs($this->admin())
+            ->delete('/backups/'.$backup->id)
+            ->assertRedirect('/backups');
+
+        $vorgang = app(Tenancy::class)->withoutRestriction(
+            static fn (): ?Operation => Operation::query()->where('task', 'backup.remove')->first(),
+        );
+
+        $this->assertNotNull(
+            $vorgang,
+            'Es ist kein Vorgang entstanden — dann ist die Zeile ohne den Agenten gelöscht worden, und die Datei liegt noch da.',
+        );
+
+        $this->assertNotNull(
+            app(Tenancy::class)->withoutRestriction(
+                static fn (): ?Backup => Backup::query()->find($backup->id),
+            ),
+            'Die Zeile ist schon fort, bevor der Agent geantwortet hat — dann beschreibt sie nichts mehr und die Datei ist unauffindbar.',
+        );
+    }
+
+    /**
+     * **Die Gegenrichtung, und sie ist die wichtigere.**
+     *
+     * `/backups/{backup}` trägt kein `{subscription}` und damit auch kein
+     * `can:manageBackups,subscription`. Nähme sie eine Zeile mit Abonnement an,
+     * wäre sie eine zweite Tür an derselben Sache — eine, die die Frage „darf
+     * dieser Aufrufer *dieses* Abonnement verwalten?" gar nicht erst stellt.
+     *
+     * > **Zwei Adressen für dieselbe Zeile sind zwei Türen — und die zweite
+     * > muss dieselbe Frage stellen oder eine engere.**
+     */
+    public function test_the_door_for_orphans_refuses_a_backup_that_still_has_one(): void
+    {
+        $subscription = $this->subscription();
+        $backup = $this->backup($subscription, 'gehoert-noch');
+
+        $this->actingAs($this->admin())
+            ->delete('/backups/'.$backup->id)
+            ->assertNotFound();
+
+        $this->assertNull(
+            app(Tenancy::class)->withoutRestriction(
+                static fn (): ?Operation => Operation::query()->where('task', 'backup.remove')->first(),
+            ),
+            'Die Tür für Verwaiste hat eine Sicherung mit Abonnement entfernt — unter Umgehung von manageBackups.',
+        );
+    }
+
+    /**
+     * Und die andere Tür weist eine verwaiste Zeile ab.
+     *
+     * Sie tut es von Bauart wegen — die Adresse verlangt ein Abonnement —, und
+     * genau deshalb steht der Fall hier: Ohne ihn stünde die eine Hälfte des
+     * Paares gemessen da und die andere als Selbstverständlichkeit.
+     */
+    public function test_the_door_with_a_subscription_refuses_an_orphan(): void
+    {
+        $subscription = $this->subscription();
+        $backup = $this->backup($subscription, 'verwaist-zwei');
+        $id = (int) $subscription->id;
+
+        app(Tenancy::class)->withoutRestriction(static fn () => $subscription->forceDelete());
+
+        $this->actingAs($this->admin())
+            ->delete(sprintf('/subscriptions/%d/backups/%d', $id, $backup->id))
+            ->assertNotFound();
+    }
+
+    /**
+     * Und die Seite bietet den Griff wirklich an.
+     *
+     * **Was dieser Fall nicht kann:** Er liest die Vorlage und sagt damit, dass
+     * dort ein Aufruf steht — nicht, dass ein Betrachter ihn findet. Die Frage
+     * „wo sucht jemand diese Handlung" hängt an einer Erwartung und nicht am
+     * Quelltext; sie steht in `CLAUDE.md` als Frage.
+     *
+     * Die Kommentare fallen vorher weg: Der Absatz, der diesen Befund erklärt,
+     * schreibt die Adresse wörtlich hin.
+     *
+     * > **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie
+     * > irgendwo steht — und ein Kommentar, der die entfernte Zeile zitiert,
+     * > stellt sie für ihn wieder her.**
+     */
+    public function test_the_picker_offers_the_removal(): void
+    {
+        $quelle = $this->withoutMarkupComments(
+            (string) file_get_contents(base_path('resources/js/Pages/Subscriptions/BackupPick.vue')),
+        );
+
+        $this->assertStringContainsString(
+            'router.delete(`/backups/${sicherung.id}`)',
+            $quelle,
+            'Die Auswahlseite ruft die Tür für verwaiste Sicherungen nicht — dann gibt es sie und niemand kommt hin.',
+        );
+
+        /*
+         * **Und ein Bedienelement, das sie ruft.** Ohne diese Zeile bliebe der
+         * Fall grün, wenn jemand die Zelle aus der Tabelle nimmt und die
+         * Funktion stehenlässt — also genau im Zustand, der diesen Befund
+         * ausgelöst hat: der Griff da, der Weg fort.
+         */
+        $this->assertStringContainsString(
+            '@click="entfernen(sicherung)"',
+            $quelle,
+            'Die Zeile trägt kein Bedienelement, das die Tür ruft — die Funktion allein erreicht niemand.',
+        );
     }
 
     private function admin(): Account

@@ -1047,6 +1047,29 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:create,'.Subscription::class)
         ->name('backups.restore');
 
+    /*
+     * **Und der Weg, sie wieder loszuwerden** — der Befund, den der Betreiber
+     * im Abnahmelauf von P8 gemeldet hat (17. September 2026).
+     *
+     * `backups.destroy` steht unter `/subscriptions/{subscription}/…` und
+     * beginnt mit `abort_unless($backup->subscription_id === $subscription->id)`.
+     * Bei einer verwaisten Zeile ist die Spalte `null` — die Bedingung kann nie
+     * zutreffen, und die Adresse verlangt ohnehin ein Abonnement, das es nicht
+     * mehr gibt. Der Griff dahinter war gebaut: `Backups::remove()` hat seit dem
+     * 16. September einen eigenen Zweig für genau diesen Fall, mit Kommentar.
+     * Erreicht hat ihn niemand.
+     *
+     * > **Ein Griff, den es gibt und zu dem kein Weg führt, ist von einem, den
+     * > es nicht gibt, nicht zu unterscheiden.**
+     *
+     * Die Adresse ist deshalb die Geschwister der Wiederherstellung und trägt
+     * kein `{subscription}` — aus demselben Grund wie dort: Der Fall, für den es
+     * sie gibt, ist der, in dem das Abonnement fehlt.
+     */
+    Route::delete('/backups/{backup}', [BackupController::class, 'destroyOrphan'])
+        ->middleware('can:manageOrphanedBackups,'.Subscription::class)
+        ->name('backups.destroy.orphan');
+
     Route::get('/databases', [DatabaseController::class, 'index'])
         ->middleware('can:viewAny,'.Database::class)
         ->name('databases.index');

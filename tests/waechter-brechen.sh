@@ -30238,6 +30238,45 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupRestoreTest passed
 
 echo
+echo "── BackupTeardownTest: die Tür nimmt die falsche Sorte ──"
+#
+# Der Befund des Betreibers vom 17. September 2026, von der anderen Seite:
+# `/backups/{backup}` trägt kein `{subscription}` und damit kein
+# `can:manageBackups`. Nimmt sie eine Zeile mit Abonnement an, ist sie eine
+# zweite Tür, die die Frage nach dem Abonnement gar nicht erst stellt.
+vorher_datei app/Http/Controllers/BackupController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/BackupController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("abort_unless($backup->subscription_id === null, 404);",
+              "abort_unless($backup->subscription_id !== null, 404);", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/BackupController.php "Tuer nimmt die falsche Sorte" &&
+pruefe "Tuer nimmt die falsche Sorte" \
+  BackupTeardownTest::test_the_door_for_orphans_refuses_a_backup_that_still_has_one failed
+wiederherstellen
+
+echo
+echo "── BackupTeardownTest: der Knopf fehlt, die Funktion bleibt ──"
+#
+# Genau der Zustand, der den Befund ausgelöst hat: Der Griff ist gebaut und
+# kein Bedienelement ruft ihn. Ein Wächter, der nur die Funktion suchte, bliebe
+# hier grün.
+vorher_datei resources/js/Pages/Subscriptions/BackupPick.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/BackupPick.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('@click="entfernen(sicherung)"', 'data-ohne-griff', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/BackupPick.vue "Knopf ohne Griff" &&
+pruefe "Knopf ohne Griff" \
+  BackupTeardownTest::test_the_picker_offers_the_removal failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupTeardownTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

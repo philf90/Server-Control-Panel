@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
+import { useConfirmation } from '../../Composables/useConfirmation'
+
+const { ask } = useConfirmation()
 
 /**
  * Welches Abonnement soll seine Sicherungen zeigen?
@@ -30,6 +33,31 @@ const props = defineProps<{
     created_at: string
   }[]
 }>()
+
+/**
+ * Eine Sicherung ohne Abonnement entfernen — mit Rückfrage.
+ *
+ * **Der Befund, für den es diesen Knopf gibt** (P8, 17. September 2026): Die
+ * Zeilen standen hier ohne jede Handlung, und die Adresse von
+ * `backups.destroy` verlangt ein Abonnement, das es nicht mehr gibt. Der Griff
+ * dahinter war gebaut und unerreichbar.
+ *
+ * > **Ein Griff, den es gibt und zu dem kein Weg führt, ist von einem, den es
+ * > nicht gibt, nicht zu unterscheiden.**
+ *
+ * **Der Name steht in der Frage**, wie auf der Sicherungsseite: „Wirklich
+ * entfernen?" beantwortet niemand verlässlich, wenn vier Zeilen untereinander
+ * stehen und der Knopf an jeder gleich aussieht. Und hier wiegt es schwerer —
+ * das Abonnement ist fort, die Sicherung ist alles, was bleibt.
+ */
+function entfernen(sicherung: { id: number; storage_name: string }): void {
+  ask(
+    'Sicherung entfernen',
+    `Die Sicherung ${sicherung.storage_name} wird vom Datenträger gelöscht. `
+      + 'Ihr Abonnement gibt es nicht mehr — danach ist dieser Stand fort.',
+    () => { router.delete(`/backups/${sicherung.id}`) },
+  )
+}
 </script>
 
 <template>
@@ -122,6 +150,7 @@ const props = defineProps<{
               <th>Abonnement</th>
               <th>Stand</th>
               <th>Angelegt</th>
+              <th>Aktion</th>
             </tr>
           </thead>
           <tbody>
@@ -133,6 +162,11 @@ const props = defineProps<{
               </td>
               <td data-column="Stand" class="ident">{{ sicherung.storage_name }}</td>
               <td data-column="Angelegt">{{ sicherung.created_at }}</td>
+              <td data-column="Aktion">
+                <button type="button" class="button small danger" @click="entfernen(sicherung)">
+                  Entfernen
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>

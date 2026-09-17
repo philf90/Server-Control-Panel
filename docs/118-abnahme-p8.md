@@ -75,14 +75,42 @@ deshalb steht es jetzt in Punkt 1 als Prüfkörper und in Punkt 4 als Messung.
 
 ---
 
+### 0.6 `srvpanel diagnose` hat kein `--json`
+
+Gefunden am **17. September 2026**, vor dem ersten Befehl: Die Vorschrift rief
+an drei Stellen `srvpanel diagnose --json`. Die Signatur des Kommandos ist
+`srvpanel:diagnose` **ohne Optionen** — der Aufruf wäre an jeder der drei
+gescheitert, und zwar erst im Lauf.
+
+> **Eine Messvorschrift, die ein Werkzeug voraussetzt, das der Server nicht
+> hat, misst nicht — sie meldet einen Fehler an sich selbst.** (`docs/108`)
+
+Gelesen werden die Befunde jetzt dort, wo sie stehen: in `findings`, über
+`srvpanel tinker`. Die Tabelle trägt kein `BelongsToSubscription`, die
+Mandantenklammer greift also nicht — `withoutGlobalScopes()` wäre hier die
+zweite Falle und ist nicht nötig (gemessen am Modell, nicht vermutet).
+
+**Und der Vorflug hatte eine zweite:** `srvpanel diagnose --json | tee … |
+head -40` schneidet die Leitung nach vierzig Zeilen ab. `head` schliesst sie,
+und was `tee` danach schreiben wollte, ist fort.
+
+> **Kein `| head` über dem Messlauf.** (CLAUDE.md, bezahlt am 23. August)
+
+---
+
 ## 0b · Der Vorflug — was vorher dasteht und hinterher wieder
 
 Dieser Lauf **legt ein Abonnement an und löscht es**. Vorher festhalten:
 
 ```bash
-srvpanel diagnose --json | tee /root/p8-vorher-diagnose.json | head -40
+srvpanel diagnose
+srvpanel tinker --execute='
+  foreach (App\Models\Finding::query()->orderBy("check")->orderBy("subject")->get() as $f) {
+    printf("%-4s %-22s %-20s %s\n", $f->state()->value, $f->check->value, $f->reason, $f->subject);
+  }
+  printf("%d Befunde\n", App\Models\Finding::query()->count());'
 ls -la /var/lib/srvpanel/backups/
-repquota -s / | head -20 | tee /root/p8-vorher-quota.txt
+repquota -s / > /root/p8-vorher-quota.txt; head -20 /root/p8-vorher-quota.txt
 srvpanel tinker --execute='echo App\Models\Subscription::withoutGlobalScopes()->count()," Abos, ",
   App\Models\Backup::withoutGlobalScopes()->count()," Sicherungen";'
 ```
@@ -236,10 +264,10 @@ Ausfall und kein Mangel an Schönheit.
 
 ```bash
 srvpanel diagnose
-srvpanel diagnose --json | python3 -c '
-import json,sys
-for f in json.load(sys.stdin).get("findings", []):
-    if f["check"].startswith("web."): print(f["check"], f["reason"], f["subject"])'
+srvpanel tinker --execute='
+  foreach (App\Models\Finding::query()->where("check", "like", "web.%")->get() as $f) {
+    printf("%-4s %-22s %-20s %s\n", $f->state()->value, $f->check->value, $f->reason, $f->subject);
+  }'
 nginx -t
 ```
 
@@ -290,9 +318,11 @@ srvpanel tinker --execute='
 
 ```bash
 time srvpanel backup-verify
-srvpanel diagnose --json | python3 -c '
-import json,sys
-print([f for f in json.load(sys.stdin).get("findings", []) if f["check"] == "backup.file"])'
+srvpanel tinker --execute='
+  foreach (App\Models\Finding::query()->where("check", "backup.file")->get() as $f) {
+    printf("%-4s %-20s %s\n", $f->state()->value, $f->reason, $f->subject);
+  }
+  printf("%d backup.file-Befunde\n", App\Models\Finding::query()->where("check", "backup.file")->count());'
 ```
 
 **Erwartet:** keine `backup.file`-Befunde.
@@ -304,7 +334,7 @@ Dann ein Byte **im Inhalt** eines Archivs umdrehen — nicht im Kopf, sonst ist 
 cp /var/lib/srvpanel/backups/<abo>/<stand>.zip /root/p8-heil.zip
 printf '\x00' | dd of=/var/lib/srvpanel/backups/<abo>/<stand>.zip bs=1 seek=2048 conv=notrunc
 srvpanel backup-verify
-srvpanel diagnose --json | python3 -c '…'      # erwartet: corrupt
+# derselbe Leser wie oben                        # erwartet: corrupt
 cp /root/p8-heil.zip /var/lib/srvpanel/backups/<abo>/<stand>.zip
 srvpanel backup-verify                          # erwartet: Befund fort
 ```

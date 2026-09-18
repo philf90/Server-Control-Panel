@@ -30027,3 +30027,86 @@ dasteht.
 Die Gegenprobe steht als eigener Fall daneben und ist die gefährlichere
 Richtung: Ein Verteiler, der **gar nichts** mehr ruft, macht beide Fälle grün —
 und jeder Vorgang dieses Panels stünde für immer auf „wartet".
+
+### P8 ist abgenommen — 18. September 2026
+
+Gefahren auf `cloudsrv24` gegen `0.7.4-rc.14` und `0.7.4-rc.15`, **alle acht
+Punkte aus `docs/120` erfüllt**, **Punkt 1 als Ausschlusskriterium darunter**,
+keiner als „nicht herstellbar" ausgefallen. Die Vorschrift ist `docs/120`, das
+Protokoll **`docs/121`**.
+
+`docs/119` hatte Punkt 4 als **nicht erfüllt** gemessen, und daran hing die
+ganze Stufe. Er ist hier vollständig neu gefahren.
+
+**Der Prüfkörper war der Grund, dass zwei Punkte überhaupt fahrbar waren.**
+`docs/119` liess den Fortschritt und die Zeilenzahl an 8,5 MB und zwei leeren
+Datenbanken ausfallen. Mit 501 MB in `httpdocs` und 5000 Zeilen je System dauert
+eine Sicherung **14 Sekunden** — zweimal gemessen, auf die Sekunde gleich.
+
+> **Ein Punkt, der am Prüfkörper ausfällt, fällt beim nächsten Mal wieder aus,
+> wenn der Prüfkörper derselbe bleibt.**
+
+**Punkt 1 hat sein `200` nur durch die Gegenprobe daneben behalten.** Die Domain
+antwortet mit `200` und **12 Bytes**, ein Name, den es dort nicht gibt, mit
+`200` und **615**. Beide sind grün; die Bytes trennen sie.
+
+> **Ein Rückgabewert von 200 sagt, dass jemand geantwortet hat — nicht, dass der
+> Gemeinte geantwortet hat.**
+
+**Punkt 4 ist in drei Hälften gefahren, und die mittlere ist die Messung.** Fünf
+Sicherungen einzeln entfernt: je ein Vorgang, jeder mit `storage`, kein zweiter,
+das Verzeichnis steht. Erst bei der **letzten** entsteht ein zweiter
+`backup.remove` — **ohne `storage`**, und danach ist das Verzeichnis fort,
+während das Nachbarverzeichnis unberührt bleibt. Von aussen unterscheidet die
+beiden Vorgänge allein der leere Payload.
+
+**Und die dritte Hälfte belegt, dass der Griff nichts zerstören kann.** Eine
+Datei ohne Zeile im selben Verzeichnis lässt `rmdir(2)` scheitern; der Vorgang
+endet auf `succeeded` mit `removed: false`, und die Datei liegt weiter da.
+
+**Der Abbau ist selbst eine Messung.** Nach dem Wegräumen meldet `srvpanel
+backup-verify` *„Keine Befunde an den Sicherungen."* — beide Befunde sind
+verschwunden, weil ihr Grund verschwunden ist.
+
+> **Ein Befund, der verschwindet, wenn sein Grund verschwindet, ist gemessen.
+> Ein Befund, der nur entsteht, ist abgelegt.**
+
+### Sechs Befunde, alle sechs im Prüfling
+
+Die deutlichste Umkehrung von `docs/45`, `docs/48`, `docs/59` und `docs/84`, und
+aus demselben Grund wie bei A10, A2 und A14: Die Vorschrift war vor dem Lauf
+ausgeschrieben, die Messmittel lagen als geprüfte Werkzeuge im Repo. Was blieb,
+war neuer Code und die Oberfläche darum. **Drei hat der Betreiber beim Benutzen
+gemeldet**, und drei davon hängen daran, was ein Betrachter *erwartet* — was
+kein Wächter halten kann.
+
+Behoben ist bisher der erste (der Verteiler der Lebensläufe, `0.7.4-rc.15`,
+siehe oben). Die übrigen fünf stehen in `docs/121 §9` mit ihren Lehren:
+
+- **Von der Abonnementseite führt kein Weg zu ihren Sicherungen.** `Dateien` und
+  `SFTP-Zugang` stehen dort als Knopf, `Sicherungen` nicht — während die Seite
+  unter *Freigaben* „Sicherungen anlegen — frei" anzeigt. Die fünfte
+  Wiederholung derselben Familie nach Dateimanager, SFTP, „Job anlegen" und dem
+  Abzeichen.
+- **Die Sicherungsvorgänge tragen keinen Handelnden.** `Backups::dispatch()`
+  setzt `account_id` nirgends; die Vorgangsseite sagt „System" für eine
+  Sicherung, die eine Person gedrückt hat, und im Protokoll des Agenten steht
+  gar niemand. `account_id = NULL` heisst hier seit `docs/901` schon etwas
+  anderes — Kommandozeile und Automatik.
+- **Das Entfernen einer Sicherung wird von keiner Seite verfolgt.** Das Anlegen
+  ist es (die Zeile springt ohne Neuladen, gemessen) — für das Entfernen greift
+  weder der Takt noch ein Weg zum Vorgang.
+- **„nichts zu entfernen" steht für drei Gründe** — kein Verzeichnis, ein
+  Symlink, ein nicht leeres Verzeichnis. Der mittlere ist eine
+  Sicherheitsverweigerung und liest sich als „da war nichts".
+- **Die Sicherungszeile zeigt denselben Zeitpunkt zweimal in zwei Zonen.** Der
+  Ablagename trägt UTC (`gmdate`), die Spalte „Angelegt" die Anzeigezeitzone —
+  zwei Stunden auseinander, in derselben Zeile, ohne ein Wort dazu.
+
+### Ein Merkmal, das kein Kriterium bestellt hat, ist nebenbei belegt
+
+„Vor dem Rückbau sichern" war angehakt, und die Vorgangskette zeigt es
+vollständig: `backup.create` läuft **vor** `subscription.remove` fertig — und
+**aus dieser Sicherung** ist in Punkt 1 zurückgespielt worden. Der Griff, der
+laut seiner eigenen Rückfrage „nichts zurücklässt", lässt jetzt eine Sicherung
+zurück, und sie hat den ganzen Lauf getragen.

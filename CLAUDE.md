@@ -10,7 +10,9 @@ Architektur (§4), Rechtemodell (§6), Gestaltung (§7.2) und die Ausbaustufen
 Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
 (Plan §7.2) — hell entworfen, keine Karten, Monospace nur für Kennungen.
 
-Stand: **P0 bis P7 abgenommen.** P7 (der DNS-Abgleich) ist am **24. August
+Stand: **P0 bis P8 abgenommen** — P7b am 9. September 2026, **P8 (die
+Sicherungen) am 18. September 2026**; der Abschnitt dazu steht weiter unten.
+P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
 dieses Laufs steht weiter unten; sie ist eine über Abnahmeläufe und nicht über
@@ -4475,6 +4477,109 @@ Planen herausfiel: Drei Dateien des Agenten benutzen `ZipArchive`, und weder
 > **Eine Erweiterung, die der Code benutzt und die Paketierung nicht nennt, ist
 > auf jedem Server vorhanden, auf dem sie zufällig jemand anderes mitgebracht
 > hat.**
+
+---
+
+## P8 ist abgenommen — 18. September 2026
+
+Auf `cloudsrv24` gegen `0.7.4-rc.14` und `0.7.4-rc.15`, **alle acht Punkte aus
+`docs/120`**, **Punkt 1 als Ausschlusskriterium darunter**, keiner als „nicht
+herstellbar" ausgefallen. Der Plan ist `docs/117`, der Abnahmelauf `docs/118`
+mit dem Protokoll `docs/119`, der Nachlauf `docs/120`, sein Protokoll
+**`docs/121`**.
+
+`docs/119` hatte Punkt 4 als **nicht erfüllt** gemessen, und daran hing die
+Stufe. Er ist im Nachlauf vollständig neu gefahren.
+
+**Der Prüfkörper hat zwei Punkte überhaupt erst fahrbar gemacht.** `docs/119`
+liess den Fortschritt und die Zeilenzahl an 8,5 MB und zwei leeren Datenbanken
+ausfallen. Mit 501 MB und 5000 Zeilen je System dauert eine Sicherung
+**14 Sekunden**, zweimal gemessen.
+
+> **Ein Punkt, der am Prüfkörper ausfällt, fällt beim nächsten Mal wieder aus,
+> wenn der Prüfkörper derselbe bleibt.**
+
+**Der grösste Befund war der Verteiler und nicht der Empfänger.**
+`Lifecycles::afterSuccess()` rief **jeden** Lebenslauf für **jeden** Vorgang.
+`handles()` gab es seit jeher, es heisst genau danach, und gelesen hat es allein
+`handled()` für einen Wächter. `RestoreLifecycle` prüfte `task` nicht — und bei
+einem `backup.create` sind Abonnement *und* Sicherung da, denn der Gegenstand
+**ist** die Sicherung. Nach **jeder** Sicherung lief deshalb eine vollständige
+Wiederherstellung gegen das lebende Abonnement, `rebuildCron()` eingeschlossen.
+
+> **Ein Verteiler, der jedem alles gibt, ist von einem, der richtig zuordnet,
+> nur an dem Fall zu unterscheiden, in dem ein Zweiter zuständig zu sein
+> scheint.**
+
+Und er hat die Frage der Vorschrift umgestellt. `docs/120 §7` liess „beim
+Zurückspielen" gegen „später" messen; die Antwort war **„beim Sichern"**.
+
+> **Zwei Messungen, die auseinandergehen, entscheidet keine Überlegung, sondern
+> die dritte — und die dritte darf die Frage umstellen, die die ersten beiden
+> gestellt haben.**
+
+**Zwei Fassungen an einem Tag sind eine Gegenprobe in der Zeit.** Dieselbe
+Maschine, derselbe Prüfkörper: unter `rc.14` trug das Ergebnis der Sicherung
+einen `restored`-Block und danach standen zwei Cronjobs da, unter `rc.15` keinen
+und einer. Kein Eingriff nötig.
+
+**Punkt 1 hat sein `200` nur durch die Gegenprobe daneben behalten:** die Domain
+`200` mit **12 Bytes**, ein Name, den es dort nicht gibt, `200` mit **615**.
+
+**Punkt 4 lief in drei Hälften, und die mittlere ist die Messung.** Fünf
+Sicherungen einzeln entfernt — je ein Vorgang **mit** `storage`, kein zweiter.
+Erst bei der **letzten** entsteht ein zweiter `backup.remove` **ohne** `storage`,
+und danach ist das Verzeichnis fort, während das Nachbarverzeichnis unberührt
+bleibt. Von aussen unterscheidet die beiden allein der leere Payload.
+
+**Sechs Befunde, alle sechs im Prüfling** — die deutlichste Umkehrung von
+`docs/45`, `docs/48`, `docs/59` und `docs/84`, und dieselbe Lage wie bei A10, A2
+und A14 aus demselben Grund: Vorschrift vorher ausgeschrieben, Messmittel als
+geprüfte Werkzeuge im Repo. **Drei hat der Betreiber beim Benutzen gemeldet**,
+und drei hängen daran, was ein Betrachter *erwartet*.
+
+**Der zweite ist die fünfte Wiederholung derselben Familie.** Von der
+Abonnementseite führt kein Weg zu ihren Sicherungen: `Dateien` und `SFTP-Zugang`
+stehen dort als Knopf, `Sicherungen` nicht — während dieselbe Seite unter
+*Freigaben* „Sicherungen anlegen — frei" anzeigt. Der Kommentar über
+`Route::get('/backups')` zitiert die Regel dagegen **wörtlich** und hat sie halb
+angewandt: Der schlüssellose Menüpunkt beantwortet *„wo sind meine
+Sicherungen"*, nicht *„dieses Abonnement sichern"*.
+
+> **Zwei Geschwister mit demselben Zuschnitt, von denen eines auf der Seite
+> steht und das andere nicht, sind keine Entwurfsentscheidung — es ist eine
+> vergessene Zeile.**
+
+Zwei weitere Sätze aus den übrigen Befunden, beide über Auskünfte, die es gibt
+und die falsch sind:
+
+> **Ein Griff, der sich weigert, und einer, der nichts zu tun findet, geben
+> dieselbe Antwort — und nur der erste ist eine Auskunft, die jemand braucht.**
+> `Store::removeDirectory()` sagt „nichts zu entfernen" für ein fehlendes
+> Verzeichnis, für einen **Symlink** und für ein nicht leeres.
+
+> **Zwei Wege, denselben Zustand zu zeigen — die Seite aktuell halten oder zum
+> Vorgang führen —, und das Entfernen einer Sicherung geht keinen von beiden.**
+> Das Anlegen geht den ersten, gemessen.
+
+**Und der Abbau war selbst eine Messung:** Nach dem Wegräumen meldet `srvpanel
+backup-verify` *„Keine Befunde an den Sicherungen."* Beide Befunde verschwinden,
+weil ihr Grund verschwindet.
+
+**Ein Merkmal, das kein Kriterium bestellt hat, ist nebenbei belegt.** „Vor dem
+Rückbau sichern" war angehakt, und die Vorgangskette zeigt es vollständig:
+`backup.create` läuft **vor** `subscription.remove` fertig — und aus **dieser**
+Sicherung ist in Punkt 1 zurückgespielt worden.
+
+**Was benannt offen bleibt** (`docs/121 §12`): die fünf ungebauten Befunde, der
+Rest des Prüfstands (`tls.file / expired / p6-b.invalid`), die `3 issues` auf
+`/backups/<id>/restore` aus `docs/119 §12` — und die Frage aus `docs/117 §3`, ob
+eine Wiederherstellung ihre **eigene** Reservierung zurückholen darf. Deren
+Vorfrage ist jetzt gemessen: Nach dem Lauf stehen **zwei** Zeilen in
+`system_users` mit derselben Abschrift.
+
+> **Eine Abschrift, die zweimal denselben Namen trägt, kann nicht sagen, welche
+> der beiden Zeilen gemeint ist.**
 
 ---
 

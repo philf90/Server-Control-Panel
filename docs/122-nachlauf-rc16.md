@@ -106,6 +106,36 @@ Kontingent, `hasDirectory()`); der Prüfkörper erfüllt sie damit ohne Zutun.
 
 ---
 
+## 0c · Die Reihenfolge, und sie ist nicht die Nummerierung
+
+**Gefunden beim Vorbereiten des Prüfkörpers, nicht beim Ausschreiben.** Drei
+Punkte brauchen ein **lebendes** Abonnement, drei brauchen ein **totes**, und
+zwei brauchen eine **verwaiste** Sicherung — die es nur zwischen beidem gibt.
+In der Nummernfolge gefahren verbraucht der Lauf seinen eigenen Gegenstand.
+
+| Reihe | Punkt | braucht |
+|---|---|---|
+| 1 | §1 der Weg von der Seite | lebendes Abonnement |
+| 2 | §6 die Bilderrunde | lebendes Abonnement, ≥ 1 Sicherung |
+| 3 | §5 der Satz, Liste des Abonnements | lebendes Abonnement |
+| 4 | §2a/2b der Handelnde | lebendes Abonnement (2b zusätzlich: aktiv, Plan-Merkmal, Kontingent > 0, Systembenutzer) |
+| 5 | §3a/3c Zustand und Fehlschlag | lebendes Abonnement, 2 Sicherungen |
+| — | **Rückbau**, eine Sicherung bleibt stehen | |
+| 6 | §3b der Takt der zweiten Liste | verwaiste Sicherung |
+| 7 | §5 der Satz, Liste der Verwaisten | verwaiste Sicherung |
+| 8 | §3d das Abräumen mit Kennung | **letzte** Sicherung eines toten Abonnements |
+| 9 | §4 die drei Ausgänge | Ablageort frei zum Herstellen |
+| 10 | §7 Abbau | |
+
+**Der Rückbau in der Mitte ist kein Abbau, sondern ein Prüfkörper.** Steht
+„vor dem Rückbau sichern" an, legt er zusätzlich eine Sicherung an — das ist
+willkommen und wird mitgezählt, nicht unterdrückt.
+
+> **Ein Prüfkörper, der einen Zustand braucht, den der Lauf davor verbraucht,
+> gehört an einen Gegenstand, der nachwächst — oder vor ihn.** (`docs/120 §0`)
+
+---
+
 ## 1 · Befund 2 — von der Abonnementseite führt ein Weg *(Ausschluss)*
 
 Die **fünfte** Wiederholung derselben Familie, und die erste, für die es eine
@@ -128,10 +158,19 @@ jemandem im Weg war. Er zählt hier genauso wie der bestellte.
 und der Befund war, dass sie unter *Freigaben* „Sicherungen anlegen — frei"
 anzeigte und keinen Weg dorthin hatte.
 
-**c) Die Gegenprobe, und sie läuft im Konto des Kunden.** Das Merkmal
-*Sicherungen* am Abonnement abschalten, Seite als **Kunde** neu laden: Der Knopf
-**„Sicherungen" ist fort**, „Cronjobs" steht weiter. Wieder einschalten: Er ist
-zurück.
+**c) Die Gegenprobe, und sie läuft im Konto des Kunden.** Genommen wird dem
+Kunden die **Freigabe** *Sicherungen anlegen* für dieses Abonnement — der
+Schalter, den dieselbe Seite unter *Freigaben* anzeigt. Seite als **Kunde** neu
+laden: Der Knopf **„Sicherungen" ist fort**, „Cronjobs" steht weiter. Freigabe
+zurückgeben: Er ist zurück.
+
+**Nicht das Merkmal des Plans.** `useFeature()` fragt beides — `planAllows()`
+und `hasPermission()` —, und das Merkmal hängt am **Plan**: Es abzuschalten
+träfe jedes Abonnement darauf. Die Freigabe hängt am Konto und an diesem einen
+Abonnement.
+
+> **Zwei Hebel, die dieselbe Anzeige abschalten, sind nicht derselbe Hebel — und
+> der eine trifft mehr als den Prüfkörper.**
 
 **Als Betreiber gefahren misst sie nichts** — siehe §0, vierte Zeile.
 

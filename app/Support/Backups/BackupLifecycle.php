@@ -78,7 +78,15 @@ final class BackupLifecycle implements AfterOperation
                 $backup->delete();
 
                 if ($verwaist && $this->abandoned($name)) {
-                    $this->backups->removeDirectory($name);
+                    /*
+                     * **Die Kennung kommt vom Anlass und nicht aus dem
+                     * Request.** Hier läuft der Arbeiter, und dort ist niemand
+                     * angemeldet. Ohne sie stünde das Abräumen als Automatik
+                     * da, obwohl es die Folge eines Klicks ist — und
+                     * `account_id = NULL` bedeutet seit `docs/901` genau das
+                     * andere. Dasselbe Muster wie in `CertificateLifecycle`.
+                     */
+                    $this->backups->removeDirectory($name, $operation->account_id);
                 }
 
                 return;

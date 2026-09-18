@@ -30506,11 +30506,15 @@ vorher_datei app/Support/Backups/BackupLifecycle.php
 python3 - <<'PY2'
 p = 'app/Support/Backups/BackupLifecycle.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("""                if ($verwaist && $this->abandoned($name)) {
-                    $this->backups->removeDirectory($name);
-                }
-
-""", "", 1)
+# **Der Griff fällt weg und nicht der ganze Block.** Hier stand die Bedingung
+# mitsamt ihrem Rumpf; seit die Kennung des Handelnden durchgereicht wird
+# (18. September 2026), steht ein Kommentar dazwischen, und der Eingriff fand
+# seinen Text nicht mehr. Gemeldet hat es
+# BreakScriptTest::test_every_intervention_still_grips_its_file.
+#
+#   Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+#   wenn jemand eine Zeile dazwischenschreibt.
+s = s.replace("                    $this->backups->removeDirectory($name, $operation->account_id);\n", "", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Support/Backups/BackupLifecycle.php "Verzeichnis bleibt liegen" &&
@@ -30636,6 +30640,92 @@ pruefe "Verteiler ruft keinen Lebenslauf" \
   LifecycleDispatchTest::test_the_lifecycle_that_owns_the_task_still_runs failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LifecycleDispatchTest passed
+
+echo
+echo "── BackupActorTest: der Sicherungsvorgang verliert seinen Handelnden ──"
+#
+# Der Befund vom 18. September 2026 auf cloudsrv24 (docs/121 §9, Befund 3): Die
+# Vorgangsseite einer von Hand gedrückten Sicherung sagte „Ausgelöst von:
+# System", während backup.restore in derselben Stunde und von derselben Person
+# „Administrator" sagte.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            'account_id' => $accountId ?? request()->user()?->getAuthIdentifier(),\n",
+    "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Backups.php "Sicherung ohne Handelnden" &&
+pruefe "Sicherung ohne Handelnden" \
+  BackupActorTest::test_a_backup_from_the_page_names_the_person failed
+wiederherstellen
+
+echo
+echo "── BackupActorTest: die bequeme Behebung ohne Durchreichen ──"
+#
+# **Der Eingriff, für den der Wächter fünf Fälle statt zweien hat.** Wer nur
+# `request()->user()` einsetzt, macht den nächtlichen Lauf nicht kaputt — der
+# hat ohnehin keinen Request — sondern das Abräumen des Verzeichnisses. Das
+# läuft im Arbeiter und ist trotzdem die Folge eines Klicks.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "'account_id' => $accountId ?? request()->user()?->getAuthIdentifier(),",
+    "'account_id' => request()->user()?->getAuthIdentifier(),", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Backups.php "Handelnder nur aus dem Request" &&
+pruefe "Handelnder nur aus dem Request" \
+  BackupActorTest::test_the_cleanup_inherits_the_actor_of_its_cause failed
+wiederherstellen
+
+echo
+echo "── BackupActorTest: der Lebenslauf reicht die Kennung nicht weiter ──"
+#
+# Dieselbe Naht von der anderen Seite: Der Aufrufer hat den Handelnden und gibt
+# ihn nicht mit. Von aussen sieht das Ergebnis genauso aus wie der Eingriff
+# darüber — und die Behebung gehört an eine andere Stelle.
+vorher_datei app/Support/Backups/BackupLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/BackupLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "$this->backups->removeDirectory($name, $operation->account_id);",
+    "$this->backups->removeDirectory($name);", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/BackupLifecycle.php "Lebenslauf ohne Kennung" &&
+pruefe "Lebenslauf ohne Kennung" \
+  BackupActorTest::test_the_cleanup_inherits_the_actor_of_its_cause failed
+wiederherstellen
+
+echo
+echo "── BackupActorTest: ein fünfter Weg durch dispatch() ──"
+#
+# Die Untergrenze. Ohne sie misst der Wächter einen neuen Aufrufer nicht, und
+# die vier alten Fälle bleiben grün — genau die Falle, in die dieses Vorgehen
+# schon dreimal gelaufen ist.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+anker = "    public function removeDirectory(string $subscriptionName, ?int $accountId = null): Operation\n    {\n"
+zusatz = ("    public function neuerWeg(Subscription $subscription): Operation\n"
+          "    {\n"
+          "        return $this->dispatch('backup.remove', $subscription, [], 'Prüfkörper');\n"
+          "    }\n\n")
+s = s.replace(anker, zusatz + anker, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Backups.php "fünfter Weg durch dispatch" &&
+pruefe "fünfter Weg durch dispatch" \
+  BackupActorTest::test_every_dispatch_of_this_helper_is_measured failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupActorTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

@@ -30110,3 +30110,80 @@ vollständig: `backup.create` läuft **vor** `subscription.remove` fertig — un
 **aus dieser Sicherung** ist in Punkt 1 zurückgespielt worden. Der Griff, der
 laut seiner eigenen Rückfrage „nichts zurücklässt", lässt jetzt eine Sicherung
 zurück, und sie hat den ganzen Lauf getragen.
+
+### Eine Sicherung sagt jetzt, wer sie ausgelöst hat
+
+Befund 3 des Nachlaufs (`docs/121 §9`), gemessen am 18. September 2026 auf
+`cloudsrv24`: Die Vorgangsseite einer von Hand gedrückten Sicherung sagte
+**„Ausgelöst von: System"**, während `backup.restore` in derselben Stunde und
+von derselben Person „Administrator" sagte.
+
+`Backups::dispatch()` setzte `account_id` **nirgends**. Ausgezählt nennt
+`grep -rn "'account_id' =>" app/` vierzehn Stellen — Datenbanken, Dumps,
+Weblebenslauf, Zertifikate, `Restore` —, und `Backups.php` stand nicht darunter.
+Betroffen war alles, was durch diesen Helfer geht: `backup.create` und beide
+Zweige von `backup.remove`. (`backup.verify` nicht — die Bestandsdiagnose ruft
+es über `Agent::call()` unmittelbar und legt dafür gar keinen Vorgang an.)
+
+**Der Befund ist nicht die leere Spalte, sondern ihre Bedeutung.** Seit
+`docs/901` heisst `account_id = NULL` **Kommandozeile oder Automatik**:
+`App\Console\Commands\Access` schreibt seinen Eintrag so und begründet es
+daneben, und `Operations::dispatch()` tut dasselbe für jede Automatik. Der
+nächtliche Sicherungslauf ist genau dieser Fall und soll `System` heissen — und
+war von einer Sicherung, die jemand gedrückt hat, nicht mehr zu unterscheiden.
+
+> **Eine Null, die schon eine Bedeutung trägt, kann keine zweite bekommen — die
+> beiden Fälle sehen danach gleich aus.**
+
+**Zwei Leser hingen daran, und der zweite ist der teurere.** Die Vorgangsseite
+über `ActorLabel` — und `RunAgentOperation::actor()`, das bei `null` gar nichts
+weitergibt: Im Protokoll des **Agenten** stand für jede Sicherung niemand.
+`/audit` war nicht betroffen, weil `BackupController` seinen Eintrag selbst
+schreibt.
+
+### Und das Abräumen erbt die Kennung seines Anlasses
+
+Das Entfernen des leeren Verzeichnisses läuft in
+`BackupLifecycle::afterSuccess()`, also im **Arbeiter** — dort ist niemand
+angemeldet, und `request()->user()` ist `null`. Sein Anlass ist aber ein Klick.
+`removeDirectory()` nimmt deshalb die Kennung entgegen, und der Lebenslauf gibt
+die seines auslösenden Vorgangs weiter — dasselbe Muster wie
+`CertificateLifecycle`, das `$cause->account_id` weiterreicht.
+
+> **Ein Wert, den jede Stelle anders weiss, gehört an die Stelle. Was überall
+> dasselbe ist, gehört an eine — und die muss eine sein, an der niemand
+> vorbeikommt.**
+
+**`BackupActorTest` misst an der Wirkung und durch die Tür**, nicht daran, dass
+`'account_id' =>` im Quelltext steht. Gefahren werden die echten Routen, und die
+Kennung wird auf dem Vorgang nachgelesen, den sie eingereiht haben. Fünf Fälle
+und beide Richtungen: mit angemeldetem Konto die Kennung, im nächtlichen Lauf
+`null` — denn dort ist `null` die richtige Antwort und nicht die fehlende.
+
+**Der Fall, für den es die fünf braucht**, ist der bequeme Fehler: Wer nur
+`request()->user()` einsetzt und das Durchreichen weglässt, macht den
+nächtlichen Lauf nicht kaputt — der hat ohnehin keinen Request — sondern das
+Abräumen. Gemessen: Dieser Eingriff bricht **genau einen** der fünf Fälle, und
+ohne ihn sähe die halbe Behebung vollständig aus.
+
+Dazu eine Untergrenze: `test_every_dispatch_of_this_helper_is_measured` zählt
+die Aufrufe von `dispatch()` im Rumpf, Kommentare abgestreift. Kommt ein fünfter
+Weg dazu, misst ihn kein Fall — und ohne diese Zeile merkte es niemand, weil die
+vier alten weiter grün blieben.
+
+> **Eine Untergrenze ist kein Formalismus — sie ist die einzige Stelle, an der
+> ein Wächter merkt, dass sein Ausdruck ins Leere greift.**
+
+### Ein Eingriff im Bruchskript fand seinen Text nicht mehr
+
+Der Eingriff zu `BackupTeardownTest` schnitt den ganzen `if`-Block heraus, der
+das Verzeichnis abräumt. Die Behebung oben schreibt einen Kommentar
+hinein — und damit passte die gesuchte Zeichenkette nicht mehr. Gemeldet hat es
+`BreakScriptTest::test_every_intervention_still_grips_its_file`, nicht der Lauf.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand eine Zeile dazwischenschreibt.**
+
+Er greift jetzt die **Aufrufzeile** statt des Blocks: dieselbe Wirkung, und
+unempfindlich gegen alles, was sonst noch zwischen die Klammern kommt. Von Hand
+nachgefahren, damit die Berichtigung nicht bloss grün, sondern belegt ist.

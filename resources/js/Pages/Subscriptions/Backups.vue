@@ -141,11 +141,27 @@ onUnmounted((): void => {
  * **Der Name steht in der Frage.** „Wirklich entfernen?" beantwortet niemand
  * verlässlich, wenn fünf Zeilen untereinander stehen und der Knopf an jeder
  * gleich aussieht.
+ *
+ * **Und bis zum 18. September stand er nicht dort, sondern auf dem Knopf.**
+ * `ask()` nimmt als zweites Argument das Verb des zustimmenden Knopfes —
+ * „Entfernen", „Sperren" —, und hier stand der ganze Satz. Die Rückfrage sagte
+ * dadurch oben nur „Sicherung entfernen" und erklärte nichts; was geschieht,
+ * stand auf dem Knopf und dort abgeschnitten.
+ *
+ * Gemessen auf `cloudsrv24` bei 390 px mit offener Rückfrage: `dokument = 248`,
+ * der Knopf selbst **281 px** über seinem Kasten. Dieselbe Seite ohne Rückfrage
+ * misst 0 (`docs/123 §9`, Befund B).
+ *
+ * **Die Regel dagegen gab es längst.** `.confirmation` trägt
+ * `overflow-wrap: anywhere`, und der Kommentar daneben nennt genau diesen Fall:
+ * „Was in einer Frage steht, kommt von aussen." Der Satz auf dem Knopf ist an
+ * ihr vorbeigelaufen.
  */
 function entfernen(backup: BackupRow): void {
   ask(
-    'Sicherung entfernen',
-    `Die Sicherung ${backup.storage_name} wird vom Datenträger gelöscht. Das lässt sich nicht zurücknehmen.`,
+    `Die Sicherung ${backup.storage_name} entfernen?\n`
+      + 'Sie wird vom Datenträger gelöscht. Das lässt sich nicht zurücknehmen.',
+    'Entfernen',
     () => { router.delete(`/subscriptions/${props.subscription.id}/backups/${backup.id}`) },
   )
 }
@@ -323,7 +339,30 @@ function inhalt(backup: BackupRow): string {
                     >
                       Zurückspielen
                     </Link>
-                    <button type="button" class="button danger" @click="entfernen(backup)">
+                    <!--
+                      **Auch der gefährliche Knopf kennt den Zustand.**
+
+                      Bis zum 18. September stand er ohne `v-if` da: Die Zeile
+                      sagte „wird entfernt", und daneben liess sich das
+                      Entfernen ein zweites Mal auslösen. Die beiden Knöpfe
+                      darüber hängen an `usable` und waren fort, dieser nicht.
+
+                      Gemessen im Nachlauf zu `rc.16` (`docs/123 §9`, Befund A),
+                      und `BackupPick.vue` hat es die ganze Zeit richtig gemacht
+                      — es war also keine Entwurfsfrage, sondern eine
+                      vergessene Zeile.
+
+                      **Ohne `v-else`**, anders als dort: Diese Liste hat eine
+                      Spalte *Zustand*, und die sagt es bereits. Ein zweites Mal
+                      in der Aktionsspalte stünde derselbe Satz zweimal in einer
+                      Zeile.
+                    -->
+                    <button
+                      v-if="!backup.running"
+                      type="button"
+                      class="button danger"
+                      @click="entfernen(backup)"
+                    >
                       Entfernen
                     </button>
                   </div>

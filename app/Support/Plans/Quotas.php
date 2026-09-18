@@ -67,9 +67,9 @@ final class Quotas
      * Ausnahme. Ein Abonnement, das jedes Kontingent überschreibt, hängt nicht
      * mehr am Plan; eine Änderung des Plans erreichte es nie wieder.
      *
-     * `nullable` steht hier auch bei den beiden Kontingenten, die am Plan
-     * nicht unbegrenzt sein dürfen — der Wert `null` bedeutet an dieser Stelle
-     * etwas anderes als dort. Er heisst nicht „unbegrenzt", sondern „keine
+     * `nullable` steht hier auch bei den Kontingenten, die am Plan nicht
+     * unbegrenzt sein dürfen — der Wert `null` bedeutet an dieser Stelle etwas
+     * anderes als dort. Er heisst nicht „unbegrenzt", sondern „keine
      * Übersteuerung"; {@see self::overrides()} wirft ihn deshalb heraus,
      * statt ihn abzulegen.
      *
@@ -310,6 +310,49 @@ final class Quotas
      * Die eine Stelle, an der aus `null` „unbegrenzt" wird. Stünde diese
      * Umsetzung in der Oberfläche, hätte jede Liste ihre eigene, und eine
      * davon zeigte irgendwann eine leere Zelle.
+     *
+     * ## Und „unbegrenzt" gilt nicht für jedes Kontingent
+     *
+     * **Befund D des Nachlaufs zu `rc.16`** (`docs/123 §9`): Auf
+     * `/subscriptions/146` stand „Aufbewahrte Sicherungen — unbegrenzt".
+     * {@see Quota::Backups} darf das gar nicht sein — `allowsUnlimited()` ist
+     * `false`, `minimum` 1, `default` 3.
+     *
+     * Der Zustand entsteht nicht über das Formular: {@see self::normalize()}
+     * füllt jeden Schlüssel, ein gespeicherter Plan hat also immer einen Wert.
+     * Er entsteht bei einem Plan, der **älter ist als das Kontingent** und
+     * seitdem nie gespeichert wurde.
+     *
+     * **Die Unterscheidung stand zweihundert Zeilen darüber schon
+     * geschrieben**, im Kopf von {@see self::overrideRules()}: Für die
+     * Kontingente, die nicht unbegrenzt sein dürfen, heisst `null` nicht
+     * „unbegrenzt". Für den Plan ist sie nie gezogen worden.
+     *
+     * > **Ein Fehler, den man an einer Stelle vermieden hat, ist an der
+     * > nächsten wieder da, wenn die Vermeidung nicht die Regel wurde.**
+     *
+     * **Dort stand „die beiden", und es sind sechs** — `disk_mb`, `backups`,
+     * `fpm_processes`, `php_memory_mb`, `php_upload_mb` und
+     * `php_execution_seconds`, gemessen am 18. September 2026. Die Zahl ist
+     * deshalb aus beiden Sätzen fort.
+     *
+     * > **Eine Zahl im Kommentar altert mit dem Code, den sie zählt, und nichts
+     * > meldet es.**
+     *
+     * **Was hier ausdrücklich NICHT behoben wird, und warum.** Zwei Leser im
+     * Hintergrund deuten denselben fehlenden Schlüssel entgegengesetzt:
+     * `Retention::keeps()` liest `null` als „ohne Grenze" und räumt nie ab,
+     * `RunBackups::eligible()` rechnet `(int) (null ?? 0)` und sichert nie
+     * automatisch. Beide auf den Vorgabewert zu stellen wäre eine **stille
+     * Verhaltensänderung mit Datenverlust**: Der nächtliche Lauf finge an, auf
+     * solchen Plänen Kundensicherungen abzuräumen, die heute alle liegenbleiben.
+     *
+     * > **Eine Behebung, die aus einer falschen Anzeige ein Löschen macht, ist
+     * > teurer als der Fehler.**
+     *
+     * Die Anzeige sagt deshalb die Wahrheit — dass nichts festgelegt ist —, und
+     * die Entscheidung über die beiden Leser steht als offene Frage in
+     * `docs/123 §12`.
      */
     public static function format(Quota $quota, mixed $value): string
     {
@@ -320,7 +363,7 @@ final class Quotas
         }
 
         if ($value === null) {
-            return 'unbegrenzt';
+            return $quota->allowsUnlimited() ? 'unbegrenzt' : 'nicht festgelegt';
         }
 
         $number = number_format((int) $value, 0, ',', '.');

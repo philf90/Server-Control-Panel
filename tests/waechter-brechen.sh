@@ -31114,6 +31114,113 @@ pruefe "eine Liste ohne den Satz" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupColumnTest passed
 
+# ── Der Nachlauf zu 0.7.4-rc.16 (docs/123 §9) ──────────────────────────────
+
+abschnitt "ConfirmationVerbTest: der Satz steht wieder auf dem Knopf"
+vorher_datei resources/js/Pages/Subscriptions/Backups.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Subscriptions/Backups.vue')
+s = p.read_text()
+alt = "    `Die Sicherung ${backup.storage_name} entfernen?\\n`\n" \
+      "      + 'Sie wird vom Datenträger gelöscht. Das lässt sich nicht zurücknehmen.',\n" \
+      "    'Entfernen',"
+neu = "    'Sicherung entfernen',\n" \
+      "    `Die Sicherung ${backup.storage_name} wird vom Datenträger gelöscht.`,"
+assert alt in s
+p.write_text(s.replace(alt, neu))
+PY
+griff_datei resources/js/Pages/Subscriptions/Backups.vue "Satz auf dem Knopf" &&
+pruefe "Satz auf dem Knopf" \
+  ConfirmationVerbTest::test_every_confirmation_names_a_verb_on_its_button failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ConfirmationVerbTest passed
+
+abschnitt "ConfirmationVerbTest: dem Leser den Gegenstand nehmen"
+vorher_datei resources/js/Pages/Subscriptions/Sftp.vue
+python3 - <<'PY'
+import pathlib, re
+# Heisst der Aufruf anders, findet der Ausdruck ihn nicht mehr. Die Regel ist
+# dabei nicht verletzt — rot werden muss allein die Untergrenze.
+#
+# **In allen Dateien und nicht in einer.** Der erste Wurf benannte nur
+# `Sftp.vue` um und liess 24 von 25 Aufrufen stehen; die Untergrenze von 20
+# griff nicht, und der Eingriff mass nichts.
+#
+# > **Ein Eingriff, der einen Zustand herstellt, den der Prüfling ohnehin
+# > gleich beantwortet, misst die Regel nicht.**
+for p in pathlib.Path('resources/js').rglob('*.vue'):
+    t = p.read_text()
+    if 'ask(' in t:
+        p.write_text(re.sub(r'(?<![\w.])ask\(', 'frage_nach(', t))
+PY
+griff_datei resources/js/Pages/Subscriptions/Sftp.vue "Gegenstand genommen" &&
+pruefe "Gegenstand genommen" \
+  ConfirmationVerbTest::test_every_confirmation_names_a_verb_on_its_button passed
+wiederherstellen
+
+abschnitt "BackupControlStateTest: der Entfernen-Knopf verliert sein v-if"
+vorher_datei resources/js/Pages/Subscriptions/Backups.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Subscriptions/Backups.vue')
+s = p.read_text()
+alt = '                    <button\n                      v-if="!backup.running"\n'
+assert alt in s
+p.write_text(s.replace(alt, '                    <button\n'))
+PY
+griff_datei resources/js/Pages/Subscriptions/Backups.vue "Knopf ohne v-if" &&
+pruefe "Knopf ohne v-if" \
+  BackupControlStateTest::test_a_removal_control_stands_behind_the_running_state failed
+wiederherstellen
+
+abschnitt "BackupControlStateTest: die zweite Liste vergisst es"
+vorher_datei resources/js/Pages/Subscriptions/BackupPick.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Subscriptions/BackupPick.vue')
+s = p.read_text()
+alt = '                  v-if="!sicherung.running"\n'
+assert alt in s
+p.write_text(s.replace(alt, ''))
+PY
+griff_datei resources/js/Pages/Subscriptions/BackupPick.vue "zweite Liste ohne v-if" &&
+pruefe "zweite Liste ohne v-if" \
+  BackupControlStateTest::test_a_removal_control_stands_behind_the_running_state failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupControlStateTest passed
+
+abschnitt "QuotaDisplayTest: unbegrenzt für jedes Kontingent"
+vorher_datei app/Support/Plans/Quotas.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Plans/Quotas.php')
+s = p.read_text()
+alt = "return $quota->allowsUnlimited() ? 'unbegrenzt' : 'nicht festgelegt';"
+assert alt in s
+p.write_text(s.replace(alt, "return 'unbegrenzt';"))
+PY
+griff_datei app/Support/Plans/Quotas.php "unbegrenzt fuer alle" &&
+pruefe "unbegrenzt für alle" \
+  QuotaDisplayTest::test_unlimited_is_only_said_where_it_is_allowed failed
+wiederherstellen
+
+abschnitt "QuotaDisplayTest: das Wort ganz abgeschafft"
+vorher_datei app/Support/Plans/Quotas.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Plans/Quotas.php')
+s = p.read_text()
+alt = "return $quota->allowsUnlimited() ? 'unbegrenzt' : 'nicht festgelegt';"
+assert alt in s
+p.write_text(s.replace(alt, "return 'nicht festgelegt';"))
+PY
+griff_datei app/Support/Plans/Quotas.php "unbegrenzt abgeschafft" &&
+pruefe "unbegrenzt abgeschafft" \
+  QuotaDisplayTest::test_unlimited_is_still_said_where_it_is_allowed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaDisplayTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

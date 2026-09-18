@@ -17,6 +17,7 @@ use App\Models\SystemUser;
 use App\Support\Databases\Dumps;
 use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -256,11 +257,52 @@ final class Backups
      */
     public function orphaned(): Collection
     {
-        return $this->tenancy->withoutRestriction(static fn (): Collection => Backup::query()
-            ->whereNull('subscription_id')
-            ->where('status', BackupStatus::Ready->value)
+        return $this->tenancy->withoutRestriction(static fn (): Collection => self::orphanedQuery()
             ->orderByDesc('id')
             ->get());
+    }
+
+    /**
+     * Gibt es überhaupt eine?
+     *
+     * **Eine eigene Frage und trotzdem keine zweite Fassung** — beide gehen
+     * über {@see self::orphanedQuery()}. Der Unterschied ist die Antwort und
+     * nicht die Regel.
+     *
+     * Sie gibt es, weil `BackupController::pick()` die Liste als **Verschluss**
+     * übergeben muss (`PartialReloadTest`: Was ein Teilnachladen nicht
+     * anfordert, soll auch nicht gerechnet werden) und die Entscheidung über
+     * die Weiterleitung trotzdem vorher fällt. Ohne sie wäre der Verschluss
+     * eine Verzierung: Der Wert stünde längst fertig da.
+     *
+     * > **Ein Nachladen, das nur einen Teil holt, spart nur dann etwas, wenn
+     * > der Rest nicht schon gerechnet ist.**
+     */
+    public function hasOrphaned(): bool
+    {
+        return $this->tenancy->withoutRestriction(static fn (): bool => self::orphanedQuery()->exists());
+    }
+
+    /**
+     * Was als verwaist gilt — an **einer** Stelle.
+     *
+     * `Removing` steht mit darin, und ohne das wäre die Behebung von Befund 4
+     * wirkungslos: Fiele die Zeile im Augenblick des Klicks aus der Abfrage,
+     * verschwände sie aus der Liste, bevor der Agent geantwortet hat — und die
+     * Seite zeigte dasselbe wie vorher, nämlich nichts.
+     *
+     * Was hier **nicht** hineingehört, ist `Pending` und `Failed`. Eine
+     * verwaiste Sicherung entsteht nur aus einer fertigen (ihr Abonnement wurde
+     * zurückgebaut), und `Failed` beschreibt eine Datei, von der niemand weiss,
+     * wie weit sie kam.
+     *
+     * @return Builder<Backup>
+     */
+    private static function orphanedQuery(): Builder
+    {
+        return Backup::query()
+            ->whereNull('subscription_id')
+            ->whereIn('status', [BackupStatus::Ready->value, BackupStatus::Removing->value]);
     }
 
     public function beforeRemoval(Subscription $subscription): ?Backup
@@ -337,6 +379,28 @@ final class Backups
             static fn (): ?Subscription => $backup->subscription()->first(),
         );
 
+        /*
+         * **Der Zustand vor dem Vorgang, und das ist der Befund.**
+         *
+         * Bis zum 18. September 2026 blieb die Zeile auf `Ready`, während der
+         * Agent ihre Datei löschte. Damit hatte das Entfernen **keine Anzeige**
+         * — die Seite konnte nichts zeigen und nichts nachfragen, weil nichts
+         * dastand, woran ein Takt hätte hängen können (`docs/121 §9`,
+         * Befund 4).
+         *
+         * > **Ein Vorgang ohne Zustand in seiner Zeile ist von einem, den
+         * > niemand ausgelöst hat, nicht zu unterscheiden.**
+         *
+         * **Vor dem Einreihen und nicht danach**: Der Vorgang kann gelaufen
+         * sein, bevor diese Methode zurückkehrt, und dann schriebe ein `save()`
+         * danach den Zustand über die Löschung der Zeile.
+         *
+         * Gelingt es, ist die Zeile fort; gelingt es nicht, geht sie in
+         * {@see BackupLifecycle::afterFailure()} auf `Ready` zurück — die Datei
+         * liegt dann noch da.
+         */
+        $backup->forceFill(['status' => BackupStatus::Removing])->save();
+
         if ($subscription !== null) {
             $this->dispatch('backup.remove', $subscription, [
                 'storage' => $backup->storage_name,
@@ -401,8 +465,13 @@ final class Backups
      * **Kein `$backup`**: Der Vorgang trägt keinen Gegenstand, denn die Zeile
      * ist fort. Ohne ihn geht {@see BackupLifecycle::afterSuccess()} bei der
      * Antwort früh zurück, und das ist richtig — es gibt nichts mehr zu ändern.
+     *
+     * **Aber einen Handelnden trägt er.** Hier läuft kein Request — der
+     * Aufrufer sitzt im Arbeiter —, und ohne `$accountId` stünde der Vorgang
+     * als Automatik da. Sein Anlass ist aber ein Klick, und dessen Kennung
+     * steht auf dem auslösenden Vorgang.
      */
-    public function removeDirectory(string $subscriptionName): Operation
+    public function removeDirectory(string $subscriptionName, ?int $accountId = null): Operation
     {
         return $this->dispatch(
             'backup.remove',
@@ -411,6 +480,7 @@ final class Backups
             'Leeres Verzeichnis der Sicherungen wird entfernt',
             null,
             $subscriptionName,
+            $accountId,
         );
     }
 
@@ -461,6 +531,7 @@ final class Backups
         string $message,
         ?Backup $backup = null,
         ?string $name = null,
+        ?int $accountId = null,
     ): Operation {
         /*
          * **Ohne Abonnement muss der Name da sein — und zwar laut.**
@@ -487,6 +558,35 @@ final class Backups
              * und keiner ohne Gegenstand.
              */
             'subscription_id' => $subscription?->id,
+
+            /*
+             * **Wer gehandelt hat — und `null` heisst hier schon etwas.**
+             *
+             * Bis zum 18. September 2026 stand diese Zeile nicht da, und der
+             * Befund war nicht die leere Spalte, sondern ihre Bedeutung: Seit
+             * `docs/901` heisst `account_id = NULL` **Kommandozeile oder
+             * Automatik**. Der nächtliche Sicherungslauf ist genau dieser Fall
+             * — und eine Sicherung, die jemand gedrückt hat, war von ihm nicht
+             * mehr zu unterscheiden. Gemessen auf `cloudsrv24`: „Ausgelöst von
+             * System" für einen Klick, während `backup.restore` in derselben
+             * Stunde den Administrator nannte (`docs/121 §9`, Befund 3).
+             *
+             * > **Eine Null, die schon eine Bedeutung trägt, kann keine zweite
+             * > bekommen — die beiden Fälle sehen danach gleich aus.**
+             *
+             * **Zwei Leser hängen daran**, und der zweite ist der teurere: die
+             * Vorgangsseite über `ActorLabel`, und `RunAgentOperation::actor()`,
+             * das bei `null` gar nichts an das Protokoll des **Agenten**
+             * weitergibt. Dort stand für jede Sicherung niemand.
+             *
+             * `$accountId` ist die Antwort für den Fall, in dem es keinen
+             * Request gibt und trotzdem jemand gehandelt hat: Das Abräumen des
+             * Verzeichnisses läuft im Arbeiter, und sein Anlass ist der Klick,
+             * der die letzte Zeile entfernt hat. Dasselbe Muster wie
+             * `CertificateLifecycle`, das die Kennung seines Anlasses
+             * weiterreicht.
+             */
+            'account_id' => $accountId ?? request()->user()?->getAuthIdentifier(),
 
             /*
              * **Der Gegenstand, seit die Seite existiert.** Bis Schritt 5 stand

@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Db\Dump;
+use SrvPanel\Agent\Filesystem;
 use SrvPanel\Agent\Op;
 
 /**
@@ -46,6 +47,21 @@ final class DbDumpRemove implements Op
     }
 
     /**
+     * Der Satz je Grund — und jeder Grund hat einen.
+     *
+     * `NOT_EMPTY` steht hier nicht: Dieses Verzeichnis geht über
+     * {@see Filesystem::removeTree()} weg und nicht über `rmdir(2)`, also gibt
+     * es den Ausgang nicht. Käme er je dazu, bräche der Zugriff **laut**
+     * — und das ist der Sinn der Abbildung.
+     *
+     * @var array<string, string>
+     */
+    private const MELDUNG = [
+        Filesystem::REMOVED => 'entfernt',
+        Filesystem::ABSENT => 'das Verzeichnis gibt es nicht',
+    ];
+
+    /**
      * @param  array<string,mixed>  $args
      * @return array<string,mixed>
      */
@@ -57,11 +73,22 @@ final class DbDumpRemove implements Op
         if (! is_string($storage) || $storage === '') {
             $context->progress(50, 'Verzeichnis der Sicherungen entfernen');
 
-            $removed = Dump::removeDirectory($subscription);
+            /*
+             * **Der Grund und nicht bloss das Ergebnis** — dieselbe Behebung
+             * wie in {@see BackupRemove} und aus demselben Anlass
+             * (`docs/121 §9`, Befund 5): „nichts zu entfernen" stand hier für
+             * ein Verzeichnis, das es nicht gibt, **und** für einen Verweis,
+             * dem der Griff zu Recht nicht folgt. Der zweite wirft jetzt.
+             */
+            $grund = Dump::removeDirectory($subscription);
 
-            $context->progress(100, $removed ? 'entfernt' : 'nichts zu entfernen');
+            $context->progress(100, self::MELDUNG[$grund]);
 
-            return ['scope' => 'directory', 'removed' => $removed];
+            return [
+                'scope' => 'directory',
+                'removed' => $grund === Filesystem::REMOVED,
+                'reason' => $grund,
+            ];
         }
 
         // Der Pfad entsteht hier aus zwei geprüften Hälften und kommt nicht von

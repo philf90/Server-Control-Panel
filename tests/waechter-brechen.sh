@@ -30142,7 +30142,12 @@ vorher_datei app/Http/Controllers/BackupController.php
 python3 - <<'PY2'
 p = 'app/Http/Controllers/BackupController.php'
 s = open(p, encoding='utf-8').read()
-alt = "        if ($erreichbar->count() === 1 && $verwaist->isEmpty()) {"
+# **Die Bedingung heisst seit dem 18. September anders.** Sie fragte eine
+# geladene Sammlung (`$verwaist->isEmpty()`); jetzt steht die Liste als
+# Verschluss in der Antwort, und die Weiterleitung entscheidet an einem
+# `exists()`. Gemeldet hat den toten Griff
+# BreakScriptTest::test_every_intervention_still_grips_its_file.
+alt = "        if ($erreichbar->count() === 1 && ! $hatVerwaiste) {"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, "        if ($erreichbar->count() === 1) {", 1))
 PY2
@@ -30506,11 +30511,15 @@ vorher_datei app/Support/Backups/BackupLifecycle.php
 python3 - <<'PY2'
 p = 'app/Support/Backups/BackupLifecycle.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("""                if ($verwaist && $this->abandoned($name)) {
-                    $this->backups->removeDirectory($name);
-                }
-
-""", "", 1)
+# **Der Griff fällt weg und nicht der ganze Block.** Hier stand die Bedingung
+# mitsamt ihrem Rumpf; seit die Kennung des Handelnden durchgereicht wird
+# (18. September 2026), steht ein Kommentar dazwischen, und der Eingriff fand
+# seinen Text nicht mehr. Gemeldet hat es
+# BreakScriptTest::test_every_intervention_still_grips_its_file.
+#
+#   Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+#   wenn jemand eine Zeile dazwischenschreibt.
+s = s.replace("                    $this->backups->removeDirectory($name, $operation->account_id);\n", "", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Support/Backups/BackupLifecycle.php "Verzeichnis bleibt liegen" &&
@@ -30586,7 +30595,13 @@ vorher_datei agent/src/Backup/Store.php
 python3 - <<'PY2'
 p = 'agent/src/Backup/Store.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("return @rmdir($directory);", "Filesystem::removeTree($directory);\n\n        return true;", 1)
+# **Die Zeile heisst seit dem 18. September anders.** `removeDirectory()` gibt
+# einen Grund zurueck und kein `bool` (docs/121 §9, Befund 5), und der Eingriff
+# fand seinen Text nicht mehr. Gemeldet hat es
+# BreakScriptTest::test_every_intervention_still_grips_its_file.
+alt = "return @rmdir($directory) ? Filesystem::REMOVED : Filesystem::NOT_EMPTY;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "Filesystem::removeTree($directory);\n\n        return Filesystem::REMOVED;", 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei agent/src/Backup/Store.php "removeDirectory traegt einen Baum ab" &&
@@ -30636,6 +30651,468 @@ pruefe "Verteiler ruft keinen Lebenslauf" \
   LifecycleDispatchTest::test_the_lifecycle_that_owns_the_task_still_runs failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LifecycleDispatchTest passed
+
+echo
+echo "── BackupActorTest: der Sicherungsvorgang verliert seinen Handelnden ──"
+#
+# Der Befund vom 18. September 2026 auf cloudsrv24 (docs/121 §9, Befund 3): Die
+# Vorgangsseite einer von Hand gedrückten Sicherung sagte „Ausgelöst von:
+# System", während backup.restore in derselben Stunde und von derselben Person
+# „Administrator" sagte.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            'account_id' => $accountId ?? request()->user()?->getAuthIdentifier(),\n",
+    "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Backups.php "Sicherung ohne Handelnden" &&
+pruefe "Sicherung ohne Handelnden" \
+  BackupActorTest::test_a_backup_from_the_page_names_the_person failed
+wiederherstellen
+
+echo
+echo "── BackupActorTest: die bequeme Behebung ohne Durchreichen ──"
+#
+# **Der Eingriff, für den der Wächter fünf Fälle statt zweien hat.** Wer nur
+# `request()->user()` einsetzt, macht den nächtlichen Lauf nicht kaputt — der
+# hat ohnehin keinen Request — sondern das Abräumen des Verzeichnisses. Das
+# läuft im Arbeiter und ist trotzdem die Folge eines Klicks.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "'account_id' => $accountId ?? request()->user()?->getAuthIdentifier(),",
+    "'account_id' => request()->user()?->getAuthIdentifier(),", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Backups.php "Handelnder nur aus dem Request" &&
+pruefe "Handelnder nur aus dem Request" \
+  BackupActorTest::test_the_cleanup_inherits_the_actor_of_its_cause failed
+wiederherstellen
+
+echo
+echo "── BackupActorTest: der Lebenslauf reicht die Kennung nicht weiter ──"
+#
+# Dieselbe Naht von der anderen Seite: Der Aufrufer hat den Handelnden und gibt
+# ihn nicht mit. Von aussen sieht das Ergebnis genauso aus wie der Eingriff
+# darüber — und die Behebung gehört an eine andere Stelle.
+vorher_datei app/Support/Backups/BackupLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/BackupLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "$this->backups->removeDirectory($name, $operation->account_id);",
+    "$this->backups->removeDirectory($name);", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/BackupLifecycle.php "Lebenslauf ohne Kennung" &&
+pruefe "Lebenslauf ohne Kennung" \
+  BackupActorTest::test_the_cleanup_inherits_the_actor_of_its_cause failed
+wiederherstellen
+
+echo
+echo "── BackupActorTest: ein fünfter Weg durch dispatch() ──"
+#
+# Die Untergrenze. Ohne sie misst der Wächter einen neuen Aufrufer nicht, und
+# die vier alten Fälle bleiben grün — genau die Falle, in die dieses Vorgehen
+# schon dreimal gelaufen ist.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+anker = "    public function removeDirectory(string $subscriptionName, ?int $accountId = null): Operation\n    {\n"
+zusatz = ("    public function neuerWeg(Subscription $subscription): Operation\n"
+          "    {\n"
+          "        return $this->dispatch('backup.remove', $subscription, [], 'Prüfkörper');\n"
+          "    }\n\n")
+s = s.replace(anker, zusatz + anker, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/Backups.php "fünfter Weg durch dispatch" &&
+pruefe "fünfter Weg durch dispatch" \
+  BackupActorTest::test_every_dispatch_of_this_helper_is_measured failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupActorTest passed
+
+echo
+echo "── SubscriptionReachTest: der Weg zu den Sicherungen fällt weg ──"
+#
+# Befund 2 des Nachlaufs zu P8 (docs/121 §9), gemeldet vom Betreiber beim
+# Benutzen: Er suchte „Jetzt sichern" auf der Abonnementseite. Dort standen
+# Dateien und SFTP-Zugang, und unter Freigaben stand „Sicherungen anlegen —
+# frei" — die Zusage, dass es die Handlung gibt, ohne einen Weg zu ihr.
+vorher_datei resources/js/Pages/Subscriptions/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = """        :href="`/subscriptions/${props.subscription.id}/backups`"
+      >Sicherungen</Link>"""
+neu = """        :href="`/subscriptions/${props.subscription.id}/domains`"
+      >Sicherungen</Link>"""
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Show.vue "kein Weg zu den Sicherungen" &&
+pruefe "kein Weg zu den Sicherungen" \
+  SubscriptionReachTest::test_every_page_of_a_subscription_is_reachable_from_it failed
+wiederherstellen
+
+echo
+echo "── SubscriptionReachTest: der Weg zu den Cronjobs fällt weg ──"
+#
+# Dieselbe Regel an der Stelle, die **der Wächter** gefunden hat und kein
+# Betrachter: cron.show liegt seit P6 unter /subscriptions/{id}/cron und stand
+# auf der Abonnementseite nicht. Ein Weg dorthin gab es nur über eine Zelle der
+# Zeitplanseite — und die steht nur da, wenn das Panel eine Datei verwaltet.
+vorher_datei resources/js/Pages/Subscriptions/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = """        :href="`/subscriptions/${props.subscription.id}/cron`"
+      >Cronjobs</Link>"""
+neu = """        :href="`/subscriptions/${props.subscription.id}/domains`"
+      >Cronjobs</Link>"""
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Show.vue "kein Weg zu den Cronjobs" &&
+pruefe "kein Weg zu den Cronjobs" \
+  SubscriptionReachTest::test_every_page_of_a_subscription_is_reachable_from_it failed
+wiederherstellen
+
+echo
+echo "── SubscriptionReachTest: eine Ausnahme überlebt ihre Route ──"
+#
+# Die Gegenrichtung. So entsteht ein toter Eintrag wirklich: Bei einer
+# Umbenennung trägt man den neuen Namen nach, die erste Richtung ist wieder
+# grün, und der alte bleibt liegen — und deckt beim nächsten gleichnamigen
+# Segment eine Regel ab, die niemand abschalten wollte.
+vorher_datei tests/Feature/SubscriptionReachTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/SubscriptionReachTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "    private const OHNE_WEG = [];",
+    "    private const OHNE_WEG = ['gibtsnicht' => 'ein Segment, das es nicht gibt'];", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/SubscriptionReachTest.php "Ausnahme ohne Route" &&
+pruefe "Ausnahme ohne Route" \
+  SubscriptionReachTest::test_no_exemption_outlives_its_route failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SubscriptionReachTest passed
+
+echo
+echo "── BackupRemovalStateTest: das Entfernen setzt keinen Zustand ──"
+#
+# Befund 4 des Nachlaufs zu P8 (docs/121 §9), gemeldet vom Betreiber beim
+# Benutzen: „/backups aktualisiert sich nicht automatisch wenn das Backup
+# entfernt wurde." Die Zeile blieb auf `Ready`, und damit hatte das Entfernen
+# nichts, woran ein Takt haette haengen koennen.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $backup->forceFill(['status' => BackupStatus::Removing])->save();\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei app/Support/Backups/Backups.php "Entfernen ohne Zustand" &&
+pruefe "Entfernen ohne Zustand" \
+  BackupRemovalStateTest::test_a_removal_marks_its_row failed
+wiederherstellen
+
+echo
+echo "── BackupRemovalStateTest: der Fehlschlag laesst die Zeile stecken ──"
+#
+# Die gefaehrlichere Richtung: Bleibt die Zeile auf „wird entfernt", fragt die
+# Seite endlos nach, der Knopf ist fort, und ein zweiter Versuch geht nicht
+# mehr — ein Zustand, aus dem kein Weg fuehrt.
+vorher_datei app/Support/Backups/BackupLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/BackupLifecycle.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    'status' => BackupStatus::Ready,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei app/Support/Backups/BackupLifecycle.php "Fehlschlag ohne Rueckweg" &&
+pruefe "Fehlschlag ohne Rueckweg" \
+  BackupRemovalStateTest::test_a_failed_removal_puts_the_row_back failed
+wiederherstellen
+
+echo
+echo "── BackupRemovalStateTest: die Zeile faellt aus der Liste der verwaisten ──"
+#
+# Ohne `Removing` in der Abfrage verschwindet die Zeile im Augenblick des
+# Klicks — und die Seite zeigt dasselbe wie vorher, naemlich nichts. Damit
+# waere die ganze Behebung wirkungslos.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = "->whereIn('status', [BackupStatus::Ready->value, BackupStatus::Removing->value])"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "->where('status', BackupStatus::Ready->value)", 1))
+PY2
+griff_datei app/Support/Backups/Backups.php "verwaiste ohne Removing" &&
+pruefe "verwaiste ohne Removing" \
+  BackupRemovalStateTest::test_a_row_being_removed_stays_in_the_orphan_list failed
+wiederherstellen
+
+echo
+echo "── BackupRemovalStateTest: jeder Zustand gilt als verwaist ──"
+#
+# Die Gegenrichtung zum Eingriff darueber. Ohne sie waere „Removing steht in
+# der Liste" auch mit einer Abfrage gruen, die gar nicht mehr siebt — und dann
+# stuenden `Pending` und `Failed` mit darin.
+vorher_datei app/Support/Backups/Backups.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/Backups.php'
+s = open(p, encoding='utf-8').read()
+alt = "->whereIn('status', [BackupStatus::Ready->value, BackupStatus::Removing->value])"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "->whereNotNull('status')", 1))
+PY2
+griff_datei app/Support/Backups/Backups.php "verwaiste ohne Sieb" &&
+pruefe "verwaiste ohne Sieb" \
+  BackupRemovalStateTest::test_the_orphan_list_still_leaves_out_the_others failed
+wiederherstellen
+
+echo
+echo "── BackupRemovalStateTest: eine Seite vergleicht wieder einen Zustandsnamen ──"
+#
+# Genau so stand die Bedingung bis zum 18. September da. Sie ist fuer das
+# Anlegen richtig und fuer das Entfernen blind — und eine zweite Bedingung
+# ueber dieselben Zustandsnamen waere die Fassung, die veraltet.
+vorher_datei resources/js/Pages/Subscriptions/Backups.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Backups.vue'
+s = open(p, encoding='utf-8').read()
+alt = "const laeuft = computed((): boolean => props.backups.some((zeile) => zeile.running))"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "const laeuft = computed((): boolean => props.backups.some((zeile) => zeile.status === 'pending'))"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Backups.vue "Takt am Zustandsnamen" &&
+pruefe "Takt am Zustandsnamen" \
+  BackupRemovalStateTest::test_both_pages_hang_their_takt_on_that_answer failed
+wiederherstellen
+
+echo
+echo "── BackupRemovalStateTest: die Antwort fehlt in der Liste eines Abonnements ──"
+#
+# Die Naht zwischen Steuerung und Seite. Ohne sie ist `running` auf der Seite
+# `undefined`, der Takt springt nie an, und das Bild sieht aus wie vorher.
+vorher_datei app/Http/Controllers/BackupController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/BackupController.php'
+s = open(p, encoding='utf-8').read()
+alt = "\n                'running' => $backup->status->running(),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "\n", 1))
+PY2
+griff_datei app/Http/Controllers/BackupController.php "Antwort fehlt je Abonnement" &&
+pruefe "Antwort fehlt je Abonnement" \
+  BackupRemovalStateTest::test_both_lists_carry_the_running_answer failed
+wiederherstellen
+
+echo
+echo "── BackupRemovalStateTest: die Antwort fehlt in der Liste der verwaisten ──"
+#
+# Dieselbe Naht an der zweiten Liste. Sie steht als eigener Eingriff da, weil
+# ein Wächter ueber *eine* der beiden nichts ueber die andere sagt — und genau
+# diese war die, die gar keinen Takt hatte.
+vorher_datei app/Http/Controllers/BackupController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/BackupController.php'
+s = open(p, encoding='utf-8').read()
+alt = "                        'running' => $backup->status->running(),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei app/Http/Controllers/BackupController.php "Antwort fehlt bei verwaisten" &&
+pruefe "Antwort fehlt bei verwaisten" \
+  BackupRemovalStateTest::test_both_lists_carry_the_running_answer failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupRemovalStateTest passed
+
+echo
+echo "── RemovalReasonTest: zwei Ausgaenge tragen dasselbe Wort ──"
+#
+# Befund 5 des Nachlaufs zu P8 (docs/121 §9): „nichts zu entfernen" stand fuer
+# drei Zustaende. Waeren zwei der Woerter gleich, waere jede Frage darunter
+# beantwortet und nichts geprueft.
+vorher_datei agent/src/Filesystem.php
+python3 - <<'PY2'
+p = 'agent/src/Filesystem.php'
+s = open(p, encoding='utf-8').read()
+alt = "    public const NOT_EMPTY = 'not_empty';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "    public const NOT_EMPTY = 'absent';", 1))
+PY2
+griff_datei agent/src/Filesystem.php "zwei Ausgaenge ein Wort" &&
+pruefe "zwei Ausgaenge ein Wort" \
+  RemovalReasonTest::test_every_outcome_has_its_own_word failed
+wiederherstellen
+
+echo
+echo "── RemovalReasonTest: ein Ausgang ohne Satz ──"
+#
+# Der Zugriff braeche dann zur Laufzeit — besser als ein Rueckfall auf den
+# harmlosesten Satz, und trotzdem niemandem eine Hilfe.
+vorher_datei agent/src/Ops/BackupRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupRemove.php'
+s = open(p, encoding='utf-8').read()
+alt = "        Filesystem::NOT_EMPTY => 'es liegt noch etwas darin — das Verzeichnis bleibt',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei agent/src/Ops/BackupRemove.php "Ausgang ohne Satz" &&
+pruefe "Ausgang ohne Satz" \
+  RemovalReasonTest::test_every_outcome_has_a_sentence failed
+wiederherstellen
+
+echo
+echo "── RemovalReasonTest: ein Satz fuer einen Ausgang, den es nicht gibt ──"
+#
+# Die Gegenrichtung. So entsteht ein toter Eintrag wirklich: Bei einer
+# Umbenennung traegt man den neuen Namen nach, die erste Richtung ist wieder
+# gruen, und der alte bleibt liegen.
+vorher_datei agent/src/Ops/BackupRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/BackupRemove.php'
+s = open(p, encoding='utf-8').read()
+alt = "        Filesystem::REMOVED => 'entfernt',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt + "\n        'gibtsnicht' => 'ein Ausgang, den es nicht gibt',"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Ops/BackupRemove.php "Satz ohne Ausgang" &&
+pruefe "Satz ohne Ausgang" \
+  RemovalReasonTest::test_no_sentence_outlives_its_outcome failed
+wiederherstellen
+
+echo
+echo "── RemovalReasonTest: der Verweis wird still verneint ──"
+#
+# Der teuerste der drei Faelle: Sich zu weigern, einem Verweis zu folgen, ist
+# eine Sicherheitsentscheidung — und sie las sich als „da war nichts".
+vorher_datei agent/src/Backup/Store.php
+python3 - <<'PY2'
+p = 'agent/src/Backup/Store.php'
+s = open(p, encoding='utf-8').read()
+alt = "            throw AgentException::denied('Der Ablageort ist ein Verweis — es wird nichts entfernt.');"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            return Filesystem::ABSENT;", 1))
+PY2
+griff_datei agent/src/Backup/Store.php "Verweis still verneint" &&
+pruefe "Verweis still verneint" \
+  RemovalReasonTest::test_a_link_is_refused_loudly_and_first failed
+wiederherstellen
+
+echo
+echo "── RemovalReasonTest: der Verweis wird nach dem Verzeichnis gefragt ──"
+#
+# Die Reihenfolge traegt: Ein Verweis auf eine **Datei** liesse `is_dir()`
+# falsch werden, und der Fall kaeme als `absent` heraus — also wieder als der
+# harmlose. Gebrochen wird das zweite Paar, damit belegt ist, dass der Waechter
+# beide fuehrt und nicht nur das erste.
+vorher_datei agent/src/Db/Dump.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Dump.php'
+s = open(p, encoding='utf-8').read()
+alt = """        if (is_link($directory)) {
+            throw AgentException::denied('Der Ablageort ist ein Verweis — es wird nichts entfernt.');
+        }
+
+        if (! is_dir($directory)) {
+            return Filesystem::ABSENT;
+        }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        if (! is_dir($directory)) {
+            return Filesystem::ABSENT;
+        }
+
+        if (is_link($directory)) {
+            throw AgentException::denied('Der Ablageort ist ein Verweis — es wird nichts entfernt.');
+        }
+"""
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei agent/src/Db/Dump.php "Verweis nach dem Verzeichnis" &&
+pruefe "Verweis nach dem Verzeichnis" \
+  RemovalReasonTest::test_a_link_is_refused_loudly_and_first failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RemovalReasonTest passed
+
+echo
+echo "── BackupColumnTest: die Spalte heisst wieder anders als nebenan ──"
+#
+# Zwei Listen zeigen Sicherungen, und dieselben zwei Spalten hiessen darin vier
+# verschiedene Dinge: Sicherung/Stand und Erstellt/Angelegt (docs/121 §9,
+# beim Nachsehen zu Befund 6). Der Kopf von BackupPick.vue verlangt das
+# Gegenteil — „Wer diese hier aendert, sieht dort nach."
+vorher_datei resources/js/Pages/Subscriptions/BackupPick.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/BackupPick.vue'
+s = open(p, encoding='utf-8').read()
+for alt, neu in [('<th>Sicherung</th>', '<th>Stand</th>'),
+                 ('data-column="Sicherung"', 'data-column="Stand"')]:
+    assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+    s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/BackupPick.vue "Spalte heisst anders als nebenan" &&
+pruefe "Spalte heisst anders als nebenan" \
+  BackupColumnTest::test_both_tables_use_the_same_words failed
+wiederherstellen
+
+echo
+echo "── BackupColumnTest: nur die halbe Tabelle umbenannt ──"
+#
+# Unter 720 px rendert `.stacks td::before` das `data-column`, darueber steht
+# das `<th>`. Wer eines von beiden umbenennt, benennt nur die halbe Tabelle um
+# — und welche Haelfte man sieht, entscheidet die Breite des Fensters.
+vorher_datei resources/js/Pages/Subscriptions/BackupPick.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/BackupPick.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'data-column="Erstellt"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'data-column="Angelegt"', 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/BackupPick.vue "halbe Tabelle umbenannt" &&
+pruefe "halbe Tabelle umbenannt" \
+  BackupColumnTest::test_every_column_label_matches_a_header failed
+wiederherstellen
+
+echo
+echo "── BackupColumnTest: eine der beiden Listen sagt es nicht mehr ──"
+#
+# Befund 6 des Nachlaufs zu P8: Der Ablagename traegt UTC, die Spalte daneben
+# die eingestellte Zone — zwei Stunden auseinander in derselben Zeile. Ein
+# Waechter ueber nur eine der beiden Listen waere gruen, waehrend der Befund
+# eine Seite weiter offensteht; genau das war LogFooterTest im September.
+vorher_datei resources/js/Pages/Subscriptions/Backups.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Backups.vue'
+s = open(p, encoding='utf-8').read()
+alt = ' note="Der Ablagename trägt den Zeitpunkt in UTC; die Spalte Erstellt zeigt ihn in der eingestellten Zone."'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Backups.vue "eine Liste ohne den Satz" &&
+pruefe "eine Liste ohne den Satz" \
+  BackupColumnTest::test_both_tables_say_which_timestamp_is_which failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupColumnTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

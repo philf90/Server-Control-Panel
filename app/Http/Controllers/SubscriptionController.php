@@ -392,6 +392,49 @@ final class SubscriptionController extends Controller
                 // Dateien im Panel ändern darf, darf damit noch keinen
                 // dauerhaften Zugang von aussen einrichten.
                 'manageSftp' => $account?->can('manageSftp', $subscription) ?? false,
+
+                /*
+                 * **Der Weg zu den Sicherungen dieses Abonnements.**
+                 *
+                 * Gemeldet vom Betreiber im Nachlauf zu P8 (`docs/121 §9`,
+                 * Befund 2): Er hat „Jetzt sichern" auf dieser Seite gesucht.
+                 * Dort stand `Dateien`, dort stand `SFTP-Zugang` — und unter
+                 * *Freigaben* stand „Sicherungen anlegen — frei", also die
+                 * Zusage, dass es die Handlung gibt. Ein Weg zu ihr stand
+                 * nicht da; `/backups` → Abonnement wählen war der einzige.
+                 *
+                 * > **Zwei Geschwister mit demselben Zuschnitt, von denen
+                 * > eines auf der Seite steht und das andere nicht, sind keine
+                 * > Entwurfsentscheidung — es ist eine vergessene Zeile.**
+                 *
+                 * Der Menüpunkt `Sicherungen` bleibt und ersetzt das nicht: Er
+                 * beantwortet *„wo sind meine Sicherungen"*, diese Zeile
+                 * *„dieses Abonnement sichern"*. Das ist dieselbe Trennung wie
+                 * beim Dateimanager, dessen Knopf aus demselben Grund hier
+                 * steht und nicht in der Navigation.
+                 *
+                 * Dieselbe Fähigkeit, die `backups.show` an der Tür fragt —
+                 * ein `v-if` auf den Kontotyp wäre die zweite Fassung der
+                 * Policy, und die zweite veraltet.
+                 */
+                'manageBackups' => $account?->can('manageBackups', $subscription) ?? false,
+
+                /*
+                 * **Und die Cronjobs, gefunden vom Wächter und nicht von einem
+                 * Betrachter.** `SubscriptionReachTest` ist am 18. September
+                 * 2026 für die Sicherungen gebaut worden und hat beim ersten
+                 * Lauf sofort eine zweite Stelle gemeldet: `cron.show` liegt
+                 * unter `/subscriptions/{id}/cron` und stand hier nicht.
+                 *
+                 * Ein Weg dorthin gab es für den Betreiber — über `/schedules`,
+                 * in der Zelle „Vom Panel verwaltet — auf der Cronseite". Das
+                 * ist eine Zelle in der Tabelle einer anderen Seite, und sie
+                 * steht nur da, wenn das Panel überhaupt eine Datei verwaltet.
+                 *
+                 * > **Ein Weg, den es nur gibt, solange etwas anderes da ist,
+                 * > ist keiner für den Fall, dass es das nicht ist.**
+                 */
+                'manageCron' => $account?->can('manageCron', $subscription) ?? false,
             ],
 
             /*

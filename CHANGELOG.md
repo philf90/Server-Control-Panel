@@ -30027,3 +30027,424 @@ dasteht.
 Die Gegenprobe steht als eigener Fall daneben und ist die gefährlichere
 Richtung: Ein Verteiler, der **gar nichts** mehr ruft, macht beide Fälle grün —
 und jeder Vorgang dieses Panels stünde für immer auf „wartet".
+
+### P8 ist abgenommen — 18. September 2026
+
+Gefahren auf `cloudsrv24` gegen `0.7.4-rc.14` und `0.7.4-rc.15`, **alle acht
+Punkte aus `docs/120` erfüllt**, **Punkt 1 als Ausschlusskriterium darunter**,
+keiner als „nicht herstellbar" ausgefallen. Die Vorschrift ist `docs/120`, das
+Protokoll **`docs/121`**.
+
+`docs/119` hatte Punkt 4 als **nicht erfüllt** gemessen, und daran hing die
+ganze Stufe. Er ist hier vollständig neu gefahren.
+
+**Der Prüfkörper war der Grund, dass zwei Punkte überhaupt fahrbar waren.**
+`docs/119` liess den Fortschritt und die Zeilenzahl an 8,5 MB und zwei leeren
+Datenbanken ausfallen. Mit 501 MB in `httpdocs` und 5000 Zeilen je System dauert
+eine Sicherung **14 Sekunden** — zweimal gemessen, auf die Sekunde gleich.
+
+> **Ein Punkt, der am Prüfkörper ausfällt, fällt beim nächsten Mal wieder aus,
+> wenn der Prüfkörper derselbe bleibt.**
+
+**Punkt 1 hat sein `200` nur durch die Gegenprobe daneben behalten.** Die Domain
+antwortet mit `200` und **12 Bytes**, ein Name, den es dort nicht gibt, mit
+`200` und **615**. Beide sind grün; die Bytes trennen sie.
+
+> **Ein Rückgabewert von 200 sagt, dass jemand geantwortet hat — nicht, dass der
+> Gemeinte geantwortet hat.**
+
+**Punkt 4 ist in drei Hälften gefahren, und die mittlere ist die Messung.** Fünf
+Sicherungen einzeln entfernt: je ein Vorgang, jeder mit `storage`, kein zweiter,
+das Verzeichnis steht. Erst bei der **letzten** entsteht ein zweiter
+`backup.remove` — **ohne `storage`**, und danach ist das Verzeichnis fort,
+während das Nachbarverzeichnis unberührt bleibt. Von aussen unterscheidet die
+beiden Vorgänge allein der leere Payload.
+
+**Und die dritte Hälfte belegt, dass der Griff nichts zerstören kann.** Eine
+Datei ohne Zeile im selben Verzeichnis lässt `rmdir(2)` scheitern; der Vorgang
+endet auf `succeeded` mit `removed: false`, und die Datei liegt weiter da.
+
+**Der Abbau ist selbst eine Messung.** Nach dem Wegräumen meldet `srvpanel
+backup-verify` *„Keine Befunde an den Sicherungen."* — beide Befunde sind
+verschwunden, weil ihr Grund verschwunden ist.
+
+> **Ein Befund, der verschwindet, wenn sein Grund verschwindet, ist gemessen.
+> Ein Befund, der nur entsteht, ist abgelegt.**
+
+### Sechs Befunde, alle sechs im Prüfling
+
+Die deutlichste Umkehrung von `docs/45`, `docs/48`, `docs/59` und `docs/84`, und
+aus demselben Grund wie bei A10, A2 und A14: Die Vorschrift war vor dem Lauf
+ausgeschrieben, die Messmittel lagen als geprüfte Werkzeuge im Repo. Was blieb,
+war neuer Code und die Oberfläche darum. **Drei hat der Betreiber beim Benutzen
+gemeldet**, und drei davon hängen daran, was ein Betrachter *erwartet* — was
+kein Wächter halten kann.
+
+Behoben ist bisher der erste (der Verteiler der Lebensläufe, `0.7.4-rc.15`,
+siehe oben). Die übrigen fünf stehen in `docs/121 §9` mit ihren Lehren:
+
+- **Von der Abonnementseite führt kein Weg zu ihren Sicherungen.** `Dateien` und
+  `SFTP-Zugang` stehen dort als Knopf, `Sicherungen` nicht — während die Seite
+  unter *Freigaben* „Sicherungen anlegen — frei" anzeigt. Die fünfte
+  Wiederholung derselben Familie nach Dateimanager, SFTP, „Job anlegen" und dem
+  Abzeichen.
+- **Die Sicherungsvorgänge tragen keinen Handelnden.** `Backups::dispatch()`
+  setzt `account_id` nirgends; die Vorgangsseite sagt „System" für eine
+  Sicherung, die eine Person gedrückt hat, und im Protokoll des Agenten steht
+  gar niemand. `account_id = NULL` heisst hier seit `docs/901` schon etwas
+  anderes — Kommandozeile und Automatik.
+- **Das Entfernen einer Sicherung wird von keiner Seite verfolgt.** Das Anlegen
+  ist es (die Zeile springt ohne Neuladen, gemessen) — für das Entfernen greift
+  weder der Takt noch ein Weg zum Vorgang.
+- **„nichts zu entfernen" steht für drei Gründe** — kein Verzeichnis, ein
+  Symlink, ein nicht leeres Verzeichnis. Der mittlere ist eine
+  Sicherheitsverweigerung und liest sich als „da war nichts".
+- **Die Sicherungszeile zeigt denselben Zeitpunkt zweimal in zwei Zonen.** Der
+  Ablagename trägt UTC (`gmdate`), die Spalte „Angelegt" die Anzeigezeitzone —
+  zwei Stunden auseinander, in derselben Zeile, ohne ein Wort dazu.
+
+### Ein Merkmal, das kein Kriterium bestellt hat, ist nebenbei belegt
+
+„Vor dem Rückbau sichern" war angehakt, und die Vorgangskette zeigt es
+vollständig: `backup.create` läuft **vor** `subscription.remove` fertig — und
+**aus dieser Sicherung** ist in Punkt 1 zurückgespielt worden. Der Griff, der
+laut seiner eigenen Rückfrage „nichts zurücklässt", lässt jetzt eine Sicherung
+zurück, und sie hat den ganzen Lauf getragen.
+
+### Eine Sicherung sagt jetzt, wer sie ausgelöst hat
+
+Befund 3 des Nachlaufs (`docs/121 §9`), gemessen am 18. September 2026 auf
+`cloudsrv24`: Die Vorgangsseite einer von Hand gedrückten Sicherung sagte
+**„Ausgelöst von: System"**, während `backup.restore` in derselben Stunde und
+von derselben Person „Administrator" sagte.
+
+`Backups::dispatch()` setzte `account_id` **nirgends**. Ausgezählt nennt
+`grep -rn "'account_id' =>" app/` vierzehn Stellen — Datenbanken, Dumps,
+Weblebenslauf, Zertifikate, `Restore` —, und `Backups.php` stand nicht darunter.
+Betroffen war alles, was durch diesen Helfer geht: `backup.create` und beide
+Zweige von `backup.remove`. (`backup.verify` nicht — die Bestandsdiagnose ruft
+es über `Agent::call()` unmittelbar und legt dafür gar keinen Vorgang an.)
+
+**Der Befund ist nicht die leere Spalte, sondern ihre Bedeutung.** Seit
+`docs/901` heisst `account_id = NULL` **Kommandozeile oder Automatik**:
+`App\Console\Commands\Access` schreibt seinen Eintrag so und begründet es
+daneben, und `Operations::dispatch()` tut dasselbe für jede Automatik. Der
+nächtliche Sicherungslauf ist genau dieser Fall und soll `System` heissen — und
+war von einer Sicherung, die jemand gedrückt hat, nicht mehr zu unterscheiden.
+
+> **Eine Null, die schon eine Bedeutung trägt, kann keine zweite bekommen — die
+> beiden Fälle sehen danach gleich aus.**
+
+**Zwei Leser hingen daran, und der zweite ist der teurere.** Die Vorgangsseite
+über `ActorLabel` — und `RunAgentOperation::actor()`, das bei `null` gar nichts
+weitergibt: Im Protokoll des **Agenten** stand für jede Sicherung niemand.
+`/audit` war nicht betroffen, weil `BackupController` seinen Eintrag selbst
+schreibt.
+
+### Und das Abräumen erbt die Kennung seines Anlasses
+
+Das Entfernen des leeren Verzeichnisses läuft in
+`BackupLifecycle::afterSuccess()`, also im **Arbeiter** — dort ist niemand
+angemeldet, und `request()->user()` ist `null`. Sein Anlass ist aber ein Klick.
+`removeDirectory()` nimmt deshalb die Kennung entgegen, und der Lebenslauf gibt
+die seines auslösenden Vorgangs weiter — dasselbe Muster wie
+`CertificateLifecycle`, das `$cause->account_id` weiterreicht.
+
+> **Ein Wert, den jede Stelle anders weiss, gehört an die Stelle. Was überall
+> dasselbe ist, gehört an eine — und die muss eine sein, an der niemand
+> vorbeikommt.**
+
+**`BackupActorTest` misst an der Wirkung und durch die Tür**, nicht daran, dass
+`'account_id' =>` im Quelltext steht. Gefahren werden die echten Routen, und die
+Kennung wird auf dem Vorgang nachgelesen, den sie eingereiht haben. Fünf Fälle
+und beide Richtungen: mit angemeldetem Konto die Kennung, im nächtlichen Lauf
+`null` — denn dort ist `null` die richtige Antwort und nicht die fehlende.
+
+**Der Fall, für den es die fünf braucht**, ist der bequeme Fehler: Wer nur
+`request()->user()` einsetzt und das Durchreichen weglässt, macht den
+nächtlichen Lauf nicht kaputt — der hat ohnehin keinen Request — sondern das
+Abräumen. Gemessen: Dieser Eingriff bricht **genau einen** der fünf Fälle, und
+ohne ihn sähe die halbe Behebung vollständig aus.
+
+Dazu eine Untergrenze: `test_every_dispatch_of_this_helper_is_measured` zählt
+die Aufrufe von `dispatch()` im Rumpf, Kommentare abgestreift. Kommt ein fünfter
+Weg dazu, misst ihn kein Fall — und ohne diese Zeile merkte es niemand, weil die
+vier alten weiter grün blieben.
+
+> **Eine Untergrenze ist kein Formalismus — sie ist die einzige Stelle, an der
+> ein Wächter merkt, dass sein Ausdruck ins Leere greift.**
+
+### Ein Eingriff im Bruchskript fand seinen Text nicht mehr
+
+Der Eingriff zu `BackupTeardownTest` schnitt den ganzen `if`-Block heraus, der
+das Verzeichnis abräumt. Die Behebung oben schreibt einen Kommentar
+hinein — und damit passte die gesuchte Zeichenkette nicht mehr. Gemeldet hat es
+`BreakScriptTest::test_every_intervention_still_grips_its_file`, nicht der Lauf.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand eine Zeile dazwischenschreibt.**
+
+Er greift jetzt die **Aufrufzeile** statt des Blocks: dieselbe Wirkung, und
+unempfindlich gegen alles, was sonst noch zwischen die Klammern kommt. Von Hand
+nachgefahren, damit die Berichtigung nicht bloss grün, sondern belegt ist.
+
+### Von der Abonnementseite führt jetzt ein Weg zu ihren Sicherungen
+
+Befund 2 des Nachlaufs (`docs/121 §9`), gemeldet vom Betreiber beim Benutzen:
+*„/subscriptions/145 hat keinen Button Jetzt sichern."*
+
+Ausgezählt verwies `Subscriptions/Show.vue` auf `/subscriptions/{id}/files` und
+`/subscriptions/{id}/sftp`, auf `backups` **null Mal**. Der einzige Weg war
+`/backups` → Abonnement wählen. Bitter war die Zeile daneben: Dieselbe Seite
+zeigt unter *Freigaben* „Sicherungen anlegen — frei" — also die Zusage, dass es
+die Handlung gibt, ohne einen Weg zu ihr.
+
+Der Menüpunkt `Sicherungen` bleibt und ersetzt das nicht. Er beantwortet *„wo
+sind meine Sicherungen"*; die Frage von der Abonnementseite aus ist *„dieses
+Abonnement sichern"*. Dieselbe Trennung wie beim Dateimanager, dessen Knopf aus
+genau diesem Grund auf der Seite steht und nicht in der Navigation.
+
+> **Zwei Geschwister mit demselben Zuschnitt, von denen eines auf der Seite
+> steht und das andere nicht, sind keine Entwurfsentscheidung — es ist eine
+> vergessene Zeile.**
+
+### Und die Behebung ist diesmal eine Regel geworden
+
+Fünfmal hat der Betreiber denselben Fehler gemeldet — Dateimanager (`docs/55`),
+SFTP-Zugang (`docs/59`), „Job anlegen" (`docs/64`), das Abzeichen (`docs/907`),
+die Sicherungen. CLAUDE.md führt seither die Frage, die kein Test halten kann:
+*Wo sucht jemand diese Handlung, und steht sie dort?*
+
+**Ein Stück davon ist strukturell**, und `SubscriptionReachTest` hält es: Eine
+Route unter `/subscriptions/{id}/…` sagt selbst, dass sie zu *einem* Abonnement
+gehört — von dessen Seite muss ein Weg dorthin führen. Gefragt wird nach **einem**
+Segment ohne weiteren Platzhalter: `…/files` zählt, `…/files/edit` und
+`…/backups/{backup}/download` nicht. Die Segmente kommen aus `Route::getRoutes()`
+und nicht aus einer Liste im Test — die wäre die zweite Fassung der Routendatei,
+und die zweite veraltet.
+
+**Beim ersten Lauf hat er sofort eine sechste Stelle gemeldet:** `cron.show`
+liegt seit P6 unter `/subscriptions/{id}/cron` und stand auf der
+Abonnementseite nicht. Einen Weg gab es — über `/schedules`, in der Zelle „Vom
+Panel verwaltet — auf der Cronseite". Das ist eine Zelle in der Tabelle einer
+anderen Seite, und sie steht nur da, wenn das Panel überhaupt eine Datei
+verwaltet.
+
+> **Ein Weg, den es nur gibt, solange etwas anderes da ist, ist keiner für den
+> Fall, dass es das nicht ist.**
+
+Der Knopf `Cronjobs` steht jetzt neben seinen Geschwistern — **gefunden von
+einem Wächter und nicht von einem Betrachter**, und das war der ganze Zweck der
+Übung.
+
+Dazu die Gegenrichtung (`test_no_exemption_outlives_its_route`): Kein Eintrag in
+der Ausnahmeliste überlebt seine Route. So entsteht ein toter Eintrag wirklich —
+bei einer Umbenennung trägt man den neuen Namen nach, die erste Richtung ist
+wieder grün, und der alte bleibt liegen. Die Liste ist heute **leer** und steht
+trotzdem da: Ein künftiges Segment, das nicht auf die Seite gehört, soll seinen
+Grund laut hinschreiben müssen und nicht still fehlen dürfen.
+
+**Was der Wächter nicht hält, steht in seinem Kopf:** ob der Weg *auffällt*. Ein
+Knopf am Ende einer langen Seite erfüllt die Regel und wird trotzdem nicht
+gefunden.
+
+### Was die zwei Knöpfe am Seitenkopf kosten
+
+Gemessen im Nachbau mit dem echten Markup und **beiden** gebauten Stylesheets,
+vier Lagen, Ladebeleg `display: flex`, Gegenprobe 200/200:
+
+| | vorher | nachher |
+|---|---|---|
+| 1440 px, Kopfhöhe | 90 px | **90 px** |
+| 390 px, Kopfhöhe | 200 px | **254 px** |
+
+`dokument = 0` in allen vier Lagen, und die Knopfreihe läuft nirgends über ihren
+Bereich hinaus — `.button-row` bricht um. Bei 1440 px kostet die Ergänzung
+nichts; bei 390 px ist es **eine** Knopfzeile mehr.
+
+**Eine Beobachtung daneben, und sie ist keine Messung, sondern ein Bild:** Bei
+390 px steht „Zurückbauen" jetzt allein in der letzten Zeile und damit über die
+volle Breite; vorher teilte es sich die Zeile mit „Sperren". Die gefährlichste
+Handlung der Seite ist damit ihr breitester Knopf. Verloren geht dabei nichts —
+der Rückbau fragt den Namen ab —, aber die Betonung hat sich verschoben.
+
+### Das Entfernen einer Sicherung hat jetzt einen Zustand
+
+Befund 4 des Nachlaufs (`docs/121 §9`), gemeldet vom Betreiber beim Benutzen:
+*„/backups aktualisiert sich nicht automatisch wenn das Backup entfernt wurde.
+Es wird auch nicht auf die entsprechende operation umgeleitet."*
+
+Ausgezählt war es zweierlei. `BackupPick.vue` hatte **gar keinen** Takt, und der
+von `Subscriptions/Backups.vue` hing an `status === 'pending'` — `Backups::remove()`
+änderte den Zustand der Zeile aber **nicht**. Das Anlegen war damit verfolgt und
+das Entfernen nicht.
+
+> **Ein Vorgang ohne Zustand in seiner Zeile ist von einem, den niemand
+> ausgelöst hat, nicht zu unterscheiden.**
+
+`BackupStatus::Removing` ist deshalb kein Merker der Seite, sondern der Zustand
+der Sache — eine Entfernung aus dem nächtlichen Lauf der Aufbewahrung oder aus
+einem zweiten Reiter steht damit ebenfalls in der Zeile. Genau die Begründung,
+aus der `Backups.vue` seinen Takt seit dem 17. September an die Zeilen hängt und
+nicht an einen eigenen Merker.
+
+**Kein Endzustand**, und das ist die zweite Hälfte: Gelingt das Entfernen,
+verschwindet die Zeile; gelingt es nicht, geht sie auf `Ready` zurück, denn die
+Datei liegt dann noch da. Ohne diese Zeile bliebe sie für immer auf „wird
+entfernt" — die Seite fragte endlos nach, der Knopf wäre fort, ein zweiter
+Versuch ginge nicht mehr.
+
+> **Ein Zustand, der nur beim Gelingen wieder verlassen wird, ist beim
+> Fehlschlag eine Sackgasse.**
+
+**Und beide Listen bekommen die Antwort und nicht die Aufzählung.** Die Seiten
+fragen `running`, einen Wert aus `BackupStatus::running()`; zwei Bedingungen über
+dieselben Zustandsnamen wären zwei Fassungen derselben Regel. Die Zeile, die
+gerade entfernt wird, verliert dabei ihren Verweis und ihren Knopf — ein
+Zurückspielen liefe gegen eine Datei, die unter ihm verschwindet, und ein
+zweiter Klick reihte einen zweiten Vorgang für dieselbe Datei ein.
+
+`Backups::orphaned()` führt `Removing` mit, sonst wäre die ganze Behebung
+wirkungslos: Fiele die Zeile im Augenblick des Klicks aus der Abfrage,
+verschwände sie, bevor der Agent geantwortet hat — und die Seite zeigte dasselbe
+wie vorher, nämlich nichts.
+
+**Dabei ist die Liste der verwaisten Sicherungen zu einem Verschluss geworden**,
+und die Weiterleitung entscheidet an einem `exists()` statt an einer geladenen
+Sammlung. `PartialReloadTest` hat darauf bestanden, und zu Recht — sonst wäre
+der Verschluss eine Verzierung: Der Wert stünde längst fertig da.
+
+**`BackupRemovalStateTest` misst durch die Tür.** Der erste Fall hält die
+Warteschlange an, und das ist selbst ein Befund am Prüfkörper: Im Prüfstand
+steht sie auf `sync`, der Auftrag läuft in derselben Zeile, der Agent antwortet
+nicht — und `afterFailure()` setzt die Zeile zurück. Gemessen wurde dann das
+richtige Ergebnis eines ganzen Umlaufs und nicht der Zustand dazwischen, um den
+es geht.
+
+### „nichts zu entfernen" stand für drei verschiedene Gründe
+
+Befund 5 desselben Laufs, gemessen an Vorgang 967: Ein Verzeichnis mit einer
+Datei darin ergab die Meldung „nichts zu entfernen" — und der Satz ist für
+diesen Fall schlicht falsch. Es *gab* etwas zu entfernen, und genau deshalb blieb
+es liegen.
+
+`Store::removeDirectory()` gab `false` zurück, wenn es das Verzeichnis nicht
+gibt, wenn es ein **Verweis** ist, und wenn `rmdir(2)` an seinem Inhalt
+scheitert. Der Kommentar daneben hatte das ausdrücklich entschieden — *„Zu
+unterscheiden wäre es nur für einen Leser, den es nicht gibt"*. Beides war
+falsch: Es sind drei Zustände, und den Leser gibt es.
+
+> **Zwei Gründe, die dasselbe Ergebnis erzeugen, sind nicht derselbe Grund — und
+> die Abhilfe für den einen lässt den anderen stehen.**
+
+**Der schwerste ist der mittlere.** Sich zu weigern, einem Verweis zu folgen,
+ist eine Sicherheitsentscheidung — und sie las sich als „da war nichts". Im
+selben Rumpf stand die Gegenprobe: Die Abweichung von `realpath()` wirft mit
+einer Begründung. Der Verweis wirft jetzt ebenso.
+
+> **Ein Griff, der sich weigert, und einer, der nichts zu tun findet, geben
+> dieselbe Antwort — und nur der erste ist eine Auskunft, die jemand braucht.**
+
+Und `is_link` steht **vor** `is_dir`: Ein Verweis auf eine Datei liesse `is_dir()`
+falsch werden, und der Fall käme als „gibt es nicht" heraus — also wieder als der
+harmlose.
+
+Das wiegt, weil das Verzeichnis liegenbleibt und die Bestandsdiagnose es jede
+Nacht weiter meldet. Wer dann den Vorgang ansieht, liest „nichts zu entfernen"
+und sucht den Fehler bei der Diagnose.
+
+### Und dieselbe Zeile stand eine Datei weiter
+
+`Db\Dump::removeDirectory()` hatte die Lücke in klein: `false` für „gibt es
+nicht" **und** für „ist ein Verweis". Ein nicht leeres Verzeichnis gibt es dort
+nicht, weil es über `removeTree()` weggeht — die Weigerung, die sich als der
+harmlose Fall liest, gab es sehr wohl.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist an der nächsten wieder
+> da, wenn die Behebung nicht die Regel wurde.**
+
+Die drei Wörter stehen deshalb **einmal** auf `Filesystem` und nicht je
+Ablageort, und `RemovalReasonTest` führt **beide Paare** aus Ablageort und
+Operation. Ein Wächter über nur eines wäre grün gewesen, während der Befund eine
+Datei weiter offenstand — genau das war `LogFooterTest` im September.
+
+Die Sätze stehen als **Abbildung** und nicht als Kette von `if`: Käme ein
+vierter Ausgang dazu und stünde dort nicht, bräche der Zugriff laut, statt still
+auf den harmlosesten Satz zurückzufallen.
+
+> **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine falsche
+> Auskunft.**
+
+### Zwei Eingriffe des Bruchskripts fanden ihren Text nicht mehr
+
+Beide gemeldet von `BreakScriptTest::test_every_intervention_still_grips_its_file`
+und nicht vom Lauf: Die Bedingung der Weiterleitung in `pick()` heisst anders,
+seit die Liste ein Verschluss ist, und `return @rmdir($directory);` gibt es nicht
+mehr, seit die Methode einen Grund zurückgibt. Beide zeigen jetzt auf ihre neue
+Stelle, von Hand nachgefahren.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand eine Zeile dazwischenschreibt.**
+
+### Die Sicherungszeile sagt jetzt, welcher Zeitpunkt welcher ist
+
+Befund 6 des Nachlaufs (`docs/121 §9`), gemessen am 18. September 2026 auf
+`cloudsrv24`: Jede Zeile zeigt den Ablagenamen `…-20260918-103020-…` und daneben
+die Spalte mit `12:30:20` — **derselbe Augenblick, zwei Stunden auseinander**,
+und nichts sagte, dass das so gemeint ist. `Backups.php` baut den Namen mit
+`gmdate()`, also UTC; die Spalte geht über `Clock` in die eingestellte Zone.
+Beide sind für sich richtig.
+
+> **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine doppelte Auskunft,
+> sondern eine widersprüchliche.** (`docs/91` Befund 5)
+
+**Beide bleiben, und ein Satz sagt, welcher welcher ist** — je Liste eine
+Zeile: *„Der Ablagename trägt den Zeitpunkt in UTC; die Spalte Erstellt zeigt
+ihn in der eingestellten Zone."*
+
+Die drei anderen Wege sind verworfen, und jeder aus einem gemessenen Grund:
+
+- **Die Spalte zu streichen** nähme einen geschlossenen Befund zurück. Sie gibt
+  es, weil der Betreiber am 11. August 2026 an den Dumps gemeldet hat, dass den
+  Zeitstempel im Namen niemand liest — der Kommentar daneben sagt es wörtlich.
+  Mein Befund ist der Gegenfall dazu, und beide sind wahr: Wer eine Zeile gegen
+  ein `ls` auf dem Server hält, liest ihn eben doch.
+- **Den Namen zu kürzen** nähme dem Betreiber das, was er auf dem Server in ein
+  `ls` oder `rm` tippt. Der ganze Nachlauf hat ihn so benutzt.
+- **Eine Zonenangabe in der Spaltenkopfzeile** wäre eine Konvention in genau
+  einer von **siebzehn** Tabellen mit einer Zeitspalte — die Form, die dieses
+  Repo „zweite Fassung" nennt. Gehört die Zone in Kopfzeilen, gehört sie in
+  alle, und das ist eine eigene Entscheidung.
+
+Das Panel hat die Antwort ohnehin schon: `/settings/general` zeigt dieselbe Zeit
+zweimal — „Gespeichert … UTC" und „Angezeigt …" —, jede mit ihrem Namen.
+
+### Und dieselben zwei Spalten hiessen vier verschiedene Dinge
+
+Beim Nachsehen: `Sicherung`/`Stand` für den Ablagenamen und `Erstellt`/`Angelegt`
+für den Zeitpunkt — zwei Listen, dieselben Spalten, vier Wörter. Der Kopf von
+`BackupPick.vue` verlangt das Gegenteil: *„Wer diese hier ändert, sieht dort
+nach."* `Erstellt` ist jetzt beides, wie auch die Dumps-Tabelle sagt.
+
+`BackupColumnTest` misst dabei an der **Zelle**, die den Wert zeigt, und nicht an
+der Kopfzeile: Ein Wächter über die Kopfzeilen allein bliebe grün, wenn jemand
+die Spalten vertauschte — die Wörter stünden ja weiterhin da. Dazu, dass jede
+Beschriftung einer gestapelten Zelle in ihrer Datei auch als Kopfzeile vorkommt:
+Unter 720 px rendert `.stacks td::before` das `data-column`, darüber steht das
+`<th>`, und wer eines umbenennt, benennt sonst nur die halbe Tabelle um — welche
+Hälfte man sieht, entscheidet die Breite des Fensters.
+
+Und **beide** Listen tragen den Satz, nicht eine: `LogFooterTest` war im
+September grün, während derselbe Befund eine Seite weiter offenstand.
+
+### Gemessen, nicht geschätzt
+
+Im Nachbau mit dem echten Markup und **beiden** gebauten Stylesheets, vier
+Lagen, Ladebeleg `display: flex` bei 390 px und `table-cell` bei 1440:
+`dokument = 0`, Gegenprobe 200/200, der Roller der Tabelle bei 0, die
+Kennungszelle ohne Überlauf. Der Satz nimmt auf beiden Breiten **zwei Zeilen und
+39 px**.
+
+Im gestapelten Bild stehen `…103020…` und `12:30:20` zwei Zeilen untereinander —
+die Kollision ist dort deutlicher als in der breiten Ansicht, und der Satz steht
+darüber.

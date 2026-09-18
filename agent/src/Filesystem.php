@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent;
 
+use SrvPanel\Agent\Backup\Store;
+use SrvPanel\Agent\Db\Dump;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
 use SrvPanel\Agent\Ops\SubscriptionRemove;
 
@@ -62,6 +64,49 @@ final class Filesystem
      *
      * `SandboxReachTest` hält fest, wer sie von aussen ruft.
      */
+    /**
+     * Was aus dem Entfernen eines Verzeichnisses geworden ist.
+     *
+     * **Drei Wörter statt eines `false`, und das ist Befund 5 des Nachlaufs zu
+     * P8** (`docs/121 §9`). `Backup\Store::removeDirectory()` gab `false` für
+     * drei Fälle zurück — es gibt das Verzeichnis nicht, es ist ein
+     * **Verweis**, oder `rmdir(2)` scheitert an seinem Inhalt —, und die
+     * Meldung daneben lautete für alle drei „nichts zu entfernen". Gemessen am
+     * 18. September 2026 auf `cloudsrv24` mit einer Datei im Verzeichnis: Der
+     * Satz war schlicht falsch. Es *gab* etwas zu entfernen, und genau deshalb
+     * blieb es liegen.
+     *
+     * Der schwerste der drei ist der mittlere. Sich zu weigern, einem Verweis
+     * zu folgen, ist eine **Sicherheitsentscheidung** — und sie las sich als
+     * „da war nichts". Im selben Rumpf stand die Gegenprobe: Die Abweichung von
+     * `realpath()` wirft mit einer Begründung.
+     *
+     * > **Ein Griff, der sich weigert, und einer, der nichts zu tun findet,
+     * > geben dieselbe Antwort — und nur der erste ist eine Auskunft, die
+     * > jemand braucht.**
+     *
+     * **Die Wörter stehen hier und nicht je Ablageort**, weil sie zweimal
+     * gebraucht werden ({@see Store::removeDirectory()}
+     * und {@see Dump::removeDirectory()}). Zwei Listen,
+     * die dasselbe meinen, laufen auseinander.
+     *
+     * Der Verweis fehlt in dieser Aufzählung mit Absicht: Er ist kein Ausgang,
+     * sondern ein Abbruch — {@see AgentException::denied()}, wie die Abweichung
+     * von `realpath()` daneben.
+     */
+    public const REMOVED = 'removed';
+
+    /** Es gab das Verzeichnis nicht — der Griff hatte nichts zu tun. */
+    public const ABSENT = 'absent';
+
+    /**
+     * Es lag noch etwas darin, und `rmdir(2)` hat sich geweigert.
+     *
+     * **Kein Fehlschlag.** Es ist der Zustand, in dem etwas anderes zu tun ist,
+     * und was noch liegt, meldet die Bestandsdiagnose je Datei und mit Namen.
+     */
+    public const NOT_EMPTY = 'not_empty';
+
     public static function removeTree(string $path): void
     {
         // `@`: Ein Verzeichnis, das zwischen dem Abstieg und hier verschwindet,

@@ -22,6 +22,16 @@ interface BackupRow {
   system_user: number | null
   last_error: string | null
   created_at: string | null
+
+  /**
+   * Ob sich diese Zeile gerade von selbst ändert.
+   *
+   * **Vom Server und nicht aus einem Vergleich hier.** Zwei Listen zeigen
+   * Sicherungen, und beide brauchen denselben Takt; zwei Bedingungen über
+   * dieselben Zustandsnamen wären zwei Fassungen derselben Regel.
+   * `BackupStatus::running()` ist die eine Stelle.
+   */
+  running: boolean
 }
 
 const props = defineProps<{
@@ -68,8 +78,15 @@ let takt: ReturnType<typeof setInterval> | undefined
  * {@link anlegen} setzt, wüsste nichts von einer Sicherung, die der nächtliche
  * Lauf angelegt hat oder ein zweiter Reiter — und er stünde nach einem
  * Neuladen auf falsch, während die Zeile `wird erstellt` sagt.
+ *
+ * **Und seit dem 18. September zählt das Entfernen mit.** Hier stand
+ * `status === 'pending'`, und damit war nur das Anlegen verfolgt: Beim
+ * Entfernen blieb die Zeile stehen, bis jemand von Hand neu lud (`docs/121 §9`,
+ * Befund 4). Gefragt wird jetzt `running` — ein Wert, den der Server aus
+ * `BackupStatus::running()` schickt, damit die andere Liste dieselbe Antwort
+ * bekommt und nicht eine zweite.
  */
-const laeuft = computed((): boolean => props.backups.some((zeile) => zeile.status === 'pending'))
+const laeuft = computed((): boolean => props.backups.some((zeile) => zeile.running))
 
 /**
  * Nur die Liste, und nur solange sich etwas ändern kann.
@@ -133,9 +150,18 @@ function entfernen(backup: BackupRow): void {
   )
 }
 
+/**
+ * Die Farbe zum Zustand.
+ *
+ * **Jeder Zustand steht hier beim Namen**, und der Rückfall auf `neutral` ist
+ * der Fall „kenne ich nicht" und nicht der Sammeltopf. Käme ein fünfter dazu
+ * und stünde hier nicht, bekäme er eine graue Marke — richtig aussehend und
+ * falsch.
+ */
 function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
   if (status === 'ready') return 'ok'
   if (status === 'pending') return 'warn'
+  if (status === 'removing') return 'warn'
   if (status === 'failed') return 'critical'
 
   return 'neutral'
@@ -186,7 +212,32 @@ function inhalt(backup: BackupRow): string {
       am Raster `.sections` und nicht am Bereich selbst.
     -->
     <div class="sections">
-      <Section title="Sicherungen dieses Abonnements" full>
+      <!--
+        **Zwei Zeitpunkte in einer Zeile, und sie gehen um Stunden auseinander.**
+
+        Befund 6 des Nachlaufs zu P8 (`docs/121 §9`), gemessen am 18. September
+        2026 auf `cloudsrv24`: Der Ablagename trägt `…-20260918-103020-…`, die
+        Spalte daneben sagt `12:30:20`. Beide sind für sich richtig —
+        `Backups.php` baut den Namen mit `gmdate()`, also UTC, und die Spalte
+        geht über `Clock` in die eingestellte Zone. Nebeneinander sind sie eine
+        widersprüchliche Auskunft.
+
+        > **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine doppelte
+        > Auskunft, sondern eine widersprüchliche.** (`docs/91` Befund 5)
+
+        **Beide bleiben, und ein Satz sagt, welcher welcher ist.** Die Spalte
+        zu streichen nähme einen geschlossenen Befund zurück — sie gibt es,
+        weil den Zeitstempel im Namen niemand liest (gemeldet am 11. August
+        2026 an den Dumps). Den Namen zu kürzen nähme dem Betreiber das, was er
+        auf dem Server in ein `ls` tippt. Und eine Zonenangabe in der
+        Spaltenkopfzeile wäre eine Konvention in genau einer von siebzehn
+        Tabellen mit einer Zeitspalte.
+
+        Das Panel hat die Antwort ohnehin schon: `/settings/general` zeigt
+        dieselbe Zeit zweimal — „Gespeichert … UTC" und „Angezeigt …" —, jede
+        mit ihrem Namen.
+      -->
+      <Section title="Sicherungen dieses Abonnements" note="Der Ablagename trägt den Zeitpunkt in UTC; die Spalte Erstellt zeigt ihn in der eingestellten Zone." full>
         <div class="scrolls">
           <table class="stacks">
             <thead>

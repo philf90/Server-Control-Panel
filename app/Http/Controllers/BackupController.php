@@ -88,9 +88,21 @@ class BackupController extends Controller
          * zurückgebaut, und `backups.subscription_id` steht auf `nullOnDelete`,
          * damit die Sicherung ihn überlebt.
          */
-        $verwaist = Gate::allows('manageOrphanedBackups', Subscription::class)
-            ? $this->backups->orphaned()
-            : collect();
+        $darfVerwaiste = Gate::allows('manageOrphanedBackups', Subscription::class);
+
+        /*
+         * **Erst die Frage, dann die Liste** (seit dem 18. September 2026).
+         *
+         * Die Liste geht unten als **Verschluss** hinaus, damit ein
+         * Teilnachladen sie nicht rechnet, wenn es sie nicht anfordert
+         * (`PartialReloadTest`). Die Entscheidung über den kurzen Weg fällt
+         * aber vorher und braucht nur, **ob** es welche gibt — ein `exists()`
+         * statt einer geladenen Sammlung.
+         *
+         * > **Ein Nachladen, das nur einen Teil holt, spart nur dann etwas,
+         * > wenn der Rest nicht schon gerechnet ist.**
+         */
+        $hatVerwaiste = $darfVerwaiste && $this->backups->hasOrphaned();
 
         /*
          * **Der kurze Weg nur, wenn es nichts anderes zu wählen gibt.**
@@ -103,7 +115,7 @@ class BackupController extends Controller
          * > **Eine Weiterleitung, die den Sonderfall überspringt, macht ihn
          * > unerreichbar und sieht dabei aus wie Bequemlichkeit.**
          */
-        if ($erreichbar->count() === 1 && $verwaist->isEmpty()) {
+        if ($erreichbar->count() === 1 && ! $hatVerwaiste) {
             return to_route('backups.show', ['subscription' => $erreichbar->first()?->id]);
         }
 
@@ -115,14 +127,26 @@ class BackupController extends Controller
                 ])
                 ->all(),
 
-            'orphaned' => $verwaist
-                ->map(static fn (Backup $backup): array => [
-                    'id' => (int) $backup->id,
-                    'subscription_name' => (string) $backup->subscription_name,
-                    'storage_name' => (string) $backup->storage_name,
-                    'created_at' => Clock::display($backup->created_at),
-                ])
-                ->all(),
+            'orphaned' => fn (): array => $hatVerwaiste
+                ? $this->backups->orphaned()
+                    ->map(static fn (Backup $backup): array => [
+                        'id' => (int) $backup->id,
+                        'subscription_name' => (string) $backup->subscription_name,
+                        'storage_name' => (string) $backup->storage_name,
+                        'created_at' => Clock::display($backup->created_at),
+
+                        /*
+                     * **Der Zustand gehört auch hierher**, seit
+                     * {@see Backups::remove()} ihn setzt: Die Zeile bleibt
+                     * während des Entfernens stehen und soll sagen, warum.
+                     * Ohne die Beschriftung stünde sie unverändert da, und das
+                     * war genau der Befund.
+                     */
+                        'status_label' => $backup->status->label(),
+                        'running' => $backup->status->running(),
+                    ])
+                    ->all()
+                : [],
         ]);
     }
 
@@ -171,6 +195,15 @@ class BackupController extends Controller
                 'system_user' => $backup->system_user,
                 'last_error' => $backup->last_error,
                 'created_at' => Clock::display($backup->created_at),
+
+                /*
+                 * **Ob sich die Zeile gerade von selbst ändert — als Antwort
+                 * und nicht als Aufzählung.** Beide Listen dieses Panels
+                 * brauchen denselben Takt, und zwei Bedingungen über dieselben
+                 * Zustandsnamen wären zwei Fassungen derselben Regel.
+                 * {@see BackupStatus::running()} ist die eine Stelle.
+                 */
+                'running' => $backup->status->running(),
             ])
             ->all();
     }

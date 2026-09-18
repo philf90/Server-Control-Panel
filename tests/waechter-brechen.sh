@@ -31156,7 +31156,7 @@ for p in pathlib.Path('resources/js').rglob('*.vue'):
 PY
 griff_datei resources/js/Pages/Subscriptions/Sftp.vue "Gegenstand genommen" &&
 pruefe "Gegenstand genommen" \
-  ConfirmationVerbTest::test_every_confirmation_names_a_verb_on_its_button passed
+  ConfirmationVerbTest::test_every_confirmation_names_a_verb_on_its_button failed
 wiederherstellen
 
 abschnitt "BackupControlStateTest: der Entfernen-Knopf verliert sein v-if"

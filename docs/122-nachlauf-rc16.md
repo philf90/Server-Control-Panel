@@ -94,12 +94,26 @@ App\Models\Backup::withoutGlobalScopes()->get(['id','subscription_id','storage_n
 ```
 
 **Dann der Prüfkörper:** ein Abonnement `p8-rc16.invalid` mit dem Merkmal
-*Sicherungen*, einem Kontingent grösser null und **zwei** Sicherungen. Zwei,
+*Sicherungen* am Plan, einem Kontingent von **mindestens 2** und **zwei**
+Sicherungen. Zwei,
 nicht eine — Punkt 3 verbraucht eine im Fehlschlag und eine im Gelingen, und ein
 zweiter Anlauf am selben Gegenstand misst den Zustand von eben mit.
 
-`RunBackups::eligible()` verlangt für Punkt 2 dieselben drei Dinge (Merkmal,
-Kontingent, `hasDirectory()`); der Prüfkörper erfüllt sie damit ohne Zutun.
+`RunBackups::eligible()` verlangt für Punkt 2 vier Dinge, und sie werden
+**gemessen und nicht angenommen**: Zustand `active`, das Merkmal *Sicherungen*
+**am Plan**, ein Kontingent grösser null, und ein Systembenutzer
+(`hasDirectory()` fragt nur den).
+
+**Und das Kontingent muss mindestens 2 sein.** `Retention::keeps()` ist wörtlich
+dieses Kontingent, und **`RunBackups` wendet es an** — der nächtliche Lauf aus
+Punkt 2b räumt also auf die Zahl zurück. Bei einem Kontingent von 1 nähme
+Punkt 2b dem Punkt 3 seinen Gegenstand weg, und zwar in der Mitte des Laufs.
+
+> **Ein Prüfkörper, den ein späterer Punkt desselben Laufs verbraucht, fehlt
+> nicht am Anfang — er fehlt, nachdem er dagewesen ist.**
+
+Über die Oberfläche angelegte Sicherungen sind davon unberührt: `Retention` hat
+genau einen Aufrufer, und das ist der nächtliche Lauf.
 
 > **Ein Prüfkörper, der einen Zustand braucht, den der Lauf davor verbraucht,
 > gehört an einen Gegenstand, der nachwächst.**

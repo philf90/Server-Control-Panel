@@ -85,12 +85,71 @@ final class Lifecycles
         return array_keys($tasks);
     }
 
-    public function afterSuccess(Operation $operation): void
+    /**
+     * Die Lebensläufe, die für diese Aufgabe zuständig sind.
+     *
+     * ## Der Befund, für den es diese Methode gibt
+     *
+     * Gemessen am 18. September 2026 auf `cloudsrv24`, im Nachlauf zu P8:
+     * Nach einer **Sicherung** stand der Cronjob des Kunden zweimal in
+     * `/etc/cron.d/`, beide Zeilen aktiv — sein Job lief doppelt. Und im
+     * Ergebnis des `backup.create`-Vorgangs stand ein `restored`-Block mit
+     * sechs Fehlschlägen, obwohl niemand etwas zurückgespielt hatte.
+     *
+     * Hier stand eine Schleife über **alle** Lebensläufe, ohne zu fragen,
+     * welcher zuständig ist. Sieben von acht prüften `$operation->task` selbst
+     * und taten deshalb nichts; {@see RestoreLifecycle}
+     * prüfte nur, ob es ein Abonnement und eine Sicherung gibt — und bei einem
+     * `backup.create` gibt es beides, denn der Gegenstand **ist** die
+     * Sicherung. Es lief also eine vollständige Wiederherstellung gegen das
+     * lebende Abonnement: Datenbanken neu anlegen, Zugänge neu anlegen,
+     * Cronjobs neu anlegen.
+     *
+     * > **Ein Verteiler, der jeden Empfänger für jede Nachricht ruft,
+     * > verlagert die Zuständigkeitsfrage in die Empfänger — und der erste,
+     * > der sie nicht stellt, tut etwas, das niemand bestellt hat.**
+     *
+     * **Und `handles()` gab es die ganze Zeit.** Jeder Lebenslauf deklariert
+     * es, der Name sagt genau das, und gelesen wurde es allein von
+     * {@see self::handled()} für einen Wächter.
+     *
+     * > **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht
+     * > von einem zu unterscheiden, das es nicht gibt** — und eines, das
+     * > *fast* gelesen wird, ist schlimmer: Es sieht aus, als trüge es die
+     * > Regel.
+     *
+     * ## Warum hier und nicht im Empfänger
+     *
+     * Ein zweiter Wächter in `RestoreLifecycle` hätte diesen einen Fall
+     * geschlossen und die Frage beim nächsten Lebenslauf wieder gestellt. Die
+     * sieben anderen verzweigen ohnehin auf `task` — sie tun für fremde
+     * Aufgaben nichts, und das Filtern hier ändert an ihnen nichts
+     * (gemessen: jeder liest `task`, bevor er handelt).
+     *
+     * @return list<AfterOperation>
+     */
+    private function zustaendig(Operation $operation): array
     {
+        $task = (string) ($operation->task ?? '');
+        $zustaendig = [];
+
         foreach (self::HANDLERS as $handler) {
+            if (! in_array($task, $handler::handles(), true)) {
+                continue;
+            }
+
             /** @var AfterOperation $lifecycle */
             $lifecycle = app($handler);
 
+            $zustaendig[] = $lifecycle;
+        }
+
+        return $zustaendig;
+    }
+
+    public function afterSuccess(Operation $operation): void
+    {
+        foreach ($this->zustaendig($operation) as $lifecycle) {
             $lifecycle->afterSuccess($operation);
         }
     }
@@ -105,10 +164,7 @@ final class Lifecycles
      */
     public function afterFailure(Operation $operation): void
     {
-        foreach (self::HANDLERS as $handler) {
-            /** @var AfterOperation $lifecycle */
-            $lifecycle = app($handler);
-
+        foreach ($this->zustaendig($operation) as $lifecycle) {
             $lifecycle->afterFailure($operation);
         }
     }

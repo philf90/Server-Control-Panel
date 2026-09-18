@@ -30596,6 +30596,48 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupStoreTest passed
 
 echo
+echo "── LifecycleDispatchTest: der Verteiler ruft wieder jeden ──"
+#
+# Der Befund vom 18. September 2026 auf cloudsrv24: Nach einer Sicherung stand
+# der Cronjob des Kunden zweimal in /etc/cron.d/, beide Zeilen aktiv — und im
+# Ergebnis des backup.create stand ein `restored`-Block mit sechs
+# Fehlschlägen, obwohl niemand etwas zurückgespielt hatte.
+vorher_datei app/Support/Operations/Lifecycles.php
+python3 - <<'PY2'
+p = 'app/Support/Operations/Lifecycles.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""            if (! in_array($task, $handler::handles(), true)) {
+                continue;
+            }
+
+""", "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Operations/Lifecycles.php "Verteiler ruft jeden Lebenslauf" &&
+pruefe "Verteiler ruft jeden Lebenslauf" \
+  LifecycleDispatchTest::test_a_backup_does_not_duplicate_the_cron_job failed
+wiederherstellen
+
+echo
+echo "── LifecycleDispatchTest: der Verteiler ruft gar keinen mehr ──"
+#
+# **Die Gegenrichtung, und sie ist die gefährlichere.** Ein Verteiler, der
+# nichts mehr ruft, macht die beiden Fälle darüber grün — und jeder Vorgang
+# dieses Panels stünde für immer auf „wartet".
+vorher_datei app/Support/Operations/Lifecycles.php
+python3 - <<'PY2'
+p = 'app/Support/Operations/Lifecycles.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            $zustaendig[] = $lifecycle;", "", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Operations/Lifecycles.php "Verteiler ruft keinen Lebenslauf" &&
+pruefe "Verteiler ruft keinen Lebenslauf" \
+  LifecycleDispatchTest::test_the_lifecycle_that_owns_the_task_still_runs failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LifecycleDispatchTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

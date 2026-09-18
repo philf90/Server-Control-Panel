@@ -22,6 +22,16 @@ interface BackupRow {
   system_user: number | null
   last_error: string | null
   created_at: string | null
+
+  /**
+   * Ob sich diese Zeile gerade von selbst ändert.
+   *
+   * **Vom Server und nicht aus einem Vergleich hier.** Zwei Listen zeigen
+   * Sicherungen, und beide brauchen denselben Takt; zwei Bedingungen über
+   * dieselben Zustandsnamen wären zwei Fassungen derselben Regel.
+   * `BackupStatus::running()` ist die eine Stelle.
+   */
+  running: boolean
 }
 
 const props = defineProps<{
@@ -68,8 +78,15 @@ let takt: ReturnType<typeof setInterval> | undefined
  * {@link anlegen} setzt, wüsste nichts von einer Sicherung, die der nächtliche
  * Lauf angelegt hat oder ein zweiter Reiter — und er stünde nach einem
  * Neuladen auf falsch, während die Zeile `wird erstellt` sagt.
+ *
+ * **Und seit dem 18. September zählt das Entfernen mit.** Hier stand
+ * `status === 'pending'`, und damit war nur das Anlegen verfolgt: Beim
+ * Entfernen blieb die Zeile stehen, bis jemand von Hand neu lud (`docs/121 §9`,
+ * Befund 4). Gefragt wird jetzt `running` — ein Wert, den der Server aus
+ * `BackupStatus::running()` schickt, damit die andere Liste dieselbe Antwort
+ * bekommt und nicht eine zweite.
  */
-const laeuft = computed((): boolean => props.backups.some((zeile) => zeile.status === 'pending'))
+const laeuft = computed((): boolean => props.backups.some((zeile) => zeile.running))
 
 /**
  * Nur die Liste, und nur solange sich etwas ändern kann.
@@ -133,9 +150,18 @@ function entfernen(backup: BackupRow): void {
   )
 }
 
+/**
+ * Die Farbe zum Zustand.
+ *
+ * **Jeder Zustand steht hier beim Namen**, und der Rückfall auf `neutral` ist
+ * der Fall „kenne ich nicht" und nicht der Sammeltopf. Käme ein fünfter dazu
+ * und stünde hier nicht, bekäme er eine graue Marke — richtig aussehend und
+ * falsch.
+ */
 function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
   if (status === 'ready') return 'ok'
   if (status === 'pending') return 'warn'
+  if (status === 'removing') return 'warn'
   if (status === 'failed') return 'critical'
 
   return 'neutral'

@@ -30267,3 +30267,121 @@ nichts; bei 390 px ist es **eine** Knopfzeile mehr.
 volle Breite; vorher teilte es sich die Zeile mit „Sperren". Die gefährlichste
 Handlung der Seite ist damit ihr breitester Knopf. Verloren geht dabei nichts —
 der Rückbau fragt den Namen ab —, aber die Betonung hat sich verschoben.
+
+### Das Entfernen einer Sicherung hat jetzt einen Zustand
+
+Befund 4 des Nachlaufs (`docs/121 §9`), gemeldet vom Betreiber beim Benutzen:
+*„/backups aktualisiert sich nicht automatisch wenn das Backup entfernt wurde.
+Es wird auch nicht auf die entsprechende operation umgeleitet."*
+
+Ausgezählt war es zweierlei. `BackupPick.vue` hatte **gar keinen** Takt, und der
+von `Subscriptions/Backups.vue` hing an `status === 'pending'` — `Backups::remove()`
+änderte den Zustand der Zeile aber **nicht**. Das Anlegen war damit verfolgt und
+das Entfernen nicht.
+
+> **Ein Vorgang ohne Zustand in seiner Zeile ist von einem, den niemand
+> ausgelöst hat, nicht zu unterscheiden.**
+
+`BackupStatus::Removing` ist deshalb kein Merker der Seite, sondern der Zustand
+der Sache — eine Entfernung aus dem nächtlichen Lauf der Aufbewahrung oder aus
+einem zweiten Reiter steht damit ebenfalls in der Zeile. Genau die Begründung,
+aus der `Backups.vue` seinen Takt seit dem 17. September an die Zeilen hängt und
+nicht an einen eigenen Merker.
+
+**Kein Endzustand**, und das ist die zweite Hälfte: Gelingt das Entfernen,
+verschwindet die Zeile; gelingt es nicht, geht sie auf `Ready` zurück, denn die
+Datei liegt dann noch da. Ohne diese Zeile bliebe sie für immer auf „wird
+entfernt" — die Seite fragte endlos nach, der Knopf wäre fort, ein zweiter
+Versuch ginge nicht mehr.
+
+> **Ein Zustand, der nur beim Gelingen wieder verlassen wird, ist beim
+> Fehlschlag eine Sackgasse.**
+
+**Und beide Listen bekommen die Antwort und nicht die Aufzählung.** Die Seiten
+fragen `running`, einen Wert aus `BackupStatus::running()`; zwei Bedingungen über
+dieselben Zustandsnamen wären zwei Fassungen derselben Regel. Die Zeile, die
+gerade entfernt wird, verliert dabei ihren Verweis und ihren Knopf — ein
+Zurückspielen liefe gegen eine Datei, die unter ihm verschwindet, und ein
+zweiter Klick reihte einen zweiten Vorgang für dieselbe Datei ein.
+
+`Backups::orphaned()` führt `Removing` mit, sonst wäre die ganze Behebung
+wirkungslos: Fiele die Zeile im Augenblick des Klicks aus der Abfrage,
+verschwände sie, bevor der Agent geantwortet hat — und die Seite zeigte dasselbe
+wie vorher, nämlich nichts.
+
+**Dabei ist die Liste der verwaisten Sicherungen zu einem Verschluss geworden**,
+und die Weiterleitung entscheidet an einem `exists()` statt an einer geladenen
+Sammlung. `PartialReloadTest` hat darauf bestanden, und zu Recht — sonst wäre
+der Verschluss eine Verzierung: Der Wert stünde längst fertig da.
+
+**`BackupRemovalStateTest` misst durch die Tür.** Der erste Fall hält die
+Warteschlange an, und das ist selbst ein Befund am Prüfkörper: Im Prüfstand
+steht sie auf `sync`, der Auftrag läuft in derselben Zeile, der Agent antwortet
+nicht — und `afterFailure()` setzt die Zeile zurück. Gemessen wurde dann das
+richtige Ergebnis eines ganzen Umlaufs und nicht der Zustand dazwischen, um den
+es geht.
+
+### „nichts zu entfernen" stand für drei verschiedene Gründe
+
+Befund 5 desselben Laufs, gemessen an Vorgang 967: Ein Verzeichnis mit einer
+Datei darin ergab die Meldung „nichts zu entfernen" — und der Satz ist für
+diesen Fall schlicht falsch. Es *gab* etwas zu entfernen, und genau deshalb blieb
+es liegen.
+
+`Store::removeDirectory()` gab `false` zurück, wenn es das Verzeichnis nicht
+gibt, wenn es ein **Verweis** ist, und wenn `rmdir(2)` an seinem Inhalt
+scheitert. Der Kommentar daneben hatte das ausdrücklich entschieden — *„Zu
+unterscheiden wäre es nur für einen Leser, den es nicht gibt"*. Beides war
+falsch: Es sind drei Zustände, und den Leser gibt es.
+
+> **Zwei Gründe, die dasselbe Ergebnis erzeugen, sind nicht derselbe Grund — und
+> die Abhilfe für den einen lässt den anderen stehen.**
+
+**Der schwerste ist der mittlere.** Sich zu weigern, einem Verweis zu folgen,
+ist eine Sicherheitsentscheidung — und sie las sich als „da war nichts". Im
+selben Rumpf stand die Gegenprobe: Die Abweichung von `realpath()` wirft mit
+einer Begründung. Der Verweis wirft jetzt ebenso.
+
+> **Ein Griff, der sich weigert, und einer, der nichts zu tun findet, geben
+> dieselbe Antwort — und nur der erste ist eine Auskunft, die jemand braucht.**
+
+Und `is_link` steht **vor** `is_dir`: Ein Verweis auf eine Datei liesse `is_dir()`
+falsch werden, und der Fall käme als „gibt es nicht" heraus — also wieder als der
+harmlose.
+
+Das wiegt, weil das Verzeichnis liegenbleibt und die Bestandsdiagnose es jede
+Nacht weiter meldet. Wer dann den Vorgang ansieht, liest „nichts zu entfernen"
+und sucht den Fehler bei der Diagnose.
+
+### Und dieselbe Zeile stand eine Datei weiter
+
+`Db\Dump::removeDirectory()` hatte die Lücke in klein: `false` für „gibt es
+nicht" **und** für „ist ein Verweis". Ein nicht leeres Verzeichnis gibt es dort
+nicht, weil es über `removeTree()` weggeht — die Weigerung, die sich als der
+harmlose Fall liest, gab es sehr wohl.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist an der nächsten wieder
+> da, wenn die Behebung nicht die Regel wurde.**
+
+Die drei Wörter stehen deshalb **einmal** auf `Filesystem` und nicht je
+Ablageort, und `RemovalReasonTest` führt **beide Paare** aus Ablageort und
+Operation. Ein Wächter über nur eines wäre grün gewesen, während der Befund eine
+Datei weiter offenstand — genau das war `LogFooterTest` im September.
+
+Die Sätze stehen als **Abbildung** und nicht als Kette von `if`: Käme ein
+vierter Ausgang dazu und stünde dort nicht, bräche der Zugriff laut, statt still
+auf den harmlosesten Satz zurückzufallen.
+
+> **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine falsche
+> Auskunft.**
+
+### Zwei Eingriffe des Bruchskripts fanden ihren Text nicht mehr
+
+Beide gemeldet von `BreakScriptTest::test_every_intervention_still_grips_its_file`
+und nicht vom Lauf: Die Bedingung der Weiterleitung in `pick()` heisst anders,
+seit die Liste ein Verschluss ist, und `return @rmdir($directory);` gibt es nicht
+mehr, seit die Methode einen Grund zurückgibt. Beide zeigen jetzt auf ihre neue
+Stelle, von Hand nachgefahren.
+
+> **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
+> wenn jemand eine Zeile dazwischenschreibt.**

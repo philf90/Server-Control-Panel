@@ -1421,6 +1421,16 @@ Antworten, und verglichen wird der Fingerabdruck) und `SystemUserVerdictTest`
 `root:root`, weil ihr Zugriffsbit der Schalter von `subscription.suspend` ist)
 und `OrphanRowTest` (gemeldet und nicht gelöscht — und eine Reservierung ohne
 Abonnement ist kein Rest, das Unix-Konto daneben schon) und
+`BackupRemovalStateTest` (das Entfernen einer Sicherung hat einen Zustand, und
+beide Listen zeigen ihn — gemessen durch die Tür, mit der Rückkehr auf `Ready`
+beim Fehlschlag als eigenem Fall, denn ein Zustand, der nur beim Gelingen wieder
+verlassen wird, ist beim Fehlschlag eine Sackgasse; sein erster Fall hält die
+Warteschlange an, weil sie im Prüfstand auf `sync` steht und der ganze Umlauf
+sonst in derselben Zeile durchläuft) und `RemovalReasonTest` (jeder Ausgang des
+Abräumens hat sein eigenes Wort und seinen eigenen Satz — über **beide** Paare
+aus Ablageort und Operation, weil ein Wächter über eines grün bliebe, während der
+Befund eine Datei weiter offensteht; der Verweis ist dabei kein Ausgang, sondern
+ein Abbruch, und er wird **vor** dem Verzeichnis gefragt) und
 `SubscriptionReachTest` (jede Seite, die zu **einem** Abonnement gehört, ist von
 seiner Seite aus erreichbar — die Segmente kommen aus `Route::getRoutes()` und
 nicht aus einer Liste im Test, gefragt wird nach **einem** Segment ohne weiteren

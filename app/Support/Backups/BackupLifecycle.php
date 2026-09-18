@@ -127,9 +127,23 @@ final class BackupLifecycle implements AfterOperation
 
         $this->tenancy->withoutRestriction(function () use ($operation, $backup): void {
             if (($operation->task ?? '') === 'backup.remove') {
-                // Die Datei liegt noch. Die Zeile beschreibt sie weiterhin
-                // richtig — sie hat nur einen Fehlschlag daneben.
-                $backup->forceFill(['last_error' => $this->reason($operation)])->save();
+                /*
+                 * Die Datei liegt noch. Die Zeile beschreibt sie weiterhin
+                 * richtig — sie hat nur einen Fehlschlag daneben.
+                 *
+                 * **Und sie geht aus `Removing` zurück auf `Ready`**, seit
+                 * {@see Backups::remove()} den Zustand setzt. Ohne diese Zeile
+                 * bliebe sie für immer auf „wird entfernt": Die Seite fragte
+                 * endlos nach, der Knopf wäre fort, und ein zweiter Versuch
+                 * ginge nicht mehr — ein Zustand, aus dem kein Weg führt.
+                 *
+                 * > **Ein Zustand, der nur beim Gelingen wieder verlassen
+                 * > wird, ist beim Fehlschlag eine Sackgasse.**
+                 */
+                $backup->forceFill([
+                    'status' => BackupStatus::Ready,
+                    'last_error' => $this->reason($operation),
+                ])->save();
 
                 return;
             }

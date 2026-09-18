@@ -269,25 +269,48 @@ final class Store
      * etwas liegt. Der Griff ist damit **selbstbegrenzend** — er kann keine
      * Daten zerstören, und deshalb darf ihn das Panel ohne Rückfrage gehen.
      *
-     * **Ein nicht leeres Verzeichnis ist kein Fehlschlag**, sondern `false`:
-     * Es ist der Zustand, in dem etwas anderes zu tun ist, und das Melden davon
-     * ist die Aufgabe der Diagnose und nicht dieses Aufrufs.
+     * **Ein nicht leeres Verzeichnis ist kein Fehlschlag**, sondern
+     * {@see Filesystem::NOT_EMPTY}: Es ist der Zustand, in dem etwas anderes zu
+     * tun ist, und das Melden davon ist die Aufgabe der Diagnose und nicht
+     * dieses Aufrufs.
+     *
+     * **Hier stand `bool`, und das war Befund 5 des Nachlaufs zu P8**
+     * (`docs/121 §9`): `false` deckte drei Fälle, und die Meldung daneben
+     * lautete für alle drei „nichts zu entfernen". Für ein Verzeichnis mit
+     * einer Datei darin ist der Satz falsch — es *gab* etwas zu entfernen.
      *
      * Die Schranken bleiben wie bei `subscription.remove`: keinem Symlink
-     * folgen, und der aufgelöste Pfad muss derselbe sein.
+     * folgen, und der aufgelöste Pfad muss derselbe sein. **Der Symlink wirft
+     * jetzt**, statt still zu verneinen: Er ist eine Weigerung und kein
+     * Ergebnis, und er stand als einziger der drei Fälle in einer Zeile mit dem
+     * `realpath`-Abgleich, der seit jeher wirft.
+     *
+     * > **Ein Griff, der sich weigert, und einer, der nichts zu tun findet,
+     * > geben dieselbe Antwort — und nur der erste ist eine Auskunft, die
+     * > jemand braucht.**
+     *
+     * **`is_link` vor `is_dir`**, und die Reihenfolge trägt: Ein Verweis auf
+     * eine Datei liesse `is_dir()` falsch werden, und der Fall käme als
+     * „gibt es nicht" heraus — also wieder als der harmlose.
+     *
+     * @return Filesystem::REMOVED|Filesystem::ABSENT|Filesystem::NOT_EMPTY
      */
-    public static function removeDirectory(string $subscription): bool
+    public static function removeDirectory(string $subscription): string
     {
         $directory = self::directory($subscription);
 
-        if (! is_dir($directory) || is_link($directory)) {
-            return false;
+        if (is_link($directory)) {
+            throw AgentException::denied('Der Ablageort ist ein Verweis — es wird nichts entfernt.');
+        }
+
+        if (! is_dir($directory)) {
+            return Filesystem::ABSENT;
         }
 
         if (realpath($directory) !== $directory) {
             throw AgentException::denied('Der aufgelöste Pfad weicht ab — es wird nichts entfernt.');
         }
 
-        return @rmdir($directory);
+        return @rmdir($directory) ? Filesystem::REMOVED : Filesystem::NOT_EMPTY;
     }
 }

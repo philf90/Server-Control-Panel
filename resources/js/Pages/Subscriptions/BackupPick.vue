@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
 import { useConfirmation } from '../../Composables/useConfirmation'
@@ -31,8 +32,66 @@ const props = defineProps<{
     subscription_name: string
     storage_name: string
     created_at: string
+    status_label: string
+
+    /**
+     * Ob sich diese Zeile gerade von selbst ändert.
+     *
+     * **Vom Server und nicht aus einem Vergleich hier** — dieselbe Antwort, die
+     * `Subscriptions/Backups.vue` bekommt, aus `BackupStatus::running()`. Zwei
+     * Bedingungen über dieselben Zustandsnamen wären zwei Fassungen derselben
+     * Regel.
+     */
+    running: boolean
   }[]
 }>()
+
+/**
+ * Derselbe Takt wie auf der Sicherungsseite, und aus demselben Grund.
+ *
+ * **Der Befund** (`docs/121 §9`, Befund 4), gemeldet vom Betreiber beim
+ * Benutzen: „/backups aktualisiert sich nicht automatisch wenn das Backup
+ * entfernt wurde." Diese Seite hatte **gar keinen** Takt — das Entfernen ist
+ * ein Vorgang des Agenten, `destroyOrphan()` leitet hierher zurück, und die
+ * Zeile stand danach unverändert da, mitsamt ihrem Knopf.
+ *
+ * > **Zwei Wege, denselben Zustand zu zeigen — die Seite aktuell halten oder
+ * > zum Vorgang führen —, und das Entfernen ging keinen von beiden.**
+ *
+ * **Am Zustand der Zeilen und nicht an einem Merker**, wie dort: Eine
+ * Entfernung aus dem nächtlichen Lauf der Aufbewahrung oder aus einem zweiten
+ * Reiter soll denselben Takt auslösen.
+ *
+ * Drei Sekunden, dieselbe Zahl wie dort — wer davorsteht und wartet, soll nicht
+ * neu laden müssen.
+ */
+const NACHFRAGE_MS = 3000
+
+let takt: ReturnType<typeof setInterval> | undefined
+
+const laeuft = computed((): boolean => props.orphaned.some((zeile) => zeile.running))
+
+function nachsehen(): void {
+  router.reload({ only: ['orphaned'] })
+}
+
+function stellen(): void {
+  clearInterval(takt)
+  takt = undefined
+
+  if (laeuft.value) takt = setInterval(nachsehen, NACHFRAGE_MS)
+}
+
+watch(laeuft, stellen)
+onMounted(stellen)
+
+/**
+ * Inertia tauscht die Seite im selben Dokument aus. Ein Takt überlebt das und
+ * fragt bis zum Schliessen des Reiters weiter — `TeardownTest` besteht darauf.
+ */
+onUnmounted((): void => {
+  clearInterval(takt)
+})
 
 /**
  * Eine Sicherung ohne Abonnement entfernen — mit Rückfrage.
@@ -154,18 +213,39 @@ function entfernen(sicherung: { id: number; storage_name: string }): void {
             </tr>
           </thead>
           <tbody>
+            <!--
+              **Eine Zeile, die gerade entfernt wird, sagt es — und bietet
+              nichts an.**
+
+              Der Verweis fällt weg, weil ein Zurückspielen gegen eine Datei
+              liefe, die unter ihm verschwindet; der Knopf fällt weg, weil ein
+              zweiter Klick einen zweiten Vorgang für dieselbe Datei einreihte.
+              Beides an **einer** Bedingung und nicht an zweien: Zwei
+              Bedingungen über denselben Zustand laufen auseinander.
+            -->
             <tr v-for="sicherung in props.orphaned" :key="sicherung.id">
               <td data-column="Abonnement" class="cell-name">
-                <Link :href="`/backups/${sicherung.id}/restore`" class="link">
+                <Link
+                  v-if="!sicherung.running"
+                  :href="`/backups/${sicherung.id}/restore`"
+                  class="link"
+                >
                   {{ sicherung.subscription_name }}
                 </Link>
+                <span v-else>{{ sicherung.subscription_name }}</span>
               </td>
               <td data-column="Stand" class="ident">{{ sicherung.storage_name }}</td>
               <td data-column="Angelegt">{{ sicherung.created_at }}</td>
               <td data-column="Aktion">
-                <button type="button" class="button small danger" @click="entfernen(sicherung)">
+                <button
+                  v-if="!sicherung.running"
+                  type="button"
+                  class="button small danger"
+                  @click="entfernen(sicherung)"
+                >
                   Entfernen
                 </button>
+                <span v-else>{{ sicherung.status_label }}</span>
               </td>
             </tr>
           </tbody>

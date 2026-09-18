@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\Backup\Store;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Filesystem;
 use SrvPanel\Agent\Op;
 
 /**
@@ -53,6 +54,24 @@ final class BackupRemove implements Op
     }
 
     /**
+     * Der Satz je Grund — und jeder Grund hat einen.
+     *
+     * **Eine Abbildung und keine Kette von `if`**: Käme ein vierter Ausgang
+     * dazu und stünde hier nicht, bräche der Zugriff laut, statt still auf den
+     * harmlosesten Satz zurückzufallen.
+     *
+     * > **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine
+     * > falsche Auskunft.**
+     *
+     * @var array<string, string>
+     */
+    private const MELDUNG = [
+        Filesystem::REMOVED => 'entfernt',
+        Filesystem::ABSENT => 'das Verzeichnis gibt es nicht',
+        Filesystem::NOT_EMPTY => 'es liegt noch etwas darin — das Verzeichnis bleibt',
+    ];
+
+    /**
      * @param  array<string,mixed>  $args
      * @return array<string,mixed>
      */
@@ -64,16 +83,38 @@ final class BackupRemove implements Op
         if (! is_string($storage) || $storage === '') {
             $context->progress(50, 'Verzeichnis der Sicherungen entfernen');
 
-            $removed = Store::removeDirectory($subscription);
+            $grund = Store::removeDirectory($subscription);
 
-            // **„Nichts zu entfernen" deckt hier zwei Zustände**, und beide
-            // sind in Ordnung: Das Verzeichnis gibt es nicht mehr, oder es
-            // liegt noch etwas darin. Zu unterscheiden wäre es nur für einen
-            // Leser, den es nicht gibt — was noch liegt, meldet die
-            // Bestandsdiagnose je Datei und mit ihrem Namen.
-            $context->progress(100, $removed ? 'entfernt' : 'nichts zu entfernen');
+            /*
+             * **Hier stand, „nichts zu entfernen" decke zwei Zustände, und
+             * beide seien in Ordnung** — mit der Begründung, zu unterscheiden
+             * wäre es nur für einen Leser, den es nicht gibt.
+             *
+             * Beides war falsch. Es waren **drei** Zustände (der Verweis kam
+             * dazu, und der ist eine Weigerung), und den Leser gibt es: Am
+             * 18. September 2026 stand der Betreiber auf `cloudsrv24` vor
+             * einem Verzeichnis mit einer Datei darin und las „nichts zu
+             * entfernen" (`docs/121 §9`, Befund 5).
+             *
+             * Das wiegt, weil das Verzeichnis liegenbleibt und die Diagnose es
+             * **jede Nacht weiter meldet**. Wer dann den Vorgang ansieht, sucht
+             * den Fehler bei der Diagnose.
+             *
+             * > **Zwei Gründe, die dasselbe Ergebnis erzeugen, sind nicht
+             * > derselbe Grund — und die Abhilfe für den einen lässt den
+             * > anderen stehen.**
+             *
+             * `removed` bleibt als Wort daneben stehen: Jede entfernende
+             * Operation dieses Agenten führt es, und ein Leser, der nur die
+             * Frage „hat es geklappt" stellt, soll sie weiter stellen können.
+             */
+            $context->progress(100, self::MELDUNG[$grund]);
 
-            return ['scope' => 'directory', 'removed' => $removed];
+            return [
+                'scope' => 'directory',
+                'removed' => $grund === Filesystem::REMOVED,
+                'reason' => $grund,
+            ];
         }
 
         // Der Pfad entsteht hier aus zwei geprüften Hälften und kommt nicht von

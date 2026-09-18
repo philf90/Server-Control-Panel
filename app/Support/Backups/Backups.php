@@ -17,6 +17,7 @@ use App\Models\SystemUser;
 use App\Support\Databases\Dumps;
 use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -256,11 +257,52 @@ final class Backups
      */
     public function orphaned(): Collection
     {
-        return $this->tenancy->withoutRestriction(static fn (): Collection => Backup::query()
-            ->whereNull('subscription_id')
-            ->where('status', BackupStatus::Ready->value)
+        return $this->tenancy->withoutRestriction(static fn (): Collection => self::orphanedQuery()
             ->orderByDesc('id')
             ->get());
+    }
+
+    /**
+     * Gibt es überhaupt eine?
+     *
+     * **Eine eigene Frage und trotzdem keine zweite Fassung** — beide gehen
+     * über {@see self::orphanedQuery()}. Der Unterschied ist die Antwort und
+     * nicht die Regel.
+     *
+     * Sie gibt es, weil `BackupController::pick()` die Liste als **Verschluss**
+     * übergeben muss (`PartialReloadTest`: Was ein Teilnachladen nicht
+     * anfordert, soll auch nicht gerechnet werden) und die Entscheidung über
+     * die Weiterleitung trotzdem vorher fällt. Ohne sie wäre der Verschluss
+     * eine Verzierung: Der Wert stünde längst fertig da.
+     *
+     * > **Ein Nachladen, das nur einen Teil holt, spart nur dann etwas, wenn
+     * > der Rest nicht schon gerechnet ist.**
+     */
+    public function hasOrphaned(): bool
+    {
+        return $this->tenancy->withoutRestriction(static fn (): bool => self::orphanedQuery()->exists());
+    }
+
+    /**
+     * Was als verwaist gilt — an **einer** Stelle.
+     *
+     * `Removing` steht mit darin, und ohne das wäre die Behebung von Befund 4
+     * wirkungslos: Fiele die Zeile im Augenblick des Klicks aus der Abfrage,
+     * verschwände sie aus der Liste, bevor der Agent geantwortet hat — und die
+     * Seite zeigte dasselbe wie vorher, nämlich nichts.
+     *
+     * Was hier **nicht** hineingehört, ist `Pending` und `Failed`. Eine
+     * verwaiste Sicherung entsteht nur aus einer fertigen (ihr Abonnement wurde
+     * zurückgebaut), und `Failed` beschreibt eine Datei, von der niemand weiss,
+     * wie weit sie kam.
+     *
+     * @return Builder<Backup>
+     */
+    private static function orphanedQuery(): Builder
+    {
+        return Backup::query()
+            ->whereNull('subscription_id')
+            ->whereIn('status', [BackupStatus::Ready->value, BackupStatus::Removing->value]);
     }
 
     public function beforeRemoval(Subscription $subscription): ?Backup
@@ -336,6 +378,28 @@ final class Backups
         $subscription = $this->tenancy->withoutRestriction(
             static fn (): ?Subscription => $backup->subscription()->first(),
         );
+
+        /*
+         * **Der Zustand vor dem Vorgang, und das ist der Befund.**
+         *
+         * Bis zum 18. September 2026 blieb die Zeile auf `Ready`, während der
+         * Agent ihre Datei löschte. Damit hatte das Entfernen **keine Anzeige**
+         * — die Seite konnte nichts zeigen und nichts nachfragen, weil nichts
+         * dastand, woran ein Takt hätte hängen können (`docs/121 §9`,
+         * Befund 4).
+         *
+         * > **Ein Vorgang ohne Zustand in seiner Zeile ist von einem, den
+         * > niemand ausgelöst hat, nicht zu unterscheiden.**
+         *
+         * **Vor dem Einreihen und nicht danach**: Der Vorgang kann gelaufen
+         * sein, bevor diese Methode zurückkehrt, und dann schriebe ein `save()`
+         * danach den Zustand über die Löschung der Zeile.
+         *
+         * Gelingt es, ist die Zeile fort; gelingt es nicht, geht sie in
+         * {@see BackupLifecycle::afterFailure()} auf `Ready` zurück — die Datei
+         * liegt dann noch da.
+         */
+        $backup->forceFill(['status' => BackupStatus::Removing])->save();
 
         if ($subscription !== null) {
             $this->dispatch('backup.remove', $subscription, [

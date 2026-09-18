@@ -570,11 +570,14 @@ und das kann kein Wächter halten.
   während des Laufs behoben worden, ausser Befund 1 — eine Behebung ist eine
   Änderung am Prüfling.
 
-  **Stand 18. September 2026, nach dem Lauf: 1, 2 und 3 sind gebaut.** Befund 2
+  **Stand 18. September 2026, nach dem Lauf: 1 bis 5 sind gebaut.** Befund 2
   hat dabei eine Regel bekommen statt einer Zeile — `SubscriptionReachTest` —,
   und die hat beim ersten Lauf die **sechste** Stelle derselben Familie
   gemeldet: Auch zu den Cronjobs eines Abonnements führte von seiner Seite kein
-  Weg. **Offen bleiben 4, 5 und 6**, und keiner davon hat einen Server gesehen.
+  Weg. Befund 5 hat sich ebenso ausgeweitet: Dieselbe Zeile stand in
+  `Db\Dump::removeDirectory()`, und der Verweis las sich auch dort als „da war
+  nichts". **Offen bleibt 6**, und **keine der fünf Behebungen hat einen Server
+  gesehen.**
 
   > **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
   > jemand ihn behoben hat.**

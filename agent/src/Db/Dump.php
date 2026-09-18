@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Db;
 
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Backup\Store;
 use SrvPanel\Agent\Filesystem;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
 
@@ -485,13 +486,34 @@ final class Dump
      * Über {@see Filesystem::removeTree()}, also mit denselben Schranken wie
      * `subscription.remove`: keinem Symlink folgen, und der aufgelöste Pfad
      * muss derselbe sein.
+     *
+     * **Hier stand `bool`, und das war derselbe Befund wie eine Datei weiter**
+     * (`docs/121 §9`, Befund 5, gemessen an
+     * {@see Store::removeDirectory()}): `false` deckte
+     * „es gibt das Verzeichnis nicht" **und** „es ist ein Verweis" — und der
+     * zweite ist eine Sicherheitsweigerung, die sich als der harmlose Fall las.
+     * Hier war die Lücke kleiner, weil ein nicht leeres Verzeichnis über
+     * `removeTree()` mitgeht; sie war dieselbe.
+     *
+     * > **Ein Fehler, den man an einer Stelle behoben hat, ist an der nächsten
+     * > wieder da, wenn die Behebung nicht die Regel wurde.**
+     *
+     * Der Verweis wirft jetzt, wie der `realpath`-Abgleich darunter. Und
+     * `is_link` steht **vor** `is_dir`: Ein Verweis auf eine Datei käme sonst
+     * als „gibt es nicht" heraus.
+     *
+     * @return Filesystem::REMOVED|Filesystem::ABSENT
      */
-    public static function removeDirectory(string $subscription): bool
+    public static function removeDirectory(string $subscription): string
     {
         $directory = self::directory($subscription);
 
-        if (! is_dir($directory) || is_link($directory)) {
-            return false;
+        if (is_link($directory)) {
+            throw AgentException::denied('Der Ablageort ist ein Verweis — es wird nichts entfernt.');
+        }
+
+        if (! is_dir($directory)) {
+            return Filesystem::ABSENT;
         }
 
         if (realpath($directory) !== $directory) {
@@ -500,6 +522,6 @@ final class Dump
 
         Filesystem::removeTree($directory);
 
-        return true;
+        return Filesystem::REMOVED;
     }
 }

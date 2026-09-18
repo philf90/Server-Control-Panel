@@ -195,7 +195,32 @@ function entfernen(sicherung: { id: number; storage_name: string }): void {
       Überschrift über einer leeren Tabelle beantwortet eine Frage, die niemand
       gestellt hat.
     -->
-      <Section v-if="props.orphaned.length" title="Ohne Abonnement" full>
+      <!--
+        **Zwei Zeitpunkte in einer Zeile, und sie gehen um Stunden auseinander.**
+
+        Befund 6 des Nachlaufs zu P8 (`docs/121 §9`), gemessen am 18. September
+        2026 auf `cloudsrv24`: Der Ablagename trägt `…-20260918-103020-…`, die
+        Spalte daneben sagt `12:30:20`. Beide sind für sich richtig —
+        `Backups.php` baut den Namen mit `gmdate()`, also UTC, und die Spalte
+        geht über `Clock` in die eingestellte Zone. Nebeneinander sind sie eine
+        widersprüchliche Auskunft.
+
+        > **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine doppelte
+        > Auskunft, sondern eine widersprüchliche.** (`docs/91` Befund 5)
+
+        **Beide bleiben, und ein Satz sagt, welcher welcher ist.** Die Spalte
+        zu streichen nähme einen geschlossenen Befund zurück — sie gibt es,
+        weil den Zeitstempel im Namen niemand liest (gemeldet am 11. August
+        2026 an den Dumps). Den Namen zu kürzen nähme dem Betreiber das, was er
+        auf dem Server in ein `ls` tippt. Und eine Zonenangabe in der
+        Spaltenkopfzeile wäre eine Konvention in genau einer von siebzehn
+        Tabellen mit einer Zeitspalte.
+
+        Das Panel hat die Antwort ohnehin schon: `/settings/general` zeigt
+        dieselbe Zeit zweimal — „Gespeichert … UTC" und „Angezeigt …" —, jede
+        mit ihrem Namen.
+      -->
+      <Section v-if="props.orphaned.length" title="Ohne Abonnement" note="Der Ablagename trägt den Zeitpunkt in UTC; die Spalte Erstellt zeigt ihn in der eingestellten Zone." full>
       <p class="hint">
         Ihr Abonnement ist zurückgebaut; die Sicherung hat es überlebt. Beim
         Zurückspielen entsteht ein <strong>neues</strong> Abonnement mit einem
@@ -207,8 +232,8 @@ function entfernen(sicherung: { id: number; storage_name: string }): void {
           <thead>
             <tr>
               <th>Abonnement</th>
-              <th>Stand</th>
-              <th>Angelegt</th>
+              <th>Sicherung</th>
+              <th>Erstellt</th>
               <th>Aktion</th>
             </tr>
           </thead>
@@ -234,8 +259,8 @@ function entfernen(sicherung: { id: number; storage_name: string }): void {
                 </Link>
                 <span v-else>{{ sicherung.subscription_name }}</span>
               </td>
-              <td data-column="Stand" class="ident">{{ sicherung.storage_name }}</td>
-              <td data-column="Angelegt">{{ sicherung.created_at }}</td>
+              <td data-column="Sicherung" class="ident">{{ sicherung.storage_name }}</td>
+              <td data-column="Erstellt">{{ sicherung.created_at }}</td>
               <td data-column="Aktion">
                 <button
                   v-if="!sicherung.running"

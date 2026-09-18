@@ -576,7 +576,12 @@ und das kann kein Wächter halten.
   gemeldet: Auch zu den Cronjobs eines Abonnements führte von seiner Seite kein
   Weg. Befund 5 hat sich ebenso ausgeweitet: Dieselbe Zeile stand in
   `Db\Dump::removeDirectory()`, und der Verweis las sich auch dort als „da war
-  nichts". **Offen bleibt 6**, und **keine der fünf Behebungen hat einen Server
+  nichts". **Befund 6 ist am selben Abend entschieden und gebaut**: beide
+  Zeitpunkte bleiben, ein Satz je Liste sagt, welcher welcher ist — und beim
+  Nachsehen fiel auf, dass dieselben zwei Spalten in den beiden Listen **vier**
+  Wörter trugen.
+
+  **Damit sind alle sechs gebaut — und keine der Behebungen hat einen Server
   gesehen.**
 
   > **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn

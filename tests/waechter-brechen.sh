@@ -31053,6 +31053,68 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RemovalReasonTest passed
 
 echo
+echo "── BackupColumnTest: die Spalte heisst wieder anders als nebenan ──"
+#
+# Zwei Listen zeigen Sicherungen, und dieselben zwei Spalten hiessen darin vier
+# verschiedene Dinge: Sicherung/Stand und Erstellt/Angelegt (docs/121 §9,
+# beim Nachsehen zu Befund 6). Der Kopf von BackupPick.vue verlangt das
+# Gegenteil — „Wer diese hier aendert, sieht dort nach."
+vorher_datei resources/js/Pages/Subscriptions/BackupPick.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/BackupPick.vue'
+s = open(p, encoding='utf-8').read()
+for alt, neu in [('<th>Sicherung</th>', '<th>Stand</th>'),
+                 ('data-column="Sicherung"', 'data-column="Stand"')]:
+    assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+    s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/BackupPick.vue "Spalte heisst anders als nebenan" &&
+pruefe "Spalte heisst anders als nebenan" \
+  BackupColumnTest::test_both_tables_use_the_same_words failed
+wiederherstellen
+
+echo
+echo "── BackupColumnTest: nur die halbe Tabelle umbenannt ──"
+#
+# Unter 720 px rendert `.stacks td::before` das `data-column`, darueber steht
+# das `<th>`. Wer eines von beiden umbenennt, benennt nur die halbe Tabelle um
+# — und welche Haelfte man sieht, entscheidet die Breite des Fensters.
+vorher_datei resources/js/Pages/Subscriptions/BackupPick.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/BackupPick.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'data-column="Erstellt"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'data-column="Angelegt"', 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/BackupPick.vue "halbe Tabelle umbenannt" &&
+pruefe "halbe Tabelle umbenannt" \
+  BackupColumnTest::test_every_column_label_matches_a_header failed
+wiederherstellen
+
+echo
+echo "── BackupColumnTest: eine der beiden Listen sagt es nicht mehr ──"
+#
+# Befund 6 des Nachlaufs zu P8: Der Ablagename traegt UTC, die Spalte daneben
+# die eingestellte Zone — zwei Stunden auseinander in derselben Zeile. Ein
+# Waechter ueber nur eine der beiden Listen waere gruen, waehrend der Befund
+# eine Seite weiter offensteht; genau das war LogFooterTest im September.
+vorher_datei resources/js/Pages/Subscriptions/Backups.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Backups.vue'
+s = open(p, encoding='utf-8').read()
+alt = ' note="Der Ablagename trägt den Zeitpunkt in UTC; die Spalte Erstellt zeigt ihn in der eingestellten Zone."'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Backups.vue "eine Liste ohne den Satz" &&
+pruefe "eine Liste ohne den Satz" \
+  BackupColumnTest::test_both_tables_say_which_timestamp_is_which failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BackupColumnTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

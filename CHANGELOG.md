@@ -30385,3 +30385,66 @@ Stelle, von Hand nachgefahren.
 
 > **Ein Eingriff geht nicht nur kaputt, wenn seine Zielstelle umzieht — auch,
 > wenn jemand eine Zeile dazwischenschreibt.**
+
+### Die Sicherungszeile sagt jetzt, welcher Zeitpunkt welcher ist
+
+Befund 6 des Nachlaufs (`docs/121 §9`), gemessen am 18. September 2026 auf
+`cloudsrv24`: Jede Zeile zeigt den Ablagenamen `…-20260918-103020-…` und daneben
+die Spalte mit `12:30:20` — **derselbe Augenblick, zwei Stunden auseinander**,
+und nichts sagte, dass das so gemeint ist. `Backups.php` baut den Namen mit
+`gmdate()`, also UTC; die Spalte geht über `Clock` in die eingestellte Zone.
+Beide sind für sich richtig.
+
+> **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine doppelte Auskunft,
+> sondern eine widersprüchliche.** (`docs/91` Befund 5)
+
+**Beide bleiben, und ein Satz sagt, welcher welcher ist** — je Liste eine
+Zeile: *„Der Ablagename trägt den Zeitpunkt in UTC; die Spalte Erstellt zeigt
+ihn in der eingestellten Zone."*
+
+Die drei anderen Wege sind verworfen, und jeder aus einem gemessenen Grund:
+
+- **Die Spalte zu streichen** nähme einen geschlossenen Befund zurück. Sie gibt
+  es, weil der Betreiber am 11. August 2026 an den Dumps gemeldet hat, dass den
+  Zeitstempel im Namen niemand liest — der Kommentar daneben sagt es wörtlich.
+  Mein Befund ist der Gegenfall dazu, und beide sind wahr: Wer eine Zeile gegen
+  ein `ls` auf dem Server hält, liest ihn eben doch.
+- **Den Namen zu kürzen** nähme dem Betreiber das, was er auf dem Server in ein
+  `ls` oder `rm` tippt. Der ganze Nachlauf hat ihn so benutzt.
+- **Eine Zonenangabe in der Spaltenkopfzeile** wäre eine Konvention in genau
+  einer von **siebzehn** Tabellen mit einer Zeitspalte — die Form, die dieses
+  Repo „zweite Fassung" nennt. Gehört die Zone in Kopfzeilen, gehört sie in
+  alle, und das ist eine eigene Entscheidung.
+
+Das Panel hat die Antwort ohnehin schon: `/settings/general` zeigt dieselbe Zeit
+zweimal — „Gespeichert … UTC" und „Angezeigt …" —, jede mit ihrem Namen.
+
+### Und dieselben zwei Spalten hiessen vier verschiedene Dinge
+
+Beim Nachsehen: `Sicherung`/`Stand` für den Ablagenamen und `Erstellt`/`Angelegt`
+für den Zeitpunkt — zwei Listen, dieselben Spalten, vier Wörter. Der Kopf von
+`BackupPick.vue` verlangt das Gegenteil: *„Wer diese hier ändert, sieht dort
+nach."* `Erstellt` ist jetzt beides, wie auch die Dumps-Tabelle sagt.
+
+`BackupColumnTest` misst dabei an der **Zelle**, die den Wert zeigt, und nicht an
+der Kopfzeile: Ein Wächter über die Kopfzeilen allein bliebe grün, wenn jemand
+die Spalten vertauschte — die Wörter stünden ja weiterhin da. Dazu, dass jede
+Beschriftung einer gestapelten Zelle in ihrer Datei auch als Kopfzeile vorkommt:
+Unter 720 px rendert `.stacks td::before` das `data-column`, darüber steht das
+`<th>`, und wer eines umbenennt, benennt sonst nur die halbe Tabelle um — welche
+Hälfte man sieht, entscheidet die Breite des Fensters.
+
+Und **beide** Listen tragen den Satz, nicht eine: `LogFooterTest` war im
+September grün, während derselbe Befund eine Seite weiter offenstand.
+
+### Gemessen, nicht geschätzt
+
+Im Nachbau mit dem echten Markup und **beiden** gebauten Stylesheets, vier
+Lagen, Ladebeleg `display: flex` bei 390 px und `table-cell` bei 1440:
+`dokument = 0`, Gegenprobe 200/200, der Roller der Tabelle bei 0, die
+Kennungszelle ohne Überlauf. Der Satz nimmt auf beiden Breiten **zwei Zeilen und
+39 px**.
+
+Im gestapelten Bild stehen `…103020…` und `12:30:20` zwei Zeilen untereinander —
+die Kollision ist dort deutlicher als in der breiten Ansicht, und der Satz steht
+darüber.

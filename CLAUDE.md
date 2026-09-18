@@ -1421,6 +1421,12 @@ Antworten, und verglichen wird der Fingerabdruck) und `SystemUserVerdictTest`
 `root:root`, weil ihr Zugriffsbit der Schalter von `subscription.suspend` ist)
 und `OrphanRowTest` (gemeldet und nicht gelöscht — und eine Reservierung ohne
 Abonnement ist kein Rest, das Unix-Konto daneben schon) und
+`BackupColumnTest` (die beiden Listen der Sicherungen benutzen dieselben Wörter
+und sagen, welcher Zeitpunkt welcher ist — gemessen an der **Zelle**, die den Wert
+zeigt, und nicht an der Kopfzeile, denn die bliebe auch nach einem Vertauschen der
+Spalten grün; dazu, dass jede Beschriftung einer gestapelten Zelle in ihrer Datei
+als Kopfzeile vorkommt, weil sonst nur die halbe Tabelle umbenannt ist und die
+Breite des Fensters entscheidet, welche Hälfte man sieht) und
 `BackupRemovalStateTest` (das Entfernen einer Sicherung hat einen Zustand, und
 beide Listen zeigen ihn — gemessen durch die Tür, mit der Rückkehr auf `Ready`
 beim Fehlschlag als eigenem Fall, denn ein Zustand, der nur beim Gelingen wieder

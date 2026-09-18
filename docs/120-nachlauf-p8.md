@@ -67,13 +67,29 @@ zurückbauen, zurückspielen. Dann:
 
 ```
 # Der Eigentümer je Bereich des Schemas
-stat -c '%U %G %a %n' /var/www/vhosts/<neuer-benutzer>/{httpdocs,logs,tmp,conf}
-stat -c '%U %G %a %n' /var/www/vhosts/<neuer-benutzer>/httpdocs/index.html
+stat -c '%U %G %a %n' /var/www/vhosts/<abonnement>/{httpdocs,logs,tmp,conf}
+stat -c '%U %G %a %n' /var/www/vhosts/<abonnement>/httpdocs/index.html
 
 # Und die Wirkung, an der echten Leitung
 curl -sS -o /dev/null -w '%{http_code}\n' --resolve <domain>:80:127.0.0.1 http://<domain>/
 curl -sS --resolve <domain>:80:127.0.0.1 http://<domain>/ | head -3
 ```
+
+**Der Pfad hängt am Abonnementnamen und nicht am Systembenutzer**, und hier
+stand bis zum 18. September `<neuer-benutzer>`. Gefahren ergibt das *No such
+file or directory* für jeden der vier Orte — und das liest sich, als hätte die
+Bereitstellung nichts angelegt.
+
+> **Ein Pfad, den man aus der falschen Grösse baut, meldet eine Abwesenheit, die
+> es nicht gibt.**
+
+Am **Benutzer** hängen das Eigentum der Dateien und `/etc/cron.d/srvpanel-<benutzer>`;
+am **Abonnementnamen** hängt der Baum. `docs/116` hat genau diese beiden Zeilen
+schon einmal berichtigt, und die Berichtigung ist beim Ausschreiben von `docs/120`
+wieder verlorengegangen.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Dokument
+> wieder da, wenn die Behebung nicht die Regel wurde.**
 
 **Erwartet:**
 

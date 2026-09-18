@@ -569,6 +569,15 @@ und das kann kein Wächter halten.
 - **Die sechs Befunde sind gebaut, wenn sie gebaut sind.** Keiner davon ist
   während des Laufs behoben worden, ausser Befund 1 — eine Behebung ist eine
   Änderung am Prüfling.
+
+  **Stand 18. September 2026, nach dem Lauf: 1, 2 und 3 sind gebaut.** Befund 2
+  hat dabei eine Regel bekommen statt einer Zeile — `SubscriptionReachTest` —,
+  und die hat beim ersten Lauf die **sechste** Stelle derselben Familie
+  gemeldet: Auch zu den Cronjobs eines Abonnements führte von seiner Seite kein
+  Weg. **Offen bleiben 4, 5 und 6**, und keiner davon hat einen Server gesehen.
+
+  > **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+  > jemand ihn behoben hat.**
 - **`fail · tls.file · expired · p6-b.invalid`** bleibt und gehört dem
   Prüfstand (`docs/913 §15`).
 - **Die `3 issues` auf `/backups/<id>/restore`** aus `docs/119 §12` sind

@@ -83,6 +83,8 @@ const props = defineProps<{
     manageDns: boolean
     browseFiles: boolean
     manageSftp: boolean
+    manageBackups: boolean
+    manageCron: boolean
   }
 
   /**
@@ -257,6 +259,42 @@ function remove(): void {
         class="button"
         :href="`/subscriptions/${props.subscription.id}/sftp`"
       >SFTP-Zugang</Link>
+
+      <!--
+        Und die Sicherungen, aus demselben Grund wie die beiden darüber: Sie
+        gehören zu *einem* Abonnement.
+
+        **Gemeldet vom Betreiber im Nachlauf zu P8** (`docs/121 §9`, Befund 2):
+        Er hat „Jetzt sichern" hier gesucht. Der Menüpunkt `Sicherungen` gab es
+        seit dem 17. September, und er beantwortet eine andere Frage — *wo sind
+        meine Sicherungen* statt *dieses Abonnement sichern*. Zwischen den
+        Geschwistern `Dateien` und `SFTP-Zugang` fehlte die Zeile schlicht.
+
+        Die fünfte Wiederholung derselben Familie nach dem Dateimanager
+        (`docs/55`), dem SFTP-Zugang (`docs/59`), „Job anlegen" (`docs/64`) und
+        dem Abzeichen (`docs/907`).
+      -->
+      <Link
+        v-if="props.can.manageBackups && props.subscription.status !== 'provisioning'"
+        class="button"
+        :href="`/subscriptions/${props.subscription.id}/backups`"
+      >Sicherungen</Link>
+
+      <!--
+        Und die Cronjobs — diesen hat kein Betrachter gemeldet, sondern
+        `SubscriptionReachTest` beim ersten Lauf. Er ist für die Zeile darüber
+        gebaut worden und hat die sechste Stelle derselben Familie gefunden,
+        bevor sie jemandem im Weg war.
+
+        > **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten
+        > Merkmal wieder da, wenn die Behebung nicht die Regel wurde** — und
+        > eine Regel findet ihn, bevor er gemeldet wird.
+      -->
+      <Link
+        v-if="props.can.manageCron && props.subscription.status !== 'provisioning'"
+        class="button"
+        :href="`/subscriptions/${props.subscription.id}/cron`"
+      >Cronjobs</Link>
       <button
         v-if="props.can.suspend && props.subscription.status === 'active'"
         type="button"

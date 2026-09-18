@@ -516,6 +516,26 @@ Regel hier und nicht in `tests/`:
 > dort?** Nicht „ist sie erreichbar" — erreichbar ist alles, was man findet,
 > wenn man lange genug rollt.
 
+**Seit dem 18. September 2026 hält ein Wächter ein Stück davon** — nach dem
+**fünften** Mal (die Sicherungen, `docs/121 §9` Befund 2). Der Satz oben bleibt
+richtig für die Frage im Ganzen; strukturell ist aber etwas daran: Eine Route
+unter `/subscriptions/{id}/…` sagt **selbst**, dass sie zu *einem* Abonnement
+gehört, und von dessen Seite muss ein Weg dorthin führen.
+`SubscriptionReachTest` liest die Segmente aus `Route::getRoutes()` und verlangt
+je einen Verweis auf der Abonnementseite — oder einen Eintrag mit Grund.
+
+**Sein erster Lauf hat sofort die sechste Stelle gefunden**, bevor sie jemandem
+im Weg war: `cron.show` liegt seit P6 unter `/subscriptions/{id}/cron` und stand
+dort nicht. Einen Weg gab es — über eine Zelle der Zeitplanseite, und die steht
+nur da, wenn das Panel überhaupt eine Cron-Datei verwaltet.
+
+> **Ein Weg, den es nur gibt, solange etwas anderes da ist, ist keiner für den
+> Fall, dass es das nicht ist.**
+
+Was der Wächter **nicht** kann, steht in seinem Kopf und bleibt die Frage von
+oben: ob der Weg *auffällt*. Ein Knopf am Ende einer langen Seite erfüllt die
+Regel und wird trotzdem nicht gefunden.
+
 > **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und nicht
 > als Zusage.**
 
@@ -1401,6 +1421,16 @@ Antworten, und verglichen wird der Fingerabdruck) und `SystemUserVerdictTest`
 `root:root`, weil ihr Zugriffsbit der Schalter von `subscription.suspend` ist)
 und `OrphanRowTest` (gemeldet und nicht gelöscht — und eine Reservierung ohne
 Abonnement ist kein Rest, das Unix-Konto daneben schon) und
+`SubscriptionReachTest` (jede Seite, die zu **einem** Abonnement gehört, ist von
+seiner Seite aus erreichbar — die Segmente kommen aus `Route::getRoutes()` und
+nicht aus einer Liste im Test, gefragt wird nach **einem** Segment ohne weiteren
+Platzhalter, und die Gegenrichtung hält den toten Eintrag auf; was er nicht kann
+— ob der Weg auffällt —, steht in seinem Kopf als Frage) und `BackupActorTest`
+(jeder Vorgang der Sicherungen nennt den Handelnden — gemessen an der **Wirkung**
+durch die echten Routen, mit beiden Richtungen: mit angemeldetem Konto die
+Kennung, im nächtlichen Lauf `null`, denn dort ist `null` die richtige Antwort und
+nicht die fehlende; dazu eine Untergrenze über die Zahl der Wege durch
+`dispatch()`) und
 `SiteFileIntegrityTest` (die Zusagen einer Vorlage werden am
 **Anfang einer Anweisung** geprüft und nicht als Zeichenkette — an den beiden
 Formen aus M3, in denen `grep` grün bleibt und die Anweisung fort ist) und

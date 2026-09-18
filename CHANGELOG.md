@@ -30187,3 +30187,83 @@ hinein — und damit passte die gesuchte Zeichenkette nicht mehr. Gemeldet hat e
 Er greift jetzt die **Aufrufzeile** statt des Blocks: dieselbe Wirkung, und
 unempfindlich gegen alles, was sonst noch zwischen die Klammern kommt. Von Hand
 nachgefahren, damit die Berichtigung nicht bloss grün, sondern belegt ist.
+
+### Von der Abonnementseite führt jetzt ein Weg zu ihren Sicherungen
+
+Befund 2 des Nachlaufs (`docs/121 §9`), gemeldet vom Betreiber beim Benutzen:
+*„/subscriptions/145 hat keinen Button Jetzt sichern."*
+
+Ausgezählt verwies `Subscriptions/Show.vue` auf `/subscriptions/{id}/files` und
+`/subscriptions/{id}/sftp`, auf `backups` **null Mal**. Der einzige Weg war
+`/backups` → Abonnement wählen. Bitter war die Zeile daneben: Dieselbe Seite
+zeigt unter *Freigaben* „Sicherungen anlegen — frei" — also die Zusage, dass es
+die Handlung gibt, ohne einen Weg zu ihr.
+
+Der Menüpunkt `Sicherungen` bleibt und ersetzt das nicht. Er beantwortet *„wo
+sind meine Sicherungen"*; die Frage von der Abonnementseite aus ist *„dieses
+Abonnement sichern"*. Dieselbe Trennung wie beim Dateimanager, dessen Knopf aus
+genau diesem Grund auf der Seite steht und nicht in der Navigation.
+
+> **Zwei Geschwister mit demselben Zuschnitt, von denen eines auf der Seite
+> steht und das andere nicht, sind keine Entwurfsentscheidung — es ist eine
+> vergessene Zeile.**
+
+### Und die Behebung ist diesmal eine Regel geworden
+
+Fünfmal hat der Betreiber denselben Fehler gemeldet — Dateimanager (`docs/55`),
+SFTP-Zugang (`docs/59`), „Job anlegen" (`docs/64`), das Abzeichen (`docs/907`),
+die Sicherungen. CLAUDE.md führt seither die Frage, die kein Test halten kann:
+*Wo sucht jemand diese Handlung, und steht sie dort?*
+
+**Ein Stück davon ist strukturell**, und `SubscriptionReachTest` hält es: Eine
+Route unter `/subscriptions/{id}/…` sagt selbst, dass sie zu *einem* Abonnement
+gehört — von dessen Seite muss ein Weg dorthin führen. Gefragt wird nach **einem**
+Segment ohne weiteren Platzhalter: `…/files` zählt, `…/files/edit` und
+`…/backups/{backup}/download` nicht. Die Segmente kommen aus `Route::getRoutes()`
+und nicht aus einer Liste im Test — die wäre die zweite Fassung der Routendatei,
+und die zweite veraltet.
+
+**Beim ersten Lauf hat er sofort eine sechste Stelle gemeldet:** `cron.show`
+liegt seit P6 unter `/subscriptions/{id}/cron` und stand auf der
+Abonnementseite nicht. Einen Weg gab es — über `/schedules`, in der Zelle „Vom
+Panel verwaltet — auf der Cronseite". Das ist eine Zelle in der Tabelle einer
+anderen Seite, und sie steht nur da, wenn das Panel überhaupt eine Datei
+verwaltet.
+
+> **Ein Weg, den es nur gibt, solange etwas anderes da ist, ist keiner für den
+> Fall, dass es das nicht ist.**
+
+Der Knopf `Cronjobs` steht jetzt neben seinen Geschwistern — **gefunden von
+einem Wächter und nicht von einem Betrachter**, und das war der ganze Zweck der
+Übung.
+
+Dazu die Gegenrichtung (`test_no_exemption_outlives_its_route`): Kein Eintrag in
+der Ausnahmeliste überlebt seine Route. So entsteht ein toter Eintrag wirklich —
+bei einer Umbenennung trägt man den neuen Namen nach, die erste Richtung ist
+wieder grün, und der alte bleibt liegen. Die Liste ist heute **leer** und steht
+trotzdem da: Ein künftiges Segment, das nicht auf die Seite gehört, soll seinen
+Grund laut hinschreiben müssen und nicht still fehlen dürfen.
+
+**Was der Wächter nicht hält, steht in seinem Kopf:** ob der Weg *auffällt*. Ein
+Knopf am Ende einer langen Seite erfüllt die Regel und wird trotzdem nicht
+gefunden.
+
+### Was die zwei Knöpfe am Seitenkopf kosten
+
+Gemessen im Nachbau mit dem echten Markup und **beiden** gebauten Stylesheets,
+vier Lagen, Ladebeleg `display: flex`, Gegenprobe 200/200:
+
+| | vorher | nachher |
+|---|---|---|
+| 1440 px, Kopfhöhe | 90 px | **90 px** |
+| 390 px, Kopfhöhe | 200 px | **254 px** |
+
+`dokument = 0` in allen vier Lagen, und die Knopfreihe läuft nirgends über ihren
+Bereich hinaus — `.button-row` bricht um. Bei 1440 px kostet die Ergänzung
+nichts; bei 390 px ist es **eine** Knopfzeile mehr.
+
+**Eine Beobachtung daneben, und sie ist keine Messung, sondern ein Bild:** Bei
+390 px steht „Zurückbauen" jetzt allein in der letzten Zeile und damit über die
+volle Breite; vorher teilte es sich die Zeile mit „Sperren". Die gefährlichste
+Handlung der Seite ist damit ihr breitester Knopf. Verloren geht dabei nichts —
+der Rückbau fragt den Namen ab —, aber die Betonung hat sich verschoben.

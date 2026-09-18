@@ -30728,6 +30728,74 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupActorTest passed
 
 echo
+echo "── SubscriptionReachTest: der Weg zu den Sicherungen fällt weg ──"
+#
+# Befund 2 des Nachlaufs zu P8 (docs/121 §9), gemeldet vom Betreiber beim
+# Benutzen: Er suchte „Jetzt sichern" auf der Abonnementseite. Dort standen
+# Dateien und SFTP-Zugang, und unter Freigaben stand „Sicherungen anlegen —
+# frei" — die Zusage, dass es die Handlung gibt, ohne einen Weg zu ihr.
+vorher_datei resources/js/Pages/Subscriptions/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = """        :href="`/subscriptions/${props.subscription.id}/backups`"
+      >Sicherungen</Link>"""
+neu = """        :href="`/subscriptions/${props.subscription.id}/domains`"
+      >Sicherungen</Link>"""
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Show.vue "kein Weg zu den Sicherungen" &&
+pruefe "kein Weg zu den Sicherungen" \
+  SubscriptionReachTest::test_every_page_of_a_subscription_is_reachable_from_it failed
+wiederherstellen
+
+echo
+echo "── SubscriptionReachTest: der Weg zu den Cronjobs fällt weg ──"
+#
+# Dieselbe Regel an der Stelle, die **der Wächter** gefunden hat und kein
+# Betrachter: cron.show liegt seit P6 unter /subscriptions/{id}/cron und stand
+# auf der Abonnementseite nicht. Ein Weg dorthin gab es nur über eine Zelle der
+# Zeitplanseite — und die steht nur da, wenn das Panel eine Datei verwaltet.
+vorher_datei resources/js/Pages/Subscriptions/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = """        :href="`/subscriptions/${props.subscription.id}/cron`"
+      >Cronjobs</Link>"""
+neu = """        :href="`/subscriptions/${props.subscription.id}/domains`"
+      >Cronjobs</Link>"""
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Show.vue "kein Weg zu den Cronjobs" &&
+pruefe "kein Weg zu den Cronjobs" \
+  SubscriptionReachTest::test_every_page_of_a_subscription_is_reachable_from_it failed
+wiederherstellen
+
+echo
+echo "── SubscriptionReachTest: eine Ausnahme überlebt ihre Route ──"
+#
+# Die Gegenrichtung. So entsteht ein toter Eintrag wirklich: Bei einer
+# Umbenennung trägt man den neuen Namen nach, die erste Richtung ist wieder
+# grün, und der alte bleibt liegen — und deckt beim nächsten gleichnamigen
+# Segment eine Regel ab, die niemand abschalten wollte.
+vorher_datei tests/Feature/SubscriptionReachTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/SubscriptionReachTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "    private const OHNE_WEG = [];",
+    "    private const OHNE_WEG = ['gibtsnicht' => 'ein Segment, das es nicht gibt'];", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/SubscriptionReachTest.php "Ausnahme ohne Route" &&
+pruefe "Ausnahme ohne Route" \
+  SubscriptionReachTest::test_no_exemption_outlives_its_route failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SubscriptionReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

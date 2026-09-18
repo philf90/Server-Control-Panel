@@ -67,13 +67,29 @@ zurückbauen, zurückspielen. Dann:
 
 ```
 # Der Eigentümer je Bereich des Schemas
-stat -c '%U %G %a %n' /var/www/vhosts/<neuer-benutzer>/{httpdocs,logs,tmp,conf}
-stat -c '%U %G %a %n' /var/www/vhosts/<neuer-benutzer>/httpdocs/index.html
+stat -c '%U %G %a %n' /var/www/vhosts/<abonnement>/{httpdocs,logs,tmp,conf}
+stat -c '%U %G %a %n' /var/www/vhosts/<abonnement>/httpdocs/index.html
 
 # Und die Wirkung, an der echten Leitung
 curl -sS -o /dev/null -w '%{http_code}\n' --resolve <domain>:80:127.0.0.1 http://<domain>/
 curl -sS --resolve <domain>:80:127.0.0.1 http://<domain>/ | head -3
 ```
+
+**Der Pfad hängt am Abonnementnamen und nicht am Systembenutzer**, und hier
+stand bis zum 18. September `<neuer-benutzer>`. Gefahren ergibt das *No such
+file or directory* für jeden der vier Orte — und das liest sich, als hätte die
+Bereitstellung nichts angelegt.
+
+> **Ein Pfad, den man aus der falschen Grösse baut, meldet eine Abwesenheit, die
+> es nicht gibt.**
+
+Am **Benutzer** hängen das Eigentum der Dateien und `/etc/cron.d/srvpanel-<benutzer>`;
+am **Abonnementnamen** hängt der Baum. `docs/116` hat genau diese beiden Zeilen
+schon einmal berichtigt, und die Berichtigung ist beim Ausschreiben von `docs/120`
+wieder verlorengegangen.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Dokument
+> wieder da, wenn die Behebung nicht die Regel wurde.**
 
 **Erwartet:**
 
@@ -220,19 +236,56 @@ Der Zustand ist der, den `docs/119 §8b` hinterlassen hat: ein leeres
 
 ```
 ls -la /var/lib/srvpanel/backups/
-srvpanel diagnose
+srvpanel backup-verify
 ```
 
 **Erwartet:** eine Zeile `warn backup.file · empty_directory ·
 p8-abnahme.invalid`, und im Text der Pfad.
 
+**`backup-verify` und nicht `diagnose`, und das ist am 17. September bezahlt
+worden.** Die Vorschrift nannte zuerst `srvpanel diagnose`; gefahren meldete
+das acht Prüfungen und **keine** `backup.file`-Zeile — was wie ein Befund am
+Prüfling aussah und keiner war. `Checks\Backups` steht in
+`Catalog::BACKUP_CHECKS` und läuft in einer **eigenen** Unit
+(`srvpanel-backup-verify.service`), weil sie jedes Archiv von der Platte liest;
+die acht anderen prüfen Konfigurationsdateien. Die Trennung ist an A13
+entschieden und richtig.
+
+> **Ein Lauf, der die gesuchte Prüfung gar nicht fährt, meldet nicht „ich habe
+> sie nicht gefahren" — er meldet, was er stattdessen gefunden hat.**
+
+Unterschieden hat die beiden Fälle nicht die Zahl, sondern die Frage, ob der
+**Agent** den Gegenstand überhaupt herausgibt: `backup.list` nannte
+`p8-abnahme.invalid` unter `directories`, und damit war die Prüfung als Ursache
+ausgeschlossen, bevor jemand sie ändern konnte.
+
+> **Zwei Ursachen, die dasselbe Ergebnis erzeugen, trennt man an einer Stelle,
+> die nur eine von beiden berührt.**
+
 **Die Gegenprobe gehört dazu, und sie entscheidet den Punkt:** Ein Verzeichnis
-eines **lebenden** Abonnements ohne Sicherungen darf **nicht** gemeldet werden.
-Steht nach Punkt 1 ein solcher Fall da, muss die Zeile dafür fehlen — sonst
-meldete die Prüfung jede Nacht jedes Abonnement, das gerade keine Sicherung hat.
+eines **lebenden** Abonnements ohne Sicherungen darf **nicht** gemeldet werden —
+sonst meldete die Prüfung jede Nacht jedes Abonnement, das gerade keine
+Sicherung hat.
 
 > **Eine Abwesenheit belegt eine Grenze erst, wenn daneben etwas anwesend ist,
 > das dieselbe Hülle braucht.**
+
+**Sie steht hier und nicht nach Punkt 1**, und das ist am 17. September
+berichtigt worden: Der erste Wurf verwies auf einen Zustand, den erst Punkt 1
+herstellt — und Punkt 6 läuft vor Punkt 1, weil der seinen Gegenstand
+verbraucht. Damit wäre die Gegenprobe an dieser Stelle nicht fahrbar gewesen.
+
+> **Eine Gegenprobe, die auf einen Zustand verweist, den der Punkt davor nicht
+> hat, ist keine — sie ist eine Zeile, die man beim Abhaken überliest.**
+
+Hergestellt wird sie von Hand und in einem Zug mit der Messung: ein **leeres**
+Verzeichnis unter dem Namen eines Abonnements, das es gibt. Beide stehen dann
+nebeneinander, und die Prüfung muss genau **eines** von beiden melden. Der
+Prüfkörper wird vorher belegt und hinterher weggeräumt — `rmdir`, damit er
+nichts mitnehmen kann.
+
+> **Wer eine Vorbereitung von Hand trifft, belegt sie, bevor er misst.**
+> (`docs/78`)
 
 **Und danach wird er geklärt, seit dem 17. September** — die Entscheidung aus
 `docs/119 §12` ist gefallen: Das Panel räumt das Verzeichnis ab, wenn die

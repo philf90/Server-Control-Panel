@@ -29962,3 +29962,68 @@ Lauf hat genau das getan, wofür es ihn gibt.
 
 > **Ein Eingriff, der einzeln beisst, beisst nicht unbedingt im Lauf** — und
 > wessen Handgriff das Einzelne falsch misst, erfährt es erst dort.
+
+### Nach jeder Sicherung lief eine Wiederherstellung, die niemand ausgelöst hat
+
+Gemessen am 18. September 2026 auf `cloudsrv24`, im Nachlauf zu P8 — und
+gefunden an einer Stelle, die gar nicht danach suchte: Der Betreiber hatte nur
+„Jetzt sichern" gedrückt. Danach stand sein Cronjob **zweimal** in
+`/etc/cron.d/srvpanel-p1143`, beide Zeilen aktiv, und im Ergebnis des
+`backup.create`-Vorgangs stand ein `restored`-Block mit sechs Fehlschlägen.
+
+Es gab keinen einzigen `backup.restore`-Vorgang.
+
+**`Lifecycles::afterSuccess()` rief jeden Lebenslauf für jeden Vorgang.** Sieben
+von acht verzweigen selbst auf `$operation->task` und taten deshalb nichts;
+`RestoreLifecycle` prüfte nur, ob es ein Abonnement und eine Sicherung gibt —
+und bei einem `backup.create` gibt es **beides**, denn der Gegenstand *ist* die
+Sicherung. Es lief also eine vollständige Wiederherstellung gegen das lebende
+Abonnement: Datenbanken neu anlegen, Zugänge neu anlegen, **Cronjobs neu
+anlegen**.
+
+> **Ein Verteiler, der jeden Empfänger für jede Nachricht ruft, verlagert die
+> Zuständigkeitsfrage in die Empfänger — und der erste, der sie nicht stellt,
+> tut etwas, das niemand bestellt hat.**
+
+**`handles()` gab es die ganze Zeit.** Jeder Lebenslauf deklariert es, der Name
+sagt genau das, und gelesen wurde es allein von `Lifecycles::handled()` für
+einen Wächter.
+
+> **Ein Feld, das geschrieben und nie gelesen wird, ist von aussen nicht von
+> einem zu unterscheiden, das es nicht gibt** — und eines, das *fast* gelesen
+> wird, ist schlimmer: Es sieht aus, als trüge es die Regel.
+
+**Behoben im Verteiler und nicht im Empfänger.** Ein zweiter Wächter in
+`RestoreLifecycle` hätte diesen einen Fall geschlossen und die Frage beim
+nächsten Lebenslauf wieder gestellt. Die sieben anderen verzweigen ohnehin auf
+`task` — gemessen, jeder liest ihn, bevor er handelt —, also ändert das Filtern
+an ihnen nichts.
+
+### Und damit ist Befund 9 aus `docs/119` erklärt
+
+Dort stand: „Aus einem Cronjob sind zwei geworden", mit dem Vermerk **nicht
+gemessen: wann der zweite entstand**, und der Auftrag, es mit *einer* Ablesung
+unmittelbar nach dem Zurückspielen zu entscheiden.
+
+Die Ablesung hat etwas anderes ergeben, als die Frage unterstellte: Der zweite
+entsteht nicht beim **Zurückspielen**, sondern beim **Sichern**. Die
+Beschreibung in Sicherung 5 trug schon zwei Einträge, weil `rebuildCron()`
+gelaufen war, bevor irgendjemand etwas zurückgespielt hatte.
+
+> **Zwei Messungen, die auseinandergehen, entscheidet keine Überlegung, sondern
+> die dritte.** Und die dritte darf die Frage umstellen, die die ersten beiden
+> gestellt haben.
+
+**Kein Wächter konnte es sehen**, und das ist die Familie, die dieses Repo am
+häufigsten trifft: Jeder Lebenslauf ist für sich geprüft, der Verteiler für
+sich — und zwischen ihnen stand niemand. `LifecycleDispatchTest` misst deshalb
+am **Schaden** und nicht am Quelltext: Er fährt den Verteiler mit einem echten
+`backup.create` und sieht nach, ob der Cronjob danach einmal oder zweimal
+dasteht.
+
+> **Fehler an Nähten zwischen zwei Dateien** — jede Seite für sich war in
+> Ordnung.
+
+Die Gegenprobe steht als eigener Fall daneben und ist die gefährlichere
+Richtung: Ein Verteiler, der **gar nichts** mehr ruft, macht beide Fälle grün —
+und jeder Vorgang dieses Panels stünde für immer auf „wartet".

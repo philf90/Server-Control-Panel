@@ -30448,3 +30448,109 @@ Kennungszelle ohne Überlauf. Der Satz nimmt auf beiden Breiten **zwei Zeilen un
 Im gestapelten Bild stehen `…103020…` und `12:30:20` zwei Zeilen untereinander —
 die Kollision ist dort deutlicher als in der breiten Ansicht, und der Satz steht
 darüber.
+
+### Auch der gefährliche Knopf kennt den Zustand
+
+Befund A des Nachlaufs zu `rc.16` (`docs/123 §9`), gemeldet vom Betreiber beim
+Benutzen. Die Zeile stand auf „wird entfernt" — und daneben liess sich das
+Entfernen ein zweites Mal auslösen. `Herunterladen` und `Zurückspielen` hängen
+an `usable` und waren fort, der dritte trug **kein** `v-if`.
+
+`BackupPick.vue` hat es die ganze Zeit richtig gemacht. Es war also keine
+Entwurfsfrage, sondern eine vergessene Zeile — und die Begründung der Rückkehr
+auf `Ready` in `BackupLifecycle::afterFailure()` setzt das Gegenteil sogar
+voraus: Ohne sie *„fragte die Seite endlos nach, der Knopf wäre fort, und ein
+zweiter Versuch ginge nicht mehr"*. Der Knopf war aber nicht fort.
+
+> **Ein Zustand, den eine Zeile anzeigt, ist erst vollständig, wenn ihre
+> Bedienelemente ihn auch kennen.**
+
+**Ohne `v-else`, anders als in der zweiten Liste.** Die Liste am Abonnement hat
+eine Spalte *Zustand*, und die sagt es bereits; ein Ersatzwort in der
+Aktionsspalte stünde als derselbe Satz zweimal in einer Zeile. Die verwaisten
+Sicherungen haben diese Spalte nicht, dort trägt das `v-else` das Wort.
+
+`BackupControlStateTest` hält die Regel und **verlangt ausdrücklich nicht**, dass
+beide Listen gleich aussehen. Er ist an die Dateien geklammert, die
+`running: boolean` deklarieren, und nicht an den Namen des Handlers: Der heisst
+in vier weiteren Merkmalen genauso, und der erste Wurf meldete sie alle mit.
+
+> **Ein Wächter, der am Namen einer Funktion hängt, misst jede andere Funktion
+> dieses Namens mit.**
+
+### Auf einem Rückfrageknopf steht sein Verb
+
+Befund B desselben Laufs, und er hat acht saubere Bilderrunden überlebt, weil er
+einen Klick entfernt lag. `useConfirmation::ask()` nimmt als zweites Argument das
+**Verb** des zustimmenden Knopfes — *„Entfernen", „Sperren"*, sagt sein eigener
+Kopf. Beide Sicherungsseiten übergaben dort den ganzen Satz.
+
+Gemessen bei 390 px mit offener Rückfrage: `dokument = 248`, der Knopf selbst
+**281 px** über seinem Kasten; dieselbe Seite ohne Rückfrage misst `0`.
+
+> **Eine Bilderrunde misst die Seite, wie sie lädt — ein Zustand, den erst ein
+> Klick herstellt, kommt darin nicht vor.**
+
+**Die Wirkung war nicht nur Überlauf.** Die Rückfrage sagte oben nur *„Sicherung
+entfernen"*, und **was geschieht, stand auf dem Knopf** — dort abgeschnitten. Der
+Satz steht jetzt in der Frage, wo er hingehört, und die beiden Listen sagen
+Verschiedenes: Die verwaiste Sicherung nennt zusätzlich, dass es ihr Abonnement
+nicht mehr gibt.
+
+**Und die Regel dagegen gab es längst.** `.confirmation` trägt
+`overflow-wrap: anywhere`, mit genau dieser Begründung im Kommentar daneben:
+*„Was in einer Frage steht, kommt von aussen — ein Datenbankname, ein Pfad, der
+Name eines Kunden."* Der Satz auf dem Knopf ist an ihr vorbeigelaufen.
+
+> **Eine Regel, die für die Frage geschrieben ist, gilt nicht für den Knopf —
+> und beide sehen im Markup gleich aus.**
+
+`ConfirmationVerbTest` liest die Argumentliste **balanciert** bis zur
+schliessenden Klammer und nicht die zweite Zeile: Die ist bei jeder mehrzeiligen
+Frage deren Fortsetzung, und der erste Anlauf zählte so sechzehn Stellen und traf
+zwei. Gemessen sind es 25 Aufrufe, 22 mit Verb, einer mit einem Ternär aus zwei
+Verben — und die zwei aus `30cae6f2 P8 Schritt 5`.
+
+**Sein Eingriff im Bruchskript hat dabei zweimal danebengelegen.** Er benannte
+`ask(` in **einer** Datei um; 24 von 25 Aufrufen blieben stehen, die Untergrenze
+von 20 feuerte nicht, und der Wächter blieb grün. Nachdem er alle `.vue` umbenennt,
+stand als Erwartung weiter `passed` — gefunden hat das der volle Lauf als
+einzigen `FEHLT`.
+
+> **Ein Eingriff, der einem Wächter seinen Gegenstand nur teilweise nimmt, misst
+> dessen Untergrenze und nicht seine Regel.**
+
+### „Unbegrenzt" nur, wo es das sein darf
+
+Befund D desselben Laufs. `Quotas::format()` machte aus **jedem** `null` ein
+„unbegrenzt", ohne `allowsUnlimited()` zu fragen. Sechs der vierzehn Kontingente
+dürfen das nicht sein — `disk_mb`, `fpm_processes`, `backups` und die drei
+PHP-Deckel —, und auf einem Plan, der älter ist als das Kontingent, las der
+Betreiber trotzdem „Aufbewahrte Sicherungen — unbegrenzt".
+
+**Die Unterscheidung stand zweihundert Zeilen darüber schon geschrieben**, im
+Kopf von `overrideRules()`: *„der Wert `null` bedeutet an dieser Stelle etwas
+anderes als dort."*
+
+> **Ein Fehler, den man an einer Stelle vermieden hat, ist an der nächsten wieder
+> da, wenn die Vermeidung nicht die Regel wurde.**
+
+**Drei Leser desselben fehlenden Schlüssels, drei Antworten:** die Seite sagte
+„unbegrenzt", `Retention::keeps()` räumt nie ab, `RunBackups::eligible()` sichert
+nie automatisch. **Behoben ist nur die Anzeige**, und das ist eine Entscheidung
+und kein Rest: Die beiden anderen auf den Vorgabewert zu stellen hiesse, dass der
+nächtliche Lauf auf solchen Plänen anfinge, Kundensicherungen abzuräumen.
+
+> **Eine Behebung, die aus einer falschen Anzeige ein Löschen macht, ist teurer
+> als der Fehler.**
+
+`QuotaDisplayTest` misst an der **Wirkung** von `format()` und nicht an der Zeile
+`return 'unbegrenzt'`, die beim nächsten Umbau woanders steht — und in **beide**
+Richtungen: nie „unbegrenzt", wo es nicht zulässig ist, und weiterhin
+„unbegrenzt", wo es das ist. Ohne die zweite Richtung wäre der Fehler durch
+seinen Spiegel ersetzt, und an der Stelle, an der er sass, nicht mehr zu sehen.
+
+**Die Behebung ändert auch die Planseiten.** `Quotas::format()` hat sieben
+Aufrufstellen, fünf davon in `PlanController` — die Kennzahlen der Planliste und
+das „von → auf" einer Änderung. Ein Plan ohne `disk_mb` liest sich dort ab dieser
+Fassung anders.

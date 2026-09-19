@@ -1650,7 +1650,21 @@ zweite jede Kundenwebsite abschaltet. Er hält die Naht, weil
 `OperatorControlTest` es strukturell nicht kann: Nimmt man dem Verschluss seine
 Fähigkeitsprüfung, findet der für die Datei keine Wächtervariable mehr und
 überspringt sie — **ein Wächter, der beim Fehlen seiner Voraussetzung
-überspringt, meldet das Fehlen der Voraussetzung nicht**). Der Bruch selbst steht als
+überspringt, meldet das Fehlen der Voraussetzung nicht**). und `ConfirmationVerbTest` (was eine Rückfrage auf
+ihren Knopf schreibt, ist ein Verb und kein Satz — gelesen wird die
+Argumentliste **balanciert** bis zur schliessenden Klammer und nicht die zweite
+Zeile, denn die ist bei jeder mehrzeiligen Frage deren Fortsetzung; der erste
+Anlauf zählte so sechzehn Stellen und traf zwei) und `BackupControlStateTest`
+(ein Bedienelement, das den Zustand einer Zeile ändert, steht hinter `running` —
+geklammert an die Dateien, die `running: boolean` **deklarieren**, und nicht an
+den Namen des Handlers: Der heisst in vier weiteren Merkmalen genauso, und der
+erste Wurf meldete sie alle mit. Er verlangt ausdrücklich **nicht**, dass beide
+Listen gleich aussehen: Wo eine Spalte *Zustand* daneben steht, wäre das `v-else`
+derselbe Satz zweimal in einer Zeile) und `QuotaDisplayTest` (die Anzeige sagt
+„unbegrenzt" nur, wo ein Kontingent das sein darf — gemessen an der **Wirkung**
+von `Quotas::format()` und nicht an der Zeile `return 'unbegrenzt'`, die beim
+nächsten Umbau woanders steht, und in **beide** Richtungen, damit eine Behebung
+den Fehler nicht durch einen zweiten ersetzt). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -4626,6 +4640,135 @@ Vorfrage ist jetzt gemessen: Nach dem Lauf stehen **zwei** Zeilen in
 
 > **Eine Abschrift, die zweimal denselben Namen trägt, kann nicht sagen, welche
 > der beiden Zeilen gemeint ist.**
+
+---
+
+## Der Nachlauf zu `0.7.4-rc.16` — 18. September 2026
+
+**Die fünf Behebungen aus `docs/121 §9` haben einen Server gesehen.** Gefahren
+auf `cloudsrv24` gegen `0.7.4-rc.16`, **alle sechs Punkte aus `docs/122`
+erfüllt**, beide Ausschlusskriterien (1 und 3) darunter. Der Lauf ist `docs/122`,
+ausgeschrieben vor dem Fahren, das Protokoll **`docs/123`**.
+
+Ausgefallen ist ein Teilpunkt — **2b**, mit dem Grund, den `docs/122 §9` dafür
+vorsieht. Teilpunkt **3c** durfte ausfallen und ist trotzdem gefahren.
+
+> **Ein Befund gilt als behoben, wenn jemand nachgesehen hat — nicht, wenn
+> jemand ihn behoben hat.**
+
+**Vier Befunde, und keiner aus den fünf Behebungen** — die Umkehrung von
+`docs/121`, wo alle sechs im frisch gebauten Code steckten. Zwei stammen aus P8s
+eigenem Bau (`30cae6f2`) und haben Abnahmelauf **und** Nachlauf überlebt, zwei
+liegen ausserhalb der Stufe.
+
+**Der teuerste hat acht saubere Bilderrunden überlebt, weil er einen Klick
+entfernt lag.** Die Rückfrage vor dem Entfernen übergab `ask()` den ganzen Satz
+als **zweites** Argument — und das ist das Verb des Bestätigungsknopfes
+(„Entfernen", „Sperren"), nicht die Meldung. Gemessen bei 390 px mit offener
+Rückfrage: `dokument = 248`, der Knopf selbst **281 px** über seinem Kasten;
+dieselbe Seite ohne Rückfrage misst `0`.
+
+> **Eine Bilderrunde misst die Seite, wie sie lädt — ein Zustand, den erst ein
+> Klick herstellt, kommt darin nicht vor.**
+
+Die Wirkung war nicht nur Überlauf: Die Rückfrage sagte oben nur „Sicherung
+entfernen", und **was geschieht, stand auf dem Knopf** — dort abgeschnitten.
+
+**Und die Regel dagegen gab es längst.** `.confirmation` trägt
+`overflow-wrap: anywhere`, mit genau dieser Begründung im Kommentar daneben:
+*„Was in einer Frage steht, kommt von aussen — ein Datenbankname, ein Pfad, der
+Name eines Kunden."* Der Satz auf dem Knopf ist an ihr vorbeigelaufen.
+
+> **Eine Regel, die für die Frage geschrieben ist, gilt nicht für den Knopf —
+> und beide sehen im Markup gleich aus.**
+
+**Der zweite ist zwei Fassungen derselben Regel, und eine war richtig.** Während
+`wird entfernt` liess sich das Entfernen ein zweites Mal auslösen: Die Knöpfe
+`Herunterladen` und `Zurückspielen` hängen an `usable` und waren fort, der
+gefährlichste trug kein `v-if`. `BackupPick.vue` hat es die ganze Zeit richtig
+gemacht — es war also keine Entwurfsfrage, sondern eine vergessene Zeile. Die
+Begründung von `BackupStatus::Removing` setzt es ausserdem voraus („eine
+Sackgasse **ohne Knopf**").
+
+> **Ein Zustand, den eine Zeile anzeigt, ist erst vollständig, wenn ihre
+> Bedienelemente ihn auch kennen.**
+
+**Der dritte ist eine Anzeige, die eine Angabe erfindet.** `Quotas::format()`
+machte aus **jedem** `null` ein „unbegrenzt", ohne `allowsUnlimited()` zu fragen.
+Sechs Kontingente dürfen das nicht sein, und auf einem Plan, der älter ist als
+das Kontingent, las der Betreiber es trotzdem. **Die Unterscheidung stand
+zweihundert Zeilen darüber schon geschrieben**, im Kopf von `overrideRules()`.
+
+> **Ein Fehler, den man an einer Stelle vermieden hat, ist an der nächsten
+> wieder da, wenn die Vermeidung nicht die Regel wurde.**
+
+**Drei Leser desselben fehlenden Schlüssels, drei Antworten:** die Seite sagte
+„unbegrenzt", `Retention::keeps()` räumt nie ab, `RunBackups::eligible()` sichert
+nie automatisch. **Behoben ist nur die Anzeige**, und das ist eine Entscheidung
+und kein Rest: Die beiden Leser auf den Vorgabewert zu stellen hiesse, dass der
+nächtliche Lauf auf solchen Plänen anfinge, Kundensicherungen abzuräumen.
+
+> **Eine Behebung, die aus einer falschen Anzeige ein Löschen macht, ist teurer
+> als der Fehler.**
+
+**Der vierte ist kein belegter Fehler und steht trotzdem da.** Der
+Kontingent-Override wurde zweimal gesetzt und nie gespeichert; die Kette ist
+gelesen und verliert nichts, und `subscription.updated` kennt **keine** Zeile
+dazu — bei vier Zeilen in der ganzen Tabelle, zwei davon mit gespeicherten
+Übersteuerungen. **Was den Abbruch verursacht hat, ist ungemessen geblieben.**
+
+> **Ein Zustand, den niemand herstellen und niemand erklären kann, ist kein
+> Befund — und ihn als einen zu führen wäre schlimmer, als ihn zu benennen.**
+
+### Was der Lauf über das Anweisen gelernt hat
+
+**Zwei meiner Anweisungen haben ihren eigenen Schritt verschluckt.** Bei §3c
+stand das Entfernen als Nebensatz zwischen Verfälschen und Zurücksetzen und ist
+nicht gefahren worden. Bei §4 standen vier Vorbereitungen in **einem** Block mit
+Kommentaren dazwischen; am Stück eingefügt hat die Shell alle vier nacheinander
+ausgeführt, und der letzte Zustand überschrieb die drei davor.
+
+> **Ein Block, der vier Zustände nacheinander herstellt, misst keinen.**
+
+Beide Male hat die Messung es gemeldet und nicht das Nachdenken: einmal blieb
+der jüngste Vorgang unverändert, einmal stand das Verzeichnis leer da, wo ein
+Verweis sein sollte. **Wer eine Messung anweist, gibt je Lage einen Block, der
+Vorbereitung, Absetzen und Lesen enthält** — und nicht eine Liste, aus der man
+sich das Messen selbst zusammensuchen muss.
+
+**Und ein Endzustand nach dem Ereignis trennt die Wege nicht.** Ein `ready`, nach
+dem Vorgang abgelesen, passt zu „auf `Removing` gegangen und zurückgekehrt", zu
+„nie losgelaufen" und zu „gar nicht eingereiht". Entschieden hat `last_error` —
+eine Spur, die **nur** `afterFailure()` hinterlässt.
+
+> **Ein Endzustand, den man nach dem Ereignis abliest, sagt über den Weg dorthin
+> nichts — dafür braucht es eine Spur, die nur dieser eine Weg hinterlässt.**
+
+### Und zwei eigene Griffe, die Arbeit gekostet haben
+
+**`git checkout --` hat mir an einem Nachmittag zweimal eine fertige Behebung
+weggenommen** — obwohl der Satz dagegen seit August weiter unten steht. Gefunden
+hat den ersten Verlust der Wächter, der zehn Minuten vorher dafür entstanden
+war; den zweiten ein Blick auf `git status`.
+
+> **Eine Regel, an die man sich erinnern muss, ist keine Regel, sondern eine
+> Gewohnheit.** Gesichert wird mit `cp`, **bevor** der Eingriff läuft, und nicht
+> mit einem Griff, der aus `HEAD` herstellt.
+
+**Und ein verschachtelter Heredoc mit demselben Trennbezeichner** (`PY` aussen
+wie innen) hat einen Python-Block zerrissen; die Shell führte die Bruchstücke
+aus, und eines davon veränderte eine Quelldatei. Wer einen Block schreibt, der
+einen Block enthält, gibt dem äusseren einen eigenen Namen.
+
+**Was benannt offen bleibt** (`docs/123 §12`): §1c ist nicht gefahren (als
+Betreiber wirkungslos, und ein Kunde hat immer alle Rechte — nur ein
+Zusatzbenutzer nicht), 2b ist ausgefallen, der Rest des Prüfstands, die
+`3 issues` auf `/backups/<id>/restore`, und die Frage aus `docs/117 §3` — die mit
+**zwei** doppelten Abschriften statt einer einen schärferen Bestand hat.
+
+**Nebenbei aufgefallen und nicht angefasst:** Zwei der sieben
+`test_every_exemption_carries_a_reason` laufen über eine **leere** Ausnahmeliste
+und prüfen damit nichts; PHPUnit nennt sie riskant, und die CI übergeht es.
 
 ---
 

@@ -110,10 +110,13 @@ onUnmounted((): void => {
  * das Abonnement ist fort, die Sicherung ist alles, was bleibt.
  */
 function entfernen(sicherung: { id: number; storage_name: string }): void {
+  // Dieselbe Behebung wie in `Backups.vue`: Der Satz gehört in die Frage, auf
+  // den Knopf gehört sein Verb (`docs/123 §9`, Befund B).
   ask(
-    'Sicherung entfernen',
-    `Die Sicherung ${sicherung.storage_name} wird vom Datenträger gelöscht. `
-      + 'Ihr Abonnement gibt es nicht mehr — danach ist dieser Stand fort.',
+    `Die Sicherung ${sicherung.storage_name} entfernen?\n`
+      + 'Sie wird vom Datenträger gelöscht. Ihr Abonnement gibt es nicht mehr — '
+      + 'danach ist dieser Stand fort.',
+    'Entfernen',
     () => { router.delete(`/backups/${sicherung.id}`) },
   )
 }

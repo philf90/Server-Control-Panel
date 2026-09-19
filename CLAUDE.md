@@ -4772,6 +4772,102 @@ und prüfen damit nichts; PHPUnit nennt sie riskant, und die CI übergeht es.
 
 ---
 
+## Die drei Behebungen haben einen Server gesehen — 19. September 2026
+
+Gefahren auf `cloudsrv24` gegen `0.7.4-rc.17`, **alle fünf Punkte aus
+`docs/124` erfüllt**, alle drei Ausschlusskriterien darunter. Die Vorschrift ist
+`docs/124`, das Protokoll **`docs/125`**.
+
+**Ein Befund, und er steckt im Prüfmittel; am Prüfling keiner** — dieselbe Lage
+wie in `docs/78`, `docs/906`, `docs/909`, `docs/913` und `docs/921`, und aus
+demselben Grund. Was `docs/123` gefunden hat, ist damit dreifach auf einem
+echten Server gemessen.
+
+**Der Befund ist derselbe wie vor zwei Tagen.** `srvpanel diagnose --json` gibt
+es nicht; das Kommando trägt keine Optionen. **`docs/118 §0.6` hat genau das am
+17. September gefunden**, an drei Stellen, mitsamt der Korrektur — zwei Tage
+später stand es in `docs/122 §0b` wieder da, und von dort ist es nach `docs/124`
+kopiert worden.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Dokument
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+**Überlebt hat er den Lauf von `docs/122`, weil niemand ihn gemeldet hat.**
+`docs/123 §7` führt die Ausgabe **ohne** Option: Der Fahrende hat die Zeile
+stillschweigend berichtigt, und damit hat jener Lauf etwas anderes gemessen, als
+seine Vorschrift verlangte.
+
+> **Eine Vorschrift, die der Fahrende beim Fahren berichtigt, steht danach
+> weiter falsch da — und das Protokoll daneben sieht aus, als habe sie
+> gestimmt.**
+
+**Die schönste Messung des Laufs ist eine Zahl, die `docs/124 §0` nur
+hergeleitet hatte.** Der Aufzeichner über das echte Entfernen — je 200 ms ein
+Paar aus Zustandstext und Zahl der Bedienelemente — gibt:
+
+```
+12:24:10.475   vorhanden / 3
+12:24:20.274   wird entfernt / 0
+12:24:23.291   Zeile fort
+```
+
+`watch(laeuft, stellen)` startet den Takt, wenn die Zeile auf `wird entfernt`
+geht, also um `20.274`; der erste Abruf ist bei `NACHFRAGE_MS = 3000` um
+`23.274` fällig und kam um **`23.291`**. **Das Fenster war genau ein Takt lang,
+und beendet hat es der Takt — nicht der Vorgang.**
+
+> **Eine Abwesenheit, die man in einem Fenster von drei Sekunden nicht gesehen
+> hat, ist nicht gemessen — sie ist ungesehen.**
+
+Ein Blick, der drei Sekunden woanders war, hätte nichts gesehen. Der
+Aufzeichner war nicht Vorsicht, sondern die Bedingung dafür, dass der Punkt
+überhaupt eine Messung ist.
+
+**Und die Behebung von Befund B hat die Regel gefunden, an der sie vorbeilief.**
+Der 40 Zeichen lange Ablagename bricht jetzt **innerhalb der Frage** um, über
+zwei Zeilen — genau dafür trägt `.confirmation` seit P5b `overflow-wrap:
+anywhere`, mit der Begründung im Kommentar daneben. Auf dem Knopf hat sie ihn
+nie erreicht.
+
+> **Eine Regel, die für die Frage geschrieben ist, gilt nicht für den Knopf —
+> und beide sehen im Markup gleich aus.**
+
+**Zwei Messungen haben mehr getragen, als ihr Punkt verlangt hat.** Der Vorflug
+hat Punkt 1 seinen Prüfkörper geschenkt: Beide Pläne führen zwölf der vierzehn
+Kontingente, und die zwei fehlenden liegen auf **verschiedenen** Seiten der
+Regel — `backups` darf nicht unbegrenzt sein, `database_mb` darf es. Beide
+Richtungen standen damit auf einer Seite, ohne dass etwas herzustellen war. Und
+der Abbau traf **sechs von sechs** ausgerechneten Vorhersagen, darunter den
+fehlenden `storage` auf dem letzten der vier Vorgänge — von aussen
+unterscheidet allein er das Abräumen des Verzeichnisses vom Entfernen einer
+Datei.
+
+**Eine Beobachtung ist bewusst nicht behoben** (`docs/125 §7`): Bei 390 px steht
+im gestapelten Kärtchen während `Removing` die Beschriftung *AKTION* ohne Wert.
+Den Anblick gab es vorher nicht — vorher stand dort der Knopf. Verloren geht
+nichts, `dokument` bleibt 0, und eine Regel auf `:has(.button)` in genau dieser
+einen Spalte wäre die zweite Fassung, die altert.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.** Und einer, der nichts verbirgt, ist keine Behebung wert, die
+> teurer ist als er.
+
+**Und eine Ursache ist von der anderen Seite bestätigt.** `docs/123 §8` hat zwei
+doppelte Abschriften in `system_users` gezählt und die Wiederherstellung als
+Ursache benannt. Dieser Lauf hat **nicht** wiederhergestellt und hinterlässt
+genau **eine** neue Zeile, keine Dublette.
+
+> **Eine Behauptung über die Ursache wird von dem Fall bestätigt, in dem die
+> Ursache fehlt und die Wirkung ausbleibt.**
+
+**Was benannt offen bleibt** (`docs/125 §9`): der Rest des Prüfstands, Befund C
+aus `docs/123 §9` (ungemessen und ungebaut), die `3 issues` auf
+`/backups/<id>/restore`, die Frage aus `docs/117 §3`, die leere Aktionszelle,
+und dass `Retention::keeps()` und `RunBackups::eligible()` bei fehlendem
+Schlüssel bewusst auf `null` bleiben.
+
+---
+
 ## Befehle
 
 ```bash

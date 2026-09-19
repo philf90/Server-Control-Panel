@@ -113,13 +113,22 @@ nicht zu trennen, was dieser Lauf angerichtet hat und was schon dastand.
 srvpanel version
 ls -la /var/lib/srvpanel/backups/
 srvpanel backup-verify
-srvpanel diagnose --json | head -40
-```
-
-```php
-// srvpanel tinker — je Zeile eine Anweisung
-App\Models\Subscription::withoutGlobalScopes()->get(['id','name','plan_id','status'])->each(fn($s)=>print("$s->id  $s->name  plan=$s->plan_id  {$s->status->value}\n"));
-App\Models\Backup::withoutGlobalScopes()->get(['id','subscription_id','storage_name','status'])->each(fn($b)=>print("$b->id  abo=".($b->subscription_id ?? 'null')."  $b->storage_name  {$b->status->value}\n"));
+srvpanel diagnose
+srvpanel tinker --execute='
+  foreach (App\Models\Finding::query()->orderBy("check")->orderBy("subject")->get() as $f) {
+    printf("%-4s %-22s %-20s %s\n", $f->state()->value, $f->check->value, $f->reason, $f->subject);
+  }
+  printf("%d Befunde\n", App\Models\Finding::query()->count());'
+srvpanel tinker --execute='
+  foreach (App\Models\Subscription::withoutGlobalScopes()->get() as $s) {
+    printf("%d  %s  plan=%d  %s\n", $s->id, $s->name, $s->plan_id, $s->status->value);
+  }
+  foreach (App\Models\Backup::withoutGlobalScopes()->get() as $b) {
+    printf("%d  abo=%s  %s  %s\n", $b->id, $b->subscription_id ?? "null", $b->storage_name, $b->status->value);
+  }
+  foreach (App\Models\Plan::query()->get() as $p) {
+    printf("%d  %s  fuehrt: %s\n", $p->id, $p->name, implode(", ", array_keys($p->quotas ?? [])));
+  }'
 ```
 
 **Der Prüfkörper: ein Abonnement `p8-rc17.invalid`** auf dem Plan `Standard`,
@@ -156,6 +165,58 @@ Erwartung von Punkt 1, Zeile für Zeile.
 Punkt 1 kann vor dem Anlegen der Sicherung gefahren werden — er liest
 Kontingente und keine Sicherungen. Punkt 3 kommt **nach** Punkt 2, weil er den
 Zustand der Zeile verändert.
+
+---
+
+## 0d · Was beim Vorflug umgefallen ist
+
+**`srvpanel diagnose` hat kein `--json`, und das stand schon einmal
+aufgeschrieben.** Die Vorschrift rief es hier an **zwei** Stellen so auf; das
+Kommando heisst `srvpanel:diagnose` und trägt **keine Optionen**. Gemessen am
+19. September gegen `0.7.4-rc.17`: *„The `--json` option does not exist."*
+
+**`docs/118 §0.6` hat genau das am 17. September gefunden** — an drei Stellen,
+vor dem ersten Befehl, mitsamt der Korrektur (die Befunde stehen in `findings`
+und werden über `srvpanel tinker` gelesen). Zwei Tage später stand es in
+`docs/122 §0b` wieder da, und von dort ist es hierher kopiert worden.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Dokument
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+**Überlebt hat es den Lauf von `docs/122`, weil niemand es gemeldet hat.** Das
+Protokoll `docs/123 §7` führt die Ausgabe von `srvpanel diagnose` **ohne**
+Option — der Fahrende hat die Zeile stillschweigend berichtigt, und damit hat
+der Lauf etwas anderes gemessen, als seine Vorschrift verlangt.
+
+> **Eine Vorschrift, die der Fahrende beim Fahren berichtigt, steht danach
+> weiter falsch da — und das Protokoll daneben sieht aus, als habe sie
+> gestimmt.**
+
+Die zweite Hälfte desselben Absatzes in `docs/118` gilt mit: `| head -40`
+schneidet die Leitung ab, und CLAUDE.md sagt seit dem 23. August **kein `| head`
+über dem Messlauf**. Beide Stellen sind berichtigt und lesen die Befunde jetzt
+über `srvpanel tinker --execute=` — in der Form, die `docs/118 §0b` belegt hat.
+
+**Und der Vorflug hat Punkt 1 seinen Prüfkörper geschenkt.** Beide Pläne führen
+**zwölf** der vierzehn Kontingente; es fehlen genau zwei, und sie liegen auf
+verschiedenen Seiten der Regel:
+
+| fehlender Schlüssel | darf unbegrenzt sein | erwartet |
+|---|---|---|
+| `backups` | **nein** | **nicht festgelegt** — die Behebung |
+| `database_mb` | **ja** | **unbegrenzt** — die Gegenrichtung |
+
+Damit stehen beide Richtungen auf **einer** Seite und in **einer** Liste, ohne
+dass etwas dafür hergestellt werden müsste. Die Gegenrichtung ist keine
+Zugabe: Ein Fix, der aus jedem `null` „nicht festgelegt" machte, wäre an der
+Stelle, an der der Fehler sass, nicht mehr zu sehen.
+
+**Was daraus folgt, betrifft §1d:** Kein Plan lässt eines der **sechs**
+gedeckelten Kontingente ausser `backups` aus, und `/plans` zeigt `backups`
+nicht. Die Planseiten ändern sich auf diesem Server also **nicht** — die fünfte
+Zeile aus §0 gilt für den Code und kommt hier nicht zum Tragen. §1d ist damit
+eine Lage, die es nicht gibt, und das gehört so ins Protokoll und nicht als
+„erfüllt".
 
 ---
 
@@ -384,7 +445,12 @@ Bestand da, der vorher dastand.
 
 ```bash
 srvpanel backup-verify
-srvpanel diagnose --json | head -40
+srvpanel diagnose
+srvpanel tinker --execute='
+  foreach (App\Models\Finding::query()->orderBy("check")->orderBy("subject")->get() as $f) {
+    printf("%-4s %-22s %-20s %s\n", $f->state()->value, $f->check->value, $f->reason, $f->subject);
+  }
+  printf("%d Befunde\n", App\Models\Finding::query()->count());'
 ls -la /var/lib/srvpanel/backups/
 ```
 

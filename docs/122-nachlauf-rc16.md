@@ -84,8 +84,16 @@ nicht zu trennen, was dieser Lauf angerichtet hat und was schon dastand.
 ```bash
 srvpanel version
 ls -la /var/lib/srvpanel/backups/
-srvpanel diagnose --json | head -40
+srvpanel diagnose
 ```
+
+> **Berichtigt am 19. September 2026.** Beide Stellen riefen hier
+> `srvpanel diagnose --json | head -40`. Das Kommando heisst
+> `srvpanel:diagnose` und trägt **keine Optionen** — `docs/118 §0.6` hatte
+> genau das zwei Tage vorher an drei Stellen gefunden, und von dort ist der
+> Fehler hierher zurückgekommen. Gefahren worden ist die Zeile ohne Option
+> (`docs/123 §7`); die Vorschrift stand also falsch da, während das Protokoll
+> daneben richtig war. Aufgefallen ist es erst, als `docs/124` sie kopiert hat.
 
 ```php
 // srvpanel tinker — je Zeile eine Anweisung
@@ -423,7 +431,7 @@ Danach:
 
 ```bash
 srvpanel backup-verify
-srvpanel diagnose --json | head -40
+srvpanel diagnose
 ls -la /var/lib/srvpanel/backups/
 ```
 

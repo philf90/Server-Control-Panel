@@ -21,6 +21,43 @@ ist und keines der acht Merkmale von P9.
 
 ---
 
+## §0 · Die Entscheidungen des Betreibers
+
+Sie stehen hier und nicht verstreut im Text, weil ein Plan, der seine
+Entscheidungen nicht an einer Stelle führt, sie beim nächsten Umbau verliert.
+
+| # | Frage | Entschieden am | Entscheidung |
+|---|---|---|---|
+| **1** | Bekommt der Kunde Docker? | 20. September 2026 | **K0 — Docker gehört dem Betreiber allein.** K2 (rootless je Abonnement) ist **vorgemerkt für nach der vollständigen Umsetzung** und nicht Teil dieser Stufe. |
+| **2** | Zuschnitt und Reihenfolge | offen | |
+| **3** | `docker.io` oder `docker-ce` | offen | |
+| **4** | Container-Shell | offen | |
+
+**Was Entscheidung 1 festlegt.** Die Stufe baut ein Betreibermodul und keine
+Kundenschnittstelle. Damit gilt für alles Weitere:
+
+- Die Fähigkeit ist **`operate-server`**, und es kommt **kein** `Permission`-Fall
+  für Abonnements dazu.
+- Von den fünf Nähten aus §7 sind **zwei** in dieser Stufe zu schliessen — das
+  Regelwerk (§7.3) und die Diagnose (§7.5). Die drei anderen — Quota, Sicherung,
+  Proxy-Form — betreffen ausschliesslich Kundencontainer und bleiben **benannt
+  offen** statt still zu fehlen.
+- Von den neun Messungen aus §11 tragen **M1, M3, M4, M5 und M6** diese Stufe.
+  **M2, M8 und M9 entfallen vorerst**, **M7 gehört zum vorgemerkten K2.**
+
+**Was Entscheidung 1 nicht sagt.** Sie sagt nicht, dass ein Kunde nie Container
+bekommt — sie sagt, wann darüber entschieden wird. Und sie legt die Richtung
+fest: Der Weg dorthin führt über **K2 und nicht über K1**, also über eine
+Grenze, die der Kernel hält, und nicht über eine, die in unserem Code liegt.
+
+> **Ein Merkmal, das kein Plan bestellt hat, trägt den Namen nicht, unter dem
+> es geplant war — und die Planzeile bleibt offen stehen.** Deshalb steht K2
+> hier als Zeile und nicht als Absicht: K1 ist damit **nicht Teil dieses
+> Vorhabens**, und wer später einen Kundenweg baut, fängt bei §5 an und nicht
+> bei null.
+
+---
+
 ## §1 · Der Bestand — gemessen am 20. September 2026
 
 Alles hier ist gegen `main @ fae85f8` gemessen, nicht erinnert.
@@ -227,24 +264,41 @@ Kernel.*
 | **Offen** | Speicher je Daemon, Start nach einem Neustart, Quota über `fuse-overlayfs`, Zusammenspiel mit der Sandbox |
 | **Was es nicht sagt** | ob es auf einem Server mit fünfzig Abonnements noch trägt. Das ist M7, und **ohne M7 ist jede Zahl zu K2 geraten** |
 
-### Die Empfehlung
+### Entschieden: K0 — und K2 als vorgemerkter offener Punkt
 
-**K0 zuerst, K1 als zweiter Wurf, K2 nur nach M7.**
+**Der Betreiber hat am 20. September K0 gewählt** (§0). K2 ist vorgemerkt für
+nach der vollständigen Umsetzung; **K1 ist nicht Teil dieses Vorhabens.**
 
-Der Grund ist nicht Vorsicht, sondern das Muster, das dieses Projekt bei A3
-schon gefahren hat: erster Wurf lesend, zweiter Wurf schreibend, jeder mit
-eigenem Abnahmelauf. Es trägt hier aus drei Gründen:
+Die drei Zuschnitte bleiben hier stehen und werden nicht auf den gewählten
+zusammengestrichen. Der Grund ist derselbe, aus dem `docs/20 §9` eine
+verschobene Stufe als durchgestrichene Zeile stehen lässt statt sie zu
+entfernen:
 
-1. **K0 hat eine neue Angriffsfläche und keine neue Grenze.** Es lässt sich
-   allein durch einen Angriffsdurchgang abnehmen — wie P6 Schritt 11.
-2. **K1 hängt an fünf Nähten, von denen keine gemessen ist** (§7). Eine davon —
-   die Quota — entscheidet, ob das Kontingent des Kunden überhaupt eine Aussage
-   ist.
-3. **K2 ist eine Zahl, die niemand hat.**
+> **Wer später einen Kundenweg plant, soll sehen, welche Wege es gab und warum
+> einer davon gewählt wurde — eine stille Streichung lässt ihn von vorn
+> anfangen.**
 
-> **Eine Härtungsstufe, die selbst noch baut, prüft ihr eigenes Werk.** K1 ohne
-> K0 hiesse, die Kundenschnittstelle zu bauen, bevor das Modul darunter einen
-> Angriffsdurchgang gesehen hat.
+**Was den Ausschlag gab**, und es steht hier als Begründung und nicht als
+Empfehlung, weil die Entscheidung gefallen ist:
+
+1. **K0 hat eine neue Angriffsfläche und keine neue Grenze.** Der Betreiber
+   trägt `operate-server` und kommt ohnehin an root; die Stufe lässt sich
+   deshalb allein durch einen Angriffsdurchgang abnehmen — wie P6 Schritt 11.
+2. **Die Kundenseite hängt an drei ungemessenen Nähten** (§7.1, §7.2, §7.4).
+   Eine davon entscheidet, ob das Merkmal überhaupt verkäuflich wäre: Zählt ein
+   Container nicht gegen `setquota`, zeigt die Abonnementseite ein Kontingent
+   an, das es nicht gibt.
+3. **Es ist das Muster, das bei A3 getragen hat** — erster Wurf lesend, zweiter
+   Wurf schreibend, jeder mit eigenem Abnahmelauf.
+
+**Und die Richtung für später ist mitentschieden.** Führt der Kundenweg über
+**K2** statt über K1, liegt die Grenze im **Kernel** und nicht in einer Vorlage
+und einem Prüfer, die wir selbst pflegen. Das ist die härtere Grenze — und die
+teurere, weil sie an M7 hängt.
+
+> **Was der Geprüfte selbst zurücknehmen kann, ist keine Schranke.** Eine
+> Vorlage, die nur deshalb hält, weil niemand an ihr vorbeischreibt, ist eine
+> Voreinstellung; ein Benutzernamensraum ist eine Schranke.
 
 ---
 
@@ -526,9 +580,9 @@ Angriffsdurchgang. Das liegt über P5c und in der Gegend von P6:
 
 | | Schätzung | Basis |
 |---|---|---|
-| **K0** | **4–5 Wochen** | mehr Operationen als P5c, drei Teilsysteme wie P6, dazu ein sicherheitskritischer Prüfer |
-| **K1** zusätzlich | **3–4 Wochen** | Vhost-Form, Kontingente, Vorlagenkatalog, die fünf Nähte — vergleichbar mit P8 |
-| **K2** zusätzlich | **nicht schätzbar** | hängt vollständig an M7 |
+| **K0** — der gewählte Zuschnitt | **4–5 Wochen** | mehr Operationen als P5c, drei Teilsysteme wie P6, dazu ein sicherheitskritischer Prüfer |
+| ~~K1~~ — nicht Teil dieses Vorhabens | — | (3–4 Wochen wären es gewesen, vergleichbar mit P8) |
+| **K2** — vorgemerkt für danach | **nicht schätzbar** | hängt vollständig an M7, und M7 ist nicht gefahren |
 
 > **Eine Erwartung, die man aus den Zahlen ausrechnet statt sie zu schätzen,
 > macht aus dem Ergebnis einen Beleg.** Diese Zahlen sind **geschätzt**, und
@@ -541,6 +595,10 @@ Angriffsdurchgang. Das liegt über P5c und in der Gegend von P6:
 Jede Stufe seit P5b hat ihre Messrunde vor dem Plan gehabt, und jede hat den
 Entwurf umgeworfen. **Jede Frage bekommt eine Gegenprobe und einen Satz
 darüber, was sie nicht sagt.**
+
+Die neun stehen vollständig da; **welche davon diese Stufe trägt, sagt §0** und
+nicht diese Liste — sonst stünde der Umfang an zwei Stellen, und die zweite
+veraltet.
 
 **M1 · Welches Docker liegt auf den vier Zielplattformen, und was gibt
 `--format json` wirklich aus?** Zu messen auf Debian 12/13 und Ubuntu
@@ -630,9 +688,8 @@ nicht haben:
 
 Vier Fragen ändern die Arbeit, der Rest folgt aus ihnen.
 
-1. **Bekommt der Kunde Docker — K0, K1 oder K2?** Das entscheidet Umfang, Dauer
-   und Risiko in einem. K0 ist ein Adminwerkzeug, K1 ein Hosting-Merkmal, K2 ein
-   eigenes Produkt.
+1. ~~Bekommt der Kunde Docker?~~ — **beantwortet am 20. September, siehe §0:
+   K0, mit K2 als vorgemerktem offenem Punkt.**
 
 2. **Eigene Stufe oder Merkmal in P9 — und wo in der Reihenfolge?** P9 trägt
    acht Merkmale. Ein Zuschnitt als eigene Stufe mit eigenen Abnahmeläufen je

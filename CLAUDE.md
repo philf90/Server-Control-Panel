@@ -5018,9 +5018,18 @@ vorhanden **1**, erst nach dem Laden eingefügt **1**, mit `id` und `name` **0**
 Ein `data:`-URL sperrt Chrome seit Fassung 60 in der Adressleiste; deshalb eine
 Datei und keine Zeile zum Einfügen.
 
-**Offen und benannt:** die Ablesung von `tests/issues-arten.html` in Chrome 153.
-Am Urteil über die drei Einträge ändert sie nichts — die sind im Container, am
-23. August und am 17. September dreifach gemessen.
+**Gefahren in Chrome 153: 6 von 8.** Zwei Arten werden übergangen, und welche
+zwei sagt die Zahl nicht — der Eintrag fasst sie zu `6 resources` zusammen.
+
+> **Eine Zahl, die eine Auswahl zusammenfasst, sagt nicht, welche — dafür
+> braucht es einen Prüfkörper, der nur die Verdächtigen trägt.**
+
+`tests/issues-kaestchen.html` ist er: `checkbox`, `radio` und ein `text` als
+Ladebeleg, gegen Chromium 141 **3 von 3**. **Offen und benannt** ist seine
+Ablesung — **1** nennt die beiden Fehlenden beim Namen und macht die Null auf
+`/settings/backups` zur richtigen Antwort, **3** schickt die Suche zurück an
+Prüfblatt 2. Am Urteil über die drei Einträge ändert beides nichts; die sind im
+Container, am 23. August und am 17. September dreifach gemessen.
 
 ---
 

@@ -30737,3 +30737,19 @@ Offen ist damit nicht mehr, *ob* dieser Browser meldet, sondern welche Arten:
 `tests/issues-arten.html` misst das — acht Bedienelemente ohne `id` und `name`,
 jedes an einer Klasse `art-…` wiedererkennbar, gegen Chromium 141 acht von acht
 und jedes einzeln über `DOM.describeNode` aufgelöst.
+
+### Chrome 153 meldet sechs der acht Arten
+
+`tests/issues-arten.html` gegen Chromium 141: acht von acht, jedes Element
+einzeln über `DOM.describeNode` aufgelöst. Dieselbe Datei in Chrome
+153.0.8010.37: **sechs**. Welche zwei fehlen, sagt die Zahl nicht — die
+Registerkarte fasst sie zu `6 resources` zusammen.
+
+> **Eine Zahl, die eine Auswahl zusammenfasst, sagt nicht, welche — dafür
+> braucht es einen Prüfkörper, der nur die Verdächtigen trägt.**
+
+`tests/issues-kaestchen.html` ist dieser Prüfkörper: `checkbox`, `radio` und
+ein `text` als Ladebeleg, gegen Chromium 141 drei von drei. Eine Ablesung von
+1 in Chrome 153 nennt die beiden Fehlenden beim Namen — und dann trägt
+`/settings/backups` mit seinen zwei Kästchen nur Arten, die dieser Browser
+übergeht, und seine Null ist die richtige Antwort statt einer Abweichung.

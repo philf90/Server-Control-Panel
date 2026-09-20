@@ -273,10 +273,24 @@ Issues      8
   · art-textarea  · art-email  · art-date  · art-number
 ```
 
-Die Ablesung in Chrome 153 entscheidet es: **8** heisst, die Art ist nicht die
-Ursache und die Null auf `/settings/backups` ist ein Befund; **weniger als 8**
-nennt über die Klassen die Arten, die dieser Browser übergeht — und dann
-schweigt die Seite zu Recht.
+**Gefahren in Chrome 153: 6 von 8.** Zwei Arten werden übergangen, und welche
+zwei, sagt die Zahl noch nicht — der Eintrag fasst sie zu `6 resources`
+zusammen.
+
+Isoliert wird es mit **`tests/issues-kaestchen.html`**: `checkbox`, `radio` und
+ein `text` als Ladebeleg, gegen Chromium 141 **3 von 3**, jedes einzeln
+aufgelöst. Eine Ablesung von **1** in Chrome 153 nennt die beiden Fehlenden
+beim Namen — und dann trägt `/settings/backups` mit seinen zwei Kästchen nur
+Arten, die dieser Browser übergeht, und seine Null ist richtig.
+
+> **Eine Zahl, die eine Auswahl zusammenfasst, sagt nicht, welche — dafür
+> braucht es einen Prüfkörper, der nur die Verdächtigen trägt.**
+
+Die Vermutung liegt nahe und ist ausdrücklich **nicht** die Messung: Die
+Ausfüllhilfe füllt weder Kästchen noch Optionsknöpfe. Sie passt zu jeder
+bekannten Ablesung — `/backups/2/restore` trägt zwei `<select>` und ein `text`
+und meldete am 17. September **3** — und sie bleibt eine Vermutung, bis
+Prüfblatt 3 abgelesen ist.
 
 ### Warum eine Fassungsdifferenz überhaupt in Betracht kam
 
@@ -296,9 +310,10 @@ Datei und nicht eine Zeile zum Einfügen.
 
 ### Was offen bleibt
 
-Die Ablesung von `tests/issues-arten.html` in Chrome 153, und daneben die
-Detailseite einer Domain — die Seite, auf der `docs/76` die fünfzehn wirklich
-gezählt hat.
+Die Ablesung von `tests/issues-kaestchen.html` in Chrome 153 — eine Zahl. Gibt
+sie **1**, ist die Abweichung erklärt und kein Befund; gibt sie **3**, liegen
+die beiden Fehlenden woanders und `tests/issues-arten.html` muss Eintrag für
+Eintrag gelesen werden.
 
 Für das Urteil dieses Dokuments ändert die Antwort nichts: Die drei Einträge auf
 der Restore-Seite sind im Container, am 23. August und am 17. September

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Pruefblatt 3 — Kaestchen und Knopf gegen ein Textfeld</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 44rem; padding: 0 1rem; }
+  h1 { font-size: 1.25rem; }
+  form { border: 1px solid #999; padding: 1rem; margin: 1rem 0; }
+  label { display: block; margin: .5rem 0; }
+  code { background: #eee; padding: 0 .2rem; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid #bbb; padding: .3rem .6rem; text-align: left; vertical-align: top; }
+</style>
+</head>
+<body>
+  <h1>Prüfblatt 3 — welche zwei Arten fehlen?</h1>
+
+  <p>Drei Bedienelemente, <strong>keines</strong> mit <code>id</code> oder
+  <code>name</code>. Das Textfeld ist der Ladebeleg: Es <em>muss</em> gemeldet
+  werden, sonst misst die Seite nichts.</p>
+
+  <form>
+    <label>checkbox <input class="art-checkbox" type="checkbox"></label>
+    <label>radio <input class="art-radio" type="radio"></label>
+    <label>text <input class="art-text" type="text"></label>
+  </form>
+
+  <p><strong>So wird gemessen:</strong> F12, <strong>F5</strong>, Registerkarte
+  „Issues", den Eintrag aufklappen, unter <strong>AFFECTED RESOURCES</strong>
+  die Zahl ablesen.</p>
+
+  <table>
+    <tr><th>Ablesung</th><th>was sie sagt</th></tr>
+    <tr><td><strong>1</strong></td><td>Die beiden fehlenden sind <code>checkbox</code> und <code>radio</code>. Dann trägt <code>/settings/backups</code> nur Arten, die dieser Browser übergeht — seine Null ist richtig und kein Befund.</td></tr>
+    <tr><td><strong>2</strong></td><td>Genau eines von beiden wird übergangen. Welches: die Einträge aufklappen und über jeden <code>Violating node</code> fahren — das getroffene Feld leuchtet in der Seite auf.</td></tr>
+    <tr><td><strong>3</strong></td><td>Beide werden gemeldet. Dann liegen die zwei fehlenden woanders, und Prüfblatt 2 muss einzeln gelesen werden.</td></tr>
+    <tr><td><strong>0</strong></td><td>Widerspricht dem Ladebeleg und wäre selbst ein Befund.</td></tr>
+  </table>
+</body>
+</html>

@@ -31,7 +31,7 @@ Entscheidungen nicht an einer Stelle führt, sie beim nächsten Umbau verliert.
 | **1** | Bekommt der Kunde Docker? | 20. September 2026 | **K0 — Docker gehört dem Betreiber allein.** K2 (rootless je Abonnement) ist **vorgemerkt für nach der vollständigen Umsetzung** und nicht Teil dieser Stufe. |
 | **2** | Zuschnitt und Reihenfolge | 20. September 2026 | **Eigene Stufe `P9a`, nach P9 und vor P9b.** Zwei Abnahmeläufe: erst die lesenden Bereiche, dann Stacks, Prüfer und Angriffsdurchgang. |
 | **3** | `docker.io` oder `docker-ce` | 20. September 2026 | **Beides zulassen, `docker.io` als Präferenz.** Das Panel *installiert* `docker.io` und `docker-compose-v2`; ein vorhandenes `docker-ce` wird **bedient und nicht abgelehnt**. Dazu eine `Docker::MIN_VERSION`, gesetzt **nach** M1. |
-| **4** | Container-Shell | offen | |
+| **4** | Container-Shell | 20. September 2026 | **Einzelne Befehle statt einer Sitzung.** Ein nicht-interaktiver Befehl je Aufruf über den bestehenden Transport. Die **volle Shell ist vorgemerkt** und nicht Teil dieser Stufe. |
 
 **Was Entscheidung 1 festlegt.** Die Stufe baut ein Betreibermodul und keine
 Kundenschnittstelle. Damit gilt für alles Weitere:
@@ -97,6 +97,41 @@ Compose-Prüfer und den Angriffsdurchgang gegen die sechs Mechanismen aus §6.
 **`docker-ce` bleibt der Rückfallplan** und ist nicht ausgeschlossen: Er wird
 aktuell, wenn M1 zeigt, dass eine Zielplattform unter der Mindestversion liegt
 **und** ihre Ausgabeform abweicht.
+
+**Was Entscheidung 4 festlegt.** Gebaut wird `docker.container.exec` — **ein**
+nicht-interaktiver Befehl je Aufruf, Ausgabe und Ergebnis zurück. Das ändert am
+Transport des Agenten **keine Zeile**:
+
+- Anfrage/Antwort wie jede andere Operation, Ausgabe unter `Runner::OUTPUT_MAX`
+  (4 MiB), Frist über `Runner`s `timeout`.
+- Argumente als Feld ohne Shell auf dem Wirt — was der Betreiber tippt, wird im
+  **Container** ausgeführt und nicht auf dem Server.
+- **Der Audit wird dabei besser als bei einer Sitzung, nicht schlechter:** Der
+  Befehl steht wörtlich in der Protokollzeile. `docker.exec.open` sagt nur,
+  *dass* jemand eine Sitzung hatte.
+
+> **Ein Protokoll, das die Art der Handlung nennt und nicht ihren Gegenstand,
+> beantwortet die Frage, die niemand stellt.**
+
+Das ist die Shell-Frage in der Form, die zu diesem Panel passt — so wie „kein
+freies SQL" nicht „keine Datenbankverwaltung" bedeutet hat, sondern typisierte
+Abfragen.
+
+### Vorgemerkt für nach der vollständigen Umsetzung
+
+Zwei Punkte stehen bewusst offen. Sie sind **keine Lücken, sondern
+Entscheidungen mit einem späteren Termin** — und sie stehen hier, damit der
+Nächste sie findet:
+
+| Punkt | Woran er hängt |
+|---|---|
+| **K2 — rootless Docker je Abonnement** | **M7.** Ohne die Messung ist jede Zahl dazu geraten. Führt der Kundenweg dorthin, liegt die Grenze im Kernel statt in unserem Code (§5). |
+| **Die volle Container-Shell** | Sie braucht einen **zweiten Transport im Agenten** — bidirektional und ohne Deckel, also gegen zwei der vier Zusagen von `Runner`. Dazu eine Terminal-Emulation als zweite Frontend-Abhängigkeit nach CodeMirror. Und sie entscheidet mit über das Terminal auf den **Wirt**, das `docs/20` hinter 1.0 stellt: Danach wäre dessen Begründung nur noch sicherheitspolitisch und nicht mehr technisch. |
+
+> **Ein Merkmal, das aussperren kann, braucht seinen Rückweg — und dass er
+> fehlt, merkt man beim Ausschreiben des Abnahmelaufs und nicht beim Bauen.**
+> Hier ist es umgekehrt und derselbe Gedanke: Ein Merkmal, das eine
+> Architekturentscheidung mitentscheidet, wird nicht nebenbei gebaut.
 
 **Was Entscheidung 1 nicht sagt.** Sie sagt nicht, dass ein Kunde nie Container
 bekommt — sie sagt, wann darüber entschieden wird. Und sie legt die Richtung
@@ -606,7 +641,7 @@ absetzen, Urteil in eine Datei schreiben, nachlesen.
 | `docker.container.list` · `.inspect` · `.logs` · `.stats` | `docker.container.remove` | `docker.image.pull` |
 | `docker.image.list` · `.digest` | `docker.image.remove` | `docker.stack.up` · `.down` · `.pull` · `.restart` |
 | `docker.volume.list` · `docker.network.list` | `docker.volume.remove` · `docker.network.remove` | |
-| `docker.disk.usage` · `docker.events` | `docker.prune` | |
+| `docker.disk.usage` · `docker.events` | `docker.prune` · `docker.container.exec` | |
 | `docker.stack.list` · `.read` · `.config` | `docker.stack.write` · `.remove` | |
 
 **Die Logs sind eine Grenzfrage und keine Nebensache.** `docker logs` einer
@@ -670,8 +705,13 @@ Angriffsdurchgang. Das liegt über P5c und in der Gegend von P6:
 | | Schätzung | Basis |
 |---|---|---|
 | **K0** — der gewählte Zuschnitt | **4–5 Wochen** | mehr Operationen als P5c, drei Teilsysteme wie P6, dazu ein sicherheitskritischer Prüfer |
+| **`docker.container.exec`** (Entscheidung 4) | **2–3 Tage** | eine Operation im bestehenden Transport, ohne PTY und ohne neue Abhängigkeit |
 | ~~K1~~ — nicht Teil dieses Vorhabens | — | (3–4 Wochen wären es gewesen, vergleichbar mit P8) |
 | **K2** — vorgemerkt für danach | **nicht schätzbar** | hängt vollständig an M7, und M7 ist nicht gefahren |
+| **Volle Shell** — vorgemerkt für danach | **1,5–2 Wochen** | neuer Transport im Agenten, PTY, Terminal-Emulation als zweite Frontend-Abhängigkeit |
+
+**Damit steht die Stufe bei 4–5 Wochen**, und die beiden vorgemerkten Punkte
+zählen nicht mit. `docs/20 §9` führt sie mit dieser Zahl.
 
 > **Eine Erwartung, die man aus den Zahlen ausrechnet statt sie zu schätzen,
 > macht aus dem Ergebnis einen Beleg.** Diese Zahlen sind **geschätzt**, und
@@ -777,38 +817,41 @@ nicht haben:
 
 ---
 
-## §13 · Die Fragen an den Betreiber
+## §13 · Die Fragen — alle vier beantwortet
 
-Vier Fragen ändern die Arbeit, der Rest folgt aus ihnen.
+**Die vier tragenden Fragen sind am 20. September entschieden**, jede einzeln
+gestellt und mit ihrer Begründung in §0 festgehalten. Sie stehen hier als
+Verzeichnis und nicht ein zweites Mal ausgeschrieben — sonst liefen zwei Zeilen
+desselben Dokuments über dieselbe Frage auseinander.
 
-1. ~~Bekommt der Kunde Docker?~~ — **beantwortet am 20. September, siehe §0:
-   K0, mit K2 als vorgemerktem offenem Punkt.**
+| # | Frage | Entscheidung |
+|---|---|---|
+| 1 | Bekommt der Kunde Docker? | **K0** — Betreiber allein; K2 vorgemerkt |
+| 2 | Zuschnitt und Reihenfolge | **eigene Stufe `P9a`**, nach P9, vor P9b |
+| 3 | `docker.io` oder `docker-ce` | **beides zulassen**, `docker.io` als Präferenz, `MIN_VERSION` nach M1 |
+| 4 | Container-Shell | **einzelne Befehle**; volle Shell vorgemerkt |
 
-2. **Eigene Stufe oder Merkmal in P9 — und wo in der Reihenfolge?** P9 trägt
-   acht Merkmale. Ein Zuschnitt als eigene Stufe mit eigenen Abnahmeläufen je
-   Bereich — wie P7b — ist der wahrscheinlichere. **Die Reihenfolge gegen P9b
-   ist dabei keine Geschmacksfrage**: A3s zweiter Wurf muss wissen, ob Docker am
-   Regelwerk mitschreibt, sonst wird er zweimal gebaut (§7.3).
+### Was noch offen ist, und warum es warten kann
 
-3. **`docker.io` aus der Distribution oder `docker-ce` aus Dockers Quelle?**
-   `docker.io` bedeutet keine fremde Paketquelle, dafür auf Debian 12 eine
-   deutlich ältere Version — und die Ausgabeform der CLI hängt an der Version.
-   `docker-ce` bedeutet eine Version über alle vier Zielplattformen, dafür eine
-   fremde Quelle mit eigenem Signaturschlüssel, den A1 mitüberwachen müsste.
-   **M1 liefert die Zahlen dazu.**
+Zwei kleinere Fragen. Beide ändern den Zuschnitt nicht und gehören in den Plan
+und nicht vor ihn:
 
-4. **Container-Shell: ja oder nein?** Sie baut die schwierigste Hälfte eines
-   Web-Terminals — PTY-Anbindung, bidirektionaler Transport, Terminal-Emulation
-   im Browser. Wer sie will, hat danach das Terminal fast, und das Argument, es
-   hinter 1.0 zu stellen, verliert seine technische Begründung und behält nur
-   die sicherheitspolitische.
+- **Fremde Stacks: nur anzeigen oder auch bedienen?** Mein Vorschlag steht in
+  §4 — anzeigen, starten und stoppen, aber nie in ihre Datei schreiben, nach
+  dem Muster von Crontabs und nftables.
+- **Das führende Objekt: „Stack" oder „Projekt"?** `docs/19 §5` regelt, wie ein
+  Wort dazukommt.
 
-**Drei kleinere Fragen**, die der Plan sonst rät:
+**Eine dritte ist mit Entscheidung 1 entfallen:** Wer den Vorlagenkatalog
+pflegt, war eine Frage an K1 — und K1 ist nicht Teil dieses Vorhabens.
 
-- **Fremde Stacks: nur anzeigen oder auch bedienen?** Mein Vorschlag: anzeigen,
-  starten und stoppen — aber nie in ihre Datei schreiben.
-- **Das führende Objekt: „Stack" oder „Projekt"?**
-- **Wenn K1: Wer pflegt den Vorlagenkatalog?** Eine Vorlage ist Inhalt mit
-  eigener Vertrauens- und Pflegefrage. Für den Betreiber allein genügte ein
-  kommentiertes Gerüst; für Kunden **ist** der Katalog die Grenze, und dann
-  braucht er einen Pfleger.
+### Der nächste Schritt ist die Messrunde und nicht der Plan
+
+`M1` bis `M6` tragen diese Stufe (§0); **M2, M8 und M9 entfallen vorerst, M7
+gehört zum vorgemerkten K2.** Im Container fahrbar sind **M1 teilweise, M4, M5
+und M6**; **M3 braucht `cloudsrv24`**, und der Rest von M1 braucht die drei
+Plattformen, die dieser Container nicht ist.
+
+> **Was die Messrunde ausdrücklich nicht ist: ein Plan.** Sie hält fest, was
+> gemessen wurde, mit Gegenprobe und mit dem, was sie nicht sagt — und
+> **danach** wird geplant.

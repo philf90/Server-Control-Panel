@@ -1450,6 +1450,15 @@ gemessen an einem Durchlauf mit einer Person, die das Projekt nicht kennt.
 - **Lange Läufe über `systemd-run`**, nicht über die Warteschlange:
   `packaging/bin/docker-run` als drittes Geschwister von `apt-run` und
   `cron-run`.
+- **`docker.io` und `docker-compose-v2` aus der Distribution**, dazu eine
+  `Docker::MIN_VERSION` nach dem Vorbild von `Pg\Server::MIN_VERSION`. Ein
+  vorhandenes `docker-ce` wird **bedient und nicht abgelehnt**; der Zustand
+  kommt deshalb vom laufenden Docker und nicht von `dpkg`.
+- **Ein Befehl je Aufruf statt einer Sitzung** (`docker.container.exec`): nicht
+  interaktiv, im bestehenden Transport, und der Befehl steht wörtlich im
+  Protokoll. **Eine volle Container-Shell ist ausdrücklich nicht Teil der
+  Stufe** — sie bräuchte einen zweiten Transport im Agenten und entschiede
+  nebenbei über das Wirt-Terminal, das P10 hinter 1.0 stellt.
 
 **Der Kunde bekommt in dieser Stufe kein Docker**, und das ist entschieden und
 keine Auslassung: Wer eine `compose.yaml` frei schreiben darf, ist root auf dem

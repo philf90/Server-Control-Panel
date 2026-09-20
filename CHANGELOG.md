@@ -31027,3 +31027,104 @@ jetzt mit `is_file()`.
 
 > **Ein unterdrückter Fehler ist keiner, der nicht stattgefunden hat — er ist
 > einer, den nur dieser Aufrufer nicht sieht.**
+
+### Ein Messmittel für die Plattenkurve — `docs/129 §10` Punkt 2
+
+**Die zweite offene Messung vor B1 hat jetzt ein Mittel.** Entscheidung 4 hält
+Rohdateien 14 Tage und verdichtete Zahlen 30; beide Zahlen sind gesetzt und
+keine ist gemessen. Was sie kosten, hängt daran, wie viele Bytes ein Tag an
+Protokollen hinterlässt und wie viel die Rotation davon zurückgibt.
+`tests/plattenkurve-messen.sh` tastet beides über einen einstellbaren Zeitraum
+ab und schreibt eine Zeile je Abtastung.
+
+**Die Gegenprobe steht vor der Kurve und bricht ab.** Eine flache Kurve ist nur
+dann eine Messung, wenn daneben steht, dass dieses Mittel einen Anstieg
+überhaupt sähe. P1 legt deshalb einen Prüfkörper bekannter Grösse an und
+verlangt, dass `df` **und** die Summe über den Baum ihn bemerken. Sieht ihn
+eine der beiden nicht, endet der Lauf sofort — statt einen ganzen Tag lang
+Nullen zu sammeln, die nichts bedeuten.
+
+> **Eine Null ist erst dann eine Messung, wenn daneben etwas anderes als Null
+> steht — und das gehört gemessen, bevor die Nullen anfangen.**
+
+**Der Gegenstand hält nicht still, und zwar planmässig.** Über Nacht benennt
+`logrotate` um und legt unter demselben Namen eine neue Datei an. Wer nur
+Grössen vergleicht, liest daraus eine Platte, die sich selbst leert. Verglichen
+wird deshalb die **Inode**; ein Wechsel ist eine Rotation und kein Schrumpfen.
+Die Uhrzeit, zu der er auftritt, ist zugleich die Gegenprobe zu `systemctl
+list-timers`: Die Liste sagt, wann es vorgesehen ist, die Kurve sagt, wann es
+wirklich geschehen ist.
+
+Geprüft ist das Mittel an einem Prüfstand, der beides vorführt — eine Datei
+wächst um 2 MiB, eine andere wird umbenannt und neu angelegt. Beides steht in
+den Daten: `baum_bytes` steigt und fällt bei der Rotation **nicht**, weil das
+Umbenannte noch daliegt, während `zugriff_bytes` auf die neue, leere Datei
+zurückspringt. Genau diese beiden Spalten nebeneinander sind der Unterschied
+zwischen „gewachsen" und „rotiert".
+
+**Was es nicht sagt, steht im Lauf selbst** und nicht in einem Kommentar: nichts
+über einen anderen Tag, nichts über den Takt von A7, nichts über die Verteilung
+auf Abonnements — eine laute Domain sieht aus wie vierzig leise —, und nichts
+über Bytes, die nie auf der Platte ankommen.
+
+### `web.access.count` — der Zähler, den der Nachtlauf rufen wird
+
+**Ein Aufruf für alle Abonnements**, aus demselben Grund wie bei
+`subscription.usage`: Ein Aufruf je Abonnement wäre bei hundert Abonnements
+hundert Vorgänge im Protokoll für eine Messung, die niemand ausgelöst hat. Die
+Operation nimmt deshalb kein Abonnement entgegen — es gibt nichts auszuwählen.
+
+**Welche Domains es gibt, weiss der Agent nicht — er findet sie.** Die
+Domainliste steht in der Datenbank des Panels. Er sieht stattdessen im
+Verzeichnis nach. Das ist nicht der Notbehelf, sondern das Richtigere: Gezählt
+wird, was dasteht, und nicht, was das Panel dort vermutet.
+
+**Gelesen werden zwei Dateien je Domain**, `access.log` und `access.log.1` — und
+das ist eine gemessene Entscheidung. Auf `cloudsrv24` steht `logrotate.timer`
+auf `OnCalendar=daily` mit `AccuracySec=1h`: Die Rotation ist kein Zeitpunkt,
+sondern ein **Fenster** von einer Stunde nach Mitternacht, in dem sich systemd
+einen Punkt sucht. Ein Nachtlauf in diesem Fenster träfe die Datei mal vor und
+mal nach dem Umbenennen.
+
+> **Ein Lauf, der von einer Uhrzeit abhängt, die selbst ein Fenster ist, misst
+> an manchen Tagen etwas anderes als an anderen.**
+
+Mit beiden Dateien ist die Reihenfolge gleichgültig. Die Pflicht, die daraus
+für den Aufrufer folgt, steht im Kopf der Operation: Er bekommt regelmässig auch
+Tage, die er schon hat, und muss je Tag **überschreiben statt addieren**.
+
+**Damit ist auch eine Begründung berichtigt, die geraten war.** In
+`Web\AccessLog` stand, die Rotation laufe „zu einer Uhrzeit". Die Folgerung —
+eine Datei trägt regelmässig zwei Kalendertage — stimmt weiterhin und stimmt
+sogar stärker; der Grund stimmte nicht.
+
+> **Eine richtige Folgerung aus einem falschen Grund hält nur so lange, wie
+> niemand den Grund nachprüft.**
+
+**Ein Budget, weil diese Operation anders als `repquota` mit dem Verkehr
+wächst.** Der Client gibt nach 300 s auf, und eine Operation, die darüber läuft,
+liefert dem Panel *nichts* — auch nicht die Domains, die sie längst gezählt hat.
+Das Budget macht daraus „das meiste, und es sagt, was fehlt": Was liegen bleibt,
+steht als `pending` im Ergebnis. Was das Budget **nicht** kann, steht in seinem
+eigenen Kopf: Es greift zwischen zwei Domains und nicht innerhalb einer Datei.
+
+**Die Wurzel kommt aus der Konstante und nie aus den Argumenten.** Das ist die
+erste Grenze und kein Stil — eine Operation, der man sagen kann, wo sie lesen
+soll, ist ein Leser für beliebige Dateien mit Systemrechten. `execute()` reicht
+ausschliesslich `VHOSTS` weiter; die Arbeit steht als öffentliche Statik daneben,
+damit ein Prüfstand eine eigene Wurzel setzen kann. Ein Wächter liest das am
+Quelltext nach, denn ein `root` im Argument würde heute stillschweigend ignoriert
+— und ein Test, der das zeigt, bliebe grün, wenn jemand die Zeile später einbaut.
+
+**Der Pfad `…/logs/…` steht jetzt an einer Stelle.** `Site::logsRootIn()` bildet
+ihn, `Site::logsRoot()` ruft sie mit der echten Wurzel, die Operation mit der
+des Prüfstands. Aufgefallen ist die Notwendigkeit am eigenen Prüfstand: Der baute
+den Pfad zuerst selbst zusammen und prüfte damit seine eigene Kopie.
+
+> **Ein Prüfstand, der den Pfad selbst zusammensetzt, prüft den Prüfstand.**
+
+Die Prüfkörper von `AccessCountTest` sind **gemessen**: Die Zeile des neuen
+Zeitalters ist die erste, die am 20. September 2026 auf `cloudsrv24` im neuen
+Format gelandet ist. Sie trägt `200 687 … 990 172` — 687 Bytes Rumpf, 990 Bytes
+auf der Leitung. Die 303 Bytes Unterschied sind der Kopf, und sie sind der ganze
+Grund, warum `$bytes_sent` im Format steht.

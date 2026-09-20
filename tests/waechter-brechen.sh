@@ -4568,6 +4568,285 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LogEraTest passed
 
 echo
+echo "── DiskCurveLayoutTest: das Messmittel sucht in einer anderen Wurzel ──"
+#
+# Zieht /var/www/vhosts um und das Messmittel nicht mit, findet `find` null
+# Dateien. Das Skript bricht nicht ab — es misst einen Tag lang eine Kurve
+# ohne Protokolle darin und liefert eine flache Linie ab.
+vorher_datei tests/plattenkurve-messen.sh
+python3 - <<'PY2'
+p = 'tests/plattenkurve-messen.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'VHOSTS=${VHOSTS:-/var/www/vhosts}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'VHOSTS=${VHOSTS:-/srv/vhosts}', 1))
+PY2
+griff_datei tests/plattenkurve-messen.sh "andere Wurzel" &&
+pruefe "andere Wurzel" \
+  DiskCurveLayoutTest::test_the_instrument_looks_at_the_real_vhost_root failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCurveLayoutTest passed
+
+echo
+echo "── DiskCurveLayoutTest: nur EINE der beiden Suchen bekommt die falsche Tiefe ──"
+#
+# Der Bruch trifft absichtlich nur die erste von zwei Stellen. Ein Waechter,
+# der bloss den ersten Treffer prueft, bliebe hier gruen — und das Messmittel
+# zaehlte dann Bytes ueber die eine Tiefe und Inoden ueber die andere.
+vorher_datei tests/plattenkurve-messen.sh
+python3 - <<'PY2'
+p = 'tests/plattenkurve-messen.sh'
+s = open(p, encoding='utf-8').read()
+alt = '-mindepth 4 -maxdepth 4'
+assert s.count(alt) == 2, 'Erwartet werden genau zwei Suchen'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '-mindepth 3 -maxdepth 3', 1))
+PY2
+griff_datei tests/plattenkurve-messen.sh "eine Suche mit falscher Tiefe" &&
+pruefe "eine Suche mit falscher Tiefe" \
+  DiskCurveLayoutTest::test_the_instrument_looks_at_the_real_depth failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCurveLayoutTest passed
+
+echo
+echo "── DiskCurveLayoutTest: das Protokoll zieht um, das Messmittel nicht ──"
+#
+# Die Gegenrichtung, und die eigentliche: Nicht die Kopie wird veraendert,
+# sondern das Original. Genau so entsteht der Fehler in Wirklichkeit — jemand
+# raeumt Site auf, und ein Skript in tests/ sucht weiter am alten Ort.
+vorher_datei agent/src/Site.php
+python3 - <<'PY2'
+p = 'agent/src/Site.php'
+s = open(p, encoding='utf-8').read()
+alt = "return $vhosts.'/'.$subscription.'/logs';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "return $vhosts.'/'.$subscription.'/var/logs';", 1))
+PY2
+griff_datei agent/src/Site.php "Protokollverzeichnis umgezogen" &&
+pruefe "Protokollverzeichnis umgezogen" \
+  DiskCurveLayoutTest::test_the_instrument_looks_at_the_real_depth failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCurveLayoutTest passed
+
+echo
+echo "── DiskCurveLayoutTest: die Datei heisst anders ──"
+#
+# `access_log` statt `access.log` — ein Unterstrich, und das Messmittel findet
+# nichts mehr. Auch hier nur die erste von zwei Stellen.
+vorher_datei tests/plattenkurve-messen.sh
+python3 - <<'PY2'
+p = 'tests/plattenkurve-messen.sh'
+s = open(p, encoding='utf-8').read()
+alt = '-name access.log'
+assert s.count(alt) == 2, 'Erwartet werden genau zwei Suchen'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '-name access_log', 1))
+PY2
+griff_datei tests/plattenkurve-messen.sh "Datei heisst anders" &&
+pruefe "Datei heisst anders" \
+  DiskCurveLayoutTest::test_the_instrument_looks_for_the_real_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCurveLayoutTest passed
+
+echo
+echo "── DiskCurveLayoutTest: die leere Platte gibt sich nicht mehr zu erkennen ──"
+#
+# Auf einem Server ohne Domains ist die Null keine Messung. Faellt der Satz
+# weg, sieht dieser Server aus wie eine ruhige Platte.
+vorher_datei tests/plattenkurve-messen.sh
+python3 - <<'PY2'
+p = 'tests/plattenkurve-messen.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'KEINE Zugriffsprotokolle gefunden'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'keine gefunden', 1))
+PY2
+griff_datei tests/plattenkurve-messen.sh "leere Platte ohne Hinweis" &&
+pruefe "leere Platte ohne Hinweis" \
+  DiskCurveLayoutTest::test_the_instrument_says_when_it_finds_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCurveLayoutTest passed
+
+echo
+echo "── AccessCountTest: nur die offene Datei wird gelesen ──"
+#
+# logrotate laeuft in einem Fenster und nicht zu einer Uhrzeit. Wer nur
+# access.log liest, bekommt an den Naechten, in denen schon rotiert war,
+# einen halben Tag — und an den anderen einen ganzen. Beides sieht gleich aus.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = 'foreach ([Site::ACCESS_LOG, Site::ROTATED_ACCESS_LOG] as $name) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'foreach ([Site::ACCESS_LOG] as $name) {', 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "nur die offene Datei" &&
+pruefe "nur die offene Datei" \
+  AccessCountTest::test_both_files_of_a_domain_are_added_up failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
+echo "── AccessCountTest: ein Punktverzeichnis gilt als Abonnement ──"
+#
+# Das Messmittel plattenkurve-messen.sh legt seinen Pruefkoerper als
+# .plattenkurve-probe.<pid> genau in dieser Wurzel ab. Ohne die Zeile stuende
+# er als Abonnement in der Auswertung — mit null Domains darin.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if (str_starts_with($eintrag, '.')) {\n                continue;\n            }"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            if ($eintrag === '.' || $eintrag === '..') {\n                continue;\n            }", 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "Punktverzeichnis als Abonnement" &&
+pruefe "Punktverzeichnis als Abonnement" \
+  AccessCountTest::test_a_dotted_directory_is_no_subscription failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
+echo "── AccessCountTest: das Budget verschweigt, was liegen blieb ──"
+#
+# Ein Ergebnis mit leerer Domainliste und leerer pending-Liste ist die
+# Auskunft "dieser Server hat keinen Verkehr". Sie waere falsch, und sie
+# waere nicht als falsch zu erkennen.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    $offen[] = ['subscription' => $abonnement, 'domain' => $domain];\n\n                    continue;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '                    continue;', 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "Budget verschweigt Liegengebliebenes" &&
+pruefe "Budget verschweigt Liegengebliebenes" \
+  AccessCountTest::test_an_exhausted_budget_leaves_the_rest_pending failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
+echo "── AccessCountTest: stille Domains fallen aus der Liste ──"
+#
+# Fuenf der sechs Domains auf cloudsrv24 hatten am Messtag keine Zeile.
+# Faellt so eine aus der Liste, ist "hat noch niemand aufgerufen" nicht mehr
+# von "wurde nicht gezaehlt" zu unterscheiden.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = '                $domains[] = self::domain($root, $abonnement, $domain);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                $gezaehlt = self::domain($root, $abonnement, $domain);\n\n                if ($gezaehlt['lines'] > 0) {\n                    $domains[] = $gezaehlt;\n                }", 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "stille Domains fallen heraus" &&
+pruefe "stille Domains fallen heraus" \
+  AccessCountTest::test_a_domain_without_a_log_is_still_reported failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
+echo "── AccessCountTest: die Wurzel kommt aus den Argumenten ──"
+#
+# Die erste Grenze, woertlich: Eine Operation, der man sagen kann, wo sie
+# lesen soll, ist ein Leser fuer beliebige Dateien mit Systemrechten. Der
+# Eingriff sieht harmlos aus — er gibt einem Aufrufer "nur" eine Wahl.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = '$zaehlung = self::overRoot(self::VHOSTS, $ende,'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$zaehlung = self::overRoot(is_string($args['root'] ?? null) ? $args['root'] : self::VHOSTS, $ende,", 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "Wurzel aus den Argumenten" &&
+pruefe "Wurzel aus den Argumenten" \
+  AccessCountTest::test_the_root_never_comes_from_the_arguments failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
+echo "── AccessCountTest: die Operation baut den Pfad selbst ──"
+#
+# Zwei Stellen, die dieselbe Zeichenkette bilden, sind kein Fehler — sie
+# sind einer, der auf seinen Tag wartet. Der Tag ist der, an dem jemand
+# Site aufraeumt.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $verzeichnis = Site::logsRootIn($root, $abonnement).'/'.$domain;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        $verzeichnis = $root.'/'.$abonnement.'/logs/'.$domain;", 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "Pfad in der Operation gebaut" &&
+pruefe "Pfad in der Operation gebaut" \
+  AccessCountTest::test_the_operation_does_not_build_the_path_itself failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
+echo "── AccessCountTest: eine Spalte fehlt in der Summe ──"
+#
+# Ohne unreadable in der Summe meldet der Nachtlauf eine saubere Nacht,
+# waehrend eine Domain nur noch Unrat schreibt.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = "            foreach (['files', 'lines', 'parsed', 'legacy', 'unreadable'] as $feld) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            foreach (['files', 'lines', 'parsed', 'legacy'] as $feld) {", 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "Spalte fehlt in der Summe" &&
+pruefe "Spalte fehlt in der Summe" \
+  AccessCountTest::test_the_totals_add_up_over_all_domains failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
+echo "── AccessCountTest: die Summe verschweigt das Liegengebliebene ──"
+#
+# Eine Zeile "0 Domains" sieht aus wie ein ruhiger Server. Ohne pending in der
+# Summe ist sie von "vierzig ungezaehlt liegen geblieben" nicht zu
+# unterscheiden — keine Fehlermeldung, nur eine Zahl.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = "'pending' => count($offen), "
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'pending' => 0, ", 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "Summe verschweigt Liegengebliebenes" &&
+pruefe "Summe verschweigt Liegengebliebenes" \
+  AccessCountTest::test_an_exhausted_budget_leaves_the_rest_pending failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
+echo "── AccessCountTest: die Operation ist gar nicht registriert ──"
+#
+# Der Fall, den zwei einander ergaenzende Waechter beide nicht sehen:
+# AgentOperationReachTest prueft, dass jeder gesendete Name existiert und dass
+# jede registrierte Operation gerufen wird. Eine Operation, die nicht
+# registriert ist, kommt in keiner der beiden Richtungen vor.
+vorher_datei agent/src/Registry.php
+python3 - <<'PY2'
+p = 'agent/src/Registry.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $this->register(new WebAccessCount);\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Registry.php "Operation nicht registriert" &&
+pruefe "Operation nicht registriert" \
+  AccessCountTest::test_the_agent_knows_the_operation_by_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
 echo "── DefinerStripTest: der Filter fasst auch Datenzeilen an ──"
 #
 # Ein blindes Suchen-und-Ersetzen über den ganzen Dump verändert Nutzdaten. Eine

@@ -4617,10 +4617,10 @@ vorher_datei agent/src/Site.php
 python3 - <<'PY2'
 p = 'agent/src/Site.php'
 s = open(p, encoding='utf-8').read()
-alt = "return $this->subscriptionRoot().'/logs/'.$this->domain;"
+alt = "return $vhosts.'/'.$subscription.'/logs';"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(
-    s.replace(alt, "return $this->subscriptionRoot().'/var/logs/'.$this->domain;", 1))
+    s.replace(alt, "return $vhosts.'/'.$subscription.'/var/logs';", 1))
 PY2
 griff_datei agent/src/Site.php "Protokollverzeichnis umgezogen" &&
 pruefe "Protokollverzeichnis umgezogen" \

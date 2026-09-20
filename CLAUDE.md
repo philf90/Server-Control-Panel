@@ -5310,6 +5310,44 @@ ist die einzige; alles andere steht für sich.
 > **Eine Entscheidung, die eine Messung vorwegnimmt, ist keine Entscheidung —
 > sie ist eine Messung, die niemand gefahren hat.**
 
+## Die Nachtkette auf `cloudsrv24` — gemessen am 20. September 2026
+
+`docs/129 §10` Punkt 1 ist damit beantwortet. Gemessen mit `systemctl
+list-timers --all` und `systemctl cat`, nicht erinnert.
+
+| Zeit (CEST) | Timer | Form |
+|---|---|---|
+| 00:00 | **logrotate** (System) | `OnCalendar=daily`, `AccuracySec=1h` |
+| 00:06 | `srvpanel-tls` | |
+| 00:12 | `srvpanel-backup-verify` | |
+| 00:44 | `srvpanel-diagnose` | `OnCalendar=daily`, `RandomizedDelaySec=1h` |
+| 01:31 | `srvpanel-backups` | |
+
+Tagsüber: `cron` alle 5 min, `usage` und `dns` alle 15 min, `packages`
+stündlich. **Acht Timer des Panels**, die Rotation gehört nicht dazu — sie
+kommt über `/etc/logrotate.d` und läuft am System-Timer.
+
+**Die Spalte rechts ist der ganze Befund.** Die Uhrzeiten links sind je *eine*
+Stichprobe von Timern, die streuen: `logrotate` mit `AccuracySec=1h`,
+`srvpanel-diagnose` mit `RandomizedDelaySec=1h`. Beide liegen irgendwo in
+`[00:00, 01:00)`, und zwar an jedem Tag woanders.
+
+> **Was in `list-timers` wie eine Lücke von 32 Minuten aussieht, ist die
+> Stichprobe zweier Würfel — und keine Zusage.**
+
+Das hat eine eigene Planung umgeworfen: Der nächtliche Lauf von B2 sollte „in
+die Lücke zwischen 00:12 und 00:44". Es gibt keine Lücke. Die Folge steht im
+Kopf von {@see WebAccessCount}: Der Lauf liest `access.log` **und**
+`access.log.1` und ist damit von der Rotationszeit unabhängig — und sein
+Aufrufer muss je Tag überschreiben statt addieren, weil er regelmässig Tage
+bekommt, die er schon hat.
+
+**Und `rotate 14` steht schon da.** `WebLogrotate` schreibt `daily`, `rotate
+14`, `delaycompress` und `create 0640 <benutzer> adm` nach `/etc/logrotate.d`,
+seit es die Operation gibt. Entscheidung 4 („roh 14 Tage") ist damit nicht
+umzusetzen, sondern bereits erfüllt — nachgesehen in der Vorlage, nicht
+angenommen.
+
 ## Befehle
 
 ```bash

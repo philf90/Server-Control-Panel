@@ -134,10 +134,20 @@ final class AccessLog
      * Eine ganze Datei, gezählt nach Tagen.
      *
      * **Gruppiert wird nach dem Tag in der Zeile und nicht nach der Datei.**
-     * `access.log.1` ist der Ertrag einer Rotation, und die läuft zu einer
-     * Uhrzeit und nicht um Mitternacht — die Datei trägt deshalb regelmässig
-     * zwei Kalendertage. Wer sie als „einen Tag" zählt, schiebt jede Nacht ein
-     * Stück Verkehr auf das falsche Datum.
+     * `access.log.1` ist der Ertrag einer Rotation, und die läuft nicht um
+     * Mitternacht — die Datei trägt deshalb regelmässig zwei Kalendertage. Wer
+     * sie als „einen Tag" zählt, schiebt jede Nacht ein Stück Verkehr auf das
+     * falsche Datum.
+     *
+     * **Der Grund dafür stand hier zuerst falsch.** „Sie läuft zu einer
+     * Uhrzeit" — nachgemessen am 20. September 2026 auf `cloudsrv24` steht
+     * `logrotate.timer` auf `OnCalendar=daily` mit `AccuracySec=1h`. Das ist
+     * keine Uhrzeit, sondern ein **Fenster** von einer Stunde nach Mitternacht,
+     * und systemd sucht sich darin einen Punkt. Die Folgerung stimmt damit
+     * weiterhin, sie stimmt sogar stärker; die Begründung war geraten.
+     *
+     * > **Eine richtige Folgerung aus einem falschen Grund hält nur so lange,
+     * > wie niemand den Grund nachprüft.**
      *
      * @return array{
      *     days: array<string, array{requests:int, sent:int, received:int, errors:int}>,

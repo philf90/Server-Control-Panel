@@ -7,6 +7,7 @@ namespace SrvPanel\Agent;
 use SrvPanel\Agent\Acme\CertificateName;
 use SrvPanel\Agent\Acme\Trust;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
+use SrvPanel\Agent\Ops\WebAccessCount;
 
 /**
  * Eine Website, wie der Agent sie kennt — und die **einzige** Stelle, an der
@@ -39,6 +40,29 @@ final class Site
      * angefasst.
      */
     public const INCLUDE_FILE = '/etc/nginx/conf.d/srvpanel-sites.conf';
+
+    /**
+     * Wie das Zugriffsprotokoll einer Domain heisst — an einer Stelle.
+     *
+     * Der Name steht ab jetzt dreimal im Repo: hier, im Server-Block, den
+     * {@see SiteTemplate} schreibt, und in der Suche von
+     * `tests/plattenkurve-messen.sh`. Zwei davon sind Kopien, und eine Kopie,
+     * die niemand nachzieht, ist der häufigste Fehler dieses Projekts. Sie
+     * lesen deshalb hier, und `DiskCurveLayoutTest` rechnet die dritte gegen
+     * diese aus.
+     */
+    public const ACCESS_LOG = 'access.log';
+
+    /**
+     * Und wie sie nach der Rotation heisst.
+     *
+     * `logrotate` benennt um und legt neu an; `delaycompress` sorgt dafür, dass
+     * genau die **erste** alte Datei noch unkomprimiert daliegt. Weiter zurück
+     * (`.2.gz`) liegt Komprimiertes, das ein Zähler nicht ohne Weiteres liest —
+     * und nicht muss: Diese beiden Dateien zusammen tragen immer den ganzen
+     * gestrigen Tag, gleichgültig, wann in der Nacht rotiert wurde.
+     */
+    public const ROTATED_ACCESS_LOG = self::ACCESS_LOG.'.1';
 
     /** Mehr Aliasse hat keine Domain, und `server_name` bliebe lesbar. */
     public const MAX_ALIASES = 20;
@@ -177,15 +201,47 @@ final class Site
             : $this->subscriptionRoot().'/'.$this->documentRoot;
     }
 
+    /**
+     * Wo die Protokolle eines Abonnements liegen — ohne dass dafür ein ganzer
+     * {@see Site} entstehen muss.
+     *
+     * Gebraucht wird das von {@see WebAccessCount}: Der Zähler läuft über alle
+     * Abonnements und kennt dabei keine einzige Domain, er findet sie erst
+     * hier im Verzeichnis. Ohne diesen Einstieg stünde der Pfad dort ein
+     * zweites Mal — und `logDir()` unten wäre nicht mehr die Stelle, die ihn
+     * bestimmt, sondern eine von zweien.
+     */
+    public static function logsRoot(string $subscription): string
+    {
+        return self::logsRootIn(SubscriptionProvision::VHOSTS, $subscription);
+    }
+
+    /**
+     * Dasselbe, aber unter einer angegebenen Wurzel.
+     *
+     * **Das ist keine zweite Definition, sondern die einzige.** `logsRoot()`
+     * darüber ruft sie mit der echten Wurzel; {@see WebAccessCount} ruft sie
+     * beim Prüfen mit einem Prüfstand. Stünde der Aufbau `…/logs/…` dort ein
+     * zweites Mal, prüfte der Prüfstand seine eigene Kopie und nicht den Weg,
+     * den der Agent geht.
+     *
+     * > **Ein Prüfstand, der den Pfad selbst zusammensetzt, prüft den
+     * > Prüfstand.**
+     */
+    public static function logsRootIn(string $vhosts, string $subscription): string
+    {
+        return $vhosts.'/'.$subscription.'/logs';
+    }
+
     /** Das Protokollverzeichnis dieser Domain (§4.5: `logs/<domain>/`). */
     public function logDir(): string
     {
-        return $this->subscriptionRoot().'/logs/'.$this->domain;
+        return self::logsRoot($this->subscription).'/'.$this->domain;
     }
 
     public function accessLog(): string
     {
-        return $this->logDir().'/access.log';
+        return $this->logDir().'/'.self::ACCESS_LOG;
     }
 
     public function errorLog(): string

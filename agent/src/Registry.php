@@ -112,6 +112,7 @@ use SrvPanel\Agent\Ops\SystemSourcesList;
 use SrvPanel\Agent\Ops\SystemSourcesToggle;
 use SrvPanel\Agent\Ops\SystemTime;
 use SrvPanel\Agent\Ops\SystemUnitsList;
+use SrvPanel\Agent\Ops\WebAccessCount;
 use SrvPanel\Agent\Ops\WebIsolationProbe;
 use SrvPanel\Agent\Ops\WebLogrotate;
 use SrvPanel\Agent\Ops\WebLogsTail;
@@ -231,6 +232,7 @@ final class Registry
         $this->register(new SystemCron);
 
         $this->register(new WebLogrotate);
+        $this->register(new WebAccessCount);
         $this->register(new WebIsolationProbe);
         $this->register(new PhpVersionList);
         $this->register(new PhpVersionInstall);

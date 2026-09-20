@@ -30626,3 +30626,40 @@ sondern der Wächter:** Ein Ausdruck, der weniger trifft, meldet zu viel, wenn
 sein Befund am fehlenden Treffer hängt, und zu wenig, wenn er am Treffer hängt.
 Der dritte Eingriff im Bruchskript schaltet den Anführungszustand aus und belegt
 beides an dieser einen Stelle.
+
+### Neun Überschriften des Bruchskripts riefen eine Funktion, die es nicht gibt
+
+`abschnitt "…"` ist am 18. September als Kurzform für eine
+Abschnittsüberschrift entstanden — **ohne Definition**. Neun Stellen riefen sie,
+bash meldete neunmal `command not found` und lief weiter, und der Lauf zählte
+seine 2632 Prüfungen wie sonst auch.
+
+> **Ein Skript, das eine Zeile nicht ausführen kann, läuft weiter — und die
+> Meldung darüber steht neben der Bilanz und nicht darin.**
+
+**Kein bestehendes Mittel konnte es sehen.** `bash -n` prüft die Form und nicht,
+ob es den Befehl gibt; shellcheck kann einen Namen nicht nachschlagen; und
+`test_no_heading_swallows_the_intervention_below_it` liest ausschliesslich
+Zeilen, die mit `echo "` beginnen. Für ihn gab es die neun nicht — und seine
+Untergrenze von 50 war durch die 1100 richtig geschriebenen längst erfüllt.
+
+> **Eine Untergrenze, die die Mehrheit erfüllt, sieht eine zweite Schreibweise
+> nicht — sie zählt ja weiter genug.**
+
+Behoben ist es, indem die zweite Schreibweise verschwindet: Die neun Zeilen
+tragen jetzt dieselbe Form wie die 1109 anderen, und damit stehen ihre
+Abschnitte wieder unter beiden Wächtern, die Überschriften lesen.
+`test_every_helper_the_script_calls_is_defined` hält seitdem, dass ein Wort am
+Zeilenanfang vor einer Zeichenkette entweder `echo`, `printf`, eine Eingebaute
+oder eine Funktion dieses Skripts ist.
+
+### Und ein Eingriff zeigte auf den falschen Fall
+
+Derselbe Lauf hat den einzigen Eingriff ohne Biss gemeldet.
+`test_off_is_not_an_intention` misst seinen **eigenen** Prüfkörper und liest den
+Baum gar nicht; ein `autocomplete="off"` in einer `.vue` kann ihn nicht rot
+machen. Rot wird davon die Regel über den Baum. Beim Einzelbeleg war über die
+**Klasse** gefiltert und `Failures: 1` gelesen worden.
+
+> **Ein Lauf über die ganze Klasse sagt, dass ein Fall rot war — nicht,
+> welcher.**

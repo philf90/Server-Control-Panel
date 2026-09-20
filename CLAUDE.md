@@ -4932,6 +4932,35 @@ einem Ausdruck über PHP die Kommentare abstreift.
 > falsches Rot oder ein falsches Grün wird, entscheidet, ob der Befund am
 > Treffer hängt oder an seinem Fehlen.**
 
+**Und der volle Bruchlauf hat zwei eigene Fehler gefunden** — 2632 Prüfungen,
+einer ohne Biss. Der Eingriff zeigte auf einen Fall, den er gar nicht erreichen
+kann: `test_off_is_not_an_intention` misst seinen **eigenen** Prüfkörper und
+liest den Baum nicht. Einzeln belegt worden war er über einen Filter auf die
+**Klasse**.
+
+> **Ein Lauf über die ganze Klasse sagt, dass ein Fall rot war — nicht,
+> welcher.** Ein Eingriff wird gegen **seinen** Fall gefahren, ein Lauf je
+> Eingriff.
+
+Der zweite ist älter: `abschnitt "…"` steht seit dem 18. September neunmal im
+Bruchskript, **und die Funktion gibt es nicht**. bash meldet `command not
+found`, läuft weiter, und die Bilanz zählt wie sonst. Gesehen hat es keiner der
+Wächter — `test_no_heading_swallows_the_intervention_below_it` liest nur Zeilen,
+die mit `echo "` beginnen, und seine Untergrenze von 50 war durch die 1100
+richtig geschriebenen längst erfüllt.
+
+> **Ein Skript, das eine Zeile nicht ausführen kann, läuft weiter — und die
+> Meldung darüber steht neben der Bilanz und nicht darin.**
+
+> **Eine Untergrenze, die die Mehrheit erfüllt, sieht eine zweite Schreibweise
+> nicht — sie zählt ja weiter genug.**
+
+Behoben, indem die zweite Schreibweise verschwindet, und gehalten von
+`BreakScriptTest::test_every_helper_the_script_calls_is_defined`: Ein Wort am
+Zeilenanfang vor einer Zeichenkette ist `echo`, `printf`, eine Eingebaute oder
+eine Funktion dieses Skripts. Gebrochen wurde er **von Hand** — sein Bruch
+stünde in der einen Datei, die der Rückweg zu Recht auslässt.
+
 **Offen und benannt:** `/settings/backups` trägt zwei Kästchen ohne `id` und
 ohne `name`; der Nachbau sagt dafür **2**, `docs/119 §8` hat dort `No issues`
 gelesen. Chromium 141 im Container gegen den Browser des Betreibers, und ob die

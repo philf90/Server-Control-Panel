@@ -257,13 +257,58 @@ Entwurfsfragen und keine mechanischen Behebungen:
 
 ---
 
+## 7 · Der volle Bruchlauf — und was er an den drei Eingriffen fand
+
+**2632 Prüfungen, eine ohne Biss**, und sie war meine. Einzeln hatten alle drei
+gebissen; im Lauf nicht.
+
+**Der Eingriff zeigte auf den falschen Fall.** `test_off_is_not_an_intention`
+misst seinen **eigenen** Prüfkörper und liest den Baum gar nicht — ein
+`autocomplete="off"` in `DnsCredentials.vue` kann ihn nicht rot machen. Rot
+wird davon die Regel über den Baum,
+`test_every_password_field_names_its_purpose`. Beim Einzelbeleg hatte ich über
+die **Klasse** gefiltert und `Failures: 1` gelesen.
+
+> **Ein Lauf über die ganze Klasse sagt, dass ein Fall rot war — nicht, welcher.**
+
+Jeder der drei Eingriffe ist seitdem gegen **seinen** Fall belegt, ein Lauf je
+Eingriff.
+
+**Und der Lauf hat einen zweiten Fehler gefunden, der älter ist.** Neunmal stand
+im Protokoll `tests/waechter-brechen.sh: line …: abschnitt: command not found`:
+`abschnitt "…"` ist am 18. September als Kurzform für eine Abschnittsüberschrift
+entstanden, **ohne dass es die Funktion gibt** — sechs Stellen von damals, drei
+von heute. bash meldet, läuft weiter, und die Bilanz zählt ihre Prüfungen wie
+sonst.
+
+> **Ein Skript, das eine Zeile nicht ausführen kann, läuft weiter — und die
+> Meldung darüber steht neben der Bilanz und nicht darin.**
+
+**Kein Mittel konnte es sehen.** `bash -n` prüft die Form, shellcheck kann einen
+Namen nicht nachschlagen, und
+`BreakScriptTest::test_no_heading_swallows_the_intervention_below_it` liest
+ausschliesslich Zeilen, die mit `echo "` beginnen — die neun waren für ihn gar
+nicht da. Seine Untergrenze von 50 war durch die 1100 richtig geschriebenen
+längst erfüllt.
+
+> **Eine Untergrenze, die die Mehrheit erfüllt, sieht eine zweite Schreibweise
+> nicht — sie zählt ja weiter genug.**
+
+Behoben ist es, indem die zweite Schreibweise **verschwindet**: Die neun Zeilen
+tragen jetzt dieselbe Form wie die 1109 anderen. Und
+`BreakScriptTest::test_every_helper_the_script_calls_is_defined` hält es —
+gebrochen von Hand, weil sein Bruch in der einen Datei stünde, die der Rückweg
+zu Recht auslässt.
+
+---
+
 ## 7 · Bilanz
 
 | | |
 |---|---|
 | Punkt 1 aus vier Dokumenten | **geschlossen** |
 | Befund am Prüfling | **keiner** |
-| Befund am Prüfmittel | **einer** — der erste Leser dieses Tages (§4) |
+| Befund am Prüfmittel | **drei** — der erste Leser dieses Tages (§4), der Eingriff auf dem falschen Fall und die undefinierte Kurzform (§7) |
 | gebaut | `PasswordAutocompleteTest` mit drei Eingriffen |
 | gemessen und offen | die Abweichung auf `/settings/backups` (§5) |
 | benannt und nicht gebaut | zwei unbeschriftete Bedienelemente (§6) |

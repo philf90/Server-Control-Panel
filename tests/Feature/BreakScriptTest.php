@@ -897,6 +897,107 @@ final class BreakScriptTest extends TestCase
     }
 
     /**
+     * Jeder Helfer, den das Skript ruft, ist auch einer.
+     *
+     * ## Der Anlass
+     *
+     * Am 18. September 2026 ist `abschnitt "…"` als Kurzform für eine
+     * Abschnittsüberschrift entstanden — **ohne dass es die Funktion gibt**.
+     * Neun Stellen riefen sie, bash meldete neunmal `command not found` und lief
+     * weiter, und der Lauf zählte seine Prüfungen wie sonst auch.
+     *
+     * > **Ein Skript, das eine Zeile nicht ausführen kann, läuft weiter — und
+     * > die Meldung darüber steht neben der Bilanz und nicht darin.**
+     *
+     * **Kein bestehendes Mittel konnte es sehen.** `bash -n` prüft die Form und
+     * nicht, ob es den Befehl gibt; shellcheck kann einen Namen nicht
+     * nachschlagen; und
+     * {@see self::test_no_heading_swallows_the_intervention_below_it()} liest
+     * ausschliesslich Zeilen, die mit `echo "` beginnen — die neun waren für ihn
+     * gar nicht da. Seine Untergrenze von 50 war durch die 1100 richtig
+     * geschriebenen längst erfüllt.
+     *
+     * > **Eine Untergrenze, die die Mehrheit erfüllt, sieht eine zweite
+     * > Schreibweise nicht — sie zählt ja weiter genug.**
+     *
+     * ## Was er prüft
+     *
+     * Eine Zeile, die mit einem nackten Wort und einer Zeichenkette beginnt, ist
+     * ein Aufruf eines Helfers dieses Skripts. Erlaubt sind `echo`, `printf` und
+     * jede Funktion, die das Skript selbst definiert — sonst nichts.
+     *
+     * **Die Rümpfe der Here-Dokumente bleiben aussen vor:** Dort steht Python,
+     * und dessen Zeilen fangen genauso mit kleingeschriebenen Wörtern an.
+     *
+     * ## Warum es zu dieser Regel keinen Eingriff im Skript gibt
+     *
+     * Ihr Bruch steht in `tests/waechter-brechen.sh` selbst, und genau diese
+     * Datei nimmt der Rückweg zu Recht aus (`$SELBST`) — derselbe Grund wie bei
+     * {@see self::test_every_touched_file_lies_on_the_way_back()}. Gebrochen
+     * wurde sie deshalb **von Hand**, am 20. September 2026: eine Überschrift
+     * zurück auf `abschnitt "…"`, gemeldet als *Zeile 31244: abschnitt*, und
+     * nach dem Zurücksetzen wieder grün.
+     */
+    public function test_every_helper_the_script_calls_is_defined(): void
+    {
+        $zeilen = explode("\n", (string) file_get_contents($this->root().'/tests/waechter-brechen.sh'));
+
+        // `cd` und `exit` sind Eingebaute der Shell und keine Helfer — sie
+        // stehen je einmal im Skript, am Anfang und am Ende.
+        $definiert = ['echo', 'printf', 'cd', 'exit'];
+
+        foreach ($zeilen as $zeile) {
+            if (preg_match('/^([a-z_][a-z0-9_]*)\(\)/', $zeile, $treffer) === 1) {
+                $definiert[] = $treffer[1];
+            }
+        }
+
+        $gerufen = 0;
+        $fehlend = [];
+        $marke = null;
+
+        foreach ($zeilen as $nummer => $zeile) {
+            // Im Rumpf eines Here-Dokuments steht kein Shell-Befehl.
+            if ($marke !== null) {
+                if (rtrim($zeile) === $marke) {
+                    $marke = null;
+                }
+
+                continue;
+            }
+
+            if (preg_match("/<<\s*'([A-Za-z0-9_]+)'/", $zeile, $treffer) === 1) {
+                $marke = $treffer[1];
+
+                continue;
+            }
+
+            if (preg_match('/^([a-z_][a-z0-9_]*) "/', $zeile, $treffer) !== 1) {
+                continue;
+            }
+
+            $gerufen++;
+
+            if (! in_array($treffer[1], $definiert, true)) {
+                $fehlend[] = sprintf('Zeile %d: %s', $nummer + 1, $treffer[1]);
+            }
+        }
+
+        // Die Untergrenze zählt, wo die Regel stehen *darf* — und sie zählt
+        // jeden Aufruf und nicht nur die Überschriften, damit sie nicht wieder
+        // von einer Mehrheit erfüllt wird, die eine zweite Schreibweise deckt.
+        $this->assertGreaterThan(500, $gerufen,
+            'Es werden kaum Aufrufe gelesen — dann prüft dieser Test nichts.');
+
+        $this->assertSame([], $fehlend, sprintf(
+            'Diese Zeilen rufen einen Helfer, den das Skript nicht definiert. bash meldet '
+            .'`command not found`, läuft weiter, und der Abschnitt darunter verliert seine '
+            ."Überschrift:\n\n  %s",
+            implode("\n  ", array_slice($fehlend, 0, 12)),
+        ));
+    }
+
+    /**
      * Jede angefasste Datei liegt im Rückweg.
      *
      * **Der Anlass ist der erste Lauf dieses Skripts an einem Pull Request.**

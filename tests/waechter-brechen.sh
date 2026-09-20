@@ -31116,7 +31116,7 @@ pruefe "  … zurückgesetzt wieder grün" BackupColumnTest passed
 
 # ── Der Nachlauf zu 0.7.4-rc.16 (docs/123 §9) ──────────────────────────────
 
-abschnitt "ConfirmationVerbTest: der Satz steht wieder auf dem Knopf"
+echo "── ConfirmationVerbTest: der Satz steht wieder auf dem Knopf ──"
 vorher_datei resources/js/Pages/Subscriptions/Backups.vue
 python3 - <<'PY'
 import pathlib
@@ -31136,7 +31136,7 @@ pruefe "Satz auf dem Knopf" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ConfirmationVerbTest passed
 
-abschnitt "ConfirmationVerbTest: dem Leser den Gegenstand nehmen"
+echo "── ConfirmationVerbTest: dem Leser den Gegenstand nehmen ──"
 vorher_datei resources/js/Pages/Subscriptions/Sftp.vue
 python3 - <<'PY'
 import pathlib, re
@@ -31159,7 +31159,7 @@ pruefe "Gegenstand genommen" \
   ConfirmationVerbTest::test_every_confirmation_names_a_verb_on_its_button failed
 wiederherstellen
 
-abschnitt "BackupControlStateTest: der Entfernen-Knopf verliert sein v-if"
+echo "── BackupControlStateTest: der Entfernen-Knopf verliert sein v-if ──"
 vorher_datei resources/js/Pages/Subscriptions/Backups.vue
 python3 - <<'PY'
 import pathlib
@@ -31174,7 +31174,7 @@ pruefe "Knopf ohne v-if" \
   BackupControlStateTest::test_a_removal_control_stands_behind_the_running_state failed
 wiederherstellen
 
-abschnitt "BackupControlStateTest: die zweite Liste vergisst es"
+echo "── BackupControlStateTest: die zweite Liste vergisst es ──"
 vorher_datei resources/js/Pages/Subscriptions/BackupPick.vue
 python3 - <<'PY'
 import pathlib
@@ -31190,7 +31190,7 @@ pruefe "zweite Liste ohne v-if" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupControlStateTest passed
 
-abschnitt "QuotaDisplayTest: unbegrenzt für jedes Kontingent"
+echo "── QuotaDisplayTest: unbegrenzt für jedes Kontingent ──"
 vorher_datei app/Support/Plans/Quotas.php
 python3 - <<'PY'
 import pathlib
@@ -31205,7 +31205,7 @@ pruefe "unbegrenzt für alle" \
   QuotaDisplayTest::test_unlimited_is_only_said_where_it_is_allowed failed
 wiederherstellen
 
-abschnitt "QuotaDisplayTest: das Wort ganz abgeschafft"
+echo "── QuotaDisplayTest: das Wort ganz abgeschafft ──"
 vorher_datei app/Support/Plans/Quotas.php
 python3 - <<'PY'
 import pathlib
@@ -31221,7 +31221,7 @@ pruefe "unbegrenzt abgeschafft" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" QuotaDisplayTest passed
 
-abschnitt "PasswordAutocompleteTest: ein Passwortfeld ohne autocomplete"
+echo "── PasswordAutocompleteTest: ein Passwortfeld ohne autocomplete ──"
 #
 # Zehn der dreizehn Passwortfelder dieses Panels tragen `new-password`, damit
 # der Passwortspeicher einen DNS-Token nicht fuer die Panelanmeldung haelt.
@@ -31241,7 +31241,7 @@ pruefe "Passwortfeld ohne autocomplete" \
   PasswordAutocompleteTest::test_every_password_field_names_its_purpose failed
 wiederherstellen
 
-abschnitt "PasswordAutocompleteTest: off statt der Absicht"
+echo "── PasswordAutocompleteTest: off statt der Absicht ──"
 #
 # Die zweite Haelfte der Regel. `off` ist an einem Passwortfeld keine Angabe,
 # sondern eine, die die Browser seit Jahren uebergehen — ein Waechter ueber
@@ -31257,10 +31257,10 @@ p.write_text(s.replace(alt, 'autocomplete="off"', 1))
 PY
 griff_datei resources/js/Components/DnsCredentials.vue "off statt der Absicht" &&
 pruefe "off statt der Absicht" \
-  PasswordAutocompleteTest::test_off_is_not_an_intention failed
+  PasswordAutocompleteTest::test_every_password_field_names_its_purpose failed
 wiederherstellen
 
-abschnitt "PasswordAutocompleteTest: der Leser hoert am ersten Winkel auf"
+echo "── PasswordAutocompleteTest: der Leser hoert am ersten Winkel auf ──"
 #
 # Der Eingriff, der den Anfuehrungszustand des Lesers ausschaltet. Er belegt,
 # dass der Zerleger traegt und kein Feinschliff ist: Ohne ihn meldet der

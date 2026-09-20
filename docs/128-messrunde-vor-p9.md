@@ -178,14 +178,28 @@ Entscheidung vorsieht: Es gibt nichts zu entscheiden.
 | was der Kunde angefragt hat (`request_length`) | **96 B** |
 | **je Anfrage ungezählt** | **344 B** |
 
-Bei einer 1-KB-Antwort fehlen 25 %. Bei einem `304 Not Modified` — dem
-häufigsten Fall auf einer Website mit Wiederbesuchern — steht in der Zeile eine
-**Null**, während Kopfzeilen über die Leitung gehen.
+Bei einer 1-KB-Antwort fehlen 25 %. **Und der häufigste Fall auf einer Website
+mit Wiederbesuchern ist der schlimmste** — gemessen an derselben Datei, einmal
+voll und einmal mit passendem `If-None-Match`:
 
-**Die Gegenprobe zeigt zugleich den Ausweg:** Ein eigenes `log_format` mit
-`$request_length` liefert die fehlende Hälfte in derselben Zeile. Es kostet eine
-Zeile in `SiteTemplate` — und eine Rotation aller Bestandsdateien, denn alte und
-neue Zeilen wären sonst verschieden gebaut.
+| | `body_bytes_sent` | `bytes_sent` | `request_length` |
+|---|---|---|---|
+| `200` voller Abruf | 1000 | **1248** | 96 |
+| **`304 Not Modified`** | **0** | **189** | 111 |
+
+Ein `304` schreibt eine **Null** in die Zeile, während 189 Byte hinaus- und
+111 hereingehen. Ein Zähler über `combined` zählt einen wiederkehrenden
+Besucher als **nichts**.
+
+**Die Gegenprobe zeigt zugleich den Ausweg, und er kostet keine Rechnerei:**
+nginx führt **`$bytes_sent`** — den ganzen gesendeten Umfang samt Kopfzeilen.
+Gemessen ist er 1248 gegen die 1248, die `curl` gesehen hat (1000 Körper +
+248 Kopf). Zusammen mit `$request_length` steht damit beides in derselben
+Zeile, ohne dass irgendwo eine Kopfzeilengrösse geschätzt wird.
+
+Es kostet eine Zeile in `SiteTemplate` — und einen Übergang: Alte Zeilen haben
+acht Felder, neue neun. Ein Nachtlauf, der beide liest, muss das sehen; ein
+Nachtlauf, der erst nach der ersten Rotation anfängt, muss es nicht.
 
 ### Was M2 nicht sagt
 
@@ -638,7 +652,8 @@ Keines davon ist im Container zu beantworten, und keines darf geschätzt werden:
 - **§6.2 M4 sagt, das Format sei „unsere Zeile und nicht nginx' Vorgabe".** Es
   ist nginx' Vorgabe: `log_format` steht nirgends im Repo, und `access_log`
   trägt nur einen Pfad. Die Folge ist nicht kosmetisch — `combined` zählt den
-  Rumpf ohne Kopfzeilen, und damit hängt M2 daran.
+  Rumpf ohne Kopfzeilen, und bei einem `304` zählt es **null**, während
+  189 Byte hinausgehen. Damit hängt M2 daran.
 - **§6.2 M2 führt nftables-Zähler als zweiten Kandidaten.** Sie können
   Website-Verkehr nicht zuordnen, weil nginx jede Domain als `www-data`
   bedient. Die daran hängende Entscheidung aus **§6.3** („ob Traffic aus den
@@ -687,3 +702,21 @@ vier Messungen ausgesehen.
 
 > **Drei Fehlschläge nebeneinander belegen nichts. Erst der Erfolg daneben sagt,
 > dass das Werkzeug funktioniert und der Prüfling geantwortet hat.**
+
+**Ein fünftes Mal hat es keine Gegenprobe gefangen, sondern shellcheck.** In
+`tests/zugriffsprotokoll-messen.sh` stand
+
+    php -r '…' REPO="$REPO"
+
+— das übergibt `REPO=` als **Argument** an das PHP-Skript und nicht als
+Umgebungsvariable. `getenv("REPO")` lieferte `false`, der Pfad zum Autoloader
+war falsch, und gearbeitet hat allein der Rückfall dahinter, den ein
+`2>/dev/null` stumm gemacht hatte. Die Vorschrift lieferte die ganze Zeit
+richtige Zahlen — über einen Weg, den niemand gemeint hatte.
+
+> **Ein Rückfall, der immer greift, ist kein Rückfall, sondern der Hauptweg —
+> und er verbirgt, dass der gemeinte nie gelaufen ist.**
+
+`bash -n` hat dazu nichts gesagt; es beantwortet „parst es" und nicht „stimmt
+es". Der Aufruf steht in `CLAUDE.md` und ist einmal Kopieren:
+`shellcheck -e SC1091 <datei>`.

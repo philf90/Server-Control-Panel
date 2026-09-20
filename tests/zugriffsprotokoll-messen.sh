@@ -71,17 +71,17 @@ mkdir -p "$R/conf" "$R/logs" "$R/root" "$R/tmp" "$R/acme" \
 chmod 755 "$R" "$R/conf" "$R/logs" "$R/root" "$R/tmp" "$R/acme"
 touch "$R/conf/messrunde.example.include"
 
-php -r '
+# Die Umgebungsvariable steht **vor** dem Befehl. Hier stand einmal
+# `php -r '…' REPO="$REPO"` — das übergibt REPO als *Argument* an das Skript,
+# getenv() liefert dann false, und der Pfad zum Autoloader ist falsch.
+# shellcheck disable=SC2016  # der PHP-Rumpf gehört in einfache Anführungszeichen
+REPO="$REPO" php -r '
 require getenv("REPO")."/agent/src/autoload.php";
 $s = SrvPanel\Agent\Site::fromArgs(["subscription"=>"p1001","user"=>"p1001",
      "domain"=>"messrunde.example","document_root"=>"httpdocs"]);
 echo SrvPanel\Agent\SiteTemplate::render($s);
-' REPO="$REPO" > "$R/vhost-roh.conf" 2>/dev/null || {
-    REPO="$REPO" php -r '
-    require getenv("REPO")."/agent/src/autoload.php";
-    $s = SrvPanel\Agent\Site::fromArgs(["subscription"=>"p1001","user"=>"p1001",
-         "domain"=>"messrunde.example","document_root"=>"httpdocs"]);
-    echo SrvPanel\Agent\SiteTemplate::render($s);' > "$R/vhost-roh.conf"; }
+' > "$R/vhost-roh.conf" || { echo "  SiteTemplate liess sich nicht rendern."; exit 2; }
+[ -s "$R/vhost-roh.conf" ] || { echo "  Das Rendering ist leer — Messung abgebrochen."; exit 2; }
 
 satz "Die access_log-Anweisung, wie SiteTemplate sie schreibt:"
 grep -m1 "access_log /var" "$R/vhost-roh.conf" | sed 's/^/    /'
@@ -112,7 +112,7 @@ diff "$R/vhost-roh.conf" "$R/conf/vhost.conf" | grep '^[<>]' | grep -cv '^$' | x
 # Format misst: Käme hier dieselbe Zeile heraus, misst der Lauf nur, dass
 # nginx überhaupt protokolliert.
 cat > "$R/conf/gegenprobe.conf" <<EOF
-log_format eigen '\$remote_addr|\$time_iso8601|\$request_method|\$uri|\$status|\$body_bytes_sent|\$request_length|\$http_user_agent';
+log_format eigen '\$remote_addr|\$time_iso8601|\$request_method|\$uri|\$status|\$body_bytes_sent|\$bytes_sent|\$request_length|\$http_user_agent';
 server {
     listen $PORT_GP;
     server_name messrunde.example;
@@ -155,9 +155,13 @@ sleep 1
 # nach einem Ergebnis aus wie ein 200 mit dem Prüfkörper.
 LADE=$(curl -s -o /dev/null -w '%{http_code} %{size_download} %{size_header}' \
        -H 'Host: messrunde.example' "http://127.0.0.1:$PORT/")
+# shellcheck disable=SC2086  # $LADE soll in drei Felder zerfallen
 set -- $LADE
 wert "Ladebeleg  status / Körper / Kopfzeilen" "$1 / $2 B / $3 B"
-[ "$1" = "200" ] && [ "$2" = "1000" ] || { echo "  Der Prüfkörper wurde nicht geladen — alles Folgende wäre bedeutungslos."; exit 2; }
+if [ "$1" != "200" ] || [ "$2" != "1000" ]; then
+    echo "  Der Prüfkörper wurde nicht geladen — alles Folgende wäre bedeutungslos."
+    exit 2
+fi
 KOERPER=$2; KOPF=$3
 
 curl -s -o /dev/null -H 'Host: messrunde.example' \
@@ -212,13 +216,32 @@ wert "Stücke beim Trennen an \"" "$STUECKE  (7 = eindeutig)"
 # ---------------------------------------------------------------------------
 titel "Z5 — Was die Zahl nicht zählt (für M2)"
 GEZAEHLT=$(grep -m1 ' / HTTP/1.1" 200 ' "$R/logs/access.log" | awk '{print $10}')
-ANFRAGE=$(awk -F'|' 'NR==1{print $7}' "$R/logs/gegenprobe.log")
+ANFRAGE=$(awk -F'|' 'NR==1{print $8}' "$R/logs/gegenprobe.log")
+GESENDET=$(awk -F'|' 'NR==1{print $7}' "$R/logs/gegenprobe.log")
 wert "body_bytes_sent in der Zeile"      "$GEZAEHLT B"
 wert "tatsächlich gesendet (Körper+Kopf)" "$((KOERPER + KOPF)) B"
 wert "Anfrage des Kunden (request_length)" "${ANFRAGE:-?} B"
+wert "nginx' eigenes \$bytes_sent"         "${GESENDET:-?} B   (muss Körper+Kopf treffen)"
 FEHLT=$(( KOPF + ${ANFRAGE:-0} ))
 wert "je Anfrage ungezählt"              "$FEHLT B"
 satz "Bei kleinen Antworten kippt das Verhältnis: die Kopfzeilen sind konstant."
+
+# **Der 304 ist der Fall, der die Sache entscheidet**, und er braucht ein
+# passendes ETag — mit einem erfundenen antwortet nginx mit 200, und dann
+# misst dieser Abschnitt denselben Fall zweimal.
+ETAG=$(curl -s -I -H 'Host: messrunde.example' "http://127.0.0.1:$PORT_GP/" \
+       | grep -i '^etag:' | tr -d '\r' | awk '{print $2}')
+: > "$R/logs/gegenprobe.log"
+STATUS=$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: messrunde.example' \
+         -H "If-None-Match: $ETAG" "http://127.0.0.1:$PORT_GP/")
+wert "Ladebeleg: Antwort auf If-None-Match" "$STATUS  (304 = der Fall ist hergestellt)"
+if [ "$STATUS" = "304" ]; then
+    satz "Ein wiederkehrender Besucher, in beiden Formaten:"
+    awk -F'|' '{printf "    body_bytes_sent=%s  bytes_sent=%s  request_length=%s  status=%s\n", $6, $7, $8, $5}' "$R/logs/gegenprobe.log"
+    satz "-> combined schriebe hier eine Null, und Bytes gehen trotzdem hinaus."
+else
+    satz "Kein 304 hergestellt — dieser Abschnitt misst nichts."
+fi
 
 # ---------------------------------------------------------------------------
 # Z6 — Die Rotation.
@@ -247,8 +270,11 @@ logrotate -f -s "$R/logrotate.state" "$R/logrotate.conf" 2>/dev/null
 NACH=$(stat -c '%i' "$D/access.log")
 wert "Inode von access.log davor"  "$VOR"
 wert "Inode von access.log danach" "$NACH"
-[ "$VOR" != "$NACH" ] && satz "-> Umbenennen und neu anlegen, nicht copytruncate." \
-                      || satz "-> copytruncate: dieselbe Inode."
+if [ "$VOR" != "$NACH" ]; then
+    satz "-> Umbenennen und neu anlegen, nicht copytruncate."
+else
+    satz "-> copytruncate: dieselbe Inode."
+fi
 wert "access.log.1 hat Inode"      "$(stat -c '%i' "$D/access.log.1" 2>/dev/null || echo '-')"
 wert "access.log danach"           "$(stat -c '%A %U:%G, %s B' "$D/access.log")"
 satz "nocreate steht in der Vorlage, create darunter — gemessen gewinnt create."
@@ -256,7 +282,7 @@ satz "nocreate steht in der Vorlage, create darunter — gemessen gewinnt create
 # Zweiter Lauf: trägt delaycompress?
 printf '127.0.0.1 - - [21/Sep/2026:03:00:00 +0000] "GET /tag2 HTTP/1.1" 200 42 "-" "curl"\n' >> "$D/access.log"
 logrotate -f -s "$R/logrotate.state" "$R/logrotate.conf" 2>/dev/null
-wert "nach dem zweiten Lauf liegen da" "$(ls "$D" | tr '\n' ' ')"
+wert "nach dem zweiten Lauf liegen da" "$(find "$D" -maxdepth 1 -type f -printf '%f ' | sort)"
 satz "-> .1 bleibt unkomprimiert (delaycompress), ab .2 wird gepackt."
 
 # Der offene Lesegriff — die Falle für einen Nachtlauf.
@@ -287,6 +313,7 @@ satz "   und sieht keine Zeile, die danach geschrieben wird."
 # misst der Lauf das Lesen und nicht das Zerlegen.
 # ---------------------------------------------------------------------------
 titel "Z7 — Was ein Nachtlauf kostet"
+# shellcheck disable=SC2016  # der PHP-Rumpf gehört in einfache Anführungszeichen
 REPO="$REPO" ZIEL="$R/gross.log" N="$ZEILEN" php -r '
 $pfade = ["/", "/index.html", "/wp-login.php", "/assets/app.4f2b.css", "/api/v1/posts?page=3",
           "/bilder/urlaub-2026-gross.jpg", "/robots.txt", "/feed/", "/kontakt", "/suche?q=a%20b"];
@@ -313,7 +340,10 @@ fclose($h);
 GROESSE=$(stat -c '%s' "$R/gross.log")
 wert "Prüfkörper" "$ZEILEN Zeilen, $((GROESSE/1024/1024)) MiB, $((GROESSE/ZEILEN)) B je Zeile"
 
+# `set -- $(lauf …)` trennt absichtlich in Wörter — die Vorschrift liefert
+# fünf Zahlen in einer Zeile, und genau die sollen zu $1..$5 werden.
 lauf() {
+# shellcheck disable=SC2016  # der PHP-Rumpf gehört in einfache Anführungszeichen
     ZIEL="$R/gross.log" MODUS="$1" php -r '
     $t = hrtime(true); $bytes = 0; $zeilen = 0; $treffer = 0;
     $h = fopen(getenv("ZIEL"), "r");
@@ -338,15 +368,18 @@ lauf() {
 # sie liegt also im Seitenzwischenspeicher. Wer nur so misst, misst den
 # Zwischenspeicher und nennt es Durchsatz.
 if sync && echo 3 > /proc/sys/vm/drop_caches 2>/dev/null; then
+    # shellcheck disable=SC2046  # die Wortrennung ist der Zweck
     set -- $(lauf zerlegen)
     wert "Lauf 0 · zerlegen, kalt" "$1 s · $2 Zeilen · $5 Zeilen/s"
 else
     wert "Lauf 0 · zerlegen, kalt" "nicht messbar (drop_caches verweigert)"
 fi
 for i in 1 2; do
+    # shellcheck disable=SC2046  # die Wortrennung ist der Zweck
     set -- $(lauf zerlegen)
     wert "Lauf $i · zerlegen, warm" "$1 s · $2 Zeilen · $5 Zeilen/s · Summe $3 B · $4 mit Status 200"
 done
+# shellcheck disable=SC2046  # die Wortrennung ist der Zweck
 set -- $(lauf lesen)
 wert "Gegenprobe · nur lesen" "$1 s · $5 Zeilen/s (ohne Zerlegen)"
 satz "Stehen beide Zahlen gleich, misst der Lauf nicht das Zerlegen."

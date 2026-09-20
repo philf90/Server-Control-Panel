@@ -5285,6 +5285,31 @@ richtige.
 > **Drei Fehlschläge nebeneinander belegen nichts. Erst der Erfolg daneben
 > sagt, dass das Werkzeug funktioniert und der Prüfling geantwortet hat.**
 
+## Der Plan zu P9 ist `docs/129` — 20. September 2026
+
+Geschrieben **nach** der Messrunde und nach vier Entscheidungen des Betreibers
+vom selben Tag:
+
+| | |
+|---|---|
+| Zuschnitt | **wie P7b** — acht benannte Merkmale, jedes mit eigenem Abnahmelauf |
+| A7 | **das erste Merkmal** |
+| Webhook | **ein Ziel je Server**, vom Betreiber gesetzt, im Agenten, nie als Vorgangsargument |
+| Aufbewahrung | **roh 14 Tage, verdichtete Zahlen 30 Tage** |
+
+Die fünfte Frage aus `docs/127 §6.3` hat die Messrunde beantwortet: Traffic
+kommt aus den Protokollen, weil nftables es nicht kann. **Damit entfällt auch
+die Verschränkung von P9 mit P9b.**
+
+**Die Reihenfolge aus `docs/20 §9` steht dabei auf dem Kopf.** Dort kommt die
+Statistik vor der Protokollauswertung; gemessen kommt Traffic je Abo **nur**
+aus den Protokollen, und die tragen heute ein Format, in dem ein
+wiederkehrender Besucher als Null steht. Die Kette ist B2 → B3 → B4, und sie
+ist die einzige; alles andere steht für sich.
+
+> **Eine Entscheidung, die eine Messung vorwegnimmt, ist keine Entscheidung —
+> sie ist eine Messung, die niemand gefahren hat.**
+
 ## Befehle
 
 ```bash

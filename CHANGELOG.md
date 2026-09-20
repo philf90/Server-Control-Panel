@@ -30852,3 +30852,57 @@ nicht halten — er baut seinen Wert aus `isSelection()` und zöge mit.
 
 > **Ein Wächter, der sich an den Zustand anpasst, den er prüfen soll, wird mit
 > ihm falsch.**
+
+### Ein Wächter, der einen Ort prüfte statt einer Regel
+
+`SecretsStayOutOfTheQueueTest` hält seit P5 die vierte Grenze: Ein Geheimnis,
+das als Argument eines Vorgangs reist, steht auf der Vorgangsseite — denn
+`Operations/Show.vue` rendert `payload` als JSON, und `OperationPolicy::view()`
+lässt jeden Admin **und den Kunden des Abonnements** hindurch.
+
+Gemessen am 20. September 2026 hielt er weniger, als sein Name sagt. Seine
+Schema-Hälfte las **genau eine** Migration und sicherte das mit
+`assertSame(1, $read)` zu; `webhook_secret` in jener Datei war rot, dieselbe
+Spalte in einer neuen Migration grün. In beide Richtungen gefahren.
+
+> **Ein Wächter, der einen Ort prüft statt einer Regel, ist an jedem anderen Ort
+> ein Freispruch.**
+
+Er liest jetzt **alle** Migrationen. Die acht geheimnisförmigen Spalten, die es
+zu Recht gibt, stehen mit dem Grund je Eintrag da — von
+`accounts.two_factor_secret` (ohne Ablage kein zweiter Faktor) bis
+`ssh_keys.public_key` (dessen Zweck es ist, verteilt zu werden).
+
+**Und seine Operationsliste sagte nur etwas über die Einträge, die darin
+standen.** Ausgezählt lesen **acht** Operationen ein Argument mit
+geheimnisförmigem Namen, die Liste kannte **vier**. Zwei der vier Fehlenden
+tragen wirklich ein Geheimnis — `pg.role.create` und `db.isolation.probe` — und
+beide werden zu Recht unmittelbar über `Client::call` gerufen statt eingereiht.
+Kein Leck also; aber auch keine Zusage. Sie stehen jetzt in
+`CARRIES_A_SECRET`, und damit halten die drei bestehenden Prüfungen auch für
+sie.
+
+**Die Gegenrichtung dazu kann nur die untere Schranke sein, und das ist
+gemessen.** `dns.credential.store` trägt ihr API-Token in `$args['config']` —
+ausgerechnet die Operation, die das Vorbild der Regel ist, findet kein Muster
+über Argumentnamen. In die andere Richtung wäre `system.run.outcome` mit
+`$args['key']` ein Fehlalarm: Dort ist `key` eine Aufzählung.
+
+> **Ein Wächter über die Form eines Namens findet, was sich verrät, und nicht,
+> was gefährlich ist.**
+
+Jede Operation mit einem geheimnisförmigen Argument ist deshalb *entschieden* —
+sie steht in `CARRIES_A_SECRET` oder mit Grund in
+`ARGUMENT_ONLY_LOOKS_LIKE_A_SECRET`. Was der Wächter damit **nicht** kann, steht
+in seinem eigenen Kopf: Die obere Schranke bekäme er erst, wenn jede Operation
+selbst erklärt, ob sie ein Geheimnis entgegennimmt — 117 Operationen, keine
+gemeinsame Basisklasse, und ein `method.abstract` im Agenten tötet den Lauf beim
+Laden. Das gehört entschieden und nicht nebenbei gebaut.
+
+Vier Brüche stehen dafür in `tests/waechter-brechen.sh`, jeder einzeln gegen
+seinen eigenen Fall gefahren. Der bestehende fünfte hat dabei seinen Anker
+verloren: Er rief `test_the_database_tables_have_no_place_for_a_secret`, und die
+Methode heisst nach dem Umbau anders.
+
+> **Wer einen Wächter umbenennt, nimmt jedem Eingriff seinen Anker, der ihn beim
+> Namen ruft.**

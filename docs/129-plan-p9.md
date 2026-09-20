@@ -391,17 +391,60 @@ eigenen Fall gefahren.
 
 **Zuerst einer, der schon fällig ist, unabhängig von jedem Merkmal:**
 
-**W0 · `SecretsStayOutOfTheQueueTest` wird geweitet.** Gemessen ist er eine
-Datei weiter blind: Seine Schema-Hälfte liest **eine** Migration und sichert das
-mit `assertSame(1, $read)` zu. Er liest künftig **alle** Migrationen; die
-Ausnahme ist dann nicht „diese eine Datei", sondern eine benannte Spalte mit
-Begründung je Eintrag. Seine Operationsliste bleibt eine Liste — aber sie
-bekommt die Gegenrichtung: **jede** Operation, deren Argumentnamen auf
-`password`, `secret`, `token` oder `key` enden, steht entweder darin oder ist
-mit Grund ausgenommen.
+**W0 · `SecretsStayOutOfTheQueueTest` wird geweitet** — **gebaut am
+20. September 2026**, und das Bauen hat diesen Absatz zweimal berichtigt.
+
+Die Schema-Hälfte liest jetzt **alle** Migrationen; die Ausnahme ist nicht mehr
+„diese eine Datei", sondern eine benannte Spalte mit Begründung je Eintrag.
+Gemessen sind das **acht** Spalten, die es zu Recht gibt — von
+`accounts.two_factor_secret` (ohne Ablage kein zweiter Faktor) bis
+`ssh_keys.public_key` (dessen Zweck es ist, verteilt zu werden). Ein neues
+`webhook_secret` bleibt rot, bis jemand aufschreibt, warum es da sein darf.
 
 > **Ein Wächter mit einer Liste ist so gut wie das Gedächtnis dessen, der sie
 > pflegt. Ein Wächter mit einer Gegenrichtung ist so gut wie seine Regel.**
+
+**Die erste Berichtigung: Die Zahlen hier waren zu klein.** Ausgezählt lesen
+**acht** Operationen ein Argument mit geheimnisförmigem Namen, und die Liste
+kannte **vier**. Zwei der vier Fehlenden tragen wirklich ein Geheimnis —
+`pg.role.create` (deren Klassenkopf es selbst sagt) und `db.isolation.probe` —
+und beide werden zu Recht unmittelbar über `Client::call` gerufen statt
+eingereiht. Sie stehen jetzt in `CARRIES_A_SECRET`, und damit halten die drei
+bestehenden Prüfungen auch für sie. **Ein Leck war es nicht; eine Zusage war es
+auch nicht.**
+
+**Die zweite Berichtigung ist teurer, weil sie diesen Absatz betrifft.** Hier
+stand, die Gegenrichtung komme über die **Argumentnamen**. Gemessen trägt
+`dns.credential.store` ihr API-Token in `$args['config']` — ausgerechnet die
+Operation, die `docs/127 §3` als Vorbild der vierten Grenze nennt, hätte dieses
+Muster nie gefunden. In die andere Richtung wäre `system.run.outcome` mit
+`$args['key']` ein Fehlalarm gewesen; `key` ist dort eine Aufzählung.
+
+> **Ein Wächter über die Form eines Namens findet, was sich verrät, und nicht,
+> was gefährlich ist.**
+
+Gebaut ist deshalb die **untere Schranke**: Jede Operation mit einem
+geheimnisförmigen Argument ist *entschieden* — sie steht in
+`CARRIES_A_SECRET` oder mit Grund in `ARGUMENT_ONLY_LOOKS_LIKE_A_SECRET`. Das
+schliesst die gemessene Lücke und behauptet nicht, alle zu schliessen; der
+Wächter sagt das in seinem eigenen Kopf.
+
+**Die obere Schranke bekäme er erst, wenn jede Operation selbst erklärt, ob sie
+ein Geheimnis entgegennimmt** — eine vierte Methode an `Op` neben `name()` und
+`mutating()`. Das sind **117 Operationen**, 115 davon setzen `Op` direkt um, und
+es gibt keine gemeinsame Basisklasse; ein `method.abstract` im Agenten tötet den
+Lauf beim Laden, statt sauber rot zu werden. **Das gehört entschieden und nicht
+nebenbei gebaut** — es steht als Frage an den Betreiber und nicht als Zeile in
+diesem Plan.
+
+Vier Brüche dazu stehen in `tests/waechter-brechen.sh` vor der Bilanz, jeder
+einzeln gegen seinen eigenen Fall gefahren. **Und ein fünfter Handgriff war
+nötig, den niemand geplant hatte:** Der bestehende Bruch der Schema-Hälfte nannte
+`test_the_database_tables_have_no_place_for_a_secret`, und die Methode heisst
+nach dem Umbau anders — er wäre ab da ein Eingriff ohne Messung gewesen.
+
+> **Wer einen Wächter umbenennt, nimmt jedem Eingriff seinen Anker, der ihn beim
+> Namen ruft.**
 
 **Je Merkmal:**
 

@@ -4206,7 +4206,121 @@ open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei database/migrations/2026_08_08_100000_create_databases_tables.php "Spalte für ein Passwort" &&
 pruefe "Spalte für ein Passwort" \
-  SecretsStayOutOfTheQueueTest::test_the_database_tables_have_no_place_for_a_secret failed
+  SecretsStayOutOfTheQueueTest::test_every_secret_shaped_column_has_a_reason failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SecretsStayOutOfTheQueueTest passed
+
+echo
+echo "── SecretsStayOutOfTheQueueTest: dieselbe Spalte eine Datei weiter ──"
+#
+# **Das ist der Bruch, der bis zum 20. September 2026 nicht zugebissen hat.**
+# Die Schema-Hälfte las genau eine Migration und sicherte das mit
+# `assertSame(1, $read)` zu; `webhook_secret` in jener Datei war rot, dieselbe
+# Spalte in einer neuen Migration grün. Gemessen, in beide Richtungen.
+#
+# Er legt eine Datei an statt eine zu ändern und räumt deshalb selbst auf.
+cat > database/migrations/2026_09_20_999999_bruch_probe.php <<'PY3'
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+/** Wegwerf aus tests/waechter-brechen.sh — eine Spalte für ein Geheimnis. */
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('bruch_proben', function (Blueprint $table) {
+            $table->id();
+            $table->string('webhook_secret');
+        });
+    }
+};
+PY3
+pruefe "eine Spalte für ein Geheimnis in einer neuen Migration" \
+  SecretsStayOutOfTheQueueTest::test_every_secret_shaped_column_has_a_reason failed
+rm -f database/migrations/2026_09_20_999999_bruch_probe.php
+pruefe "  … weggeräumt wieder grün" SecretsStayOutOfTheQueueTest passed
+
+echo
+echo "── SecretsStayOutOfTheQueueTest: ein Grund ohne Spalte ──"
+#
+# Die Gegenrichtung dazu: Eine Begründung, deren Spalte längst umbenannt ist,
+# liest der Nächste als Aussage über den Bestand.
+vorher_datei tests/Feature/SecretsStayOutOfTheQueueTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/SecretsStayOutOfTheQueueTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'settings.key' =>"
+assert alt in s, 'Anker der Spaltenliste nicht gefunden'
+s = s.replace(alt, "        'gibtsnicht.api_token' => 'ein Grund für eine Spalte, die keine Migration anlegt',\n" + alt, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/SecretsStayOutOfTheQueueTest.php "ein Grund ohne Spalte" &&
+pruefe "ein Grund ohne Spalte" \
+  SecretsStayOutOfTheQueueTest::test_every_reasoned_column_still_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SecretsStayOutOfTheQueueTest passed
+
+echo
+echo "── SecretsStayOutOfTheQueueTest: ein Argument, das niemand entschieden hat ──"
+#
+# Bis zum 20. September 2026 sagte `CARRIES_A_SECRET` nur etwas über die
+# Einträge, die darin standen — nicht darüber, ob einer fehlte. Gemessen waren
+# acht Operationen mit einem geheimnisförmigen Argument und vier in der Liste;
+# zwei der vier Fehlenden trugen wirklich ein Geheimnis.
+cat > agent/src/Ops/BruchProbe.php <<'PY3'
+<?php
+
+declare(strict_types=1);
+
+namespace SrvPanel\Agent\Ops;
+
+use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Op;
+
+/** Wegwerf aus tests/waechter-brechen.sh — ein Argument, das nach einem Geheimnis klingt. */
+final class BruchProbe implements Op
+{
+    public static function name(): string
+    {
+        return 'bruch.probe';
+    }
+
+    public static function mutating(): bool
+    {
+        return false;
+    }
+
+    public function execute(array $args, Context $context): array
+    {
+        return ['gelesen' => $args['api_token'] ?? null];
+    }
+}
+PY3
+pruefe "ein Argument, das niemand entschieden hat" \
+  SecretsStayOutOfTheQueueTest::test_every_secret_shaped_argument_is_decided failed
+rm -f agent/src/Ops/BruchProbe.php
+pruefe "  … weggeräumt wieder grün" SecretsStayOutOfTheQueueTest passed
+
+echo
+echo "── SecretsStayOutOfTheQueueTest: eine Ausnahme ohne ihr Argument ──"
+#
+# Und die Gegenrichtung dazu: Verliert eine Operation ihr geheimnisförmiges
+# Argument, ist ihre Ausnahme ab da eine Aussage über etwas, das es nicht gibt.
+vorher_datei tests/Feature/SecretsStayOutOfTheQueueTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/SecretsStayOutOfTheQueueTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'system.run.outcome' =>"
+assert alt in s, 'Anker der Ausnahmeliste nicht gefunden'
+s = s.replace(alt, "        'system.reboot' => 'eine Ausnahme für eine Operation, die kein solches Argument liest',\n" + alt, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/SecretsStayOutOfTheQueueTest.php "eine Ausnahme ohne ihr Argument" &&
+pruefe "eine Ausnahme ohne ihr Argument" \
+  SecretsStayOutOfTheQueueTest::test_every_exemption_still_has_its_argument failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SecretsStayOutOfTheQueueTest passed
 

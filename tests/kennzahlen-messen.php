@@ -23,16 +23,27 @@ declare(strict_types=1);
  * **Jede Messung hat ihre Gegenprobe**, und eine Null ist nur dann eine
  * Messung, wenn daneben etwas anderes als Null steht.
  */
-
 $REPO = dirname(__DIR__);
 require $REPO.'/app/Support/Metrics/RingBuffer.php';
 
 use App\Support\Metrics\RingBuffer;
 
-function titel(string $t): void { printf("\n=== %s\n", $t); }
-function wert(string $k, string $v): void { printf("  %-46s %s\n", $k, $v); }
-function satz(string $s): void { printf("  %s\n", $s); }
-function mib(int $b): string { return number_format($b / 1048576, 2, ',', '.').' MiB'; }
+function titel(string $t): void
+{
+    printf("\n=== %s\n", $t);
+}
+function wert(string $k, string $v): void
+{
+    printf("  %-46s %s\n", $k, $v);
+}
+function satz(string $s): void
+{
+    printf("  %s\n", $s);
+}
+function mib(int $b): string
+{
+    return number_format($b / 1048576, 2, ',', '.').' MiB';
+}
 
 $ARBEIT = '/var/tmp/srvpanel-kennzahlen';
 @mkdir($ARBEIT, 0o755, true);
@@ -122,8 +133,12 @@ $verdichten = static function (RingBuffer $p, bool $rechnen) use ($spalten): arr
     $summe = array_fill(0, $spalten, 0.0);
     foreach ($saetze as $satz) {
         foreach ($satz['values'] as $j => $v) {
-            if ($v < $min[$j]) { $min[$j] = $v; }
-            if ($v > $max[$j]) { $max[$j] = $v; }
+            if ($v < $min[$j]) {
+                $min[$j] = $v;
+            }
+            if ($v > $max[$j]) {
+                $max[$j] = $v;
+            }
             $summe[$j] += $v;
         }
     }
@@ -306,6 +321,63 @@ foreach ([1, 2, 5] as $jeAbo) {
         sprintf('%d Zeilen in Form A', $domains * 3 * TAGE));
 }
 satz('Die Zahl der Domains entscheidet stärker als die der Abonnements.');
+
+/* --------------------------------------------------------------------------
+ * K5 — Was eine Zeitreihe auf der Seite kostet (M7).
+ *
+ * Eine Abo-Übersicht mit fünf Kacheln und eine Domainseite mit drei sind acht
+ * Reihen zu je dreissig Punkten. Die Frage ist nicht, ob das geht, sondern
+ * **wie viele Abfragen** es sind — eine je Kachel oder eine für alle.
+ *
+ * Gemessen an der Tabelle aus K3 mit 2000 Abonnements, also an der grössten
+ * Lage. **Kalt und warm**, denn eine einzelne Abfrage über einen warmen Index
+ * misst den Index und nicht die Abfrage.
+ * -------------------------------------------------------------------------- */
+titel('K5 — Eine Zeitreihe auf der Seite (M7)');
+$tabelle = 't_a_2000';
+$pdo->exec('USE messrunde');
+$vorhanden = (int) $pdo->query("SELECT COUNT(*) FROM $tabelle")->fetchColumn();
+wert('Ladebeleg: Zeilen in der Tabelle', (string) $vorhanden);
+if ($vorhanden === 0) {
+    satz('Die Tabelle aus K3 ist leer — K5 misst nichts und wird übersprungen.');
+} else {
+    $abo = 1234;
+
+    $einzeln = static function (PDO $pdo, string $tabelle, int $abo): array {
+        $t = hrtime(true);
+        $punkte = 0;
+        for ($k = 0; $k < KENNZAHLEN; $k++) {
+            $stmt = $pdo->prepare("SELECT day, value FROM $tabelle
+                                   WHERE subscription_id = ? AND metric = ?
+                                   ORDER BY day");
+            $stmt->execute([$abo, $k]);
+            $punkte += count($stmt->fetchAll());
+        }
+
+        return [(hrtime(true) - $t) / 1e9, KENNZAHLEN, $punkte];
+    };
+
+    $gebuendelt = static function (PDO $pdo, string $tabelle, int $abo): array {
+        $t = hrtime(true);
+        $stmt = $pdo->prepare("SELECT metric, day, value FROM $tabelle
+                               WHERE subscription_id = ? ORDER BY metric, day");
+        $stmt->execute([$abo]);
+        $punkte = count($stmt->fetchAll());
+
+        return [(hrtime(true) - $t) / 1e9, 1, $punkte];
+    };
+
+    foreach (['kalt' => true, 'warm' => false] as $lage => $leeren) {
+        if ($leeren) {
+            @file_put_contents('/proc/sys/vm/drop_caches', "3\n");
+        }
+        [$s1, $n1, $p1] = $einzeln($pdo, $tabelle, $abo);
+        [$s2, $n2, $p2] = $gebuendelt($pdo, $tabelle, $abo);
+        wert(sprintf('%s · eine Abfrage je Kachel', $lage), sprintf('%d Abfragen · %.4f s · %d Punkte', $n1, $s1, $p1));
+        wert(sprintf('%s · eine Abfrage für alle', $lage), sprintf('%d Abfrage  · %.4f s · %d Punkte', $n2, $s2, $p2));
+    }
+    satz('Die Punktzahl muss in beiden Zeilen gleich sein — sonst messen sie Verschiedenes.');
+}
 
 titel('Was diese Messung nicht sagt');
 satz('· Sie misst leere Tabellen ohne Nebenverkehr, nicht eine Datenbank im Betrieb.');

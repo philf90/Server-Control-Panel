@@ -5232,6 +5232,59 @@ root nicht messbar sind.
 > nur die grosse Zahl weiterschreibt, hat die Umgebung mit weitergeschrieben.**
 
 
+## Die Messrunde vor P9 — 20. September 2026
+
+Sie steht als **`docs/128`**, die Messvorschriften als
+`tests/zugriffsprotokoll-messen.sh` und `tests/kennzahlen-messen.php`. Neun
+Messungen, jede mit Gegenprobe und mit dem, was sie nicht sagt. **Vier
+Annahmen aus `docs/127` sind gekippt**, und die teuerste war ein Satz über
+eine Datei, in die niemand gesehen hatte:
+
+- **Das Zugriffsprotokoll trägt nginx' `combined` und nicht unsere Zeile.**
+  `log_format` steht **nirgends** im Repo; `access_log <pfad>;` ohne
+  Formatnamen ist die Vorgabe. Damit zählt die Zahl in der Zeile den Rumpf
+  ohne Kopfzeilen — bei einer 1-KB-Antwort fehlen 25 %, bei einem `304` steht
+  dort eine Null.
+- **Ein nftables-Zähler je Systembenutzer kann Website-Verkehr nicht
+  zuordnen.** Gemessen: 200 KB Abruf zählen 200 720 B auf `www-data` und
+  **null** auf den Kunden, weil nginx jede Domain als `www-data` bedient. Der
+  zweite Kandidat für „Traffic je Abo" ist keiner, und die Verschränkung mit
+  P9b entfällt.
+- **Der Nachtlauf über ein Zugriffsprotokoll ist billig** — 200 000 Zeilen in
+  0,138 s kalt. Teuer ist nicht, was er kostet, sondern **welchen Tag er
+  zählt**: Die Rotation benennt um, der alte Tag heisst `access.log.1`, und
+  ein Lesegriff von vorher liest die alte Inode zu Ende.
+- **Die 400 Mails entstehen nicht an der Schwelle.** Die Form steht seit A13
+  (`FindingLog::replace()`, `first_seen_at`, löschen was der Lauf nicht mehr
+  nennt). Was fehlt, ist eine Ablage der **Zustellung**: `findings` hat acht
+  Spalten und keine davon ist `notified_at`.
+
+Dazu drei Zahlen, die den Zuschnitt entscheiden:
+
+| | |
+|---|---|
+| `pm.max_children` des Panel-Pools | **12** — gemessen an einem Pool von zwei: zwei offene Ströme, und die nächste Anfrage wartet **16 s** |
+| `config/mail.php`, `timeout` | **`null`**, also 60 s je totem Versand — 400 Meldungen sind 6,7 Stunden |
+| acht Kacheln bei 390 px | **1405 px**, kein Überlauf — der Preis ist die Länge |
+
+**Und ein Wächter der vierten Grenze ist eine Datei weiter blind.**
+`SecretsStayOutOfTheQueueTest` prüft mit `assertSame(1, $read)` **genau eine**
+Migration; `webhook_secret` darin ist rot, dieselbe Spalte in einer neuen
+Migration grün. Beide Richtungen gemessen.
+
+> **Ein Wächter, der einen Ort prüft statt einer Regel, ist an jedem anderen
+> Ort ein Freispruch.**
+
+**Was die Runde über das Messen gelehrt hat:** Drei von neun Messungen haben
+beim ersten Anlauf ihren Gegenstand nicht erreicht — viermal `localhost:25`
+statt des gemessenen Hafens, drei `502` in 0,007 s, ein `404` auf eine Datei
+im falschen Verzeichnis. **Jedes Mal hat es die Gegenprobe gefangen und nicht
+der Blick auf die Zahl**, und zweimal war die falsche Zahl *schneller* als die
+richtige.
+
+> **Drei Fehlschläge nebeneinander belegen nichts. Erst der Erfolg daneben
+> sagt, dass das Werkzeug funktioniert und der Prüfling geantwortet hat.**
+
 ## Befehle
 
 ```bash
@@ -5544,13 +5597,40 @@ Testen berücksichtigen:
   Pakete des Aufrufs, auch die längst geholten. Festgenagelt gehen sie durch —
   und zwar **alle fünf** zusammen, sonst zieht `php8.3-common` wieder Sury nach:
 
-      V=8.3.6-0ubuntu0.24.04.10
+      V=8.3.6-0ubuntu0.24.04.11
       apt-get install -y php8.3-fpm=$V php8.3-common=$V php8.3-cli=$V \
                          php8.3-opcache=$V php8.3-readline=$V
+
+  **Die Nummer wandert.** Hier stand `.10`, und am 20. September 2026 war im
+  Archiv `.11` — mit `.10` schlägt der Aufruf fehl und verwirft wieder alle
+  fünf. Geholt wird sie aus `apt-cache madison php8.3-fpm` und nicht aus dieser
+  Zeile: Der Eintrag aus `archive.ubuntu.com` ist der gesuchte, der mit
+  `sury.org` im Namen der gesperrte.
+
+  > **Eine festgenagelte Fassung in einer Anleitung ist ein Datum und keine
+  > Einstellung** — sie ist ab dem nächsten Sicherheitsupdate falsch, und der
+  > Fehlschlag sieht aus wie eine Sperre.
 
   > **Ein Abbruch, der nach dem ersten Fehlschlag alles verwirft, macht aus
   > einem gesperrten Paket eine gesperrte Umgebung.** Derselbe Satz wie bei
   > `composer install --no-dev`, diesmal an apt.
+
+  **Und `apt-get update` gehört davor, nicht nur vor PowerDNS.** Der Index
+  eines frischen Containers ist alt genug für `404` auf nginx und `iproute2` —
+  gemessen am 20. September 2026. Die Meldung nennt die Datei und nicht den
+  Index, und das liest sich wie eine gesperrte Paketquelle.
+
+  **Zwei Fallen mit fremden Kennungen, beide am 20. September bezahlt.** Ein
+  nginx-Prüfstand **im Scratchpad** ist für den Arbeiter nicht erreichbar: Die
+  Kette dorthin ist `drwx------ root:root`, der Arbeiter läuft nicht als root,
+  und die Meldung `Permission denied` liest sich wie ein Befund am Prüfling.
+  Prüfstände, die ein fremder Benutzer betreten muss, gehören nach `/var/tmp`.
+  Und **eine eigene `nginx.conf` erbt `user` nicht** — wer
+  `/etc/nginx/nginx.conf` nicht einbindet, bekommt Arbeiter als `nobody` und
+  ein `502` an einem Socket, dessen Rechte richtig aussehen.
+
+  > **Ein Prüfstand, den der Prüfling nicht betreten darf, meldet seinen
+  > eigenen Mangel als dessen Fehler.**
 
   **Zwei Fallen beim Messen, beide bezahlt.** Dieser Container hat **kein
   IPv6** — die nginx-Vorgabeseite trägt `listen [::]:80`, und `nginx -t` gibt

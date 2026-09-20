@@ -283,6 +283,12 @@ Belegt ist dabei auch, dass die Rolle wirklich griff: kein „Logs", kein
 den vier anderen Seiten `No issues`. Die Seite ist die einzige mit einem
 Formular. Was dort steht, ist offen.
 
+**Am 20. September 2026 gemessen — `docs/126`.** Drei Einträge, einer je
+Bedienelement: *„A form field element should have an id or name attribute"*. Die
+Ausfüllhilfe und kein Fund. Der Satz oben trägt dabei nicht als Erklärung: Ohne
+`<form>` darum stehen dieselben drei Einträge da; die Seite ist die einzige der
+fünf, die überhaupt Bedienelemente hat.
+
 ---
 
 ## 8b · Der Abbau — belegt
@@ -638,6 +644,7 @@ gesehen** — der Nachlauf dazu steht unten:
   des Prüflings (`docs/913 §15`). Wer die Zeile loswerden will, entfernt die
   Domain.
 - Die `3 issues` auf `/backups/2/restore` sind nicht nachgesehen.
+  **Am 20. September 2026 nachgesehen** — `docs/126`. Drei Einträge, einer je Bedienelement, alle `FormEmptyIdAndNameAttributesForInputError`; die Ausfüllhilfe und kein Fund, entschieden schon am 23. August in `docs/76`.
 - Ob die Zeile auf der Sicherungsseite ohne Neuladen springt, ist nicht
   beobachtet worden.
 - `nginx -t` im kaputten Zustand von Punkt 5 ist nicht gefahren.

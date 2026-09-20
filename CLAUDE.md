@@ -1664,7 +1664,13 @@ derselbe Satz zweimal in einer Zeile) und `QuotaDisplayTest` (die Anzeige sagt
 „unbegrenzt" nur, wo ein Kontingent das sein darf — gemessen an der **Wirkung**
 von `Quotas::format()` und nicht an der Zeile `return 'unbegrenzt'`, die beim
 nächsten Umbau woanders steht, und in **beide** Richtungen, damit eine Behebung
-den Fehler nicht durch einen zweiten ersetzt). Der Bruch selbst steht als
+den Fehler nicht durch einen zweiten ersetzt) und `PasswordAutocompleteTest`
+(ein Feld, das ein Passwort aufnehmen kann, sagt dem Browser, welches — gesucht
+werden `type="password"` **und** die gebundene Form, weil zehn der dreizehn
+Felder zwischen `text` und `password` umschalten, und `off` gilt nicht als
+Angabe, weil die Browser es an Passwortfeldern übergehen; sein Leser achtet auf
+Anführungszeichen, und **der Eingriff, der das ausschaltet, meldet genau das
+Feld, für das es ihn gibt**). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -4865,6 +4871,72 @@ aus `docs/123 §9` (ungemessen und ungebaut), die `3 issues` auf
 `/backups/<id>/restore`, die Frage aus `docs/117 §3`, die leere Aktionszelle,
 und dass `Retention::keeps()` und `RunBackups::eligible()` bei fehlendem
 Schlüssel bewusst auf `null` bleiben.
+
+---
+
+## Die drei Issues auf jeder Formularseite — 20. September 2026
+
+**Was Chromium dort meldet, ist entschieden, und zwar zweimal.** Auf jeder Seite
+dieses Panels mit Bedienelementen steht in der Registerkarte „Issues" je Feld
+ein Eintrag: `FormEmptyIdAndNameAttributesForInputError`, *„A form field element
+should have an id or name attribute"*. **Kein Fund** — entschieden am 23. August
+2026 (`docs/76`, fünfzehn Einträge auf `/domains`, 124 von 138 Feldern),
+nachgemessen am 20. September (`docs/126`, drei auf `/backups/<id>/restore`, 155
+von 169). Es ist Chromes **Ausfüllhilfe** und keine Aussage über die
+Zugänglichkeit: Die Werte reisen über Inertia als JSON und nicht über ein
+natives `POST`, ein Name trüge nichts, und beschriftet sind die Felder über ihre
+Klammer.
+
+**Der naheliegende Handgriff tauscht einen Befund gegen einen anderen** — mit
+`id` und `name` meldet Chromium stattdessen
+`FormInputAssignedAutocompleteValueToIdOrNameAttributeError` an jedem Feld,
+dessen Name selbst ein Merkmal der Ausfüllhilfe ist (`name`, `email`, `tel` …).
+Ein `autocomplete="off"` ohne `id` und `name` schweigt dagegen nicht. Beides
+gemessen.
+
+> **Ein Handgriff, der einen Zähler auf null bringt, hat den Zähler bedient und
+> nicht den Gegenstand.**
+
+**Der teure Teil hat mit Formularen nichts zu tun.** Die Antwort von `docs/76`
+stand im Protokoll des Laufs, der die Frage gestellt hatte. Vier Wochen später
+hat `docs/119 §8` dieselbe Frage als neu aufgeschrieben, und sie ist durch vier
+Dokumente gewandert.
+
+> **Eine Antwort, die nur im Protokoll ihres eigenen Laufs steht, ist von einer,
+> die es nie gab, vier Wochen später nicht zu unterscheiden.** Das ist die
+> Familie von A8 und vom Menüpunkt, nur mit einer Antwort statt einer Behebung —
+> und die Abhilfe ist dieselbe: Was man zweimal braucht, gehört hierher und
+> nicht in ein Protokoll.
+
+**Was daraus gebaut ist, ist die eine Regel dieser Gegend, die stimmte und die
+nichts hielt:** Jedes Feld, das ein Passwort aufnehmen kann, trägt ein
+`autocomplete`. Dreizehn von dreizehn taten es, dreizehnmal von Hand
+hingeschrieben. Acht davon nehmen **fremde** Geheimnisse auf — DNS-Token,
+API-Schlüssel, das Kennwort des Mailversands —, fünf gehören dem eigenen Konto;
+ohne die Angabe rät der Passwortspeicher zwischen beiden.
+
+**Und ein Handgriff, der für jede Messung an `.vue`-Markup gilt.** Ein `>` darf
+in einem Attributwert stehen — `v-if="… .length > 0"` steht **79 mal** in
+`resources/js` —, und ein Ausdruck wie `<input[^>]*>` hört dort auf.
+
+> **Ein Ausdruck, der ein Tag bis zum nächsten `>` liest, liest ein halbes Tag,
+> sobald eines im Attribut steht.**
+
+Der Satz stand seit dem 5. September im Kopf von `NoticeChildrenTest` und war
+dort die einzige Stelle, die ihn hielt. Die erste Messung vom 20. September ist
+prompt hineingelaufen und hat das eine Feld gemeldet, das die Regel erfüllt.
+**Wer eine Marke liest, zählt den Anführungszustand** — genauso wie man vor
+einem Ausdruck über PHP die Kommentare abstreift.
+
+> **Ein abgeschnittenes Tag lässt einen Ausdruck weniger treffen — ob daraus ein
+> falsches Rot oder ein falsches Grün wird, entscheidet, ob der Befund am
+> Treffer hängt oder an seinem Fehlen.**
+
+**Offen und benannt:** `/settings/backups` trägt zwei Kästchen ohne `id` und
+ohne `name`; der Nachbau sagt dafür **2**, `docs/119 §8` hat dort `No issues`
+gelesen. Chromium 141 im Container gegen den Browser des Betreibers, und ob die
+Registerkarte beim Laden offen war, sagt das Protokoll nicht. Entschieden wird
+es mit einem Neuladen bei offener Registerkarte.
 
 ---
 

@@ -30554,3 +30554,75 @@ seinen Spiegel ersetzt, und an der Stelle, an der er sass, nicht mehr zu sehen.
 Aufrufstellen, fünf davon in `PlanController` — die Kennzahlen der Planliste und
 das „von → auf" einer Änderung. Ein Plan ohne `disk_mb` liest sich dort ab dieser
 Fassung anders.
+
+### Die drei Issues auf der Restore-Seite waren schon einmal beantwortet
+
+`docs/119 §8` hat am 17. September notiert, Chromium melde auf
+`/backups/<id>/restore` drei Einträge und was dort stehe, sei offen. Die Zeile
+ist danach in `docs/121`, `docs/123` und `docs/125` mitgewandert — **vier
+Dokumente, vier Wochen.** Gemessen sind es dreimal
+`FormEmptyIdAndNameAttributesForInputError`, also *„A form field element should
+have an id or name attribute"*: die Ausfüllhilfe von Chrome und keine Aussage
+über die Zugänglichkeit.
+
+**Dieselbe Meldung ist am 23. August in `docs/76` gemessen und als kein Fund
+entschieden worden** — damals fünfzehn Einträge auf `/domains`, 124 von 138
+Feldern ohne `id` und ohne `name`. Heute sind es 155 von 169, und die Begründung
+trägt unverändert: Die Werte reisen über Inertia als JSON, ein Name trüge nichts,
+und beschriftet sind die Felder über die Klammer.
+
+> **Eine Antwort, die nur im Protokoll ihres eigenen Laufs steht, ist von einer,
+> die es nie gab, vier Wochen später nicht zu unterscheiden.**
+
+**Der naheliegende Handgriff tauscht einen Befund gegen einen anderen.** Mit
+`id` und `name` an allen drei Feldern meldet Chromium stattdessen
+`FormInputAssignedAutocompleteValueToIdOrNameAttributeError` am Feld **Name** —
+`name` ist selbst ein Merkmal der Ausfüllhilfe. Gemessen verschwindet die
+Meldung mit einem anderen Feldnamen oder mit einer `autocomplete`-Angabe; ein
+`autocomplete="off"` ohne `id` und `name` schweigt dagegen **nicht**. Das Markup
+bleibt deshalb, wie es ist.
+
+> **Ein Handgriff, der einen Zähler auf null bringt, hat den Zähler bedient und
+> nicht den Gegenstand.**
+
+### Ein Passwortfeld sagt dem Browser, welches Passwort
+
+Der Satz, auf dem das Urteil von `docs/76` steht — *„Die eine Stelle, an der ein
+Browser ihn wirklich braucht, hat ihn"* —, stimmt: **dreizehn von dreizehn**
+Feldern, die ein Passwort aufnehmen können, führen ein `autocomplete`, zehnmal
+`new-password` und dreimal `current-password`. Dreizehnmal von Hand
+hingeschrieben, und **nichts hat es gehalten**.
+
+> **Ein Zustand, der stimmt und den nichts hält, ist von einem, der nicht
+> stimmt, nur durch Glück getrennt.**
+
+Acht dieser Felder nehmen **fremde** Geheimnisse auf — DNS-Token, API-Schlüssel,
+das Kennwort des Mailversands —, fünf gehören dem eigenen Konto. Ohne die Angabe
+rät der Passwortspeicher zwischen beiden: Er bietet das Panelpasswort für einen
+DNS-Token an oder merkt sich einen API-Schlüssel als Anmeldung, und beides fällt
+niemandem auf. `PasswordAutocompleteTest` hält es seitdem. Ein `off` zählt dabei
+nicht als Angabe — für Passwortfelder übergehen die Browser es seit Jahren.
+
+### Und der Leser dieses Wächters achtet auf Anführungszeichen
+
+**Die erste Messung dazu hat einen Befund erfunden.** Sie las die Marke mit
+`<input[^>]*>` und meldete das Wiederholungsfeld aus `PasswordFields.vue` als
+Feld ohne `autocomplete`. Es trägt eines — davor steht nur
+`:aria-invalid="… || (props.confirmation.length > 0 && !matches)"`, und der
+Ausdruck hört am `>` im Attributwert auf.
+
+> **Ein Ausdruck, der ein Tag bis zum nächsten `>` liest, liest ein halbes Tag,
+> sobald eines im Attribut steht.**
+
+Der Satz steht seit dem 5. September im Kopf von `NoticeChildrenTest`, dort an
+einer Meldung — ausgezählt die einzige Stelle im Repo, die ihn hält. Die
+Vermeidung war keine Regel geworden, und diesmal traf es nicht den Code, sondern
+eine Messung: **79 von 3944** Marken unter `resources/js` tragen ein `>` in einem
+Attributwert. Mit dem naiven Leser meldet der neue Wächter genau eine Stelle —
+das Feld, für das es ihn gibt.
+
+**Welche Richtung ein abgeschnittenes Tag nimmt, entscheidet nicht der Fehler,
+sondern der Wächter:** Ein Ausdruck, der weniger trifft, meldet zu viel, wenn
+sein Befund am fehlenden Treffer hängt, und zu wenig, wenn er am Treffer hängt.
+Der dritte Eingriff im Bruchskript schaltet den Anführungszustand aus und belegt
+beides an dieser einen Stelle.

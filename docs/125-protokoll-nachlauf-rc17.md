@@ -381,6 +381,7 @@ Zustand aufschreibt, bevor jemand etwas misst.
   berührt.
 - **Die `3 issues` auf `/backups/<id>/restore`** aus `docs/119 §12` — weiterhin
   nicht nachgesehen.
+  **Am 20. September 2026 nachgesehen** — `docs/126`. Drei Einträge, einer je Bedienelement, alle `FormEmptyIdAndNameAttributesForInputError`; die Ausfüllhilfe und kein Fund, entschieden schon am 23. August in `docs/76`.
 - **Die Frage aus `docs/117 §3`**, ob eine Wiederherstellung ihre eigene
   Reservierung zurückholen darf. Der Bestand ist um eine Zeile schärfer und um
   keine Dublette gewachsen.

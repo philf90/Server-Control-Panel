@@ -590,6 +590,7 @@ und das kann kein Wächter halten.
   Prüfstand (`docs/913 §15`).
 - **Die `3 issues` auf `/backups/<id>/restore`** aus `docs/119 §12` sind
   weiterhin nicht nachgesehen.
+  **Am 20. September 2026 nachgesehen** — `docs/126`. Drei Einträge, einer je Bedienelement, alle `FormEmptyIdAndNameAttributesForInputError`; die Ausfüllhilfe und kein Fund, entschieden schon am 23. August in `docs/76`.
 - **Die Frage aus `docs/117 §3`** — ob eine Wiederherstellung ihre **eigene**
   Reservierung zurückholen darf — hat eine gemessene Vorfrage bekommen und
   bleibt offen. Nach dem Lauf stehen zwei Zeilen in `system_users` mit

@@ -31221,6 +31221,67 @@ pruefe "unbegrenzt abgeschafft" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" QuotaDisplayTest passed
 
+abschnitt "PasswordAutocompleteTest: ein Passwortfeld ohne autocomplete"
+#
+# Zehn der dreizehn Passwortfelder dieses Panels tragen `new-password`, damit
+# der Passwortspeicher einen DNS-Token nicht fuer die Panelanmeldung haelt.
+# Geschrieben wurde das dreizehnmal von Hand; bis zum 20. September 2026 hat
+# es nichts gehalten.
+vorher_datei resources/js/Components/DnsCredentials.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/DnsCredentials.vue')
+s = p.read_text()
+alt = '\n              autocomplete="new-password"'
+assert alt in s
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei resources/js/Components/DnsCredentials.vue "Passwortfeld ohne autocomplete" &&
+pruefe "Passwortfeld ohne autocomplete" \
+  PasswordAutocompleteTest::test_every_password_field_names_its_purpose failed
+wiederherstellen
+
+abschnitt "PasswordAutocompleteTest: off statt der Absicht"
+#
+# Die zweite Haelfte der Regel. `off` ist an einem Passwortfeld keine Angabe,
+# sondern eine, die die Browser seit Jahren uebergehen — ein Waechter ueber
+# die blosse Anwesenheit des Attributs liesse sie durch.
+vorher_datei resources/js/Components/DnsCredentials.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/DnsCredentials.vue')
+s = p.read_text()
+alt = 'autocomplete="new-password"'
+assert alt in s
+p.write_text(s.replace(alt, 'autocomplete="off"', 1))
+PY
+griff_datei resources/js/Components/DnsCredentials.vue "off statt der Absicht" &&
+pruefe "off statt der Absicht" \
+  PasswordAutocompleteTest::test_off_is_not_an_intention failed
+wiederherstellen
+
+abschnitt "PasswordAutocompleteTest: der Leser hoert am ersten Winkel auf"
+#
+# Der Eingriff, der den Anfuehrungszustand des Lesers ausschaltet. Er belegt,
+# dass der Zerleger traegt und kein Feinschliff ist: Ohne ihn meldet der
+# Waechter das Wiederholungsfeld aus PasswordFields.vue, das sein
+# `autocomplete` hinter einem `>` im Attributwert traegt — ein falsches Rot an
+# genau dem Feld, fuer das es ihn gibt.
+vorher_datei tests/Unit/PasswordAutocompleteTest.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Unit/PasswordAutocompleteTest.php')
+s = p.read_text()
+alt = '            if ($quote !== null) {'
+assert alt in s
+p.write_text(s.replace(alt, '            if (false) {', 1))
+PY
+griff_datei tests/Unit/PasswordAutocompleteTest.php "Leser ohne Anfuehrungszustand" &&
+pruefe "Leser ohne Anfuehrungszustand" \
+  PasswordAutocompleteTest::test_the_reader_sees_past_an_angle_bracket_in_an_attribute failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PasswordAutocompleteTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

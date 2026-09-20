@@ -274,23 +274,52 @@ Issues      8
 ```
 
 **Gefahren in Chrome 153: 6 von 8.** Zwei Arten werden übergangen, und welche
-zwei, sagt die Zahl noch nicht — der Eintrag fasst sie zu `6 resources`
-zusammen.
-
-Isoliert wird es mit **`tests/issues-kaestchen.html`**: `checkbox`, `radio` und
-ein `text` als Ladebeleg, gegen Chromium 141 **3 von 3**, jedes einzeln
-aufgelöst. Eine Ablesung von **1** in Chrome 153 nennt die beiden Fehlenden
-beim Namen — und dann trägt `/settings/backups` mit seinen zwei Kästchen nur
-Arten, die dieser Browser übergeht, und seine Null ist richtig.
+zwei sagt die Zahl nicht — der Eintrag fasst sie zu `6 resources` zusammen.
 
 > **Eine Zahl, die eine Auswahl zusammenfasst, sagt nicht, welche — dafür
 > braucht es einen Prüfkörper, der nur die Verdächtigen trägt.**
 
-Die Vermutung liegt nahe und ist ausdrücklich **nicht** die Messung: Die
-Ausfüllhilfe füllt weder Kästchen noch Optionsknöpfe. Sie passt zu jeder
-bekannten Ablesung — `/backups/2/restore` trägt zwei `<select>` und ein `text`
-und meldete am 17. September **3** — und sie bleibt eine Vermutung, bis
-Prüfblatt 3 abgelesen ist.
+Isoliert mit **`tests/issues-kaestchen.html`**: `checkbox`, `radio` und ein
+`text` als Ladebeleg, gegen Chromium 141 **3 von 3**, jedes einzeln aufgelöst.
+**In Chrome 153: 1.** Gemeldet wird das Textfeld, übergangen werden Kästchen
+und Optionsknopf.
+
+### Die drei Ablesungen rechnen auf
+
+| Prüfblatt | trägt | Chromium 141 | Chrome 153 |
+|---|---|---|---|
+| 1 · `issues-pruefblatt.html` | `text` ohne, `text` mit `id`/`name` | 1 | **1** |
+| 2 · `issues-arten.html` | acht Arten, keine mit `id`/`name` | 8 | **6** |
+| 3 · `issues-kaestchen.html` | `checkbox`, `radio`, `text` | 3 | **1** |
+
+`8 − 2 = 6`, und die Eins nennt die beiden. Keine andere Aufteilung erfüllt
+alle drei Zeilen.
+
+> **Drei Ablesungen, die nur unter einer Erklärung zusammenpassen, belegen
+> mehr als jede einzelne.**
+
+### Damit ist die Abweichung keine
+
+`/settings/backups` trägt genau zwei Bedienelemente, beide
+`<input type="checkbox">` ohne `id` und ohne `name` — also **ausschliesslich**
+eine Art, die Chrome 153 übergeht. Sein `No issues` ist die **richtige
+Antwort**, und die **2** des Nachbaus ist ebenfalls richtig. Die beiden
+Messungen widersprechen einander nicht.
+
+> **Zwei Werkzeuge, die dasselbe messen und verschieden antworten,
+> widersprechen einander nicht — sie messen verschiedene Grundmengen.**
+
+Der Grund ist dabei kein Zufall: Die Ausfüllhilfe füllt weder Kästchen noch
+Optionsknöpfe, und ein Hinweis auf ihren Namen hat für sie keinen Gegenstand.
+Alle bekannten Ablesungen fallen damit zusammen — `/backups/2/restore` trägt
+zwei `<select>` und ein `text` und meldete am 17. September **3**.
+
+### Was daraus für jede künftige Bilderrunde folgt
+
+**Eine Ablesung der Registerkarte in Chrome 153 sagt über Kästchen und
+Optionsknöpfe nichts.** Wer `No issues` auf einer Seite liest, deren
+Bedienelemente nur aus diesen Arten bestehen, hat nicht gemessen, dass dort
+nichts ist — er hat gemessen, dass dieser Browser dazu schweigt.
 
 ### Warum eine Fassungsdifferenz überhaupt in Betracht kam
 
@@ -310,14 +339,17 @@ Datei und nicht eine Zeile zum Einfügen.
 
 ### Was offen bleibt
 
-Die Ablesung von `tests/issues-kaestchen.html` in Chrome 153 — eine Zahl. Gibt
-sie **1**, ist die Abweichung erklärt und kein Befund; gibt sie **3**, liegen
-die beiden Fehlenden woanders und `tests/issues-arten.html` muss Eintrag für
-Eintrag gelesen werden.
+**Nichts.** Die Zeile aus `docs/119 §12`, die über `docs/121 §12`, `docs/123 §12`
+und `docs/125 §9` gewandert ist, ist geschlossen — die drei Einträge sind
+gemessen und kein Fund, und die Abweichung auf `/settings/backups` ist als
+Eigenschaft der Browserfassung erklärt.
 
-Für das Urteil dieses Dokuments ändert die Antwort nichts: Die drei Einträge auf
-der Restore-Seite sind im Container, am 23. August und am 17. September
-dreifach gemessen.
+Die drei Prüfblätter bleiben im Repo. Sie beantworten je eine Frage und sind
+zusammen ein Verfahren: *Sieht das Werkzeug hin? Welche Arten sieht es? Welche
+nicht?*
+
+> **Ein Messmittel, das man aufhebt, macht die Fehler von letztem Mal nicht noch
+> einmal.**
 
 ---
 

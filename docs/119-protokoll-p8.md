@@ -289,6 +289,15 @@ Ausfüllhilfe und kein Fund. Der Satz oben trägt dabei nicht als Erklärung: Oh
 `<form>` darum stehen dieselben drei Einträge da; die Seite ist die einzige der
 fünf, die überhaupt Bedienelemente hat.
 
+**Und das `No issues` der vier anderen ist am selben Tag erklärt.**
+`/settings/backups` trägt zwei `<input type="checkbox">` ohne `id` und `name`,
+und **Chrome 153 übergeht Kästchen und Optionsknöpfe** — gemessen an drei
+Prüfblättern, die aufrechnen (1 · 6 von 8 · 1 von 3). Das `No issues` ist dort
+die richtige Antwort, und die **2** des Nachbaus unter Chromium 141 ebenso.
+
+> **Zwei Werkzeuge, die dasselbe messen und verschieden antworten, widersprechen
+> einander nicht — sie messen verschiedene Grundmengen.**
+
 ---
 
 ## 8b · Der Abbau — belegt

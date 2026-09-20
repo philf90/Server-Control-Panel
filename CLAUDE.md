@@ -5018,18 +5018,40 @@ vorhanden **1**, erst nach dem Laden eingefügt **1**, mit `id` und `name` **0**
 Ein `data:`-URL sperrt Chrome seit Fassung 60 in der Adressleiste; deshalb eine
 Datei und keine Zeile zum Einfügen.
 
-**Gefahren in Chrome 153: 6 von 8.** Zwei Arten werden übergangen, und welche
-zwei sagt die Zahl nicht — der Eintrag fasst sie zu `6 resources` zusammen.
+**Gefahren in Chrome 153: 6 von 8** — zwei Arten werden übergangen, und welche
+zwei sagt die Zahl nicht.
 
 > **Eine Zahl, die eine Auswahl zusammenfasst, sagt nicht, welche — dafür
 > braucht es einen Prüfkörper, der nur die Verdächtigen trägt.**
 
 `tests/issues-kaestchen.html` ist er: `checkbox`, `radio` und ein `text` als
-Ladebeleg, gegen Chromium 141 **3 von 3**. **Offen und benannt** ist seine
-Ablesung — **1** nennt die beiden Fehlenden beim Namen und macht die Null auf
-`/settings/backups` zur richtigen Antwort, **3** schickt die Suche zurück an
-Prüfblatt 2. Am Urteil über die drei Einträge ändert beides nichts; die sind im
-Container, am 23. August und am 17. September dreifach gemessen.
+Ladebeleg. Chromium 141 **3**, Chrome 153 **1** — gemeldet wird das Textfeld,
+übergangen werden Kästchen und Optionsknopf.
+
+**Die drei Ablesungen rechnen auf:** 1 / 6 von 8 / 1 von 3 — `8 − 2 = 6`, und
+die Eins nennt die beiden. Keine andere Aufteilung erfüllt alle drei.
+
+> **Drei Ablesungen, die nur unter einer Erklärung zusammenpassen, belegen mehr
+> als jede einzelne.**
+
+**Damit ist die Abweichung keine.** `/settings/backups` trägt genau zwei
+Bedienelemente, beide Kästchen ohne `id` und `name` — ausschliesslich eine Art,
+die dieser Browser übergeht. Sein `No issues` ist richtig, und die **2** des
+Nachbaus ist es auch.
+
+> **Zwei Werkzeuge, die dasselbe messen und verschieden antworten, widersprechen
+> einander nicht — sie messen verschiedene Grundmengen.**
+
+**Und das gilt über diesen Fall hinaus:** Eine Ablesung der Registerkarte in
+Chrome 153 sagt über Kästchen und Optionsknöpfe **nichts**. Wer dort
+`No issues` auf einer Seite liest, deren Bedienelemente nur aus diesen Arten
+bestehen, hat nicht gemessen, dass nichts da ist — sondern dass dieser Browser
+dazu schweigt.
+
+**Die drei Prüfblätter liegen im Repo** und sind zusammen ein Verfahren: *Sieht
+das Werkzeug hin* (`issues-pruefblatt.html`), *welche Arten sieht es*
+(`issues-arten.html`), *welche nicht* (`issues-kaestchen.html`) — jedes mit
+seiner Containermessung im Kopf.
 
 ---
 

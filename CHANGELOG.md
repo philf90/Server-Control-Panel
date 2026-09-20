@@ -30753,3 +30753,26 @@ ein `text` als Ladebeleg, gegen Chromium 141 drei von drei. Eine Ablesung von
 1 in Chrome 153 nennt die beiden Fehlenden beim Namen — und dann trägt
 `/settings/backups` mit seinen zwei Kästchen nur Arten, die dieser Browser
 übergeht, und seine Null ist die richtige Antwort statt einer Abweichung.
+
+### Die Abweichung auf `/settings/backups` ist keine — Chrome 153 übergeht Kästchen
+
+`tests/issues-kaestchen.html` trägt `checkbox`, `radio` und ein `text` als
+Ladebeleg. Chromium 141 meldet **3**, Chrome 153.0.8010.37 meldet **1** — das
+Textfeld. Kästchen und Optionsknopf werden übergangen.
+
+Die drei Prüfblätter rechnen auf: 1 · 6 von 8 · 1 von 3. `8 − 2 = 6`, und die
+Eins nennt die beiden; keine andere Aufteilung erfüllt alle drei Ablesungen.
+
+> **Drei Ablesungen, die nur unter einer Erklärung zusammenpassen, belegen mehr
+> als jede einzelne.**
+
+`/settings/backups` trägt genau zwei Bedienelemente, beide
+`<input type="checkbox">` ohne `id` und `name` — ausschliesslich eine Art, die
+dieser Browser übergeht. Sein `No issues` ist die richtige Antwort, und die 2
+des Nachbaus ist es auch.
+
+> **Zwei Werkzeuge, die dasselbe messen und verschieden antworten, widersprechen
+> einander nicht — sie messen verschiedene Grundmengen.**
+
+Damit ist die Zeile geschlossen, die seit `docs/119 §12` über `docs/121 §12`,
+`docs/123 §12` und `docs/125 §9` gewandert ist.

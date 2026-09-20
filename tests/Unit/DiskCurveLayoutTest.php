@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Console\Commands\ApplyVhost;
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
 use SrvPanel\Agent\Site;
@@ -15,8 +16,8 @@ use SrvPanel\Agent\Site;
  * feste Tiefe und einen festen Namen. Das ist eine **Kopie** der Regel, die
  * {@see Site::accessLog()} aufstellt — und eine Kopie, die niemand nachzieht,
  * ist der häufigste Fehler dieses Repositorys. Er steht so schon im Kopf von
- * {@see \App\Console\Commands\ApplyVhost}: die ausgelieferte Datei ist eine
- * Kopie der Vorlage, und nach einem Update bringt sie niemand nach.
+ * {@see ApplyVhost}: die ausgelieferte Datei ist eine Kopie der Vorlage, und
+ * nach einem Update bringt sie niemand nach.
  *
  * **Was der Fehler hier anrichtet, ist schlimmer als ein Absturz.** Zieht der
  * Pfad um, findet `find` null Dateien. Das Skript bricht nicht ab — es misst

@@ -1664,7 +1664,23 @@ derselbe Satz zweimal in einer Zeile) und `QuotaDisplayTest` (die Anzeige sagt
 „unbegrenzt" nur, wo ein Kontingent das sein darf — gemessen an der **Wirkung**
 von `Quotas::format()` und nicht an der Zeile `return 'unbegrenzt'`, die beim
 nächsten Umbau woanders steht, und in **beide** Richtungen, damit eine Behebung
-den Fehler nicht durch einen zweiten ersetzt). Der Bruch selbst steht als
+den Fehler nicht durch einen zweiten ersetzt) und `PasswordAutocompleteTest`
+(ein Feld, das ein Passwort aufnehmen kann, sagt dem Browser, welches — gesucht
+werden `type="password"` **und** die gebundene Form, weil zehn der dreizehn
+Felder zwischen `text` und `password` umschalten, und `off` gilt nicht als
+Angabe, weil die Browser es an Passwortfeldern übergehen; sein Leser achtet auf
+Anführungszeichen, und **der Eingriff, der das ausschaltet, meldet genau das
+Feld, für das es ihn gibt**) und `SubscriptionQuotaTest` (**jedes**
+Kontingent des Katalogs lässt sich durch die Tür übersteuern — und daneben die
+**Voraussetzung**, dass es genau **eine** Auswahl gibt: `Quotas::versions()`
+filtert hart gegen `Quota::PHP_VERSIONS`, und der Fall über die Wirkung kann
+das nicht halten, weil er seinen Wert aus `isSelection()` baut und mitzöge)
+und `SystemUserLedgerTest` (das Verzeichnis der
+Systembenutzer wird über `number` gefragt und **nicht** über seine Abschrift —
+die wiederholt sich bei jeder Wiederherstellung, weil Form A den Namen freigibt
+und die nächste Nummer vergibt; der Fall darüber belegt die Voraussetzung mit
+zwei `claim()` auf denselben Namen, gelesen wird ohne Kommentare, und die
+Dateiliste kommt aus dem Baum und nicht aus einer Liste im Test). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -4867,6 +4883,299 @@ und dass `Retention::keeps()` und `RunBackups::eligible()` bei fehlendem
 Schlüssel bewusst auf `null` bleiben.
 
 ---
+
+## Die drei Issues auf jeder Formularseite — 20. September 2026
+
+**Was Chromium dort meldet, ist entschieden, und zwar zweimal.** Auf jeder Seite
+dieses Panels mit Bedienelementen steht in der Registerkarte „Issues" je Feld
+ein Eintrag: `FormEmptyIdAndNameAttributesForInputError`, *„A form field element
+should have an id or name attribute"*. **Kein Fund** — entschieden am 23. August
+2026 (`docs/76`, fünfzehn Einträge auf `/domains`, 124 von 138 Feldern),
+nachgemessen am 20. September (`docs/126`, drei auf `/backups/<id>/restore`, 155
+von 169). Es ist Chromes **Ausfüllhilfe** und keine Aussage über die
+Zugänglichkeit: Die Werte reisen über Inertia als JSON und nicht über ein
+natives `POST`, ein Name trüge nichts, und beschriftet sind die Felder über ihre
+Klammer.
+
+**Der naheliegende Handgriff tauscht einen Befund gegen einen anderen** — mit
+`id` und `name` meldet Chromium stattdessen
+`FormInputAssignedAutocompleteValueToIdOrNameAttributeError` an jedem Feld,
+dessen Name selbst ein Merkmal der Ausfüllhilfe ist (`name`, `email`, `tel` …).
+Ein `autocomplete="off"` ohne `id` und `name` schweigt dagegen nicht. Beides
+gemessen.
+
+> **Ein Handgriff, der einen Zähler auf null bringt, hat den Zähler bedient und
+> nicht den Gegenstand.**
+
+**Der teure Teil hat mit Formularen nichts zu tun.** Die Antwort von `docs/76`
+stand im Protokoll des Laufs, der die Frage gestellt hatte. Vier Wochen später
+hat `docs/119 §8` dieselbe Frage als neu aufgeschrieben, und sie ist durch vier
+Dokumente gewandert.
+
+> **Eine Antwort, die nur im Protokoll ihres eigenen Laufs steht, ist von einer,
+> die es nie gab, vier Wochen später nicht zu unterscheiden.** Das ist die
+> Familie von A8 und vom Menüpunkt, nur mit einer Antwort statt einer Behebung —
+> und die Abhilfe ist dieselbe: Was man zweimal braucht, gehört hierher und
+> nicht in ein Protokoll.
+
+**Was daraus gebaut ist, ist die eine Regel dieser Gegend, die stimmte und die
+nichts hielt:** Jedes Feld, das ein Passwort aufnehmen kann, trägt ein
+`autocomplete`. Dreizehn von dreizehn taten es, dreizehnmal von Hand
+hingeschrieben. Acht davon nehmen **fremde** Geheimnisse auf — DNS-Token,
+API-Schlüssel, das Kennwort des Mailversands —, fünf gehören dem eigenen Konto;
+ohne die Angabe rät der Passwortspeicher zwischen beiden.
+
+**Und ein Handgriff, der für jede Messung an `.vue`-Markup gilt.** Ein `>` darf
+in einem Attributwert stehen — `v-if="… .length > 0"` steht **79 mal** in
+`resources/js` —, und ein Ausdruck wie `<input[^>]*>` hört dort auf.
+
+> **Ein Ausdruck, der ein Tag bis zum nächsten `>` liest, liest ein halbes Tag,
+> sobald eines im Attribut steht.**
+
+Der Satz stand seit dem 5. September im Kopf von `NoticeChildrenTest` und war
+dort die einzige Stelle, die ihn hielt. Die erste Messung vom 20. September ist
+prompt hineingelaufen und hat das eine Feld gemeldet, das die Regel erfüllt.
+**Wer eine Marke liest, zählt den Anführungszustand** — genauso wie man vor
+einem Ausdruck über PHP die Kommentare abstreift.
+
+> **Ein abgeschnittenes Tag lässt einen Ausdruck weniger treffen — ob daraus ein
+> falsches Rot oder ein falsches Grün wird, entscheidet, ob der Befund am
+> Treffer hängt oder an seinem Fehlen.**
+
+**Und der volle Bruchlauf hat zwei eigene Fehler gefunden** — 2632 Prüfungen,
+einer ohne Biss. Der Eingriff zeigte auf einen Fall, den er gar nicht erreichen
+kann: `test_off_is_not_an_intention` misst seinen **eigenen** Prüfkörper und
+liest den Baum nicht. Einzeln belegt worden war er über einen Filter auf die
+**Klasse**.
+
+> **Ein Lauf über die ganze Klasse sagt, dass ein Fall rot war — nicht,
+> welcher.** Ein Eingriff wird gegen **seinen** Fall gefahren, ein Lauf je
+> Eingriff.
+
+Der zweite ist älter: `abschnitt "…"` steht seit dem 18. September neunmal im
+Bruchskript, **und die Funktion gibt es nicht**. bash meldet `command not
+found`, läuft weiter, und die Bilanz zählt wie sonst. Gesehen hat es keiner der
+Wächter — `test_no_heading_swallows_the_intervention_below_it` liest nur Zeilen,
+die mit `echo "` beginnen, und seine Untergrenze von 50 war durch die 1100
+richtig geschriebenen längst erfüllt.
+
+> **Ein Skript, das eine Zeile nicht ausführen kann, läuft weiter — und die
+> Meldung darüber steht neben der Bilanz und nicht darin.**
+
+> **Eine Untergrenze, die die Mehrheit erfüllt, sieht eine zweite Schreibweise
+> nicht — sie zählt ja weiter genug.**
+
+**Und eine zehnte Meldung war keine Kurzform, sondern ein Auftrag:** Eine
+Überschrift zitierte ihren Gegenstand in Markdown, und in doppelten
+Anführungszeichen ist ein Backtick Befehlsersetzung. bash führt aus, was
+dazwischen steht, und druckt das Ergebnis an seiner Stelle.
+
+> **Ein Zitat in doppelten Anführungszeichen ist in einer Shell kein Zitat,
+> sondern ein Auftrag.** Hier stand dort kein Befehl — beim nächsten Mal steht
+> dort einer, weil jemand einen Befund zitiert.
+> `test_no_line_runs_a_command_it_only_means_to_print` hält es.
+
+Behoben, indem die zweite Schreibweise verschwindet, und gehalten von
+`BreakScriptTest::test_every_helper_the_script_calls_is_defined`: Ein Wort am
+Zeilenanfang vor einer Zeichenkette ist `echo`, `printf`, eine Eingebaute oder
+eine Funktion dieses Skripts. Gebrochen wurde er **von Hand** — sein Bruch
+stünde in der einen Datei, die der Rückweg zu Recht auslässt.
+
+**Und die Quergegenprobe hat zwei Erklärungen widerlegt — die zweite war
+meine.** `/settings/backups` trägt zwei Kästchen ohne `id` und ohne `name`, der
+Nachbau sagt **2**, `docs/119 §8` hat dort `No issues` gelesen. Gefahren am
+20. September gibt der Browser des Betreibers **0** — und auf `/domains`
+ebenso. Daraus war hier zuerst geschlossen worden, das Werkzeug sammle nicht.
+
+**Beide Hälften dieses Schlusses standen falsch, und beide in Dokumenten dieses
+Repos.** Die fünfzehn aus `docs/76` stehen nicht auf `/domains`, sondern unter
+**Ansicht 1, „Domain, ganze Seite"** — der Detailseite; `/domains` ist dort
+Ansicht 3. Und die Domainliste trägt genau **ein** Bedienelement, ein `<select>`
+hinter `v-else-if="props.creatable.length > 1"`: Bei einem einzigen
+aufnahmefähigen Abonnement rendert dort keines, und eine Null ist die richtige
+Antwort.
+
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst die
+> falsche.** Sein Grün liest sich wie ein Freispruch — und sein Rot wie ein
+> Befund.
+
+> **Ein Seitenname aus der Erinnerung ist kein Prüfkörper.** Die Tabelle, die
+> ihn nennt, stand daneben und wurde nicht gelesen.
+
+**Der Prüfkörper, der anschlagen muss, liegt seitdem im Repo** —
+`tests/issues-pruefblatt.html`: zwei Felder auf einer Seite, eines ohne
+`id`/`name`, eines mit beidem, beide Richtungen in einer einzigen Ablesung.
+Gemessen gegen Chromium 141 **1**, gefahren in **Chrome 153.0.8010.37**
+ebenfalls **1**. Damit ist auch die zweite Erklärung — eine Fassung, die diese
+Art nicht mehr meldet — widerlegt: **Das Werkzeug sieht hin.**
+
+Offen ist deshalb nicht mehr, *ob* dieser Browser meldet, sondern **welche
+Arten**: Die Ausfüllhilfe füllt keine Kästchen, und `/settings/backups` trägt
+genau die. `tests/issues-arten.html` steht dafür daneben — acht Bedienelemente
+ohne `id` und `name`, jedes an einer Klasse `art-…` wiedererkennbar, gegen
+Chromium 141 **8 von 8** und jedes einzeln über `DOM.describeNode` aufgelöst.
+
+**Und ein Fund am Kanal, der das Ganze überhaupt plausibel gemacht hat:** Die
+Registerkarte holt diese Einträge über den Befehl `Audits.checkFormsIssues` —
+und der gibt `formIssues` **leer** zurück und stösst seine Antwort stattdessen
+als Ereignis nach (Zähler 1 → 2 im selben Zug).
+
+> **Ein Befehl, dessen Rückgabewert leer ist und dessen Wirkung woanders steht,
+> ist von einem, der nichts tut, nur am zweiten Kanal zu unterscheiden.**
+
+Der Lieferweg eines Prüfkörpers ist dagegen gemessen gleichgültig — beim Parsen
+vorhanden **1**, erst nach dem Laden eingefügt **1**, mit `id` und `name` **0**.
+Ein `data:`-URL sperrt Chrome seit Fassung 60 in der Adressleiste; deshalb eine
+Datei und keine Zeile zum Einfügen.
+
+**Gefahren in Chrome 153: 6 von 8** — zwei Arten werden übergangen, und welche
+zwei sagt die Zahl nicht.
+
+> **Eine Zahl, die eine Auswahl zusammenfasst, sagt nicht, welche — dafür
+> braucht es einen Prüfkörper, der nur die Verdächtigen trägt.**
+
+`tests/issues-kaestchen.html` ist er: `checkbox`, `radio` und ein `text` als
+Ladebeleg. Chromium 141 **3**, Chrome 153 **1** — gemeldet wird das Textfeld,
+übergangen werden Kästchen und Optionsknopf.
+
+**Die drei Ablesungen rechnen auf:** 1 / 6 von 8 / 1 von 3 — `8 − 2 = 6`, und
+die Eins nennt die beiden. Keine andere Aufteilung erfüllt alle drei.
+
+> **Drei Ablesungen, die nur unter einer Erklärung zusammenpassen, belegen mehr
+> als jede einzelne.**
+
+**Damit ist die Abweichung keine.** `/settings/backups` trägt genau zwei
+Bedienelemente, beide Kästchen ohne `id` und `name` — ausschliesslich eine Art,
+die dieser Browser übergeht. Sein `No issues` ist richtig, und die **2** des
+Nachbaus ist es auch.
+
+> **Zwei Werkzeuge, die dasselbe messen und verschieden antworten, widersprechen
+> einander nicht — sie messen verschiedene Grundmengen.**
+
+**Und das gilt über diesen Fall hinaus:** Eine Ablesung der Registerkarte in
+Chrome 153 sagt über Kästchen und Optionsknöpfe **nichts**. Wer dort
+`No issues` auf einer Seite liest, deren Bedienelemente nur aus diesen Arten
+bestehen, hat nicht gemessen, dass nichts da ist — sondern dass dieser Browser
+dazu schweigt.
+
+**Die drei Prüfblätter liegen im Repo** und sind zusammen ein Verfahren: *Sieht
+das Werkzeug hin* (`issues-pruefblatt.html`), *welche Arten sieht es*
+(`issues-arten.html`), *welche nicht* (`issues-kaestchen.html`) — jedes mit
+seiner Containermessung im Kopf.
+
+---
+
+## Die Frage aus `docs/117 §3` war entschieden — 20. September 2026
+
+**Sie stand in drei Protokollen als offen und war es seit dem 16. September
+nicht mehr.** Der Grund steht im selben Abschnitt, der sie beantwortet: Der Kopf
+von `docs/117 §3` sagt seit dem 16. September **„entschieden"**, und vier
+Absätze weiter unten stand **„Entschieden ist es nicht"**. Der Kopf wurde
+nachgetragen, der Schluss nicht.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+`docs/121 §12`, `docs/123 §12` und `docs/125 §9` sind **nach** der Entscheidung
+entstanden und haben den Schluss gelesen; `docs/123 §8` nennt sie wörtlich „die
+offene Entscheidung".
+
+> **Eine veraltete Zeile kostet nicht eine Zeile — sie kostet jede, die sie
+> abschreibt.**
+
+Gekostet hat es nichts, weil vor dem Bauen ein Blick in den Abschnitt stand und
+keine Erinnerung — dieselbe Gewohnheit, die A8 zu spät bekommen hat: **Wer
+entscheidet, was als Nächstes gebaut wird, sieht vorher nach, ob es das schon
+gibt.**
+
+**Was die drei Läufe beigetragen haben, ist keine Wiedereröffnung, sondern ein
+Grund, der nach der Entscheidung eintraf.** Bedingung 1 von Form B verlangt eine
+Zeile in `system_users`, deren Abschrift zum Verzeichnis der Sicherung passt —
+und die Abschrift **verdoppelt sich bei jeder Wiederherstellung**, weil Form A
+den Namen freigibt und die nächste Nummer vergibt. Gemessen auf `cloudsrv24`
+(`docs/123 §8`): 146 Reservierungen, zwei Namen mit je zwei Zeilen.
+
+> **Eine Bedingung, die auf ein Merkmal zeigt, das der eigene Betrieb
+> vervielfältigt, wird mit jedem Lauf schwächer — und sie steht schon
+> geschrieben, bevor jemand sie braucht.**
+
+**Und der Bestand trägt die Entscheidung, gemessen und nicht geschlossen:** In
+`app/` stehen **sechs** `SystemUser::query()`, und **alle sechs** fragen über
+`number`. **Keine** sucht über die Abschrift; die eine Stelle, die sie liest
+(`Orphans.php`), **druckt** sie in einen Befundtext. Damit trägt das Verzeichnis
+genau die Richtung, die der Kopf von `SystemUser` zusagt — *„welcher Kunde hatte
+`p1043`"*, also Nummer → Name.
+
+**Gebaut ist daraus ein Wächter und keine Behebung**, denn kaputt ist nichts:
+zwei Fälle in `SystemUserLedgerTest`, beide gebrochen, dazu die Gegenprobe, dass
+die verbotene Form **nur im Kommentar** den Wächter grün lässt — der Absatz, der
+sie erklärt, schreibt sie wörtlich hin.
+
+> **Ein Zustand, der stimmt und den nichts hält, ist von einem, der nicht
+> stimmt, nur durch Glück getrennt.**
+
+**Offen bleibt daran nichts.** Wer Form B später will, braucht ein Merkmal, das
+die tote Reservierung von der lebenden trennt — der Name ist es nicht, und er
+wird es mit jedem Lauf weniger.
+
+---
+
+## Befund C ist gemessen und bleibt ohne Ursache — 20. September 2026
+
+Ein Kontingent-Override, zweimal über `/subscriptions/146/edit` gesetzt, zweimal
+nicht angekommen — und **keine** Zeile `subscription.updated` dazu. `docs/123 §9`
+hat ihn als das geführt, was er war: kein belegter Fehler, sondern ein Zustand,
+den niemand herstellen und niemand erklären kann.
+
+**Gemessen ist er jetzt, und die Kette ist entlastet.** Durch die echte Route,
+mit dem Zuschnitt des Servers — Plan `Standard` ohne `backups`-Schlüssel,
+Übersteuerung `backups: 5`: **303**, `quota_overrides = {"backups":5}`, eine
+Protokollzeile, keine Prüfmeldung. Nicht der Prüfer, nicht
+`Quotas::overrides()`, nicht der fehlende Planschlüssel.
+
+**Eine Hypothese hatte genau die Signatur und ist widerlegt.** Ein Browsertab,
+der nach dem Einspielen offen blieb, schickt eine veraltete
+`X-Inertia-Version`; Inertia antwortet mit **409** und lädt wortlos neu. Das
+ergäbe alles: keine Zeile, kein Fehler, der Wert nicht da — und man landet auf
+der Abonnementseite, **weil das Erfolgsziel dieselbe Seite ist**. Gemessen
+prüft Inertia die Fassung aber nur bei `GET`: derselbe Header am `PATCH` gibt
+303 und speichert, am `GET` **409** mit `X-Inertia-Location`.
+
+> **Eine widerlegte Hypothese ist ein Ergebnis — sie verkleinert den Bereich,
+> in dem die Ursache noch liegen kann.**
+
+Die zweite Zeile ist dabei der Grund, dass die erste etwas bedeutet: Ohne die
+409 am `GET` stünde da ein 303 ohne Beleg, dass die Fassungsprüfung in diesem
+Prüfstand überhaupt greift.
+
+**Gebaut ist, was beim Messen auffiel, und nicht, was der Befund bestellt hat.**
+`Quotas::overrides()` schickt jedes `isSelection()`-Kontingent durch
+`Quotas::versions()`, und die filtert hart gegen `Quota::PHP_VERSIONS`;
+`isSelection()` ist ein `$this === self::PhpVersions`. Ein zweites
+Auswahl-Kontingent liefe durch den Prüfer und verschwände in `versions()` —
+Erfolg gemeldet, Spalte leer.
+
+> **Eine Regel, die heute nur gilt, weil es einen Fall gibt, ist keine Regel —
+> sie ist eine Zählung.**
+
+Zwei Fälle halten es: die **Wirkung** über den ganzen Katalog und die
+**Voraussetzung**, dass es genau eine Auswahl gibt. Der erste kann den zweiten
+nicht halten.
+
+> **Ein Wächter, der sich an den Zustand anpasst, den er prüfen soll, wird mit
+> ihm falsch.**
+
+**Und der erste Eingriff dazu hat nichts gemessen.** Die Ankerzeile steht
+**zweimal** in `Quotas.php` — in `overrides()` und in `normalize()`; die
+Ersetzung brach an ihrer Zusicherung ab, und der Wächter lief danach gegen die
+unveränderte Datei und meldete Grün.
+
+> **Eine Gegenprobe, bei der man nicht nachsieht, ob der Eingriff wirklich in
+> der Datei steht, belegt nichts.** Gefangen hat es die gedruckte Zeile
+> `Eingriff steht: 0` daneben und nicht das Ergebnis darunter.
+
+**Was offen bleibt**, liegt zwischen Knopf und Anfrage — dort hat niemand
+zugesehen, und ein Wächter kann es nicht halten.
 
 ## Befehle
 

@@ -346,6 +346,7 @@ so da und nicht als „erfüllt".
   nach RFC 2606 nicht ausstellbar; der Befund ist ein Rest des Prüfstands.
 - **Die `3 issues` auf `/backups/<id>/restore`** — sie stehen in `docs/119 §12`
   und sind weiterhin nicht nachgesehen.
+  **Am 20. September 2026 nachgesehen** — `docs/126`. Drei Einträge, einer je Bedienelement, alle `FormEmptyIdAndNameAttributesForInputError`; die Ausfüllhilfe und kein Fund, entschieden schon am 23. August in `docs/76`.
 - **Ob die Zeile auf der Sicherungsseite ohne Neuladen springt** (Befund 2). Sie
   ist dreimal verpasst worden; wer sie diesmal sehen will, bleibt nach „Jetzt
   sichern" auf der Seite stehen.

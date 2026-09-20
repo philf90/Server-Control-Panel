@@ -309,8 +309,12 @@ sich bei **jeder** Wiederherstellung und nicht nur bei einer.
 > ein Merkmal, das die tote von der lebenden Reservierung trennt — der Name ist
 > es nicht, und er wird es mit jedem Lauf weniger.
 
-Abgeräumt wird hier nichts: Das ist der Bestand, an dem die offene Entscheidung
-aus `docs/117 §3` hängt.
+Abgeräumt wird hier nichts: Das ist der Bestand, an dem `docs/117 §3` hängt.
+
+*(Am 20. September berichtigt: „die offene Entscheidung" stand hier falsch — sie
+war am 16. September gefallen, Form A. Was dieser Bestand trägt, ist nicht die
+Entscheidung, sondern ihr nachgereichter Grund: Bedingung 1 von Form B zeigt auf
+ein Merkmal, das sich bei jeder Wiederherstellung verdoppelt.)*
 
 ---
 
@@ -401,6 +405,79 @@ Zwei dieser vier Zeilen tragen `"overrides":["domains"]` und
 **Was den Abbruch verursacht hat, ist ungemessen geblieben.** Es ist damit kein
 belegter Fehler im Panel, sondern ein Zustand, den niemand hergestellt hat und
 niemand erklären kann.
+
+#### Nachgemessen am 20. September 2026 — die Kette ist entlastet
+
+**Gefahren im Container durch die echte Route**, mit genau dem Zuschnitt des
+Servers: Plan `Standard` **ohne** `backups`-Schlüssel, Abonnement darauf,
+`PATCH /subscriptions/{id}` mit `overrides.backups = 5`.
+
+```
+Status              : 303
+Ziel                : /subscriptions/1
+Prüfmeldungen       : []
+quota_overrides     : {"backups":5}
+subscription.updated: 1
+```
+
+Die Kette trägt also nicht nur auf dem Papier. Damit ist der Bereich, in dem
+die Ursache liegen kann, kleiner: **nicht** der Prüfer, **nicht**
+`Quotas::overrides()`, **nicht** der fehlende Planschlüssel.
+
+**Eine Hypothese hatte genau die Signatur — und ist widerlegt.** Ein
+Browsertab, der nach dem Einspielen von `rc.16` offen geblieben war, schickt
+eine veraltete `X-Inertia-Version`; Inertia antwortet darauf mit **409** und
+lädt die Seite wortlos neu. Das ergäbe alles, was gemessen wurde: keine
+Protokollzeile, keine Fehlermeldung, der Wert nicht da — und man landet auf der
+Abonnementseite, **weil das Erfolgsziel dieselbe Seite ist**.
+
+Gemessen ist sie falsch: Inertia prüft die Fassung nur bei `GET`.
+
+| dieselbe veraltete Kopfzeile an | Status | Wert gespeichert |
+|---|---|---|
+| `PATCH /subscriptions/1` | **303** | ja |
+| `GET /subscriptions/1/edit` | **409** mit `X-Inertia-Location` | — |
+
+**Die zweite Zeile ist der Grund, dass die erste etwas bedeutet.** Ohne sie
+stünde da ein 303 und kein Beleg, dass die Fassungsprüfung in diesem Prüfstand
+überhaupt greift.
+
+> **Eine widerlegte Hypothese ist ein Ergebnis — sie verkleinert den Bereich,
+> in dem die Ursache noch liegen kann.**
+
+Befund C bleibt damit **ohne belegte Ursache** und ist weiterhin kein Fehler im
+Panel. Was offenbleibt, liegt zwischen Knopf und Anfrage, und dort hat niemand
+zugesehen.
+
+#### Und beim Messen fiel eine Regel auf, die nichts hielt
+
+`Quotas::overrides()` schickt jedes `isSelection()`-Kontingent durch
+`Quotas::versions()`, und die filtert **hart** gegen `Quota::PHP_VERSIONS`.
+`isSelection()` ist heute ein `$this === self::PhpVersions` — ein zweites
+Auswahl-Kontingent liefe durch den Prüfer, fände in `versions()` keinen seiner
+Werte wieder, und der Schlüssel verschwände aus `quota_overrides`, während die
+Seite Erfolg meldet.
+
+> **Eine Regel, die heute nur gilt, weil es einen Fall gibt, ist keine Regel —
+> sie ist eine Zählung.**
+
+Gebaut sind daraus zwei Fälle in `SubscriptionQuotaTest`: die Wirkung über den
+**ganzen Katalog** (jedes Kontingent lässt sich durch die Tür übersteuern) und
+die **Voraussetzung** (es gibt genau eine Auswahl). Der erste kann den zweiten
+nicht halten — er baut seinen Wert aus `isSelection()` und zöge mit.
+
+> **Ein Wächter, der sich an den Zustand anpasst, den er prüfen soll, wird mit
+> ihm falsch.**
+
+**Und der erste Eingriff dazu hat nichts gemessen.** Die Zeile
+`if ($value === null || $value === '') {` steht **zweimal** in `Quotas.php` —
+in `overrides()` und in `normalize()`; die Ersetzung brach an ihrer eigenen
+Zusicherung ab, und der Wächter lief danach gegen die **unveränderte** Datei
+und meldete Grün.
+
+> **Eine Gegenprobe, bei der man nicht nachsieht, ob der Eingriff wirklich in
+> der Datei steht, belegt nichts.** Gefangen hat es die Zeile `Eingriff steht:
+> 0` daneben und nicht das Ergebnis darunter.
 
 ### Befund D — „unbegrenzt" für ein Kontingent, das es nicht sein darf
 
@@ -531,6 +608,9 @@ und Nachlauf beide überlebt haben, zwei von ausserhalb der Stufe.
   (`docs/913 §15`).
 - **Die `3 issues` auf `/backups/<id>/restore`** aus `docs/119 §12` sind
   weiterhin nicht nachgesehen.
-- **Die Frage aus `docs/117 §3`** — ob eine Wiederherstellung ihre eigene
-  Reservierung zurückholen darf — bleibt offen und hat mit §8 einen schärferen
-  Bestand: **zwei** doppelte Abschriften statt einer.
+  **Am 20. September 2026 nachgesehen** — `docs/126`. Drei Einträge, einer je Bedienelement, alle `FormEmptyIdAndNameAttributesForInputError`; die Ausfüllhilfe und kein Fund, entschieden schon am 23. August in `docs/76`.
+- ~~**Die Frage aus `docs/117 §3`** — ob eine Wiederherstellung ihre eigene
+  Reservierung zurückholen darf — bleibt offen~~ — **am 20. September
+  berichtigt:** entschieden war sie am 16. September (Form A). Der schärfere
+  Bestand aus §8 — **zwei** doppelte Abschriften statt einer — bleibt richtig
+  und ist ihr nachgereichter Grund.

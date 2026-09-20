@@ -20,6 +20,7 @@ use RecursiveIteratorIterator;
 use RuntimeException;
 use SplFileInfo;
 use Tests\Support\ReadsMethodSource;
+use Tests\Support\WithoutPhpComments;
 use Tests\TestCase;
 
 /**
@@ -39,7 +40,7 @@ use Tests\TestCase;
  */
 final class SystemUserLedgerTest extends TestCase
 {
-    use ReadsMethodSource, RefreshDatabase;
+    use ReadsMethodSource, RefreshDatabase, WithoutPhpComments;
 
     private function lifecycle(): Lifecycle
     {
@@ -400,5 +401,154 @@ final class SystemUserLedgerTest extends TestCase
             $source,
             'Die Vergabe muss das Verzeichnis fragen — sonst zählt sie gar nichts, was einen Namen verbraucht.',
         );
+    }
+
+    /**
+     * Die Abschrift wiederholt sich, die Nummer nicht.
+     *
+     * **Das ist der Hergang einer Wiederherstellung in Form A** (`docs/117 §3`,
+     * entschieden am 16. September 2026): Das Abonnement kommt unter seinem
+     * alten Namen zurück — `Rule::unique` gibt ihn frei, weil `subscriptions`
+     * seit `docs/35` hart gelöscht wird — und bekommt die **nächste** freie
+     * Nummer. Zwei Zeilen tragen danach dieselbe Abschrift.
+     *
+     * Auf `cloudsrv24` gemessen am 18. September 2026 (`docs/123 §8`): 146
+     * Reservierungen, und **zwei** Namen mit je zwei Zeilen. Es verdoppelt sich
+     * bei jeder Wiederherstellung und nicht bei einer.
+     *
+     * Der Fall steht hier, weil er die **Voraussetzung** des Wächters darunter
+     * ist: Solange er gilt, ist die Abschrift kein Schlüssel.
+     */
+    public function test_the_transcript_repeats_and_the_number_does_not(): void
+    {
+        $lifecycle = $this->lifecycle();
+
+        $first = $lifecycle->claim('shop.invalid');
+        $second = $lifecycle->claim('shop.invalid');
+
+        $this->assertSame(['p1000', 'p1001'], [$first, $second], 'Zwei Vergaben sind zwei Nummern — sonst prüft dieser Fall nichts.');
+
+        // Absichtlich die Abfrage, die der Wächter darunter im Panel verbietet:
+        // Sie ist hier der Prüfkörper und nicht die Regel.
+        $rows = SystemUser::query()->where('subscription', 'shop.invalid')->orderBy('number')->get();
+
+        $this->assertCount(
+            2,
+            $rows,
+            'Zwei Reservierungen mit derselben Abschrift — genau das macht sie als Schlüssel unbrauchbar.',
+        );
+
+        $this->assertSame([1000, 1001], $rows->pluck('number')->all());
+    }
+
+    /**
+     * Keine Stelle sucht eine Zeile des Verzeichnisses über ihre Abschrift.
+     *
+     * **Warum das eine Regel ist und keine Selbstverständlichkeit.** Der Fall
+     * darüber zeigt, dass `subscription` sich wiederholt; `number` ist eindeutig
+     * und trägt dafür einen Index. Eine Abfrage über die Abschrift liefert
+     * deshalb irgendeine der Zeilen — und welche, entscheidet die Reihenfolge
+     * der Datenbank. Der Kopf von {@see SystemUser} sagt dasselbe von der
+     * anderen Seite: Die Abschrift beantwortet *„welcher Kunde hatte `p1043`"*,
+     * also Nummer → Name, und nicht die Gegenrichtung.
+     *
+     * **Wer die Regel umdrehen will, findet in `docs/117 §3` Form B** — dort ist
+     * Bedingung 1 genau diese Abfrage, und genau daran scheitert sie heute.
+     *
+     * Gelesen wird **ohne Kommentare**: Der Absatz, der die verbotene Form
+     * erklärt, schreibt sie wörtlich hin.
+     *
+     * Der Geltungsbereich ist `app/` und `agent/` und nicht `tests/` — der Fall
+     * darüber benutzt die Abfrage als Prüfkörper.
+     */
+    public function test_nothing_looks_a_row_up_by_its_transcript(): void
+    {
+        $verboten = [
+            "where('subscription'",
+            'where("subscription"',
+            'whereSubscription(',
+            "firstWhere('subscription'",
+            "['subscription' =>",
+        ];
+
+        $dateien = [];
+        $abfragen = 0;
+
+        foreach ($this->ledgerFiles() as $datei) {
+            $roh = (string) file_get_contents($datei);
+            $quelle = $this->withoutComments($roh);
+            $dateien[] = $datei;
+            $abfragen += substr_count($quelle, 'SystemUser::query()');
+
+            foreach ($verboten as $form) {
+                $this->assertStringNotContainsString(
+                    $form,
+                    $quelle,
+                    sprintf(
+                        '%s sucht eine Zeile des Verzeichnisses über ihre Abschrift. Die ist nicht eindeutig (docs/123 §8): Gefragt wird über `number`.',
+                        $datei,
+                    ),
+                );
+            }
+        }
+
+        // Die Untergrenzen: Ohne sie meldet dieser Wächter Grün, sobald die
+        // Dateiliste leer läuft oder das Verzeichnis unter einem anderen Namen
+        // gefragt wird.
+        $this->assertGreaterThanOrEqual(
+            6,
+            count($dateien),
+            'Es sollten mindestens sechs Dateien das Verzeichnis anfassen — findet der Wächter weniger, greift sein Ausdruck ins Leere.',
+        );
+
+        $this->assertGreaterThanOrEqual(
+            4,
+            $abfragen,
+            'Gemessen sind sechs `SystemUser::query()` in app/. Findet der Wächter weniger als vier, sucht er am Verzeichnis vorbei.',
+        );
+    }
+
+    /**
+     * Die Dateien, die das Verzeichnis überhaupt anfassen.
+     *
+     * Aus dem Baum und nicht aus einer Liste im Test: Eine Liste veraltet bei
+     * der nächsten Datei, die dazukommt, und zwar wortlos.
+     *
+     * @return list<string>
+     */
+    private function ledgerFiles(): array
+    {
+        $gefunden = [];
+
+        foreach (['app', 'agent/src'] as $wurzel) {
+            $baum = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator(base_path($wurzel), FilesystemIterator::SKIP_DOTS),
+            );
+
+            /** @var SplFileInfo $datei */
+            foreach ($baum as $datei) {
+                if ($datei->getExtension() !== 'php') {
+                    continue;
+                }
+
+                $pfad = (string) $datei->getPathname();
+
+                if ($pfad === base_path('app/Models/SystemUser.php')) {
+                    continue;
+                }
+
+                $roh = (string) file_get_contents($pfad);
+
+                if (! str_contains($roh, 'SystemUser') && ! str_contains($roh, "'system_users'")) {
+                    continue;
+                }
+
+                $gefunden[] = str_replace(base_path().'/', '', $pfad);
+            }
+        }
+
+        sort($gefunden);
+
+        return $gefunden;
     }
 }

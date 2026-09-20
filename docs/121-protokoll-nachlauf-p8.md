@@ -590,10 +590,14 @@ und das kann kein Wächter halten.
   Prüfstand (`docs/913 §15`).
 - **Die `3 issues` auf `/backups/<id>/restore`** aus `docs/119 §12` sind
   weiterhin nicht nachgesehen.
+  **Am 20. September 2026 nachgesehen** — `docs/126`. Drei Einträge, einer je Bedienelement, alle `FormEmptyIdAndNameAttributesForInputError`; die Ausfüllhilfe und kein Fund, entschieden schon am 23. August in `docs/76`.
 - **Die Frage aus `docs/117 §3`** — ob eine Wiederherstellung ihre **eigene**
-  Reservierung zurückholen darf — hat eine gemessene Vorfrage bekommen und
-  bleibt offen. Nach dem Lauf stehen zwei Zeilen in `system_users` mit
-  derselben Abschrift:
+  Reservierung zurückholen darf — hat eine gemessene Vorfrage bekommen. *(Am
+  20. September berichtigt: Die Frage war am 16. September entschieden — Form A.
+  Diese Zeile folgte einem Satz im Schluss von `docs/117 §3`, der dem eigenen
+  Kopf widersprach; dort steht jetzt, was gilt. Die Vorfrage darunter bleibt
+  richtig und ist der Grund, der **nach** der Entscheidung eintraf.)* Nach dem
+  Lauf stehen zwei Zeilen in `system_users` mit derselben Abschrift:
 
   ```
   p1143  prefix=x021a34c02ffb11fb  abo=p8-nachlauf.invalid  seit=08:56:49

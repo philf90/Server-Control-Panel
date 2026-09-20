@@ -16884,7 +16884,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LogSourceTest passed
 
 echo
-echo "── LogSourceTest: `-- No entries --` kommt als Zeile durch ──"
+echo "── LogSourceTest: \`-- No entries --\` kommt als Zeile durch ──"
 #
 # Gemessen am 24. August 2026: journalctl schreibt die Markierung auf **stdout**,
 # also dorthin, wo der Leser die Zeilen erwartet. Wer sie durchreicht, zeigt eine
@@ -31116,7 +31116,7 @@ pruefe "  … zurückgesetzt wieder grün" BackupColumnTest passed
 
 # ── Der Nachlauf zu 0.7.4-rc.16 (docs/123 §9) ──────────────────────────────
 
-abschnitt "ConfirmationVerbTest: der Satz steht wieder auf dem Knopf"
+echo "── ConfirmationVerbTest: der Satz steht wieder auf dem Knopf ──"
 vorher_datei resources/js/Pages/Subscriptions/Backups.vue
 python3 - <<'PY'
 import pathlib
@@ -31136,7 +31136,7 @@ pruefe "Satz auf dem Knopf" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ConfirmationVerbTest passed
 
-abschnitt "ConfirmationVerbTest: dem Leser den Gegenstand nehmen"
+echo "── ConfirmationVerbTest: dem Leser den Gegenstand nehmen ──"
 vorher_datei resources/js/Pages/Subscriptions/Sftp.vue
 python3 - <<'PY'
 import pathlib, re
@@ -31159,7 +31159,7 @@ pruefe "Gegenstand genommen" \
   ConfirmationVerbTest::test_every_confirmation_names_a_verb_on_its_button failed
 wiederherstellen
 
-abschnitt "BackupControlStateTest: der Entfernen-Knopf verliert sein v-if"
+echo "── BackupControlStateTest: der Entfernen-Knopf verliert sein v-if ──"
 vorher_datei resources/js/Pages/Subscriptions/Backups.vue
 python3 - <<'PY'
 import pathlib
@@ -31174,7 +31174,7 @@ pruefe "Knopf ohne v-if" \
   BackupControlStateTest::test_a_removal_control_stands_behind_the_running_state failed
 wiederherstellen
 
-abschnitt "BackupControlStateTest: die zweite Liste vergisst es"
+echo "── BackupControlStateTest: die zweite Liste vergisst es ──"
 vorher_datei resources/js/Pages/Subscriptions/BackupPick.vue
 python3 - <<'PY'
 import pathlib
@@ -31190,7 +31190,7 @@ pruefe "zweite Liste ohne v-if" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BackupControlStateTest passed
 
-abschnitt "QuotaDisplayTest: unbegrenzt für jedes Kontingent"
+echo "── QuotaDisplayTest: unbegrenzt für jedes Kontingent ──"
 vorher_datei app/Support/Plans/Quotas.php
 python3 - <<'PY'
 import pathlib
@@ -31205,7 +31205,7 @@ pruefe "unbegrenzt für alle" \
   QuotaDisplayTest::test_unlimited_is_only_said_where_it_is_allowed failed
 wiederherstellen
 
-abschnitt "QuotaDisplayTest: das Wort ganz abgeschafft"
+echo "── QuotaDisplayTest: das Wort ganz abgeschafft ──"
 vorher_datei app/Support/Plans/Quotas.php
 python3 - <<'PY'
 import pathlib
@@ -31220,6 +31220,153 @@ pruefe "unbegrenzt abgeschafft" \
   QuotaDisplayTest::test_unlimited_is_still_said_where_it_is_allowed failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" QuotaDisplayTest passed
+
+echo "── PasswordAutocompleteTest: ein Passwortfeld ohne autocomplete ──"
+#
+# Zehn der dreizehn Passwortfelder dieses Panels tragen `new-password`, damit
+# der Passwortspeicher einen DNS-Token nicht fuer die Panelanmeldung haelt.
+# Geschrieben wurde das dreizehnmal von Hand; bis zum 20. September 2026 hat
+# es nichts gehalten.
+vorher_datei resources/js/Components/DnsCredentials.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/DnsCredentials.vue')
+s = p.read_text()
+alt = '\n              autocomplete="new-password"'
+assert alt in s
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei resources/js/Components/DnsCredentials.vue "Passwortfeld ohne autocomplete" &&
+pruefe "Passwortfeld ohne autocomplete" \
+  PasswordAutocompleteTest::test_every_password_field_names_its_purpose failed
+wiederherstellen
+
+echo "── PasswordAutocompleteTest: off statt der Absicht ──"
+#
+# Die zweite Haelfte der Regel. `off` ist an einem Passwortfeld keine Angabe,
+# sondern eine, die die Browser seit Jahren uebergehen — ein Waechter ueber
+# die blosse Anwesenheit des Attributs liesse sie durch.
+vorher_datei resources/js/Components/DnsCredentials.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/DnsCredentials.vue')
+s = p.read_text()
+alt = 'autocomplete="new-password"'
+assert alt in s
+p.write_text(s.replace(alt, 'autocomplete="off"', 1))
+PY
+griff_datei resources/js/Components/DnsCredentials.vue "off statt der Absicht" &&
+pruefe "off statt der Absicht" \
+  PasswordAutocompleteTest::test_every_password_field_names_its_purpose failed
+wiederherstellen
+
+echo "── PasswordAutocompleteTest: der Leser hoert am ersten Winkel auf ──"
+#
+# Der Eingriff, der den Anfuehrungszustand des Lesers ausschaltet. Er belegt,
+# dass der Zerleger traegt und kein Feinschliff ist: Ohne ihn meldet der
+# Waechter das Wiederholungsfeld aus PasswordFields.vue, das sein
+# `autocomplete` hinter einem `>` im Attributwert traegt — ein falsches Rot an
+# genau dem Feld, fuer das es ihn gibt.
+vorher_datei tests/Unit/PasswordAutocompleteTest.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Unit/PasswordAutocompleteTest.php')
+s = p.read_text()
+alt = '            if ($quote !== null) {'
+assert alt in s
+p.write_text(s.replace(alt, '            if (false) {', 1))
+PY
+griff_datei tests/Unit/PasswordAutocompleteTest.php "Leser ohne Anfuehrungszustand" &&
+pruefe "Leser ohne Anfuehrungszustand" \
+  PasswordAutocompleteTest::test_the_reader_sees_past_an_angle_bracket_in_an_attribute failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PasswordAutocompleteTest passed
+
+echo "── SystemUserLedgerTest: die Abschrift wird nicht mitgeschrieben ──"
+#
+# Die Voraussetzung des Waechters darunter. Schreibt `claim()` die Abschrift
+# nicht mehr, tragen zwei Reservierungen desselben Abonnements keinen Namen
+# mehr — und der Fall, der ihre Mehrdeutigkeit belegt, findet null Zeilen.
+vorher_datei app/Support/Subscriptions/Lifecycle.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Subscriptions/Lifecycle.php')
+s = p.read_text()
+alt = "                    'subscription' => $subscription,"
+assert alt in s
+p.write_text(s.replace(alt, "                    'subscription' => null,", 1))
+PY
+griff_datei app/Support/Subscriptions/Lifecycle.php "Abschrift nicht geschrieben" &&
+pruefe "Abschrift nicht geschrieben" \
+  SystemUserLedgerTest::test_the_transcript_repeats_and_the_number_does_not failed
+wiederherstellen
+
+echo "── SystemUserLedgerTest: eine Zeile ueber ihre Abschrift gesucht ──"
+#
+# Die Regel selbst. `subscription` wiederholt sich bei jeder Wiederherstellung
+# (docs/123 §8: 146 Reservierungen, zwei Namen mit je zwei Zeilen), `number`
+# ist eindeutig und traegt den Index. Eine Abfrage ueber die Abschrift liefert
+# irgendeine der Zeilen, und welche, entscheidet die Datenbank.
+vorher_datei app/Support/Diagnose/Checks/Orphans.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/Orphans.php')
+s = p.read_text()
+alt = "            foreach (SystemUser::query()->orderBy('number')->get() as $row) {"
+assert alt in s
+neu = "            foreach (SystemUser::query()->where('subscription', 'x')->orderBy('number')->get() as $row) {"
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Diagnose/Checks/Orphans.php "Abschrift als Schluessel" &&
+pruefe "Abschrift als Schluessel" \
+  SystemUserLedgerTest::test_nothing_looks_a_row_up_by_its_transcript failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SystemUserLedgerTest passed
+
+echo "── SubscriptionQuotaTest: ein Kontingent faellt aus der Uebersteuerung ──"
+#
+# Der Anlass ist Befund C aus docs/123 §9. Die Kette ist gemessen und traegt;
+# was fehlte, war die Zusage ueber den ganzen Katalog. Faellt ein Schluessel in
+# `Quotas::overrides()` heraus, meldet die Seite trotzdem Erfolg — und die
+# Spalte bleibt leer.
+vorher_datei app/Support/Plans/Quotas.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Plans/Quotas.php')
+z = p.read_text().split('\n')
+# Die Zeile in overrides() und nicht die gleichlautende in normalize().
+alt = "if ($value === null || $value === '') {"
+treffer = [i for i, zeile in enumerate(z) if zeile.strip() == alt]
+assert len(treffer) == 2, treffer
+i = treffer[0]
+z[i] = z[i].replace("$value === '') {", "$value === '' || $quota === Quota::Backups) {")
+p.write_text('\n'.join(z))
+PY
+griff_datei app/Support/Plans/Quotas.php "Kontingent faellt heraus" &&
+pruefe "Kontingent faellt heraus" \
+  SubscriptionQuotaTest::test_every_quota_of_the_catalogue_can_be_overridden failed
+wiederherstellen
+
+echo "── SubscriptionQuotaTest: eine zweite Auswahl ohne eigenen Katalog ──"
+#
+# Die Voraussetzung. `Quotas::versions()` filtert hart gegen
+# Quota::PHP_VERSIONS; ein zweites `isSelection()`-Kontingent liefe durch den
+# Pruefer und faende dort keinen seiner Werte wieder. Der Fall darueber kann es
+# nicht halten — er baut seinen Wert aus `isSelection()` und zoege mit.
+vorher_datei app/Support/Plans/Quota.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Plans/Quota.php')
+s = p.read_text()
+alt = "        return $this === self::PhpVersions;"
+assert alt in s
+p.write_text(s.replace(alt, "        return $this === self::PhpVersions || $this === self::Databases;", 1))
+PY
+griff_datei app/Support/Plans/Quota.php "zweite Auswahl ohne Katalog" &&
+pruefe "zweite Auswahl ohne Katalog" \
+  SubscriptionQuotaTest::test_only_one_quota_is_a_selection failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SubscriptionQuotaTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

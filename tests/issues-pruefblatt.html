@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Pruefblatt fuer die Registerkarte Issues</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 40rem; padding: 0 1rem; }
+  h1 { font-size: 1.25rem; }
+  form { border: 1px solid #999; padding: 1rem; margin: 1rem 0; }
+  label { display: block; margin: .5rem 0; }
+  input { padding: .35rem; }
+  code { background: #eee; padding: 0 .2rem; }
+  li { margin: .35rem 0; }
+</style>
+</head>
+<body>
+  <h1>Prüfblatt für die Registerkarte „Issues"</h1>
+
+  <p>Diese Seite trägt <strong>zwei</strong> Eingabefelder. Eines hat weder
+  <code>id</code> noch <code>name</code>, das andere hat beides.</p>
+
+  <form>
+    <label>A — ohne id und ohne name
+      <input type="text">
+    </label>
+    <label>B — mit id und name
+      <input type="text" id="kundenname" name="kundenname">
+    </label>
+  </form>
+
+  <p><strong>So wird gemessen:</strong></p>
+  <ol>
+    <li>Entwicklerwerkzeuge öffnen (F12).</li>
+    <li>Diese Seite <strong>neu laden</strong> (F5), während sie offen sind.</li>
+    <li>Registerkarte „Issues" ablesen.</li>
+  </ol>
+
+  <p><strong>Erwartet: genau ein Eintrag</strong> —
+  <em>„A form field element should have an id or name attribute"</em>,
+  und er muss auf Feld <strong>A</strong> zeigen.</p>
+
+  <ul>
+    <li><strong>1 Eintrag</strong> → das Werkzeug sieht hin. Dann ist eine Null
+        auf einer Panelseite eine Aussage über die Seite.</li>
+    <li><strong>0 Einträge</strong> → das Werkzeug meldet diese Art in dieser
+        Browserfassung nicht. Dann ist jede Null auf einer Panelseite keine
+        Messung, sondern ein Schweigen.</li>
+    <li><strong>2 Einträge</strong> → unerwartet; dann bitte beide Wortlaute
+        abschreiben.</li>
+  </ul>
+
+  <p>Dazu die Fassung des Browsers: <code>chrome://version</code>, erste Zeile.</p>
+</body>
+</html>

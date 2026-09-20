@@ -377,13 +377,17 @@ Zustand aufschreibt, bevor jemand etwas misst.
   `.invalid` ist nach RFC 2606 nicht ausstellbar; der Befund gehört dem
   Prüfstand und nicht dem Prüfling (`docs/913 §15`).
 - **Befund C aus `docs/123 §9`** — der Kontingent-Override, der zweimal gesetzt
-  und nie gespeichert wurde. Ungemessen, ungebaut, und dieser Lauf hat ihn nicht
-  berührt.
+  und nie gespeichert wurde. *(Am 20. September gemessen: Die Kette trägt durch
+  die echte Route, und die Hypothese der veralteten `X-Inertia-Version` ist mit
+  Gegenprobe widerlegt. Er bleibt ohne belegte Ursache und ist weiterhin kein
+  Fehler im Panel; was beim Messen auffiel, ist gebaut — `docs/123 §9`.)*
 - **Die `3 issues` auf `/backups/<id>/restore`** aus `docs/119 §12` — weiterhin
   nicht nachgesehen.
-- **Die Frage aus `docs/117 §3`**, ob eine Wiederherstellung ihre eigene
-  Reservierung zurückholen darf. Der Bestand ist um eine Zeile schärfer und um
-  keine Dublette gewachsen.
+  **Am 20. September 2026 nachgesehen** — `docs/126`. Drei Einträge, einer je Bedienelement, alle `FormEmptyIdAndNameAttributesForInputError`; die Ausfüllhilfe und kein Fund, entschieden schon am 23. August in `docs/76`.
+- ~~**Die Frage aus `docs/117 §3`**, ob eine Wiederherstellung ihre eigene
+  Reservierung zurückholen darf.~~ **Am 20. September berichtigt:** entschieden
+  am 16. September, Form A. Die Beobachtung daneben bleibt richtig — der Bestand
+  ist um eine Zeile schärfer und um keine Dublette gewachsen.
 - **Die leere Aktionszelle bei 390 px** (§7) — bewusst gelassen, nicht
   vergessen.
 - **`Retention::keeps()` und `RunBackups::eligible()`** bei fehlendem Schlüssel.

@@ -377,8 +377,10 @@ Zustand aufschreibt, bevor jemand etwas misst.
   `.invalid` ist nach RFC 2606 nicht ausstellbar; der Befund gehört dem
   Prüfstand und nicht dem Prüfling (`docs/913 §15`).
 - **Befund C aus `docs/123 §9`** — der Kontingent-Override, der zweimal gesetzt
-  und nie gespeichert wurde. Ungemessen, ungebaut, und dieser Lauf hat ihn nicht
-  berührt.
+  und nie gespeichert wurde. *(Am 20. September gemessen: Die Kette trägt durch
+  die echte Route, und die Hypothese der veralteten `X-Inertia-Version` ist mit
+  Gegenprobe widerlegt. Er bleibt ohne belegte Ursache und ist weiterhin kein
+  Fehler im Panel; was beim Messen auffiel, ist gebaut — `docs/123 §9`.)*
 - **Die `3 issues` auf `/backups/<id>/restore`** aus `docs/119 §12` — weiterhin
   nicht nachgesehen.
   **Am 20. September 2026 nachgesehen** — `docs/126`. Drei Einträge, einer je Bedienelement, alle `FormEmptyIdAndNameAttributesForInputError`; die Ausfüllhilfe und kein Fund, entschieden schon am 23. August in `docs/76`.

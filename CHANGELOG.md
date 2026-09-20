@@ -30814,3 +30814,41 @@ den Nummern 1000 und 1001) und die Regel (keine Stelle unter `app/` und
 die Dateiliste kommt aus dem Baum, und zwei Untergrenzen halten den Ausdruck
 davon ab, ins Leere zu greifen. Gegengeprüft in beide Richtungen: die verbotene
 Form im Code macht ihn rot, dieselbe Form nur im Kommentar lässt ihn grün.
+
+### Befund C ist gemessen — die Kette ist entlastet, die Ursache bleibt offen
+
+Ein Kontingent-Override, zweimal gesetzt und zweimal nicht angekommen, ohne
+eine einzige Zeile `subscription.updated` (`docs/123 §9`). Gefahren durch die
+echte Route mit dem Zuschnitt des Servers — Plan ohne `backups`-Schlüssel,
+Übersteuerung `backups: 5` — gibt sie **303**, speichert `{"backups":5}`,
+schreibt die Protokollzeile und meldet keine Prüfung. Nicht der Prüfer, nicht
+`Quotas::overrides()`, nicht der fehlende Planschlüssel.
+
+Die Hypothese, ein Browsertab habe nach dem Einspielen eine veraltete
+`X-Inertia-Version` geschickt und die Seite sei über einen 409 wortlos neu
+geladen worden, hätte genau diese Signatur — und ist widerlegt: Inertia prüft
+die Fassung nur bei `GET`. Derselbe Header am `PATCH` gibt 303 und speichert,
+am `GET` 409 mit `X-Inertia-Location`.
+
+> **Eine widerlegte Hypothese ist ein Ergebnis — sie verkleinert den Bereich,
+> in dem die Ursache noch liegen kann.**
+
+### Jedes Kontingent lässt sich übersteuern — und es gibt genau eine Auswahl
+
+Beim Messen aufgefallen: `Quotas::overrides()` schickt jedes
+`isSelection()`-Kontingent durch `Quotas::versions()`, und die filtert hart
+gegen `Quota::PHP_VERSIONS`. `isSelection()` ist ein
+`$this === self::PhpVersions` — ein zweites Auswahl-Kontingent liefe durch den
+Prüfer, fände dort keinen seiner Werte wieder und verschwände aus
+`quota_overrides`, während die Seite Erfolg meldet.
+
+> **Eine Regel, die heute nur gilt, weil es einen Fall gibt, ist keine Regel —
+> sie ist eine Zählung.**
+
+`SubscriptionQuotaTest` trägt dafür zwei Fälle: die Wirkung über den **ganzen**
+Katalog (jedes Kontingent kommt durch die Tür in der Spalte an) und die
+**Voraussetzung** (es gibt genau eine Auswahl). Der erste kann den zweiten
+nicht halten — er baut seinen Wert aus `isSelection()` und zöge mit.
+
+> **Ein Wächter, der sich an den Zustand anpasst, den er prüfen soll, wird mit
+> ihm falsch.**

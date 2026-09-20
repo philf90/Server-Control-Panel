@@ -12,6 +12,7 @@ use App\Models\Operation;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Support\Plans\Quota;
+use App\Support\Plans\Quotas;
 use App\Support\Subscriptions\Usage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -106,6 +107,108 @@ final class SubscriptionQuotaTest extends TestCase
         $this->assertSame(['databases' => 20], $subscription->quota_overrides);
         $this->assertFalse($subscription->quotaDiffersFromPlan(Quota::DiskMb->value));
         $this->assertSame(5_120, $subscription->quota(Quota::DiskMb->value));
+    }
+
+    /**
+     * **Jedes** Kontingent des Katalogs lässt sich übersteuern — durch die Tür.
+     *
+     * **Warum nicht ein Kontingent stellvertretend.** Die Kette ist generisch
+     * über {@see Quota::cases()} gebaut, und genau das ist eine Behauptung und
+     * keine Messung: {@see Quotas::overrides()} verzweigt bei
+     * `isSelection()` in {@see Quotas::versions()}, und die filtert **hart**
+     * gegen `Quota::PHP_VERSIONS`. Heute ist `isSelection()` ein
+     * `$this === self::PhpVersions` — ein zweites Auswahl-Kontingent fiele
+     * damit wortlos heraus: Der Prüfer liesse es durch, `versions()` gäbe `[]`,
+     * der Schlüssel verschwände, und die Seite meldete Erfolg.
+     *
+     * > **Eine Regel, die heute nur gilt, weil es einen Fall gibt, ist keine
+     * > Regel — sie ist eine Zählung.**
+     *
+     * Der Anlass ist Befund C aus `docs/123 §9`: ein Override, der zweimal
+     * gesetzt wurde und nicht ankam. Die Kette ist daraufhin durch die echte
+     * Route gemessen worden und **trägt** — Plan ohne `backups`, Übersteuerung
+     * `backups: 5`, gespeichert und protokolliert. Was fehlte, war nicht eine
+     * Behebung, sondern diese Zusage über den ganzen Katalog.
+     */
+    public function test_every_quota_of_the_catalogue_can_be_overridden(): void
+    {
+        Queue::fake();
+
+        $subscription = $this->subscription();
+        $admin = $this->admin();
+        $gemessen = 0;
+
+        foreach (Quota::cases() as $quota) {
+            // Ein gültiger Wert je Art: das Minimum trägt jede Zahlregel, und
+            // für die Auswahl eine einzelne Fassung aus dem Katalog.
+            $wert = $quota->isSelection() ? [Quota::PHP_VERSIONS[0]] : $quota->minimum();
+
+            $this->actingAs($admin)
+                ->patch("/subscriptions/{$subscription->id}", $this->form($subscription, [$quota->value => $wert]))
+                ->assertRedirect();
+
+            $this->assertSame(
+                [$quota->value => $wert],
+                $subscription->refresh()->quota_overrides,
+                sprintf(
+                    'Das Kontingent „%s" lässt sich nicht übersteuern — es kommt durch die Tür und nicht in der Spalte an.',
+                    $quota->label(),
+                ),
+            );
+
+            $gemessen++;
+        }
+
+        // Die Untergrenze: Liefe `Quota::cases()` leer, wäre die Schleife eine
+        // Zusage über nichts.
+        $this->assertGreaterThanOrEqual(
+            6,
+            $gemessen,
+            'Der Katalog sollte mindestens sechs Kontingente führen — findet dieser Fall weniger, misst er nicht den Katalog.',
+        );
+    }
+
+    /**
+     * Die **Voraussetzung** des Zweigs darüber: Es gibt genau eine Auswahl.
+     *
+     * {@see Quotas::overrides()} schickt jedes `isSelection()`-Kontingent durch
+     * {@see Quotas::versions()}, und die filtert hart gegen
+     * `Quota::PHP_VERSIONS`. Solange `isSelection()` ein
+     * `$this === self::PhpVersions` ist, stimmt das. Käme ein zweites
+     * Auswahl-Kontingent dazu — Mailkonten nach Art, Datenbanksysteme, was auch
+     * immer —, liesse der Prüfer seine Werte durch, `versions()` gäbe `[]`, der
+     * Schlüssel verschwände aus `quota_overrides`, und die Seite meldete
+     * Erfolg.
+     *
+     * **Der Fall darüber kann das nicht halten**, und das ist der Grund, dass
+     * es diesen hier gibt: Er baut seinen Wert aus `isSelection()` und zöge mit
+     * — er misst dann eine Auswahl, die zufällig PHP-Fassungen trägt.
+     *
+     * > **Ein Wächter, der sich an den Zustand anpasst, den er prüfen soll,
+     * > wird mit ihm falsch.**
+     *
+     * Wer die zweite Auswahl baut, bekommt hier Rot und weiss, wo: Nicht der
+     * Prüfer fehlt, sondern der Katalog der erlaubten Werte.
+     */
+    public function test_only_one_quota_is_a_selection(): void
+    {
+        $auswahlen = array_values(array_filter(
+            Quota::cases(),
+            static fn (Quota $quota): bool => $quota->isSelection(),
+        ));
+
+        $this->assertSame(
+            [Quota::PhpVersions],
+            $auswahlen,
+            'Quotas::versions() kennt nur PHP-Fassungen. Ein zweites Auswahl-Kontingent braucht seinen eigenen Katalog erlaubter Werte — sonst fällt es in Quotas::overrides() wortlos heraus.',
+        );
+
+        // Die Gegenrichtung: Ohne sie hielte dieser Fall auch dann, wenn es gar
+        // keine Auswahl mehr gäbe — und der Zweig in `overrides()` stünde tot da.
+        $this->assertTrue(
+            Quota::PhpVersions->isSelection(),
+            'Die PHP-Fassungen sind die Auswahl. Ist das nicht mehr so, ist der Zweig in Quotas::overrides() unerreichbar.',
+        );
     }
 
     public function test_no_override_at_all_is_stored_as_null(): void

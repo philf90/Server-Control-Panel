@@ -1670,7 +1670,12 @@ werden `type="password"` **und** die gebundene Form, weil zehn der dreizehn
 Felder zwischen `text` und `password` umschalten, und `off` gilt nicht als
 Angabe, weil die Browser es an Passwortfeldern übergehen; sein Leser achtet auf
 Anführungszeichen, und **der Eingriff, der das ausschaltet, meldet genau das
-Feld, für das es ihn gibt**) und `SystemUserLedgerTest` (das Verzeichnis der
+Feld, für das es ihn gibt**) und `SubscriptionQuotaTest` (**jedes**
+Kontingent des Katalogs lässt sich durch die Tür übersteuern — und daneben die
+**Voraussetzung**, dass es genau **eine** Auswahl gibt: `Quotas::versions()`
+filtert hart gegen `Quota::PHP_VERSIONS`, und der Fall über die Wirkung kann
+das nicht halten, weil er seinen Wert aus `isSelection()` baut und mitzöge)
+und `SystemUserLedgerTest` (das Verzeichnis der
 Systembenutzer wird über `number` gefragt und **nicht** über seine Abschrift —
 die wiederholt sich bei jeder Wiederherstellung, weil Form A den Namen freigibt
 und die nächste Nummer vergibt; der Fall darüber belegt die Voraussetzung mit
@@ -5112,6 +5117,65 @@ sie erklärt, schreibt sie wörtlich hin.
 **Offen bleibt daran nichts.** Wer Form B später will, braucht ein Merkmal, das
 die tote Reservierung von der lebenden trennt — der Name ist es nicht, und er
 wird es mit jedem Lauf weniger.
+
+---
+
+## Befund C ist gemessen und bleibt ohne Ursache — 20. September 2026
+
+Ein Kontingent-Override, zweimal über `/subscriptions/146/edit` gesetzt, zweimal
+nicht angekommen — und **keine** Zeile `subscription.updated` dazu. `docs/123 §9`
+hat ihn als das geführt, was er war: kein belegter Fehler, sondern ein Zustand,
+den niemand herstellen und niemand erklären kann.
+
+**Gemessen ist er jetzt, und die Kette ist entlastet.** Durch die echte Route,
+mit dem Zuschnitt des Servers — Plan `Standard` ohne `backups`-Schlüssel,
+Übersteuerung `backups: 5`: **303**, `quota_overrides = {"backups":5}`, eine
+Protokollzeile, keine Prüfmeldung. Nicht der Prüfer, nicht
+`Quotas::overrides()`, nicht der fehlende Planschlüssel.
+
+**Eine Hypothese hatte genau die Signatur und ist widerlegt.** Ein Browsertab,
+der nach dem Einspielen offen blieb, schickt eine veraltete
+`X-Inertia-Version`; Inertia antwortet mit **409** und lädt wortlos neu. Das
+ergäbe alles: keine Zeile, kein Fehler, der Wert nicht da — und man landet auf
+der Abonnementseite, **weil das Erfolgsziel dieselbe Seite ist**. Gemessen
+prüft Inertia die Fassung aber nur bei `GET`: derselbe Header am `PATCH` gibt
+303 und speichert, am `GET` **409** mit `X-Inertia-Location`.
+
+> **Eine widerlegte Hypothese ist ein Ergebnis — sie verkleinert den Bereich,
+> in dem die Ursache noch liegen kann.**
+
+Die zweite Zeile ist dabei der Grund, dass die erste etwas bedeutet: Ohne die
+409 am `GET` stünde da ein 303 ohne Beleg, dass die Fassungsprüfung in diesem
+Prüfstand überhaupt greift.
+
+**Gebaut ist, was beim Messen auffiel, und nicht, was der Befund bestellt hat.**
+`Quotas::overrides()` schickt jedes `isSelection()`-Kontingent durch
+`Quotas::versions()`, und die filtert hart gegen `Quota::PHP_VERSIONS`;
+`isSelection()` ist ein `$this === self::PhpVersions`. Ein zweites
+Auswahl-Kontingent liefe durch den Prüfer und verschwände in `versions()` —
+Erfolg gemeldet, Spalte leer.
+
+> **Eine Regel, die heute nur gilt, weil es einen Fall gibt, ist keine Regel —
+> sie ist eine Zählung.**
+
+Zwei Fälle halten es: die **Wirkung** über den ganzen Katalog und die
+**Voraussetzung**, dass es genau eine Auswahl gibt. Der erste kann den zweiten
+nicht halten.
+
+> **Ein Wächter, der sich an den Zustand anpasst, den er prüfen soll, wird mit
+> ihm falsch.**
+
+**Und der erste Eingriff dazu hat nichts gemessen.** Die Ankerzeile steht
+**zweimal** in `Quotas.php` — in `overrides()` und in `normalize()`; die
+Ersetzung brach an ihrer Zusicherung ab, und der Wächter lief danach gegen die
+unveränderte Datei und meldete Grün.
+
+> **Eine Gegenprobe, bei der man nicht nachsieht, ob der Eingriff wirklich in
+> der Datei steht, belegt nichts.** Gefangen hat es die gedruckte Zeile
+> `Eingriff steht: 0` daneben und nicht das Ergebnis darunter.
+
+**Was offen bleibt**, liegt zwischen Knopf und Anfrage — dort hat niemand
+zugesehen, und ein Wächter kann es nicht halten.
 
 ## Befehle
 

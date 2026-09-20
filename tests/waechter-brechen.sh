@@ -31323,6 +31323,51 @@ pruefe "Abschrift als Schluessel" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SystemUserLedgerTest passed
 
+echo "── SubscriptionQuotaTest: ein Kontingent faellt aus der Uebersteuerung ──"
+#
+# Der Anlass ist Befund C aus docs/123 §9. Die Kette ist gemessen und traegt;
+# was fehlte, war die Zusage ueber den ganzen Katalog. Faellt ein Schluessel in
+# `Quotas::overrides()` heraus, meldet die Seite trotzdem Erfolg — und die
+# Spalte bleibt leer.
+vorher_datei app/Support/Plans/Quotas.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Plans/Quotas.php')
+z = p.read_text().split('\n')
+# Die Zeile in overrides() und nicht die gleichlautende in normalize().
+alt = "if ($value === null || $value === '') {"
+treffer = [i for i, zeile in enumerate(z) if zeile.strip() == alt]
+assert len(treffer) == 2, treffer
+i = treffer[0]
+z[i] = z[i].replace("$value === '') {", "$value === '' || $quota === Quota::Backups) {")
+p.write_text('\n'.join(z))
+PY
+griff_datei app/Support/Plans/Quotas.php "Kontingent faellt heraus" &&
+pruefe "Kontingent faellt heraus" \
+  SubscriptionQuotaTest::test_every_quota_of_the_catalogue_can_be_overridden failed
+wiederherstellen
+
+echo "── SubscriptionQuotaTest: eine zweite Auswahl ohne eigenen Katalog ──"
+#
+# Die Voraussetzung. `Quotas::versions()` filtert hart gegen
+# Quota::PHP_VERSIONS; ein zweites `isSelection()`-Kontingent liefe durch den
+# Pruefer und faende dort keinen seiner Werte wieder. Der Fall darueber kann es
+# nicht halten — er baut seinen Wert aus `isSelection()` und zoege mit.
+vorher_datei app/Support/Plans/Quota.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Plans/Quota.php')
+s = p.read_text()
+alt = "        return $this === self::PhpVersions;"
+assert alt in s
+p.write_text(s.replace(alt, "        return $this === self::PhpVersions || $this === self::Databases;", 1))
+PY
+griff_datei app/Support/Plans/Quota.php "zweite Auswahl ohne Katalog" &&
+pruefe "zweite Auswahl ohne Katalog" \
+  SubscriptionQuotaTest::test_only_one_quota_is_a_selection failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SubscriptionQuotaTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

@@ -201,6 +201,11 @@ final class AccessCountTest extends TestCase
 
         $this->assertSame([], $ergebnis['domains']);
         $this->assertCount(2, $ergebnis['pending']);
+
+        // **Und die Summe verschweigt es nicht.** Ohne diese Zeile meldete ein
+        // Nachtlauf „0 Domains" und sähe aus wie ein ruhiger Server.
+        $this->assertSame(0, $ergebnis['totals']['domains']);
+        $this->assertSame(2, $ergebnis['totals']['pending']);
         $this->assertSame(
             [['subscription' => 'p1001', 'domain' => 'beispiel.de'], ['subscription' => 'p1002', 'domain' => 'zweite.de']],
             $ergebnis['pending'],
@@ -222,6 +227,7 @@ final class AccessCountTest extends TestCase
         $summe = $this->counted()['totals'];
 
         $this->assertSame(3, $summe['domains']);
+        $this->assertSame(0, $summe['pending']);
         $this->assertSame(3, $summe['files']);
         $this->assertSame(4, $summe['lines']);
         $this->assertSame(2, $summe['parsed']);

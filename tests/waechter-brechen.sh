@@ -4806,6 +4806,26 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
 
 echo
+echo "── AccessCountTest: die Summe verschweigt das Liegengebliebene ──"
+#
+# Eine Zeile "0 Domains" sieht aus wie ein ruhiger Server. Ohne pending in der
+# Summe ist sie von "vierzig ungezaehlt liegen geblieben" nicht zu
+# unterscheiden — keine Fehlermeldung, nur eine Zahl.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = "'pending' => count($offen), "
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'pending' => 0, ", 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "Summe verschweigt Liegengebliebenes" &&
+pruefe "Summe verschweigt Liegengebliebenes" \
+  AccessCountTest::test_an_exhausted_budget_leaves_the_rest_pending failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
 echo "── AccessCountTest: die Operation ist gar nicht registriert ──"
 #
 # Der Fall, den zwei einander ergaenzende Waechter beide nicht sehen:

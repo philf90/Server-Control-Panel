@@ -155,7 +155,7 @@ final class WebAccessCount implements Op
         return [
             'domains' => $domains,
             'pending' => $offen,
-            'totals' => self::totals($domains),
+            'totals' => self::totals($domains, $offen),
         ];
     }
 
@@ -238,12 +238,19 @@ final class WebAccessCount implements Op
      * dem `legacy` nicht mehr sinkt, weiss der Betreiber, dass irgendwo noch
      * ein Server-Block das alte Format schreibt.
      *
+     * **Und `pending` steht mit darin, nicht nur daneben.** Baut ein Nachtlauf
+     * seine Zeile aus dieser Summe allein, meldete er sonst „6 Domains" —
+     * auch dann, wenn vierzig weitere ungezählt liegen geblieben sind. Das ist
+     * genau die Art Null, die dieses Projekt immer wieder einfängt: keine
+     * Fehlermeldung, nur eine Zahl, die nach Vollständigkeit aussieht.
+     *
      * @param  list<array<string, mixed>>  $domains
+     * @param  list<array<string, string>>  $offen
      * @return array<string, int>
      */
-    private static function totals(array $domains): array
+    private static function totals(array $domains, array $offen): array
     {
-        $summe = ['domains' => count($domains), 'files' => 0, 'lines' => 0, 'parsed' => 0, 'legacy' => 0, 'unreadable' => 0];
+        $summe = ['domains' => count($domains), 'pending' => count($offen), 'files' => 0, 'lines' => 0, 'parsed' => 0, 'legacy' => 0, 'unreadable' => 0];
 
         foreach ($domains as $eintrag) {
             foreach (['files', 'lines', 'parsed', 'legacy', 'unreadable'] as $feld) {

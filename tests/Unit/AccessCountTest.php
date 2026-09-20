@@ -299,6 +299,54 @@ final class AccessCountTest extends TestCase
         $this->assertContains(WebAccessCount::name(), (new Registry(new Config))->names());
     }
 
+    /**
+     * **Der laufende Tag kommt aus der Ortszeit des Servers.**
+     *
+     * `config/app.php` steht fest auf `UTC`, und cloudsrv24 läuft auf `+0200`.
+     * Fragte der Nachtlauf das Panel nach „heute", bekäme er um 01:30 Ortszeit
+     * noch den Vortag — und der gestrige Tag, der in den Protokollen dasselbe
+     * Datum trägt, wäre jede Nacht „noch offen". Gezählt würde nie etwas, und
+     * der Lauf bliebe dabei grün.
+     *
+     * > **Wer entscheidet, ob ein Tag vorbei ist, muss die Uhr lesen, die ihn
+     * > geschrieben hat.**
+     */
+    public function test_the_link_of_etc_localtime_names_the_zone(): void
+    {
+        $this->assertSame('Europe/Berlin', WebAccessCount::zoneFromLink('/usr/share/zoneinfo/Europe/Berlin'));
+        $this->assertSame('Etc/UTC', WebAccessCount::zoneFromLink('../usr/share/zoneinfo/Etc/UTC'));
+
+        // Und was keine Zone benennt, benennt keine — statt die halbe Zeichenkette
+        // für einen Zonennamen zu halten.
+        $this->assertNull(WebAccessCount::zoneFromLink('/etc/irgendwas'));
+        $this->assertNull(WebAccessCount::zoneFromLink('/usr/share/zoneinfo/'));
+        $this->assertNull(WebAccessCount::zoneFromLink(''));
+
+        /*
+         * **Und die Auflösung wird auch benutzt.**
+         *
+         * In diesem Prüfstand zeigt `/etc/localtime` auf `Etc/UTC`, und die
+         * Zeitzone von PHP ist dieselbe — kein Vergleich kann die beiden also
+         * auseinanderhalten. Auf `cloudsrv24` gehen sie um zwei Stunden
+         * auseinander, und dort entscheidet es jede Nacht. Geprüft wird
+         * deshalb am Quelltext, dass die Datei überhaupt gelesen wird.
+         */
+        $quelle = file_get_contents(__DIR__.'/../../agent/src/Ops/WebAccessCount.php');
+
+        $this->assertIsString($quelle);
+        $this->assertStringContainsString("is_link('/etc/localtime')", $quelle);
+    }
+
+    /** Und das gemeldete Datum ist das in genau dieser Zone. */
+    public function test_the_reported_day_is_the_one_of_that_zone(): void
+    {
+        $zone = WebAccessCount::systemTimezone();
+        $erwartet = (new \DateTimeImmutable('now', $zone))->format('Y-m-d');
+
+        $this->assertSame($erwartet, WebAccessCount::serverDate());
+        $this->assertNotSame('', $zone->getName());
+    }
+
     public function test_the_operation_does_not_build_the_path_itself(): void
     {
         $quelle = file_get_contents(__DIR__.'/../../agent/src/Ops/WebAccessCount.php');

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent\Ops;
 
+use DateTimeImmutable;
+use DateTimeZone;
+use Exception;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Op;
@@ -118,9 +121,76 @@ final class WebAccessCount implements Op
 
         return array_merge($zaehlung, [
             'root' => self::VHOSTS,
+            'today' => self::serverDate(),
+            'timezone' => self::systemTimezone()->getName(),
             'budget_seconds' => $budget,
             'duration_ms' => (int) round((microtime(true) - $begonnen) * 1000),
         ]);
+    }
+
+    /**
+     * Welcher Tag auf diesem Server gerade läuft — in **seiner** Zeitrechnung.
+     *
+     * **Warum das nicht das Panel entscheidet.** `config/app.php` steht fest
+     * auf `UTC`; `cloudsrv24` läuft auf `+0200`. Gefragt der Nachtlauf dort das
+     * Panel nach „heute", bekäme er um 01:30 Ortszeit noch den Vortag — und der
+     * gestrige Tag, der in den Protokollen dasselbe Datum trägt, landete jede
+     * Nacht unter „noch offen". Gezählt würde nie etwas, und der Lauf bliebe
+     * dabei grün.
+     *
+     * > **Wer entscheidet, ob ein Tag vorbei ist, muss die Uhr lesen, die ihn
+     * > geschrieben hat.**
+     *
+     * Geschrieben hat ihn nginx, mit der Ortszeit des Systems. Die steht in
+     * `/etc/localtime` und nicht in einer Einstellung des Panels.
+     */
+    public static function serverDate(): string
+    {
+        return (new DateTimeImmutable('now', self::systemTimezone()))->format('Y-m-d');
+    }
+
+    /**
+     * Die Zeitzone des Systems, aus `/etc/localtime`.
+     *
+     * Auf Debian und Ubuntu — den beiden Zielplattformen — ist das ein
+     * symbolischer Verweis nach `/usr/share/zoneinfo/<Zone>`. Ist er es nicht,
+     * bleibt die Zeitzone von PHP übrig; das ist ein Notnagel und keine
+     * Auskunft, und deshalb **steht sie im Ergebnis**. Eine falsche Zeitzone,
+     * die niemand sieht, verschiebt jede Zahl um einen Tag.
+     */
+    public static function systemTimezone(): DateTimeZone
+    {
+        $name = is_link('/etc/localtime') ? self::zoneFromLink((string) readlink('/etc/localtime')) : null;
+
+        if ($name !== null) {
+            try {
+                return new DateTimeZone($name);
+            } catch (Exception) {
+                // Ein Verweis auf eine Zone, die es nicht gibt: weiter unten.
+            }
+        }
+
+        return new DateTimeZone(date_default_timezone_get());
+    }
+
+    /**
+     * Der Zonenname aus dem Ziel von `/etc/localtime` — oder `null`.
+     *
+     * **Eigene Methode, damit sie ohne `/etc` prüfbar ist.** Ein Prüfstand, der
+     * dafür die Zeitzone des Prüfrechners bräuchte, prüfte den Prüfrechner. Der
+     * Verweis ist mal absolut (`/usr/share/zoneinfo/Europe/Berlin`), mal
+     * relativ (`../usr/share/zoneinfo/Etc/UTC`); beide Formen kommen auf den
+     * Zielplattformen vor.
+     */
+    public static function zoneFromLink(string $link): ?string
+    {
+        if (preg_match('#/zoneinfo/(.+)$#D', $link, $treffer) !== 1) {
+            return null;
+        }
+
+        $name = $treffer[1];
+
+        return $name === '' ? null : $name;
     }
 
     /**

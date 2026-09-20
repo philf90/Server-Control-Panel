@@ -207,6 +207,16 @@ final class TrafficEraTest extends TestCase
             $quelle,
             'Ein unvollständiger Lauf muss ein Fehlschlag sein.',
         );
+        /*
+         * **Und der laufende Tag kommt vom Server und nicht aus `now()`.**
+         *
+         * `config/app.php` steht fest auf `UTC`. Auf einem Server in `+0200`
+         * wäre der gestrige Tag um 01:30 Ortszeit noch „heute" und damit jede
+         * Nacht „noch offen" — gezählt würde nie etwas, und der Lauf bliebe
+         * dabei grün.
+         */
+        $this->assertStringContainsString("\$result['today']", $quelle);
+        $this->assertStringNotContainsString('now()->', $quelle);
     }
 
     /**

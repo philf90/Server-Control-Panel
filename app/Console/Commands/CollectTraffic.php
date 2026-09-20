@@ -57,8 +57,38 @@ final class CollectTraffic extends Command
             return self::FAILURE;
         }
 
+        /*
+         * **Welcher Tag läuft, sagt der Server und nicht dieses Panel.**
+         *
+         * `config/app.php` steht fest auf `UTC`; ein Server in `+0200` ist um
+         * 01:30 Ortszeit für Laravel noch im Vortag. Der gestrige Tag trägt in
+         * den Protokollen dasselbe Datum und landete damit jede Nacht unter
+         * „noch offen" — gezählt würde nie etwas, und dieser Lauf bliebe dabei
+         * grün.
+         *
+         * > **Wer entscheidet, ob ein Tag vorbei ist, muss die Uhr lesen, die
+         * > ihn geschrieben hat.**
+         *
+         * Fehlt die Auskunft, wird sie **nicht** durch `now()` ersetzt. Ein
+         * Notnagel, der stillschweigend die falsche Uhr nimmt, ist genau der
+         * Fehler, gegen den diese Zeile steht.
+         */
+        $today = $result['today'] ?? null;
+
+        if (! is_string($today) || $today === '') {
+            $this->error('  Der Agent hat den laufenden Tag nicht gemeldet — ohne ihn wäre jede Zahl geraten.');
+
+            return self::FAILURE;
+        }
+
         $totals = is_array($result['totals'] ?? null) ? $result['totals'] : [];
-        $split = AccessCounts::split($result, now()->toDateString());
+        $split = AccessCounts::split($result, $today);
+
+        $this->line(sprintf(
+            '  Laufender Tag auf dem Server: %s (%s).',
+            $today,
+            is_string($result['timezone'] ?? null) ? $result['timezone'] : 'Zeitzone unbekannt',
+        ));
 
         $this->line(sprintf(
             '  %d Domains gelesen, %d Zeilen, davon %d gedeutet, %d aus dem alten Zeitalter, %d unlesbar.',

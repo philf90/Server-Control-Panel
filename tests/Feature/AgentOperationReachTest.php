@@ -137,6 +137,18 @@ final class AgentOperationReachTest extends TestCase
         'sftp.check' => 'Fragt nur nach: die beiden Ketten und was für den Benutzer wirklich gilt. Am Bestand des Panels ändert sich nichts.',
 
         /*
+         * **P9 B2: der Zähler der Zugriffsprotokolle.** Kein Lebenslauf, und
+         * zwar aus demselben Grund wie bei `subscription.usage`: Es gibt keinen
+         * Bestand, den er führte, und keinen Vorgang, den jemand ausgelöst hat.
+         * Er läuft einmal in der Nacht über alle Abonnements und liest.
+         *
+         * Dass ihn heute noch niemand ruft, steht in {@see self::UNREACHED} —
+         * mit Datum, Grund und der Bedingung, unter der der Eintrag wieder
+         * verschwindet.
+         */
+        'web.access.count' => 'Zählt die Zugriffsprotokolle aller Abonnements. Kein Bestand im Panel und kein Vorgang: Der nächtliche Lauf ruft ihn und legt die Tageszahlen ab. Ein Aufruf je Abonnement wäre hundert Vorgänge im Protokoll für eine Messung, die niemand ausgelöst hat.',
+
+        /*
          * **P6 Schritt 9: Cron.** Kein Lebenslauf, und der Grund ist derselbe
          * wie bei SFTP: Der Sollzustand entsteht beim *Ausführen* aus dem
          * Bestand und nicht beim Einreihen. Was das Panel führt, sind die Jobs
@@ -342,6 +354,13 @@ final class AgentOperationReachTest extends TestCase
      * @var array<string, string>
      */
     private const UNREACHED = [
+        'web.access.count' => 'Eingetragen am 20. September 2026 mit der Operation selbst (B2, '
+            .'zweite Hälfte). Sie zählt die Zugriffsprotokolle; gerufen wird sie vom nächtlichen '
+            .'Lauf, und den gibt es noch nicht — seine Uhrzeit hängt an einer Messung, die '
+            .'`docs/129 §10` als Punkt 1 führt. Dieser Eintrag ist mit dem Nachtlauf zu '
+            .'entfernen, und `test_the_list_of_unreached_operations_does_not_outlive_them` '
+            .'besteht darauf.',
+
         'acme.account.ensure' => 'Gefunden am 8. August 2026, als dieser Wächter entstand. Der '
             .'Kommentar der Operation sagt, die Oberfläche zeige die Adresse an dem Knopf, der '
             .'sie auslöst — diesen Knopf gibt es nicht, und `app/` nennt den Namen nirgends. In '

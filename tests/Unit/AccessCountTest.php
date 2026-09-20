@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use SrvPanel\Agent\Config;
 use SrvPanel\Agent\Ops\WebAccessCount;
+use SrvPanel\Agent\Registry;
 use SrvPanel\Agent\Site;
 
 /**
@@ -267,6 +269,25 @@ final class AccessCountTest extends TestCase
      * > **Zwei Stellen, die dieselbe Zeichenkette bilden, sind kein Fehler —
      * > sie sind einer, der auf seinen Tag wartet.**
      */
+    /**
+     * **Und der Agent kennt sie unter ihrem Namen.**
+     *
+     * Ohne die Zeile in {@see Registry} ist diese Klasse Code, den niemand
+     * erreicht — und kein einziger Wächter sagt etwas dazu:
+     * `AgentOperationReachTest` prüft, dass jeder gesendete Name existiert und
+     * dass jede registrierte Operation gerufen wird. Eine Operation, die gar
+     * nicht erst registriert ist, kommt in beiden Richtungen nicht vor.
+     *
+     * > **Zwischen zwei Wächtern, die einander ergänzen, liegt genau der Fall,
+     * > den keiner von beiden sieht.**
+     */
+    public function test_the_agent_knows_the_operation_by_name(): void
+    {
+        $this->assertSame('web.access.count', WebAccessCount::name());
+        $this->assertFalse(WebAccessCount::mutating(), 'Sie liest.');
+        $this->assertContains(WebAccessCount::name(), (new Registry(new Config))->names());
+    }
+
     public function test_the_operation_does_not_build_the_path_itself(): void
     {
         $quelle = file_get_contents(__DIR__.'/../../agent/src/Ops/WebAccessCount.php');

@@ -4806,6 +4806,27 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
 
 echo
+echo "── AccessCountTest: die Operation ist gar nicht registriert ──"
+#
+# Der Fall, den zwei einander ergaenzende Waechter beide nicht sehen:
+# AgentOperationReachTest prueft, dass jeder gesendete Name existiert und dass
+# jede registrierte Operation gerufen wird. Eine Operation, die nicht
+# registriert ist, kommt in keiner der beiden Richtungen vor.
+vorher_datei agent/src/Registry.php
+python3 - <<'PY2'
+p = 'agent/src/Registry.php'
+s = open(p, encoding='utf-8').read()
+alt = '        $this->register(new WebAccessCount);\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei agent/src/Registry.php "Operation nicht registriert" &&
+pruefe "Operation nicht registriert" \
+  AccessCountTest::test_the_agent_knows_the_operation_by_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
 echo "── DefinerStripTest: der Filter fasst auch Datenzeilen an ──"
 #
 # Ein blindes Suchen-und-Ersetzen über den ganzen Dump verändert Nutzdaten. Eine

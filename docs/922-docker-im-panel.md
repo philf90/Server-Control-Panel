@@ -847,10 +847,16 @@ pflegt, war eine Frage an K1 — und K1 ist nicht Teil dieses Vorhabens.
 
 ### Der nächste Schritt ist die Messrunde und nicht der Plan
 
-`M1` bis `M6` tragen diese Stufe (§0); **M2, M8 und M9 entfallen vorerst, M7
-gehört zum vorgemerkten K2.** Im Container fahrbar sind **M1 teilweise, M4, M5
-und M6**; **M3 braucht `cloudsrv24`**, und der Rest von M1 braucht die drei
-Plattformen, die dieser Container nicht ist.
+**Welche der neun Messungen diese Stufe tragen, sagt §0** — hier steht es
+bewusst nicht ein zweites Mal. Was hier dazugehört, ist der Ort: Im Container
+fahrbar sind **M1 teilweise, M4, M5 und M6**; **M3 braucht `cloudsrv24`**, und
+der Rest von M1 braucht die drei Plattformen, die dieser Container nicht ist.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.** Dieser Absatz hat genau
+> das getan, bevor er so dastand: Er zählte „M1 bis M6" auf und nannte M2 im
+> selben Satz als entfallen. Behoben ist es nicht, indem beide Listen
+> gleichgezogen werden — sondern indem es nur eine gibt.
 
 > **Was die Messrunde ausdrücklich nicht ist: ein Plan.** Sie hält fest, was
 > gemessen wurde, mit Gegenprobe und mit dem, was sie nicht sagt — und

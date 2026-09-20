@@ -4491,9 +4491,9 @@ vorher_datei agent/src/Web/AccessLog.php
 python3 - <<'PY2'
 p = 'agent/src/Web/AccessLog.php'
 s = open(p, encoding='utf-8').read()
-alt = """                if ($satz['sent'] === null) {\n                    $alt++;\n\n                    continue;\n                }"""
+alt = """                if ($satz['sent'] === null) {\n                    $alt++;\n                    $tage[$tag]['legacy']++;\n\n                    continue;\n                }"""
 assert alt in s, 'Zweig des alten Zeitalters nicht gefunden'
-neu = """                if ($satz['sent'] === null) {\n                    $alt++;\n                    $satz['sent'] = 0;\n                    $satz['received'] = 0;\n                }"""
+neu = """                if ($satz['sent'] === null) {\n                    $alt++;\n                    $tage[$tag]['legacy']++;\n                    $satz['sent'] = 0;\n                    $satz['received'] = 0;\n                }"""
 s = s.replace(alt, neu, 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2

@@ -47,6 +47,18 @@ use SrvPanel\Agent\Web\AccessLog;
  * gehört ins Panel, das seine Tage kennt, und nicht in eine Operation, die
  * jede Nacht denselben Weg geht.
  *
+ * **Was sie nicht unterscheiden kann.** Eine Datei, die dasteht und sich nicht
+ * öffnen lässt, kommt bei {@see AccessLog::countFile()} als lauter Nullen
+ * heraus — genau wie eine leere. Der Agent läuft als root, also braucht es
+ * dafür ein Attribut oder eine ACL; gemessen ist der Fall nicht, und genau
+ * deshalb steht hier kein Zähler dafür:
+ *
+ * > **Ein Wächter für einen Fall, den niemand herstellen kann, war nie rot —
+ * > und ein Wächter, der nie rot war, ist keiner.**
+ *
+ * Wer den Fall herstellen kann, baut den Zähler und den Bruch dazu. Bis dahin
+ * ist die Grenze hier benannt und nicht in einem Kopf.
+ *
  * Nicht verändernd — sie liest.
  */
 final class WebAccessCount implements Op

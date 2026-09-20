@@ -211,7 +211,7 @@ final class SiteTemplateTest extends TestCase
         $config = SiteTemplate::render($this->site(['document_root' => 'httpdocs/public']));
 
         $this->assertStringContainsString('root /var/www/vhosts/beispiel.de/httpdocs/public;', $config);
-        $this->assertStringContainsString('access_log /var/www/vhosts/beispiel.de/logs/beispiel.de/access.log;', $config);
+        $this->assertStringContainsString('access_log /var/www/vhosts/beispiel.de/logs/beispiel.de/access.log '.SiteTemplate::LOG_FORMAT.';', $config);
         $this->assertStringContainsString('include /var/www/vhosts/beispiel.de/conf/beispiel.de.include;', $config);
     }
 

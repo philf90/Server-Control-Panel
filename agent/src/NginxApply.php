@@ -103,26 +103,49 @@ final class NginxApply
     }
 
     /**
-     * Die eine Zeile, die das Verzeichnis der Kundendomains einbindet.
+     * Was auf der http-Ebene stehen muss, damit die Server-Blöcke tragen.
      *
-     * Sie wird bei jedem Lauf geschrieben, wenn sie fehlt. Ohne sie liegen die
-     * Server-Blöcke da und niemand liest sie — die Website antwortet nicht und
-     * nichts meldet einen Fehler, weil die Dateien ja alle korrekt sind.
+     * Ohne das `include` liegen sie da und niemand liest sie — die Website
+     * antwortet nicht, und nichts meldet einen Fehler, weil die Dateien ja
+     * alle korrekt sind. Ohne die Erklärung von {@see SiteTemplate::LOG_FORMAT}
+     * ist jeder Block, der sie nennt, ein `nginx -t`-Fehler, und zwar für den
+     * **ganzen** Server.
+     *
+     * **Hier stand einmal `ensureInclude()`, und die hat geschrieben, wenn die
+     * Datei fehlte.** Das trug, solange ihr Inhalt feststand. Sobald er wächst
+     * — und mit dem Format tut er das —, ist „fehlt nicht" das Gegenteil von
+     * „ist richtig": Nach einem Update läge die alte Fassung da, ohne Format,
+     * und jeder neu geschriebene Server-Block nähme den Webserver herunter.
+     *
+     * > **Eine Datei, die nur angelegt und nie berichtigt wird, ist ab ihrer
+     * > ersten Änderung eine Fassung von gestern.**
+     *
+     * Deshalb wird sie **immer** mitgeschrieben, und zwar in derselben
+     * {@see self::commit()} wie der Server-Block: Entweder liegen Erklärung
+     * und Verweis zusammen auf der Platte, oder `nginx -t` weist beide
+     * gemeinsam ab und `restore()` nimmt beide zurück.
+     *
+     * @return array<string, string> Pfad => Inhalt, für `commit()`
      */
-    public static function ensureInclude(): bool
+    public static function httpWrites(): array
     {
-        if (is_file(Site::INCLUDE_FILE)) {
-            return false;
+        return [Site::INCLUDE_FILE => SiteTemplate::httpConfig()];
+    }
+
+    /**
+     * Ob die Datei auf http-Ebene von dem abweicht, was sie sein soll.
+     *
+     * Nur für die Rückmeldung an den Aufrufer — geschrieben wird sie ohnehin.
+     */
+    public static function httpConfigDiffers(): bool
+    {
+        $pfad = Site::INCLUDE_FILE;
+
+        if (! is_file($pfad)) {
+            return true;
         }
 
-        self::write(
-            Site::INCLUDE_FILE,
-            "# Von srvpanel-agentd erzeugt.\n".
-            "# Bindet die Server-Blöcke der Kundenwebsites ein.\n".
-            'include '.Site::CONF_DIR."/*.conf;\n",
-        );
-
-        return true;
+        return (string) file_get_contents($pfad) !== SiteTemplate::httpConfig();
     }
 
     /** @param array<string, string|null> $before */

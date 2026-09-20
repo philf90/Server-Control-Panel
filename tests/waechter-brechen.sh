@@ -4389,6 +4389,98 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SecretsStayOutOfTheQueueTest passed
 
 echo
+echo "── LogFormatTest: httpConfig erklärt kein Format mehr ──"
+#
+# **Der Fall, der den ganzen Webserver herunternimmt.** `nginx -t` urteilt
+# über alle Blöcke zugleich: Nennt ein Server-Block ein Format, das niemand
+# erklärt hat, fällt nicht diese eine Domain durch, sondern die Konfiguration
+# als Ganzes. Gemessen am 20. September 2026 gegen nginx 1.24.0.
+#
+# Den Namen selbst zu ändern beisst nicht, und das ist kein Mangel: Block und
+# Erklärung lesen dieselbe Konstante und können gar nicht auseinandergehen.
+# Gebrochen wird deshalb der Teil, der wirklich wegfallen kann — die Erklärung.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+a = "        # combined, und zwei Felder mehr am Ende (docs/128 M2).\n"
+b = "        # Die Server-Blöcke der Kundenwebsites"
+assert a in s, 'Kopf der Formatzeilen nicht gefunden'
+i = s.index(a)
+j = s.index(b, i)
+open(p, 'w', encoding='utf-8').write(s[:i] + s[j:])
+PY2
+griff_datei agent/src/SiteTemplate.php "httpConfig erklärt kein Format" &&
+pruefe "httpConfig erklärt kein Format" \
+  LogFormatTest::test_every_referenced_log_format_is_declared failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFormatTest passed
+
+echo
+echo "── LogFormatTest: das include steht vor der Erklärung ──"
+#
+# nginx löst den Formatnamen beim **Einlesen** auf und nicht am Ende. Diese
+# Reihenfolge hatte die erste Fassung von httpConfig(), und sie gab
+# `unknown log format "srvpanel"` für jeden Block.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+inc = '        # Die Server-Blöcke der Kundenwebsites — **nach** der Erklärung.\n        include {$dir}/*.conf;\n\n'
+kopf = '        # combined, und zwei Felder mehr am Ende (docs/128 M2).\n'
+assert inc in s, 'include-Block nicht gefunden'
+assert kopf in s, 'Kopf der Formatzeilen nicht gefunden'
+s = s.replace(inc, '', 1).replace(kopf, inc + kopf, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/SiteTemplate.php "include vor der Erklärung" &&
+pruefe "include vor der Erklärung" \
+  LogFormatTest::test_the_declaration_comes_before_the_include failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFormatTest passed
+
+echo
+echo "── LogFormatTest: dem Format fehlt bytes_sent ──"
+#
+# Ohne `$bytes_sent` zählt ein wiederkehrender Besucher als nichts: gemessen
+# `body_bytes_sent` 0 bei einem `304`, während 189 Byte hinausgehen. Wer das
+# Format „vereinfacht", nimmt der Messung ihren Gegenstand, und keine Zahl
+# beschwert sich.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+a = '\\$bytes_sent \\$request_length'
+assert a in s, 'Feldzeile nicht gefunden'
+open(p, 'w', encoding='utf-8').write(s.replace(a, '\\$request_length', 1))
+PY2
+griff_datei agent/src/SiteTemplate.php "dem Format fehlt bytes_sent" &&
+pruefe "dem Format fehlt bytes_sent" \
+  LogFormatTest::test_the_format_carries_what_a_counter_needs failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFormatTest passed
+
+echo
+echo "── LogFormatTest: eine Erklärung, die niemand nennt ──"
+#
+# Die Gegenrichtung. Ein Format, das kein Block nennt, ist keine Gefahr — aber
+# eine Aussage über den Bestand, die niemand mehr nachprüft.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+a = '        # Die Server-Blöcke der Kundenwebsites — **nach** der Erklärung.'
+assert a in s, 'include-Kommentar nicht gefunden'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(a, "        log_format ueberfluessig '\\$status';\n" + a, 1))
+PY2
+griff_datei agent/src/SiteTemplate.php "eine Erklärung, die niemand nennt" &&
+pruefe "eine Erklärung, die niemand nennt" \
+  LogFormatTest::test_every_declared_log_format_is_used failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFormatTest passed
+
+echo
 echo "── DefinerStripTest: der Filter fasst auch Datenzeilen an ──"
 #
 # Ein blindes Suchen-und-Ersetzen über den ganzen Dump verändert Nutzdaten. Eine

@@ -30937,3 +30937,51 @@ Durchsicht hilft er nicht, und die Argumente lassen sich nicht ableiten —
 `web.site.apply` reicht `$args` an `Site::fromArgs()`, `subscription.suspend`
 liest sie in ihrer Basisklasse. Der Eintrag ist ein Urteil und keine
 Aufzählung.
+
+### Das Zugriffsprotokoll zählt einen wiederkehrenden Besucher nicht mehr als nichts
+
+`SiteTemplate` schrieb `access_log <pfad>;` ohne Formatnamen — das ist nginx'
+`combined`, und darin steht `$body_bytes_sent`. Gemessen an derselben Datei,
+einmal voll und einmal mit passendem `If-None-Match`:
+
+| Antwort | `body_bytes_sent` | `bytes_sent` |
+|---|---|---|
+| `200` | 1000 | 1248 |
+| `304` | **0** | **189** |
+
+Ein Zähler über `combined` zählt den zweiten Abruf als nichts, während
+189 Byte hinausgehen. Das Format heisst jetzt `srvpanel`: die ersten acht
+Felder Wort für Wort wie `combined`, angehängt `$bytes_sent` und
+`$request_length`. Angehängt und nicht eingefügt, damit jedes Werkzeug die
+Zeile weiter liest — und damit sich die beiden Zeitalter an der Feldzahl
+unterscheiden lassen.
+
+**Wo die Erklärung steht, hat die Messung entschieden und nicht der Entwurf.**
+`log_format` ist im `server`-Block *„not allowed here"*, auf http-Ebene
+angenommen, und ein `access_log … <name>;` ohne Erklärung macht `nginx -t`
+nicht für eine Domain rot, sondern für den ganzen Server.
+
+> **Ein Verweis auf ein Format, das niemand erklärt hat, ist kein Fehler an
+> einer Datei, sondern an allen.**
+
+Sie liegt deshalb in `conf.d/srvpanel-sites.conf` und geht mit jedem
+Server-Block durch dieselbe `NginxApply::commit()`. Zwei Fallen dabei, beide
+gemessen: Das `include` der Blöcke muss **nach** der Erklärung stehen, weil
+nginx beim Einlesen auflöst — die erste Fassung hatte es davor und gab
+`unknown log format`. Und `ensureInclude()` schrieb nur, *wenn die Datei
+fehlte*; nach einem Update läge die alte Fassung ohne Format da.
+
+> **Eine Datei, die nur angelegt und nie berichtigt wird, ist ab ihrer ersten
+> Änderung eine Fassung von gestern.**
+
+`LogFormatTest` hält vier Regeln. Der Bruch, der den Namen ändert, beisst
+**nicht** — Block und Erklärung lesen dieselbe Konstante und können nicht
+auseinandergehen. Gebrochen werden deshalb die Teile: keine Erklärung, falsche
+Reihenfolge, fehlendes `$bytes_sent`, eine Erklärung ohne Gebrauch.
+
+Dazu ist `nocreate` aus `WebLogrotate::template()` entfernt. Gemessen gegen
+logrotate 3.21.0 entsteht die neue Datei nach `create`; die Zeile darüber tat
+nichts.
+
+> **Zwei Anweisungen, die einander widersprechen, sind keine Vorsicht — eine
+> von beiden ist tot, und man sieht ihr nicht an, welche.**

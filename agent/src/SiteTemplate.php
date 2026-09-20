@@ -48,6 +48,28 @@ final class SiteTemplate
     public const DEFAULT_BODY_MB = 64;
 
     /**
+     * Der Name des Protokollformats, das jede Kundendomain benutzt.
+     *
+     * **Gemessen am 20. September 2026, und die Messung bestimmt den Bau:**
+     *
+     * | | |
+     * |---|---|
+     * | `log_format` im `server`-Block | *„directive is not allowed here"* |
+     * | dieselbe Zeile auf http-Ebene | angenommen |
+     * | `access_log … <name>;` ohne Erklärung | **`nginx -t` rot** — *„unknown log format"* |
+     *
+     * Der dritte Fall ist der teure: Er nimmt nicht eine Domain herunter,
+     * sondern **den ganzen Webserver**, weil `nginx -t` über alle Blöcke
+     * zugleich urteilt. Erklärung und Verweis dürfen deshalb nie getrennt auf
+     * die Platte kommen — {@see self::httpConfig()} geht mit jedem
+     * Server-Block durch dieselbe `commit()`.
+     *
+     * > **Ein Verweis auf ein Format, das niemand erklärt hat, ist kein
+     * > Fehler an einer Datei, sondern an allen.**
+     */
+    public const LOG_FORMAT = 'srvpanel';
+
+    /**
      * Was diese Vorlage in **jeder** ihrer Formen zusagt (A10 Schritt 4).
      *
      * Die Bestandsdiagnose fragt die Datei auf dem Datenträger, ob diese
@@ -191,6 +213,7 @@ final class SiteTemplate
     {
         $names = implode(' ', $site->serverNames());
         $header = self::header();
+        $format = self::LOG_FORMAT;
         $tls = $site->certificate === null
             ? null
             : ($store ?? new Store)->existing($site->certificate);
@@ -245,7 +268,7 @@ final class SiteTemplate
 
             server_name {$names};
 
-            access_log {$site->accessLog()};
+            access_log {$site->accessLog()} {$format};
             error_log  {$site->errorLog()};
 
         {$wartung}
@@ -320,6 +343,8 @@ final class SiteTemplate
      */
     private static function secure(Site $site, string $names, array $tls, string $body, string $wartung): string
     {
+        $format = self::LOG_FORMAT;
+
         /*
          * **HSTS erst, wenn ein Browser dem Zertifikat trauen kann** — und
          * beide Hälften der Bedingung stehen dort, wo sie beantwortbar sind
@@ -349,7 +374,7 @@ final class SiteTemplate
 
             server_name {$names};
 
-            access_log {$site->accessLog()};
+            access_log {$site->accessLog()} {$format};
             error_log  {$site->errorLog()};
 
             ssl_certificate     {$tls['certificate']};
@@ -361,6 +386,52 @@ final class SiteTemplate
 
         {$body}
         }
+
+        CONF;
+    }
+
+    /**
+     * Was auf der **http-Ebene** von nginx stehen muss, damit die
+     * Server-Blöcke der Kundendomains tragen.
+     *
+     * Zwei Zeilen, und beide sind dort und nur dort erlaubt:
+     *
+     * 1. das `include` auf {@see Site::CONF_DIR} — ohne es liegen die
+     *    Server-Blöcke da und niemand liest sie;
+     * 2. die Erklärung von {@see self::LOG_FORMAT} — ohne sie ist **jeder**
+     *    Block, der sie nennt, ein `nginx -t`-Fehler.
+     *
+     * **Das Format erweitert `combined` und ersetzt es nicht.** Die ersten
+     * acht Felder stehen Wort für Wort wie bisher, damit jedes Werkzeug und
+     * jedes Auge, das eine nginx-Zeile lesen kann, sie weiter liest. Angehängt
+     * sind zwei, die `combined` fehlen und die eine Verkehrsmessung braucht:
+     *
+     * | Feld | was es zählt |
+     * |---|---|
+     * | `$body_bytes_sent` | den Rumpf — gemessen **0** bei einem `304` |
+     * | `$bytes_sent` | Rumpf **und** Kopfzeilen — gemessen 189 beim selben `304` |
+     * | `$request_length` | was hereinkam |
+     *
+     * > **Ein Zähler über `combined` zählt einen wiederkehrenden Besucher als
+     * > nichts.** (`docs/128` M2)
+     *
+     * Angehängt und nicht eingefügt, damit sich die beiden Zeitalter an der
+     * **Feldzahl** unterscheiden lassen: Eine Zeile aus der Zeit davor endet
+     * nach dem User-Agent, eine von heute trägt danach zwei Zahlen.
+     */
+    public static function httpConfig(): string
+    {
+        $format = self::LOG_FORMAT;
+        $dir = Site::CONF_DIR;
+
+        return self::header().<<<CONF
+        # combined, und zwei Felder mehr am Ende (docs/128 M2).
+        log_format {$format} '\$remote_addr - \$remote_user [\$time_local] "\$request" '
+                             '\$status \$body_bytes_sent "\$http_referer" "\$http_user_agent" '
+                             '\$bytes_sent \$request_length';
+
+        # Die Server-Blöcke der Kundenwebsites — **nach** der Erklärung.
+        include {$dir}/*.conf;
 
         CONF;
     }

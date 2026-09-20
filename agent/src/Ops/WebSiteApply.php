@@ -78,12 +78,15 @@ final class WebSiteApply implements Op
         $welcome = $documentRoot !== null && WelcomePage::into($documentRoot, $site->user);
 
         $context->progress(40, 'Server-Block erzeugen');
-        $include = NginxApply::ensureInclude();
+        // **Die http-Ebene geht mit.** Sie erklärt das Protokollformat, das
+        // der Server-Block gleich nennt; getrennt geschrieben wäre der Block
+        // für einen Augenblick ein `nginx -t`-Fehler über den ganzen Server.
+        $include = NginxApply::httpConfigDiffers();
 
-        NginxApply::commit($context, [
+        NginxApply::commit($context, array_merge(NginxApply::httpWrites(), [
             $site->confFile() => SiteTemplate::render($site),
             $site->includeFile() => SiteTemplate::includeFile($site->directives),
-        ]);
+        ]));
 
         $context->progress(100, 'fertig');
 

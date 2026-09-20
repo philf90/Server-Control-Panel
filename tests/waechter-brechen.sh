@@ -4568,6 +4568,105 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LogEraTest passed
 
 echo
+echo "── DiskCurveLayoutTest: das Messmittel sucht in einer anderen Wurzel ──"
+#
+# Zieht /var/www/vhosts um und das Messmittel nicht mit, findet `find` null
+# Dateien. Das Skript bricht nicht ab — es misst einen Tag lang eine Kurve
+# ohne Protokolle darin und liefert eine flache Linie ab.
+vorher_datei tests/plattenkurve-messen.sh
+python3 - <<'PY2'
+p = 'tests/plattenkurve-messen.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'VHOSTS=${VHOSTS:-/var/www/vhosts}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'VHOSTS=${VHOSTS:-/srv/vhosts}', 1))
+PY2
+griff_datei tests/plattenkurve-messen.sh "andere Wurzel" &&
+pruefe "andere Wurzel" \
+  DiskCurveLayoutTest::test_the_instrument_looks_at_the_real_vhost_root failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCurveLayoutTest passed
+
+echo
+echo "── DiskCurveLayoutTest: nur EINE der beiden Suchen bekommt die falsche Tiefe ──"
+#
+# Der Bruch trifft absichtlich nur die erste von zwei Stellen. Ein Waechter,
+# der bloss den ersten Treffer prueft, bliebe hier gruen — und das Messmittel
+# zaehlte dann Bytes ueber die eine Tiefe und Inoden ueber die andere.
+vorher_datei tests/plattenkurve-messen.sh
+python3 - <<'PY2'
+p = 'tests/plattenkurve-messen.sh'
+s = open(p, encoding='utf-8').read()
+alt = '-mindepth 4 -maxdepth 4'
+assert s.count(alt) == 2, 'Erwartet werden genau zwei Suchen'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '-mindepth 3 -maxdepth 3', 1))
+PY2
+griff_datei tests/plattenkurve-messen.sh "eine Suche mit falscher Tiefe" &&
+pruefe "eine Suche mit falscher Tiefe" \
+  DiskCurveLayoutTest::test_the_instrument_looks_at_the_real_depth failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCurveLayoutTest passed
+
+echo
+echo "── DiskCurveLayoutTest: das Protokoll zieht um, das Messmittel nicht ──"
+#
+# Die Gegenrichtung, und die eigentliche: Nicht die Kopie wird veraendert,
+# sondern das Original. Genau so entsteht der Fehler in Wirklichkeit — jemand
+# raeumt Site auf, und ein Skript in tests/ sucht weiter am alten Ort.
+vorher_datei agent/src/Site.php
+python3 - <<'PY2'
+p = 'agent/src/Site.php'
+s = open(p, encoding='utf-8').read()
+alt = "return $this->subscriptionRoot().'/logs/'.$this->domain;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(alt, "return $this->subscriptionRoot().'/var/logs/'.$this->domain;", 1))
+PY2
+griff_datei agent/src/Site.php "Protokollverzeichnis umgezogen" &&
+pruefe "Protokollverzeichnis umgezogen" \
+  DiskCurveLayoutTest::test_the_instrument_looks_at_the_real_depth failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCurveLayoutTest passed
+
+echo
+echo "── DiskCurveLayoutTest: die Datei heisst anders ──"
+#
+# `access_log` statt `access.log` — ein Unterstrich, und das Messmittel findet
+# nichts mehr. Auch hier nur die erste von zwei Stellen.
+vorher_datei tests/plattenkurve-messen.sh
+python3 - <<'PY2'
+p = 'tests/plattenkurve-messen.sh'
+s = open(p, encoding='utf-8').read()
+alt = '-name access.log'
+assert s.count(alt) == 2, 'Erwartet werden genau zwei Suchen'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '-name access_log', 1))
+PY2
+griff_datei tests/plattenkurve-messen.sh "Datei heisst anders" &&
+pruefe "Datei heisst anders" \
+  DiskCurveLayoutTest::test_the_instrument_looks_for_the_real_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCurveLayoutTest passed
+
+echo
+echo "── DiskCurveLayoutTest: die leere Platte gibt sich nicht mehr zu erkennen ──"
+#
+# Auf einem Server ohne Domains ist die Null keine Messung. Faellt der Satz
+# weg, sieht dieser Server aus wie eine ruhige Platte.
+vorher_datei tests/plattenkurve-messen.sh
+python3 - <<'PY2'
+p = 'tests/plattenkurve-messen.sh'
+s = open(p, encoding='utf-8').read()
+alt = 'KEINE Zugriffsprotokolle gefunden'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'keine gefunden', 1))
+PY2
+griff_datei tests/plattenkurve-messen.sh "leere Platte ohne Hinweis" &&
+pruefe "leere Platte ohne Hinweis" \
+  DiskCurveLayoutTest::test_the_instrument_says_when_it_finds_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCurveLayoutTest passed
+
+echo
 echo "── DefinerStripTest: der Filter fasst auch Datenzeilen an ──"
 #
 # Ein blindes Suchen-und-Ersetzen über den ganzen Dump verändert Nutzdaten. Eine

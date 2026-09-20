@@ -31027,3 +31027,42 @@ jetzt mit `is_file()`.
 
 > **Ein unterdrückter Fehler ist keiner, der nicht stattgefunden hat — er ist
 > einer, den nur dieser Aufrufer nicht sieht.**
+
+### Ein Messmittel für die Plattenkurve — `docs/129 §10` Punkt 2
+
+**Die zweite offene Messung vor B1 hat jetzt ein Mittel.** Entscheidung 4 hält
+Rohdateien 14 Tage und verdichtete Zahlen 30; beide Zahlen sind gesetzt und
+keine ist gemessen. Was sie kosten, hängt daran, wie viele Bytes ein Tag an
+Protokollen hinterlässt und wie viel die Rotation davon zurückgibt.
+`tests/plattenkurve-messen.sh` tastet beides über einen einstellbaren Zeitraum
+ab und schreibt eine Zeile je Abtastung.
+
+**Die Gegenprobe steht vor der Kurve und bricht ab.** Eine flache Kurve ist nur
+dann eine Messung, wenn daneben steht, dass dieses Mittel einen Anstieg
+überhaupt sähe. P1 legt deshalb einen Prüfkörper bekannter Grösse an und
+verlangt, dass `df` **und** die Summe über den Baum ihn bemerken. Sieht ihn
+eine der beiden nicht, endet der Lauf sofort — statt einen ganzen Tag lang
+Nullen zu sammeln, die nichts bedeuten.
+
+> **Eine Null ist erst dann eine Messung, wenn daneben etwas anderes als Null
+> steht — und das gehört gemessen, bevor die Nullen anfangen.**
+
+**Der Gegenstand hält nicht still, und zwar planmässig.** Über Nacht benennt
+`logrotate` um und legt unter demselben Namen eine neue Datei an. Wer nur
+Grössen vergleicht, liest daraus eine Platte, die sich selbst leert. Verglichen
+wird deshalb die **Inode**; ein Wechsel ist eine Rotation und kein Schrumpfen.
+Die Uhrzeit, zu der er auftritt, ist zugleich die Gegenprobe zu `systemctl
+list-timers`: Die Liste sagt, wann es vorgesehen ist, die Kurve sagt, wann es
+wirklich geschehen ist.
+
+Geprüft ist das Mittel an einem Prüfstand, der beides vorführt — eine Datei
+wächst um 2 MiB, eine andere wird umbenannt und neu angelegt. Beides steht in
+den Daten: `baum_bytes` steigt und fällt bei der Rotation **nicht**, weil das
+Umbenannte noch daliegt, während `zugriff_bytes` auf die neue, leere Datei
+zurückspringt. Genau diese beiden Spalten nebeneinander sind der Unterschied
+zwischen „gewachsen" und „rotiert".
+
+**Was es nicht sagt, steht im Lauf selbst** und nicht in einem Kommentar: nichts
+über einen anderen Tag, nichts über den Takt von A7, nichts über die Verteilung
+auf Abonnements — eine laute Domain sieht aus wie vierzig leise —, und nichts
+über Bytes, die nie auf der Platte ankommen.

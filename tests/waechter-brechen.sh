@@ -4985,56 +4985,19 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TrafficEraTest passed
 
 echo
-echo "── AccessCountTest: der ganze Verweis gilt als Zonenname ──"
-#
-# Aus /usr/share/zoneinfo/Europe/Berlin wird dann keine Zone, sondern ein
-# Pfad — DateTimeZone wirft, und uebrig bleibt die Zeitzone von PHP.
-vorher_datei agent/src/Ops/WebAccessCount.php
-python3 - <<'PY2'
-p = 'agent/src/Ops/WebAccessCount.php'
-s = open(p, encoding='utf-8').read()
-alt = "return $name === '' ? null : $name;"
-assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, 'return $link;', 1))
-PY2
-griff_datei agent/src/Ops/WebAccessCount.php "ganzer Verweis als Zone" &&
-pruefe "ganzer Verweis als Zone" \
-  AccessCountTest::test_the_link_of_etc_localtime_names_the_zone failed
-wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
-
-echo
-echo "── AccessCountTest: die Ortszeit des Systems wird gar nicht gelesen ──"
-#
-# Dann gilt die Zeitzone von PHP — auf cloudsrv24 zwei Stunden daneben, und
-# der gestrige Tag waere jede Nacht "noch offen".
-vorher_datei agent/src/Ops/WebAccessCount.php
-python3 - <<'PY2'
-p = 'agent/src/Ops/WebAccessCount.php'
-s = open(p, encoding='utf-8').read()
-alt = "is_link('/etc/localtime')"
-assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, "is_link('/etc/keine-ortszeit')", 1))
-PY2
-griff_datei agent/src/Ops/WebAccessCount.php "Ortszeit nicht gelesen" &&
-pruefe "Ortszeit nicht gelesen" \
-  AccessCountTest::test_the_link_of_etc_localtime_names_the_zone failed
-wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
-
-echo
 echo "── TrafficEraTest: der Nachtlauf nimmt den Tag wieder aus dem Panel ──"
 #
-# config/app.php steht fest auf UTC. Auf einem Server in +0200 waere der
-# gestrige Tag um 01:30 Ortszeit noch "heute" — gezaehlt wuerde nie etwas,
-# und der Lauf bliebe dabei gruen.
+# config/app.php steht fest auf UTC, und now() folgt ihm. Ohne die Umrechnung
+# in die Zone des Servers waere der gestrige Tag auf einer Maschine in +0200 um
+# 01:30 Ortszeit noch "heute" — gezaehlt wuerde nie etwas, und der Lauf bliebe
+# dabei gruen.
 vorher_datei app/Console/Commands/CollectTraffic.php
 python3 - <<'PY2'
 p = 'app/Console/Commands/CollectTraffic.php'
 s = open(p, encoding='utf-8').read()
-alt = '$split = AccessCounts::split($result, $today);'
+alt = '$today = now()->setTimezone($zone)->toDateString();'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '$split = AccessCounts::split($result, now()->toDateString());', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$today = now()->toDateString();', 1))
 PY2
 griff_datei app/Console/Commands/CollectTraffic.php "Tag wieder aus dem Panel" &&
 pruefe "Tag wieder aus dem Panel" \

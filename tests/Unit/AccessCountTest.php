@@ -260,27 +260,6 @@ final class AccessCountTest extends TestCase
     }
 
     /**
-     * **Die Wurzel kommt aus der Konstante und nie aus den Argumenten.**
-     *
-     * Das ist die erste Grenze und kein Stil: Eine Operation, der man sagen
-     * kann, wo sie lesen soll, ist ein Leser für beliebige Dateien mit
-     * Systemrechten. Geprüft wird am Quelltext, weil ein Aufruf mit `root` im
-     * Argument heute schlicht ignoriert würde — und ein Test, der das zeigt,
-     * bliebe auch dann grün, wenn jemand die Zeile später einbaut.
-     */
-    /**
-     * **Und die Operation setzt den Pfad nicht selbst zusammen.**
-     *
-     * Die Prüfungen darüber liefen auch dann durch, wenn `WebAccessCount` den
-     * Aufbau `…/logs/…` eigenhändig bildete — solange beide Zeichenketten
-     * zufällig übereinstimmen. Sie gingen erst auseinander, wenn jemand
-     * {@see Site} aufräumt, und dann stünde der Fehler in einer Operation, die
-     * seit Monaten niemand angefasst hat.
-     *
-     * > **Zwei Stellen, die dieselbe Zeichenkette bilden, sind kein Fehler —
-     * > sie sind einer, der auf seinen Tag wartet.**
-     */
-    /**
      * **Und der Agent kennt sie unter ihrem Namen.**
      *
      * Ohne die Zeile in {@see Registry} ist diese Klasse Code, den niemand
@@ -300,53 +279,17 @@ final class AccessCountTest extends TestCase
     }
 
     /**
-     * **Der laufende Tag kommt aus der Ortszeit des Servers.**
+     * **Und die Operation setzt den Pfad nicht selbst zusammen.**
      *
-     * `config/app.php` steht fest auf `UTC`, und cloudsrv24 läuft auf `+0200`.
-     * Fragte der Nachtlauf das Panel nach „heute", bekäme er um 01:30 Ortszeit
-     * noch den Vortag — und der gestrige Tag, der in den Protokollen dasselbe
-     * Datum trägt, wäre jede Nacht „noch offen". Gezählt würde nie etwas, und
-     * der Lauf bliebe dabei grün.
+     * Die Prüfungen darüber liefen auch dann durch, wenn `WebAccessCount` den
+     * Aufbau `…/logs/…` eigenhändig bildete — solange beide Zeichenketten
+     * zufällig übereinstimmen. Sie gingen erst auseinander, wenn jemand
+     * {@see Site} aufräumt, und dann stünde der Fehler in einer Operation, die
+     * seit Monaten niemand angefasst hat.
      *
-     * > **Wer entscheidet, ob ein Tag vorbei ist, muss die Uhr lesen, die ihn
-     * > geschrieben hat.**
+     * > **Zwei Stellen, die dieselbe Zeichenkette bilden, sind kein Fehler —
+     * > sie sind einer, der auf seinen Tag wartet.**
      */
-    public function test_the_link_of_etc_localtime_names_the_zone(): void
-    {
-        $this->assertSame('Europe/Berlin', WebAccessCount::zoneFromLink('/usr/share/zoneinfo/Europe/Berlin'));
-        $this->assertSame('Etc/UTC', WebAccessCount::zoneFromLink('../usr/share/zoneinfo/Etc/UTC'));
-
-        // Und was keine Zone benennt, benennt keine — statt die halbe Zeichenkette
-        // für einen Zonennamen zu halten.
-        $this->assertNull(WebAccessCount::zoneFromLink('/etc/irgendwas'));
-        $this->assertNull(WebAccessCount::zoneFromLink('/usr/share/zoneinfo/'));
-        $this->assertNull(WebAccessCount::zoneFromLink(''));
-
-        /*
-         * **Und die Auflösung wird auch benutzt.**
-         *
-         * In diesem Prüfstand zeigt `/etc/localtime` auf `Etc/UTC`, und die
-         * Zeitzone von PHP ist dieselbe — kein Vergleich kann die beiden also
-         * auseinanderhalten. Auf `cloudsrv24` gehen sie um zwei Stunden
-         * auseinander, und dort entscheidet es jede Nacht. Geprüft wird
-         * deshalb am Quelltext, dass die Datei überhaupt gelesen wird.
-         */
-        $quelle = file_get_contents(__DIR__.'/../../agent/src/Ops/WebAccessCount.php');
-
-        $this->assertIsString($quelle);
-        $this->assertStringContainsString("is_link('/etc/localtime')", $quelle);
-    }
-
-    /** Und das gemeldete Datum ist das in genau dieser Zone. */
-    public function test_the_reported_day_is_the_one_of_that_zone(): void
-    {
-        $zone = WebAccessCount::systemTimezone();
-        $erwartet = (new \DateTimeImmutable('now', $zone))->format('Y-m-d');
-
-        $this->assertSame($erwartet, WebAccessCount::serverDate());
-        $this->assertNotSame('', $zone->getName());
-    }
-
     public function test_the_operation_does_not_build_the_path_itself(): void
     {
         $quelle = file_get_contents(__DIR__.'/../../agent/src/Ops/WebAccessCount.php');
@@ -357,6 +300,15 @@ final class AccessCountTest extends TestCase
         $this->assertStringNotContainsString("'/logs/'", $quelle);
     }
 
+    /**
+     * **Die Wurzel kommt aus der Konstante und nie aus den Argumenten.**
+     *
+     * Das ist die erste Grenze und kein Stil: Eine Operation, der man sagen
+     * kann, wo sie lesen soll, ist ein Leser für beliebige Dateien mit
+     * Systemrechten. Geprüft wird am Quelltext, weil ein Aufruf mit `root` im
+     * Argument heute schlicht ignoriert würde — und ein Test, der das zeigt,
+     * bliebe auch dann grün, wenn jemand die Zeile später einbaut.
+     */
     public function test_the_root_never_comes_from_the_arguments(): void
     {
         $quelle = file_get_contents(__DIR__.'/../../agent/src/Ops/WebAccessCount.php');

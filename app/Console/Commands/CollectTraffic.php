@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Support\Cron\ServerZone;
 use App\Support\Web\AccessCounts;
 use Illuminate\Console\Command;
 use SrvPanel\Agent\AgentException;
@@ -58,10 +59,10 @@ final class CollectTraffic extends Command
         }
 
         /*
-         * **Welcher Tag läuft, sagt der Server und nicht dieses Panel.**
+         * **Welcher Tag läuft, fragt {@see ServerZone} und nicht dieses Panel.**
          *
          * `config/app.php` steht fest auf `UTC`; ein Server in `+0200` ist um
-         * 01:30 Ortszeit für Laravel noch im Vortag. Der gestrige Tag trägt in
+         * 01:30 Ortszeit für `now()` noch im Vortag. Der gestrige Tag trägt in
          * den Protokollen dasselbe Datum und landete damit jede Nacht unter
          * „noch offen" — gezählt würde nie etwas, und dieser Lauf bliebe dabei
          * grün.
@@ -69,17 +70,29 @@ final class CollectTraffic extends Command
          * > **Wer entscheidet, ob ein Tag vorbei ist, muss die Uhr lesen, die
          * > ihn geschrieben hat.**
          *
-         * Fehlt die Auskunft, wird sie **nicht** durch `now()` ersetzt. Ein
-         * Notnagel, der stillschweigend die falsche Uhr nimmt, ist genau der
-         * Fehler, gegen den diese Zeile steht.
+         * Geschrieben hat ihn nginx, mit der Ortszeit des Systems — und die
+         * beantwortet in diesem Panel genau eine Klasse. Der erste Wurf dieses
+         * Laufs hat sie im Agenten **noch einmal** gebaut;
+         * `ServerZoneSourceTest` hat es angehalten.
+         *
+         * > **Eine zweite Fassung derselben Frage ist die, die veraltet.**
+         *
+         * `current()` gibt `null`, wenn die Datei nicht lesbar ist. Dann wird
+         * **nicht** auf `now()` zurückgefallen: Ein Notnagel, der stillschweigend
+         * die falsche Uhr nimmt, ist genau der Fehler, gegen den diese Zeile
+         * steht.
          */
-        $today = $result['today'] ?? null;
+        $zone = ServerZone::current();
 
-        if (! is_string($today) || $today === '') {
-            $this->error('  Der Agent hat den laufenden Tag nicht gemeldet — ohne ihn wäre jede Zahl geraten.');
+        if ($zone === null) {
+            $this->error('  Die Zeitzone des Servers ist nicht lesbar — ohne sie wäre jeder Tag geraten.');
 
             return self::FAILURE;
         }
+
+        $today = now()->setTimezone($zone)->toDateString();
+
+        $this->line(sprintf('  Laufender Tag auf dem Server: %s (%s).', $today, $zone->getName()));
 
         $totals = is_array($result['totals'] ?? null) ? $result['totals'] : [];
         $split = AccessCounts::split($result, $today);
@@ -91,7 +104,7 @@ final class CollectTraffic extends Command
         ));
 
         $this->line(sprintf(
-            '  %d Domains gelesen, %d Zeilen, davon %d gedeutet, %d aus dem alten Zeitalter, %d unlesbar.',
+            '  %d Domain(s) gelesen, %d Zeile(n), davon %d gedeutet, %d aus dem alten Zeitalter, %d unlesbar.',
             (int) ($totals['domains'] ?? 0),
             (int) ($totals['lines'] ?? 0),
             (int) ($totals['parsed'] ?? 0),
@@ -100,7 +113,7 @@ final class CollectTraffic extends Command
         ));
 
         $this->line(sprintf(
-            '  %d Tageswerte zählbar, %d übersprungen (gemischtes Format), %d noch offen (laufender Tag).',
+            '  %d Tageswert(e) zählbar, %d übersprungen (gemischtes Format), %d noch offen (laufender Tag).',
             count($split['countable']),
             count($split['skipped']),
             count($split['open']),

@@ -215,8 +215,8 @@ final class TrafficEraTest extends TestCase
          * Nacht „noch offen" — gezählt würde nie etwas, und der Lauf bliebe
          * dabei grün.
          */
-        $this->assertStringContainsString("\$result['today']", $quelle);
-        $this->assertStringNotContainsString('now()->', $quelle);
+        $this->assertStringContainsString('ServerZone::current()', $quelle);
+        $this->assertStringContainsString('setTimezone($zone)', $quelle);
     }
 
     /**

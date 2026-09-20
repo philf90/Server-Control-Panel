@@ -212,28 +212,86 @@ wird, hängt daran, ob der Befund am Treffer hängt oder an seinem Fehlen.
 
 ---
 
-## 5 · Die eine Abweichung, die ein Server entscheidet
+## 5 · Die Abweichung — und was der Versuch, sie zu messen, gefunden hat
 
-`docs/119 §8` hat auf `/settings/backups` **`No issues`** gelesen. Die Seite
-trägt zwei `<input type="checkbox">` ohne `id` und ohne `name`, und der Nachbau
-sagt dafür **2** — geparst wie eingefügt.
+`docs/119 §8` hat am 17. September auf `/settings/backups` **`No issues`**
+gelesen. Die Seite trägt zwei `<input type="checkbox">` ohne `id` und ohne
+`name`, und der Nachbau sagt dafür **2** — geparst wie eingefügt.
 
-Die beiden Messungen gehen auseinander, und der Container kann es nicht
-entscheiden: Er hat Chromium 141, der Browser des Betreibers eine andere
-Fassung, und ob die Registerkarte beim Laden offen war, sagt das Protokoll
-nicht. Beide Erklärungen sind plausibel, und keine ist gemessen.
+**Die dritte Messung ist am 20. September versucht worden und hat etwas anderes
+gefunden als erwartet.** Abgelesen im Browser des Betreibers, beide Seiten mit
+offenen Entwicklerwerkzeugen:
 
-**Der Griff dafür ist eine Zeile** und gehört an den nächsten Serverbesuch:
-`/settings/backups` **mit offener Registerkarte „Issues" neu laden** und die
-Zahl ablesen. Sagt sie 2, war das frühere `No issues` eine Ablesung ohne
-Neuladen; sagt sie 0, unterscheidet sich die Fassung des Browsers vom Nachbau.
+| Seite | 23. August | 17. September | 20. September |
+|---|---|---|---|
+| `/domains` | **15** (`docs/76`) | — | **0** |
+| `/backups/2/restore` | — | **3** (`docs/119 §8`) | — |
+| `/settings/backups` | — | **0** | **0** |
 
-> **Zwei Messungen, die auseinandergehen, entscheidet keine Überlegung, sondern
-> die dritte.**
+Die Null auf `/domains` ist der Punkt. Dieselbe Seite, derselbe Browser, dieselbe
+Meldung — am 23. August fünfzehnmal, heute keinmal. Der Bestand der Seite hat
+sich daran nicht geändert; die Felder tragen weiterhin weder `id` noch `name`.
+
+> **Eine Null, die auch von einem nicht hinsehenden Werkzeug kommt, ist keine
+> Messung.**
+
+Damit ist `/settings/backups` als Prüfkörper untauglich: Seine Null ist von
+einer Null, die das Werkzeug erzeugt, nicht zu unterscheiden. Die Abweichung
+lässt sich an der Panelseite grundsätzlich nicht entscheiden.
+
+### Der Prüfkörper, der anschlagen muss
+
+Gebaut und gemessen als **`tests/issues-pruefblatt.html`** — zwei Eingabefelder
+auf einer Seite, **A** ohne `id` und ohne `name`, **B** mit beidem. Gemessen im
+Container gegen Chromium 141.0.7390.37:
+
+```
+Ladebeleg   Felder im DOM: 2   (erwartet 2)
+Issues      1
+  · GenericIssue / FormEmptyIdAndNameAttributesForInputError
+```
+
+**Beide Richtungen auf einer einzigen Seite**: Schlüge der Eintrag auch bei B an,
+misse er etwas anderes; schlägt er bei keinem an, sieht das Werkzeug diese Art
+nicht. Eine Ablesung von 1 macht jede Null auf einer Panelseite zu einer Aussage
+über die Seite; eine Ablesung von 0 macht sie zu einem Schweigen.
+
+Derselbe Prüfkörper über die Konsole, auf `about:blank`, in drei Schritten
+gemessen — leer **0**, Feld ohne `id`/`name` **1**, Feld mit beidem **+0**. Der
+Lieferweg ist dabei gleichgültig: beim Parsen vorhanden **1**, nach dem Laden
+eingefügt **1**. Das ist der Grund, dass es überhaupt einen Weg über die Konsole
+gibt — ein `data:`-URL sperrt Chrome seit Fassung 60 in der Adressleiste.
+
+### Warum eine Fassungsdifferenz plausibel ist — gemessen und nicht vermutet
+
+Die Registerkarte holt diese Einträge nicht allein aus `Audits.issueAdded`. Es
+gibt dafür den Befehl **`Audits.checkFormsIssues`**, und der verhält sich anders,
+als sein Name sagt:
+
+> **Ein Befehl, der eine Liste zurückgeben müsste, gibt eine leere zurück und
+> stösst seine Antwort stattdessen als Ereignis nach.** Gemessen: `formIssues`
+> kommt mit **0** Einträgen zurück, und der Zähler der Ereignisse steigt im
+> selben Zug von 1 auf 2.
+
+Wie oft und wann die Oberfläche ihn ruft, ist damit eine Eigenschaft der
+Browserfassung und nicht der Seite — und genau das ändert sich zwischen zwei
+Chrome-Fassungen, ohne dass am Prüfling eine Zeile anders wäre.
+
+### Was offen bleibt
+
+Die Ablesung des Prüfblatts im Browser des Betreibers, samt der Fassung aus
+`chrome://version`. Gibt es **1**, ist die Abweichung ein Befund und wird
+nachgemessen; gibt es **0**, ist sie eine Grenze des Messmittels und bleibt als
+solche stehen.
+
+> **Ein Punkt, der am Werkzeug scheitert und nicht am Gegenstand, ist nicht
+> „nicht herstellbar" — und ihn so zu nennen wäre die bequemere von zwei
+> falschen Auskünften.**
 
 Für das Urteil dieses Dokuments ändert die Antwort nichts: Die drei Einträge auf
-der Restore-Seite sind unabhängig davon gemessen, und `docs/76` hat dieselbe
-Meldung schon auf einer ganz anderen Seite gesehen.
+der Restore-Seite sind unabhängig davon gemessen, `docs/76` hat dieselbe Meldung
+schon auf einer ganz anderen Seite gesehen, und `docs/119 §8` hat sie am
+17. September in genau diesem Browser gezählt.
 
 ---
 
@@ -326,18 +384,26 @@ beissen." Die neun Überschriften stehen wieder da, und von zehn Meldungen
 
 ---
 
-## 7 · Bilanz
+## 8 · Bilanz
 
 | | |
 |---|---|
 | Punkt 1 aus vier Dokumenten | **geschlossen** |
 | Befund am Prüfling | **keiner** |
-| Befund am Prüfmittel | **drei** — der erste Leser dieses Tages (§4), der Eingriff auf dem falschen Fall und die undefinierte Kurzform (§7) |
-| gebaut | `PasswordAutocompleteTest` mit drei Eingriffen |
-| gemessen und offen | die Abweichung auf `/settings/backups` (§5) |
+| Befund am Prüfmittel | **vier** — der erste Leser dieses Tages (§4), der Eingriff auf dem falschen Fall und die undefinierte Kurzform (§7), und die Registerkarte des Betreibers selbst (§5) |
+| gebaut | `PasswordAutocompleteTest` mit drei Eingriffen, `tests/issues-pruefblatt.html` |
+| gemessen und offen | die Ablesung des Prüfblatts im Browser des Betreibers (§5) |
 | benannt und nicht gebaut | zwei unbeschriftete Bedienelemente (§6) |
 
 **Der teuerste Satz dieses Tages steht in §3** und hat mit Formularen nichts zu
 tun: Eine Antwort, die nur im Protokoll ihres eigenen Laufs steht, ist von einer,
 die es nie gab, vier Wochen später nicht zu unterscheiden. Deshalb steht sie
 jetzt in `CLAUDE.md` und nicht nur hier.
+
+**Und der zweitteuerste steht in §5 und ist derselbe Satz an einem Werkzeug:**
+Zwei Ablesungen an derselben Stelle haben die Abweichung entschieden, und keine
+Überlegung hätte es getan. Das Prüfblatt geht deshalb ins Repo und nicht in den
+Scratchpad — nach demselben Grund, aus dem `tests/bilder-messen.js` dort liegt.
+
+> **Ein Messmittel, das man aufhebt, macht die Fehler von letztem Mal nicht noch
+> einmal.**

@@ -4971,11 +4971,38 @@ Zeilenanfang vor einer Zeichenkette ist `echo`, `printf`, eine Eingebaute oder
 eine Funktion dieses Skripts. Gebrochen wurde er **von Hand** — sein Bruch
 stünde in der einen Datei, die der Rückweg zu Recht auslässt.
 
-**Offen und benannt:** `/settings/backups` trägt zwei Kästchen ohne `id` und
-ohne `name`; der Nachbau sagt dafür **2**, `docs/119 §8` hat dort `No issues`
-gelesen. Chromium 141 im Container gegen den Browser des Betreibers, und ob die
-Registerkarte beim Laden offen war, sagt das Protokoll nicht. Entschieden wird
-es mit einem Neuladen bei offener Registerkarte.
+**Und die Quergegenprobe hat etwas anderes gefunden, als sie suchte.**
+`/settings/backups` trägt zwei Kästchen ohne `id` und ohne `name`, der Nachbau
+sagt dafür **2**, `docs/119 §8` hat dort `No issues` gelesen — entschieden
+werden sollte es mit einem Neuladen bei offener Registerkarte. Gefahren am
+20. September gibt der Browser des Betreibers **0**, und auf `/domains` ebenso —
+auf derselben Seite, auf der `docs/76` am 23. August **fünfzehn** gezählt hat.
+
+> **Eine Null, die auch von einem nicht hinsehenden Werkzeug kommt, ist keine
+> Messung.** Damit ist die Panelseite als Prüfkörper untauglich: Ihre Null ist
+> von der Null des Werkzeugs nicht zu unterscheiden.
+
+**Der Prüfkörper dafür liegt seitdem als `tests/issues-pruefblatt.html` im
+Repo** — zwei Felder auf einer Seite, eines ohne `id`/`name`, eines mit beidem,
+gemessen gegen Chromium 141: **genau ein Eintrag**. Beide Richtungen auf einer
+einzigen Ablesung. Eine 1 macht jede Null auf einer Panelseite zu einer Aussage
+über die Seite, eine 0 zu einem Schweigen.
+
+**Dass eine Fassungsdifferenz das erklären kann, ist gemessen und nicht
+vermutet.** Die Registerkarte holt diese Einträge über den Befehl
+`Audits.checkFormsIssues` — und der gibt `formIssues` **leer** zurück und stösst
+seine Antwort stattdessen als Ereignis nach (Zähler 1 → 2 im selben Zug). Wann
+und wie oft die Oberfläche ihn ruft, ist damit eine Eigenschaft des Browsers und
+nicht der Seite.
+
+> **Ein Befehl, dessen Rückgabewert leer ist und dessen Wirkung woanders steht,
+> ist von einem, der nichts tut, nur am zweiten Kanal zu unterscheiden.**
+
+**Offen und benannt:** die Ablesung des Prüfblatts im Browser des Betreibers.
+Gibt es 1, ist die Abweichung ein Befund; gibt es 0, ist sie eine Grenze des
+Messmittels und bleibt als solche stehen — am Urteil über die drei Einträge
+ändert beides nichts, denn die sind im Container, am 23. August und am
+17. September dreifach gemessen.
 
 ---
 

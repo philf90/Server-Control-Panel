@@ -30680,3 +30680,38 @@ Die gedruckte Hälfte ist die harmlose: Hier stand zwischen den Backticks kein
 Befehl. `test_no_line_runs_a_command_it_only_means_to_print` hält es seitdem —
 `test_no_heading_swallows_the_intervention_below_it` zählt Anführungszeichen und
 konnte es nicht sehen.
+
+### Die Registerkarte „Issues" des Betreibers hat aufgehört, diese Art zu melden
+
+Die Quergegenprobe zu `/settings/backups` — dort hatte `docs/119 §8` `No issues`
+gelesen, während der Nachbau **2** sagt — ist gefahren worden und hat etwas
+anderes gefunden als die Abweichung: Am 20. September gibt derselbe Browser auf
+`/domains` **null** Einträge. Auf derselben Seite hat `docs/76` am 23. August
+**fünfzehn** gezählt, und die Felder dort tragen weiterhin weder `id` noch
+`name`.
+
+> **Eine Null, die auch von einem nicht hinsehenden Werkzeug kommt, ist keine
+> Messung.**
+
+Damit ist die Panelseite als Prüfkörper untauglich: Ihre Null ist von der Null
+des Werkzeugs nicht zu unterscheiden. Der Prüfkörper, der anschlagen **muss**,
+liegt seitdem als `tests/issues-pruefblatt.html` im Repo — zwei Felder auf einer
+Seite, eines ohne `id` und `name`, eines mit beidem, gemessen gegen
+Chromium 141.0.7390.37: genau **ein** Eintrag. Beide Richtungen auf einer
+einzigen Ablesung.
+
+### Ein CDP-Befehl, dessen Rückgabewert leer ist und dessen Wirkung woanders steht
+
+Beim Bau des Prüfblatts gemessen: Die Registerkarte holt diese Einträge nicht
+allein aus dem Ereignis `Audits.issueAdded`, sondern über den Befehl
+`Audits.checkFormsIssues` — und der gibt `formIssues` **leer** zurück und stösst
+seine Antwort stattdessen als Ereignis nach. Der Zähler steigt im selben Zug von
+1 auf 2.
+
+> **Ein Befehl, dessen Rückgabewert leer ist und dessen Wirkung woanders steht,
+> ist von einem, der nichts tut, nur am zweiten Kanal zu unterscheiden.**
+
+Wann und wie oft die Oberfläche ihn ruft, ist damit eine Eigenschaft der
+Browserfassung und nicht der Seite. Der Lieferweg des Prüfkörpers ist dagegen
+gleichgültig — beim Parsen vorhanden **1**, erst nach dem Laden eingefügt **1**,
+mit `id` und `name` **0**.

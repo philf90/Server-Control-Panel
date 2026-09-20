@@ -5177,6 +5177,61 @@ unveränderte Datei und meldete Grün.
 **Was offen bleibt**, liegt zwischen Knopf und Anfrage — dort hat niemand
 zugesehen, und ein Wächter kann es nicht halten.
 
+---
+
+## P8 ist durch — die Übergabe an P9 ist `docs/127`
+
+Geschrieben am **20. September 2026**, nachdem PR #256 gemergt war und die
+letzten drei offenen Fragen des P8-Bestands geschlossen waren. Sie steht neben
+`docs/115` (nach P7b), `docs/97` (an A10) und `docs/79` (an die Adminfunktionen)
+und ersetzt keines davon: Der Plan ist `docs/20`, die Lehren stehen hier.
+
+**§6.1 ist der Teil, den es ohne A8 nicht gäbe** — *was von P9 schon gebaut
+ist*, ausgezählt am Quelltext und nicht an der Planzeile. Gemessen: zwei der
+sieben Punkte haben ein Fundament, fünf haben keines. Die Verlaufskachel
+`Components/Tile.vue` gibt es und sie steht auf **einer** Seite; die verdichtete
+Tabelle, aus der P9 lesen will, gibt es nicht — `app/Support/Metrics/` schreibt
+vier Reihen in Ringpuffer mit `retention: 8640`, also 24 Stunden. Kein
+`app/Notifications/`, keine `routes/api.php`, kein Branding.
+
+> **Wer entscheidet, was als Nächstes gebaut wird, sieht vorher am Quelltext
+> nach, ob es das schon gibt — und nicht an der Planzeile.**
+
+**§6.2 sind die neun Messungen, die vor den Plan gehören**, jede mit Gegenprobe
+und mit dem, was sie nicht sagt. Drei davon hängen an einem Gegenstand, der
+nicht stillhält: Ein Zugriffsprotokoll rotiert über Nacht (`docs/921`: 8393
+Zeilen abends, 481 am Morgen), wächst und wird von Fremden beschrieben.
+
+**Und der Wächter hat die Übergabe beim Schreiben berichtigt — zweimal.** Sie
+schrieb der neuen Sitzung vor, das Ergebnis der Messrunde unter der **nächsten
+Nummer** abzulegen, und nannte diese Nummer. `DocLinkTest` hat es abgewiesen,
+weil er prüft, ob ein genanntes Dokument existiert, und das künftige tut es
+noch nicht.
+
+> **Ein Verweis auf ein Dokument, das erst entstehen soll, ist von einem auf
+> eines, das es nie gab, nicht zu unterscheiden.** Die Nummer nennt, wer es
+> anlegt.
+
+Beim zweiten Mal stand sie **in diesem Absatz** — der Satz, der von der
+Berichtigung erzählte, schrieb die abgewiesene Nummer wörtlich hin, und der
+Wächter war wieder rot. Das ist derselbe Fall wie in `docs/100 §9`, wo ein
+Absatz die Meldung über einen toten Verweis zitierte und ihn damit enthielt.
+
+> **Ein Text, der eine Meldung über einen toten Verweis zitiert, enthält den
+> toten Verweis.** Zum zweiten Mal, und diesmal im Satz über genau dieses
+> Muster.
+
+**Der Testlauf ist dabei zweimal gemessen worden, und die Aufteilung ist eine
+Eigenschaft der Umgebung.** Dieselbe Fassung, derselbe Tag: im Container (root)
+3519 glatt, 56 mit Warnung, 4 riskant, 1 übersprungen; in der CI (`runner`,
+uid 1001) 3510 / 61 / 4 / 5. **Summe beide Male 3580, Fehlschläge beide Male
+null.** Die vier übersprungenen Fälle mehr in der CI sind genau die, die als
+root nicht messbar sind.
+
+> **Eine Zahl, die eine Aufteilung zusammenfasst, sagt nicht, welche — und wer
+> nur die grosse Zahl weiterschreibt, hat die Umgebung mit weitergeschrieben.**
+
+
 ## Befehle
 
 ```bash

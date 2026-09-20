@@ -29,9 +29,11 @@ Entscheidungen nicht an einer Stelle führt, sie beim nächsten Umbau verliert.
 | # | Frage | Entschieden am | Entscheidung |
 |---|---|---|---|
 | **1** | Bekommt der Kunde Docker? | 20. September 2026 | **K0 — Docker gehört dem Betreiber allein.** K2 (rootless je Abonnement) ist **vorgemerkt für nach der vollständigen Umsetzung** und nicht Teil dieser Stufe. |
-| **2** | Zuschnitt und Reihenfolge | 20. September 2026 | **Eigene Stufe `P9a`, nach P9 und vor P9b.** Zwei Abnahmeläufe: erst die lesenden Bereiche, dann Stacks, Prüfer und Angriffsdurchgang. |
+| **2** | Zuschnitt und Reihenfolge | 20. September 2026 | **Eigene Stufe `P9a`, nach P9 und vor P9b.** Zwei Abnahmeläufe: erst die lesenden Bereiche, dann Projekte, Prüfer und Angriffsdurchgang. |
 | **3** | `docker.io` oder `docker-ce` | 20. September 2026 | **Beides zulassen, `docker.io` als Präferenz.** Das Panel *installiert* `docker.io` und `docker-compose-v2`; ein vorhandenes `docker-ce` wird **bedient und nicht abgelehnt**. Dazu eine `Docker::MIN_VERSION`, gesetzt **nach** M1. |
 | **4** | Container-Shell | 20. September 2026 | **Einzelne Befehle statt einer Sitzung.** Ein nicht-interaktiver Befehl je Aufruf über den bestehenden Transport. Die **volle Shell ist vorgemerkt** und nicht Teil dieser Stufe. |
+| **5** | Fremde Projekte: anzeigen oder bedienen? | 20. September 2026 | **Anzeigen, lesen und bedienen — aber nie schreiben.** Die Datei wird nur gelesen, wenn ihr Pfad auf `.yaml` oder `.yml` endet; `down` auf ein fremdes Projekt bekommt die höhere Rückfragestufe. |
+| **6** | „Stack" oder „Projekt"? | 20. September 2026 | **Projekt** in der Oberfläche, `project` als Bezeichner. `stacks` ist in `app.css` als Tabellenform vergeben. |
 
 **Was Entscheidung 1 festlegt.** Die Stufe baut ein Betreibermodul und keine
 Kundenschnittstelle. Damit gilt für alles Weitere:
@@ -61,7 +63,7 @@ Kundenschnittstelle. Damit gilt für alles Weitere:
 **Die zwei Abnahmeläufe** sind ein Vorschlag des Plans und keine eigene
 Entscheidung des Betreibers; sie folgen aus dem Zuschnitt. Lauf 1 nimmt die
 lesenden Bereiche ab — Container, Bestand, Ports, Image-Updates, Zustandskopf,
-Diagnose, Regelwerk. Lauf 2 nimmt die schreibenden ab — Stacks, den
+Diagnose, Regelwerk. Lauf 2 nimmt die schreibenden ab — Projekte, den
 Compose-Prüfer und den Angriffsdurchgang gegen die sechs Mechanismen aus §6.
 
 > **Der gefährlichste Schritt kommt zuletzt, und er kommt erst dran, wenn alles
@@ -116,6 +118,34 @@ Transport des Agenten **keine Zeile**:
 Das ist die Shell-Frage in der Form, die zu diesem Panel passt — so wie „kein
 freies SQL" nicht „keine Datenbankverwaltung" bedeutet hat, sondern typisierte
 Abfragen.
+
+**Was die Entscheidungen 5 und 6 festlegen.**
+
+**Zu 5:** Das Panel weicht damit bewusst von `ServiceAction` ab, dessen
+Positivliste `['srvpanel-*']` lautet — das Panel steuert sonst **ausschliesslich
+eigene** Units. Die Abweichung trägt ein Unterschied im Umfang der Handlung:
+`systemctl stop <beliebig>` reicht bis zum `sshd` und zur Firewall,
+`docker compose down <projekt>` reicht bis zu einem Projekt. Und sie trägt ein
+Unterschied in der Lage: Auf einem Server, der vor dem Panel existierte, sind
+fremde Projekte der **Normalfall** — ein Modul, das die Mehrheit dessen, was
+läuft, nur ansehen kann, schickt den Betreiber auf die Kommandozeile, und dort
+fehlt der Protokolleintrag.
+
+> **Eine Positivliste, die mehr erlaubt, als irgendwer benutzt, beschreibt eine
+> Absicht und nicht den Gebrauch.** Der Kopf von `ServiceAction` verlangt
+> ausdrücklich, eine Erweiterung zu **begründen** statt sie zu erben. Das ist
+> die Begründung.
+
+**Zu 6:** `stacks` ist in `app.css` **37-mal** belegt und bezeichnet die Form
+einer Tabelle in der mobilen Ansicht; `MobileTableTest` verlangt von jeder
+Tabelle, dass sie ihre Form nennt. Ein `<table class="stacks">` auf einer
+Stack-Seite hiesse zweierlei zugleich. „Projekt" ist in `resources/js` und
+`app/` frei — gemessen kommt es dort nur in deutschen Kommentaren vor, wo es
+das Repository meint — und es ist **Dockers eigenes Wort**: `--project-name`,
+`com.docker.compose.project`. „Stack" steht in keinem Docker-Befehl.
+
+> **Zwei Benennungen für dieselbe Sache laufen auseinander, und die zweite ist
+> die, die veraltet.** Wer `docker compose ls` tippt, sieht Projekte.
 
 ### Vorgemerkt für nach der vollständigen Umsetzung
 
@@ -289,18 +319,40 @@ darf.
 
 | Bereich | Adresse | Inhalt |
 |---|---|---|
-| **Stacks** | `/docker` | Liste (verwaltet / fremd), Dienste, Zustand; Editor mit Compose-Prüfer |
+| **Projekte** | `/docker` | Liste (verwaltet / fremd), Dienste, Zustand; Editor mit Compose-Prüfer |
 | **Container** | `/docker/container` | Liste und Inspektor: Logs, Statistik, Konfiguration, Mounts, Netze, Ports; Ereignisstrom |
 | **Ports** | `/docker/ports` | alle veröffentlichten Ports, abgeglichen mit dem Regelwerk aus A3 |
 | **Image-Updates** | `/docker/updates` | Digest-Abgleich, zwischengespeichert, mit Ratengrenze |
 | **Bestand** | `/docker/bestand` | Images, Volumes, Netze, `system df`, Aufräumen je Art |
 
-**Verwaltet und fremd werden getrennt**, und zwar nach dem Muster, das dieses
-Panel für Crontabs und für nftables schon hat: Geschrieben wird ausschliesslich
-in eigene Verzeichnisse unter einem Ablageort, den der Agent **baut und nicht
-entgegennimmt** — so wie `SubscriptionProvision` den Pfad eines Abonnements
-baut. Fremde Compose-Projekte, die `docker compose ls --all` kennt, erscheinen
-**lesbar und bedienbar, aber ihre Datei wird nie geschrieben**.
+**Es sind drei Kategorien und nicht zwei**, und die dritte fällt beim Entwerfen
+leicht unter den Tisch:
+
+| | Was es ist | Wo es auftaucht |
+|---|---|---|
+| **Verwaltet** | Das Panel hat die Datei geschrieben | Projekte + Container |
+| **Fremdes Projekt** | Compose kennt es, die Datei liegt woanders | Projekte + Container |
+| **Gar kein Projekt** | mit `docker run` gestartet, kein Compose | **nur** Container |
+
+Die dritte gibt es auf jedem gewachsenen Server, und `docker compose ls` sieht
+sie nicht. Ohne sie wäre die Containerliste vollständig und die Projektliste
+unerklärlich lückenhaft — der Betreiber sucht dann ein Projekt, das es nie gab.
+
+**Geschrieben wird ausschliesslich in eigene Verzeichnisse** unter einem
+Ablageort, den der Agent **baut und nicht entgegennimmt** — so wie
+`SubscriptionProvision` den Pfad eines Abonnements baut. Fremde Projekte sind
+**lesbar und bedienbar, ihre Datei wird nie geschrieben** (§0, Entscheidung 5).
+
+**Und das Lesen hat eine Schranke, die nichts kostet.** Bei einem fremden
+Projekt sagt **Docker**, wo die Datei liegt (`ConfigFiles` aus
+`docker compose ls`). Liest das Panel diesen Pfad ungeprüft, ist
+`docker.project.read` eine allgemeine Lesefunktion für beliebige Dateien.
+Gelesen wird deshalb nur, was auf `.yaml` oder `.yml` endet — Compose liest
+ohnehin nichts anderes.
+
+Mit K0 wäre das **keine Rechteausweitung**: Der Betreiber ist root-nah. Es
+geht darum, der Operation diese Eigenschaft gar nicht erst zu geben,
+unabhängig davon, wer sie heute ruft.
 
 > **Eine Operation, die einen Pfad annimmt und ihn danach prüft, ist eine
 > Operation, deren Prüfung irgendwann eine Lücke hat.**
@@ -349,7 +401,7 @@ und in seinem Abonnement ändert sich kein Feld.
 ### K1 — Der Kunde bekommt Container aus einem Katalog des Betreibers
 
 Der Betreiber pflegt **Vorlagen** mit typisierten Feldern. Der Kunde wählt eine,
-füllt aus — Domain, Grösse, Adminadresse — und bekommt einen Stack. **Die
+füllt aus — Domain, Grösse, Adminadresse — und bekommt ein Projekt. **Die
 `compose.yaml` erzeugt das Panel und nicht der Kunde**; er sieht sie höchstens
 lesend.
 
@@ -461,10 +513,10 @@ und ein `context` auf einem hohen Verzeichnis kopiert fremde Dateien hinein.
 Bauen ist kein getrennter Vorgang, den man separat verbieten könnte.
 
 **Ein Pfad ist nicht dasselbe wie ein absoluter Pfad.** Eine relative Quelle
-(`../../../var/run/docker.sock`) muss **zuerst gegen das Stack-Verzeichnis
+(`../../../var/run/docker.sock`) muss **zuerst gegen das Projektverzeichnis
 aufgelöst** werden, so wie Compose es auch tut — sonst prüft man eine
 Zeichenkette gegen eine Liste absoluter Pfade und trifft nie. Und ein
-symbolischer Verweis, der aus dem Stack-Verzeichnis hinausführt, wird
+symbolischer Verweis, der aus dem Projektverzeichnis hinausführt, wird
 eingehängt als sein **Ziel** und nicht als Verweis.
 
 ### Der Prüfer läuft zweistufig, und die Reihenfolge ist der ganze Punkt
@@ -501,7 +553,7 @@ Prüfer nicht kennt, meldet er als **„nicht geprüft"** und nicht als „in
 Ordnung" — dieselbe Haltung, mit der A10 eine Datei behandelt, für die es kein
 Prüfprogramm gibt.
 
-**Eine Ablehnung nennt Dienst, Feld und Grund.** „Der Stack wurde abgelehnt"
+**Eine Ablehnung nennt Dienst, Feld und Grund.** „Das Projekt wurde abgelehnt"
 schickt jemanden auf die Suche; „`web`: `privileged`" zeigt auf die Zeile. Der
 Prüfer ist Grenze und Bedienhilfe zugleich, und er läuft **serverseitig vor
 jedem `up`** — nicht im Formular. Im Editor läuft **dieselbe Funktion**
@@ -639,10 +691,10 @@ absetzen, Urteil in eine Datei schreiben, nachlesen.
 |---|---|---|
 | `docker.state` | `docker.container.action` | `docker.install` |
 | `docker.container.list` · `.inspect` · `.logs` · `.stats` | `docker.container.remove` | `docker.image.pull` |
-| `docker.image.list` · `.digest` | `docker.image.remove` | `docker.stack.up` · `.down` · `.pull` · `.restart` |
+| `docker.image.list` · `.digest` | `docker.image.remove` | `docker.project.up` · `.down` · `.pull` · `.restart` |
 | `docker.volume.list` · `docker.network.list` | `docker.volume.remove` · `docker.network.remove` | |
 | `docker.disk.usage` · `docker.events` | `docker.prune` · `docker.container.exec` | |
-| `docker.stack.list` · `.read` · `.config` | `docker.stack.write` · `.remove` | |
+| `docker.project.list` · `.read` · `.config` | `docker.project.write` · `.remove` | |
 
 **Die Logs sind eine Grenzfrage und keine Nebensache.** `docker logs` einer
 lebhaften Anwendung sind Megabytes, `CONTENT_MAX` ist 983 KB. Der Weg ist
@@ -657,9 +709,9 @@ und `docs/914` hat dort den Befund gefunden, der hier genauso droht:
 
 ## §9 · Sprache, Rechte, Wege, Rückfragen
 
-**Die Sprache** ist zum Teil gebunden (§1). Offen ist das Wort für das führende
-Objekt: Dockge sagt *Stack*, Arcane sagt *Projekt*. `docs/19 §5` regelt, wie ein
-Wort dazukommt.
+**Die Sprache** ist zum Teil gebunden (§1), und das Wort für das führende
+Objekt ist seit dem 20. September entschieden: **Projekt** in der Oberfläche,
+`project` als Bezeichner (§0, Entscheidung 6).
 
 **Die Rechte.** Für K0 genügt `operate-server` — Merkmal 1 aus `AdminAbility`
 („verleiht root auf Dauer") trifft wörtlich zu. Für K1 käme eine `Permission`
@@ -679,7 +731,10 @@ ungeprüfte steht als Frage und nicht als Zusage, und sie ist in diesem Repo
 **Volume entfernen** gehört auf die höchste Stufe mit getipptem Volumenamen —
 Daten weg, kein Rückweg, die schärfste Einzelaktion des Moduls. Und
 **`volume prune`** gehört auf die höchste Stufe mit *Hostname*, weil es
-systemweit wirkt und nicht auf ein Objekt. `ConfirmationVerbTest` hält dazu
+systemweit wirkt und nicht auf ein Objekt. **Und ein `down` auf ein fremdes
+Projekt** steht eine Stufe höher als auf ein eigenes: Bei einem eigenen weiss
+der Betreiber, was daran hängt; ein fremdes kann ein anderes Werkzeug
+verwalten, und `compose down` nimmt die Netze mit. `ConfirmationVerbTest` hält dazu
 heute schon, dass auf dem Knopf ein Verb steht und kein Satz — und `docs/123`
 hat am 18. September gemessen, was passiert, wenn der Satz doch dort landet:
 281 px Überlauf und die Auskunft abgeschnitten.
@@ -831,19 +886,17 @@ desselben Dokuments über dieselbe Frage auseinander.
 | 3 | `docker.io` oder `docker-ce` | **beides zulassen**, `docker.io` als Präferenz, `MIN_VERSION` nach M1 |
 | 4 | Container-Shell | **einzelne Befehle**; volle Shell vorgemerkt |
 
-### Was noch offen ist, und warum es warten kann
+### Die beiden kleineren sind ebenfalls beantwortet
 
-Zwei kleinere Fragen. Beide ändern den Zuschnitt nicht und gehören in den Plan
-und nicht vor ihn:
-
-- **Fremde Stacks: nur anzeigen oder auch bedienen?** Mein Vorschlag steht in
-  §4 — anzeigen, starten und stoppen, aber nie in ihre Datei schreiben, nach
-  dem Muster von Crontabs und nftables.
-- **Das führende Objekt: „Stack" oder „Projekt"?** `docs/19 §5` regelt, wie ein
-  Wort dazukommt.
+| # | Frage | Entscheidung |
+|---|---|---|
+| 5 | Fremde Projekte: anzeigen oder bedienen? | **anzeigen, lesen, bedienen — nie schreiben** |
+| 6 | „Stack" oder „Projekt"? | **Projekt** / `project` |
 
 **Eine dritte ist mit Entscheidung 1 entfallen:** Wer den Vorlagenkatalog
 pflegt, war eine Frage an K1 — und K1 ist nicht Teil dieses Vorhabens.
+
+**Damit ist vor der Messrunde nichts mehr zu entscheiden.**
 
 ### Der nächste Schritt ist die Messrunde und nicht der Plan
 

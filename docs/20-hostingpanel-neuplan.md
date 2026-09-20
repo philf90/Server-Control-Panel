@@ -1433,7 +1433,7 @@ gemessen an einem Durchlauf mit einer Person, die das Projekt nicht kennt.
 > **Der Name folgt der Regel von P7b:** eine Stufe, die zwischen zwei
 > bestehende gehört, trägt den Buchstaben der davor — P9, P9a, P9b.
 
-- **Fünf Bereiche unter `/docker`**, Fähigkeit `operate-server`: Stacks,
+- **Fünf Bereiche unter `/docker`**, Fähigkeit `operate-server`: Projekte,
   Container, Ports, Image-Updates, Bestand. Darüber ein Zustandskopf, weil
   „der Daemon antwortet nicht" man nicht durch einen Bereichswechsel
   verpassen darf.
@@ -1444,7 +1444,16 @@ gemessen an einem Durchlauf mit einer Person, die das Projekt nicht kennt.
   Anker und `extends` an einer Prüfung der Rohdatei vorbeigehen, das Rendern
   aber selbst fremde Dateien liest. Sechs Mechanismen, nicht eine Feldliste.
 - **Verwaltet und fremd getrennt**, nach dem Muster von Crontabs und nftables:
-  fremde Projekte lesbar und bedienbar, ihre Datei wird nie geschrieben.
+  fremde Projekte lesbar und **bedienbar**, ihre Datei wird nie geschrieben.
+  Gelesen wird sie nur, wenn ihr Pfad auf `.yaml` oder `.yml` endet — sonst
+  wäre die Operation eine allgemeine Lesefunktion für beliebige Dateien, weil
+  bei einem fremden Projekt **Docker** sagt, wo die Datei liegt. Das ist eine
+  bewusste Abweichung von `ServiceAction`, dessen Positivliste nur
+  `srvpanel-*` führt: `systemctl stop <beliebig>` reicht bis zum `sshd`,
+  `docker compose down <projekt>` bis zu einem Projekt.
+- **Das führende Objekt heisst „Projekt"** und nicht „Stack" — so wie bei
+  Docker selbst (`--project-name`, `com.docker.compose.project`). `stacks` ist
+  in `app.css` als Form einer Tabelle vergeben und bezeichnete sonst zweierlei.
 - **Zwei Nähte werden geschlossen** — das Regelwerk (Docker schreibt eigene
   Ketten) und die Bestandsdiagnose (vier neue Befundarten).
 - **Lange Läufe über `systemd-run`**, nicht über die Warteschlange:

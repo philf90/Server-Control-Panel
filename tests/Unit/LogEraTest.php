@@ -121,7 +121,7 @@ final class LogEraTest extends TestCase
 
         // 1248 + 1248 + 326 + 189 und 72 + 115 + 82 + 103.
         $this->assertSame([
-            '2026-09-20' => ['requests' => 4, 'sent' => 3011, 'received' => 372, 'errors' => 1],
+            '2026-09-20' => ['requests' => 4, 'sent' => 3011, 'received' => 372, 'errors' => 1, 'legacy' => 0],
         ], $ergebnis['days']);
     }
 
@@ -131,12 +131,23 @@ final class LogEraTest extends TestCase
      *
      * Das ist die wichtigere Hälfte: Eine leere Auswertung und eine leise
      * Domain sähen sonst gleich aus.
+     *
+     * **Der Tag steht trotzdem da, mit Nullen und seinem `legacy`.** Bis zum
+     * 21. September 2026 gab diese Datei `days => []` zurück — „diesen Tag
+     * gibt es nicht". Für den Nachtlauf aus `docs/129 §5` ist das die falsche
+     * Auskunft: Er muss einen Tag, der alte Zeilen trägt, **überspringen** und
+     * dafür wissen, dass es ihn gibt.
+     *
+     * > **„Nicht zählbar" und „nicht vorhanden" sind zwei Antworten, und ein
+     * > leeres Feld gibt beide.**
      */
     public function test_a_legacy_file_is_read_and_not_counted(): void
     {
         $ergebnis = AccessLog::countFile($this->fileWith(self::LEGACY));
 
-        $this->assertSame([], $ergebnis['days']);
+        $this->assertSame([
+            '2026-09-20' => ['requests' => 0, 'sent' => 0, 'received' => 0, 'errors' => 0, 'legacy' => 4],
+        ], $ergebnis['days']);
         $this->assertSame(4, $ergebnis['lines']);
         $this->assertSame(0, $ergebnis['parsed']);
         $this->assertSame(4, $ergebnis['legacy'], 'Die übersprungenen Zeilen müssen gezählt werden, sonst ist die leere Auswertung stumm.');

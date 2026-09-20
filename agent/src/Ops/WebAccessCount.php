@@ -218,12 +218,26 @@ final class WebAccessCount implements Op
             $alt += $zahl['legacy'];
             $unrat += $zahl['unreadable'];
 
+            /*
+             * **`legacy` geht mit, und zwar je Tag.** Es fiel hier bis zum
+             * 21. September 2026 unter den Tisch: Die Zusammenführung legte
+             * vier Schlüssel an und addierte vier, während {@see AccessLog}
+             * fünf lieferte. Der Prüfstand blieb grün, weil er dieselbe
+             * verkürzte Form erwartete.
+             *
+             * > **Zwei Stellen, die sich auf eine Form einigen, ohne dass eine
+             * > dritte sie nachzählt, einigen sich irgendwann auf die falsche.**
+             *
+             * Ohne diesen Wert kann der Nachtlauf die Regel aus `docs/129 §5`
+             * nicht durchsetzen: Ein Tag, in dem eine Zeile des alten
+             * Zeitalters steht, wird nicht gezählt.
+             */
             foreach ($zahl['days'] as $tag => $werte) {
-                $tage[$tag] ??= ['requests' => 0, 'sent' => 0, 'received' => 0, 'errors' => 0];
-                $tage[$tag]['requests'] += $werte['requests'];
-                $tage[$tag]['sent'] += $werte['sent'];
-                $tage[$tag]['received'] += $werte['received'];
-                $tage[$tag]['errors'] += $werte['errors'];
+                $tage[$tag] ??= ['requests' => 0, 'sent' => 0, 'received' => 0, 'errors' => 0, 'legacy' => 0];
+
+                foreach (['requests', 'sent', 'received', 'errors', 'legacy'] as $feld) {
+                    $tage[$tag][$feld] += $werte[$feld];
+                }
             }
         }
 

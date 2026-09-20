@@ -4847,6 +4847,144 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
 
 echo
+echo "── TrafficEraTest: eine Schwelle statt "eine einzige Zeile" ──"
+#
+# docs/129 §5 sagt: vollstaendig im neuen Format, nicht ueberwiegend. Eine
+# Schwelle ist eine Zahl, die spaeter jemand anders setzt — und dann steht
+# in der Tabelle ein Tag, den niemand nachrechnen kann.
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+alt = 'if ($alt > 0) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if ($alt > 100) {', 1))
+PY2
+griff_datei app/Support/Web/AccessCounts.php "Schwelle statt einer Zeile" &&
+pruefe "Schwelle statt einer Zeile" \
+  TrafficEraTest::test_one_legacy_line_skips_the_whole_day failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficEraTest passed
+
+echo
+echo "── TrafficEraTest: der laufende Tag wird als falsch formatiert gemeldet ──"
+#
+# Die Reihenfolge der beiden Gruende traegt mit: Ein laufender Tag mit alten
+# Zeilen ist "noch offen". Andersherum meldete der Lauf jede Nacht eine
+# Domain als falsch formatiert, deren heutiger Tag schlicht noch laeuft.
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+alt = "                if ($tag >= $today) {\n                    $offen[] = ['subscription' => $abonnement, 'domain' => $domain, 'day' => $tag];\n\n                    continue;\n                }\n\n                $alt = (int) ($werte['legacy'] ?? 0);\n\n                if ($alt > 0) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                $alt = (int) ($werte['legacy'] ?? 0);\n\n                if ($tag >= $today && $alt === 0) {\n                    $offen[] = ['subscription' => $abonnement, 'domain' => $domain, 'day' => $tag];\n\n                    continue;\n                }\n\n                if ($alt > 0) {", 1))
+PY2
+griff_datei app/Support/Web/AccessCounts.php "laufender Tag als Formatfehler" &&
+pruefe "laufender Tag als Formatfehler" \
+  TrafficEraTest::test_a_running_day_with_legacy_lines_is_still_only_open failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficEraTest passed
+
+echo
+echo "── TrafficEraTest: der laufende Tag wird mitgezaehlt ──"
+#
+# Ein angefangener Tag ist nicht falsch, er ist noch nicht fertig. Gezaehlt
+# waere er eine halbe Zahl, die wie eine ganze aussieht.
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+alt = 'if ($tag >= $today) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if ($tag > $today) {', 1))
+PY2
+griff_datei app/Support/Web/AccessCounts.php "laufender Tag mitgezaehlt" &&
+pruefe "laufender Tag mitgezaehlt" \
+  TrafficEraTest::test_the_running_day_is_open_and_not_counted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficEraTest passed
+
+echo
+echo "── TrafficEraTest: das Liegengebliebene wird nicht gezaehlt ──"
+#
+# Ohne diese Zahl bleibt die Unit gruen, obwohl der Lauf seinen Tag nicht
+# fertig gezaehlt hat — und der naechste wird es auch nicht.
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+alt = '$unvollstaendig = is_array($pending) ? count($pending) : 0;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$unvollstaendig = 0;', 1))
+PY2
+griff_datei app/Support/Web/AccessCounts.php "Liegengebliebenes nicht gezaehlt" &&
+pruefe "Liegengebliebenes nicht gezaehlt" \
+  TrafficEraTest::test_pending_domains_make_the_run_incomplete failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficEraTest passed
+
+echo
+echo "── AccessCountTest: legacy faellt bei der Zusammenfuehrung heraus ──"
+#
+# Genau der Fehler, der am 21. September einmal durchging: AccessLog liefert
+# fuenf Schluessel, die Zusammenfuehrung legte vier an. Der Prueckstand blieb
+# gruen, weil er dieselbe verkuerzte Form erwartete.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = "foreach (['requests', 'sent', 'received', 'errors', 'legacy'] as $feld) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "foreach (['requests', 'sent', 'received', 'errors'] as $feld) {", 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "legacy faellt heraus" &&
+pruefe "legacy faellt heraus" \
+  AccessCountTest::test_a_legacy_line_is_tallied_and_not_added failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
+echo "── LogEraTest: ein reiner Alt-Tag verschwindet wieder ──"
+#
+# Vor dem 21. September gab eine Datei aus dem alten Zeitalter days => [].
+# "Nicht zaehlbar" und "nicht vorhanden" sind zwei Antworten, und ein leeres
+# Feld gibt beide.
+vorher_datei agent/src/Web/AccessLog.php
+python3 - <<'PY2'
+p = 'agent/src/Web/AccessLog.php'
+s = open(p, encoding='utf-8').read()
+alt = "                $tag = $satz['day'];\n                $tage[$tag] ??= ['requests' => 0, 'sent' => 0, 'received' => 0, 'errors' => 0, 'legacy' => 0];\n\n                if ($satz['sent'] === null) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                $tag = $satz['day'];\n\n                if ($satz['sent'] === null) {", 1))
+PY2
+griff_datei agent/src/Web/AccessLog.php "reiner Alt-Tag verschwindet" &&
+pruefe "reiner Alt-Tag verschwindet" \
+  LogEraTest::test_a_legacy_file_is_read_and_not_counted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogEraTest passed
+
+echo
+echo "── TrafficEraTest: der Nachtlauf bleibt bei unvollstaendigem Lauf gruen ──"
+#
+# Die Regel steht in AccessCounts und wird dort geprueft. Ob das Kommando sie
+# auch auswertet, sagt dort niemand — und eine stille Unit ist genau das,
+# wogegen es diese Zahl gibt.
+vorher_datei app/Console/Commands/CollectTraffic.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/CollectTraffic.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($split['incomplete'] > 0) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        if (false) {', 1))
+PY2
+griff_datei app/Console/Commands/CollectTraffic.php "Nachtlauf bleibt gruen" &&
+pruefe "Nachtlauf bleibt gruen" \
+  TrafficEraTest::test_the_nightly_run_fails_on_an_incomplete_report failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficEraTest passed
+
+echo
 echo "── DefinerStripTest: der Filter fasst auch Datenzeilen an ──"
 #
 # Ein blindes Suchen-und-Ersetzen über den ganzen Dump verändert Nutzdaten. Eine

@@ -1,0 +1,49 @@
+[Unit]
+Description=SrvPanel — die Zugriffsprotokolle zählen
+Documentation=https://repo.cloudsrv24.de/
+After=srvpanel-agentd.service
+Requires=srvpanel-agentd.service
+
+[Service]
+# Type=oneshot und kein Restart: Der Timer startet den nächsten Lauf.
+Type=oneshot
+User=srvpanel
+Group=srvpanel
+WorkingDirectory=/opt/srvpanel/current
+ExecStart=/opt/srvpanel/bin/php artisan srvpanel:traffic
+
+# **Zehn Minuten, und die Zahl hat zwei Nachbarn.**
+#
+# Die Operation `web.access.count` deckelt sich selbst bei 120 s und gibt
+# zurück, was sie nicht mehr geschafft hat. Der Client des Agenten gibt nach
+# 300 s auf. Ein Lauf, der hängt, ist also längst beendet, bevor diese Frist
+# greift — sie ist der Deckel gegen den Fall, dass der Client selbst hängt,
+# und nicht gegen einen langsamen Zähler.
+#
+#   Ein Deckel gegen das Hängenbleiben muss nicht knapp sein — er muss endlich
+#   sein.
+#
+# Er liegt weit unter dem Takt des Timers, damit ein Hänger höchstens einen
+# Termin kostet. `OneshotDeadlineTest` rechnet beides nach.
+TimeoutStartSec=600
+
+# Dieser Lauf fragt den Agenten und schreibt sein Ergebnis ins Journal. Mehr
+# braucht er nicht — und mehr bekommt er nicht. Die Protokolldateien der Kunden
+# liest der Agent als root; dieser Dienst sieht sie nie.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/srvpanel /var/log/srvpanel
+
+MemoryMax=192M
+TasksMax=32

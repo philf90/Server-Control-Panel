@@ -31128,3 +31128,65 @@ Zeitalters ist die erste, die am 20. September 2026 auf `cloudsrv24` im neuen
 Format gelandet ist. Sie trägt `200 687 … 990 172` — 687 Bytes Rumpf, 990 Bytes
 auf der Leitung. Die 303 Bytes Unterschied sind der Kopf, und sie sind der ganze
 Grund, warum `$bytes_sent` im Format steht.
+
+### Der Nachtlauf — B2 ist fertig
+
+`srvpanel:traffic` am Timer `srvpanel-traffic` ruft einmal pro Nacht
+`web.access.count` und meldet, was zählbar war. Damit steht B2 aus `docs/129 §3`
+vollständig: Format, Leser, Operation, Nachtlauf.
+
+**Er legt noch nichts ab, und das ist der Zuschnitt und keine Auslassung.** Die
+verdichtete Tabelle ist B3. Was dieser Lauf schon heute festlegt, ist die
+Pflicht für sie: Er sieht denselben Tag mehrfach und schreibt deshalb je Tag
+**überschreibend** und nicht addierend.
+
+**Die Regel aus `docs/129 §5` ist jetzt gebaut — und sie brauchte eine Änderung
+am Leser.** Gezählt wird erst der Tag, der **vollständig** im neuen Format
+steht. Diese Entscheidung kann nur treffen, wer je Tag weiss, ob eine alte
+Zeile darin steht; `AccessLog::countFile()` führte `legacy` bis dahin nur als
+Summe über die Datei. Es steht jetzt auch je Tag, und ein Tag mit **nur** alten
+Zeilen erscheint mit Nullen statt gar nicht:
+
+> **„Nicht zählbar" und „nicht vorhanden" sind zwei Antworten, und ein leeres
+> Feld gibt beide.**
+
+**Dabei ist ein Fehler durchgegangen, den erst der zweite Blick fand.**
+`WebAccessCount` führt die Tage zweier Dateien zusammen; die Zusammenführung
+legte vier Schlüssel an und addierte vier, während der Leser fünf lieferte.
+`legacy` fiel still heraus — und der Prüfstand blieb grün, weil er dieselbe
+verkürzte Form erwartete.
+
+> **Zwei Stellen, die sich auf eine Form einigen, ohne dass eine dritte sie
+> nachzählt, einigen sich irgendwann auf die falsche.**
+
+**Drei Gründe, aus denen ein Tag keine Zahl bekommt, stehen in drei Töpfen.**
+`countable`, `skipped` (gemischtes Format, mit Namen und Zeilenzahl) und `open`
+(der laufende Tag). Die Reihenfolge der Prüfung trägt mit: Ein laufender Tag mit
+alten Zeilen ist „noch offen" und nicht „falsch formatiert" — sonst meldete der
+Lauf jede Nacht eine Domain, deren heutiger Tag schlicht noch läuft.
+
+**Und was liegen blieb, ist ein Fehlschlag.** Das Budget der Operation lässt
+Domains liegen, statt gar nichts zu liefern; ein Lauf, der das ignorierte, hätte
+seinen Tag nicht fertig gezählt und wäre trotzdem grün. Die Zahl steht in
+`AccessCounts` und nicht im Kommando, denn:
+
+> **Eine Regel, die nur mit halbem Server zu prüfen ist, wird nicht geprüft.**
+
+**Der Timer streut eine Stunde wie seine acht Nachbarn — und das ist hier
+gefahrlos.** `docs/129 §5` verlangte ursprünglich einen Lauf „hinter dem von
+`logrotate` und mit genug Abstand davor". Gemessen steht `logrotate.timer` auf
+`OnCalendar=daily` mit `AccuracySec=1h`: ein Fenster, kein Zeitpunkt. Weil die
+Operation beide Dateien liest und nach dem Tag *in der Zeile* gruppiert, ist es
+gleichgültig, wo im Fenster der Lauf ankommt.
+
+> **Ein Abstand zu einem Zeitpunkt, den es nicht gibt, lässt sich nicht
+> einhalten.**
+
+**`PackagingTest` hat den vierten Verdrahtungspunkt gefunden**, den zu kennen
+ich nicht behaupten kann: `preremove.sh` hält jeden Timer beim Entfernen an, und
+der neue stand nicht darin. Und `AgentOperationReachTest` hat seinen eigenen
+`UNREACHED`-Eintrag eingefordert, sobald `CollectTraffic` den Namen nannte —
+der Eintrag trug seine Auflösungsbedingung selbst.
+
+> **Ein Eintrag auf einer Ausnahmeliste, der seine eigene Auflösung benennt,
+> wird aufgelöst. Einer ohne bleibt.**

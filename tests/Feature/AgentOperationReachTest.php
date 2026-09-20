@@ -142,11 +142,16 @@ final class AgentOperationReachTest extends TestCase
          * Bestand, den er führte, und keinen Vorgang, den jemand ausgelöst hat.
          * Er läuft einmal in der Nacht über alle Abonnements und liest.
          *
-         * Dass ihn heute noch niemand ruft, steht in {@see self::UNREACHED} —
-         * mit Datum, Grund und der Bedingung, unter der der Eintrag wieder
-         * verschwindet.
+         * **Der Eintrag in {@see self::UNREACHED} ist am 21. September 2026
+         * wieder verschwunden**, und zwar nicht aus Ordnungsliebe: Er trug
+         * seine Auflösungsbedingung — „mit dem Nachtlauf" —, und
+         * `test_the_list_of_unreached_operations_does_not_outlive_them` hat
+         * sie eingefordert, sobald `CollectTraffic` den Namen nannte.
+         *
+         * > **Ein Eintrag auf einer Ausnahmeliste, der seine eigene Auflösung
+         * > benennt, wird aufgelöst. Einer ohne bleibt.**
          */
-        'web.access.count' => 'Zählt die Zugriffsprotokolle aller Abonnements. Kein Bestand im Panel und kein Vorgang: Der nächtliche Lauf ruft ihn und legt die Tageszahlen ab. Ein Aufruf je Abonnement wäre hundert Vorgänge im Protokoll für eine Messung, die niemand ausgelöst hat.',
+        'web.access.count' => 'Zählt die Zugriffsprotokolle aller Abonnements. Kein Bestand im Panel und kein Vorgang: App\\Console\\Commands\\CollectTraffic ruft ihn einmal pro Nacht am Timer srvpanel-traffic. Ein Aufruf je Abonnement wäre hundert Vorgänge im Protokoll für eine Messung, die niemand ausgelöst hat.',
 
         /*
          * **P6 Schritt 9: Cron.** Kein Lebenslauf, und der Grund ist derselbe
@@ -354,12 +359,6 @@ final class AgentOperationReachTest extends TestCase
      * @var array<string, string>
      */
     private const UNREACHED = [
-        'web.access.count' => 'Eingetragen am 20. September 2026 mit der Operation selbst (B2, '
-            .'zweite Hälfte). Sie zählt die Zugriffsprotokolle; gerufen wird sie vom nächtlichen '
-            .'Lauf, und den gibt es noch nicht — seine Uhrzeit hängt an einer Messung, die '
-            .'`docs/129 §10` als Punkt 1 führt. Dieser Eintrag ist mit dem Nachtlauf zu '
-            .'entfernen, und `test_the_list_of_unreached_operations_does_not_outlive_them` '
-            .'besteht darauf.',
 
         'acme.account.ensure' => 'Gefunden am 8. August 2026, als dieser Wächter entstand. Der '
             .'Kommentar der Operation sagt, die Oberfläche zeige die Adresse an dem Knopf, der '

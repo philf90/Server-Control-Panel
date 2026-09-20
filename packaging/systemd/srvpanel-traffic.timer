@@ -1,0 +1,32 @@
+[Unit]
+Description=SrvPanel — tägliche Zählung der Zugriffsprotokolle
+Documentation=https://repo.cloudsrv24.de/
+
+# Gehört zu `srvpanel.target`: Ein `stop` oder `restart` des Ziels nimmt
+# diese Unit mit. Ohne diese Zeile wäre das Ziel ein Griff, der nur
+# anschaltet — und das ist ein halber Griff.
+PartOf=srvpanel.target
+
+[Timer]
+# **Täglich**, denn ein Tag ist die Einheit, die gezählt wird.
+OnCalendar=daily
+
+# Ein Server, der über Nacht aus war, zählt nach dem Einschalten nach. Er
+# verliert dabei nichts: `access.log.1` liegt vierzehn Tage
+# (`WebLogrotate`: `rotate 14`), und gezählt wird nach dem Tag in der Zeile.
+Persistent=true
+
+# **Eine Stunde Streuung, und sie ist hier gefahrlos.**
+#
+# Damit liegt dieser Lauf im selben Fenster wie `logrotate` — gemessen am
+# 20. September 2026 auf cloudsrv24: `OnCalendar=daily` mit `AccuracySec=1h`.
+# Das wäre ein Fehler, wenn der Lauf nur `access.log.1` läse; er liest beide
+# Dateien und gruppiert nach dem Tag **in der Zeile**, und dann ist es
+# gleichgültig, ob er vor oder nach dem Umbenennen ankommt.
+#
+#   Ein Lauf, der von einer Uhrzeit abhängt, die selbst ein Fenster ist, misst
+#   an manchen Tagen etwas anderes als an anderen.
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

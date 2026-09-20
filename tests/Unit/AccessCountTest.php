@@ -99,7 +99,7 @@ final class AccessCountTest extends TestCase
         $this->assertSame('p1001', $domain['subscription']);
         $this->assertSame('beispiel.de', $domain['domain']);
         $this->assertSame([
-            '2026-09-20' => ['requests' => 1, 'sent' => 990, 'received' => 172, 'errors' => 0],
+            '2026-09-20' => ['requests' => 1, 'sent' => 990, 'received' => 172, 'errors' => 0, 'legacy' => 0],
         ], $domain['days']);
     }
 
@@ -162,6 +162,11 @@ final class AccessCountTest extends TestCase
         $this->assertSame(2, $domain['legacy']);
         $this->assertSame(0, $domain['unreadable']);
         $this->assertSame(990, $domain['days']['2026-09-20']['sent']);
+
+        // **Und der Tag selbst trägt es.** Die Summe über die Domain sagt
+        // nicht, *welcher* Tag halb ist — und genau das muss der Nachtlauf
+        // wissen, um ihn zu überspringen statt halb zu zählen.
+        $this->assertSame(2, $domain['days']['2026-09-20']['legacy']);
     }
 
     /**

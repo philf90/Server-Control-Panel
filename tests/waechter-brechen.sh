@@ -4481,6 +4481,93 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LogFormatTest passed
 
 echo
+echo "── LogEraTest: das alte Zeitalter wird mitgezählt ──"
+#
+# `combined` fuehrt `$body_bytes_sent`, und das ist bei einem `304` eine Null,
+# waehrend 189 Byte hinausgehen (gemessen, docs/128 M2). Eine Summe ueber beide
+# Zeitalter waere eine Zahl, die niemand nachrechnen kann — und sie saehe aus
+# wie eine Zahl.
+vorher_datei agent/src/Web/AccessLog.php
+python3 - <<'PY2'
+p = 'agent/src/Web/AccessLog.php'
+s = open(p, encoding='utf-8').read()
+alt = """                if ($satz['sent'] === null) {\n                    $alt++;\n\n                    continue;\n                }"""
+assert alt in s, 'Zweig des alten Zeitalters nicht gefunden'
+neu = """                if ($satz['sent'] === null) {\n                    $alt++;\n                    $satz['sent'] = 0;\n                    $satz['received'] = 0;\n                }"""
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Web/AccessLog.php "das alte Zeitalter wird mitgezählt" &&
+pruefe "das alte Zeitalter wird mitgezählt" \
+  LogEraTest::test_a_legacy_file_is_read_and_not_counted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogEraTest passed
+
+echo
+echo "── LogEraTest: demaskieren vor dem Trennen ──"
+#
+# nginx schreibt ein Anfuehrungszeichen im User-Agent als `\x22` — vier Zeichen,
+# von denen keines eines ist. Wer es vor dem Trennen zurueckuebersetzt, zerlegt
+# eine Zeile, die es nie gab.
+vorher_datei agent/src/Web/AccessLog.php
+python3 - <<'PY2'
+p = 'agent/src/Web/AccessLog.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $teile = explode('\"', rtrim($line, \"\\r\\n\"));"
+assert alt in s, 'Trennzeile nicht gefunden'
+neu = '        $teile = explode(chr(34), str_replace(chr(92).\"x22\", chr(34), rtrim($line, \"\\r\\n\")));'
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Web/AccessLog.php "demaskieren vor dem Trennen" &&
+pruefe "demaskieren vor dem Trennen" \
+  LogEraTest::test_a_quoted_user_agent_does_not_split_the_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogEraTest passed
+
+echo
+echo "── LogEraTest: Unrat wird still übergangen ──"
+#
+# Eine Datei, die zur Haelfte aus Unrat besteht, saehe sonst aus wie eine leise
+# Domain. Die uebersprungenen Zeilen gehoeren in die Antwort.
+vorher_datei agent/src/Web/AccessLog.php
+python3 - <<'PY2'
+p = 'agent/src/Web/AccessLog.php'
+s = open(p, encoding='utf-8').read()
+alt = """                if ($satz === null) {\n                    $unrat++;\n\n                    continue;\n                }"""
+assert alt in s, 'Unrat-Zweig nicht gefunden'
+s = s.replace(alt, """                if ($satz === null) {\n                    continue;\n                }""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Web/AccessLog.php "Unrat wird still übergangen" &&
+pruefe "Unrat wird still übergangen" \
+  LogEraTest::test_rubbish_is_counted_as_unreadable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogEraTest passed
+
+echo
+echo "── LogEraTest: alle Zeilen auf denselben Tag ──"
+#
+# `access.log.1` ist der Ertrag einer Rotation, und die laeuft zu einer Uhrzeit
+# und nicht um Mitternacht — die Datei traegt deshalb regelmaessig zwei
+# Kalendertage. Wer sie als "einen Tag" zaehlt, schiebt jede Nacht ein Stueck
+# Verkehr auf das falsche Datum.
+vorher_datei agent/src/Web/AccessLog.php
+python3 - <<'PY2'
+p = 'agent/src/Web/AccessLog.php'
+s = open(p, encoding='utf-8').read()
+alt = "                $tag = $satz['day'];"
+assert alt in s, 'Tagzeile nicht gefunden'
+s = s.replace(alt, "                $tag = array_key_first($tage) ?? $satz['day'];", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Web/AccessLog.php "alle Zeilen auf denselben Tag" &&
+pruefe "alle Zeilen auf denselben Tag" \
+  LogEraTest::test_two_calendar_days_in_one_file_stay_apart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogEraTest passed
+
+echo
 echo "── DefinerStripTest: der Filter fasst auch Datenzeilen an ──"
 #
 # Ein blindes Suchen-und-Ersetzen über den ganzen Dump verändert Nutzdaten. Eine

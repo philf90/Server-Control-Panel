@@ -30985,3 +30985,45 @@ nichts.
 
 > **Zwei Anweisungen, die einander widersprechen, sind keine Vorsicht — eine
 > von beiden ist tot, und man sieht ihr nicht an, welche.**
+
+### Der Leser, der die beiden Zeitalter eines Protokolls auseinanderhält
+
+`Web\AccessLog` zerlegt eine Zugriffszeile und zählt eine Datei nach Tagen.
+Drei Entscheidungen darin sind gemessen und nicht gewählt.
+
+**Zerlegt wird an den Anführungszeichen, und demaskiert wird nie.** Die Sorge,
+ein User-Agent mit einem Anführungszeichen mache die Zeile mehrdeutig, ist
+gegenstandslos: nginx schreibt `\x22` — vier Zeichen, von denen keines eines
+ist. Die Zeile zerfällt in genau sieben Stücke, gleich was ein Besucher
+schickt.
+
+> **Wer `\x22` zurückübersetzt und dann trennt, zerlegt eine Zeile, die es nie
+> gab.**
+
+**Eine Zeile des alten Zeitalters wird gelesen und nicht gezählt.** Unterschieden
+wird an dem, was hinter dem letzten Anführungszeichen steht — nichts bei
+`combined`, zwei Zahlen bei `srvpanel` —, und nicht an einem Datum: Ein Datum
+wüsste nicht, wann die Vorlage auf diesem Server ausgerollt wurde, und eine
+Datei kann beides enthalten. Gezählt werden die übersprungenen Zeilen trotzdem,
+denn eine leere Auswertung und eine leise Domain sähen sonst gleich aus.
+
+**Gruppiert wird nach dem Tag in der Zeile und nicht nach der Datei.**
+`access.log.1` ist der Ertrag einer Rotation, und die läuft zu einer Uhrzeit
+und nicht um Mitternacht — die Datei trägt deshalb regelmässig zwei
+Kalendertage.
+
+Die Prüfkörper von `LogEraTest` sind **gemessen**: zwei Server-Blöcke auf
+demselben nginx-Lauf, einer mit `combined`, einer mit `srvpanel`, dieselben
+vier Abrufe gegen beide. Die Summen sind von Hand nachgerechnet.
+
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst die
+> falsche — und sein Grün liest sich wie ein Freispruch.**
+
+Zwei bestehende Wächter haben dabei zugebissen. `AnchoredPatternTest` fand drei
+Muster auf `$` ohne den Modifikator `D`. Und `@fopen()` auf eine fehlende Datei
+gab unter `phpunit` ein `OK` und unter `php artisan test` eine Warnung: Das
+Klammeräffchen unterdrückt die Meldung und nicht das Ereignis. Gefragt wird
+jetzt mit `is_file()`.
+
+> **Ein unterdrückter Fehler ist keiner, der nicht stattgefunden hat — er ist
+> einer, den nur dieser Aufrufer nicht sieht.**

@@ -29,7 +29,7 @@ Entscheidungen nicht an einer Stelle führt, sie beim nächsten Umbau verliert.
 | # | Frage | Entschieden am | Entscheidung |
 |---|---|---|---|
 | **1** | Bekommt der Kunde Docker? | 20. September 2026 | **K0 — Docker gehört dem Betreiber allein.** K2 (rootless je Abonnement) ist **vorgemerkt für nach der vollständigen Umsetzung** und nicht Teil dieser Stufe. |
-| **2** | Zuschnitt und Reihenfolge | offen | |
+| **2** | Zuschnitt und Reihenfolge | 20. September 2026 | **Eigene Stufe `P9a`, nach P9 und vor P9b.** Zwei Abnahmeläufe: erst die lesenden Bereiche, dann Stacks, Prüfer und Angriffsdurchgang. |
 | **3** | `docker.io` oder `docker-ce` | offen | |
 | **4** | Container-Shell | offen | |
 
@@ -44,6 +44,29 @@ Kundenschnittstelle. Damit gilt für alles Weitere:
   offen** statt still zu fehlen.
 - Von den neun Messungen aus §11 tragen **M1, M3, M4, M5 und M6** diese Stufe.
   **M2, M8 und M9 entfallen vorerst**, **M7 gehört zum vorgemerkten K2.**
+
+**Was Entscheidung 2 festlegt.** Die Stufe steht seit dem 20. September als
+`P9a` in `docs/20 §9`, zwischen P9 und P9b, und die Summe dort ist auf
+**40–53 Wochen** fortgeschrieben. Drei Dinge folgen daraus:
+
+- **Der Name folgt der Regel von P7b** — eine Stufe zwischen zwei bestehenden
+  trägt den Buchstaben der davor: P9, P9a, P9b.
+- **Vor P9b, und das ist der tragende Grund:** A3s zweiter Wurf schreibt die
+  Firewall in eine eigene nftables-Tabelle, „die den Bestand nicht anfasst" —
+  und Docker **ist** dann Bestand. Danach gebaut, wird A3 zweimal gebaut.
+- **Nach P9**, weil P9 das Verkäufliche bringt und A7 dann schon steht: Dockers
+  vier Diagnosebefunde aus §7.5 kommen aus `FindingCheck`, und A7 liest daraus
+  — das sind Zeilen in einer Aufzählung und kein Umbau.
+
+**Die zwei Abnahmeläufe** sind ein Vorschlag des Plans und keine eigene
+Entscheidung des Betreibers; sie folgen aus dem Zuschnitt. Lauf 1 nimmt die
+lesenden Bereiche ab — Container, Bestand, Ports, Image-Updates, Zustandskopf,
+Diagnose, Regelwerk. Lauf 2 nimmt die schreibenden ab — Stacks, den
+Compose-Prüfer und den Angriffsdurchgang gegen die sechs Mechanismen aus §6.
+
+> **Der gefährlichste Schritt kommt zuletzt, und er kommt erst dran, wenn alles
+> Lesende steht und gemessen ist.** Dieselbe Logik wie bei A3s erstem und
+> zweitem Wurf, nur innerhalb einer Stufe.
 
 **Was Entscheidung 1 nicht sagt.** Sie sagt nicht, dass ein Kunde nie Container
 bekommt — sie sagt, wann darüber entschieden wird. Und sie legt die Richtung

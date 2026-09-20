@@ -1424,6 +1424,51 @@ Die vollständige Fassung mit acht Punkten steht in `docs/117 §8`.
 **Fertig, wenn** ein fremder Kunde das Panel benutzen kann, ohne zu fragen —
 gemessen an einem Durchlauf mit einer Person, die das Projekt nicht kennt.
 
+### P9a — Docker-Verwaltung für den Betreiber · 4–5 Wochen · (0.10.x)
+
+> **Entschieden am 20. September 2026 vom Betreiber.** Der Zuschnitt, die
+> gemessene Grundlage und die Messrunde davor stehen in `docs/922`; hier steht
+> nur, was die Stufe ist und wo sie hängt.
+>
+> **Der Name folgt der Regel von P7b:** eine Stufe, die zwischen zwei
+> bestehende gehört, trägt den Buchstaben der davor — P9, P9a, P9b.
+
+- **Fünf Bereiche unter `/docker`**, Fähigkeit `operate-server`: Stacks,
+  Container, Ports, Image-Updates, Bestand. Darüber ein Zustandskopf, weil
+  „der Daemon antwortet nicht" man nicht durch einen Bereichswechsel
+  verpassen darf.
+- **Compose als führendes Objekt**, angebunden über die **CLI** und nicht über
+  den Socket: `Runner` tut bereits, was Grenze 1 verlangt, und ein zweiter
+  Transport hiesse, Anfragen aus Zeichenketten zu bauen.
+- **Der Compose-Prüfer** — der sicherheitskritische Kern. Zweistufig, weil
+  Anker und `extends` an einer Prüfung der Rohdatei vorbeigehen, das Rendern
+  aber selbst fremde Dateien liest. Sechs Mechanismen, nicht eine Feldliste.
+- **Verwaltet und fremd getrennt**, nach dem Muster von Crontabs und nftables:
+  fremde Projekte lesbar und bedienbar, ihre Datei wird nie geschrieben.
+- **Zwei Nähte werden geschlossen** — das Regelwerk (Docker schreibt eigene
+  Ketten) und die Bestandsdiagnose (vier neue Befundarten).
+- **Lange Läufe über `systemd-run`**, nicht über die Warteschlange:
+  `packaging/bin/docker-run` als drittes Geschwister von `apt-run` und
+  `cron-run`.
+
+**Der Kunde bekommt in dieser Stufe kein Docker**, und das ist entschieden und
+keine Auslassung: Wer eine `compose.yaml` frei schreiben darf, ist root auf dem
+Server aller anderen Kunden. Führt später ein Kundenweg dorthin, dann über
+**rootless Docker je Abonnement** — eine Grenze, die der Kernel hält — und
+nicht über einen Katalog, dessen Grenze in unserem Code läge. Das ist als
+offener Punkt für nach der vollständigen Umsetzung vorgemerkt (`docs/922 §0`).
+
+**Hierher und nicht nach P9b**, und das ist der tragende Grund für die
+Einordnung: A3s zweiter Wurf schreibt die Firewall „in eine eigene
+nftables-Tabelle, die den Bestand nicht anfasst" — und Docker **ist** dann
+Bestand. Wer P9a danach baut, entwirft A3 gegen einen Server ohne Docker und
+baut ihn zweimal.
+
+**Fertig, wenn** zwei Abnahmeläufe durch sind: der erste über die lesenden
+Bereiche, der zweite über Stacks, den Compose-Prüfer und einen
+**Angriffsdurchgang**, in dem jeder der sechs Mechanismen als Prüfkörper
+vorliegt, der den Wirt nachweislich erreicht — und abgewiesen wird.
+
 ### P9b — Absicherung des Servers · ~3 Wochen · (0.10.x)
 
 > **Entschieden am 28. August 2026 vom Betreiber.** `docs/81 §12.1` schlug
@@ -1505,10 +1550,16 @@ eigene Firewall. Das ist die vorsichtigere Annahme und deshalb kein Fehler.
   (§4.2)
 - Freigabe 1.0
 
-**Summe: 36–48 Wochen** bis 1.0 — am 28. August 2026 um vier Wochen
+**Summe: 40–53 Wochen** bis 1.0. Am 28. August 2026 um vier Wochen
 fortgeschrieben: **P9b** (rund drei) sowie A8 und der erste Wurf von A3 in P7b
-(zusammen gut eine). Die Zahl wächst, weil Arbeit einen Ort bekommen hat, die
-vorher keinen hatte — nicht, weil neue dazugekommen wäre.
+(zusammen gut eine). Dort wuchs die Zahl, weil Arbeit einen Ort bekommen hat,
+die vorher keinen hatte — nicht, weil neue dazugekommen wäre.
+
+**Am 20. September 2026 um vier bis fünf Wochen für P9a**, und da liegt der
+Fall andersherum: Das ist **neue Arbeit**, vom Betreiber beauftragt, und
+nicht heimatlose, die einen Ort gefunden hat. Der Unterschied gehört benannt,
+weil beide Fortschreibungen in derselben Zeile stehen und sonst gleich
+aussähen.
 
 > **Eine Summe, aus der das Heimatlose fehlt, ist nicht kleiner — sie ist
 > unvollständig.** Die Zahl ist ehrlich gemeint, nicht

@@ -30,7 +30,7 @@ Entscheidungen nicht an einer Stelle führt, sie beim nächsten Umbau verliert.
 |---|---|---|---|
 | **1** | Bekommt der Kunde Docker? | 20. September 2026 | **K0 — Docker gehört dem Betreiber allein.** K2 (rootless je Abonnement) ist **vorgemerkt für nach der vollständigen Umsetzung** und nicht Teil dieser Stufe. |
 | **2** | Zuschnitt und Reihenfolge | 20. September 2026 | **Eigene Stufe `P9a`, nach P9 und vor P9b.** Zwei Abnahmeläufe: erst die lesenden Bereiche, dann Stacks, Prüfer und Angriffsdurchgang. |
-| **3** | `docker.io` oder `docker-ce` | offen | |
+| **3** | `docker.io` oder `docker-ce` | 20. September 2026 | **Beides zulassen, `docker.io` als Präferenz.** Das Panel *installiert* `docker.io` und `docker-compose-v2`; ein vorhandenes `docker-ce` wird **bedient und nicht abgelehnt**. Dazu eine `Docker::MIN_VERSION`, gesetzt **nach** M1. |
 | **4** | Container-Shell | offen | |
 
 **Was Entscheidung 1 festlegt.** Die Stufe baut ein Betreibermodul und keine
@@ -68,6 +68,36 @@ Compose-Prüfer und den Angriffsdurchgang gegen die sechs Mechanismen aus §6.
 > Lesende steht und gemessen ist.** Dieselbe Logik wie bei A3s erstem und
 > zweitem Wurf, nur innerhalb einer Stufe.
 
+**Was Entscheidung 3 festlegt — und die Folge, die nicht auf der Hand liegt.**
+„Beides zulassen" ist keine Bequemlichkeit, sondern eine Aussage darüber,
+**wonach der Zustand gefragt wird**:
+
+- **Der Zustand kommt vom laufenden Docker und nicht von `dpkg`.** Fragt man
+  `dpkg-query` nach `docker.io`, antwortet ein Server mit `docker-ce`
+  „nicht installiert" — ununterscheidbar von einem Server ganz ohne Docker.
+  Gefragt werden deshalb `docker version`, `docker compose version` und
+  `systemctl is-active docker`.
+- **`dpkg` wird trotzdem gefragt, aber zu einer anderen Frage:** *darf der Knopf
+  „Docker installieren" überhaupt stehen?* `docker.io` und `docker-ce`
+  schliessen einander in apt aus — ein Knopf, der auf einem `docker-ce`-Server
+  ein `docker.io` nachschieben will, zerlegt die Installation.
+- **Der Zustandskopf bekommt zwei Angaben dazu:** die **Herkunft**
+  (Distribution / Dockers Quelle / unbekannt) und, als vierten Zustand neben
+  „nicht installiert", „Daemon tot" und „Compose fehlt", **„Version zu alt"**.
+- **`Docker::MIN_VERSION` ist eine Versions- und keine Paketprüfung.** Sie gilt
+  für beide Herkünfte gleich, nach dem Vorbild von `Pg\Server::MIN_VERSION`
+  aus P5b: eine Konstante im Agenten, zur Laufzeit geprüft und in der CI gegen
+  alle vier Plattformen gemessen.
+
+> **Eine Anzeige, die zwei verschiedene Zustände gleich aussehen lässt,
+> behauptet etwas, das sie nicht weiss.** Nach dem Paketnamen zu fragen, wo die
+> Frage dem Programm gilt, ist dieselbe Falle wie ein Regelwerk, das man mit
+> dem falschen Werkzeug abfragt.
+
+**`docker-ce` bleibt der Rückfallplan** und ist nicht ausgeschlossen: Er wird
+aktuell, wenn M1 zeigt, dass eine Zielplattform unter der Mindestversion liegt
+**und** ihre Ausgabeform abweicht.
+
 **Was Entscheidung 1 nicht sagt.** Sie sagt nicht, dass ein Kunde nie Container
 bekommt — sie sagt, wann darüber entschieden wird. Und sie legt die Richtung
 fest: Der Weg dorthin führt über **K2 und nicht über K1**, also über eine
@@ -98,6 +128,37 @@ Alles hier ist gegen `main @ fae85f8` gemessen, nicht erinnert.
 | Muster für lange Läufe | `systemd-run` absetzen, Urteil aus einer Datei nachlesen — `apt-run`, `cron-run` | `packaging/bin/`, `Ops/SystemRunOutcome.php` |
 | Bestandsdiagnose | **18** Befundarten, keine für Container | `app/Enums/FindingCheck.php` |
 | Dauerdienste und Timer | **4** und **8**, alle unter `srvpanel.target` — `docker.service` gehört zu keinem | `packaging/systemd/` |
+
+**Zwei Messungen vom 20. September, die zu Entscheidung 3 gehören.**
+
+Die erste widerlegt eine Annahme, die ich selbst aufgeschrieben hatte —
+`docker.io` sei auf den Zielplattformen veraltet. Gemessen mit
+`apt-cache policy` **in diesem Container (Ubuntu 24.04.4)**:
+
+| Paket | Kandidat |
+|---|---|
+| `docker.io` | **29.1.3**-0ubuntu3~24.04.2 |
+| `docker-compose-v2` | **2.40.3**+ds1-0ubuntu1~24.04.1 |
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen.**
+
+**Was diese Messung nicht sagt:** wie es auf Debian 12, Debian 13 und Ubuntu
+22.04 aussieht — also auf **drei von vier** Zielplattformen, darunter der
+wahrscheinliche Nachzügler. `packages.debian.org` sperrt der Egress-Proxy,
+`packages.ubuntu.com` antwortete mit 503. Das ist der Rest von M1 und gehört
+dort gemessen.
+
+Die zweite betrifft das Hauptargument gegen eine fremde Paketquelle: **Dieses
+Panel richtet längst eine ein.** `packaging/php-source.sh` setzt
+**deb.sury.org** samt eigenem Keyring auf drei von vier Plattformen, weil nur
+Debian 13 PHP 8.4 aus eigenen Quellen liefert (`docs/20 §4.3`). Und
+`FindingCheck::AptKey` überwacht seit A1 den Ablauf eines Signaturschlüssels.
+Der Präzedenzfall ist da, und die Maschine, die eine fremde Quelle
+beaufsichtigt, auch.
+
+**Der Unterschied, der `docker.io` trotzdem zur Präferenz macht:** Sury gibt es,
+weil das Panel **selbst** PHP 8.4 braucht — ohne die Quelle läuft es nicht.
+Docker ist ein Merkmal und kein Fundament.
 
 **Die Sprache ist zum Teil schon gebunden.** `docs/19 §3` führt eine Liste
 verbrauchter Wörter, die `WordChoiceTest` über jede `.vue` und jedes
@@ -211,10 +272,15 @@ baut. Fremde Compose-Projekte, die `docker compose ls --all` kennt, erscheinen
 
 **Fehlt Docker**, zeigt die Seite eine Karte mit dem Zustand und einen Knopf
 „Docker installieren" — dasselbe Muster, das `/updates` und die Datenbankseite
-schon haben. Drei Zustände sind dabei zu unterscheiden und **nicht zwei**:
-nicht installiert, installiert aber Daemon tot, Daemon läuft aber Compose
-fehlt. Bei totem Daemon hilft kein apt-Lauf, sondern ein Dienststart — dort
-gehört ein Verweis auf die Diensteseite und kein Knopf.
+schon haben. **Vier Zustände sind zu unterscheiden und nicht zwei:** nicht
+installiert, installiert aber Daemon tot, Daemon läuft aber Compose fehlt, und
+Version zu alt (§0, Entscheidung 3). Bei totem Daemon hilft kein apt-Lauf,
+sondern ein Dienststart — dort gehört ein Verweis auf die Diensteseite und kein
+Knopf.
+
+Dazu nennt der Kopf die **Herkunft** — Distribution oder Dockers Quelle —, weil
+sie entscheidet, ob der Installationsknopf überhaupt stehen darf, und weil sie
+die erste Frage jedes Supportfalls beantwortet.
 
 > **Eine Anzeige, die zwei verschiedene Zustände gleich aussehen lässt,
 > behauptet etwas, das sie nicht weiss.** Dieser Satz hat dieses Repo im
@@ -628,8 +694,12 @@ veraltet.
 22.04/24.04: Version von `docker.io`, ob `docker compose` dabei ist, und die
 tatsächliche Form von `ps`, `image ls`, `volume ls`, `network ls`, `compose ls`,
 `system df`. **Die Prüfkörper der Parser kommen aus diesen Ausgaben und nicht
-aus der Dokumentation.** **Was es nicht sagt:** ob die Form über Versionen
-stabil bleibt.
+aus der Dokumentation.** Dazu **eine Gegenprobe gegen `docker-ce`** derselben
+Version: Weicht die Ausgabe zwischen den Herkünften ab, ist die Streuung keine
+Frage der Version mehr, sondern eine der Paketierung — und das wäre ein
+Befund. `Docker::MIN_VERSION` wird **aus dieser Messung** gesetzt und nicht
+davor. **Was es nicht sagt:** ob die Form über künftige Versionen stabil
+bleibt.
 
 **M2 · Zählt ein Container gegen die Quota des Abonnements?** Drei Fälle, jeder
 einzeln: Bind-Mount unter `/var/www/vhosts/<name>/`, benanntes Volume, und die

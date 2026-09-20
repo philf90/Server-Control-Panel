@@ -212,86 +212,97 @@ wird, hängt daran, ob der Befund am Treffer hängt oder an seinem Fehlen.
 
 ---
 
-## 5 · Die Abweichung — und was der Versuch, sie zu messen, gefunden hat
+## 5 · Die Abweichung — zwei widerlegte Erklärungen und der Prüfkörper dazu
 
 `docs/119 §8` hat am 17. September auf `/settings/backups` **`No issues`**
 gelesen. Die Seite trägt zwei `<input type="checkbox">` ohne `id` und ohne
-`name`, und der Nachbau sagt dafür **2** — geparst wie eingefügt.
+`name`, und der Nachbau sagt dafür **2**.
 
-**Die dritte Messung ist am 20. September versucht worden und hat etwas anderes
-gefunden als erwartet.** Abgelesen im Browser des Betreibers, beide Seiten mit
-offenen Entwicklerwerkzeugen:
+### Die erste Erklärung — und warum sie fiel
 
-| Seite | 23. August | 17. September | 20. September |
-|---|---|---|---|
-| `/domains` | **15** (`docs/76`) | — | **0** |
-| `/backups/2/restore` | — | **3** (`docs/119 §8`) | — |
-| `/settings/backups` | — | **0** | **0** |
+Abgelesen im Browser des Betreibers am 20. September, mit offenen
+Entwicklerwerkzeugen: `/settings/backups` **0** und `/domains` **0**. Daraus war
+hier zuerst geschlossen worden, die Registerkarte sammle nicht — `docs/76` habe
+auf `/domains` am 23. August **fünfzehn** gezählt, also sei die Null eine des
+Werkzeugs.
 
-Die Null auf `/domains` ist der Punkt. Dieselbe Seite, derselbe Browser, dieselbe
-Meldung — am 23. August fünfzehnmal, heute keinmal. Der Bestand der Seite hat
-sich daran nicht geändert; die Felder tragen weiterhin weder `id` noch `name`.
+**Der Schluss war zweifach falsch, und beide Hälften stehen in Dokumenten, die
+dieses Repo selbst führt.**
 
-> **Eine Null, die auch von einem nicht hinsehenden Werkzeug kommt, ist keine
-> Messung.**
+Erstens: Die fünfzehn standen nicht auf `/domains`. `docs/76 §1` führt sie unter
+**Ansicht 1 — „Domain, ganze Seite"**, also der Detailseite; `/domains` ist dort
+Ansicht 3. Der Seitenname war aus der Erinnerung genommen und nicht aus der
+Tabelle.
 
-Damit ist `/settings/backups` als Prüfkörper untauglich: Seine Null ist von
-einer Null, die das Werkzeug erzeugt, nicht zu unterscheiden. Die Abweichung
-lässt sich an der Panelseite grundsätzlich nicht entscheiden.
+Zweitens: Die Domainliste trägt gemessen **ein** Bedienelement, ein `<select>`
+hinter `v-else-if="props.creatable.length > 1"`. Bei einem einzigen
+aufnahmefähigen Abonnement rendert dort gar keines — eine Null ist dann die
+richtige Antwort.
 
-### Der Prüfkörper, der anschlagen muss
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst die
+> falsche.** Sein Grün liest sich sonst wie ein Freispruch — und sein Rot, wie
+> hier, wie ein Befund.
 
-Gebaut und gemessen als **`tests/issues-pruefblatt.html`** — zwei Eingabefelder
-auf einer Seite, **A** ohne `id` und ohne `name`, **B** mit beidem. Gemessen im
-Container gegen Chromium 141.0.7390.37:
+### Der Prüfkörper, der anschlagen muss — und angeschlagen hat
+
+Gebaut als **`tests/issues-pruefblatt.html`**: zwei Eingabefelder auf einer
+Seite, **A** ohne `id` und ohne `name`, **B** mit beidem. Im Container gegen
+Chromium 141.0.7390.37 **1** Eintrag; beide Richtungen auf einer einzigen
+Ablesung.
+
+Gefahren im Browser des Betreibers — **Chrome 153.0.8010.37**, macOS 26.6.2,
+arm64 — ebenfalls **1**, mit `1 resource` und einem auflösbaren
+*Violating node*. **Das Werkzeug sieht hin.** Damit ist auch die zweite
+Erklärung — eine Fassung, die diese Art nicht mehr meldet — widerlegt.
+
+### Was daraus die Frage wird
+
+`/settings/backups` trägt **Kästchen**, das Prüfblatt trug ein `type="text"` —
+und die Ausfüllhilfe füllt keine Kästchen. Offen ist deshalb nicht mehr, *ob*
+dieser Browser meldet, sondern **welche Arten** er meldet.
+
+Dafür liegt **`tests/issues-arten.html`** daneben: acht Bedienelemente, keines
+mit `id` oder `name`, jedes an einer Klasse `art-…` wiedererkennbar. Gemessen
+gegen Chromium 141 — **8 von 8**, und jeder Eintrag zeigt über
+`DOM.describeNode` auf genau eines:
 
 ```
-Ladebeleg   Felder im DOM: 2   (erwartet 2)
-Issues      1
-  · GenericIssue / FormEmptyIdAndNameAttributesForInputError
+Ladebeleg   Bedienelemente im DOM: 8   (erwartet 8)
+Issues      8
+  · art-text  · art-select  · art-checkbox  · art-radio
+  · art-textarea  · art-email  · art-date  · art-number
 ```
 
-**Beide Richtungen auf einer einzigen Seite**: Schlüge der Eintrag auch bei B an,
-misse er etwas anderes; schlägt er bei keinem an, sieht das Werkzeug diese Art
-nicht. Eine Ablesung von 1 macht jede Null auf einer Panelseite zu einer Aussage
-über die Seite; eine Ablesung von 0 macht sie zu einem Schweigen.
+Die Ablesung in Chrome 153 entscheidet es: **8** heisst, die Art ist nicht die
+Ursache und die Null auf `/settings/backups` ist ein Befund; **weniger als 8**
+nennt über die Klassen die Arten, die dieser Browser übergeht — und dann
+schweigt die Seite zu Recht.
 
-Derselbe Prüfkörper über die Konsole, auf `about:blank`, in drei Schritten
-gemessen — leer **0**, Feld ohne `id`/`name` **1**, Feld mit beidem **+0**. Der
-Lieferweg ist dabei gleichgültig: beim Parsen vorhanden **1**, nach dem Laden
-eingefügt **1**. Das ist der Grund, dass es überhaupt einen Weg über die Konsole
-gibt — ein `data:`-URL sperrt Chrome seit Fassung 60 in der Adressleiste.
-
-### Warum eine Fassungsdifferenz plausibel ist — gemessen und nicht vermutet
+### Warum eine Fassungsdifferenz überhaupt in Betracht kam
 
 Die Registerkarte holt diese Einträge nicht allein aus `Audits.issueAdded`. Es
-gibt dafür den Befehl **`Audits.checkFormsIssues`**, und der verhält sich anders,
-als sein Name sagt:
+gibt dafür den Befehl **`Audits.checkFormsIssues`**, und der verhält sich
+anders, als sein Name sagt:
 
-> **Ein Befehl, der eine Liste zurückgeben müsste, gibt eine leere zurück und
-> stösst seine Antwort stattdessen als Ereignis nach.** Gemessen: `formIssues`
-> kommt mit **0** Einträgen zurück, und der Zähler der Ereignisse steigt im
-> selben Zug von 1 auf 2.
+> **Ein Befehl, dessen Rückgabewert leer ist und dessen Wirkung woanders steht,
+> ist von einem, der nichts tut, nur am zweiten Kanal zu unterscheiden.**
+> Gemessen: `formIssues` kommt mit **0** Einträgen zurück, und der Zähler der
+> Ereignisse steigt im selben Zug von 1 auf 2.
 
-Wie oft und wann die Oberfläche ihn ruft, ist damit eine Eigenschaft der
-Browserfassung und nicht der Seite — und genau das ändert sich zwischen zwei
-Chrome-Fassungen, ohne dass am Prüfling eine Zeile anders wäre.
+Der Lieferweg des Prüfkörpers ist dagegen gleichgültig — beim Parsen vorhanden
+**1**, erst nach dem Laden eingefügt **1**, mit `id` und `name` **0**. Ein
+`data:`-URL sperrt Chrome seit Fassung 60 in der Adressleiste; deshalb eine
+Datei und nicht eine Zeile zum Einfügen.
 
 ### Was offen bleibt
 
-Die Ablesung des Prüfblatts im Browser des Betreibers, samt der Fassung aus
-`chrome://version`. Gibt es **1**, ist die Abweichung ein Befund und wird
-nachgemessen; gibt es **0**, ist sie eine Grenze des Messmittels und bleibt als
-solche stehen.
-
-> **Ein Punkt, der am Werkzeug scheitert und nicht am Gegenstand, ist nicht
-> „nicht herstellbar" — und ihn so zu nennen wäre die bequemere von zwei
-> falschen Auskünften.**
+Die Ablesung von `tests/issues-arten.html` in Chrome 153, und daneben die
+Detailseite einer Domain — die Seite, auf der `docs/76` die fünfzehn wirklich
+gezählt hat.
 
 Für das Urteil dieses Dokuments ändert die Antwort nichts: Die drei Einträge auf
-der Restore-Seite sind unabhängig davon gemessen, `docs/76` hat dieselbe Meldung
-schon auf einer ganz anderen Seite gesehen, und `docs/119 §8` hat sie am
-17. September in genau diesem Browser gezählt.
+der Restore-Seite sind im Container, am 23. August und am 17. September
+dreifach gemessen.
 
 ---
 

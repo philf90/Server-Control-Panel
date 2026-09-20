@@ -30715,3 +30715,25 @@ Wann und wie oft die Oberfläche ihn ruft, ist damit eine Eigenschaft der
 Browserfassung und nicht der Seite. Der Lieferweg des Prüfkörpers ist dagegen
 gleichgültig — beim Parsen vorhanden **1**, erst nach dem Laden eingefügt **1**,
 mit `id` und `name` **0**.
+
+### Berichtigt: die Registerkarte des Betreibers meldet weiterhin
+
+Der Absatz darüber war falsch, und widerlegt hat ihn das Prüfblatt, das er
+selbst anlegt. In **Chrome 153.0.8010.37** gibt `tests/issues-pruefblatt.html`
+**einen** Eintrag — das Werkzeug sieht hin.
+
+Der Schluss „das Werkzeug sammelt nicht" hing an einer Null auf `/domains`, und
+dort stand er zweifach falsch. Die fünfzehn aus `docs/76` stehen nicht auf
+`/domains`, sondern unter Ansicht 1, „Domain, ganze Seite" — der Detailseite.
+Und die Domainliste trägt genau ein Bedienelement, ein `<select>` hinter
+`v-else-if="props.creatable.length > 1"`; bei einem einzigen aufnahmefähigen
+Abonnement rendert dort keines.
+
+> **Ein Seitenname aus der Erinnerung ist kein Prüfkörper.** Die Tabelle, die
+> ihn nennt, stand daneben und wurde nicht gelesen.
+
+Offen ist damit nicht mehr, *ob* dieser Browser meldet, sondern welche Arten:
+`/settings/backups` trägt zwei Kästchen, und die Ausfüllhilfe füllt keine.
+`tests/issues-arten.html` misst das — acht Bedienelemente ohne `id` und `name`,
+jedes an einer Klasse `art-…` wiedererkennbar, gegen Chromium 141 acht von acht
+und jedes einzeln über `DOM.describeNode` aufgelöst.

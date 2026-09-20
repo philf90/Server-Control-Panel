@@ -4971,38 +4971,56 @@ Zeilenanfang vor einer Zeichenkette ist `echo`, `printf`, eine Eingebaute oder
 eine Funktion dieses Skripts. Gebrochen wurde er **von Hand** — sein Bruch
 stünde in der einen Datei, die der Rückweg zu Recht auslässt.
 
-**Und die Quergegenprobe hat etwas anderes gefunden, als sie suchte.**
-`/settings/backups` trägt zwei Kästchen ohne `id` und ohne `name`, der Nachbau
-sagt dafür **2**, `docs/119 §8` hat dort `No issues` gelesen — entschieden
-werden sollte es mit einem Neuladen bei offener Registerkarte. Gefahren am
-20. September gibt der Browser des Betreibers **0**, und auf `/domains` ebenso —
-auf derselben Seite, auf der `docs/76` am 23. August **fünfzehn** gezählt hat.
+**Und die Quergegenprobe hat zwei Erklärungen widerlegt — die zweite war
+meine.** `/settings/backups` trägt zwei Kästchen ohne `id` und ohne `name`, der
+Nachbau sagt **2**, `docs/119 §8` hat dort `No issues` gelesen. Gefahren am
+20. September gibt der Browser des Betreibers **0** — und auf `/domains`
+ebenso. Daraus war hier zuerst geschlossen worden, das Werkzeug sammle nicht.
 
-> **Eine Null, die auch von einem nicht hinsehenden Werkzeug kommt, ist keine
-> Messung.** Damit ist die Panelseite als Prüfkörper untauglich: Ihre Null ist
-> von der Null des Werkzeugs nicht zu unterscheiden.
+**Beide Hälften dieses Schlusses standen falsch, und beide in Dokumenten dieses
+Repos.** Die fünfzehn aus `docs/76` stehen nicht auf `/domains`, sondern unter
+**Ansicht 1, „Domain, ganze Seite"** — der Detailseite; `/domains` ist dort
+Ansicht 3. Und die Domainliste trägt genau **ein** Bedienelement, ein `<select>`
+hinter `v-else-if="props.creatable.length > 1"`: Bei einem einzigen
+aufnahmefähigen Abonnement rendert dort keines, und eine Null ist die richtige
+Antwort.
 
-**Der Prüfkörper dafür liegt seitdem als `tests/issues-pruefblatt.html` im
-Repo** — zwei Felder auf einer Seite, eines ohne `id`/`name`, eines mit beidem,
-gemessen gegen Chromium 141: **genau ein Eintrag**. Beide Richtungen auf einer
-einzigen Ablesung. Eine 1 macht jede Null auf einer Panelseite zu einer Aussage
-über die Seite, eine 0 zu einem Schweigen.
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst die
+> falsche.** Sein Grün liest sich wie ein Freispruch — und sein Rot wie ein
+> Befund.
 
-**Dass eine Fassungsdifferenz das erklären kann, ist gemessen und nicht
-vermutet.** Die Registerkarte holt diese Einträge über den Befehl
-`Audits.checkFormsIssues` — und der gibt `formIssues` **leer** zurück und stösst
-seine Antwort stattdessen als Ereignis nach (Zähler 1 → 2 im selben Zug). Wann
-und wie oft die Oberfläche ihn ruft, ist damit eine Eigenschaft des Browsers und
-nicht der Seite.
+> **Ein Seitenname aus der Erinnerung ist kein Prüfkörper.** Die Tabelle, die
+> ihn nennt, stand daneben und wurde nicht gelesen.
+
+**Der Prüfkörper, der anschlagen muss, liegt seitdem im Repo** —
+`tests/issues-pruefblatt.html`: zwei Felder auf einer Seite, eines ohne
+`id`/`name`, eines mit beidem, beide Richtungen in einer einzigen Ablesung.
+Gemessen gegen Chromium 141 **1**, gefahren in **Chrome 153.0.8010.37**
+ebenfalls **1**. Damit ist auch die zweite Erklärung — eine Fassung, die diese
+Art nicht mehr meldet — widerlegt: **Das Werkzeug sieht hin.**
+
+Offen ist deshalb nicht mehr, *ob* dieser Browser meldet, sondern **welche
+Arten**: Die Ausfüllhilfe füllt keine Kästchen, und `/settings/backups` trägt
+genau die. `tests/issues-arten.html` steht dafür daneben — acht Bedienelemente
+ohne `id` und `name`, jedes an einer Klasse `art-…` wiedererkennbar, gegen
+Chromium 141 **8 von 8** und jedes einzeln über `DOM.describeNode` aufgelöst.
+
+**Und ein Fund am Kanal, der das Ganze überhaupt plausibel gemacht hat:** Die
+Registerkarte holt diese Einträge über den Befehl `Audits.checkFormsIssues` —
+und der gibt `formIssues` **leer** zurück und stösst seine Antwort stattdessen
+als Ereignis nach (Zähler 1 → 2 im selben Zug).
 
 > **Ein Befehl, dessen Rückgabewert leer ist und dessen Wirkung woanders steht,
 > ist von einem, der nichts tut, nur am zweiten Kanal zu unterscheiden.**
 
-**Offen und benannt:** die Ablesung des Prüfblatts im Browser des Betreibers.
-Gibt es 1, ist die Abweichung ein Befund; gibt es 0, ist sie eine Grenze des
-Messmittels und bleibt als solche stehen — am Urteil über die drei Einträge
-ändert beides nichts, denn die sind im Container, am 23. August und am
-17. September dreifach gemessen.
+Der Lieferweg eines Prüfkörpers ist dagegen gemessen gleichgültig — beim Parsen
+vorhanden **1**, erst nach dem Laden eingefügt **1**, mit `id` und `name` **0**.
+Ein `data:`-URL sperrt Chrome seit Fassung 60 in der Adressleiste; deshalb eine
+Datei und keine Zeile zum Einfügen.
+
+**Offen und benannt:** die Ablesung von `tests/issues-arten.html` in Chrome 153.
+Am Urteil über die drei Einträge ändert sie nichts — die sind im Container, am
+23. August und am 17. September dreifach gemessen.
 
 ---
 

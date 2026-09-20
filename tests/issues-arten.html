@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Pruefblatt 2 — welche Arten meldet dieser Browser</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 44rem; padding: 0 1rem; }
+  h1 { font-size: 1.25rem; }
+  form { border: 1px solid #999; padding: 1rem; margin: 1rem 0; }
+  label { display: block; margin: .5rem 0; }
+  code { background: #eee; padding: 0 .2rem; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid #bbb; padding: .3rem .6rem; text-align: left; }
+</style>
+</head>
+<body>
+  <h1>Prüfblatt 2 — welche Arten meldet dieser Browser?</h1>
+
+  <p>Acht Bedienelemente, <strong>keines</strong> mit <code>id</code> oder
+  <code>name</code>. Jedes trägt stattdessen eine Klasse, an der man es im
+  Reiter „Elements" wiedererkennt.</p>
+
+  <form>
+    <label>text <input class="art-text" type="text"></label>
+    <label>select <select class="art-select"><option>eins</option></select></label>
+    <label>checkbox <input class="art-checkbox" type="checkbox"></label>
+    <label>radio <input class="art-radio" type="radio"></label>
+    <label>textarea <textarea class="art-textarea" rows="2"></textarea></label>
+    <label>email <input class="art-email" type="email"></label>
+    <label>date <input class="art-date" type="date"></label>
+    <label>number <input class="art-number" type="number"></label>
+  </form>
+
+  <p><strong>So wird gemessen:</strong> Entwicklerwerkzeuge öffnen (F12), diese
+  Seite neu laden (F5), Registerkarte „Issues", den Eintrag
+  <em>„A form field element should have an id or name attribute"</em>
+  aufklappen und unter <strong>AFFECTED RESOURCES</strong> die Zahl ablesen.</p>
+
+  <p>Wer wissen will, <em>welche</em> gemeldet sind: jeden
+  <code>Violating node</code> anklicken — im Reiter „Elements" steht dann die
+  Klasse <code>art-…</code> des getroffenen Elements.</p>
+
+  <table>
+    <tr><th>Ablesung</th><th>was sie sagt</th></tr>
+    <tr><td><strong>8</strong></td><td>Dieser Browser meldet jede Art. Dann ist eine Null auf einer Panelseite eine Aussage über die Seite.</td></tr>
+    <tr><td><strong>weniger als 8</strong></td><td>Er meldet nur einen Teil. Dann sagt die Liste der Klassen, welchen — und eine Panelseite, die nur die übrigen Arten trägt, schweigt zu Recht.</td></tr>
+    <tr><td><strong>0</strong></td><td>Widerspricht Prüfblatt 1 und wäre selbst ein Befund.</td></tr>
+  </table>
+</body>
+</html>

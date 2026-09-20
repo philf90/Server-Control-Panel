@@ -30776,3 +30776,41 @@ des Nachbaus ist es auch.
 
 Damit ist die Zeile geschlossen, die seit `docs/119 §12` über `docs/121 §12`,
 `docs/123 §12` und `docs/125 §9` gewandert ist.
+
+### Die Frage aus `docs/117 §3` war seit vier Tagen entschieden
+
+Drei Protokolle führten sie als offen — `docs/121 §12`, `docs/123 §12` und
+`docs/125 §9`, und `docs/123 §8` nannte sie „die offene Entscheidung". Der
+Grund steht im selben Abschnitt, der sie beantwortet: Der Kopf von
+`docs/117 §3` sagt seit dem 16. September „entschieden", vier Absätze weiter
+unten stand „Entschieden ist es nicht". Der Kopf wurde nachgetragen, der
+Schluss nicht.
+
+> **Eine veraltete Zeile kostet nicht eine Zeile — sie kostet jede, die sie
+> abschreibt.**
+
+Was die drei Läufe beigetragen haben, ist keine Wiedereröffnung, sondern ein
+Grund, der nach der Entscheidung eintraf: Bedingung 1 von Form B verlangt eine
+Reservierung, deren Abschrift zum Verzeichnis der Sicherung passt — und die
+verdoppelt sich bei jeder Wiederherstellung, weil Form A den Namen freigibt und
+die nächste Nummer vergibt (146 Reservierungen, zwei Namen mit je zwei Zeilen,
+`docs/123 §8`).
+
+> **Eine Bedingung, die auf ein Merkmal zeigt, das der eigene Betrieb
+> vervielfältigt, wird mit jedem Lauf schwächer.**
+
+### Das Verzeichnis der Systembenutzer wird über `number` gefragt
+
+Gemessen: sechs `SystemUser::query()` in `app/`, alle sechs über `number` —
+zwei `where('number', …)`, zwei `max('number')`, eine `orderBy('number')`, eine
+legt an. Keine sucht über die Abschrift; die eine Stelle, die sie liest,
+druckt sie in einen Befundtext.
+
+Gebaut ist daraus ein Wächter und keine Behebung, denn kaputt ist nichts.
+`SystemUserLedgerTest` trägt zwei Fälle mehr: die Voraussetzung (zweimal
+`claim()` auf denselben Namen ergibt zwei Zeilen mit derselben Abschrift und
+den Nummern 1000 und 1001) und die Regel (keine Stelle unter `app/` und
+`agent/` sucht eine Zeile über ihre Abschrift). Gelesen wird ohne Kommentare,
+die Dateiliste kommt aus dem Baum, und zwei Untergrenzen halten den Ausdruck
+davon ab, ins Leere zu greifen. Gegengeprüft in beide Richtungen: die verbotene
+Form im Code macht ihn rot, dieselbe Form nur im Kommentar lässt ihn grün.

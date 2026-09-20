@@ -309,8 +309,12 @@ sich bei **jeder** Wiederherstellung und nicht nur bei einer.
 > ein Merkmal, das die tote von der lebenden Reservierung trennt — der Name ist
 > es nicht, und er wird es mit jedem Lauf weniger.
 
-Abgeräumt wird hier nichts: Das ist der Bestand, an dem die offene Entscheidung
-aus `docs/117 §3` hängt.
+Abgeräumt wird hier nichts: Das ist der Bestand, an dem `docs/117 §3` hängt.
+
+*(Am 20. September berichtigt: „die offene Entscheidung" stand hier falsch — sie
+war am 16. September gefallen, Form A. Was dieser Bestand trägt, ist nicht die
+Entscheidung, sondern ihr nachgereichter Grund: Bedingung 1 von Form B zeigt auf
+ein Merkmal, das sich bei jeder Wiederherstellung verdoppelt.)*
 
 ---
 
@@ -532,6 +536,8 @@ und Nachlauf beide überlebt haben, zwei von ausserhalb der Stufe.
 - **Die `3 issues` auf `/backups/<id>/restore`** aus `docs/119 §12` sind
   weiterhin nicht nachgesehen.
   **Am 20. September 2026 nachgesehen** — `docs/126`. Drei Einträge, einer je Bedienelement, alle `FormEmptyIdAndNameAttributesForInputError`; die Ausfüllhilfe und kein Fund, entschieden schon am 23. August in `docs/76`.
-- **Die Frage aus `docs/117 §3`** — ob eine Wiederherstellung ihre eigene
-  Reservierung zurückholen darf — bleibt offen und hat mit §8 einen schärferen
-  Bestand: **zwei** doppelte Abschriften statt einer.
+- ~~**Die Frage aus `docs/117 §3`** — ob eine Wiederherstellung ihre eigene
+  Reservierung zurückholen darf — bleibt offen~~ — **am 20. September
+  berichtigt:** entschieden war sie am 16. September (Form A). Der schärfere
+  Bestand aus §8 — **zwei** doppelte Abschriften statt einer — bleibt richtig
+  und ist ihr nachgereichter Grund.

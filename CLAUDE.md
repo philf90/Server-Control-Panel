@@ -1670,7 +1670,12 @@ werden `type="password"` **und** die gebundene Form, weil zehn der dreizehn
 Felder zwischen `text` und `password` umschalten, und `off` gilt nicht als
 Angabe, weil die Browser es an Passwortfeldern übergehen; sein Leser achtet auf
 Anführungszeichen, und **der Eingriff, der das ausschaltet, meldet genau das
-Feld, für das es ihn gibt**). Der Bruch selbst steht als
+Feld, für das es ihn gibt**) und `SystemUserLedgerTest` (das Verzeichnis der
+Systembenutzer wird über `number` gefragt und **nicht** über seine Abschrift —
+die wiederholt sich bei jeder Wiederherstellung, weil Form A den Namen freigibt
+und die nächste Nummer vergibt; der Fall darüber belegt die Voraussetzung mit
+zwei `claim()` auf denselben Namen, gelesen wird ohne Kommentare, und die
+Dateiliste kommt aus dem Baum und nicht aus einer Liste im Test). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -5054,6 +5059,59 @@ das Werkzeug hin* (`issues-pruefblatt.html`), *welche Arten sieht es*
 seiner Containermessung im Kopf.
 
 ---
+
+## Die Frage aus `docs/117 §3` war entschieden — 20. September 2026
+
+**Sie stand in drei Protokollen als offen und war es seit dem 16. September
+nicht mehr.** Der Grund steht im selben Abschnitt, der sie beantwortet: Der Kopf
+von `docs/117 §3` sagt seit dem 16. September **„entschieden"**, und vier
+Absätze weiter unten stand **„Entschieden ist es nicht"**. Der Kopf wurde
+nachgetragen, der Schluss nicht.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+`docs/121 §12`, `docs/123 §12` und `docs/125 §9` sind **nach** der Entscheidung
+entstanden und haben den Schluss gelesen; `docs/123 §8` nennt sie wörtlich „die
+offene Entscheidung".
+
+> **Eine veraltete Zeile kostet nicht eine Zeile — sie kostet jede, die sie
+> abschreibt.**
+
+Gekostet hat es nichts, weil vor dem Bauen ein Blick in den Abschnitt stand und
+keine Erinnerung — dieselbe Gewohnheit, die A8 zu spät bekommen hat: **Wer
+entscheidet, was als Nächstes gebaut wird, sieht vorher nach, ob es das schon
+gibt.**
+
+**Was die drei Läufe beigetragen haben, ist keine Wiedereröffnung, sondern ein
+Grund, der nach der Entscheidung eintraf.** Bedingung 1 von Form B verlangt eine
+Zeile in `system_users`, deren Abschrift zum Verzeichnis der Sicherung passt —
+und die Abschrift **verdoppelt sich bei jeder Wiederherstellung**, weil Form A
+den Namen freigibt und die nächste Nummer vergibt. Gemessen auf `cloudsrv24`
+(`docs/123 §8`): 146 Reservierungen, zwei Namen mit je zwei Zeilen.
+
+> **Eine Bedingung, die auf ein Merkmal zeigt, das der eigene Betrieb
+> vervielfältigt, wird mit jedem Lauf schwächer — und sie steht schon
+> geschrieben, bevor jemand sie braucht.**
+
+**Und der Bestand trägt die Entscheidung, gemessen und nicht geschlossen:** In
+`app/` stehen **sechs** `SystemUser::query()`, und **alle sechs** fragen über
+`number`. **Keine** sucht über die Abschrift; die eine Stelle, die sie liest
+(`Orphans.php`), **druckt** sie in einen Befundtext. Damit trägt das Verzeichnis
+genau die Richtung, die der Kopf von `SystemUser` zusagt — *„welcher Kunde hatte
+`p1043`"*, also Nummer → Name.
+
+**Gebaut ist daraus ein Wächter und keine Behebung**, denn kaputt ist nichts:
+zwei Fälle in `SystemUserLedgerTest`, beide gebrochen, dazu die Gegenprobe, dass
+die verbotene Form **nur im Kommentar** den Wächter grün lässt — der Absatz, der
+sie erklärt, schreibt sie wörtlich hin.
+
+> **Ein Zustand, der stimmt und den nichts hält, ist von einem, der nicht
+> stimmt, nur durch Glück getrennt.**
+
+**Offen bleibt daran nichts.** Wer Form B später will, braucht ein Merkmal, das
+die tote Reservierung von der lebenden trennt — der Name ist es nicht, und er
+wird es mit jedem Lauf weniger.
 
 ## Befehle
 

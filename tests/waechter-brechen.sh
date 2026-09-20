@@ -31282,6 +31282,47 @@ pruefe "Leser ohne Anfuehrungszustand" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PasswordAutocompleteTest passed
 
+echo "── SystemUserLedgerTest: die Abschrift wird nicht mitgeschrieben ──"
+#
+# Die Voraussetzung des Waechters darunter. Schreibt `claim()` die Abschrift
+# nicht mehr, tragen zwei Reservierungen desselben Abonnements keinen Namen
+# mehr — und der Fall, der ihre Mehrdeutigkeit belegt, findet null Zeilen.
+vorher_datei app/Support/Subscriptions/Lifecycle.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Subscriptions/Lifecycle.php')
+s = p.read_text()
+alt = "                    'subscription' => $subscription,"
+assert alt in s
+p.write_text(s.replace(alt, "                    'subscription' => null,", 1))
+PY
+griff_datei app/Support/Subscriptions/Lifecycle.php "Abschrift nicht geschrieben" &&
+pruefe "Abschrift nicht geschrieben" \
+  SystemUserLedgerTest::test_the_transcript_repeats_and_the_number_does_not failed
+wiederherstellen
+
+echo "── SystemUserLedgerTest: eine Zeile ueber ihre Abschrift gesucht ──"
+#
+# Die Regel selbst. `subscription` wiederholt sich bei jeder Wiederherstellung
+# (docs/123 §8: 146 Reservierungen, zwei Namen mit je zwei Zeilen), `number`
+# ist eindeutig und traegt den Index. Eine Abfrage ueber die Abschrift liefert
+# irgendeine der Zeilen, und welche, entscheidet die Datenbank.
+vorher_datei app/Support/Diagnose/Checks/Orphans.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/Orphans.php')
+s = p.read_text()
+alt = "            foreach (SystemUser::query()->orderBy('number')->get() as $row) {"
+assert alt in s
+neu = "            foreach (SystemUser::query()->where('subscription', 'x')->orderBy('number')->get() as $row) {"
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Diagnose/Checks/Orphans.php "Abschrift als Schluessel" &&
+pruefe "Abschrift als Schluessel" \
+  SystemUserLedgerTest::test_nothing_looks_a_row_up_by_its_transcript failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SystemUserLedgerTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

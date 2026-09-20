@@ -420,9 +420,60 @@ und HestiaCP führt vor, dass ein ausgeliefertes Panel damit auskommt.
 > **Eine Ausnahme von einer Regel, die eine frühere Stufe ausdrücklich
 > geschlossen hat, muss mehr einbringen als eine Bequemlichkeit.**
 
-**Entschieden ist es nicht**, und B bleibt beschrieben: Es ist die einzige Frage
-dieser Stufe, die eine Regel aus einer früheren berührt, und wer sie umdreht,
-findet hier die drei Bedingungen, unter denen sie tragen würde.
+B bleibt beschrieben: Es ist die einzige Frage dieser Stufe, die eine Regel aus
+einer früheren berührt, und wer sie umdreht, findet hier die drei Bedingungen,
+unter denen sie tragen würde.
+
+### Nachgetragen am 20. September 2026 — der Satz, der hier stand, war der Fehler
+
+Hier stand bis heute **„Entschieden ist es nicht"** — vier Absätze unter der
+Überschrift, die seit dem 16. September **„entschieden"** sagt. Der Kopf wurde
+nachgetragen, der Schluss nicht.
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander, und
+> keine von beiden ist der Ort, an dem man nachsieht.**
+
+**Drei Protokolle haben daraufhin die Frage als offen weitergeschrieben** —
+`docs/121 §12`, `docs/123 §12` und `docs/125 §9`, und `docs/123 §8` nennt sie
+wörtlich „die offene Entscheidung aus `docs/117 §3`". Alle drei sind **nach**
+der Entscheidung entstanden und haben den Schluss gelesen und nicht den Kopf.
+
+> **Eine veraltete Zeile kostet nicht eine Zeile — sie kostet jede, die sie
+> abschreibt.**
+
+**Was die drei Läufe beigetragen haben, ist keine Wiedereröffnung, sondern ein
+Grund, der nach der Entscheidung eintraf.** Bedingung 1 von Form B lautet, die
+Zeile in `system_users` müsse dieselbe Abschrift tragen wie das Verzeichnis der
+Sicherung. Gemessen auf `cloudsrv24` am 18. September (`docs/123 §8`): **146
+Reservierungen, und zwei Namen mit je zwei Zeilen** — die Abschrift verdoppelt
+sich bei **jeder** Wiederherstellung, weil Form A den Namen freigibt und die
+nächste Nummer vergibt.
+
+> **Eine Bedingung, die auf ein Merkmal zeigt, das der eigene Betrieb
+> vervielfältigt, wird mit jedem Lauf schwächer — und sie steht schon
+> geschrieben, bevor jemand sie braucht.**
+
+**Und die Gegenprobe dazu ist gemessen und nicht geschlossen:** In `app/` gibt
+es **sechs** `SystemUser::query()`, und **alle sechs** fragen über `number` —
+zwei über `where('number', …)`, zwei über `max('number')`, eine über
+`orderBy('number')`, eine legt an. **Keine** sucht über die Abschrift. Die eine
+Stelle, die sie liest, ist `Orphans.php`, und sie **druckt** sie in einen
+Befundtext. Damit trägt das Verzeichnis heute genau die Richtung, die der Kopf
+von `SystemUser` zusagt — *„welcher Kunde hatte `p1043`"*, also Nummer → Name —
+und nicht die Gegenrichtung, die Form B bräuchte.
+
+**Gebaut ist daraus ein Wächter und keine Behebung**, denn es ist nichts kaputt:
+`SystemUserLedgerTest` hält seit dem 20. September zwei Fälle mehr. Der erste
+ist die **Voraussetzung** — zweimal `claim('shop.invalid')` ergibt zwei Zeilen
+mit derselben Abschrift und den Nummern 1000 und 1001; der zweite ist die
+**Regel** — keine Stelle unter `app/` und `agent/` sucht eine Zeile über ihre
+Abschrift, gelesen ohne Kommentare und mit zwei Untergrenzen. Gegengeprüft in
+beide Richtungen: die verbotene Form im Code macht ihn rot, dieselbe Form
+**nur im Kommentar** lässt ihn grün.
+
+**Was damit offen bleibt: nichts an §3.** Wer Form B später will, braucht ein
+Merkmal, das die tote Reservierung von der lebenden trennt — der Name ist es
+nicht, und er wird es mit jedem Lauf weniger.
 
 ---
 

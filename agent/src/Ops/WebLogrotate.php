@@ -25,6 +25,14 @@ use SrvPanel\Agent\Op;
  * **Der `postrotate`-Abschnitt enthält keinen einzigen übergebenen Wert.** Er
  * ist ein Shell-Fragment, das als root läuft; alles Veränderliche steht im
  * Pfad darüber, und der ist aus dem geprüften Namen des Abonnements gebaut.
+ *
+ * **Hier stand einmal `nocreate` neben `create`.** Gemessen am 20. September
+ * 2026 gegen logrotate 3.21.0 (`docs/128` M4): Die neue Datei entsteht mit
+ * `-rw-r----- <benutzer>:adm`, also nach `create`. Die Zeile darüber tat
+ * nichts — und eine Zeile, die nichts tut, liest der Nächste als Begründung.
+ *
+ * > **Zwei Anweisungen, die einander widersprechen, sind keine Vorsicht — eine
+ * > von beiden ist tot, und man sieht ihr nicht an, welche.**
  */
 final class WebLogrotate implements Op
 {
@@ -74,7 +82,6 @@ final class WebLogrotate implements Op
             notifempty
             compress
             delaycompress
-            nocreate
             sharedscripts
 
             # Ohne `su` weigert sich logrotate, in ein Verzeichnis zu

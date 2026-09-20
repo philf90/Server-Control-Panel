@@ -4389,6 +4389,185 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SecretsStayOutOfTheQueueTest passed
 
 echo
+echo "── LogFormatTest: httpConfig erklärt kein Format mehr ──"
+#
+# **Der Fall, der den ganzen Webserver herunternimmt.** `nginx -t` urteilt
+# über alle Blöcke zugleich: Nennt ein Server-Block ein Format, das niemand
+# erklärt hat, fällt nicht diese eine Domain durch, sondern die Konfiguration
+# als Ganzes. Gemessen am 20. September 2026 gegen nginx 1.24.0.
+#
+# Den Namen selbst zu ändern beisst nicht, und das ist kein Mangel: Block und
+# Erklärung lesen dieselbe Konstante und können gar nicht auseinandergehen.
+# Gebrochen wird deshalb der Teil, der wirklich wegfallen kann — die Erklärung.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+a = "        # combined, und zwei Felder mehr am Ende (docs/128 M2).\n"
+b = "        # Die Server-Blöcke der Kundenwebsites"
+assert a in s, 'Kopf der Formatzeilen nicht gefunden'
+i = s.index(a)
+j = s.index(b, i)
+open(p, 'w', encoding='utf-8').write(s[:i] + s[j:])
+PY2
+griff_datei agent/src/SiteTemplate.php "httpConfig erklärt kein Format" &&
+pruefe "httpConfig erklärt kein Format" \
+  LogFormatTest::test_every_referenced_log_format_is_declared failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFormatTest passed
+
+echo
+echo "── LogFormatTest: das include steht vor der Erklärung ──"
+#
+# nginx löst den Formatnamen beim **Einlesen** auf und nicht am Ende. Diese
+# Reihenfolge hatte die erste Fassung von httpConfig(), und sie gab
+# `unknown log format "srvpanel"` für jeden Block.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+inc = '        # Die Server-Blöcke der Kundenwebsites — **nach** der Erklärung.\n        include {$dir}/*.conf;\n\n'
+kopf = '        # combined, und zwei Felder mehr am Ende (docs/128 M2).\n'
+assert inc in s, 'include-Block nicht gefunden'
+assert kopf in s, 'Kopf der Formatzeilen nicht gefunden'
+s = s.replace(inc, '', 1).replace(kopf, inc + kopf, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/SiteTemplate.php "include vor der Erklärung" &&
+pruefe "include vor der Erklärung" \
+  LogFormatTest::test_the_declaration_comes_before_the_include failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFormatTest passed
+
+echo
+echo "── LogFormatTest: dem Format fehlt bytes_sent ──"
+#
+# Ohne `$bytes_sent` zählt ein wiederkehrender Besucher als nichts: gemessen
+# `body_bytes_sent` 0 bei einem `304`, während 189 Byte hinausgehen. Wer das
+# Format „vereinfacht", nimmt der Messung ihren Gegenstand, und keine Zahl
+# beschwert sich.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+a = '\\$bytes_sent \\$request_length'
+assert a in s, 'Feldzeile nicht gefunden'
+open(p, 'w', encoding='utf-8').write(s.replace(a, '\\$request_length', 1))
+PY2
+griff_datei agent/src/SiteTemplate.php "dem Format fehlt bytes_sent" &&
+pruefe "dem Format fehlt bytes_sent" \
+  LogFormatTest::test_the_format_carries_what_a_counter_needs failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFormatTest passed
+
+echo
+echo "── LogFormatTest: eine Erklärung, die niemand nennt ──"
+#
+# Die Gegenrichtung. Ein Format, das kein Block nennt, ist keine Gefahr — aber
+# eine Aussage über den Bestand, die niemand mehr nachprüft.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+a = '        # Die Server-Blöcke der Kundenwebsites — **nach** der Erklärung.'
+assert a in s, 'include-Kommentar nicht gefunden'
+open(p, 'w', encoding='utf-8').write(
+    s.replace(a, "        log_format ueberfluessig '\\$status';\n" + a, 1))
+PY2
+griff_datei agent/src/SiteTemplate.php "eine Erklärung, die niemand nennt" &&
+pruefe "eine Erklärung, die niemand nennt" \
+  LogFormatTest::test_every_declared_log_format_is_used failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogFormatTest passed
+
+echo
+echo "── LogEraTest: das alte Zeitalter wird mitgezählt ──"
+#
+# `combined` fuehrt `$body_bytes_sent`, und das ist bei einem `304` eine Null,
+# waehrend 189 Byte hinausgehen (gemessen, docs/128 M2). Eine Summe ueber beide
+# Zeitalter waere eine Zahl, die niemand nachrechnen kann — und sie saehe aus
+# wie eine Zahl.
+vorher_datei agent/src/Web/AccessLog.php
+python3 - <<'PY2'
+p = 'agent/src/Web/AccessLog.php'
+s = open(p, encoding='utf-8').read()
+alt = """                if ($satz['sent'] === null) {\n                    $alt++;\n\n                    continue;\n                }"""
+assert alt in s, 'Zweig des alten Zeitalters nicht gefunden'
+neu = """                if ($satz['sent'] === null) {\n                    $alt++;\n                    $satz['sent'] = 0;\n                    $satz['received'] = 0;\n                }"""
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Web/AccessLog.php "das alte Zeitalter wird mitgezählt" &&
+pruefe "das alte Zeitalter wird mitgezählt" \
+  LogEraTest::test_a_legacy_file_is_read_and_not_counted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogEraTest passed
+
+echo
+echo "── LogEraTest: demaskieren vor dem Trennen ──"
+#
+# nginx schreibt ein Anfuehrungszeichen im User-Agent als `\x22` — vier Zeichen,
+# von denen keines eines ist. Wer es vor dem Trennen zurueckuebersetzt, zerlegt
+# eine Zeile, die es nie gab.
+vorher_datei agent/src/Web/AccessLog.php
+python3 - <<'PY2'
+p = 'agent/src/Web/AccessLog.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $teile = explode('\"', rtrim($line, \"\\r\\n\"));"
+assert alt in s, 'Trennzeile nicht gefunden'
+neu = '        $teile = explode(chr(34), str_replace(chr(92).\"x22\", chr(34), rtrim($line, \"\\r\\n\")));'
+s = s.replace(alt, neu, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Web/AccessLog.php "demaskieren vor dem Trennen" &&
+pruefe "demaskieren vor dem Trennen" \
+  LogEraTest::test_a_quoted_user_agent_does_not_split_the_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogEraTest passed
+
+echo
+echo "── LogEraTest: Unrat wird still übergangen ──"
+#
+# Eine Datei, die zur Haelfte aus Unrat besteht, saehe sonst aus wie eine leise
+# Domain. Die uebersprungenen Zeilen gehoeren in die Antwort.
+vorher_datei agent/src/Web/AccessLog.php
+python3 - <<'PY2'
+p = 'agent/src/Web/AccessLog.php'
+s = open(p, encoding='utf-8').read()
+alt = """                if ($satz === null) {\n                    $unrat++;\n\n                    continue;\n                }"""
+assert alt in s, 'Unrat-Zweig nicht gefunden'
+s = s.replace(alt, """                if ($satz === null) {\n                    continue;\n                }""", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Web/AccessLog.php "Unrat wird still übergangen" &&
+pruefe "Unrat wird still übergangen" \
+  LogEraTest::test_rubbish_is_counted_as_unreadable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogEraTest passed
+
+echo
+echo "── LogEraTest: alle Zeilen auf denselben Tag ──"
+#
+# `access.log.1` ist der Ertrag einer Rotation, und die laeuft zu einer Uhrzeit
+# und nicht um Mitternacht — die Datei traegt deshalb regelmaessig zwei
+# Kalendertage. Wer sie als "einen Tag" zaehlt, schiebt jede Nacht ein Stueck
+# Verkehr auf das falsche Datum.
+vorher_datei agent/src/Web/AccessLog.php
+python3 - <<'PY2'
+p = 'agent/src/Web/AccessLog.php'
+s = open(p, encoding='utf-8').read()
+alt = "                $tag = $satz['day'];"
+assert alt in s, 'Tagzeile nicht gefunden'
+s = s.replace(alt, "                $tag = array_key_first($tage) ?? $satz['day'];", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Web/AccessLog.php "alle Zeilen auf denselben Tag" &&
+pruefe "alle Zeilen auf denselben Tag" \
+  LogEraTest::test_two_calendar_days_in_one_file_stay_apart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogEraTest passed
+
+echo
 echo "── DefinerStripTest: der Filter fasst auch Datenzeilen an ──"
 #
 # Ein blindes Suchen-und-Ersetzen über den ganzen Dump verändert Nutzdaten. Eine

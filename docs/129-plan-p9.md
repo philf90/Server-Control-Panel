@@ -231,6 +231,41 @@ Gemessen (`docs/128` M2):
 **`$request_length`**. Beides sind nginx-Variablen; es wird nichts geschätzt
 und keine Kopfzeilengrösse addiert.
 
+**Nachgetragen am 20. September beim Bauen — dieser Absatz war zu kurz.**
+Gemessen gegen nginx 1.24.0:
+
+| | |
+|---|---|
+| `log_format` im `server`-Block | *„directive is not allowed here"* |
+| dieselbe Zeile auf http-Ebene | angenommen |
+| `access_log … <name>;` ohne Erklärung | **`nginx -t` rot** |
+
+`SiteTemplate` rendert einen **Server**-Block. Es kann das Format also nur
+*nennen*, nicht erklären — und der dritte Fall nimmt nicht eine Domain
+herunter, sondern **den ganzen Webserver**, weil `nginx -t` über alle Blöcke
+zugleich urteilt.
+
+Die Erklärung liegt deshalb in der Datei auf http-Ebene, die der Agent ohnehin
+schreibt (`/etc/nginx/conf.d/srvpanel-sites.conf`), und sie geht mit **jedem**
+Server-Block durch dieselbe `NginxApply::commit()`: Entweder liegen Erklärung
+und Verweis zusammen auf der Platte, oder `nginx -t` weist beide ab und
+`restore()` nimmt beide zurück.
+
+**Und die Reihenfolge *in* dieser Datei trägt mit.** Die erste Fassung setzte
+das `include` der Server-Blöcke vor die Erklärung; echtes nginx sagte dazu
+`unknown log format "srvpanel"` — es löst beim Einlesen auf und nicht am Ende.
+
+> **Eine Erklärung, die nach ihrem Gebrauch steht, ist keine.**
+
+Dazu eine Falle im Bestand: `NginxApply::ensureInclude()` schrieb die Datei
+nur, **wenn sie fehlte**. Das trug, solange ihr Inhalt feststand; mit dem
+Format tut er das nicht mehr. Nach einem Update läge die alte Fassung da, ohne
+Erklärung, und jeder neu geschriebene Block nähme den Webserver herunter. Sie
+wird jetzt immer geschrieben.
+
+> **Eine Datei, die nur angelegt und nie berichtigt wird, ist ab ihrer ersten
+> Änderung eine Fassung von gestern.**
+
 **Der Übergang ist der Teil, den man vergisst.** Alte Zeilen haben acht Felder,
 neue neun. Zwei Wege, und der zweite ist der billigere:
 
@@ -263,7 +298,8 @@ Befund je Domain** — und zwar zu Recht.
 > entstanden ist. Wer nur die Vorlage ändert, hat die Hälfte getan und die
 > andere Hälfte dem Nachtlauf überlassen.**
 
-Die Reihenfolge in B2 ist damit: Vorlage ändern, `--sites` fahren, **dann** die
+Die Reihenfolge in B2 ist damit: Vorlage und http-Ebene **gemeinsam** ändern
+(sie gehen ohnehin durch dieselbe `commit()`), `--sites` fahren, **dann** die
 Rotation abwarten — erst der Tag danach ist vollständig im neuen Format.
 
 ### Der Nachtlauf liest `.1` und nicht `access.log`

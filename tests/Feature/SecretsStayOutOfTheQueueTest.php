@@ -127,6 +127,81 @@ final class SecretsStayOutOfTheQueueTest extends TestCase
     private const LOOKS_LIKE_A_SECRET = '/(password|secret|token|key)/i';
 
     /**
+     * Jede Operation, die **eingereiht werden kann**, durchgesehen — mit dem
+     * Grund je Eintrag.
+     *
+     * ## Warum diese Frage und nicht die andere
+     *
+     * {@see self::CARRIES_A_SECRET} fragt „welche Operation trägt ein
+     * Geheimnis". Das ist ein Urteil über **117** Operationen, und die
+     * Gegenrichtung dazu kann nur die untere Schranke sein: Ein Muster über
+     * Argumentnamen findet `dns.credential.store` nicht, weil ihr Token in
+     * `$args['config']` steht.
+     *
+     * Hier steht die Frage, die den Schaden trifft: **Ein Geheimnis landet nur
+     * dann in `operations.payload`, wenn die Operation eingereiht wird.**
+     * Gemessen am 20. September 2026 sind das **31 von 117** — die übrigen 86
+     * können den Schaden gar nicht anrichten.
+     *
+     * > **Eine Erklärung, die fast immer dasselbe sagt, wird abgeschrieben
+     * > statt beantwortet.** Deshalb keine vierte Methode an `Op`, die 111 Mal
+     * > `false` hiesse, sondern 31 Durchsichten.
+     *
+     * ## Die Menge wird abgeleitet und nicht gepflegt
+     *
+     * Sie kommt aus {@see Lifecycles::handled()} und {@see Task::cases()} und
+     * nicht aus einer Liste hier. Gegengeprüft am 20. September: **alle fünf**
+     * Operationsnamen, die im Quelltext von `app/` an einer `'type' => …`
+     * -Zeile stehen, liegen in dieser Menge. Wird eine zweiunddreissigste
+     * einreihbar, ist dieser Wächter rot — und zwar in dem Augenblick, in dem
+     * das Risiko entsteht.
+     *
+     * ## Was er nicht kann
+     *
+     * **Gegen eine falsche Durchsicht hilft er nicht.** Wer bei einer der 31
+     * hinsieht und das Geheimnis übersieht, bekommt Grün. Und die Argumente
+     * lassen sich nicht zuverlässig ableiten: `web.site.apply` reicht `$args`
+     * an `Site::fromArgs()`, `subscription.suspend` liest sie in seiner
+     * Basisklasse. Der Wert unten ist deshalb ein **Urteil** und keine
+     * Aufzählung.
+     *
+     * @var array<string, string>
+     */
+    private const QUEUEABLE_REVIEWED = [
+        'acme.certificate.issue' => '`contact` ist eine geprüfte Mailadresse, `profile` der **Name** einer Zugangsdatenablage, `directory` eine URL — der Kontoschlüssel bleibt im Agenten',
+        'agent.ping' => 'nimmt nichts entgegen',
+        'backup.create' => '`certificates` ist eine Liste von **Namen** (`CertificateName::normalize`), `dumps` trägt Maschine und Datenbank; das Schlüsselmaterial liest der Agent aus dem Ablageort',
+        'backup.remove' => 'Abonnement und Ablageort',
+        'backup.restore' => 'Abonnement, Quelle, Benutzer, Ablageort — Bezeichner',
+        'config.validate' => 'Art, Pfad und Zone einer zu prüfenden Datei',
+        'db.database.remove' => 'Benutzer- und Datenbanknamen',
+        'db.dump.create' => 'Benutzer, Name, Abonnement, Ablageort',
+        'db.dump.import' => '`source` ist ein Pfad im Ablageort und nicht sein Inhalt',
+        'db.dump.remove' => 'Abonnement und Ablageort',
+        'db.restore' => 'Benutzer, Name, Abonnement, Ablageort',
+        'db.user.lock' => 'Benutzername und Sperrmodus — Sperren braucht kein Passwort',
+        'pg.database.remove' => 'Präfix, Name, Rollen',
+        'pg.dump.create' => 'Präfix, Name, Abonnement, Ablageort',
+        'pg.dump.import' => '`source` ist ein Pfad im Ablageort',
+        'pg.restore' => 'Präfix, Name, Abonnement, Ablageort',
+        'pg.role.lock' => 'Präfix und Sperrmodus — anders als `pg.role.create` ohne Passwort, und deshalb darf sie eingereiht werden',
+        'pg.server.install' => 'nimmt nichts entgegen',
+        'php.version.install' => 'eine Fassungsnummer aus dem Katalog',
+        'php.version.remove' => 'dieselbe Fassungsnummer',
+        'php.versions' => 'nimmt nichts entgegen',
+        'service.action' => 'Unit und Aktion aus fester Liste',
+        'service.status' => 'eine Unit',
+        'subscription.provision' => 'Name, Benutzer, Kontingent — das Datenbankpasswort entsteht später und geht über `db.user.create`, die nicht eingereiht wird',
+        'subscription.quota' => 'Benutzer und Kontingent in MB',
+        'subscription.remove' => 'Name und Benutzer',
+        'subscription.resume' => 'Name und Benutzer, gelesen in `SubscriptionState::execute()`',
+        'subscription.suspend' => 'dieselben beiden, dieselbe Basisklasse',
+        'web.site.apply' => '`$args` geht an `Site::fromArgs()`: Domain, Wurzel, PHP-Fassung, Direktiven — das Zertifikat kommt über seinen Namen und nicht als Material',
+        'web.site.remove' => 'Abonnement, Benutzer, Domain, Wurzel',
+        'webserver.detect' => 'nimmt nichts entgegen',
+    ];
+
+    /**
      * Die Namen aller Operationen des Agenten.
      *
      * @return list<string>
@@ -437,5 +512,89 @@ final class SecretsStayOutOfTheQueueTest extends TestCase
                 $name,
             ));
         }
+    }
+
+    /**
+     * Die einreihbare Menge, abgeleitet und nicht gepflegt.
+     *
+     * @return list<string>
+     */
+    private function queueable(): array
+    {
+        $namen = array_merge(
+            Lifecycles::handled(),
+            array_map(static fn (Task $task): string => $task->operation(), Task::cases()),
+        );
+
+        $namen = array_values(array_unique($namen));
+        sort($namen);
+
+        return $namen;
+    }
+
+    /**
+     * Jede einreihbare Operation ist durchgesehen.
+     *
+     * Rot wird dieser Fall in dem Augenblick, in dem eine Operation
+     * **einreihbar** wird — also dann, wenn sie anfangen kann, Argumente in
+     * `operations.payload` abzulegen.
+     */
+    public function test_every_queueable_operation_has_been_reviewed(): void
+    {
+        $queueable = $this->queueable();
+
+        // Eine leere Menge ist keine Messung: Fiele die Ableitung aus, wäre
+        // jede Durchsicht vollständig und dieser Fall grün.
+        $this->assertGreaterThan(20, count($queueable), 'Die einreihbare Menge ist fast leer — dann prüft dieser Test nichts.');
+
+        $offen = array_values(array_diff($queueable, array_keys(self::QUEUEABLE_REVIEWED)));
+
+        $this->assertSame([], $offen, sprintf(
+            "Diese Operationen lassen sich einreihen, und niemand hat sie auf Geheimnisse durchgesehen:\n  %s\n\n"
+            .'Ein eingereihter Vorgang legt seine Argumente in `operations.payload` ab — dauerhaft, im '
+            .'Klartext, und `Operations/Show.vue` zeigt sie jedem Admin und dem Kunden des Abonnements. '
+            .'Wer eine Operation einreihbar macht, trägt sie in QUEUEABLE_REVIEWED ein — mit dem Grund.',
+            implode("\n  ", $offen),
+        ));
+    }
+
+    /**
+     * Und die Gegenrichtung: keine Durchsicht steht für etwas, das nicht mehr
+     * eingereiht werden kann.
+     *
+     * Ohne sie wüchse die Liste mit jedem Umbau, und ihre Länge sagte nichts
+     * mehr über den Bestand.
+     */
+    public function test_every_review_is_still_queueable(): void
+    {
+        $queueable = $this->queueable();
+
+        foreach (array_keys(self::QUEUEABLE_REVIEWED) as $name) {
+            $this->assertContains($name, $queueable, sprintf(
+                'QUEUEABLE_REVIEWED führt %s; diese Operation lässt sich nicht mehr einreihen.',
+                $name,
+            ));
+        }
+    }
+
+    /**
+     * Und keine durchgesehene Operation trägt zugleich ein Geheimnis.
+     *
+     * Das ist die Naht zwischen beiden Listen. Stünde ein Name in beiden, wäre
+     * entweder die Durchsicht falsch oder die Operation gehört nicht in die
+     * Warteschlange — und welches von beidem, muss ein Mensch entscheiden.
+     */
+    public function test_no_reviewed_operation_carries_a_secret(): void
+    {
+        $beides = array_intersect(
+            array_keys(self::QUEUEABLE_REVIEWED),
+            array_keys(self::CARRIES_A_SECRET),
+        );
+
+        $this->assertSame([], array_values($beides), sprintf(
+            "Diese Operationen stehen in beiden Listen:\n  %s\n\n"
+            .'Entweder ist die Durchsicht falsch, oder sie gehört nicht in die Warteschlange.',
+            implode("\n  ", $beides),
+        ));
     }
 }

@@ -429,13 +429,36 @@ geheimnisförmigen Argument ist *entschieden* — sie steht in
 schliesst die gemessene Lücke und behauptet nicht, alle zu schliessen; der
 Wächter sagt das in seinem eigenen Kopf.
 
-**Die obere Schranke bekäme er erst, wenn jede Operation selbst erklärt, ob sie
-ein Geheimnis entgegennimmt** — eine vierte Methode an `Op` neben `name()` und
-`mutating()`. Das sind **117 Operationen**, 115 davon setzen `Op` direkt um, und
-es gibt keine gemeinsame Basisklasse; ein `method.abstract` im Agenten tötet den
-Lauf beim Laden, statt sauber rot zu werden. **Das gehört entschieden und nicht
-nebenbei gebaut** — es steht als Frage an den Betreiber und nicht als Zeile in
-diesem Plan.
+**Die obere Schranke war als vierte Methode an `Op` erwogen** — neben `name()`
+und `mutating()` — und der Betreiber hat sie am 20. September **verworfen**.
+Der Grund ist eine Zahl: Ein Geheimnis landet nur dann in `operations.payload`,
+wenn die Operation **eingereiht** wird, und das sind gemessen **31 von 117**.
+Eine Methode über alle 117 fragte 86 Stellen nach einem Risiko, das sie nicht
+haben, und hiesse 111 Mal `false`.
+
+> **Eine Erklärung, die fast immer dasselbe sagt, wird abgeschrieben statt
+> beantwortet.**
+
+Dazu die Kosten: 117 Dateien unter `agent/`, keine gemeinsame Basisklasse, und
+ein `method.abstract` tötet den Lauf beim Laden statt sauber rot zu werden.
+
+**Gebaut ist stattdessen die umgekehrte Frage.** Nicht *„welche Operation trägt
+ein Geheimnis"*, sondern *„welche kann überhaupt eines in den `payload`
+legen"* — und die Menge wird **abgeleitet** aus `Lifecycles::handled()` (25)
+und `Task::cases()` (11), zusammen 31 ohne Doppel. Gegengeprüft: Alle fünf
+Operationsnamen, die in `app/` an einer `'type' => …`-Zeile stehen, liegen
+darin; die Ableitung ist gegen den gemessenen Bestand vollständig.
+
+Jede der 31 ist durchgesehen und trägt ihren Grund. Eine zweiunddreissigste
+macht den Wächter rot — **in dem Augenblick, in dem sie einreihbar wird**, also
+dann, wenn das Risiko entsteht. Drei weitere Brüche stehen dafür im Skript; der
+erste macht ausgerechnet `pg.role.create` einreihbar.
+
+**Was auch das nicht kann:** gegen eine falsche Durchsicht hilft kein Wächter.
+Und die Argumente lassen sich nicht ableiten — `web.site.apply` reicht `$args`
+an `Site::fromArgs()`, `subscription.suspend` liest sie in ihrer Basisklasse.
+Der Eintrag ist ein **Urteil** und keine Aufzählung; das steht im Kopf des
+Wächters.
 
 Vier Brüche dazu stehen in `tests/waechter-brechen.sh` vor der Bilanz, jeder
 einzeln gegen seinen eigenen Fall gefahren. **Und ein fünfter Handgriff war

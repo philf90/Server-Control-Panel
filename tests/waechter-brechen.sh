@@ -4325,6 +4325,70 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SecretsStayOutOfTheQueueTest passed
 
 echo
+echo "── SecretsStayOutOfTheQueueTest: eine zweiunddreissigste wird einreihbar ──"
+#
+# **Der Bruch, der den Schaden trifft.** Ein Geheimnis landet nur dann in
+# `operations.payload`, wenn die Operation eingereiht wird — gemessen 31 von
+# 117. Wird eine zweiunddreissigste einreihbar, ohne dass jemand sie
+# durchgesehen hat, ist dieser Wächter rot. Hier wird ausgerechnet
+# `pg.role.create` einreihbar, die ein Passwort entgegennimmt.
+vorher_datei app/Support/Backups/BackupLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Backups/BackupLifecycle.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return ['backup.create', 'backup.remove'];"
+assert alt in s, 'Anker der Aufgabenliste nicht gefunden'
+s = s.replace(alt, "        return ['backup.create', 'backup.remove', 'pg.role.create'];", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Backups/BackupLifecycle.php "eine zweiunddreissigste wird einreihbar" &&
+pruefe "eine zweiunddreissigste wird einreihbar" \
+  SecretsStayOutOfTheQueueTest::test_every_queueable_operation_has_been_reviewed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SecretsStayOutOfTheQueueTest passed
+
+echo
+echo "── SecretsStayOutOfTheQueueTest: eine Durchsicht ohne Warteschlange ──"
+#
+# Die Gegenrichtung: Ohne sie wüchse die Liste mit jedem Umbau, und ihre Länge
+# sagte nichts mehr über den Bestand.
+vorher_datei tests/Feature/SecretsStayOutOfTheQueueTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/SecretsStayOutOfTheQueueTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'agent.ping' =>"
+assert alt in s, 'Anker der Durchsicht nicht gefunden'
+s = s.replace(alt, "        'gibts.nicht.mehr' => 'eine Durchsicht für eine Operation, die niemand einreiht',\n" + alt, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/SecretsStayOutOfTheQueueTest.php "eine Durchsicht ohne Warteschlange" &&
+pruefe "eine Durchsicht ohne Warteschlange" \
+  SecretsStayOutOfTheQueueTest::test_every_review_is_still_queueable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SecretsStayOutOfTheQueueTest passed
+
+echo
+echo "── SecretsStayOutOfTheQueueTest: ein Name in beiden Listen ──"
+#
+# Die Naht zwischen den beiden Listen. Steht ein Name in beiden, ist entweder
+# die Durchsicht falsch oder die Operation gehört nicht in die Warteschlange —
+# und welches von beidem, muss ein Mensch entscheiden.
+vorher_datei tests/Feature/SecretsStayOutOfTheQueueTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/SecretsStayOutOfTheQueueTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'agent.ping' =>"
+assert alt in s, 'Anker der Durchsicht nicht gefunden'
+s = s.replace(alt, "        'db.user.create' => 'durchgesehen und trägt trotzdem ein Passwort',\n" + alt, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/SecretsStayOutOfTheQueueTest.php "ein Name in beiden Listen" &&
+pruefe "ein Name in beiden Listen" \
+  SecretsStayOutOfTheQueueTest::test_no_reviewed_operation_carries_a_secret failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SecretsStayOutOfTheQueueTest passed
+
+echo
 echo "── DefinerStripTest: der Filter fasst auch Datenzeilen an ──"
 #
 # Ein blindes Suchen-und-Ersetzen über den ganzen Dump verändert Nutzdaten. Eine

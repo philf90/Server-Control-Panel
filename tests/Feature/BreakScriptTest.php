@@ -938,6 +938,90 @@ final class BreakScriptTest extends TestCase
      * zurück auf `abschnitt "…"`, gemeldet als *Zeile 31244: abschnitt*, und
      * nach dem Zurücksetzen wieder grün.
      */
+    /**
+     * Keine Zeile führt aus, was sie nur drucken will.
+     *
+     * ## Der Anlass
+     *
+     * Eine Überschrift erklärte ihren Gegenstand in Markdown:
+     *
+     *     echo "── LogSourceTest: `-- No entries --` kommt als Zeile durch ──"
+     *
+     * In einer **doppelt** gequoteten Zeichenkette sind Backticks aber keine
+     * Auszeichnung, sondern Befehlsersetzung. bash hat `-- No entries --`
+     * ausgeführt, `--: command not found` gemeldet und das Ergebnis — nichts —
+     * eingesetzt. Gedruckt stand da *„── LogSourceTest:  kommt als Zeile durch
+     * ──"*: Der Gegenstand der Überschrift war fort.
+     *
+     * **Die harmlose Hälfte ist die gedruckte.** Die andere ist, dass zwischen
+     * den Backticks ein Befehl steht, den dieses Skript **ausführt** — hier war
+     * es keiner, beim nächsten Mal steht dort ein `rm`, weil jemand einen Befund
+     * zitiert.
+     *
+     * > **Ein Zitat in doppelten Anführungszeichen ist in einer Shell kein
+     * > Zitat, sondern ein Auftrag.**
+     *
+     * Gefunden hat es der volle Bruchlauf vom 20. September 2026 — die Meldung
+     * stand seit langem im Protokoll neben der Bilanz und nicht darin, genau wie
+     * bei {@see self::test_every_helper_the_script_calls_is_defined()}. Gesehen
+     * hat sie kein Wächter:
+     * {@see self::test_no_heading_swallows_the_intervention_below_it()} zählt
+     * Anführungszeichen und keine Backticks.
+     *
+     * ## Warum es dazu keinen Eingriff im Skript gibt
+     *
+     * Aus demselben Grund wie nebenan: Der Bruch stünde in der einen Datei, die
+     * der Rückweg auslässt. Gebrochen wurde er **von Hand** am 20. September —
+     * die Maskierung zurückgenommen, gemeldet, und nach dem Zurücksetzen wieder
+     * grün.
+     */
+    public function test_no_line_runs_a_command_it_only_means_to_print(): void
+    {
+        $zeilen = explode("\n", (string) file_get_contents($this->root().'/tests/waechter-brechen.sh'));
+
+        $gelesen = 0;
+        $funde = [];
+        $marke = null;
+
+        foreach ($zeilen as $nummer => $zeile) {
+            if ($marke !== null) {
+                if (rtrim($zeile) === $marke) {
+                    $marke = null;
+                }
+
+                continue;
+            }
+
+            if (preg_match("/<<\s*'([A-Za-z0-9_]+)'/", $zeile, $treffer) === 1) {
+                $marke = $treffer[1];
+
+                continue;
+            }
+
+            if (preg_match('/^[a-z_][a-z0-9_]* "/', $zeile) !== 1) {
+                continue;
+            }
+
+            $gelesen++;
+
+            // Ein maskierter Backtick ist einer — er wird gedruckt und nicht
+            // ausgeführt. Gesucht wird der unmaskierte.
+            if (preg_match('/(?<!\\\\)`/', $zeile) === 1) {
+                $funde[] = sprintf('Zeile %d: %s', $nummer + 1, trim($zeile));
+            }
+        }
+
+        $this->assertGreaterThan(500, $gelesen,
+            'Es werden kaum Zeilen gelesen — dann prüft dieser Test nichts.');
+
+        $this->assertSame([], $funde, sprintf(
+            'Diese Zeilen tragen einen unmaskierten Backtick in einer doppelt gequoteten '
+            .'Zeichenkette. bash führt aus, was dazwischen steht, und druckt an seiner Stelle '
+            ."das Ergebnis:\n\n  %s",
+            implode("\n  ", array_slice($funde, 0, 12)),
+        ));
+    }
+
     public function test_every_helper_the_script_calls_is_defined(): void
     {
         $zeilen = explode("\n", (string) file_get_contents($this->root().'/tests/waechter-brechen.sh'));

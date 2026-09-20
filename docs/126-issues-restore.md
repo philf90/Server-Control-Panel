@@ -300,6 +300,30 @@ tragen jetzt dieselbe Form wie die 1109 anderen. Und
 gebrochen von Hand, weil sein Bruch in der einen Datei stünde, die der Rückweg
 zu Recht auslässt.
 
+**Und eine zehnte Meldung war keine Kurzform, sondern ein Auftrag.** Eine
+Überschrift erklärte ihren Gegenstand in Markdown:
+
+```
+echo "── LogSourceTest: `-- No entries --` kommt als Zeile durch ──"
+```
+
+In doppelten Anführungszeichen sind Backticks keine Auszeichnung, sondern
+**Befehlsersetzung**: bash hat `-- No entries --` ausgeführt, `command not
+found` gemeldet und das leere Ergebnis eingesetzt. Gedruckt stand da
+*„── LogSourceTest:  kommt als Zeile durch ──"* — der Gegenstand war fort.
+
+> **Ein Zitat in doppelten Anführungszeichen ist in einer Shell kein Zitat,
+> sondern ein Auftrag.**
+
+Die gedruckte Hälfte ist die harmlose. Hier stand zwischen den Backticks kein
+Befehl; beim nächsten Mal steht dort einer, weil jemand einen Befund zitiert.
+`test_no_line_runs_a_command_it_only_means_to_print` hält es seitdem, ebenfalls
+von Hand gebrochen.
+
+**Der zweite Lauf ist durch:** 2632 Prüfungen, **null ohne Biss**, „Alle Wächter
+beissen." Die neun Überschriften stehen wieder da, und von zehn Meldungen
+`command not found` ist keine übrig.
+
 ---
 
 ## 7 · Bilanz

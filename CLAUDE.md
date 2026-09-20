@@ -4955,6 +4955,16 @@ richtig geschriebenen längst erfüllt.
 > **Eine Untergrenze, die die Mehrheit erfüllt, sieht eine zweite Schreibweise
 > nicht — sie zählt ja weiter genug.**
 
+**Und eine zehnte Meldung war keine Kurzform, sondern ein Auftrag:** Eine
+Überschrift zitierte ihren Gegenstand in Markdown, und in doppelten
+Anführungszeichen ist ein Backtick Befehlsersetzung. bash führt aus, was
+dazwischen steht, und druckt das Ergebnis an seiner Stelle.
+
+> **Ein Zitat in doppelten Anführungszeichen ist in einer Shell kein Zitat,
+> sondern ein Auftrag.** Hier stand dort kein Befehl — beim nächsten Mal steht
+> dort einer, weil jemand einen Befund zitiert.
+> `test_no_line_runs_a_command_it_only_means_to_print` hält es.
+
 Behoben, indem die zweite Schreibweise verschwindet, und gehalten von
 `BreakScriptTest::test_every_helper_the_script_calls_is_defined`: Ein Wort am
 Zeilenanfang vor einer Zeichenkette ist `echo`, `printf`, eine Eingebaute oder

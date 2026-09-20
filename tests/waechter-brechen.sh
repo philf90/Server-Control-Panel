@@ -16884,7 +16884,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" LogSourceTest passed
 
 echo
-echo "── LogSourceTest: `-- No entries --` kommt als Zeile durch ──"
+echo "── LogSourceTest: \`-- No entries --\` kommt als Zeile durch ──"
 #
 # Gemessen am 24. August 2026: journalctl schreibt die Markierung auf **stdout**,
 # also dorthin, wo der Leser die Zeilen erwartet. Wer sie durchreicht, zeigt eine

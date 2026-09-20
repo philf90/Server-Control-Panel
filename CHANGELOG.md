@@ -30663,3 +30663,20 @@ machen. Rot wird davon die Regel über den Baum. Beim Einzelbeleg war über die
 
 > **Ein Lauf über die ganze Klasse sagt, dass ein Fall rot war — nicht,
 > welcher.**
+
+### Eine Überschrift des Bruchskripts war ein Auftrag
+
+Derselbe Lauf hat eine zehnte Meldung `command not found` gezeigt, und die kam
+nicht von einer fehlenden Funktion. Eine Überschrift erklärte ihren Gegenstand
+in Markdown — und in doppelten Anführungszeichen sind Backticks keine
+Auszeichnung, sondern **Befehlsersetzung**. bash hat ausgeführt, was dazwischen
+stand, `command not found` gemeldet und das leere Ergebnis eingesetzt; gedruckt
+wurde eine Überschrift ohne ihren Gegenstand.
+
+> **Ein Zitat in doppelten Anführungszeichen ist in einer Shell kein Zitat,
+> sondern ein Auftrag.**
+
+Die gedruckte Hälfte ist die harmlose: Hier stand zwischen den Backticks kein
+Befehl. `test_no_line_runs_a_command_it_only_means_to_print` hält es seitdem —
+`test_no_heading_swallows_the_intervention_below_it` zählt Anführungszeichen und
+konnte es nicht sehen.

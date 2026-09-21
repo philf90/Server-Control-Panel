@@ -29,14 +29,33 @@ $app = Application::configure(basePath: dirname(__DIR__))
         // **ApplyTenancy muss vor SubstituteBindings stehen.** In der
         // Standardgruppe steht SubstituteBindings weiter vorn, und angehängte
         // Middleware liefe danach — die Modellbindung suchte dann ohne
-        // Mandantenklammer. Ein Kunde, der eine fremde ID in die Adresse
-        // schreibt, bekäme das Objekt gebunden; erst die Policy wiese ihn ab.
-        // Das ist eine Schicht zu spät: Aus „nicht gefunden" würde
-        // „verboten", und damit ließe sich abzählen, welche IDs es gibt.
+        // Mandantenklammer.
+        //
+        // **Was das anrichtet, ist am 21. September 2026 gemessen worden**
+        // (`docs/130` A3), und es ist nicht das, was hier stand. Der Satz
+        // lautete, aus „nicht gefunden" würde „verboten", und damit liesse
+        // sich abzählen, welche IDs es gibt. Gemessen gibt die umgedrehte
+        // Reihenfolge **404 für das fremde und 404 für das eigene**
+        // Abonnement: Die Klammer steht beim Binden im Grundzustand, und der
+        // verweigert alles. Der Schaden ist kein Leck, sondern ein Panel, in
+        // dem kein Kunde mehr seine eigene Seite sieht.
+        //
+        //   Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist
+        //   auch dann falsch, wenn der Handgriff daneben richtig ist — und er
+        //   hält länger als der Handgriff, weil ihn der Nächste liest und
+        //   glaubt.
         //
         // Deshalb wird SubstituteBindings aus seiner Position genommen und
-        // hinter ApplyTenancy wieder eingesetzt. Ein Test hält die Reihenfolge
-        // fest, damit sie nicht beim nächsten Umbau still zurückfällt.
+        // hinter ApplyTenancy wieder eingesetzt.
+        //
+        // **Und der Test, den diese Zeile bis zum 21. September behauptet hat,
+        // gab es nicht.** Ausgezählt nannte keine Datei unter `tests/` diese
+        // beiden Mittelschichten zusammen; gehalten war nur das Paar
+        // `EnforceAccountAccess` vor `EnforceAdminNetwork`
+        // (`AccountAccessReachTest`).
+        //
+        //   Eine Zeile, die einen Wächter behauptet, ist teurer als keine —
+        //   der Nächste baut ihn nicht, weil er ihn für gebaut hält.
         $middleware->web(
             remove: [SubstituteBindings::class],
             append: [

@@ -518,7 +518,7 @@ nach dem Umbau anders — er wäre ab da ein Eingriff ohne Messung gewesen.
 | B3 | `DailyRunIdempotenceTest` | Zweimal derselbe Tag ergibt eine Zeile und nicht zwei — derselbe Satz wie bei `FindingLog`, an einer anderen Tabelle. |
 | B4 | `SeriesSourceTest` | `Tile.vue` bekommt fertige Stützstellen vom Server; kein Rechnen im Klienten. |
 | B4 | `SharedClosureTest` | Was in `share()` steht, steht dort als Verschluss — die Regel aus `docs/103 M5`, die bisher niemand hält. |
-| B7 | `ApiTenancyTest` | Jede Route unter `api/` durchläuft die Mandantenklammer — gemessen an der **Antwort** und nicht an der Middlewareliste. |
+| B7 | ~~`ApiTenancyTest`~~ → `TenancySweepTest` **geweitet** | Jede Route unter `api/` durchläuft die Mandantenklammer — gemessen an der **Antwort** und nicht an der Middlewareliste. **Berichtigt am 21. September 2026** (`docs/130`): `TenancySweepTest` beansprucht in seinem eigenen Kopf schon „jede Route, die es gibt". Ein zweiter Wächter daneben wäre die zweite Fassung derselben Regel — und die zweite ist die, die veraltet. |
 
 **Und einer, den `docs/92` nötig macht, sobald B8 drankommt:**
 

@@ -11,6 +11,7 @@ use App\Support\Diagnose\Checks\MaintenanceFlag;
 use App\Support\Diagnose\Checks\MaintenanceWindow;
 use App\Support\Diagnose\Checks\ManagedBlocks;
 use App\Support\Diagnose\Checks\Orphans;
+use App\Support\Diagnose\Checks\QuotaOverrun;
 use App\Support\Diagnose\Checks\SystemUsers;
 use App\Support\Diagnose\Checks\Units;
 use PHPUnit\Framework\TestCase;
@@ -160,6 +161,7 @@ final class DiagnoseSeamTest extends TestCase
         'ManagedBlocks' => ManagedBlocks::REASONS,
         'SystemUsers' => SystemUsers::REASONS,
         'Orphans' => Orphans::REASONS,
+        'QuotaOverrun' => QuotaOverrun::REASONS,
         'MaintenanceWindow' => MaintenanceWindow::REASONS,
         'MaintenanceFlag' => MaintenanceFlag::REASONS,
         'Backups' => Backups::REASONS,

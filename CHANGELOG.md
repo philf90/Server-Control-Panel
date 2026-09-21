@@ -31357,3 +31357,111 @@ Liste zurück. Rot wurde er trotzdem — seine Untergrenze verlangt, dass
 
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
 > steht.**
+
+### B5 — Meldungen an den Kunden
+
+Ein Kunde, dessen Kontingent überschritten ist, bekommt **eine** Mail, und der
+Betreiber sieht auf der Seite „Mailversand", wann zuletzt etwas angekommen ist.
+
+**B5 hing an B1, und B1 war nicht gebaut.** `docs/129 §3` sagt es in seiner
+Abhängigkeitsspalte; gemessen am Quelltext fehlten drei von vier Bausteinen —
+kein `notified_at`, kein `timeout` am Mailweg, kein `app/Notifications/`, ein
+einziger Mailable (der Probeversand). Gebaut sind hier genau die drei, die B5
+braucht; was von B1 offen bleibt, steht weiter unten.
+
+**Ein zweites Zustandsbuch wäre die zweite Fassung derselben Regel gewesen.**
+Die Zusage „genau eine Mail" zerfällt in zwei Teile, und den ersten hält
+{@see FindingLog} seit A10: Ein Zustand über zwei Läufe ist **eine** Zeile,
+`first_seen_at` steht dabei still, und was ein Lauf nicht mehr nennt, wird
+gelöscht. Genau das ist die Entprellung, die `docs/129 §4` beschreibt:
+
+```
+gemeldet wird, was   now − first_seen_at ≥ Haltezeit
+                und  notified_at is null
+```
+
+Die Überschreitung ist deshalb ein **Befund** (`quota.exceeded`) und keine
+eigene Tabelle. Dass ein behobener Befund wieder melden darf, folgt daraus
+ohne eine Zeile Code: Mit der Zeile geht die Erinnerung an die Zustellung.
+
+**Und der Betreiber sieht sie dadurch, wie es zugesagt war.**
+`Quota::TrafficGb` trägt seit P1 den Hinweis *„Die Überschreitung erscheint in
+der Übersicht"*. Bis heute löste das niemand ein.
+
+> **Eine Zusage im Hinweistext ist eine Zusage.**
+
+**Drei Kontingente und nicht vierzehn.** Die meisten werden beim Anlegen
+geprüft — was nicht entsteht, steht auch nicht über der Grenze. Überschreitbar
+sind die, die ein **gemessener** Wert füllt: Platz, Datenbankgrösse, Verkehr.
+
+**Der Verkehr zählt den Kalendermonat und nicht dreissig Tage**, weil das
+Kontingent „Traffic je Monat" heisst — und er zählt, was **hinausgeht**. Beide
+Entscheidungen stehen an einer Stelle, damit der Betreiber sie an einer Stelle
+ändert. Dazu eine benannte Grenze: B3 hebt dreissig Tage auf, ein Monat hat bis
+zu einunddreissig; am letzten Tag eines langen Monats fehlt der erste. Die Zahl
+ist damit eine **Untergrenze** — für eine Warnung die richtige Richtung.
+
+**Die Haltezeit hängt am Zeitgeber und nicht am Gefühl.** `srvpanel-diagnose`
+läuft täglich mit `RandomizedDelaySec=1h`; zwischen zwei Läufen liegen 23 bis 25
+Stunden. Zwanzig Stunden heissen deshalb: gemeldet wird, was **zwei Läufe
+hintereinander** dasteht. Eine Haltezeit über 23 Stunden verschöbe die Meldung
+unvorhersehbar auf den dritten Lauf, weil der Abstand streut.
+
+> **Eine Entprellung ohne ihren Takt ist eine halbe Zahl.**
+
+**Die Zeitgrenze am Mailweg stand auf `null`.** Gemessen (`docs/128` M6) kostet
+ein toter Empfänger damit 60,02 s je Versand; bei 400 fälligen Meldungen sind
+das 6,7 Stunden, in denen ein Nachtlauf hängt, während der Zeitgeber den
+nächsten feuert. Jetzt zehn Sekunden — dieselbe Zahl wie
+`Acme\Curl::CONNECT_TIMEOUT`.
+
+> **Eine Grenze, die auf `null` steht, ist keine Voreinstellung — sie ist die
+> Abwesenheit einer Entscheidung.**
+
+`MailTimeoutTest` misst dabei den **aufgelösten** Wert: `MailConfiguration`
+schreibt bei jedem Versand über den Mailer, und ein Wächter über die Zeile in
+`config/mail.php` bliebe grün, wenn jemand dort ein `timeout => null` ergänzte.
+
+**Was nicht ankam, bleibt fällig.** Ohne eingetragenes Relais, ohne Empfänger
+und nach einem Fehlschlag wird **nichts** vermerkt — ein `notified_at` ohne
+Zustellung nähme der Zeile für immer ihre Fälligkeit. Und „zuletzt erfolgreich
+zugestellt" entsteht nur bei einer Zustellung; ein Zeitpunkt, an dem nichts
+ankam, wäre ein Satz, der falsch ist und richtig aussieht.
+
+**Gefahren wird der Versand als zweite `ExecStart`-Zeile von
+`srvpanel-diagnose.service`** und nicht von einem eigenen Zeitgeber: Der könnte
+vor der Messung feuern und meldete dann den Stand von gestern.
+
+> **Eine Reihenfolge, die ein Zeitgeber herstellen soll, ist keine.**
+
+**Was von B1 offen bleibt** und hier ausdrücklich nicht gebaut ist: die
+Meldungen an den **Betreiber** (Dienst tot, Timer ohne Termin, Zertifikat,
+Sicherung, Updates), der zweite Kanal (Webhook, `docs/129 §7`) und der eigene,
+häufigere Lauf für die Kennzahlen aus dem Ringpuffer. Die Ablage trägt sie: Ein
+zweiter Kanal braucht dann die kleine Tabelle statt der Spalte, und `docs/129
+§4` sagt das voraus.
+
+### Zwei Wächter haben den Bau angehalten, und einer meldete zu viel
+
+`TimeDisplayTest` hat `Notices` gemeldet, weil es eine Zeit selbst formatiert —
+zu Recht, und die Stelle steht jetzt mit ihrer Begründung in seiner
+Ausnahmeliste: Der Wert geht als Text in `settings` und liegt dort in UTC,
+gezeigt wird er über `Clock::displayText()`.
+
+`ServerZoneSourceTest` hat eine **Testdatei** gemeldet — für einen Satz in
+ihrem Dokumentblock, der den Pfad nennt, den `ServerZone` liest. Er liest den
+Quelltext roh und streift die Kommentare nicht ab.
+
+> **Derselbe Kommentar, der einen Wächter fälschlich grün hält, macht eine
+> Messung fälschlich rot.**
+
+Behoben ist es am Satz und nicht am Wächter: Ihn auf `WithoutPhpComments`
+umzustellen ist eine Änderung an einem bestehenden Wächter und braucht ihren
+eigenen Bruchlauf. Der Satz sagt jetzt, warum er den Pfad nicht ausschreibt.
+
+**Und ein Prüfkörper war still.** `$abo->update(['disk_used_mb' => 100])` tut
+wortlos nichts — die Spalte steht nicht in `$fillable`, weil sie ein gemessener
+Wert ist und keiner, den ein Formular setzt. Die Fabrik daneben setzt sie, weil
+sie den Schutz umgeht; genau deshalb sah der Prüfkörper richtig aus.
+
+> **Ein Prüfkörper, der überspringt, meldet das Überspringen nicht.**

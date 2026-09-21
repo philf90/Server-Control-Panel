@@ -3374,6 +3374,16 @@ tr:has(td.multiline) > td {
 .quiet + .sections,
 
 /*
+ * **Und beim zwölften Mal steht der Satz über dem Formular.**
+ *
+ * Auf der Seite „Mailversand" sagt seit B5 eine Zeile, wann zuletzt eine
+ * Meldung des Panels angekommen ist — und darunter fängt das Formular an.
+ * Gemeldet hat es derselbe Wächter im selben Lauf wie die Fuge darüber; zwei
+ * neue Nachbarschaften aus einem Merkmal, und keine davon hat jemand gesehen.
+ */
+.quiet + .form,
+
+/*
  * **Und beim achten Mal steht der Hinweis unter der Tabelle.**
  *
  * Auf der Diagnose-Seite folgt dem Rollbehälter ein leiser Satz — „den

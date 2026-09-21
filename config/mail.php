@@ -45,7 +45,29 @@ return [
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+
+            /*
+             * Die Zeitgrenze am Mailweg (B5, `docs/129 §4` Punkt 2).
+             *
+             * **Hier stand `null`, und das heisst nicht „kein Zeitlimit", es
+             * heisst „das des Netzes".** Gemessen (`docs/128` M6): ein toter
+             * Empfänger kostet damit **60,02 s** je Versand. Bei 400 fälligen
+             * Meldungen sind das 6,7 Stunden, in denen ein Nachtlauf an einem
+             * Relay hängt, das nicht antwortet — und der Zeitgeber feuert
+             * derweil den nächsten.
+             *
+             * **Zehn Sekunden, dieselbe Zahl wie `Acme\Curl::CONNECT_TIMEOUT`.**
+             * Dass der Regler überhaupt greift, ist gemessen: mit 5 s gesetzt
+             * dauerte derselbe Versuch 5,00 s.
+             *
+             * > **Eine Grenze, die auf `null` steht, ist keine Voreinstellung —
+             * > sie ist die Abwesenheit einer Entscheidung.**
+             *
+             * `MailTimeoutTest` misst den **aufgelösten** Wert und nicht diese
+             * Zeile: Was am Ende gilt, setzt
+             * {@see \App\Support\Settings\MailConfiguration}.
+             */
+            'timeout' => 10,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 

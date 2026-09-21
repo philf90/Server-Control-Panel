@@ -31,6 +31,14 @@ final class DiagnoseCatalogTest extends TestCase
         // schweigen könnte.
         'orphan.row',
 
+        // Ebenso: Kontingent und gemessener Wert stehen beide in der eigenen
+        // Datenbank. Was an dieser Prüfung einzeln ausfallen kann, ist der
+        // Verkehr — er braucht die Zone des Servers und hat dafür seinen
+        // eigenen Grund `traffic_unknown`. Ein `unreachable` mit dem Satz
+        // „Diese Prüfung ist nicht durchgelaufen" wäre daneben falsch: Platz
+        // und Datenbanken sind sehr wohl beurteilt.
+        'quota.exceeded',
+
         // Die einzige Prüfung, die über das Netz geht: Dass der Server nicht
         // antwortet, ist hier der gemessene Zustand und keine ausgefallene
         // Messung. Sie hat dafür `no_answer`.

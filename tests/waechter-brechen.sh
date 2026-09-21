@@ -32684,6 +32684,287 @@ pruefe "Ablesung nennt eine Uhrzeit" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
 
+echo "── QuotaOverrunTest: der Leser loest die Mandantenklammer nicht ──"
+#
+# Der Nachtlauf hat kein angemeldetes Konto. `databaseUsedMb()` fragt eine
+# zweite Tabelle — ohne geloeste Klammer kommt wortlos „nicht gemessen"
+# heraus, und ein Kunde ueber seinem Datenbankkontingent faellt nie auf.
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text()
+alt = '$this->tenancy->withoutRestriction(function () use ($measuredAt, &$findings): void {'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '(function () use ($measuredAt, &$findings): void {', 1))
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "Klammer nicht geloest" &&
+pruefe "Klammer nicht geloest" \
+  QuotaOverrunTest::test_databases_over_their_quota_is_a_finding failed
+wiederherstellen
+
+echo "── QuotaOverrunTest: ein Kontingent von 0 gilt als Grenze ──"
+#
+# Im Katalog heisst 0 „unbegrenzt" oder „nicht angeboten". Dagegen zu
+# vergleichen machte aus jedem Kunden einen Ueberschreiter — und aus jedem
+# Nachtlauf eine Rundmail.
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text()
+alt = '|| (float) $limit <= 0.0'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '|| (float) $limit < 0.0', 1))
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "Null als Grenze" &&
+pruefe "Null als Grenze" \
+  QuotaOverrunTest::test_a_quota_of_zero_is_no_limit failed
+wiederherstellen
+
+echo "── QuotaOverrunTest: ein ungemessener Wert faellt auf null zurueck ──"
+#
+# Der Rueckfall sagt „alles in Ordnung" ueber etwas, das niemand nachgesehen
+# hat — die bequemere von zwei falschen Auskuenften.
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text()
+alt = 'if ($used === null || ! is_numeric($limit)'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'if (($used = $used ?? 0) === -1 || ! is_numeric($limit)', 1))
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "ungemessen faellt auf null" &&
+pruefe "ungemessen faellt auf null" \
+  QuotaOverrunTest::test_an_unmeasured_value_is_not_a_finding failed
+wiederherstellen
+
+echo "── QuotaOverrunTest: der Verkehr zaehlt ein rollendes Fenster ──"
+#
+# Das Kontingent heisst „Traffic je Monat". Ein rollendes Fenster von
+# dreissig Tagen ist etwas anderes und ergibt eine andere Zahl — am
+# Monatsanfang eine, die den ganzen Vormonat mitnimmt.
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text()
+alt = '->startOfMonth()->toDateString()'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '->subDays(30)->toDateString()', 1))
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "rollendes Fenster statt Monat" &&
+pruefe "rollendes Fenster statt Monat" \
+  QuotaOverrunTest::test_traffic_counts_the_calendar_month failed
+wiederherstellen
+
+echo "── QuotaOverrunTest: der eingehende Verkehr zaehlt mit ──"
+#
+# Gezaehlt wird, was hinausgeht. Wer beide Richtungen summiert, meldet einen
+# Kunden ueber seinem Kontingent, der es nach der vereinbarten Rechnung nicht
+# ist.
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text()
+alt = "->where('metric', DailyMetric::TrafficSentBytes->value)"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "->whereIn('metric', [DailyMetric::TrafficSentBytes->value, DailyMetric::TrafficReceivedBytes->value])", 1))
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "eingehend zaehlt mit" &&
+pruefe "eingehend zaehlt mit" \
+  QuotaOverrunTest::test_only_the_outgoing_direction_counts failed
+wiederherstellen
+
+echo "── QuotaOverrunTest: gesperrte Abonnements werden mitgemeldet ──"
+#
+# Eine Mail ueber ein Kontingent von etwas, das der Kunde nicht mehr benutzt,
+# ist keine Auskunft, sondern Laerm.
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text()
+alt = "->whereIn('status', SubscriptionStatus::usableValues())\n            ->orderBy('id')"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "->orderBy('id')", 1))
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "gesperrte werden gemeldet" &&
+pruefe "gesperrte werden gemeldet" \
+  QuotaOverrunTest::test_a_suspended_subscription_is_left_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaOverrunTest passed
+
+echo "── NotificationLedgerTest: die Haltezeit wird uebergangen ──"
+#
+# Eine Platte, die um die Schwelle pendelt, erzeugt sonst in jeder Nacht eine
+# Mail. Die Entprellung ist die halbe Zusage von „genau eine Mail".
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = '$schwelle = $now->copy()->subHours(self::HOLD_HOURS);'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '$schwelle = $now->copy()->addHours(1);', 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Haltezeit uebergangen" &&
+pruefe "Haltezeit uebergangen" \
+  NotificationLedgerTest::test_a_fresh_overrun_is_not_reported_yet failed
+wiederherstellen
+
+echo "── NotificationLedgerTest: die Zustellung wird nicht vermerkt ──"
+#
+# Ohne `notified_at` ist jede Nacht dieselbe Nachricht faellig. Der Kunde
+# bekommt sie, solange der Zustand steht — und das kann ein Monat sein.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = '$finding->notified_at = $now;'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '$finding->notified_at = null;', 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Zustellung nicht vermerkt" &&
+pruefe "Zustellung nicht vermerkt" \
+  NotificationLedgerTest::test_a_later_run_does_not_report_again failed
+wiederherstellen
+
+echo "── NotificationLedgerTest: eine Mail je Befund statt je Abonnement ──"
+#
+# Zwei Ueberschreitungen desselben Abonnements sind zwei Mails in derselben
+# Minute — genau das, wogegen „genau eine Mail" geschrieben ist.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = "foreach ($this->due($now)->groupBy('subject') as $subject => $findings) {"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "foreach ($this->due($now)->groupBy('id') as $findings) {\n            $subject = $findings->first()->subject;", 1))
+PY
+griff_datei app/Support/Notify/Notices.php "eine Mail je Befund" &&
+pruefe "eine Mail je Befund" \
+  NotificationLedgerTest::test_two_overruns_of_one_subscription_are_one_mail failed
+wiederherstellen
+
+echo "── NotificationLedgerTest: ohne Relais wird trotzdem vermerkt ──"
+#
+# Ein `notified_at` ohne Zustellung behauptet eine Mail, die es nicht gab —
+# und nimmt der Zeile fuer immer ihre Faelligkeit.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = 'if (! $this->settings->mail()->usable()) {'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'if (false) {', 1))
+PY
+griff_datei app/Support/Notify/Notices.php "ohne Relais vermerkt" &&
+pruefe "ohne Relais vermerkt" \
+  NotificationLedgerTest::test_without_a_relay_nothing_is_marked failed
+wiederherstellen
+
+echo "── NotificationLedgerTest: ein nicht beurteilter Zustand geht an den Kunden ──"
+#
+# `traffic_unknown` sagt, dass dem Server die Zeitzone fehlt. Das ist ein
+# Problem des Betreibers; eine Mail darueber an den Kunden meldet ihm etwas,
+# das er nicht aendern kann.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = '->filter(static fn (Finding $f): bool => $f->check->state($f->reason) !== FindingState::Unknown)'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '->filter(static fn (Finding $f): bool => true)', 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Unbeurteiltes an den Kunden" &&
+pruefe "Unbeurteiltes an den Kunden" \
+  NotificationLedgerTest::test_an_unjudged_state_is_not_mailed failed
+wiederherstellen
+
+echo "── NotificationLedgerTest: der Kanal vermerkt jeden Lauf ──"
+#
+# „Zuletzt erfolgreich zugestellt" neben einem Zeitpunkt, an dem nichts
+# ankam, ist falsch, waehrend es richtig aussieht.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = "if ($bilanz['sent'] > 0) {"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "if ($bilanz['sent'] >= 0) {", 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Kanal vermerkt jeden Lauf" &&
+pruefe "Kanal vermerkt jeden Lauf" \
+  NotificationLedgerTest::test_the_channel_records_only_a_delivery failed
+wiederherstellen
+
+echo "── NotificationLedgerTest: ein Abonnement ohne Empfaenger gilt als gemeldet ──"
+#
+# Was nicht verschickt wurde, darf nicht als gemeldet dastehen. Sonst ist die
+# Ueberschreitung fuer immer stumm, und niemand erfaehrt, dass dem Kunden ein
+# Konto mit Adresse fehlt.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = "if ($empfaenger === []) {\n                $bilanz['without_recipient']++;\n\n                continue;\n            }"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "if ($empfaenger === []) {\n                $bilanz['without_recipient']++;\n            }", 1))
+PY
+griff_datei app/Support/Notify/Notices.php "ohne Empfaenger gemeldet" &&
+pruefe "ohne Empfaenger gemeldet" \
+  NotificationLedgerTest::test_a_subscription_without_a_recipient_stays_due failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NotificationLedgerTest passed
+
+echo "── MailTimeoutTest: die Zeitgrenze steht wieder auf null ──"
+#
+# Gemessen kostet ein toter Empfaenger dann 60,02 s je Versand; bei 400
+# faelligen Meldungen sind das 6,7 Stunden, in denen ein Nachtlauf an einem
+# Relais haengt, das nicht antwortet.
+vorher_datei config/mail.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('config/mail.php')
+s = p.read_text()
+alt = "'timeout' => 10,"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'timeout' => null,", 1))
+PY
+griff_datei config/mail.php "Zeitgrenze auf null" &&
+pruefe "Zeitgrenze auf null" \
+  MailTimeoutTest::test_the_default_carries_a_timeout failed
+wiederherstellen
+
+echo "── MailTimeoutTest: das Anwenden setzt die Zeitgrenze zurueck ──"
+#
+# Was am Ende gilt, schreibt `MailConfiguration::apply()`. Ein Waechter ueber
+# die Zeile in `config/mail.php` bliebe hier gruen — und jeder Versand hinge
+# wieder 60 s an einem toten Relais.
+vorher_datei app/Support/Settings/MailConfiguration.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/MailConfiguration.php')
+s = p.read_text()
+alt = "$config->set('mail.mailers.smtp.transport', 'smtp');"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "$config->set('mail.mailers.smtp.transport', 'smtp');\n        $config->set('mail.mailers.smtp.timeout', null);", 1))
+PY
+griff_datei app/Support/Settings/MailConfiguration.php "Anwenden setzt zurueck" &&
+pruefe "Anwenden setzt zurueck" \
+  MailTimeoutTest::test_the_applied_configuration_keeps_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MailTimeoutTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

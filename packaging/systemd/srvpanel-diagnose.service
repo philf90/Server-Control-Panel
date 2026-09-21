@@ -12,6 +12,19 @@ Group=srvpanel
 WorkingDirectory=/opt/srvpanel/current
 ExecStart=/opt/srvpanel/bin/php artisan srvpanel:diagnose
 
+# **Zweite Zeile derselben Unit und kein eigener Zeitgeber** (B5).
+#
+# Die Meldungen an die Kunden hängen an den Befunden, die die Zeile darüber
+# gerade geschrieben hat. Ein eigener Timer könnte davor feuern und meldete
+# dann den Stand von gestern; `Type=oneshot` führt seine Zeilen der Reihe nach
+# aus und bricht ab, wenn die erste scheitert — genau die Reihenfolge, die
+# gebraucht wird.
+#
+# Kein `-` davor: Ein gescheiterter Versand soll die Unit rot färben. Ein
+# fehlendes Relay ist dabei kein Fehlschlag, das entscheidet das Kommando
+# selbst.
+ExecStart=/opt/srvpanel/bin/php artisan srvpanel:notices
+
 # **Täglicher Takt, also eine halbe Stunde Frist.**
 #
 # Ein `Type=oneshot` **ohne** eigene Angabe läuft ohne Frist — gemessen am

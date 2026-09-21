@@ -154,6 +154,20 @@ final class Settings
      * > „nichts anlegen", einmal „etwas anlegen", und welche Seite die sichere
      * > ist, entscheidet nicht die Vorgabe, sondern was ohne sie verloren geht.
      */
+    /**
+     * „Zuletzt erfolgreich zugestellt" — ein Wert je Kanal (B5, `docs/80`).
+     *
+     * **Ein Wert und kein Protokoll**, und `docs/129 §4` Punkt 4 sagt es
+     * genauso. Der Grund steht in `docs/80`:
+     *
+     * > **Ein Kanal, der schweigt, ist von einem, der nichts zu melden hat,
+     * > nicht zu unterscheiden.**
+     *
+     * Wer wissen will, *welche* Meldung wann rausging, liest das Protokoll der
+     * Befunde; hier steht nur, ob der Weg überhaupt noch trägt.
+     */
+    private const NOTICE_SENT = 'notice.sent';
+
     private const BACKUPS = 'backups';
 
     private const MAINTENANCE = 'maintenance';
@@ -523,6 +537,34 @@ final class Settings
         $at = $this->read($this->runKey($key))['ran_at'] ?? null;
 
         return is_string($at) ? $at : null;
+    }
+
+    /**
+     * Wann über diesen Kanal zuletzt etwas **angekommen** ist.
+     *
+     * `null` heisst „noch nie" und nicht „geht nicht": Ein Server, auf dem nie
+     * etwas zu melden war, hat hier zu Recht nichts stehen.
+     */
+    public function noticeSentAt(string $channel): ?string
+    {
+        $at = $this->read(self::NOTICE_SENT)[$channel] ?? null;
+
+        return is_string($at) ? $at : null;
+    }
+
+    /**
+     * Eine gelungene Zustellung festhalten.
+     *
+     * **Nur die gelungene.** Ein Fehlschlag schreibt hier nichts — sonst stünde
+     * neben „zuletzt erfolgreich zugestellt" ein Zeitpunkt, an dem nichts
+     * ankam, und der Satz wäre falsch, während er richtig aussieht.
+     */
+    public function saveNoticeSent(string $channel, string $at): void
+    {
+        Setting::query()->updateOrCreate(
+            ['key' => self::NOTICE_SENT],
+            ['value' => [...$this->read(self::NOTICE_SENT), $channel => $at]],
+        );
     }
 
     /** Den Zeitpunkt eines Laufs festhalten — mit dem Wert, den der Lauf trägt. */

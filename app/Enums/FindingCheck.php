@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Enums;
 
 use App\Models\Finding;
+use App\Support\Diagnose\FindingLog;
+use App\Support\Plans\Quota;
 use SrvPanel\Agent\Catalog;
 
 /**
@@ -94,6 +96,30 @@ enum FindingCheck: string
     /** Wird die Quota erzwungen. */
     case QuotaState = 'quota.state';
 
+    /**
+     * Liegt ein Abonnement über einem seiner Kontingente (B5, `docs/129 §9`).
+     *
+     * **Der Nachbar von {@see self::QuotaState} und etwas anderes als er.**
+     * Jener fragt, ob der *Server* die Quota überhaupt erzwingt; dieser, ob ein
+     * *Kunde* über seiner Grenze liegt. Beides heisst „Kontingent" und misst
+     * zwei verschiedene Dinge — deshalb zwei Prüfungen und nicht zwei Gründe
+     * derselben.
+     *
+     * **Warum das ein Befund ist und keine eigene Tabelle.** Die Zusage „ein
+     * Zustand über zwei Läufe ist eine Zeile, und was der Lauf nicht mehr
+     * nennt, ist fort" steht seit A10 in {@see FindingLog}.
+     * Genau sie braucht B5 für „genau eine Mail" — ein zweites Zustandsbuch
+     * wäre die zweite Fassung derselben Regel.
+     *
+     * **Und der Betreiber sieht es dadurch, wie es zugesagt war.**
+     * {@see Quota::TrafficGb} trägt seit P1 den Hinweis
+     * *„Die Überschreitung erscheint in der Übersicht"*. Bis B5 löste das
+     * niemand ein.
+     *
+     * > **Eine Zusage im Hinweistext ist eine Zusage.**
+     */
+    case QuotaExceeded = 'quota.exceeded';
+
     /** Gibt es den Systembenutzer eines Abonnements. */
     case SystemUser = 'system.user';
 
@@ -154,6 +180,7 @@ enum FindingCheck: string
             self::TlsFile => 'Zertifikat auf dem Datenträger',
             self::TlsWire => 'Ausgeliefertes Zertifikat',
             self::QuotaState => 'Speicherkontingent',
+            self::QuotaExceeded => 'Überschrittenes Kontingent',
             self::SystemUser => 'Systembenutzer',
             self::OrphanRow => 'Zeile ohne Gegenstand',
             self::AptKey => 'Signaturschlüssel der Paketquelle',
@@ -178,6 +205,7 @@ enum FindingCheck: string
             self::PhpFile => 'Datei',
             self::UnitState, self::UnitSchedule => 'Unit',
             self::QuotaState => 'Verzeichnis',
+            self::QuotaExceeded => 'Abonnement',
             self::SystemUser => 'Abonnement',
             self::OrphanRow => 'Zeile',
             self::AptKey => 'Schlüssel',
@@ -528,6 +556,50 @@ enum FindingCheck: string
              * jemand am Archiv war — und das gehört gemeldet —, aber es kostet
              * keine Datei.
              */
+            self::QuotaExceeded => [
+                /*
+                 * **`warn` und nicht `fail`, und das steht schon geschrieben.**
+                 * {@see \App\Support\Plans\Quota::TrafficGb} sagt es für den
+                 * Verkehr wörtlich: „Gemessen, nicht erzwungen." Für Platz und
+                 * Datenbanken gilt dasselbe — die Quota des Dateisystems ist
+                 * eine andere Wand, und ob sie steht, fragt `quota.state`.
+                 *
+                 * Ein `fail` hiesse: hier ist etwas kaputt. Kaputt ist nichts;
+                 * jemand ist über eine vereinbarte Grenze.
+                 */
+                'disk_over' => [
+                    'state' => FindingState::Warn,
+                    'text' => 'Der belegte Platz liegt über dem Kontingent des Plans.',
+                ],
+                'databases_over' => [
+                    'state' => FindingState::Warn,
+                    'text' => 'Die Datenbanken dieses Abonnements liegen zusammen über ihrem Kontingent.',
+                ],
+                'traffic_over' => [
+                    'state' => FindingState::Warn,
+                    'text' => 'Der Verkehr dieses Monats liegt über dem Kontingent.',
+                ],
+
+                /*
+                 * **Ein eigener Grund statt `unreachable`, und das ist der
+                 * Unterschied zwischen „nichts gemessen" und „eines von drei
+                 * nicht gemessen".**
+                 *
+                 * Diese Prüfung liest den eigenen Bestand; sie kann als Ganzes
+                 * nicht ausfallen. Ein Teil von ihr kann es: Welcher Monat
+                 * gerade läuft, ist eine Frage an die Zone des Servers, und die
+                 * ist im Web-Request seit `docs/108` nicht immer lesbar. Platz
+                 * und Datenbanken sind daneben trotzdem beurteilt.
+                 *
+                 * `unreachable` mit seinem Satz „Diese Prüfung ist nicht
+                 * durchgelaufen" wäre an dieser Stelle schlicht falsch.
+                 */
+                'traffic_unknown' => [
+                    'state' => FindingState::Unknown,
+                    'text' => 'Der Verkehr dieses Monats ist nicht zu beurteilen — die Zeitzone des Servers ist nicht lesbar.',
+                ],
+            ],
+
             self::BackupFile => [
                 'missing' => [
                     'state' => FindingState::Fail,

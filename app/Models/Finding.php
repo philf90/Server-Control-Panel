@@ -48,6 +48,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $detail
  * @property Carbon $first_seen_at
  * @property Carbon $measured_at
+ * @property Carbon|null $notified_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -71,7 +72,7 @@ final class Finding extends Model
     public const DETAIL_MAX = 8192;
 
     /** @var list<string> */
-    protected $fillable = ['check', 'subject', 'reason', 'detail', 'first_seen_at', 'measured_at'];
+    protected $fillable = ['check', 'subject', 'reason', 'detail', 'first_seen_at', 'measured_at', 'notified_at'];
 
     /** Das Urteil — gefragt wird die Prüfung und nicht die Zeile. */
     public function state(): FindingState
@@ -107,6 +108,7 @@ final class Finding extends Model
             'check' => FindingCheck::class,
             'first_seen_at' => 'datetime',
             'measured_at' => 'datetime',
+            'notified_at' => 'datetime',
         ];
     }
 }

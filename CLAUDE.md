@@ -5393,6 +5393,48 @@ liefert.
 
 ---
 
+## Drei Sätze aus B5 — 22. September 2026
+
+**Der erste ist eine Fundstelle und keine Regel.** `Quota::TrafficGb` trägt
+seit P1 den Hinweistext *„Gemessen, nicht erzwungen. Die Überschreitung
+erscheint in der Übersicht."* Der zweite Halbsatz ist eine Zusage an den
+Kunden, und bis B5 löste sie niemand ein — sie stand in einem Feld, das die
+Oberfläche als Hilfetext rendert, und niemand las sie als Aufgabe.
+
+> **Eine Zusage im Hinweistext ist eine Zusage.** Wer ein Merkmal baut, liest
+> die Hinweistexte seines Gegenstandes mit — dort steht, was jemand versprochen
+> hat, bevor es jemand gebaut hat.
+
+**Der zweite ist die bekannte Kommentarfalle, andersherum.**
+`ServerZoneSourceTest` liest den Quelltext **roh**; ein Satz in einem
+Dokumentblock, der den Pfad nennt, den `ServerZone` liest, gilt ihm als zweite
+Stelle. Gemeldet hat er dafür eine Testdatei, die nichts liest.
+
+> **Derselbe Kommentar, der einen Wächter fälschlich grün hält, macht eine
+> Messung fälschlich rot.**
+
+Der Satz steht seit dem 1. September hier und galt bisher für Shellskripte und
+Messvorschriften. Er gilt für Wächter über PHP genauso, sobald einer die
+Kommentare nicht abstreift — und **welche das tun, weiss man erst, wenn man
+rot ist**. Wer einen Satz schreibt, der einen verbotenen Namen nennt, prüft
+vorher, ob der zuständige Wächter `WithoutPhpComments` benutzt.
+
+**Der dritte ist ein stiller Prüfkörper, und er trifft jede Messung an einem
+Modell.** `$model->update(['spalte' => …])` auf eine Spalte, die nicht in
+`$fillable` steht, tut **wortlos nichts** — und eine Fabrik daneben setzt
+dieselbe Spalte, weil sie den Schutz umgeht. Ein Prüfstand, der den
+Ausgangszustand mit der Fabrik herstellt und ihn dann mit `update()` ändert,
+misst danach den alten Zustand.
+
+> **Ein Prüfkörper, der überspringt, meldet das Überspringen nicht.**
+
+Betroffen ist hier alles, was **gemessen** und nicht eingetippt wird:
+`disk_used_mb`, `disk_usage_measured_at`, `main_domain`. Wer einen solchen Wert
+in einem Test ändert, nimmt `forceFill(...)->save()` — oder sieht nach, ob die
+Spalte überhaupt füllbar ist.
+
+---
+
 ## Befehle
 
 ```bash

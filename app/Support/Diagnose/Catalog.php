@@ -12,6 +12,7 @@ use App\Support\Diagnose\Checks\MaintenanceFlag;
 use App\Support\Diagnose\Checks\MaintenanceWindow;
 use App\Support\Diagnose\Checks\ManagedBlocks;
 use App\Support\Diagnose\Checks\Orphans;
+use App\Support\Diagnose\Checks\QuotaOverrun;
 use App\Support\Diagnose\Checks\SystemUsers;
 use App\Support\Diagnose\Checks\Units;
 
@@ -50,6 +51,7 @@ final class Catalog
         Certificates::class,
         SystemUsers::class,
         Orphans::class,
+        QuotaOverrun::class,
         MaintenanceWindow::class,
         MaintenanceFlag::class,
     ];

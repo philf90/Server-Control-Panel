@@ -40,11 +40,13 @@ final class DomainMetric extends Model
 
     protected $fillable = ['subscription_id', 'domain_id', 'day', 'metric', 'value'];
 
+    /** @return BelongsTo<Domain, $this> */
     public function domain(): BelongsTo
     {
         return $this->belongsTo(Domain::class);
     }
 
+    /** @return BelongsTo<Subscription, $this> */
     public function subscription(): BelongsTo
     {
         return $this->belongsTo(Subscription::class);

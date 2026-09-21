@@ -1142,54 +1142,175 @@ final class BreakScriptTest extends TestCase
     {
         $script = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');
 
-        // Die Abschnitte, an ihren Überschriften getrennt. Ein Eingriff gehört
-        // zu genau einem davon.
-        $abschnitte = preg_split('/^echo "── /m', $script) ?: [];
+        /*
+         * **Gelesen werden die Paare in ihrer Reihenfolge und nicht die
+         * Abschnitte.**
+         *
+         * Hier stand `preg_split('/^echo "── /m', …)`. Das Skript trägt aber
+         * **zwei** Überschriftenformen — `── … ──` und `== … ==` —, und die
+         * zweite kam 298-mal vor: Ihre Eingriffe fielen in den Abschnitt
+         * darüber, und geprüft wurde dort nur das **erste** `vorher_datei`.
+         * Gemessen am 21. September 2026 erreichte dieser Fall **1167 von 1558**
+         * Eingriffen; **391** lagen ausserhalb.
+         *
+         * > **Eine Untergrenze, die die Mehrheit erfüllt, sieht eine zweite
+         * > Schreibweise nicht — sie zählt ja weiter genug.**
+         *
+         * Der Abschnitt war ausserdem die falsche Einheit: Einer von ihnen
+         * trägt vierunddreissig Eingriffe, und das ist beabsichtigt. Die
+         * Einheit ist das **Paar**, und Paare stehen in einer Reihenfolge.
+         */
+        preg_match_all(
+            '/^(vorher_datei|griff_datei|vorher|griff)(?=\s|$)[ \t]*(\S*)/m',
+            $script,
+            $treffer,
+            PREG_SET_ORDER,
+        );
 
+        $offen = null;
         $geprueft = 0;
+        $befunde = [];
 
-        foreach ($abschnitte as $abschnitt) {
-            $mitDatei = preg_match('/^vorher_datei\s+(\S+)/m', $abschnitt, $gemerkt) === 1;
-            $mitCss = preg_match('/^vorher\(\)|^vorher$/m', $abschnitt) === 1;
+        foreach ($treffer as $t) {
+            $helfer = $t[1];
+            $ziel = $t[2] ?? '';
 
-            if (! $mitDatei && ! $mitCss) {
+            if ($helfer === 'vorher_datei' || $helfer === 'vorher') {
+                if ($offen !== null) {
+                    $befunde[] = sprintf(
+                        '`%s%s` steht ein zweites Mal, bevor der erste Abzug geprüft wurde.',
+                        $offen[0],
+                        $offen[1] === '' ? '' : ' '.$offen[1],
+                    );
+                }
+
+                $offen = [$helfer, $ziel];
+
+                continue;
+            }
+
+            if ($offen === null) {
+                $befunde[] = sprintf('`%s` prüft einen Abzug, den niemand gemacht hat.', $helfer);
+
                 continue;
             }
 
             $geprueft++;
 
-            if ($mitDatei) {
-                $this->assertMatchesRegularExpression(
-                    '/^griff_datei\s+'.preg_quote($gemerkt[1], '/').'\s/m',
-                    $abschnitt,
-                    sprintf(
-                        'Ein Abschnitt merkt sich `%s` mit `vorher_datei` und prüft den Griff
-'.
-                        'nicht mit `griff_datei %s`.
+            $erwartet = $offen[0] === 'vorher_datei' ? 'griff_datei' : 'griff';
 
-'.
-                        '`griff` vergleicht `resources/css/app.css` gegen einen Abzug, den dieser
-'.
-                        'Abschnitt gar nicht gemacht hat — die Antwort lautet dann „Eingriff hat
-'.
-                        'nichts geändert", ganz gleich, was der Eingriff getan hat.',
-                        $gemerkt[1],
-                        $gemerkt[1],
-                    ),
+            if ($helfer !== $erwartet || ($erwartet === 'griff_datei' && $ziel !== $offen[1])) {
+                $befunde[] = sprintf(
+                    'Gemerkt wurde `%s%s`, geprüft wird `%s%s`.',
+                    $offen[0],
+                    $offen[1] === '' ? '' : ' '.$offen[1],
+                    $helfer,
+                    $ziel === '' ? '' : ' '.$ziel,
                 );
+            }
+
+            $offen = null;
+        }
+
+        $this->assertSame([], $befunde, implode("\n", array_merge(
+            ['Diese Eingriffe prüfen den Griff einer anderen Datei:'],
+            $befunde,
+            [
+                '',
+                '`griff` vergleicht `resources/css/app.css` gegen einen Abzug, den dieser',
+                'Eingriff gar nicht gemacht hat — die Antwort lautet dann „Eingriff hat',
+                'nichts geändert", ganz gleich, was der Eingriff getan hat.',
+            ],
+        )));
+
+        /*
+         * **Die Untergrenze zählt Paare.** Heissen die Helfer anders, findet
+         * dieser Wächter null und ist grün. Gemessen sind es 1558; die Grenze
+         * liegt darunter, weil sie nicht die Zahl festschreiben soll.
+         */
+        $this->assertGreaterThan(
+            1000,
+            $geprueft,
+            'Es werden kaum Paare aus Abzug und Griff gefunden. Dann liest dieser Wächter das '.
+            'Skript nicht mehr, und seine Zusage ist wertlos.',
+        );
+    }
+
+    /**
+     * Eine Überschrift, eine Form.
+     *
+     * ## Warum es diesen Wächter gibt
+     *
+     * Das Skript trug **zwei** Formen: `── … ──` und `== … ==`, die zweite
+     * 298-mal. Beide drucken, beide werden gefahren — und genau deshalb fällt
+     * die zweite niemandem auf. Gekostet hat sie die Reichweite des Wächters
+     * daneben: `test_every_intervention_checks_its_own_file` trennte an
+     * `echo "── ` und erreichte **1167 von 1558** Eingriffen.
+     *
+     * Dasselbe ist diesem Skript schon einmal passiert — `abschnitt "…"` stand
+     * am 18. September neunmal darin, und die Funktion gab es nicht. Behoben
+     * wurde es damals wie hier: **Die zweite Schreibweise verschwindet.**
+     *
+     * > **Zwei Schreibweisen für dasselbe laufen auseinander, und welche der
+     * > beiden ein Werkzeug kennt, sagt das Werkzeug nicht.**
+     *
+     * ## Gefragt wird von unten und nicht von oben
+     *
+     * „Jede `echo`-Zeile ist eine Überschrift" wäre falsch — das Skript druckt
+     * auch seine Bilanz. Gefragt wird deshalb von jedem **Eingriff** aus nach
+     * oben: Die nächste `echo "`-Zeile über ihm ist seine Überschrift, und die
+     * hat die eine Form. Damit braucht dieser Wächter keine Liste dessen, was
+     * sonst noch gedruckt wird.
+     */
+    public function test_every_heading_uses_the_one_form(): void
+    {
+        $zeilen = explode("\n", (string) file_get_contents($this->root().'/tests/waechter-brechen.sh'));
+
+        $geprueft = 0;
+        $befunde = [];
+
+        foreach ($zeilen as $nr => $zeile) {
+            if (preg_match('/^(vorher_datei|vorher)(?=\s|$)/', $zeile) !== 1) {
+                continue;
+            }
+
+            $ueberschrift = null;
+
+            for ($i = $nr - 1; $i >= 0; $i--) {
+                if (str_starts_with($zeilen[$i], 'echo "')) {
+                    $ueberschrift = $zeilen[$i];
+
+                    break;
+                }
+            }
+
+            if ($ueberschrift === null) {
+                $befunde[] = sprintf('Zeile %d: Über diesem Eingriff steht keine Überschrift.', $nr + 1);
+
+                continue;
+            }
+
+            $geprueft++;
+
+            if (preg_match('/^echo "── .* ──"$/D', $ueberschrift) !== 1) {
+                $befunde[] = sprintf('Zeile %d: %s', $i + 1, $ueberschrift);
             }
         }
 
-        /*
-         * **Die Untergrenze, und sie zählt Abschnitte mit einem Abzug.** Zieht
-         * die Form der Überschriften um oder heissen die Helfer anders, findet
-         * dieser Wächter null Abschnitte und ist grün.
-         */
+        $this->assertSame([], array_values(array_unique($befunde)), implode("\n", array_merge(
+            ['Diese Überschriften haben nicht die eine Form `echo "── … ──"`:'],
+            array_unique($befunde),
+            [
+                '',
+                'Zwei Formen laufen auseinander: Ein Werkzeug, das nur die eine kennt, liest',
+                'die Abschnitte der anderen gar nicht — und meldet trotzdem eine Zahl.',
+            ],
+        )));
+
         $this->assertGreaterThan(
-            20,
+            1000,
             $geprueft,
-            'Es werden kaum Abschnitte mit einem Abzug gefunden. Dann liest dieser Wächter das '.
-            'Skript nicht mehr, und seine Zusage ist wertlos.',
+            'Es werden kaum Eingriffe gefunden — dann prüft dieser Fall nichts.',
         );
     }
 

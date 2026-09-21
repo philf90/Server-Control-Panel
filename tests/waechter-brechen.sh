@@ -21618,7 +21618,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
 
 echo
-echo "== UnitStateTest: der Leser fuer systemctl show =="
+echo "── UnitStateTest: der Leser fuer systemctl show ──"
 #
 # Die Regeln stammen aus der Messrunde vom 30. August 2026 (docs/89), gefahren
 # gegen echtes systemd 255 in einer eigenen Namespace. Sie lassen sich hier
@@ -21643,7 +21643,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: infinity gilt als Dauer =="
+echo "── UnitStateTest: infinity gilt als Dauer ──"
 #
 # infinity ist der Wert, den systemd fuer -nie- schreibt. Wer ihn nicht
 # ausnimmt, meldet jeden Timer ohne Termin als gesund -- also genau den
@@ -21663,7 +21663,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: hasNext kennt den feuernden Timer nicht =="
+echo "── UnitStateTest: hasNext kennt den feuernden Timer nicht ──"
 #
 # Der Befund vom 13. September 2026 (docs/913 Paragraph 14): Ein Timer, der
 # gefeuert hat und dessen Unit laeuft, schreibt in beide Zeitfelder dasselbe
@@ -21694,7 +21694,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: der Pruefkoerper hoert auf zu trennen =="
+echo "── UnitStateTest: der Pruefkoerper hoert auf zu trennen ──"
 #
 # Der Waechter ueber den feuernden Timer misst nur, solange sein Pruefkoerper
 # in beiden Zeitfeldern dasselbe schreibt wie der gestoppte. Unterscheiden sie
@@ -21719,7 +21719,7 @@ pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 
 echo
-echo "== UnitStateTest: ein fehlendes Feld wird zur gemessenen Null =="
+echo "── UnitStateTest: ein fehlendes Feld wird zur gemessenen Null ──"
 #
 # Der Fehler, den dieser Leser abloest: Ein Timer beantwortet MainPID,
 # NRestarts und ExecMainStartTimestamp gar nicht, und -?? 0- machte daraus
@@ -21739,7 +21739,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: ein leerer Zeitstempel bleibt eine leere Zeichenkette =="
+echo "── UnitStateTest: ein leerer Zeitstempel bleibt eine leere Zeichenkette ──"
 vorher_datei agent/src/Units.php
 python3 - <<'PY2'
 p = 'agent/src/Units.php'
@@ -21755,7 +21755,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: die Art kommt nicht mehr aus dem Namen =="
+echo "── UnitStateTest: die Art kommt nicht mehr aus dem Namen ──"
 vorher_datei agent/src/Units.php
 python3 - <<'PY2'
 p = 'agent/src/Units.php'
@@ -21771,7 +21771,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: getrennt wird an jedem Gleichheitszeichen =="
+echo "── UnitStateTest: getrennt wird an jedem Gleichheitszeichen ──"
 #
 # Eine Description darf eines enthalten, und systemctl show maskiert nichts.
 vorher_datei agent/src/Units.php
@@ -21790,7 +21790,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: die monotone Spalte faellt aus der Abfrage =="
+echo "── UnitStateTest: die monotone Spalte faellt aus der Abfrage ──"
 #
 # Fehlte sie, stuende has_next auf einer halben Auskunft -- und zwar wortlos,
 # weil eine nicht gefragte Eigenschaft in der Ausgabe genauso fehlt wie eine,
@@ -21810,7 +21810,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: jeder Dienst gilt als von einem Timer gestartet =="
+echo "── UnitStateTest: jeder Dienst gilt als von einem Timer gestartet ──"
 #
 # Dann ist die Nachsicht keine Regel mehr, sondern eine Voreinstellung:
 # srvpanel-worker duerfte stillstehen, ohne dass es jemand meldet.
@@ -21829,7 +21829,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: kein Timer traegt seinen Dienst ein =="
+echo "── UnitStateTest: kein Timer traegt seinen Dienst ein ──"
 #
 # Die Zuordnung laeuft dann ins Leere, und jeder oneshot-Dienst steht auf einem
 # gesunden Server als gestoppt da — genau der Befund vom 31. August 2026.
@@ -21848,7 +21848,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: ein Timer bekommt false statt null =="
+echo "── UnitStateTest: ein Timer bekommt false statt null ──"
 #
 # „Wird nicht von einem Timer gestartet" und „kann gar nicht" sind zwei
 # Auskuenfte. Dieselbe Unterscheidung wie bei pid und has_next.
@@ -21869,7 +21869,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: die Abfrage nimmt TriggeredBy dazu =="
+echo "── UnitStateTest: die Abfrage nimmt TriggeredBy dazu ──"
 #
 # Gemessen: TriggeredBy entsteht beim Aktivieren des Timers und verschwindet,
 # sobald er stoppt. Wer daran zuordnet, verliert die Zuordnung mit dem Timer.
@@ -21895,7 +21895,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: die Operation paart die Zeilen nicht mehr =="
+echo "── UnitStateTest: die Operation paart die Zeilen nicht mehr ──"
 #
 # Der Leser rechnet dann weiter richtig und steht in keinem Weg. Ein Wert, den
 # niemand holt, ist von einem, den es nicht gibt, an der Anzeige nicht zu
@@ -21915,7 +21915,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: die Operation holt die Timer aus der Liste =="
+echo "── UnitStateTest: die Operation holt die Timer aus der Liste ──"
 #
 # Gemessen: Ein von Hand gestoppter Timer verschwindet aus list-timers --all
 # vollstaendig, waehrend show ihn weiter beantwortet.
@@ -21934,7 +21934,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitCatalogTest: eine eigene Unit faellt aus dem Katalog =="
+echo "── UnitCatalogTest: eine eigene Unit faellt aus dem Katalog ──"
 #
 # Bis zum 30. August standen Unitnamen in zehn Dateien, und neun der eigenen
 # zwoelf in keiner Anzeige. Der Katalog wird gegen packaging/systemd gehalten.
@@ -21953,7 +21953,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: der Katalog nennt eine Unit, die es nicht gibt =="
+echo "── UnitCatalogTest: der Katalog nennt eine Unit, die es nicht gibt ──"
 #
 # Die Gegenrichtung -- hier entsteht der tote Eintrag wirklich: Bei einer
 # Umbenennung traegt man den neuen Namen nach und der alte bleibt liegen.
@@ -21973,7 +21973,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: ssh wird steuerbar =="
+echo "── UnitCatalogTest: ssh wird steuerbar ──"
 #
 # Damit liesse sich der Zugang zum Server abschalten. SftpAccess sagt das
 # seit P6 im Kopf seiner Klasse; hier wird es gemessen.
@@ -21992,7 +21992,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: nginx gilt wieder als steuerbar =="
+echo "── UnitCatalogTest: nginx gilt wieder als steuerbar ──"
 #
 # Die andere Richtung: Was der Katalog nicht steuert, muss ServiceAction
 # ablehnen -- sonst sagen die beiden Listen Verschiedenes.
@@ -22011,7 +22011,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: die SFTP-Namen werden abgeschrieben =="
+echo "── UnitCatalogTest: die SFTP-Namen werden abgeschrieben ──"
 #
 # ssh gegen sshd ist in docs/50 gemessen und steht in SftpAccess. Eine zweite
 # Fassung daneben ist die, die veraltet.
@@ -22030,7 +22030,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: eine Unit steht zweimal im Katalog =="
+echo "── UnitCatalogTest: eine Unit steht zweimal im Katalog ──"
 
 vorher_datei agent/src/Catalog.php
 python3 - <<'PY2'
@@ -22048,7 +22048,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: die Positivliste laesst ssh durch =="
+echo "── UnitCatalogTest: die Positivliste laesst ssh durch ──"
 #
 # Der Eingriff sitzt in der Positivliste selbst und nicht im Katalog -- er
 # belegt, dass der Waechter die Durchsetzung prueft und nicht die Absicht.
@@ -22068,7 +22068,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: die Positivliste bekommt einen fremden Eintrag =="
+echo "── UnitCatalogTest: die Positivliste bekommt einen fremden Eintrag ──"
 
 vorher_datei agent/src/Ops/ServiceAction.php
 python3 - <<'PY2'
@@ -22085,7 +22085,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: die Uebersicht baut ihre Liste wieder selbst =="
+echo "── UnitCatalogTest: die Uebersicht baut ihre Liste wieder selbst ──"
 #
 # Ein Waechter ueber den Katalog allein saehe das nicht: Die Liste daneben
 # waere vollstaendig richtig -- sie waere nur eine zweite.
@@ -22108,7 +22108,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: die Datenbank gilt wieder als steuerbar =="
+echo "── UnitCatalogTest: die Datenbank gilt wieder als steuerbar ──"
 #
 # Die Ungleichheit zwischen mariadb und mysql ist der Bestand und kein Entwurf.
 # Wer sie beim Aufraeumen geradezieht, weitet eine Sicherheitsgrenze -- und
@@ -22128,7 +22128,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== ServicesViewTest: die Farbe folgt dem Zustand statt dem Termin =="
+echo "── ServicesViewTest: die Farbe folgt dem Zustand statt dem Termin ──"
 #
 # Gemessen gegen systemd 255: Der gesunde und der kaputte Timer stehen beide
 # auf active. Wer die Farbe daran haengt, malt beide gruen.
@@ -22151,7 +22151,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: kein Termin und unbekannt sehen gleich aus =="
+echo "── ServicesViewTest: kein Termin und unbekannt sehen gleich aus ──"
 #
 # Das erste ist ein Schaden, das zweite eine Luecke im Messmittel. Dieselbe
 # Zelle fuer beides machte aus jeder Luecke einen Befund.
@@ -22170,7 +22170,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: die Seite rechnet die Zeit selbst =="
+echo "── ServicesViewTest: die Seite rechnet die Zeit selbst ──"
 #
 # toLocaleString nimmt die Zone des Betrachters; die Anzeigezone steht in den
 # Einstellungen, und Clock ist die einzige Stelle, die daraus eine Anzeige macht.
@@ -22189,7 +22189,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: Dienste und Timer in einem Bereich =="
+echo "── ServicesViewTest: Dienste und Timer in einem Bereich ──"
 #
 # Ein Timer hat keine PID, keinen Neustartzaehler und keinen Startzeitpunkt.
 vorher_datei resources/js/Pages/Services/Index.vue
@@ -22211,7 +22211,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: ein wartender oneshot-Dienst wird rot =="
+echo "── ServicesViewTest: ein wartender oneshot-Dienst wird rot ──"
 #
 # Vier der eigenen zwoelf Dienste sind Type=oneshot und stehen zwischen ihren
 # Laeufen auf inactive. Ohne die Nachsicht meldet die Seite auf einem gesunden
@@ -22234,7 +22234,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: die Nachsicht steht vor dem Fehlschlag =="
+echo "── ServicesViewTest: die Nachsicht steht vor dem Fehlschlag ──"
 #
 # Dann liest sich ein gescheiterter Lauf als „wartet auf seinen Timer" — der
 # Schaden verschwindet hinter der Nachsicht, die ihn nicht meinen sollte.
@@ -22255,7 +22255,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: die Meldung zaehlt an der Farbe vorbei =="
+echo "── ServicesViewTest: die Meldung zaehlt an der Farbe vorbei ──"
 #
 # Zwei Fassungen derselben Regel: Nach der Behebung waeren vier Zeilen gruen und
 # darueber stuende weiter „4 Dienste laufen nicht".
@@ -22274,7 +22274,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: ein schweigender Agent sieht aus wie ein leerer Server =="
+echo "── ServicesViewTest: ein schweigender Agent sieht aus wie ein leerer Server ──"
 
 vorher_datei resources/js/Pages/Services/Index.vue
 python3 - <<'PY2'
@@ -22291,7 +22291,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: die Huelle verliert ihre Bedingung =="
+echo "── ServicesViewTest: die Huelle verliert ihre Bedingung ──"
 #
 # Der Zustand von vor dem 8. September: Die beiden Tabellen standen ohne
 # Bedingung da und zeigten bei totem Agenten ihre Kopfzeile ueber null Zeilen.
@@ -22310,7 +22310,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: Streifen und Huelle haengen an verschiedenen Bedingungen =="
+echo "── ServicesViewTest: Streifen und Huelle haengen an verschiedenen Bedingungen ──"
 #
 # Die gefaehrlichere Haelfte: Ein Waechter, der bloss nach einem v-if fragte,
 # bliebe hier gruen -- und die zweite Bedingung waere die, die veraltet.
@@ -22329,7 +22329,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: die Huelle steht neben den Bereichen statt um sie =="
+echo "── ServicesViewTest: die Huelle steht neben den Bereichen statt um sie ──"
 #
 # Die Bedingung ist da, sie gilt nur fuer nichts. Ein Waechter, der ihr Dasein
 # prueft statt ihres Inhalts, bliebe hier gruen.
@@ -22348,7 +22348,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: der Termin wird nicht mehr auf dem Server formatiert =="
+echo "── ServicesViewTest: der Termin wird nicht mehr auf dem Server formatiert ──"
 
 vorher_datei app/Http/Controllers/ServicesController.php
 python3 - <<'PY2'
@@ -22365,7 +22365,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== UnitStateTest: eine fehlende Unit meldet 0 Neustarts =="
+echo "── UnitStateTest: eine fehlende Unit meldet 0 Neustarts ──"
 #
 # Was systemd ueber eine Unit sagt, die es nicht gibt, ist keine Messung:
 # NRestarts steht dann auf 0, und die Seite las daraus -nie neugestartet-.
@@ -22384,7 +22384,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: eine fehlende Unit traegt ihren Namen als Beschreibung =="
+echo "── UnitStateTest: eine fehlende Unit traegt ihren Namen als Beschreibung ──"
 
 vorher_datei agent/src/Units.php
 python3 - <<'PY2'
@@ -22401,7 +22401,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== NavGroupTest: eine Einstellung kommt dazu =="
+echo "── NavGroupTest: eine Einstellung kommt dazu ──"
 #
 # Die Untergrenze: Ohne die Zahlen waeren beide Richtungen auch dann gruen,
 # wenn der Ausdruck des Lesers gar nichts faende.
@@ -22424,7 +22424,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
 
 echo
-echo "== NavGroupTest: eine Einstellung faellt weg =="
+echo "── NavGroupTest: eine Einstellung faellt weg ──"
 
 vorher_datei resources/js/Layouts/PanelLayout.vue
 python3 - <<'PY2'
@@ -22443,7 +22443,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
 
 echo
-echo "== NavGroupTest: ein fremder Punkt steht in Einstellungen =="
+echo "── NavGroupTest: ein fremder Punkt steht in Einstellungen ──"
 #
 # Die Gegenrichtung -- ohne sie wuechse die Gruppe ueber Jahre zu einem
 # zweiten Topf, genau dem, aus dem sie entstanden ist.
@@ -22463,7 +22463,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
 
 echo
-echo "== NavGroupTest: die beiden Gruppen wachsen wieder zusammen =="
+echo "── NavGroupTest: die beiden Gruppen wachsen wieder zusammen ──"
 #
 # **Zwei Haelften, und das ist der Punkt.** Der erste Wurf entfernte nur die
 # schliessende Klammer; die Gruppenzeile stand weiter da, der Leser sah weiter
@@ -22493,7 +22493,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
 
 echo
-echo "== OperationOriginTest: der Vorgang bekommt keine Herkunft mehr =="
+echo "── OperationOriginTest: der Vorgang bekommt keine Herkunft mehr ──"
 #
 # Einundzwanzig Weiterleitungen enden auf der Vorgangsseite, und bis zum
 # 31. August 2026 fuehrte von dort kein Weg zurueck. Ohne diese eine Zeile ist
@@ -22516,7 +22516,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== OperationOriginTest: die Herkunft bekommt einen Rueckfall =="
+echo "── OperationOriginTest: die Herkunft bekommt einen Rueckfall ──"
 #
 # `url()->previous()` faellt der Reihe nach auf den Referer und dann auf die
 # Wurzel zurueck. Ein Vorgang der Zertifikatsautomatik truege damit `/`, und die
@@ -22536,7 +22536,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== OperationOriginTest: die Kopfzeile heisst am anderen Ende anders =="
+echo "── OperationOriginTest: die Kopfzeile heisst am anderen Ende anders ──"
 #
 # **Die teuerste Naht dieses Merkmals.** Laufen die beiden Namen auseinander,
 # kommt nie eine Herkunft an — und ein Vorgang ohne `←` sieht aus wie einer der
@@ -22556,7 +22556,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== OperationOriginTest: eine fremde Adresse kommt als Herkunft durch =="
+echo "── OperationOriginTest: eine fremde Adresse kommt als Herkunft durch ──"
 #
 # **Gemessen am 1. September 2026** mit dem URL-Parser, den auch der Browser
 # benutzt: `/\evil.example/x` loest gegen `https://panel.example/` zu
@@ -22582,7 +22582,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OriginHeaderTest passed
 
 echo
-echo "== OriginHeaderTest: das Modell ueberschreibt eine gesetzte Herkunft =="
+echo "── OriginHeaderTest: das Modell ueberschreibt eine gesetzte Herkunft ──"
 #
 # `booted()` setzt sie nur, wenn sie leer ist. Ohne die Bedingung verloere eine
 # Stelle, die es besser weiss, ihre Angabe — und zwar wortlos.
@@ -22603,7 +22603,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OriginHeaderTest passed
 
 echo
-echo "== OperationOriginTest: die Herkunft steht da und ist keine Verknuepfung =="
+echo "── OperationOriginTest: die Herkunft steht da und ist keine Verknuepfung ──"
 #
 # Ein Pfad, der nur dasteht, ist kein Weg zurueck — er ist ein Hinweis, den man
 # abtippen muesste. Genau das war der Befund: Die Antwort auf „wie drueck ich
@@ -22628,7 +22628,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== OperationOriginTest: der Gegenstand zeigt auf eine Route, die es nicht gibt =="
+echo "── OperationOriginTest: der Gegenstand zeigt auf eine Route, die es nicht gibt ──"
 #
 # Der Fehler, den dieses Repo sechsmal eingeholt hat: eine Zeichenkette, die auf
 # etwas verweist, ohne dass ein Typ, ein Test oder ein Werkzeug den Bezug
@@ -22648,7 +22648,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== OperationOriginTest: die Seite liest den Gegenstand nicht mehr =="
+echo "── OperationOriginTest: die Seite liest den Gegenstand nicht mehr ──"
 #
 # `subject_type` und `subject_id` gab es seit dem 4. August 2026, und bis zum
 # 31. hat sie keine Oberflaeche gelesen — derselbe Fall wie `context` im
@@ -22673,7 +22673,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== ServicesViewTest: die Uebersicht druckt den Rohwert wieder =="
+echo "── ServicesViewTest: die Uebersicht druckt den Rohwert wieder ──"
 #
 # Befund 5 aus docs/91: Die Uebersicht zeigte `active`, die Dienste-Seite
 # daneben `laeuft` — zwei Seiten, ein Server, zwei Auskuenfte. `WordChoiceTest`
@@ -22694,7 +22694,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== OutcomeTest: ein Lauf ohne Anlass ist wieder ein Fehlschlag =="
+echo "── OutcomeTest: ein Lauf ohne Anlass ist wieder ein Fehlschlag ──"
 #
 # Befund 6 aus docs/91, gemessen auf cloudsrv24: Der zweite Druck auf denselben
 # Knopf meldete `fehlgeschlagen` — mit der Zahl `0` im eigenen Satz. „Nichts zu
@@ -22720,7 +22720,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OutcomeTest: die Nachsicht wieder auf einen Modus beschraenkt =="
+echo "── OutcomeTest: die Nachsicht wieder auf einen Modus beschraenkt ──"
 #
 # **Hier stand bis zum 1. September 2026 das Gegenteil.** Der Eingriff nahm die
 # Beschraenkung auf den Zaehlmodus *weg* und erwartete Rot; die Begruendung
@@ -22748,7 +22748,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OperationOriginTest: die Beschriftung traegt die ganze Frage =="
+echo "── OperationOriginTest: die Beschriftung traegt die ganze Frage ──"
 #
 # Gemessen am 31. August 2026 bei 390 px an
 # /updates?nur=sicherheit&herkunft=security.debian.org&name=linux-image-amd64:
@@ -22769,7 +22769,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== OperationOriginTest: der Verweis zeigt auf den gekuerzten Pfad =="
+echo "── OperationOriginTest: der Verweis zeigt auf den gekuerzten Pfad ──"
 #
 # Die Gegenrichtung: Wer zurueckgeht, landete dann auf einer ungefilterten
 # Liste — der Filter, den er gerade gesetzt hatte, waere fort.
@@ -22788,7 +22788,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== MobileTableTest: eine Kennung *in* der Zelle statt an ihr =="
+echo "── MobileTableTest: eine Kennung *in* der Zelle statt an ihr ──"
 #
 # Der Befund vom 31. August, 59 px bei 390 px: `table.pairs td.right.ident`
 # loest die Zelle aus ihrem `flex: none`. Eine Kennung, die nur in ihr steht,
@@ -22818,7 +22818,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MobileTableTest passed
 
 echo
-echo "== MobileTableTest: der Objektschluessel wird zur festen Klasse =="
+echo "── MobileTableTest: der Objektschluessel wird zur festen Klasse ──"
 #
 # Die andere Haelfte der Regel: Eine Zelle, die einmal einen gesprochenen Satz
 # und einmal eine Kennung zeigt, traegt `ident` an einer Bedingung. Ein festes
@@ -22842,7 +22842,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MobileTableTest passed
 
 echo
-echo "== OperationOriginTest: eine anlegende Stelle setzt die Herkunft selbst =="
+echo "── OperationOriginTest: eine anlegende Stelle setzt die Herkunft selbst ──"
 #
 # Die Gegenrichtung, und sie ist die, die am 31. August gefehlt hat. Der alte
 # Wächter fragte, ob *eine* Stelle die Herkunft setzt — und uebersah, dass es
@@ -22863,7 +22863,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== UpdateWaitTest: der Rueckgabewert kommt nicht mehr aus dem Urteil =="
+echo "── UpdateWaitTest: der Rueckgabewert kommt nicht mehr aus dem Urteil ──"
 #
 # Form A aus docs/86 §5 an der Kommandozeile: `srvpanel update && …` bekam fuer
 # ein misslungenes Update ein `ok`, weil der Befehl nur das Absetzen meldete.
@@ -22882,7 +22882,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
-echo "== UpdateWaitTest: vorgeladen wird erst nach dem Absetzen =="
+echo "── UpdateWaitTest: vorgeladen wird erst nach dem Absetzen ──"
 #
 # Die Bauvorschrift aus M1 (docs/94 §6): Nach dem Umschalten ist das
 # Fassungsverzeichnis fort, und agent/ liegt darin. Ein class_exists() danach
@@ -22909,7 +22909,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
-echo "== UpdateWaitTest: eine abgelaufene Frist gilt als Erfolg =="
+echo "── UpdateWaitTest: eine abgelaufene Frist gilt als Erfolg ──"
 #
 # Ein Rueckgabewert kennt kein „ich weiss es nicht". Er faellt zur Seite, die
 # den Aufrufer anhalten laesst — sonst macht ein Skript weiter, obwohl nichts
@@ -22932,7 +22932,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
-echo "== UpdateWaitTest: die Warteschleife kehrt zurueck, statt zu beenden =="
+echo "── UpdateWaitTest: die Warteschleife kehrt zurueck, statt zu beenden ──"
 #
 # Gemessen am 1. September 2026 auf cloudsrv24 (docs/96 §1): Nach dem
 # Symlink-Wechsel zeigt der Autolader dieses Prozesses in ein Verzeichnis, das
@@ -22953,7 +22953,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
-echo "== AptResultTest: die eigene Quelle wird erst nach dem Auffrischen gefragt =="
+echo "── AptResultTest: die eigene Quelle wird erst nach dem Auffrischen gefragt ──"
 #
 # Gemessen am 1. September 2026 auf cloudsrv24 (docs/96 §4b): Mit Enabled: no an
 # der eigenen Quelle meldete srvpanel update gruen "Es stand nichts an". Nach dem
@@ -22977,7 +22977,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
 
 echo
-echo "== AptResultTest: hitting() bekommt wieder alle Adressen =="
+echo "── AptResultTest: hitting() bekommt wieder alle Adressen ──"
 #
 # Eine abgeschaltete Stanza kann keinen Fehlschlag erzeugt haben; sie mitzufuehren
 # hiesse, in den Meldungen nach einer Quelle zu suchen, die apt nie angefasst hat.
@@ -22996,7 +22996,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
 
 echo
-echo "== SourceListTest: enabledUris uebergeht Enabled =="
+echo "── SourceListTest: enabledUris uebergeht Enabled ──"
 #
 # Ohne diese Frage zaehlt eine abgeschaltete Quelle als Adresse in Kraft — und
 # der Abbruch bliebe aus, fuer den es sie gibt.
@@ -23018,7 +23018,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
 
 echo
-echo "== UpdateWaitTest: der Vorbehalt haengt an nichts =="
+echo "── UpdateWaitTest: der Vorbehalt haengt an nichts ──"
 #
 # Gemessen am 1. September 2026 auf cloudsrv24 (docs/96 §2): Unter dem gruenen
 # "Es stand nichts an — Fassung unveraendert" stand der Satz ueber die
@@ -23038,7 +23038,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
-echo "== OutcomeTest: unchanged() sagt zu jedem Urteil ja =="
+echo "── OutcomeTest: unchanged() sagt zu jedem Urteil ja ──"
 #
 # Ein unchanged(), das immer ja sagt, naehme den Vorbehalt auch dem Lauf weg,
 # der ihn braucht — der Fehler faellt dann zur unsicheren Seite.
@@ -23057,7 +23057,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OutcomeTest: die Naht zu apt-run laeuft auseinander =="
+echo "── OutcomeTest: die Naht zu apt-run laeuft auseinander ──"
 #
 # Der Satz steht danach nur noch im Kommentar — roh gelesen faende ein Waechter
 # ihn, mit abgestreiften Kommentaren nicht. Der Fehler faellt hier zur harmlosen
@@ -23078,7 +23078,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== UpdateWaitTest: Warten ist nicht mehr die Vorgabe =="
+echo "── UpdateWaitTest: Warten ist nicht mehr die Vorgabe ──"
 #
 # Der Fall, der stillschweigend das Falsche tat, war der ohne Fahne. Eine
 # Vorgabe, die zurueckfaellt, laesst den Befund bestehen — nur mit einer Fahne
@@ -23098,7 +23098,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
-echo "== UpdateWaitTest: das Log wird erst nach dem Absetzen geleert =="
+echo "── UpdateWaitTest: das Log wird erst nach dem Absetzen geleert ──"
 #
 # **Der erste Wurf dieses Eingriffs hat gewirkt und nichts belegt.** Er schob
 # `@unlink` nur naeher an den Aufruf — textlich immer noch davor, die Regel also
@@ -23126,7 +23126,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
-echo "== OutcomeTest: eine Fortschrittszeile traegt wieder den Praefix =="
+echo "── OutcomeTest: eine Fortschrittszeile traegt wieder den Praefix ──"
 #
 # **Der Zustand vom Morgen des 1. September 2026**, wortwoertlich. `srvpanel
 # update` meldete nach zwei Sekunden „Paketlisten werden aufgefrischt." als
@@ -23153,7 +23153,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OutcomeTest: ein Urteil ohne exit =="
+echo "── OutcomeTest: ein Urteil ohne exit ──"
 #
 # Die Regel gilt in beide Richtungen: Was den Praefix traegt, beendet den Lauf.
 # Ein Urteil, das weiterlaeuft, wuerde von der naechsten Zeile ueberschrieben.
@@ -23172,7 +23172,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OutcomeTest: die Fortschrittsmeldung verschwindet ganz =="
+echo "── OutcomeTest: die Fortschrittsmeldung verschwindet ganz ──"
 #
 # Die Gegenrichtung, damit die Regel nicht auch dadurch zu erfuellen ist, dass
 # der Betreiber die Meldung gar nicht mehr sieht.
@@ -23191,7 +23191,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OutcomeTest: apt-run frischt wieder selbst auf =="
+echo "── OutcomeTest: apt-run frischt wieder selbst auf ──"
 #
 # Die dritte Richtung derselben Naht: Stuende die Meldung an beiden Stellen,
 # erschiene sie zweimal — und die zweite kaeme aus einem Lauf, der gar nicht
@@ -23212,7 +23212,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OutcomeTest: anstand wird erst nach dem Lauf gemessen =="
+echo "── OutcomeTest: anstand wird erst nach dem Lauf gemessen ──"
 #
 # **Die Reihenfolge ist die Regel.** Danach gemessen sagt `anstand` nichts
 # darueber, was vorher anstand — es waere immer 0, und jeder Lauf meldete „es
@@ -23236,7 +23236,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OutcomeTest: ansteht liest apts Klartext statt der Marke =="
+echo "── OutcomeTest: ansteht liest apts Klartext statt der Marke ──"
 #
 # **Genau der Entwurf, den Befund 2 vorschlug.** Der Satz „ist schon die neueste
 # Version" steht im Protokoll und sah nach der fehlenden Auskunft aus — apt
@@ -23258,7 +23258,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== FindingIdentityTest: first_seen_at bei jedem Lauf neu =="
+echo "── FindingIdentityTest: first_seen_at bei jedem Lauf neu ──"
 #
 # Die Kennung eines Befundes ist check+subject+reason. Bleibt first_seen_at
 # nicht stehen, zieht jeder Lauf das "steht seit" auf heute -- Punkt 8 des
@@ -23282,7 +23282,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
 
 echo
-echo "== FindingIdentityTest: der Wortlaut wird Teil der Kennung =="
+echo "── FindingIdentityTest: der Wortlaut wird Teil der Kennung ──"
 #
 # Jede [emerg]-Zeile von nginx traegt Datum und Prozessnummer, jede Zeile von
 # php-fpm ein Datum (docs/81 §2.3o M9). Gehoerte detail zur Kennung, ergaebe
@@ -23306,7 +23306,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
 
 echo
-echo "== FindingIdentityTest: eine ausgefallene Pruefung loescht =="
+echo "── FindingIdentityTest: eine ausgefallene Pruefung loescht ──"
 #
 # Die Haelfte, die still bricht. Ein Lauf, der bei einem Fehlschlag
 # "nichts gefunden" meldete, machte aus "nicht gemessen" ein "alles in
@@ -23334,7 +23334,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
 
 echo
-echo "== FindingIdentityTest: ein unbekannter Grund kommt durch =="
+echo "── FindingIdentityTest: ein unbekannter Grund kommt durch ──"
 #
 # Der Grund kommt aus dem Code, der den Befund anlegt, und nie von aussen.
 # Ein unbekannter ist ein Programmierfehler und soll einer bleiben -- sonst
@@ -23354,7 +23354,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
 
 echo
-echo "== FindingIdentityTest: ein behobener Befund bleibt stehen =="
+echo "── FindingIdentityTest: ein behobener Befund bleibt stehen ──"
 #
 # Punkt 2 des Abnahmekriteriums: Nach dem Zurueckliegen ist der Befund im
 # uebernaechsten Lauf fort. Ohne das haeuft die Seite an, was einmal war.
@@ -23373,7 +23373,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
 
 echo
-echo "== FindingIdentityTest: der Wortlaut wird nicht gekuerzt =="
+echo "── FindingIdentityTest: der Wortlaut wird nicht gekuerzt ──"
 #
 # docs/45: Die Begruendung passte nicht in ihre Spalte, die PDOException riss
 # den catch-Zweig mit, und der Vorgang meldete "vermutlich
@@ -23394,7 +23394,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
 
 echo
-echo "== DiagnoseCatalogTest: unreachable ergibt Ok =="
+echo "── DiagnoseCatalogTest: unreachable ergibt Ok ──"
 #
 # Die Regel, an der alles haengt. Ein Diagnoselauf, der bei totem Agenten
 # Entwarnung gibt, ist schlimmer als keiner (docs/44).
@@ -23416,7 +23416,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
 
 echo
-echo "== DiagnoseCatalogTest: eine Pruefung verliert ihr unreachable =="
+echo "── DiagnoseCatalogTest: eine Pruefung verliert ihr unreachable ──"
 #
 # Die Gegenrichtung. Ohne sie fiele eine neue Pruefung, die den Grund zu
 # tragen vergisst, niemandem auf -- sie meldete bei einem Ausfall nichts.
@@ -23442,7 +23442,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
 
 echo
-echo "== DiagnoseCatalogTest: ein Grund urteilt Ok =="
+echo "── DiagnoseCatalogTest: ein Grund urteilt Ok ──"
 #
 # Ein Befund ist der Ort, an dem etwas nicht stimmt. Ein Ok erzeugt keine
 # Zeile -- stuende es in der Liste, haette jemand eine Zeile gebaut, die auf
@@ -23465,7 +23465,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
 
 echo
-echo "== DiagnoseCatalogTest: ein Grund in deutscher Schreibweise =="
+echo "── DiagnoseCatalogTest: ein Grund in deutscher Schreibweise ──"
 #
 # Bezeichner sind englisch (docs/19 §4a), und der Schluessel steht im
 # unique-Index. Eine gemischte Schreibweise faellt sonst erst auf, wenn
@@ -23485,7 +23485,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
 
 echo
-echo "== DiagnoseCatalogTest: ein Satz ist keiner =="
+echo "── DiagnoseCatalogTest: ein Satz ist keiner ──"
 #
 # Der Administrator sieht subject und diesen Satz; der Wortlaut des Werkzeugs
 # bleibt dem Betreiber (docs/98 §9 Frage 5). Ein Fragment waere fuer ihn die
@@ -23505,7 +23505,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
 
 echo
-echo "== FindingStateTest: Unknown bekommt die Marke critical =="
+echo "── FindingStateTest: Unknown bekommt die Marke critical ──"
 #
 # "Nicht gemessen" ist kein Zustand, sondern eine Abwesenheit. Ein rotes
 # Signal behauptete, es sei etwas kaputt, und schickte den Betreiber auf die
@@ -23525,7 +23525,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
 
 echo
-echo "== FindingStateTest: Unknown rutscht unter Warn =="
+echo "── FindingStateTest: Unknown rutscht unter Warn ──"
 #
 # Eine Pruefung, die nicht gelaufen ist, kann alles verbergen -- auch ein
 # Fail. Sie gehoert weit nach oben und trotzdem unter das, was gemessen
@@ -23545,7 +23545,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
 
 echo
-echo "== FindingStateTest: Unknown erzeugt keine Zeile mehr =="
+echo "── FindingStateTest: Unknown erzeugt keine Zeile mehr ──"
 #
 # Der Ausfall einer Pruefung muss auf der Seite stehen. Sonst sieht er aus
 # wie Entwarnung, und das ist genau der Zustand, gegen den es den vierten
@@ -23566,7 +23566,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
 
 echo
-echo "== FindingStateTest: der Hinweis zu Unknown gibt Entwarnung =="
+echo "── FindingStateTest: der Hinweis zu Unknown gibt Entwarnung ──"
 #
 # Derselbe Satz wie bei DnsRecordState::hint(): Ein Hinweis, der bei
 # "nicht gemessen" zum Nichtstun einlaedt, ist die Fehlmeldung, gegen die es
@@ -23586,7 +23586,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
 
 echo
-echo "== FindingStateTest: die Tabelle bekommt eine state-Spalte =="
+echo "── FindingStateTest: die Tabelle bekommt eine state-Spalte ──"
 #
 # Die Schwere folgt aus check und reason. Eine Spalte daneben ist die zweite
 # Fassung derselben Regel, und die zweite ist die, die veraltet.
@@ -23607,7 +23607,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
 
 echo
-echo "== ManagedBlockIntegrityTest: der Leser uebersieht ein BEGIN ohne END =="
+echo "── ManagedBlockIntegrityTest: der Leser uebersieht ein BEGIN ohne END ──"
 #
 # Der Zustand, den Regel 5 fuer fatal erklaert, und den vor Schritt 2 nur der
 # Schreibweg sah (docs/81 §2.3o M15). Ein Leser, der ihn uebersieht, ist der
@@ -23627,7 +23627,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
 
 echo
-echo "== ManagedBlockIntegrityTest: der zweite Bereich bleibt unbemerkt =="
+echo "── ManagedBlockIntegrityTest: der zweite Bereich bleibt unbemerkt ──"
 #
 # managed() uebergeht einen zweiten Block stillschweigend (M14) -- und genau
 # so sieht ein halb durchgelaufener Schreibvorgang aus.
@@ -23646,7 +23646,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
 
 echo
-echo "== ManagedBlockIntegrityTest: ein END ohne BEGIN gilt als 'kein Bereich' =="
+echo "── ManagedBlockIntegrityTest: ein END ohne BEGIN gilt als 'kein Bereich' ──"
 #
 # Der Zustand, den BEGIN-entfernt und Marke-veraendert beide hinterlassen: Die
 # Zeilen bleiben fuer den Dienst wirksam, verwaltet werden sie von niemandem,
@@ -23666,7 +23666,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
 
 echo
-echo "== ManagedBlockIntegrityTest: die Zeilennummern zaehlen ab 0 =="
+echo "── ManagedBlockIntegrityTest: die Zeilennummern zaehlen ab 0 ──"
 #
 # Der Betreiber sucht die Zeile in seinem Editor, und without() zaehlt ab 1.
 vorher_datei agent/src/ManagedBlock.php
@@ -23684,7 +23684,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
 
 echo
-echo "== ManagedBlockIntegrityTest: der Leser liefert andere Zeilen als managed() =="
+echo "── ManagedBlockIntegrityTest: der Leser liefert andere Zeilen als managed() ──"
 #
 # Zwei Lesarten desselben Inhalts sind zwei Fassungen derselben Regel.
 vorher_datei agent/src/ManagedBlock.php
@@ -23702,7 +23702,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
 
 echo
-echo "== ManagedBlockIntegrityTest: der Leser fasst eine Datei an =="
+echo "── ManagedBlockIntegrityTest: der Leser fasst eine Datei an ──"
 #
 # Die Unterschrift nimmt einen Inhalt und keinen Pfad; wer "nur kurz" einen
 # Pfad durchreicht, hat einen zweiten Leser neben read() gebaut -- ohne Sperre.
@@ -23730,7 +23730,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
 
 echo
-echo "== ManagedBlockIntegrityTest: der Leser wirft wie der Schreiber =="
+echo "── ManagedBlockIntegrityTest: der Leser wirft wie der Schreiber ──"
 #
 # Ein Leser, der bei BEGIN ohne END wirft, ist without() mit neuem Namen --
 # und eine Diagnose, die an ihrem ersten Fund abbricht, meldet die anderen
@@ -23757,7 +23757,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
 
 echo
-echo "== ManagedBlockIntegrityTest: managed() bricht wieder am ersten END =="
+echo "── ManagedBlockIntegrityTest: managed() bricht wieder am ersten END ──"
 #
 # M22: Ein verirrtes END vor dem Bereich machte managed() leer, waehrend
 # without() den Bereich heil vorfand. PgRoleRemove haette daraus ein leeres
@@ -23781,7 +23781,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
 
 echo
-echo "== ValidatorVerdictTest: das Urteil liest 'syntax is ok' statt des Rueckgabewerts =="
+echo "── ValidatorVerdictTest: das Urteil liest 'syntax is ok' statt des Rueckgabewerts ──"
 #
 # M4: nginx schreibt 'syntax is ok' auch in einen Lauf, der mit rc=1 endet.
 # Ein Leser, der die Zeile sucht, meldet Gruen fuer einen gescheiterten Lauf.
@@ -23801,7 +23801,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ValidatorVerdictTest passed
 
 echo
-echo "== ValidatorVerdictTest: der Kanal entscheidet =="
+echo "── ValidatorVerdictTest: der Kanal entscheidet ──"
 #
 # M5: alle drei schreiben auf stderr, auch im Erfolgsfall; sshd schreibt im
 # Erfolgsfall nichts.
@@ -23821,7 +23821,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ValidatorVerdictTest passed
 
 echo
-echo "== QuotaVerdictTest: die dritte Zeile wird zur Entwarnung =="
+echo "── QuotaVerdictTest: die dritte Zeile wird zur Entwarnung ──"
 #
 # M11: Datei da, Quota aus — der Zustand, den das Panel bis A10 als
 # Entwarnung gelesen hat.
@@ -23840,7 +23840,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" QuotaVerdictTest passed
 
 echo
-echo "== QuotaVerdictTest: das Urteil traut dem Rueckgabewert von quotaon =="
+echo "── QuotaVerdictTest: das Urteil traut dem Rueckgabewert von quotaon ──"
 #
 # M10: er ist in jedem gemessenen Zustand 0.
 vorher_datei agent/src/Diagnose/Verdict.php
@@ -23863,7 +23863,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" QuotaVerdictTest passed
 
 echo
-echo "== QuotaVerdictTest: nur stdout wird gelesen =="
+echo "── QuotaVerdictTest: nur stdout wird gelesen ──"
 #
 # M10: ohne Mount-Option antwortet quotaon auf stderr.
 vorher_datei agent/src/Diagnose/Verdict.php
@@ -23881,7 +23881,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" QuotaVerdictTest passed
 
 echo
-echo "== KeyVerdictTest: ein abgelaufener Schluessel neben einem gueltigen faellt durch =="
+echo "── KeyVerdictTest: ein abgelaufener Schluessel neben einem gueltigen faellt durch ──"
 vorher_datei agent/src/Diagnose/Verdict.php
 python3 - <<'PY2'
 p = 'agent/src/Diagnose/Verdict.php'
@@ -23900,7 +23900,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" KeyVerdictTest passed
 
 echo
-echo "== DiagnoseWriteTest: die Diagnose legt /run/sshd an =="
+echo "── DiagnoseWriteTest: die Diagnose legt /run/sshd an ──"
 #
 # Die eine Zeile, die verlockend war (docs/98 §5.1).
 vorher_datei agent/src/Ops/SystemDiagnose.php
@@ -23923,7 +23923,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
 
 echo
-echo "== DiagnoseWriteTest: quotaon ohne -p =="
+echo "── DiagnoseWriteTest: quotaon ohne -p ──"
 #
 # Ohne -p schaltet quotaon die Quota ein.
 vorher_datei agent/src/Ops/SystemDiagnose.php
@@ -23941,7 +23941,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
 
 echo
-echo "== DiagnoseWriteTest: die Operation erklaert sich als schreibend =="
+echo "── DiagnoseWriteTest: die Operation erklaert sich als schreibend ──"
 vorher_datei agent/src/Ops/SystemDiagnose.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/SystemDiagnose.php'
@@ -23960,7 +23960,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
 
 echo
-echo "== DiagnoseSeamTest: der Agent spricht einen Grund aus, den das Panel nicht kennt =="
+echo "── DiagnoseSeamTest: der Agent spricht einen Grund aus, den das Panel nicht kennt ──"
 #
 # FindingLog wuerfe nachts.
 vorher_datei agent/src/Diagnose/Verdict.php
@@ -23978,7 +23978,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
 
 echo
-echo "== DiagnoseSeamTest: die Operation nimmt einen Schluessel ohne Urteil =="
+echo "── DiagnoseSeamTest: die Operation nimmt einen Schluessel ohne Urteil ──"
 vorher_datei agent/src/Ops/SystemDiagnose.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/SystemDiagnose.php'
@@ -23994,7 +23994,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
 
 echo
-echo "== SiteFileIntegrityTest: der Schnitt sieht die verschluckte Anweisung nicht =="
+echo "── SiteFileIntegrityTest: der Schnitt sieht die verschluckte Anweisung nicht ──"
 #
 # M3 Fall 1: server_name ohne Semikolon verschluckt das naechste server_name.
 # Die erste Frage ("steht sie als Anweisung da") sieht das nicht — nur die
@@ -24019,7 +24019,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
 
 echo
-echo "== SiteFileIntegrityTest: der Schnitt zaehlt Kommentare mit =="
+echo "── SiteFileIntegrityTest: der Schnitt zaehlt Kommentare mit ──"
 #
 # Ein Kommentar, der die verlorene Anweisung nennt, stellt sie wieder her —
 # derselbe Fehler wie bei OutcomeTest am 1. September, andersherum.
@@ -24038,7 +24038,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
 
 echo
-echo "== SiteFileIntegrityTest: die Operation sucht die Zeichenkette =="
+echo "── SiteFileIntegrityTest: die Operation sucht die Zeichenkette ──"
 #
 # Genau die Textsuche, die M21 gruen gezeigt hat, waehrend die Domain kein
 # Protokoll mehr schrieb.
@@ -24065,7 +24065,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
 
 echo
-echo "== SiteFileIntegrityTest: eine leere Datei gilt als heil =="
+echo "── SiteFileIntegrityTest: eine leere Datei gilt als heil ──"
 vorher_datei agent/src/Diagnose/Verdict.php
 python3 - <<'PY2'
 p = 'agent/src/Diagnose/Verdict.php'
@@ -24084,7 +24084,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
 
 echo
-echo "== PromiseReachTest: die Zusage ist groesser als die Vorlage =="
+echo "── PromiseReachTest: die Zusage ist groesser als die Vorlage ──"
 #
 # 'deny' steht nur in der ausliefernden Form. Zugesagt, meldete die Diagnose
 # jede Nacht jede gesperrte und jede weiterleitende Domain.
@@ -24103,7 +24103,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
 
 echo
-echo "== PromiseReachTest: die Zusage ist kleiner als die Vorlage =="
+echo "── PromiseReachTest: die Zusage ist kleiner als die Vorlage ──"
 #
 # access_log steht in jeder Form — nicht zugesagt, bliebe M3 Fall 2 stumm.
 vorher_datei agent/src/SiteTemplate.php
@@ -24121,7 +24121,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
 
 echo
-echo "== PromiseReachTest: die Pool-Zusage verliert die Abschottung =="
+echo "── PromiseReachTest: die Pool-Zusage verliert die Abschottung ──"
 vorher_datei agent/src/PoolTemplate.php
 python3 - <<'PY2'
 p = 'agent/src/PoolTemplate.php'
@@ -24139,7 +24139,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
 
 echo
-echo "== DiagnoseSeamTest: web.file spricht einen Grund, den das Panel nicht kennt =="
+echo "── DiagnoseSeamTest: web.file spricht einen Grund, den das Panel nicht kennt ──"
 vorher_datei agent/src/Diagnose/Verdict.php
 python3 - <<'PY2'
 p = 'agent/src/Diagnose/Verdict.php'
@@ -24155,7 +24155,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
 
 echo
-echo "== UnitVerdictTest: ein startender Dienst wird gemeldet =="
+echo "── UnitVerdictTest: ein startender Dienst wird gemeldet ──"
 #
 # Vier Type=oneshot-Dienste dieses Pakets stehen waehrend ihres Laufs auf
 # `activating`, und srvpanel-usage.timer feuert alle fuenfzehn Minuten. Als
@@ -24175,7 +24175,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitVerdictTest passed
 
 echo
-echo "== UnitVerdictTest: derselbe Schaden steht zweimal da =="
+echo "── UnitVerdictTest: derselbe Schaden steht zweimal da ──"
 #
 # Ein gestoppter Timer meldet `inactive` UND keinen Termin. Ohne den Ausstieg
 # stuende er als Zustand und als Termin da — zwei Zeilen fuer einen Schaden.
@@ -24196,7 +24196,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitVerdictTest passed
 
 echo
-echo "== UnitVerdictTest: die fremde Unit, die es nicht gibt, wird gemeldet =="
+echo "── UnitVerdictTest: die fremde Unit, die es nicht gibt, wird gemeldet ──"
 #
 # Catalog::pick() faellt auf den ersten Kandidaten zurueck: Auf einem Server ohne
 # MariaDB kaeme mariadb.service als not-found zurueck — jede Nacht.
@@ -24217,7 +24217,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitVerdictTest passed
 
 echo
-echo "== UnitVerdictTest: die Seite urteilt anders als die Nacht annimmt =="
+echo "── UnitVerdictTest: die Seite urteilt anders als die Nacht annimmt ──"
 #
 # Der Stolperdraht: Aendert sich rang(), ist zu entscheiden, ob der Nachtlauf
 # mitzieht. Ohne ihn liefen die beiden Fassungen unbemerkt auseinander.
@@ -24236,7 +24236,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitVerdictTest passed
 
 echo
-echo "== CertificateVerdictTest: die Leitung wird immer gefragt =="
+echo "── CertificateVerdictTest: die Leitung wird immer gefragt ──"
 #
 # Frage 3 aus docs/98 §9, mit c entschieden: Ein abgelaufenes Zertifikat wird
 # auch ueber die Leitung abgelaufen ausgeliefert — zwei Befunde fuer eine Ursache.
@@ -24261,7 +24261,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateVerdictTest passed
 
 echo
-echo "== CertificateVerdictTest: verglichen wird das Ablaufdatum =="
+echo "── CertificateVerdictTest: verglichen wird das Ablaufdatum ──"
 #
 # Zwei Zertifikate derselben Stunde tragen dasselbe Ablaufdatum; der
 # Fingerabdruck ist der Vergleich, den M23 belegt hat.
@@ -24280,7 +24280,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateVerdictTest passed
 
 echo
-echo "== CertificateVerdictTest: die Frist ist nicht dreissig Tage =="
+echo "── CertificateVerdictTest: die Frist ist nicht dreissig Tage ──"
 vorher_datei app/Support/Diagnose/Checks/Certificates.php
 python3 - <<'PY2'
 p = 'app/Support/Diagnose/Checks/Certificates.php'
@@ -24296,7 +24296,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateVerdictTest passed
 
 echo
-echo "== SystemUserVerdictTest: gefragt wird die Wurzel statt httpdocs =="
+echo "── SystemUserVerdictTest: gefragt wird die Wurzel statt httpdocs ──"
 #
 # Die Wurzel gehoert root:root — ihr Zugriffsbit ist der Schalter von
 # subscription.suspend. Wer sie fragt, meldet jedes Abonnement als wrong_owner.
@@ -24315,7 +24315,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SystemUserVerdictTest passed
 
 echo
-echo "== OrphanRowTest: die Reservierung selbst gilt als Rest =="
+echo "── OrphanRowTest: die Reservierung selbst gilt als Rest ──"
 #
 # system_users fuehrt jede Nummer fuer immer (docs/35). Eine Zeile ohne
 # Abonnement ist der Normalzustand nach jedem Rueckbau — gemeldet stuende sie
@@ -24335,7 +24335,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OrphanRowTest passed
 
 echo
-echo "== DiagnoseWriteTest: die Diagnose raeumt auf =="
+echo "── DiagnoseWriteTest: die Diagnose raeumt auf ──"
 #
 # docs/98 §5.1: Ein Diagnoselauf, der schreibt, ist der naechste Schreiber in
 # derselben Datei. CertificatePrune::forget() haette den Griff dafuer.
@@ -24355,7 +24355,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
 
 echo
-echo "== DiagnoseSeamTest: eine Pruefung im Panel spricht einen fremden Grund =="
+echo "── DiagnoseSeamTest: eine Pruefung im Panel spricht einen fremden Grund ──"
 vorher_datei app/Support/Diagnose/Checks/SystemUsers.php
 python3 - <<'PY2'
 p = 'app/Support/Diagnose/Checks/SystemUsers.php'
@@ -24371,7 +24371,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
 
 echo
-echo "== DiagnoseSeamTest: ein Grund im Katalog verliert seinen Sprecher =="
+echo "── DiagnoseSeamTest: ein Grund im Katalog verliert seinen Sprecher ──"
 vorher_datei app/Support/Diagnose/Checks/Units.php
 python3 - <<'PY2'
 p = 'app/Support/Diagnose/Checks/Units.php'
@@ -24387,7 +24387,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
 
 echo
-echo "== DiagnoseCatalogTest: system.user ohne unreachable und ohne Begruendung =="
+echo "── DiagnoseCatalogTest: system.user ohne unreachable und ohne Begruendung ──"
 vorher_datei tests/Unit/DiagnoseCatalogTest.php
 python3 - <<'PY2'
 p = 'tests/Unit/DiagnoseCatalogTest.php'
@@ -24404,7 +24404,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
 
 echo
-echo "== ManagedBlockDriftTest: die fremde Zeile kommt als unsere zurueck =="
+echo "── ManagedBlockDriftTest: die fremde Zeile kommt als unsere zurueck ──"
 #
 # Der Fund aus M16: Ein `host all all 0.0.0.0/0 trust` innerhalb der Marken
 # oeffnet jede Datenbank dieses Servers fuer jeden — und liest sich als unsere.
@@ -24423,7 +24423,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== ManagedBlockDriftTest: der Abgleich kennt nur eine Richtung =="
+echo "── ManagedBlockDriftTest: der Abgleich kennt nur eine Richtung ──"
 #
 # Die Haelfte, die srvpanel db im August 2026 gekostet hat: Ein gescheiterter
 # Schreibvorgang liess seine Zeile im Bestand stehen, und die Datei hatte nichts.
@@ -24442,7 +24442,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== ManagedBlockDriftTest: je Zeile ein Befund statt je Art =="
+echo "── ManagedBlockDriftTest: je Zeile ein Befund statt je Art ──"
 #
 # Die Kennung ist check+subject+reason. Drei fremde Zeilen ergaeben dreimal
 # dieselbe Kennung — und damit eine Zeile, in der nur die letzte steht.
@@ -24466,7 +24466,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== ManagedBlockDriftTest: der fehlende Block wird auch ohne Bestand gemeldet =="
+echo "── ManagedBlockDriftTest: der fehlende Block wird auch ohne Bestand gemeldet ──"
 #
 # Ein Server ohne Fernzugriff und ohne SFTP-Schluessel hat keinen Bereich in
 # diesen Dateien. Jede Nacht eine Zeile darueber ist die Falle aus docs/98 §4.
@@ -24488,7 +24488,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== ManagedBlockDriftTest: der Sollzustand wird nachgebaut =="
+echo "── ManagedBlockDriftTest: der Sollzustand wird nachgebaut ──"
 #
 # SshdConfig::lines() baut genau die Zeilen, die sftp.access schreiben wuerde.
 # Wer sie hier nachschreibt, hat eine zweite Fassung — und die veraltet.
@@ -24508,7 +24508,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== DiagnoseRunTest: eine zweite Pruefung schreibt block.integrity =="
+echo "── DiagnoseRunTest: eine zweite Pruefung schreibt block.integrity ──"
 #
 # FindingLog::replace() ersetzt alle Zeilen einer Pruefung — die zweite loeschte
 # die Befunde der ersten, und welche zuletzt liefe, entschiede die Reihenfolge.
@@ -24542,7 +24542,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
-echo "== DiagnoseSeamTest: ein sprachloser Grund steht wieder in der Ausnahmeliste =="
+echo "── DiagnoseSeamTest: ein sprachloser Grund steht wieder in der Ausnahmeliste ──"
 #
 # Die Liste ist leer, und das ist eine Aussage. Ein Eintrag darin, dessen Grund
 # einen Sprecher hat, ist genau der tote Eintrag, den sie verhindern soll.
@@ -24562,7 +24562,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
 
 echo
-echo "== ManagedBlockDriftTest: die Rolle wird am Pfad geraten =="
+echo "── ManagedBlockDriftTest: die Rolle wird am Pfad geraten ──"
 #
 # pg_hba.conf liegt nicht ueberall gleich. Ein Vergleich am Dateinamen taete bei
 # der ersten Distribution mit anderem Ablageort still das Falsche.
@@ -24582,7 +24582,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== DiagnoseWriteTest: die neue Pruefung steht nicht im Wachbereich =="
+echo "── DiagnoseWriteTest: die neue Pruefung steht nicht im Wachbereich ──"
 vorher_datei tests/Unit/DiagnoseWriteTest.php
 python3 - <<'PY2'
 p = 'tests/Unit/DiagnoseWriteTest.php'
@@ -24599,7 +24599,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
 
 echo
-echo "== DiagnoseRunTest: jede Pruefung nimmt sich ihren eigenen Zeitpunkt =="
+echo "── DiagnoseRunTest: jede Pruefung nimmt sich ihren eigenen Zeitpunkt ──"
 #
 # Dann staenden auf der Seite so viele Werte fuer "zuletzt gemessen", wie es
 # Pruefungen gibt, und sie unterschieden sich um Millisekunden.
@@ -24618,7 +24618,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
-echo "== DiagnoseRunTest: eine Ausnahme nimmt den Rest des Laufs mit =="
+echo "── DiagnoseRunTest: eine Ausnahme nimmt den Rest des Laufs mit ──"
 vorher_datei app/Support/Diagnose/Run.php
 python3 - <<'PY2'
 p = 'app/Support/Diagnose/Run.php'
@@ -24640,7 +24640,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
-echo "== DiagnoseRunTest: eine Pruefung steht nicht im Katalog =="
+echo "── DiagnoseRunTest: eine Pruefung steht nicht im Katalog ──"
 #
 # Eine Pruefung, die niemand faehrt, ist Code ohne Wirkung — und von aussen
 # nicht von einer zu unterscheiden, die es nicht gibt.
@@ -24660,7 +24660,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
-echo "== DiagnoseRunTest: der Sammelaufruf holt auch block.integrity =="
+echo "── DiagnoseRunTest: der Sammelaufruf holt auch block.integrity ──"
 #
 # FindingLog::replace() ersetzt alle Zeilen einer Pruefung. Zwei Schreiber
 # loeschten einander die Befunde weg.
@@ -24682,7 +24682,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
-echo "== DiagnoseRunTest: ein Schluessel des Agenten wird von niemandem geholt =="
+echo "── DiagnoseRunTest: ein Schluessel des Agenten wird von niemandem geholt ──"
 vorher_datei app/Support/Diagnose/Checks/Agent.php
 python3 - <<'PY2'
 p = 'app/Support/Diagnose/Checks/Agent.php'
@@ -24699,7 +24699,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
-echo "== OneshotDeadlineTest: der Nachtlauf hat keine Frist =="
+echo "── OneshotDeadlineTest: der Nachtlauf hat keine Frist ──"
 #
 # Ein Type=oneshot ohne eigene Angabe laeuft ohne Frist — gemessen auf
 # cloudsrv24: TimeoutStartUSec=infinity. Ein Haenger nimmt alle folgenden mit.
@@ -24718,7 +24718,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OneshotDeadlineTest passed
 
 echo
-echo "== UnitCatalogTest: die neuen Units stehen nicht im Katalog =="
+echo "── UnitCatalogTest: die neuen Units stehen nicht im Katalog ──"
 #
 # Dann zeigt die Dienste-Seite sie nicht — und die Diagnose saehe sich selbst
 # nicht, obwohl sie jeden anderen Timer prueft.
@@ -24739,7 +24739,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== PackagingTest: der Wrapper kennt das neue Kommando nicht =="
+echo "── PackagingTest: der Wrapper kennt das neue Kommando nicht ──"
 #
 # Auf dem Server wird daraus "Command not defined" fuer einen Namen, den die
 # Unit selbst aufruft.
@@ -24759,7 +24759,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
 
 echo
-echo "== ManagedBlockDriftTest: der Waechter sucht die Erwaehnung statt des Aufrufs =="
+echo "── ManagedBlockDriftTest: der Waechter sucht die Erwaehnung statt des Aufrufs ──"
 #
 # `Agent` nennt block.integrity, um ihn auszuschliessen. Ein Waechter, der die
 # Zeichenkette sucht, haelt das fuer einen zweiten Schreiber.
@@ -24778,7 +24778,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== ManagedBlockDriftTest: der Vergleich stolpert wieder ueber die Einrueckung =="
+echo "── ManagedBlockDriftTest: der Vergleich stolpert wieder ueber die Einrueckung ──"
 #
 # Genau der Zustand vom 3. September 2026: SshdConfig::block() rueckt den Rumpf
 # eines Match-Blocks ein, ManagedBlock::managed() gibt jede Zeile getrimmt
@@ -24803,7 +24803,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== DiagnoseWiringTest: die Naht zur Leitung ist nicht verdrahtet =="
+echo "── DiagnoseWiringTest: die Naht zur Leitung ist nicht verdrahtet ──"
 #
 # Genau der Zustand vom 3. September 2026: `Wire` war nie gebunden, und der
 # erste Lauf auf einem echten Server starb an „Target [Wire] is not
@@ -24825,7 +24825,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseWiringTest passed
 
 echo
-echo "== DiagnoseWiringTest: die Naht zur Maschine ist nicht verdrahtet =="
+echo "── DiagnoseWiringTest: die Naht zur Maschine ist nicht verdrahtet ──"
 #
 # Dieselbe Luecke eine Zeile weiter: `Host` haette den Lauf an SystemUsers
 # erwischt, wenn Certificates ihn nicht schon vorher beendet haette. Die
@@ -24847,7 +24847,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseWiringTest passed
 
 echo
-echo "== TimestampDefaultTest: die Spalte wird wieder eine timestamp =="
+echo "── TimestampDefaultTest: die Spalte wird wieder eine timestamp ──"
 #
 # Gemessen gegen MariaDB 10.11.14: Die erste TIMESTAMP NOT NULL einer Tabelle
 # bekommt ein ON UPDATE current_timestamp(), das niemand geschrieben hat — ein
@@ -24868,7 +24868,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimestampDefaultTest passed
 
 echo
-echo "== TimestampDefaultTest: ein toter Eintrag in der Ausnahmeliste =="
+echo "── TimestampDefaultTest: ein toter Eintrag in der Ausnahmeliste ──"
 #
 # Die Gegenrichtung, und die ist die, an der ein toter Eintrag wirklich
 # entsteht: Wird eine Spalte umgestellt, bleibt ihr Freibrief stehen und deckt
@@ -24890,7 +24890,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimestampDefaultTest passed
 
 echo
-echo "== DiagnosePageTest: der Administrator bekommt den Wortlaut der Werkzeuge =="
+echo "── DiagnosePageTest: der Administrator bekommt den Wortlaut der Werkzeuge ──"
 #
 # docs/98 §9 Frage 5, mit b entschieden. Der Wortlaut traegt bei php-fpm
 # Poolnamen und Pfade, bei nginx Zertifikatspfade und in einem verwalteten
@@ -24910,7 +24910,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
 
 echo
-echo "== DiagnosePageTest: der Wortlaut wird geschickt und nur ausgeblendet =="
+echo "── DiagnosePageTest: der Wortlaut wird geschickt und nur ausgeblendet ──"
 #
 # Ein v-if im Browser verbirgt den Text und schickt ihn trotzdem — er stuende
 # im Payload jeder Antwort.
@@ -24931,7 +24931,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
 
 echo
-echo "== DiagnosePageTest: die Seite steht jedem offen =="
+echo "── DiagnosePageTest: die Seite steht jedem offen ──"
 vorher_datei routes/web.php
 python3 - <<'PY2'
 p = 'routes/web.php'
@@ -24948,7 +24948,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
 
 echo
-echo "== DiagnosePageTest: der schlimmste Befund steht nicht zuerst =="
+echo "── DiagnosePageTest: der schlimmste Befund steht nicht zuerst ──"
 #
 # Wer eine Seite mit dreissig Zeilen oeffnet, liest die ersten.
 vorher_datei app/Http/Controllers/DiagnoseController.php
@@ -24966,7 +24966,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
 
 echo
-echo "== DiagnosePageTest: die leere Liste sagt nicht, ob gemessen wurde =="
+echo "── DiagnosePageTest: die leere Liste sagt nicht, ob gemessen wurde ──"
 #
 # Punkt 1 des Abnahmekriteriums haengt daran: Eine Seite, die nichts meldet,
 # muss sagen, ob sie geschwiegen oder nicht gemessen hat.
@@ -24985,7 +24985,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
 
 echo
-echo "== DiagnoseRunTest: der Lauf haelt seinen Zeitpunkt nur im Erfolgsfall fest =="
+echo "── DiagnoseRunTest: der Lauf haelt seinen Zeitpunkt nur im Erfolgsfall fest ──"
 #
 # Dann behauptete die Seite nach einer gescheiterten Pruefung, seit Tagen habe
 # niemand gemessen.
@@ -25007,7 +25007,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
-echo "== DiagnoseRunTest: eingetragen wird now() statt des Zeitpunkts der Befunde =="
+echo "── DiagnoseRunTest: eingetragen wird now() statt des Zeitpunkts der Befunde ──"
 #
 # Dann stuende neben einer Zeile von 03:00:07 ein "zuletzt gemessen 03:00:09",
 # und die beiden waeren dieselbe Messung.
@@ -25026,7 +25026,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
-echo "== DiagnoseViewTest: die Spalte zeigt den letzten Lauf statt des ersten =="
+echo "── DiagnoseViewTest: die Spalte zeigt den letzten Lauf statt des ersten ──"
 #
 # Punkt 8 des Abnahmekriteriums haengt daran: Ohne "steht seit" saehe niemand
 # mehr, wie lange etwas schon so ist.
@@ -25045,7 +25045,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
 
 echo
-echo "== DiagnoseViewTest: die leere Liste gilt vor dem ersten Lauf als Entwarnung =="
+echo "── DiagnoseViewTest: die leere Liste gilt vor dem ersten Lauf als Entwarnung ──"
 vorher_datei resources/js/Pages/Diagnose/Index.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Diagnose/Index.vue'
@@ -25066,7 +25066,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
 
 echo
-echo "== DiagnoseViewTest: der Wortlaut bricht nicht um =="
+echo "── DiagnoseViewTest: der Wortlaut bricht nicht um ──"
 #
 # Ein pre bricht von sich aus nicht; bei 390 px rollt die Zelle dann waagerecht,
 # und das Dokument meldet dafuer keine Zahl.
@@ -25086,7 +25086,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
 
 echo
-echo "== DiagnoseViewTest: die Seite misst selbst =="
+echo "── DiagnoseViewTest: die Seite misst selbst ──"
 #
 # Der Lauf hat eine Frist von 1800 Sekunden. Was so lange dauern darf, gehoert
 # an einen Timer und nicht an eine Anfrage, auf die jemand wartet.
@@ -25108,7 +25108,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
 
 echo
-echo "== SiteFileIntegrityTest: die Zusage kommt wieder aus dem Inhalt =="
+echo "── SiteFileIntegrityTest: die Zusage kommt wieder aus dem Inhalt ──"
 #
 # Die Falle vom 3. September 2026: Wer die Form aus der Datei abliest, verliert
 # die Zusage mit dem Schaden — die verschluckte Anweisung faellt aus der
@@ -25129,7 +25129,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
 
 echo
-echo "== PromiseReachTest: die Zusage einer Form ist zu klein =="
+echo "── PromiseReachTest: die Zusage einer Form ist zu klein ──"
 #
 # Die Haelfte, die den Abnahmelauf gekostet hat: Eine Zusage, die eine
 # Anweisung der Form nicht nennt, laesst genau deren Verlust durchgehen.
@@ -25148,7 +25148,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
 
 echo
-echo "== PromiseReachTest: der HSTS-Header wird zur Zusage der Form =="
+echo "── PromiseReachTest: der HSTS-Header wird zur Zusage der Form ──"
 #
 # **Dieser Eingriff hiess bis zum 4. September „add_header wird zur Zusage der
 # Form" und ist an A12 stumpf geworden** — die Wache des Wartungsmodus schreibt
@@ -25177,7 +25177,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
 
 echo
-echo "== AptKeyReadTest: gpg legt seinen Schluesselbund wieder an =="
+echo "── AptKeyReadTest: gpg legt seinen Schluesselbund wieder an ──"
 #
 # Genau der Zustand vom 3. September 2026: Ohne --no-keyring schreibt gpg eine
 # pubring.kbx in sein Heimverzeichnis — und ohne Heimverzeichnis stirbt der
@@ -25198,7 +25198,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptKeyReadTest passed
 
 echo
-echo "== AptKeyReadTest: gpg legt seine trustdb wieder an =="
+echo "── AptKeyReadTest: gpg legt seine trustdb wieder an ──"
 #
 # Die zweite Haelfte, und sie ist einzeln gemessen: --trust-model always laesst
 # die trustdb.gpg weg, --no-keyring die pubring.kbx. Ein Schalter allein genuegt
@@ -25218,7 +25218,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptKeyReadTest passed
 
 echo
-echo "== UnitTargetTest: eine Unit faellt aus dem Ziel =="
+echo "── UnitTargetTest: eine Unit faellt aus dem Ziel ──"
 #
 # Das Ziel ist der eine Griff fuer das ganze Panel. Fehlt ein Dauerdienst
 # darin, holt ein `start srvpanel.target` ihn nicht zurueck -- genau die Lage,
@@ -25238,7 +25238,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitTargetTest passed
 
 echo
-echo "== UnitTargetTest: ein Timer-Dienst steht im Ziel =="
+echo "── UnitTargetTest: ein Timer-Dienst steht im Ziel ──"
 #
 # `srvpanel-usage.service` ist `Type=oneshot` und gehoert seinem Timer. Im Ziel
 # liefe er bei jedem `systemctl start srvpanel.target` sofort los -- fuenf
@@ -25259,7 +25259,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitTargetTest passed
 
 echo
-echo "== UnitTargetTest: eine Unit gehoert nicht mehr zum Ziel =="
+echo "── UnitTargetTest: eine Unit gehoert nicht mehr zum Ziel ──"
 #
 # Die andere Haelfte: `Wants=` sagt, was das Ziel startet, `PartOf=`, was es
 # anhaelt. Ohne das zweite waere das Ziel ein Griff, der nur anschaltet.
@@ -25278,7 +25278,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitTargetTest passed
 
 echo
-echo "== UnitTargetTest: das Ziel wird nicht paketiert =="
+echo "── UnitTargetTest: das Ziel wird nicht paketiert ──"
 #
 # Eine Unit, die kein Paket ablegt, gibt es auf dem Server nicht -- und der
 # Griff waere einer, den nur dieses Repository kennt.
@@ -25299,7 +25299,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitTargetTest passed
 
 echo
-echo "== UnitTargetTest: die Installation schaltet das Ziel nicht an =="
+echo "── UnitTargetTest: die Installation schaltet das Ziel nicht an ──"
 #
 # Ohne `enable --now` meldete das Ziel `inactive`, waehrend jede seiner Units
 # laeuft -- und nach einem Neustart kaeme es gar nicht wieder.
@@ -25318,7 +25318,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitTargetTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Wache fehlt ganz =="
+echo "── MaintenanceGuardTest: die Wache fehlt ganz ──"
 #
 # Ohne sie liefe jede Domain waehrend der Wartung weiter — und nginx -t
 # saehe davon nichts (docs/81 §2.3p, M26).
@@ -25337,7 +25337,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Ausnahme steht zu spaet =="
+echo "── MaintenanceGuardTest: die Ausnahme steht zu spaet ──"
 #
 # Steht sie hinter der Entscheidung, kommt sie zu spaet: Die ACME-Pruefadresse
 # bekaeme 503, und waehrend jeder Wartung stuerbe die Zertifikatserneuerung (M24).
@@ -25358,7 +25358,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Ausnahme nennt einen eigenen Pfad =="
+echo "── MaintenanceGuardTest: die Ausnahme nennt einen eigenen Pfad ──"
 #
 # Zwei Listen, die dasselbe meinen, laufen auseinander. Zoege HttpChallenge::PREFIX
 # um, stuerbe die Erneuerung bei jeder Wartung — und kein Pruefer saehe es.
@@ -25377,7 +25377,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Wache fehlt im HTTPS-Block =="
+echo "── MaintenanceGuardTest: die Wache fehlt im HTTPS-Block ──"
 #
 # Der zweite Block ist der, an dem es haengt: Bei einer Domain mit Zertifikat
 # steht der Inhalt dort. Der einfache Fall ohne Zertifikat waere richtig.
@@ -25396,7 +25396,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Endzeit wird nicht geprueft =="
+echo "── MaintenanceGuardTest: die Endzeit wird nicht geprueft ──"
 #
 # Sie landet als Text in einer nginx-Zeichenkette. Ein Apostroph darin beendet
 # sie, und aus einer Auskunft wird eine Konfigurationszeile.
@@ -25415,7 +25415,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Wache steht in keiner Zusage =="
+echo "── MaintenanceGuardTest: die Wache steht in keiner Zusage ──"
 #
 # Dann waere eine Domain ohne Wache eine stille Luecke: nginx -t sieht sie nicht,
 # und die Bestandsdiagnose fragt die Zusage.
@@ -25434,7 +25434,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Endzeit kommt im Block nicht an =="
+echo "── MaintenanceGuardTest: die Endzeit kommt im Block nicht an ──"
 #
 # Dann stuende auf jeder Wartungsseite die Form ohne Zeitangabe — und das Feld
 # im Panel waere eine Eingabe ohne Wirkung.
@@ -25453,7 +25453,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceSwitchTest: das zweite Ausschalten bricht ab =="
+echo "── MaintenanceSwitchTest: das zweite Ausschalten bricht ab ──"
 #
 # unlink() gibt fuer eine Datei, die nicht da ist, false zurueck. Wer das fuer
 # einen Fehlschlag nimmt, macht aus dem zweiten Klick einen Abbruch.
@@ -25472,7 +25472,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
 
 echo
-echo "== MaintenanceSwitchTest: der Wahrheitswert wird nicht geprueft =="
+echo "── MaintenanceSwitchTest: der Wahrheitswert wird nicht geprueft ──"
 #
 # '0', '' und null sind in PHP alle falsch-artig: Ein leeres Feld schaltete den
 # Modus aus, ohne dass jemand das gemeint haette. Der Waechter prueft die ART
@@ -25492,7 +25492,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
 
 echo
-echo "== MaintenanceSwitchTest: die Flagdatei zieht unter /var/lib =="
+echo "── MaintenanceSwitchTest: die Flagdatei zieht unter /var/lib ──"
 #
 # Dort ist 0750 srvpanel:srvpanel, und der nginx-Worker kommt nicht hindurch
 # (docs/78). Die Wache praefte dann immer "liegt nicht", und der Schalter taete
@@ -25512,7 +25512,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
 
 echo
-echo "== MaintenanceSwitchTest: die Vorgabe weicht vom Pfad der Wache ab =="
+echo "── MaintenanceSwitchTest: die Vorgabe weicht vom Pfad der Wache ab ──"
 #
 # Zwei Listen, die dasselbe meinen, laufen auseinander: Das Panel schaltete eine
 # Datei, auf die nginx nicht sieht.
@@ -25531,7 +25531,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
 
 echo
-echo "== DateInputTest: das Datumsfeld wird wieder ein Textfeld =="
+echo "── DateInputTest: das Datumsfeld wird wieder ein Textfeld ──"
 #
 # Der gemeldete Fehler selbst: Ein `type="text"` fuer eine Form, die
 # Bindestriche braucht. Auf dem Telefon ist das Feld damit nicht ausfuellbar.
@@ -25550,7 +25550,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DateInputTest passed
 
 echo
-echo "== DateInputTest: ein Feld verlangt Datum und Uhrzeit zugleich =="
+echo "── DateInputTest: ein Feld verlangt Datum und Uhrzeit zugleich ──"
 #
 # Die Form, die kein Eingabetyp hergibt — `datetime-local` traegt ein `T` statt
 # des Leerzeichens. Sie gehoert auf zwei Felder.
@@ -25569,7 +25569,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DateInputTest passed
 
 echo
-echo "== DateInputTest: der Ausdruck ueber die Eingabefelder laeuft ins Leere =="
+echo "── DateInputTest: der Ausdruck ueber die Eingabefelder laeuft ins Leere ──"
 #
 # Die Untergrenze. Ohne sie waeren beide Pruefungen darueber gruen, ohne etwas
 # gemessen zu haben — eine Null, neben der nichts anderes als Null steht.
@@ -25588,7 +25588,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DateInputTest passed
 
 echo
-echo "== MaintenanceSeamTest: hinaus geht wieder der abgelegte Wert =="
+echo "── MaintenanceSeamTest: hinaus geht wieder der abgelegte Wert ──"
 #
 # Der zweite Befund vom 4. September: Abgelegt ist UTC mit Sekunden, der Agent
 # nimmt `Y-m-d H:i` ohne. Der abgelegte Wert kommt dort nicht durch — und waere
@@ -25608,7 +25608,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceSeamTest passed
 
 echo
-echo "== ClockTest: die Beschriftung kommt von jetzt statt vom Zeitpunkt =="
+echo "── ClockTest: die Beschriftung kommt von jetzt statt vom Zeitpunkt ──"
 #
 # Die Sommerzeit. Dieselbe Zone heisst im Januar anders als im Juli; mit `now()`
 # geben beide gemessenen Zeitpunkte denselben Wert, und einer der beiden ist
@@ -25628,7 +25628,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ClockTest passed
 
 echo
-echo "== MaintenanceSeamTest: die Zone gehoert zu einem anderen Zeitpunkt =="
+echo "── MaintenanceSeamTest: die Zone gehoert zu einem anderen Zeitpunkt ──"
 #
 # Ein fester Sommer-Zeitpunkt statt der Endzeit: Eine Endzeit im Januar bekaeme
 # damit die Abkuerzung des Sommers. Ein Bruch auf `label()` waere saisonal — er
@@ -25648,7 +25648,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceSeamTest passed
 
 echo
-echo "== MaintenanceGuardTest: der Ausdruck kennt nur die eigene Zeitzone =="
+echo "── MaintenanceGuardTest: der Ausdruck kennt nur die eigene Zeitzone ──"
 #
 # Nur Buchstaben: Colombo (+0530) und Kathmandu (+0545) waeren damit abgewiesen,
 # und der Betreiber laese eine Meldung ueber einen Programmierfehler, wo er nur
@@ -25668,7 +25668,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Zone wird ungeprueft durchgereicht =="
+echo "── MaintenanceGuardTest: die Zone wird ungeprueft durchgereicht ──"
 #
 # Sie landet als Text *in* einer nginx-Zeichenkette. Ein Apostroph darin beendet
 # sie, und aus einer Auskunft wird eine Anweisung.
@@ -25687,7 +25687,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceRoundTripTest: die Seite zeigt den abgelegten Wert =="
+echo "── MaintenanceRoundTripTest: die Seite zeigt den abgelegten Wert ──"
 #
 # Ohne die Drehung stuende auf der Seite die UTC-Zeit — der Betreiber tippt
 # 16:00 ein und liest danach 14:00.
@@ -25706,7 +25706,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceRoundTripTest passed
 
 echo
-echo "== DateInputTest: das Datumsfeld nimmt wieder die ganze Zeile =="
+echo "── DateInputTest: das Datumsfeld nimmt wieder die ganze Zeile ──"
 #
 # Gemessen bei 390 px: 358 px breit, gebraucht 176. Ein Feld mit fester
 # Zeichenzahl, das ueber die halbe Breite hinaus leer bleibt, sieht aus wie
@@ -25726,7 +25726,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DateInputTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Ausnahme fragt wieder die gerade gueltige Adresse =="
+echo "── MaintenanceGuardTest: die Ausnahme fragt wieder die gerade gueltige Adresse ──"
 #
 # Der Fund vom 4. September: `try_files ... /index.php` ist eine innere
 # Umleitung, und nginx durchlaeuft die Rewrite-Phase dabei noch einmal — mit
@@ -25746,7 +25746,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Ausnahme nennt eigene Tokenzeichen =="
+echo "── MaintenanceGuardTest: die Ausnahme nennt eigene Tokenzeichen ──"
 #
 # Zwei Ausdruecke, die dasselbe meinen, laufen auseinander — und der zweite
 # entscheidet, ob eine Erneuerung waehrend einer Wartung durchkommt.
@@ -25765,7 +25765,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== SiteFileIntegrityTest: ein Trenner versteckt sich im Anfuehrungszeichen =="
+echo "── SiteFileIntegrityTest: ein Trenner versteckt sich im Anfuehrungszeichen ──"
 #
 # Statements::nginx() zerlegt an ; { } und kennt keine Anfuehrungszeichen. Der
 # Nachtlauf meldete daraufhin erfundene Anweisungen fuer jede heile Domain.
@@ -25784,7 +25784,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
 
 echo
-echo "== MaintenanceVerdictTest: die Wache wird nicht mehr gegen die Datei gehalten =="
+echo "── MaintenanceVerdictTest: die Wache wird nicht mehr gegen die Datei gehalten ──"
 #
 # Ohne diese Pruefung sieht die Bestandsdiagnose eine halbe Wache nicht: Fehlt
 # allein die ACME-Ausnahme, meldet die Zusage je Anweisungsname nichts, und die
@@ -25804,7 +25804,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceVerdictTest passed
 
 echo
-echo "== MaintenanceVerdictTest: gezaehlt wird nicht mehr je Server-Block =="
+echo "── MaintenanceVerdictTest: gezaehlt wird nicht mehr je Server-Block ──"
 #
 # Eine Domain mit Zertifikat hat zwei Bloecke, und der Inhalt steht im zweiten.
 # Wer nur fragt "steht die Zeile irgendwo", spricht eine halbe Wache frei.
@@ -25823,7 +25823,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceVerdictTest passed
 
 echo
-echo "== MaintenanceVerdictTest: der Sollzustand wird nachgebaut =="
+echo "── MaintenanceVerdictTest: der Sollzustand wird nachgebaut ──"
 #
 # Zwei Fassungen derselben sechs Zeilen laufen auseinander — und die
 # auseinandergelaufene entscheidet dann jede Nacht ueber jede Domain.
@@ -25846,7 +25846,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceVerdictTest passed
 
 echo
-echo "== MaintenanceOverdueTest: gemessen wird wieder gegen jetzt =="
+echo "── MaintenanceOverdueTest: gemessen wird wieder gegen jetzt ──"
 #
 # Ein Lauf, der now() fragt, haengt daran, wann jemand ihn startet — und die
 # Zeile daneben ("zuletzt gemessen um …") nennt dann eine andere Messung.
@@ -25865,7 +25865,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceOverdueTest passed
 
 echo
-echo "== AnnouncementWindowTest: das Fenster rechnet in der Anzeigezone =="
+echo "── AnnouncementWindowTest: das Fenster rechnet in der Anzeigezone ──"
 #
 # Der Fehler, den docs/81 §2.3q M7 vor dem Bau gemessen hat: Rechnet der
 # Vergleich in der Anzeigezone statt in UTC, ist die Ankuendigung genau
@@ -25888,7 +25888,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementWindowTest passed
 
 echo
-echo "== AnnouncementAudienceTest: der Filter fragt das Publikum nicht =="
+echo "── AnnouncementAudienceTest: der Filter fragt das Publikum nicht ──"
 #
 # Ohne die Bedingung sieht jeder alles. Die Haelfte, die still bricht — ein
 # Hinweis zur Verwaltung stuende dann vor jedem Kunden.
@@ -25907,7 +25907,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementAudienceTest passed
 
 echo
-echo "== AnnouncementAudienceTest: die Rolle wird nicht gefragt =="
+echo "── AnnouncementAudienceTest: die Rolle wird nicht gefragt ──"
 #
 # A9 hat zwei Achsen — Typ und Rolle. Wer nur den Typ fragt, macht jeden
 # Administrator zum Betreiber und zeigt ihm, was nur dem Betreiber gilt.
@@ -25926,7 +25926,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementAudienceTest passed
 
 echo
-echo "== AnnouncementAudienceTest: die Anmeldeseite filtert die Kategorie nicht =="
+echo "── AnnouncementAudienceTest: die Anmeldeseite filtert die Kategorie nicht ──"
 #
 # Die stille Haelfte ist die, die zuviel zeigt: Was auf der Anmeldeseite
 # steht, steht vor jedem, der die Adresse kennt.
@@ -25945,7 +25945,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementAudienceTest passed
 
 echo
-echo "== AnnouncementBandTest: ein zweites Element nimmt die Rasterzeile =="
+echo "── AnnouncementBandTest: ein zweites Element nimmt die Rasterzeile ──"
 #
 # Der Befund aus docs/81 §2.3q M2 in seiner Ursache: `grid-row: 1` an
 # mehreren Geschwistern legt sie in dieselbe Zelle. Drei Baender liegen dann
@@ -25966,7 +25966,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== AnnouncementBandTest: die Klammer zaehlt nicht mehr Zeilen =="
+echo "── AnnouncementBandTest: die Klammer zaehlt nicht mehr Zeilen ──"
 #
 # M8: 40 Zeichen je Zeile bei 390 px, 160 bei 1440 px. Eine Grenze, die nicht
 # ueber Zeilen geht, ist auf zwei Breiten zwei verschiedene Grenzen.
@@ -25985,7 +25985,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== AnnouncementBandTest: ein Rang verliert seinen Rand =="
+echo "── AnnouncementBandTest: ein Rang verliert seinen Rand ──"
 #
 # M9: Die Flaeche allein traegt den Rang nicht — zwischen Warnung und Stoerung
 # liegen im hellen Thema nur DeltaE 3,8.
@@ -26005,7 +26005,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== AnnouncementBandTest: das Rangwort faellt weg =="
+echo "── AnnouncementBandTest: das Rangwort faellt weg ──"
 #
 # Farbe allein traegt fuer jemanden mit Rot-Gruen-Schwaeche gar nichts
 # (WCAG 1.4.1) — deshalb steht die Kategorie als Wort im Streifen.
@@ -26024,7 +26024,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== AnnouncementShareTest: der Verschluss wird ein fertiger Wert =="
+echo "── AnnouncementShareTest: der Verschluss wird ein fertiger Wert ──"
 #
 # M5, gemessen an den Abfragen: Ein fertiger Wert in share() laeuft auch bei
 # einem partiellen Nachladen, das ihn gar nicht mitschickt. Die Uebersicht
@@ -26044,7 +26044,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementShareTest passed
 
 echo
-echo "== AnnouncementPageTest: die Seite steht hinter manage-settings =="
+echo "── AnnouncementPageTest: die Seite steht hinter manage-settings ──"
 #
 # Der Plan hat das einmal so gesagt, mit der Begruendung „ist Text in einer
 # Tabelle". docs/20 §6.1 ordnet nach der Wirkung: kritisch ist unter anderem,
@@ -26066,7 +26066,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementPageTest passed
 
 echo
-echo "== AnnouncementPageTest: die Anmeldeseite zeigt jede Kategorie =="
+echo "── AnnouncementPageTest: die Anmeldeseite zeigt jede Kategorie ──"
 #
 # Die stille Haelfte ist die, die zuviel zeigt: Was auf der Anmeldeseite steht,
 # steht vor jedem, der die Adresse kennt.
@@ -26088,7 +26088,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementPageTest passed
 
 echo
-echo "== AnnouncementBandTest: die Meldung zieht um, das Band bleibt =="
+echo "── AnnouncementBandTest: die Meldung zieht um, das Band bleibt ──"
 #
 # Die stille Richtung. Ein Waechter, der nur `.band` liest, bleibt gruen,
 # wenn `.notice` seine Kante wechselt — und dann sagen zwei Bausteine
@@ -26111,7 +26111,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== AnnouncementBandTest: die Huelle verliert ihre Fugen =="
+echo "── AnnouncementBandTest: die Huelle verliert ihre Fugen ──"
 #
 # Ohne `display: flex` wirkt das `gap` nicht, und die Baender kleben
 # aneinander — auf einem Bild sichtbar, im Ueberlauf nicht.
@@ -26138,7 +26138,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== ButtonRowTest: zwei Knöpfe in einer Zelle ohne Reihe =="
+echo "── ButtonRowTest: zwei Knöpfe in einer Zelle ohne Reihe ──"
 #
 # Derselbe Fehler zum zweiten Mal, gefunden von derselben Person am selben
 # Server: In P5b klebten „Ergaenzen" und „Entfernen" auf der PHP-Seite
@@ -26162,7 +26162,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ButtonRowTest passed
 
 echo
-echo "== ButtonRowTest: die Reihe verliert ihre Fuge =="
+echo "── ButtonRowTest: die Reihe verliert ihre Fuge ──"
 #
 # Die andere Haelfte: Der Name allein genuegt nicht. Ohne `gap` ist die Reihe
 # keine, und die Knoepfe kleben wieder — nur steht dann ueberall das Wort.
@@ -26186,7 +26186,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ButtonRowTest passed
 
 echo
-echo "== SharedPropTest: die Seite nimmt wieder den geteilten Namen =="
+echo "── SharedPropTest: die Seite nimmt wieder den geteilten Namen ──"
 #
 # Der Befund aus dem Abnahmelauf vom 6. September: Auf /announcements zeigte
 # der Streifen alle Zeilen der Verwaltung statt der sichtbaren, weil eine
@@ -26208,7 +26208,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SharedPropTest passed
 
 echo
-echo "== SharedPropTest: der Ausdruck über Inertia::render läuft ins Leere =="
+echo "── SharedPropTest: der Ausdruck über Inertia::render läuft ins Leere ──"
 #
 # Die Untergrenze. Trifft der Ausdruck die Aufrufe nicht mehr, meldet der
 # Waechter nichts und sieht aus wie erfuellt. Gemessen: 173 Eigenschaften auf
@@ -26228,7 +26228,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SharedPropTest passed
 
 echo
-echo "== BandsHullTest: die Hülle fehlt auf der Anmeldeseite =="
+echo "── BandsHullTest: die Hülle fehlt auf der Anmeldeseite ──"
 #
 # Gemeldet hat es der Betreiber am Bild, nicht eine Messung: Das Band lag
 # buendig am Bildschirmrand statt eingerueckt. Die Huelle steht in der
@@ -26249,7 +26249,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BandsHullTest passed
 
 echo
-echo "== BandsHullTest: die Hülle verliert ihr Polster =="
+echo "── BandsHullTest: die Hülle verliert ihr Polster ──"
 #
 # Die andere Haelfte: Der Name allein genuegt nicht, die Klasse muss auch
 # mitbringen, was ihr Fehlen gekostet hat.
@@ -26280,7 +26280,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BandsHullTest passed
 
 echo
-echo "== AnnouncementPageTest: der Gast bekommt die Menge des Angemeldeten =="
+echo "── AnnouncementPageTest: der Gast bekommt die Menge des Angemeldeten ──"
 #
 # Die Leseseite liegt ausserhalb der auth-Klammer, damit der Streifen der
 # Anmeldeseite seine Stoerung zu Ende erzaehlen kann. Faellt der Gast auf
@@ -26304,7 +26304,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementPageTest passed
 
 echo
-echo "== AnnouncementWindowTest: die Leseseite antwortet mit 403 =="
+echo "── AnnouncementWindowTest: die Leseseite antwortet mit 403 ──"
 #
 # Ein 403 bestaetigt die Existenz. Wer Kennungen durchprobiert, soll nicht
 # erfahren, dass es Ankuendigung 7 gibt und sie ihn nur nichts angeht.
@@ -26323,7 +26323,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementWindowTest passed
 
 echo
-echo "== AnnouncementBandTest: das Band ist wieder ein div =="
+echo "── AnnouncementBandTest: das Band ist wieder ein div ──"
 #
 # Der Verweis sass zuerst als „mehr" am Textende, innerhalb der Zeilenklammer
 # — und wurde damit genau dann abgeschnitten, wenn der Text lang ist.
@@ -26342,7 +26342,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== AnnouncementBandTest: der Rang verliert seine Farbe an den Verweis =="
+echo "── AnnouncementBandTest: der Rang verliert seine Farbe an den Verweis ──"
 #
 # Ein <a> erbt die Linkfarbe. Der Rang steht auf drei Traegern — Flaeche, Rand,
 # Textfarbe (M9) —, und die Linkfarbe naehme ihm den dritten.
@@ -26363,7 +26363,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== AnnouncementBandTest: die Fuge steht auf null =="
+echo "── AnnouncementBandTest: die Fuge steht auf null ──"
 #
 # Die andere Haelfte derselben Regel, und die stillere: `display: flex` bleibt
 # stehen, das `gap` ist tot. Ein Eingriff, der nur die Anzeige-Eigenschaft
@@ -26385,7 +26385,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== TimeStateTest: der Leser fuer timedatectl show =="
+echo "── TimeStateTest: der Leser fuer timedatectl show ──"
 #
 # Die Pruefkoerper stammen aus der Messrunde vom 6. September 2026
 # (docs/81 §2.3r), gefahren gegen echtes systemd 255 in einer eigenen
@@ -26410,7 +26410,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
 
 echo
-echo "== TimeStateTest: der Fehlerfall traegt einen geratenen Wert =="
+echo "── TimeStateTest: der Fehlerfall traegt einen geratenen Wert ──"
 #
 # Ohne systemd als PID 1 ist stdout leer und die Auskunft steht auf stderr.
 # Ein Feld im Fehlerfall sieht aus wie ein gemessenes -- und zwar in die
@@ -26431,7 +26431,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
 
 echo
-echo "== TimeStateTest: ein unbekannter Wert wird zu false =="
+echo "── TimeStateTest: ein unbekannter Wert wird zu false ──"
 #
 # Gemessen sind ausschliesslich yes und no. Stuende dort eines Tages true,
 # machte ein Leser mit === 'yes' daraus wortlos -ausgeschaltet- und meldete
@@ -26456,7 +26456,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
 
 echo
-echo "== TimeStateTest: die Uhr wird mitgelesen =="
+echo "── TimeStateTest: die Uhr wird mitgelesen ──"
 #
 # Die Uhr des Servers ist die, unter der das Panel selbst laeuft; now() gibt
 # sie. Ein zweiter Weg zur selben Zahl waere die zweite Fassung derselben
@@ -26479,7 +26479,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
 
 echo
-echo "== TimeStateTest: CanNTP zusammengezogen =="
+echo "── TimeStateTest: CanNTP zusammengezogen ──"
 #
 # Zwei Wahrheitswerte tragen vier Zustaende. Wer sie zusammenzieht, verliert
 # genau den Fall, der eine Meldung verdient: -kein Zeitdienst installiert- ist
@@ -26500,7 +26500,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
 
 echo
-echo "== TimeStateTest: ein Grund ausserhalb der geschlossenen Menge =="
+echo "── TimeStateTest: ein Grund ausserhalb der geschlossenen Menge ──"
 #
 # Die Menge ist geschlossen, weil das Panel sie kennen muss -- dieselbe Naht,
 # die DiagnoseSeamTest fuer A10 haelt. Laeuft sie auseinander, zeigt die Seite
@@ -26520,7 +26520,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
 
 echo
-echo "== TimeStateTest: die Operation ruft status statt show =="
+echo "── TimeStateTest: die Operation ruft status statt show ──"
 #
 # status ist fuer Menschen gesetzt und beantwortet dieselbe Frage in
 # Fliesstext. Der Leser meldete die Antwort dann stumm als incomplete -- also
@@ -26541,7 +26541,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
 
 echo
-echo "== TimezoneFileTest: ein zweiter Aufrufer =="
+echo "── TimezoneFileTest: ein zweiter Aufrufer ──"
 #
 # Eine zweite Stelle waere die zweite Fassung derselben Frage, und die zweite
 # ist die, die veraltet -- derselbe Grund, aus dem HostnameSourceTest seit dem
@@ -26563,7 +26563,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== TimezoneFileTest: die Positivliste kennt den Pfad nicht =="
+echo "── TimezoneFileTest: die Positivliste kennt den Pfad nicht ──"
 #
 # Der Aufruf steht da und der Pfad fehlt: Der Agent gaebe eine Meldung ueber
 # ein unbekanntes Programm, und die Seite saehe aus, als sei timedatectl
@@ -26583,7 +26583,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== TimezoneFileTest: jemand liest die falsche Datei =="
+echo "── TimezoneFileTest: jemand liest die falsche Datei ──"
 #
 # /etc/timezone beantwortet dieselbe Frage und ist nicht die, der das System
 # folgt: timedatectl folgt dem Symlink /etc/localtime. Gemessen mit den beiden
@@ -26605,7 +26605,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== TimezoneFileTest: die Zone reist durch den Agenten =="
+echo "── TimezoneFileTest: die Zone reist durch den Agenten ──"
 #
 # Der Befund vom 6. September 2026. timedatectl liefert Timezone mit, der Plan
 # sah es in der Antwort vor -- und gebaut waere es der zweite Leser derselben
@@ -26627,7 +26627,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== TimezoneFileTest: ein zweiter Beschaffer der Zone =="
+echo "── TimezoneFileTest: ein zweiter Beschaffer der Zone ──"
 #
 # ServerTime formt und beschafft nicht. Holte es die Zone selbst, gaebe es zwei
 # Stellen, und die Zeile -jetzt auf dem Server- und die Zeile darunter koennten
@@ -26648,7 +26648,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== NtpVerdictTest: die Seite schreibt die Saetze selbst =="
+echo "── NtpVerdictTest: die Seite schreibt die Saetze selbst ──"
 #
 # Eine zweite Fassung entstuende dort, wo jemand die Anzeige anfasst, ohne
 # ServerTime zu kennen -- und sie saehe zuerst richtig aus.
@@ -26668,7 +26668,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
 
 echo
-echo "== NtpVerdictTest: die Hardware-Uhr wird gelesen und nicht gezeigt =="
+echo "── NtpVerdictTest: die Hardware-Uhr wird gelesen und nicht gezeigt ──"
 #
 # Ein Feld, das der Agent liest und keine Seite zeigt, ist von aussen nicht von
 # einem zu unterscheiden, das es nicht gibt.
@@ -26688,7 +26688,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
 
 echo
-echo "== NtpVerdictTest: beide Zeitzeilen zeigen dieselbe Zahl =="
+echo "── NtpVerdictTest: beide Zeitzeilen zeigen dieselbe Zahl ──"
 #
 # Die Bruecke ist der Grund fuer den ganzen Bereich: Die Zeit des Servers und
 # die Anzeigezeit werden sonst verwechselt.
@@ -26708,7 +26708,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
 
 echo
-echo "== ZoneLabelTest: die Beschriftung haengt an der Anzeigezone =="
+echo "── ZoneLabelTest: die Beschriftung haengt an der Anzeigezone ──"
 #
 # label() und labelAt() nageln beide auf Clock::zone(). Wer sie hier mitnimmt,
 # hat die dritte Fassung derselben Falle gebaut.
@@ -26728,7 +26728,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ZoneLabelTest passed
 
 echo
-echo "== ZoneLabelTest: der Zeitpunkt ist keine Bequemlichkeit =="
+echo "── ZoneLabelTest: der Zeitpunkt ist keine Bequemlichkeit ──"
 #
 # Berlin heisst im Januar anders als im Juli. Eine Methode, die now() einbaut,
 # ist die dritte Fassung derselben Falle (docs/102 §3b).
@@ -26748,7 +26748,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ZoneLabelTest passed
 
 echo
-echo "== ZoneLabelTest: eine zweite Fassung der Formel =="
+echo "── ZoneLabelTest: eine zweite Fassung der Formel ──"
 #
 # describe() ist die eine Stelle, durch die alle drei Wege gehen. Stuende die
 # Formel zweimal da, liefe die zweite irgendwann auseinander.
@@ -26770,7 +26770,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ZoneLabelTest passed
 
 echo
-echo "== ZoneLabelTest: isValid statt der Umrechnung =="
+echo "── ZoneLabelTest: isValid statt der Umrechnung ──"
 #
 # Etc/UTC -- der Wert, den timedatectl auf einem frischen Server liefert --
 # steht nicht in DateTimeZone::listIdentifiers(). isValid() ist der Pruefer
@@ -26799,7 +26799,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ZoneLabelTest passed
 
 echo
-echo "== NtpVerdictTest: die beiden Zeitzeilen in zwei Formen =="
+echo "── NtpVerdictTest: die beiden Zeitzeilen in zwei Formen ──"
 #
 # Befund der Bilderrunde vom 6. September 2026. Der erste Wurf zeigte oben H:i
 # und unten H:i:s -- die Zeile darueber war die Antwort, die Zeile darunter die
@@ -26820,7 +26820,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
 
 echo
-echo "== NtpVerdictTest: die Beschriftung gilt fuer jetzt statt fuer den Zeitpunkt =="
+echo "── NtpVerdictTest: die Beschriftung gilt fuer jetzt statt fuer den Zeitpunkt ──"
 #
 # Berlin heisst im Januar anders als im Juli. Eine Zonenangabe, die fuer -jetzt-
 # gilt, gehoert nicht neben einen Zeitpunkt, der woanders liegt (docs/102 §3b).
@@ -26840,7 +26840,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
 
 echo
-echo "== TimezoneFileTest: der stille Rueckfall auf UTC kommt zurueck =="
+echo "── TimezoneFileTest: der stille Rueckfall auf UTC kommt zurueck ──"
 #
 # Der Befund vom 7. September 2026 auf cloudsrv24. current() nahm bei einem
 # unlesbaren Symlink UTC -- -die harmloseste Vertretung-. Auf einem Server in
@@ -26862,7 +26862,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== TimezoneFileTest: current() kann kein -ich weiss es nicht- tragen =="
+echo "── TimezoneFileTest: current() kann kein -ich weiss es nicht- tragen ──"
 #
 # Ein Rueckgabewert, der null tragen kann, zwingt jeden Aufrufer zur
 # Entscheidung. Genau das fehlte ein Jahr lang.
@@ -26881,7 +26881,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== TimezoneFileTest: Occurrence rechnet ohne Zone weiter =="
+echo "── TimezoneFileTest: Occurrence rechnet ohne Zone weiter ──"
 #
 # Gemessen an der Wirkung, durch dieselbe Schranke wie auf dem Server: ein
 # Unterprozess mit open_basedir ohne den Pfad. Kommt dabei eine Faelligkeit
@@ -26905,7 +26905,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== TimezoneFileTest: ServerTime beschafft die Zone selbst =="
+echo "── TimezoneFileTest: ServerTime beschafft die Zone selbst ──"
 #
 # Diese Klasse formt und beschafft nicht. Holte sie die Zone, liesse sich
 # -nicht ablesbar- nur auf einem Rechner mit kaputtem Symlink messen.
@@ -26925,7 +26925,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== ServerZoneSourceTest: die Seite liest die Faelligkeit wieder =="
+echo "── ServerZoneSourceTest: die Seite liest die Faelligkeit wieder ──"
 #
 # Der Rest des Befundes vom 7. September 2026. Die Zone war behoben, und die
 # Cronseite zeigte trotzdem weiter 05:15 fuer einen Job um 03:15: next_due
@@ -26946,7 +26946,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServerZoneSourceTest passed
 
 echo
-echo "== ServerZoneSourceTest: ein Schreiber der Faelligkeit kommt zurueck =="
+echo "── ServerZoneSourceTest: ein Schreiber der Faelligkeit kommt zurueck ──"
 #
 # Ein Wert, der aus -jetzt- folgt und abgelegt wird, ist ab dem naechsten
 # Augenblick falsch -- die Frage ist nur, wie schnell es auffaellt.
@@ -26965,7 +26965,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServerZoneSourceTest passed
 
 echo
-echo "== PortStateTest: der Leser schneidet nach Spaltenbreite =="
+echo "── PortStateTest: der Leser schneidet nach Spaltenbreite ──"
 #
 # Die Ausgabe von ss richtet sich an ihrer laengsten Zeile aus, und die aendert
 # sich mit dem Bestand. Ein Leser, der ab einer festen Stelle schneidet, trifft
@@ -26986,7 +26986,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PortStateTest passed
 
 echo
-echo "== PortStateTest: die leere Prozessspalte wird zu -niemand- =="
+echo "── PortStateTest: die leere Prozessspalte wird zu -niemand- ──"
 #
 # M4 der Messrunde: ohne root gibt ss dieselben Zeilen, rc=0, und laesst die
 # Spalte wortlos leer. Wer sie ohne Ruecksicht auf die Rechte liest, macht aus
@@ -27007,7 +27007,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PortStateTest passed
 
 echo
-echo "== PortStateTest: der Fehlerfall traegt eine leere Liste =="
+echo "── PortStateTest: der Fehlerfall traegt eine leere Liste ──"
 #
 # Eine leere Liste neben rc=255 waere die Aussage -nichts lauscht-.
 vorher_datei agent/src/PortState.php
@@ -27026,7 +27026,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PortStateTest passed
 
 echo
-echo "== PortStateTest: der Port wird von links getrennt =="
+echo "── PortStateTest: der Port wird von links getrennt ──"
 #
 # Eine IPv6-Adresse traegt selbst Doppelpunkte. Von links getrennt wird aus
 # [::]:80 der Port -- keine Zahl, und die Zeile faellt aus.
@@ -27046,7 +27046,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PortStateTest passed
 
 echo
-echo "== PortStateTest: die Operation fragt ohne -H =="
+echo "── PortStateTest: die Operation fragt ohne -H ──"
 #
 # Ohne -H steht die Kopfzeile in der Ausgabe, und in ihr klebt
 # -Peer Address:PortProcess- ohne Leerzeichen (M1).
@@ -27066,7 +27066,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PortStateTest passed
 
 echo
-echo "== FilterVerdictTest: nur nftables wird gefragt =="
+echo "── FilterVerdictTest: nur nftables wird gefragt ──"
 #
 # M10 der Messrunde: Ein Regelwerk ueber iptables-legacy ist fuer nft
 # unsichtbar, und nft antwortet dabei mit rc=0 und nichts -- also der Antwort
@@ -27087,7 +27087,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FilterVerdictTest passed
 
 echo
-echo "== FilterVerdictTest: konfiguriert haengt an der Zeilenzahl =="
+echo "── FilterVerdictTest: konfiguriert haengt an der Zeilenzahl ──"
 #
 # Der erste Entwurf sagte -lines > 3-. M11b hat gemessen, dass das falsch ist:
 # -P INPUT DROP ohne eine Regel gibt ebenfalls drei Zeilen und sperrt alles.
@@ -27121,7 +27121,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FilterVerdictTest passed
 
 echo
-echo "== FilterVerdictTest: nicht lesbar wird zu -keiner- =="
+echo "── FilterVerdictTest: nicht lesbar wird zu -keiner- ──"
 #
 # Wer nft nicht lesen durfte (M8), weiss nicht, ob dort etwas steht.
 vorher_datei agent/src/FilterState.php
@@ -27140,7 +27140,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FilterVerdictTest passed
 
 echo
-echo "== FilterVerdictTest: firewalld wird am Rueckgabewert gewertet =="
+echo "── FilterVerdictTest: firewalld wird am Rueckgabewert gewertet ──"
 #
 # M15: vier gemessene Ausgaenge, drei davon beantworten die Frage nicht.
 vorher_datei agent/src/FilterState.php
@@ -27159,7 +27159,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FilterVerdictTest passed
 
 echo
-echo "== FilterVerdictTest: die Sichtbarkeit vor der Zustaendigkeit =="
+echo "── FilterVerdictTest: die Sichtbarkeit vor der Zustaendigkeit ──"
 #
 # Bei aktivem ufw stehen table ip filter und ip6 filter da (M19). Wer zuerst
 # nach der Sichtbarkeit fragt, nennt dort nftables -- richtig beobachtet und
@@ -27200,7 +27200,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FilterVerdictTest passed
 
 echo
-echo "== ReachabilityWordTest: die Seite behauptet Erreichbarkeit =="
+echo "── ReachabilityWordTest: die Seite behauptet Erreichbarkeit ──"
 #
 # Die tragende Regel des ersten Wurfs von A3. Gemessen (M20) ist der Blick von
 # innen Feld fuer Feld derselbe, ob eine Sperre davorsteht oder nicht -- eine
@@ -27221,7 +27221,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ReachabilityWordTest passed
 
 echo
-echo "== ReachabilityWordTest: der Satz ueber das Unbekannte faellt weg =="
+echo "── ReachabilityWordTest: der Satz ueber das Unbekannte faellt weg ──"
 #
 # Keinmal waere er eine stille Zusage: Die Seite zeigt Ports und sagt nicht,
 # dass sie ueber den Weg von aussen nichts weiss.
@@ -27240,7 +27240,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ReachabilityWordTest passed
 
 echo
-echo "== ReachabilityWordTest: ein Rohwert des Agenten steht auf der Seite =="
+echo "── ReachabilityWordTest: ein Rohwert des Agenten steht auf der Seite ──"
 #
 # -any-, -loopback- und -specific- sind Werte des Agenten. Derselbe Befund wie
 # -active- auf der Uebersicht (docs/91 Befund 5).
@@ -27260,7 +27260,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ReachabilityWordTest passed
 
 echo
-echo "== ManagerVocabularyTest: der Agent kann ein Wort mehr =="
+echo "── ManagerVocabularyTest: der Agent kann ein Wort mehr ──"
 #
 # Dieselbe Naht wie DiagnoseSeamTest: Kommt im Agenten ein Schluessel dazu, den
 # die Seite nicht kennt, steht dort ein englischer Rohwert -- oder -nicht
@@ -27281,7 +27281,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagerVocabularyTest passed
 
 echo
-echo "== ManagerVocabularyTest: ein toter Eintrag auf der Seite =="
+echo "── ManagerVocabularyTest: ein toter Eintrag auf der Seite ──"
 #
 # So entsteht er wirklich: bei einer Umbenennung traegt man den neuen Namen
 # nach, die erste Richtung ist wieder gruen, und der alte bleibt liegen.
@@ -27301,7 +27301,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagerVocabularyTest passed
 
 echo
-echo "== PortAbilityTest: der Filter laesst den Namen stehen =="
+echo "── PortAbilityTest: der Filter laesst den Namen stehen ──"
 #
 # Der Prozessname gehoert dem Betreiber (docs/109 §2, Frage 2). Bleibt er in
 # der Nutzlast, reist er zu jedem Betrachter, der die Antwort ansieht.
@@ -27321,7 +27321,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PortAbilityTest passed
 
 echo
-echo "== PortAbilityTest: privileged bleibt stehen =="
+echo "── PortAbilityTest: privileged bleibt stehen ──"
 #
 # Es sagt, ob der Agent nachsehen durfte. Bleibt es auf true, macht die Seite
 # daraus -keiner sichtbar- -- eine Aussage ueber den Server, wo eine ueber den
@@ -27342,7 +27342,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PortAbilityTest passed
 
 echo
-echo "== PortAbilityTest: die Vorlage entscheidet ueber den Namen =="
+echo "── PortAbilityTest: die Vorlage entscheidet ueber den Namen ──"
 #
 # Ein v-if auf die Faehigkeit ist die zweite Fassung derselben Regel -- und sie
 # stuende hinter der Nutzlast, in der der Name dann trotzdem reist.
@@ -27367,7 +27367,7 @@ pruefe "  … zurückgesetzt wieder grün" PortAbilityTest passed
 # ═══════════════════════════════════════════════════════════════════════════
 
 echo
-echo "== CronTableTest: getrennt wird an einem Leerzeichen =="
+echo "── CronTableTest: getrennt wird an einem Leerzeichen ──"
 #
 # Gemessen: /etc/crontab setzt seine Felder mit Tabulatoren, /etc/cron.d/php mit
 # mehreren Leerzeichen. Wer eines von beiden voraussetzt, liest die andere Datei
@@ -27388,7 +27388,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronTableTest passed
 
 echo
-echo "== CronTableTest: die @-Form bekommt fuenf Zeitfelder =="
+echo "── CronTableTest: die @-Form bekommt fuenf Zeitfelder ──"
 #
 # @daily root /bin/backup traegt ein Zeitfeld und nicht fuenf (M4). In fuenf
 # zerlegt steht der Benutzer als Tag des Monats da, und das Kommando fehlt.
@@ -27408,7 +27408,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronTableTest passed
 
 echo
-echo "== CronTableTest: eine Zuweisung wird zur Zeile =="
+echo "── CronTableTest: eine Zuweisung wird zur Zeile ──"
 #
 # SHELL=/bin/sh stuende dann als Zeitplan mit vier Feldern in der Tabelle.
 vorher_datei agent/src/CronState.php
@@ -27427,7 +27427,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronTableTest passed
 
 echo
-echo "== RunPartsSeamTest: volle Pfade gegen Namen gehalten =="
+echo "── RunPartsSeamTest: volle Pfade gegen Namen gehalten ──"
 #
 # run-parts --test gibt volle Pfade aus. Ohne basename() meldet jeder Lauf jedes
 # Skript als uebergangen -- und das saehe aus wie ein Befund ueber den Server.
@@ -27447,7 +27447,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RunPartsSeamTest passed
 
 echo
-echo "== RunPartsSeamTest: die versteckte Datei zaehlt mit =="
+echo "── RunPartsSeamTest: die versteckte Datei zaehlt mit ──"
 #
 # .placeholder liegt in jedem cron.*-Verzeichnis und gehoert zum Paket (M5).
 # Mitgezaehlt meldet der Bereich -Uebergangen- auf jedem heilen Server fuenf
@@ -27468,7 +27468,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RunPartsSeamTest passed
 
 echo
-echo "== RunPartsSeamTest: nach dem Verzeichnis wird nicht gefragt =="
+echo "── RunPartsSeamTest: nach dem Verzeichnis wird nicht gefragt ──"
 #
 # Als root gibt is_executable() fuer JEDES Verzeichnis true (gemessen, 0644 wie
 # 0755) -- ohne diese Frage faellt ein Unterverzeichnis durch beide Zweige und
@@ -27490,7 +27490,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RunPartsSeamTest passed
 
 echo
-echo "== RunPartsSeamTest: ein stummes run-parts meldet leere Listen =="
+echo "── RunPartsSeamTest: ein stummes run-parts meldet leere Listen ──"
 #
 # Wer nicht weiss, was laeuft, weiss auch nicht, was nicht laeuft. Eine leere
 # Liste sagt -nichts gefunden-, und das ist etwas anderes als -nicht gefragt-.
@@ -27510,7 +27510,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RunPartsSeamTest passed
 
 echo
-echo "== CronScheduleTest: der anacron-Vorbehalt faellt weg =="
+echo "── CronScheduleTest: der anacron-Vorbehalt faellt weg ──"
 #
 # Mit anacron tut cron fuer daily, weekly und monthly gar nichts. Ein Zeitpunkt
 # ohne den Vorbehalt ist auf jedem Server mit anacron falsch.
@@ -27530,7 +27530,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronScheduleTest passed
 
 echo
-echo "== CronScheduleTest: der Zeitplan gilt immer als bekannt =="
+echo "── CronScheduleTest: der Zeitplan gilt immer als bekannt ──"
 #
 # Eine Null, die -nicht nachgesehen- bedeutet, sieht aus wie -nichts zu tun-.
 # cron.yearly und eine unlesbare /etc/crontab liefern beide schedule: null.
@@ -27550,7 +27550,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronScheduleTest passed
 
 echo
-echo "== CronNameRuleTest: die Schreibseite bekommt ihre eigene Fassung zurueck =="
+echo "── CronNameRuleTest: die Schreibseite bekommt ihre eigene Fassung zurueck ──"
 #
 # Zwei Fassungen derselben Regel sind zwei, und die zweite ist die, die
 # veraltet.
@@ -27570,7 +27570,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronNameRuleTest passed
 
 echo
-echo "== CronNameRuleTest: die Leseseite baut die Regel nach =="
+echo "── CronNameRuleTest: die Leseseite baut die Regel nach ──"
 #
 # Dieselbe Regel, andere Richtung -- und diesmal in der Datei, die A6 neu
 # gebracht hat.
@@ -27590,7 +27590,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronNameRuleTest passed
 
 echo
-echo "== CronPayloadTest: der Menuepunkt bekommt eine andere Faehigkeit =="
+echo "── CronPayloadTest: der Menuepunkt bekommt eine andere Faehigkeit ──"
 #
 # Ein Eintrag, den der Betrachter sieht und der ihm einen 403 gibt.
 vorher_datei resources/js/Layouts/PanelLayout.vue
@@ -27609,7 +27609,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
-echo "== CronPayloadTest: der Leser traegt das Praefix woertlich =="
+echo "── CronPayloadTest: der Leser traegt das Praefix woertlich ──"
 #
 # Dieselbe Regel an drei Orten -- und beim naechsten Umbenennen zieht nur einer
 # mit.
@@ -27629,7 +27629,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
-echo "== CronPayloadTest: der Bereich -Uebergangen- steht immer da =="
+echo "── CronPayloadTest: der Bereich -Uebergangen- steht immer da ──"
 #
 # Leer waere er eine Beruhigung, die niemand bestellt hat.
 vorher_datei resources/js/Pages/Schedules/Index.vue
@@ -27648,7 +27648,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
-echo "== UnknownStateTest: der Gegenzweig faellt weg =="
+echo "── UnknownStateTest: der Gegenzweig faellt weg ──"
 #
 # Gemessen auf cloudsrv24 (docs/114 §6): Bei angehaltenem Agenten stand unter
 # der Ueberschrift "Regelwerk" nichts -- die Konsole druckte
@@ -27673,7 +27673,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnknownStateTest passed
 
 echo
-echo "== UnknownStateTest: der Gegenzweig sagt -keine Regeln- =="
+echo "── UnknownStateTest: der Gegenzweig sagt -keine Regeln- ──"
 #
 # "Keine Regeln" ist eine Aussage ueber den Server; gefragt war eine ueber den
 # Aufruf.
@@ -27693,7 +27693,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnknownStateTest passed
 
 echo
-echo "== AgentMessageTest: der Einbetter setzt wieder einen Punkt =="
+echo "── AgentMessageTest: der Einbetter setzt wieder einen Punkt ──"
 #
 # Der erste Wurf dieses Waechters blieb hier gruen: Sein Ausdruck vertrug kein
 # `}` in der Mitte der Klammer und uebersprang ausgerechnet diese Stelle.
@@ -27713,7 +27713,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AgentMessageTest passed
 
 echo
-echo "== AgentMessageTest: eine Meldung verliert ihren Schlusspunkt =="
+echo "── AgentMessageTest: eine Meldung verliert ihren Schlusspunkt ──"
 #
 # Die andere Richtung: Ohne sie duerfte jemand die Schlusszeichen aus Client
 # entfernen, und alle zehn Einbettungen endeten ohne Punkt.
@@ -27733,7 +27733,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AgentMessageTest passed
 
 echo
-echo "== CronPayloadTest: die Bereiche stehen ohne Bedingung da =="
+echo "── CronPayloadTest: die Bereiche stehen ohne Bedingung da ──"
 #
 # Gemessen im Abnahmelauf (docs/113 §9.3): Bei angehaltenem Agenten standen
 # beide Bereiche mit ihrer Kopfzeile ueber null Zeilen -- "ich weiss es nicht"
@@ -27754,7 +27754,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
-echo "== CronPayloadTest: Streifen und Bereiche haengen an verschiedenen Bedingungen =="
+echo "── CronPayloadTest: Streifen und Bereiche haengen an verschiedenen Bedingungen ──"
 #
 # Die gefaehrlichere Haelfte: Ein Waechter, der bloss nach einem v-if fragte,
 # bliebe hier gruen -- und die zweite Bedingung waere eine zweite Fassung
@@ -27775,7 +27775,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
-echo "== CronPayloadTest: der Streifen verliert seine Bedingung =="
+echo "── CronPayloadTest: der Streifen verliert seine Bedingung ──"
 #
 # Die andere Richtung: Steht der Satz "nicht feststellbar" auf jeder Seite,
 # sagt er nichts mehr -- und der Vergleich der beiden Bedingungen ist fort.
@@ -27795,7 +27795,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
-echo "== CronPayloadTest: die Obergrenze faellt weg =="
+echo "── CronPayloadTest: die Obergrenze faellt weg ──"
 #
 # Gemessen bei 1440 px gegen den echten Bestand: ohne Grenze ist die Zelle
 # 1396 px breit und die Tabelle laeuft 736 px ueber ihren Bereich -- waehrend
@@ -27817,7 +27817,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
-echo "== CronPayloadTest: die Grenze haengt an der Zelle =="
+echo "── CronPayloadTest: die Grenze haengt an der Zelle ──"
 #
 # max-width gilt fuer eine Tabellenzelle laut CSS 2.1 nicht; dass dieses
 # Chromium sie dort beachtet, ist gemessen und trotzdem keine Zusage.
@@ -27851,7 +27851,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
-echo "== CronPayloadTest: das Kommando bricht nicht mehr =="
+echo "── CronPayloadTest: das Kommando bricht nicht mehr ──"
 #
 # docs/46 §20.13: Eine Textzelle ohne Umbruch hat den Inhalt einer Tabelle
 # 5710px breit gemacht statt 1907 -- und die Ueberlaufmessung sieht davon nichts.

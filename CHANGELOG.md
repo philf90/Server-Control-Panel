@@ -31465,3 +31465,125 @@ Wert ist und keiner, den ein Formular setzt. Die Fabrik daneben setzt sie, weil
 sie den Schutz umgeht; genau deshalb sah der Prüfkörper richtig aus.
 
 > **Ein Prüfkörper, der überspringt, meldet das Überspringen nicht.**
+
+### B6 — Marke, Farbe und Logo des Betreibers
+
+Ein Panel, das nicht „SrvPanel" heissen muss: Name, Fusszeile, zwei
+Akzentfarben und ein Logo stehen auf `/settings/general`, und was dort steht,
+trägt die Anmeldeseite, der Reiter des Browsers und die Unterschrift jeder Mail.
+
+**„Eine Farbe des Betreibers" und „jede Farbe kommt aus `resources/css/app.css`"
+sind kein Widerspruch**, sobald man liest, wogegen die Regel geschrieben ist:
+gegen Hexwerte, die in dreissig Komponenten liegen und sich nicht umstellen
+lassen. {@see App\Support\Brand\Style} gibt deshalb **keinen einzigen Selektor
+mit einer Eigenschaft** aus — nur Werte für Marken, deren Regeln in `app.css`
+stehen. `BrandStyleTest` hält es an der Ausgabe und nicht an der Absicht.
+
+> **Eine Marke, die an einer Stelle gesetzt wird, ist das Gegenteil einer Farbe,
+> die verstreut ist.**
+
+**Bei den Vorgabewerten steht gar kein Block da.** Einer, der die Vorgabe noch
+einmal hinschreibt, wäre eine zweite Fassung der Farben aus `app.css` — und die
+zweite ist die, die veraltet, sobald jemand das Stylesheet anfasst.
+
+**Die Anmeldeseite ist eine dritte Fläche, und sie ist die gemeinte.** `.signin`
+trägt seit „Kontor" einen eigenen, vollständigen Markensatz (`--bg`, `--surface`
+und eine pflaumenfarbene Fläche, die es sonst nirgends gibt) — und sie ist genau
+die Seite, die das Abnahmekriterium nennt. Gerechnet wird deshalb gegen **fünf**
+Gründe über zwei Themes, und gewertet wird der **schlechteste**.
+
+> **Eine Farbe, die auf einem von drei Gründen lesbar ist, ist auf der Seite
+> unlesbar, auf der sie steht.**
+
+**Der Kontrast wird jetzt an einer Stelle gerechnet.** Dieselbe Formel stand
+dreimal da — in `SurfaceTokenTest`, `ColorRoleTest` und `ButtonStyleTest` —, und
+eine der drei Kopien war schon abgedriftet. Eine vierte für B6 zu schreiben wäre
+die naheliegende und die falsche Antwort gewesen;
+{@see App\Support\Design\Contrast} ist die eine Stelle, die drei Wächter rufen.
+
+**Abgewiesen wird an der Tür, mit der gemessenen Zahl und dem Grund.** Eine
+Farbe, die 4,5:1 nicht erreicht, macht Teile des Panels unlesbar — und zwar
+erst, **nachdem** sie gespeichert ist. Die Meldung nennt das Verhältnis und die
+Fläche, gegen die es gerechnet wurde; ein blosses „zu wenig Kontrast" liesse den
+Betreiber raten, welchen Grund er nicht gesehen hat.
+
+**Kein SVG, und das ist keine Bequemlichkeit.** Ein SVG ist ein Dokument und
+kein Bild: Es darf `<script>` enthalten, und ausgeliefert vom **eigenen**
+Ursprung läuft dieses Skript in der Sitzung jedes Betrachters. Das Logo steht
+ausgerechnet auf der Anmeldeseite — der einen Seite, die jeder Besucher ohne
+Konto sieht.
+
+> **Eine Datei, die der Betreiber hochlädt und die das Panel unter seinem
+> eigenen Ursprung ausliefert, ist Code, sobald ihr Format welchen zulässt.**
+
+**Und der Typ kommt aus der Datei und nicht aus dem Umschlag.**
+`getClientMimeType()` liest, was der Browser behauptet; gelesen wird der Inhalt,
+und ausgeliefert wird der Typ aus **unserer** Positivliste — dazu `nosniff`,
+damit der Browser die Entscheidung nicht noch einmal trifft.
+
+> **Ein Typ, den der Absender mitschickt, ist eine Behauptung und keine
+> Messung.**
+
+**Die Absenderadresse wird nicht abgeschrieben.** Das Kriterium nennt sie, und
+es gibt sie seit P2 auf der Seite „Mailversand". Sie hier ein zweites Mal
+aufzunehmen hiesse, zwei Formulare für einen Wert zu pflegen — die Markenfelder
+verweisen darauf und zeigen den eingetragenen Wert an.
+
+**Logo und Farbe stehen nicht in der verschickten Mail, und das ist eine
+Entscheidung von P2.** Diese Mails sind reiner Text; HTML kann auf dem Weg
+verändert werden, Text nicht. Was eine Mail von der Marke trägt, ist die
+**Unterschrift** — Name und Fusszeile, aus einer Datei und nicht als Textbaustein
+in zwei Vorlagen, und über einen View-Composer für `mail.*` angehängt, damit
+keine Vorlage ihn durchreichen muss und keine ihn vergessen kann. Der Teil des
+Kriteriums, der Bild und Farbe in der Mail verlangt, ist damit **benannt nicht
+erfüllt** und nicht stillschweigend weggelassen.
+
+**Eine eigene Markenseite gibt es nicht.** Sie wäre der neunte Punkt der Gruppe
+„Einstellungen" gewesen, und `NavGroupTest` besteht darauf, dass eine Gruppe
+dort trennt, wo auch die Route trennt. Die Felder sitzen deshalb auf
+`/settings/general` — der Seite, die ohnehin beantwortet, wie dieses Panel
+heisst und wie es rechnet.
+
+> **Eine Gruppe ist zu gross, wenn sie zwei Fragen beantwortet — und nicht, wenn
+> sie viele Punkte hat.**
+
+### Ein Weiterleitungsziel, das es nie gab — und der Wächter, der es nicht sehen konnte
+
+`BrandingSettingsController::update()` leitete auf `settings.branding` weiter.
+Diesen Namen vergibt `routes/web.php` nicht: Die Markenfelder sind nach
+`/settings/general` gefaltet worden, und die Weiterleitung blieb stehen.
+`to_route()` wirft dafür `RouteNotFoundException` — **jedes** gelungene
+Speichern gab also einen 500, nachdem die Marke gespeichert war.
+
+**Fünf Wächter sind darüber grün geblieben**, und alle fünf aus demselben Grund:
+Sie prüften `assertSessionHasNoErrors()`. Das ist ein Urteil über die Prüfung
+und keines über den Lauf — für eine Ausnahme im Controller stehen ebenfalls
+keine Prüfmeldungen in der Sitzung.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+**Und `RedirectTargetTest` konnte es strukturell nicht sehen.** Er hält seit P2,
+dass eine Weiterleitung ihr Ziel **nennt**, weil `back()` in diesem Panel auf
+`/` fällt. Über die Existenz des genannten Ziels sagte er nichts — dieselbe
+Fehlerklasse, die dieses Repo am häufigsten trifft: eine Zeichenkette, die auf
+etwas verweist, ohne dass ein Typ, ein Test oder ein Werkzeug den Bezug prüft.
+
+> **Ein Wächter, der prüft, dass ein Ziel genannt ist, hat nicht geprüft, dass
+> es das Ziel gibt.**
+
+`test_every_named_route_the_code_reaches_for_exists` liest jetzt **jede** Datei
+unter `app/` — nicht nur die Controller, denn `HandleInertiaRequests` baut die
+Adresse des Logos über `route('branding.logo')`, und ein toter Name dort schlüge
+auf jeder Seite zu statt auf einer. Gemessen wird gegen `Route::getRoutes()` und
+nicht gegen eine Liste im Test; 29 Namen stehen heute in `app/`, einer davon war
+tot.
+
+**Die beiden Eingriffe dazu sind bewusst zwei und nicht einer.** Der erste
+schreibt den toten Namen zurück — das sieht der strukturelle Wächter. Der zweite
+schreibt `overview`, eine Route, die es **gibt**: Der strukturelle Wächter
+bleibt grün, gespeichert wäre richtig, und man stünde danach nur woanders. Das
+sieht allein die Messung durch die Tür.
+
+> **Zwei Regeln, von denen die eine den Fehler der anderen nicht sehen kann,
+> brauchen zwei Messungen — und die zweite ist die, die man sich spart.**

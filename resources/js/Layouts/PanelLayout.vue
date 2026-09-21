@@ -23,7 +23,7 @@
 import { Link, router, usePage } from '@inertiajs/vue3'
 import Confirmation from '../Components/Confirmation.vue'
 import Bands from '../Components/Bands.vue'
-import MarkIcon from '../Components/MarkIcon.vue'
+import BrandMark from '../Components/BrandMark.vue'
 import NavIcon from '../Components/NavIcon.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 /*
@@ -897,8 +897,7 @@ onBeforeUnmount(() => {
           der Punkt: Wer mehrere Panels offen hat, erkennt sie am Reiter, und
           erkennt sie nur dann, wenn Reiter und Rail dasselbe zeigen.
         -->
-        <MarkIcon :size="24" />
-        <b>SrvPanel</b>
+        <BrandMark :size="24" />
 
         <!--
           Die Version steht neben dem Schriftzug — und das ging vorher nicht.

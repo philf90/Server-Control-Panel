@@ -1030,6 +1030,37 @@ input[type='radio'] {
    vier Riesenkacheln.
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* ═══════════════════════════════════════════════════════════════════════
+   Das Logo des Betreibers (B6)
+
+   Die Höhe steht hier und nicht als Attribut am Bild: Sie ist eine Aussage
+   über die Zeile, in der die Marke steht, und die Zeile gehört diesem
+   Stylesheet. `max-width` hält ein breites Logo davon ab, die Seitenleiste
+   auseinanderzuschieben — gemessen sind dort 186 px, von denen die
+   Navigation lebt.
+
+   `object-fit: contain` statt einer festen Breite: Ein Logo kommt in jedem
+   Seitenverhältnis, und die Alternative wäre, es zu verzerren.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.brand-logo {
+  height: 24px;
+  width: auto;
+  max-width: 150px;
+  object-fit: contain;
+}
+
+/*
+ * Auf der Anmeldeseite ist die Marke das einzige Bild und darf grösser sein.
+ *
+ * Die Grösse hängt am **Ort** und nicht an einer Fahne der Komponente: Dass
+ * hier mehr Platz ist, weiss dieses Stylesheet und nicht das Markup.
+ */
+.signin .brand-logo {
+  height: 34px;
+  max-width: 220px;
+}
+
 .tiles {
   display: flex;
   flex-wrap: wrap;

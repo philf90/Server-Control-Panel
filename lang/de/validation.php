@@ -228,6 +228,13 @@ return [
         'filter.value' => 'Wert des Filters',
         'first_name' => 'Vorname',
         'from' => 'Von',
+        // Die Marke des Betreibers (B6).
+        'accent_light' => 'Akzent im hellen Thema',
+        'accent_dark' => 'Akzent im dunklen Thema',
+        'footer' => 'Fusszeile',
+        'logo' => 'Logo',
+        'remove_logo' => 'Logo entfernen',
+
         'from_address' => 'Absenderadresse',
         'from_name' => 'Anzeigename des Absenders',
         'granted' => 'Rechte',

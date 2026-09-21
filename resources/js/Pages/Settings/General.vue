@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { useForm, Head } from '@inertiajs/vue3'
+import { useForm, Head, Link, router } from '@inertiajs/vue3'
+import { ref } from 'vue'
 import FormErrors from '../../Components/FormErrors.vue'
 import Section from '../../Components/Section.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
@@ -37,6 +38,38 @@ const props = defineProps<{
   }
 
   hostname: string
+
+  /*
+   * Die Marke des Betreibers (B6).
+   *
+   * **Ein zweites Formular auf derselben Seite**, weil es ein zweites Ziel hat
+   * und eine Datei trägt. Beide beantworten dieselbe Frage — wie ist dieses
+   * Panel eingestellt —, und deshalb steht die Marke hier und nicht auf einer
+   * neunten Zeile im Menü.
+   */
+  brand: {
+    name: string
+    accent_light: string
+    accent_dark: string
+    footer: string
+    has_logo: boolean
+  }
+
+  /*
+   * Die gemessenen Kontraste kommen fertig vom Server.
+   *
+   * Wer sie im Browser mitrechnete, hätte eine zweite Fassung von
+   * `App\Support\Design\Contrast` — und die zweite ist die, die veraltet,
+   * sobald jemand die Schwelle ändert.
+   */
+  contrast: {
+    light: { ratio: number; passes: boolean; surface: string }
+    dark: { ratio: number; passes: boolean; surface: string }
+    required: number
+  }
+
+  brandLimits: { logo_kb: number; types: string[] }
+  sender: string
 }>()
 
 const form = useForm({
@@ -46,6 +79,38 @@ const form = useForm({
 
 function submit(): void {
   form.put('/settings/general', { preserveScroll: true })
+}
+
+const marke = useForm({
+  name: props.brand.name,
+  accent_light: props.brand.accent_light,
+  accent_dark: props.brand.accent_dark,
+  footer: props.brand.footer,
+})
+
+const logo = ref<File | null>(null)
+
+/*
+ * **`router.post` mit `_method` und nicht `marke.put`.** Ein PUT trägt in
+ * keinem Browser eine Dateiauswahl; Laravel nimmt die Methode deshalb aus dem
+ * Rumpf. Ohne diesen Umweg käme das Logo nie an, und zwar wortlos.
+ */
+function speichereMarke(zusatz: Record<string, unknown> = {}): void {
+  router.post(
+    '/settings/branding',
+    { _method: 'put', ...marke.data(), logo: logo.value, ...zusatz },
+    {
+      forceFormData: true,
+      preserveScroll: true,
+      onSuccess: () => {
+        logo.value = null
+      },
+    },
+  )
+}
+
+function waehleLogo(event: Event): void {
+  logo.value = (event.target as HTMLInputElement).files?.[0] ?? null
 }
 </script>
 
@@ -240,6 +305,106 @@ function submit(): void {
         <button type="submit" class="button primary" :disabled="form.processing">
           {{ form.processing ? 'Wird gespeichert …' : 'Speichern' }}
         </button>
+      </div>
+    </form>
+
+    <!--
+      Die Marke des Betreibers (B6) — ein eigenes Formular, weil es ein eigenes
+      Ziel hat und eine Datei trägt.
+    -->
+    <form class="form" @submit.prevent="speichereMarke()">
+      <div class="sections">
+        <Section title="Name und Fusszeile">
+          <label class="field">
+            <span>Name des Panels</span>
+            <input
+              v-model="marke.name"
+              type="text"
+              maxlength="40"
+              autocomplete="organization"
+              required
+            />
+          </label>
+
+          <p class="hint">
+            Steht im Reiter des Browsers und neben dem Zeichen — solange kein Logo hinterlegt ist.
+          </p>
+
+          <label class="field">
+            <span>Fusszeile der Anmeldeseite</span>
+            <input v-model="marke.footer" type="text" maxlength="200" autocomplete="off" />
+          </label>
+
+          <p class="hint">
+            Reiner Text, höchstens 200 Zeichen. Er steht über der Versionsnummer und geht ausserdem
+            als letzte Zeile in jede Mail, die dieses Panel verschickt.
+          </p>
+        </Section>
+
+        <Section title="Farbe">
+          <!--
+            Zwei Farben und nicht eine: Beide Themes entstehen zusammen, nie
+            eines nachträglich. Die eine aus der anderen abzuleiten wäre eine
+            Vermutung über einen Grund, den niemand gemessen hat.
+          -->
+          <label class="field">
+            <span>Akzent im hellen Thema</span>
+            <input v-model="marke.accent_light" type="text" maxlength="7" autocomplete="off" required />
+          </label>
+
+          <p class="hint">
+            Gemessen {{ props.contrast.light.ratio.toLocaleString('de-DE') }}:1 auf
+            <span class="ident">{{ props.contrast.light.surface }}</span> — verlangt sind
+            {{ props.contrast.required.toLocaleString('de-DE') }}:1. Der Akzent trägt auch Schrift.
+          </p>
+
+          <label class="field">
+            <span>Akzent im dunklen Thema</span>
+            <input v-model="marke.accent_dark" type="text" maxlength="7" autocomplete="off" required />
+          </label>
+
+          <p class="hint">
+            Gemessen {{ props.contrast.dark.ratio.toLocaleString('de-DE') }}:1 auf
+            <span class="ident">{{ props.contrast.dark.surface }}</span>. Diese Farbe gilt auch auf
+            der Anmeldeseite — sie trägt in beiden Themes einen dunklen Grund.
+          </p>
+        </Section>
+
+        <Section title="Logo">
+          <label class="field">
+            <span>Bilddatei</span>
+            <input type="file" accept="image/png,image/jpeg,image/webp" @change="waehleLogo" />
+          </label>
+
+          <p class="hint">
+            {{ props.brandLimits.types.join(', ') }} bis {{ props.brandLimits.logo_kb }} KB. Kein
+            SVG: Es darf Skript enthalten, und das Logo steht auf der Anmeldeseite. Ein hinterlegtes
+            Logo ersetzt Zeichen und Namen; der Name bleibt als Alternativtext.
+          </p>
+
+          <div v-if="props.brand.has_logo" class="button-row">
+            <button type="button" class="button danger" @click="speichereMarke({ remove_logo: true })">
+              Logo entfernen
+            </button>
+          </div>
+        </Section>
+
+        <Section title="Absender">
+          <p class="quiet">
+            Die Absenderadresse steht bei den
+            <Link href="/settings/mail" class="link">Mail-Einstellungen</Link> — dort, wo auch das
+            Relay hinterlegt ist. Zwei Formulare für einen Wert wären zwei Orte, an denen er
+            veralten kann.
+          </p>
+
+          <p v-if="props.sender" class="hint">
+            Zurzeit: <span class="ident">{{ props.sender }}</span>
+          </p>
+        </Section>
+      </div>
+
+      <div class="button-row">
+        <button type="submit" class="button primary">Marke speichern</button>
       </div>
     </form>
   </PanelLayout>

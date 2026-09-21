@@ -32980,6 +32980,354 @@ pruefe "Anwenden setzt zurueck" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MailTimeoutTest passed
 
+echo "── BrandContrastTest: die Schwelle faellt auf eins ──"
+#
+# Vier Komma fuenf zu eins steht in WCAG 1.4.3 und in `docs/20 §7.2`. Eine
+# Schwelle von eins laesst jede Farbe durch — auch die, unter der niemand
+# mehr liest.
+vorher_datei app/Support/Design/Contrast.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Design/Contrast.php')
+s = p.read_text()
+alt = 'public const TEXT = 4.5;'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'public const TEXT = 1.0;', 1))
+PY
+griff_datei app/Support/Design/Contrast.php "Schwelle faellt auf eins" &&
+pruefe "Schwelle faellt auf eins" \
+  BrandContrastTest::test_a_washed_out_colour_is_refused failed
+wiederherstellen
+
+echo "── BrandContrastTest: die Anmeldeseite faellt aus der Messung ──"
+#
+# Sie traegt einen eigenen Markensatz und ist die Seite, die das
+# Abnahmekriterium nennt. Wer nur `:root` rechnet, laesst genau sie
+# ungemessen.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = "['#0f1116', '#14171d', '#1a0b2e']"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "['#0f1116', '#14171d']", 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "Anmeldeseite faellt heraus" &&
+pruefe "Anmeldeseite faellt heraus" \
+  BrandContrastTest::test_the_surfaces_are_the_ones_the_stylesheet_has failed
+wiederherstellen
+
+echo "── BrandContrastTest: gemessen wird die erste Flaeche statt der schlechtesten ──"
+#
+# Gegen die freundlichste zu rechnen laesst eine Farbe zu, die auf der
+# Haelfte der Flaechen durchfaellt — und die Haelfte sieht man erst, wenn
+# jemand das Theme umschaltet.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = 'if ($verhaeltnis < $wert) {'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'if ($schlechteste === null) {', 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "erste statt schlechteste Flaeche" &&
+pruefe "erste statt schlechteste Flaeche" \
+  BrandContrastTest::test_the_worst_surface_decides failed
+wiederherstellen
+
+echo "── BrandContrastTest: die Schriftfarbe auf dem Akzent wird geraten ──"
+#
+# „Heller Grund, dunkle Schrift" stimmt meistens und bei den Toenen
+# dazwischen nicht — und genau die waehlt jemand, der eine Markenfarbe
+# eingibt.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = "return Contrast::readableOn($accent, '#ffffff', '#0f1116');"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "return '#ffffff';", 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "Schriftfarbe geraten" &&
+pruefe "Schriftfarbe geraten" \
+  BrandContrastTest::test_the_text_on_the_accent_is_computed failed
+wiederherstellen
+
+echo "── BrandContrastTest: eine unlesbare Ablage faellt auf Schwarz ──"
+#
+# Was in der Ablage steht, ist geprueft worden; steht dort Unsinn, ist sie
+# beschaedigt — und dann ist die eingebaute Farbe die einzige, von der man
+# weiss, dass sie traegt. Schwarz waere eine erfundene Marke.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = 'return is_string($value) && Contrast::isColour($value) ? strtolower($value) : $fallback;'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "return is_string($value) && Contrast::isColour($value) ? strtolower($value) : '#000000';", 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "Ablage faellt auf Schwarz" &&
+pruefe "Ablage faellt auf Schwarz" \
+  BrandContrastTest::test_a_broken_store_falls_back_to_the_shipped_colour failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BrandContrastTest passed
+
+echo "── BrandStyleTest: der Block schreibt eine Regel statt einer Marke ──"
+#
+# Jede Farbe kommt aus `app.css` — die Regel gilt weiter, solange von aussen
+# nur der **Wert** einer Marke kommt. Eine Eigenschaft hier waere eine Regel
+# ausserhalb des Stylesheets, und genau die soll es nicht geben.
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = "'--accent:%s;--accent-on:%s;--accent-surface:rgb(%s / %s);'"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'color:%s;--accent-on:%s;--accent-surface:rgb(%s / %s);'", 1))
+PY
+griff_datei app/Support/Brand/Style.php "Regel statt Marke" &&
+pruefe "Regel statt Marke" \
+  BrandStyleTest::test_only_custom_properties_are_declared failed
+wiederherstellen
+
+echo "── BrandStyleTest: die Anmeldeseite bekommt die Farbe nicht ──"
+#
+# Sie ist die Seite, die das Abnahmekriterium nennt — und sie traegt einen
+# eigenen Markensatz, den `:root` nicht erreicht.
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = "'.signin{'.$dunkel.'--focus:'.$brand->accent_dark.';}',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'',", 1))
+PY
+griff_datei app/Support/Brand/Style.php "Anmeldeseite ohne Farbe" &&
+pruefe "Anmeldeseite ohne Farbe" \
+  BrandStyleTest::test_the_sign_in_surface_gets_the_colour_too failed
+wiederherstellen
+
+echo "── BrandStyleTest: die Anmeldeseite bekommt den hellen Akzent ──"
+#
+# Sie ist in beiden Themes dunkel. Ein heller Akzent von dort ist auf ihrer
+# pflaumenfarbenen Flaeche der falsche — und gemessen wurde er gegen einen
+# weissen Grund.
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = "'.signin{'.$dunkel.'--focus:'.$brand->accent_dark.';}',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'.signin{'.$hell.'--focus:'.$brand->accent_light.';}',", 1))
+PY
+griff_datei app/Support/Brand/Style.php "Anmeldeseite hell" &&
+pruefe "Anmeldeseite hell" \
+  BrandStyleTest::test_the_sign_in_surface_takes_the_dark_accent failed
+wiederherstellen
+
+echo "── BrandStyleTest: der Block steht auch bei der Auslieferung da ──"
+#
+# Die Vorgabewerte noch einmal hinzuschreiben ist eine zweite Fassung der
+# Farben aus `app.css` — und die zweite ist die, die veraltet, sobald jemand
+# das Stylesheet anfasst.
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = "            return '';"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "            return ':root{}';", 1))
+PY
+griff_datei app/Support/Brand/Style.php "Block auch bei Vorgabe" &&
+pruefe "Block auch bei Vorgabe" \
+  BrandStyleTest::test_the_shipped_colours_produce_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BrandStyleTest passed
+
+echo "── BrandReachTest: SVG kommt durch ──"
+#
+# Ein SVG ist ein Dokument und kein Bild: Es darf `<script>` enthalten, und
+# ausgeliefert vom eigenen Ursprung laeuft dieses Skript in der Sitzung jedes
+# Betrachters — auf der einen Seite, die jeder ohne Konto sieht.
+vorher_datei app/Support/Brand/Logo.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Logo.php')
+s = p.read_text()
+alt = "        'image/webp' => 'webp',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "        'image/webp' => 'webp',\n        'image/svg+xml' => 'svg',", 1))
+PY
+griff_datei app/Support/Brand/Logo.php "SVG kommt durch" &&
+pruefe "SVG kommt durch" \
+  BrandReachTest::test_an_svg_is_refused failed
+wiederherstellen
+
+echo "── BrandReachTest: die Groessengrenze wird nicht geprueft ──"
+#
+# Das Bild steht auf der Anmeldeseite, und die laedt, bevor irgendetwas
+# anderes laedt. Ohne Grenze verschiebt ein Logo den Aufbau der einen Seite,
+# auf die es ankommt.
+vorher_datei app/Support/Brand/Logo.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Logo.php')
+s = p.read_text()
+alt = 'if ($file->getSize() > self::MAX_BYTES) {'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'if (false) {', 1))
+PY
+griff_datei app/Support/Brand/Logo.php "Groessengrenze fehlt" &&
+pruefe "Groessengrenze fehlt" \
+  BrandReachTest::test_a_file_over_the_limit_is_refused failed
+wiederherstellen
+
+echo "── BrandReachTest: der Browser darf raten, was er bekommen hat ──"
+#
+# Ohne `nosniff` macht ein Browser aus einem Bild ein Dokument, sobald der
+# Inhalt danach aussieht — bei einer Datei, die von aussen kommt und ohne
+# Anmeldung ausgeliefert wird.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "            'X-Content-Type-Options' => 'nosniff',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "Browser darf raten" &&
+pruefe "Browser darf raten" \
+  BrandReachTest::test_an_uploaded_logo_is_served_without_a_login failed
+wiederherstellen
+
+echo "── BrandReachTest: die Farbe wird nicht gegen ihren Grund gerechnet ──"
+#
+# Eine Farbe, die 4,5:1 nicht erreicht, macht Teile des Panels unlesbar — und
+# zwar erst, nachdem sie gespeichert ist. `--accent` traegt in `app.css`
+# sechsmal Schrift.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "        if ($urteil['passes']) {\n            return;\n        }"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '        if (true) {\n            return;\n        }', 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "Farbe ungeprueft" &&
+pruefe "Farbe ungeprueft" \
+  BrandReachTest::test_an_unreadable_colour_is_refused_with_its_number failed
+wiederherstellen
+
+echo "── BrandReachTest: die Fusszeile faellt aus der Mail ──"
+#
+# Das Abnahmekriterium verlangt sie in einer verschickten Mail. Eine Vorlage,
+# die die Unterschrift vergisst, faellt niemandem auf — die Mail sieht
+# vollstaendig aus.
+vorher_datei resources/views/mail/quota.blade.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/views/mail/quota.blade.php')
+s = p.read_text()
+alt = "@include('mail.signature')"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei resources/views/mail/quota.blade.php "Fusszeile faellt aus der Mail" &&
+pruefe "Fusszeile faellt aus der Mail" \
+  BrandReachTest::test_a_sent_mail_carries_name_and_footer failed
+wiederherstellen
+
+echo "── BrandReachTest: der Titel traegt wieder den eingebauten Namen ──"
+#
+# Er steht im Reiter des Browsers, und wer mehrere Panels offen hat,
+# unterscheidet sie daran. Ein fester Name macht aus zwei Panels zwei Reiter
+# mit derselben Aufschrift.
+vorher_datei resources/views/app.blade.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/views/app.blade.php')
+s = p.read_text()
+alt = '<title inertia>{{ $marke->name }}</title>'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '<title inertia>SrvPanel</title>', 1))
+PY
+griff_datei resources/views/app.blade.php "Titel fest verdrahtet" &&
+pruefe "Titel fest verdrahtet" \
+  BrandReachTest::test_the_document_title_carries_the_name failed
+wiederherstellen
+
+echo "── SharedClosureTest: die Marke als fertiger Wert ──"
+#
+# Sie kommt aus `settings`, also aus der Datenbank. Ein fertiger Wert liefe
+# bei jedem partiellen Nachladen mit, das ihn gar nicht mitschickt
+# (`docs/103 §1` M5).
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Middleware/HandleInertiaRequests.php')
+s = p.read_text()
+alt = "'brand' => function () use ($settings, $logo): array {"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'brand' => (function () use ($settings, $logo): array {", 1))
+PY
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "Marke als fertiger Wert" &&
+pruefe "Marke als fertiger Wert" \
+  SharedClosureTest::test_every_shared_entry_is_a_closure failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SharedClosureTest passed
+
+echo "── RedirectTargetTest: ein Ziel, das es nicht gibt ──"
+#
+# `to_route()` wirft fuer einen unbekannten Namen `RouteNotFoundException` —
+# die Seite gibt 500, und zwar erst, nachdem die Handlung schon geschehen ist.
+# Der Fall daneben haelt nur, dass ein Ziel *genannt* wird; ueber seine
+# Existenz sagt er nichts. Genau so ist `settings.branding` in B6 durch jeden
+# Waechter gekommen.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "to_route('settings.general')->with('success', 'Die Marke ist gespeichert.')"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "to_route('settings.branding')->with('success', 'Die Marke ist gespeichert.')", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "totes Weiterleitungsziel" &&
+pruefe "totes Weiterleitungsziel" \
+  RedirectTargetTest::test_every_named_route_the_code_reaches_for_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RedirectTargetTest passed
+
+echo "── BrandReachTest: das Speichern landet auf der Uebersicht ──"
+#
+# `overview` ist eine Route, die es **gibt** — der Waechter ueber die Namen
+# bleibt also gruen, und das ist der Punkt: Gespeichert waere richtig, man
+# stuende danach nur woanders. Genau dieser Befund hat `RedirectTargetTest`
+# ueberhaupt erst ausgeloest, und gemessen wird er nur durch die Tuer.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "to_route('settings.general')->with('success', 'Die Marke ist gespeichert.')"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "to_route('overview')->with('success', 'Die Marke ist gespeichert.')", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "Speichern traegt auf die Uebersicht" &&
+pruefe "Speichern traegt auf die Uebersicht" \
+  BrandReachTest::test_the_login_page_carries_name_and_footer failed
+wiederherstellen
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

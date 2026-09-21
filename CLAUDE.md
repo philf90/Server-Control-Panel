@@ -1372,7 +1372,11 @@ auch — oder ein begründeter Eintrag sagt warum nicht), `LifecycleReachTest`, 
 gibt), `TableStyleTest`, `ClassNameTest` (jeder Klassenname ist englisch, und
 jede Regel in app.css wird von einem Template erreicht) und `PaginationTest`
 (wer paginiert, lässt auch blättern) — dazu `RedirectTargetTest` (wer
-weiterleitet, nennt das Ziel; `back()` kennt es hier nicht) und
+weiterleitet, nennt das Ziel; `back()` kennt es hier nicht — **und seit dem
+23. September 2026 ist der genannte Name eine Route, die es gibt**: gemessen
+gegen `Route::getRoutes()` über jede Datei unter `app/` und nicht nur über die
+Controller, denn ein toter Name in einer Mittelschicht schlägt auf jeder Seite
+zu statt auf einer) und
 `PairedSeriesTest` (zwei Kurven in einem Feld teilen sich die Achse) und
 `ChallengeReachTest` (der Webserver kommt bis zur ACME-Prüfdatei — geprüft an
 den Rechten jedes Verzeichnisses auf dem Weg dorthin) und
@@ -5432,6 +5436,64 @@ Betroffen ist hier alles, was **gemessen** und nicht eingetippt wird:
 `disk_used_mb`, `disk_usage_measured_at`, `main_domain`. Wer einen solchen Wert
 in einem Test ändert, nimmt `forceFill(...)->save()` — oder sieht nach, ob die
 Spalte überhaupt füllbar ist.
+
+---
+
+## Drei Sätze aus B6 — 23. September 2026
+
+**Der erste löst eine Spannung auf, die wie ein Widerspruch aussah.** Das
+Abnahmekriterium von B6 verlangt eine Farbe des Betreibers und hält zugleich an
+„jede Farbe kommt aus `resources/css/app.css`" fest. Aufgelöst wird das nicht
+durch eine Ausnahme, sondern durch eine Unterscheidung: Die Regel ist gegen
+**Hexwerte in Komponenten** geschrieben, nicht gegen Werte für Marken, deren
+Regeln im Stylesheet stehen. Was `App\Support\Brand\Style` ausgibt, enthält
+ausschliesslich `--`-Zuweisungen, und `BrandStyleTest` hält das an der Ausgabe.
+
+> **Eine Marke, die an einer Stelle gesetzt wird, ist das Gegenteil einer Farbe,
+> die verstreut ist.**
+
+Und bei den Vorgabewerten gibt es **gar keinen Block**: Einer, der die Vorgabe
+noch einmal hinschreibt, wäre eine zweite Fassung der Farben aus `app.css`.
+
+**Der zweite ist eine Fläche, die niemand mitzählt.** Gerechnet wurde zuerst
+gegen zwei Gründe, hell und dunkel — und die Seite, die das Kriterium
+**namentlich nennt**, trägt seit „Kontor" einen dritten, vollständigen
+Markensatz: `.signin` mit eigenem `--bg`, eigenem `--surface` und einer
+pflaumenfarbenen Fläche, die es sonst nirgends gibt. Gerechnet wird seitdem
+gegen fünf Gründe über zwei Themes, und gewertet der schlechteste.
+
+> **Eine Farbe, die auf einem von drei Gründen lesbar ist, ist auf der Seite
+> unlesbar, auf der sie steht.**
+
+Die Schwesterfrage dazu gilt jeder Marke: `.signin` führt `--text-strong` mit
+**demselben Wert** wie `--accent`, und es ist eine andere Marke — die
+Schriftfarbe der Überschrift, gegen die Fläche gerechnet und von
+`SurfaceTokenTest` gehalten. Sie mitzuziehen hiesse, eine gemessene Zusage durch
+eine ungemessene zu ersetzen.
+
+> **Zwei Marken mit demselben Wert sind nicht dieselbe Marke.**
+
+**Der dritte ist die Fehlerklasse dieses Repos, und diesmal an einer
+Weiterleitung.** `BrandingSettingsController` leitete auf `settings.branding`
+weiter — einen Namen, den `routes/web.php` nie vergeben hat. `to_route()` wirft
+dafür, also gab **jedes** gelungene Speichern einen 500, nachdem gespeichert
+war. `RedirectTargetTest` hält seit P2, dass eine Weiterleitung ihr Ziel
+**nennt**; über dessen Existenz sagte er nichts.
+
+> **Ein Wächter, der prüft, dass ein Ziel genannt ist, hat nicht geprüft, dass
+> es das Ziel gibt.**
+
+**Fünf Wächter sind darüber grün geblieben**, alle fünf mit
+`assertSessionHasNoErrors()` — einem Urteil über die Prüfung und keinem über den
+Lauf: Für eine Ausnahme im Controller stehen ebenfalls keine Prüfmeldungen in
+der Sitzung.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+Wer eine schreibende Route durch die Tür misst, schreibt das **Ziel** aus. Ein
+blosses `assertRedirect()` ohne Adresse ist dieselbe Zusicherung noch einmal:
+Sie sagt, dass überhaupt weitergeleitet wird, und genau das war nie die Frage.
 
 ---
 

@@ -30,6 +30,7 @@ use App\Support\Tls\DnsCredentials;
 use Illuminate\Mail\MailManager;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use SrvPanel\Agent\Client;
 
@@ -150,6 +151,22 @@ final class SrvPanelServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        /*
+         * Die Marke steht in jeder Mail (B6).
+         *
+         * **Ein Composer und kein Durchreichen.** Jede Vorlage unter `mail.`
+         * bekommt `$brand`, ohne dass ein Mailable ihn mitgeben muss — und
+         * damit kann keiner ihn vergessen. Ein Mailable, der ihn durchreicht,
+         * wäre die Stelle, an der der nächste es nicht tut.
+         *
+         * Gelesen wird über {@see Settings::brand()}, und das merkt sich den
+         * Wert: Eine Mail ist selten, und zwei Mails in einem Lauf fragen
+         * nicht zweimal.
+         */
+        View::composer('mail.*', static function (\Illuminate\View\View $view): void {
+            $view->with('brand', app(Settings::class)->brand());
+        });
+
         /*
          * Einstellungen des Betreibers sind Betreibersache.
          *

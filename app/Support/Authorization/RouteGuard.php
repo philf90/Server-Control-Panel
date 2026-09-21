@@ -125,6 +125,10 @@ final class RouteGuard
                 'kind' => self::OPEN,
                 'reason' => 'Eine Ankündigung im vollen Wortlaut. Offen, weil der Streifen auf der Anmeldeseite Störungen an jeden zeigt, der die Adresse kennt, und dabei bei zwei Zeilen klammert — ein Verweis hinter auth schickte genau diesen Leser auf die Anmeldung statt zum Text. Neu sichtbar wird nichts: Für einen Gast fragt der Controller dieselbe Menge ab, die auch den Streifen dort füllt (Störungen im Fenster), für ein Konto dieselbe wie die geteilte Nutzlast. Alles andere ist ein 404 und kein 403, damit die Kennung nicht die Existenz verrät.',
             ],
+            'GET branding/logo' => [
+                'kind' => self::OPEN,
+                'reason' => 'Das Logo des Betreibers steht auf der Anmeldeseite — dort ist niemand angemeldet, und hinter auth wäre es genau auf der Seite unsichtbar, für die es das Abnahmekriterium von B6 gibt. Herausgegeben wird eine Datei, die der Betreiber hochgeladen hat, um sie zu zeigen; ihr Typ kommt aus der Positivliste des Panels, SVG ist ausgeschlossen, und `nosniff` verbietet dem Browser, aus dem Bild ein Dokument zu machen. Gibt es kein Logo, ist es ein 404.',
+            ],
             'GET health' => [
                 'kind' => self::OPEN,
                 'reason' => 'Die Bereitschaftsprüfung läuft, während das Paket umschaltet — da ist niemand angemeldet. Sie gibt Versionsnummern und einen Bereitschaftszustand heraus, sonst nichts.',

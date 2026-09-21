@@ -10,6 +10,7 @@ use App\Models\Announcement;
 use App\Models\Subscription;
 use App\Support\Audit\Impersonation;
 use App\Support\Authorization\AdminAbility;
+use App\Support\Brand\Logo;
 use App\Support\Diagnose\Checks\MaintenanceWindow;
 use App\Support\Diagnose\PendingFindings;
 use App\Support\Panel\Source;
@@ -139,6 +140,8 @@ final class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $account = $request->user();
+        $settings = app(Settings::class);
+        $logo = app(Logo::class);
 
         return array_merge(parent::share($request), [
             /*
@@ -336,6 +339,32 @@ final class HandleInertiaRequests extends Middleware
             // und sie kommt aus derselben Klasse wie die Validierung: Was der
             // Browser als Prüfliste zeigt, ist damit keine Behauptung über die
             // Regeln, sondern die Regeln.
+            /*
+             * Die Marke des Betreibers für die Oberfläche (B6).
+             *
+             * **Farbe und Titel stehen nicht hier** — die setzt
+             * `app.blade.php`, weil beides vor dem ersten Zeichnen feststehen
+             * muss. Hier steht, was Vue zeigt: Name, Logo, Fusszeile.
+             *
+             * **Ein Verschluss wie alles hier.** Die Marke kommt aus
+             * `settings`, also aus der Datenbank; ein fertiger Wert liefe bei
+             * jedem partiellen Nachladen mit, das ihn gar nicht mitschickt
+             * (`docs/103 §1` M5).
+             *
+             * `logo` ist eine **Adresse und kein Dateiname**: Die Seite soll
+             * nicht wissen, wie die Ablage heisst, und der Name allein liesse
+             * offen, woher man das Bild bekommt.
+             */
+            'brand' => function () use ($settings, $logo): array {
+                $marke = $settings->brand();
+
+                return [
+                    'name' => $marke->name,
+                    'footer' => $marke->footer,
+                    'logo' => $logo->path($marke->logo) === null ? null : route('branding.logo'),
+                ];
+            },
+
             'passwordPolicy' => fn (): array => [
                 'minimum' => Policy::MINIMUM_LENGTH,
                 'requirements' => Policy::requirements(),

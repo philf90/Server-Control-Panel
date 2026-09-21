@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Support\Design\Contrast;
 use FilesystemIterator;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
@@ -700,28 +701,17 @@ final class ButtonStyleTest extends TestCase
         return $tokens;
     }
 
-    /** Der Kontrast zweier Farben nach WCAG 2.1. */
+    /**
+     * Die Rechnung steht seit B6 in {@see Contrast} und nicht mehr hier.
+     *
+     * **Sie stand in drei Waechtern**, und diese Kopie war schon abgedriftet:
+     * dieselbe Formel mit englischen Variablennamen. Das ist die harmlose Form
+     * dessen, wovor die Regel schuetzt — die naechste Abweichung waere eine in
+     * der Zahl gewesen.
+     */
     private function contrast(string $a, string $b): float
     {
-        $high = max($this->luminance($a), $this->luminance($b));
-        $low = min($this->luminance($a), $this->luminance($b));
-
-        return ($high + 0.05) / ($low + 0.05);
-    }
-
-    private function luminance(string $hex): float
-    {
-        $rgb = sscanf(ltrim($hex, '#'), '%2x%2x%2x') ?? [0, 0, 0];
-
-        $channel = static function (int|float|null $value): float {
-            $value = ((int) $value) / 255;
-
-            return $value <= 0.03928 ? $value / 12.92 : (($value + 0.055) / 1.055) ** 2.4;
-        };
-
-        return 0.2126 * $channel($rgb[0] ?? 0)
-            + 0.7152 * $channel($rgb[1] ?? 0)
-            + 0.0722 * $channel($rgb[2] ?? 0);
+        return Contrast::between($a, $b);
     }
 
     public function test_at_most_one_primary_button_per_form(): void

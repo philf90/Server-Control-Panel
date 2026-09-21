@@ -10,6 +10,16 @@
      */
     $gewaehlt = auth()->user()?->theme;
     $vorgabe = config('srvpanel.ui.theme');
+
+    /*
+     * Die Marke des Betreibers (B6).
+     *
+     * **Hier und nicht in der Anwendung**, weil beides vor dem ersten Zeichnen
+     * feststehen muss: der Name im Titel und die Farbe in den Marken. Ein
+     * Akzent, den Vue nachreicht, wäre für einen Augenblick der eingebaute —
+     * und dieser Augenblick ist genau der Seitenaufbau, den jemand ansieht.
+     */
+    $marke = app(\App\Support\Settings\Settings::class)->brand();
 @endphp
 {{--
     Theme und Dichte stehen am Wurzelelement — beide Achsen aus §7.2 des Plans.
@@ -31,7 +41,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark light">
-    <title inertia>SrvPanel</title>
+    <title inertia>{{ $marke->name }}</title>
 
     {{--
         Das Betriebssystem fragen — vor dem ersten Zeichnen.
@@ -120,6 +130,21 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="manifest" href="/site.webmanifest">
     @vite('resources/js/app.ts')
+
+    {{--
+        Die Markenfarbe — **nach** dem Stylesheet und vor allem anderen.
+
+        Was hier steht, sind ausschliesslich Werte für Marken, deren Regeln in
+        `app.css` stehen; kein Selektor bekommt hier eine Eigenschaft. Damit
+        gilt „jede Farbe kommt aus app.css" weiter für alles, was aussieht —
+        geändert wird nur, welchen Wert eine Marke trägt.
+
+        Ist nichts eingestellt, ist der Block leer: Die Vorgabewerte noch
+        einmal hinzuschreiben wäre eine zweite Fassung der Farben aus `app.css`.
+    --}}
+    @if ($css = \App\Support\Brand\Style::css($marke))
+        <style>{!! $css !!}</style>
+    @endif
     {{--
         **`@inertiaHead` und nicht `@inertia` — die beiden sehen sich ähnlich
         und tun Entgegengesetztes.**

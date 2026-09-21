@@ -18,3 +18,4 @@ Wiederholungen mit.
 Sie bekommen diese Nachricht einmal je Überschreitung. Sinkt der Wert wieder
 unter das Kontingent, meldet sich das Panel erst wieder, wenn es erneut
 darüber liegt.
+@include('mail.signature')

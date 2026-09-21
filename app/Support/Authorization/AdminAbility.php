@@ -158,6 +158,7 @@ final class AdminAbility
                 .'Keines davon trägt eines der drei Merkmale aus docs/20 §6.1 — kein Geheimnis, kein '
                 .'Weg zu root, und für einen Kunden ändert sich dadurch nichts an seinem Betrieb. '
                 .'Der Zeitteil ist reines Lesen; gedreht wird die Zone des Servers hier gar nicht.',
+            'settings/branding' => 'Name, Logo, Farbe und Fusszeile des Panels (B6). Es ändert nichts am System und zeigt kein Geheimnis — es ändert, wie das Panel aussieht. Dieselbe Art Einstellung wie die Anzeigezeitzone, mit der sie auch die Seite teilt.',
             'services' => 'Den Zustand der Dienste und Timer ansehen (A2). Zu sehen sind '
                 .'Unitnamen aus dem Katalog, Zustände und Beschreibungen von systemd — kein '
                 .'Geheimnis des Betreibers und kein Weg zu root. Wer Kunden verwaltet, muss '

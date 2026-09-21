@@ -34,6 +34,8 @@ final class Settings
 {
     private const MAIL = 'mail';
 
+    private const BRAND = 'brand';
+
     /**
      * Die auf dem Server installierten PHP-Versionen.
      *
@@ -192,6 +194,8 @@ final class Settings
 
     private ?MailSettings $mail = null;
 
+    private ?BrandSettings $brand = null;
+
     /** @var list<string>|null */
     private ?array $phpVersions = null;
 
@@ -209,6 +213,29 @@ final class Settings
         Setting::query()->updateOrCreate(['key' => self::MAIL], ['value' => $settings->toArray()]);
 
         $this->mail = $settings;
+    }
+
+    /**
+     * Das Aussehen, das der Betreiber vorgibt (B6).
+     *
+     * **Gemerkt wie der Mailversand**, und aus demselben Grund: Die Marke steht
+     * auf **jeder** Seite, und eine Abfrage je Seitenaufbau wäre eine
+     * Datenbankabfrage für etwas, das sich ein paar Mal im Jahr ändert.
+     */
+    public function brand(): BrandSettings
+    {
+        if ($this->brand !== null) {
+            return $this->brand;
+        }
+
+        return $this->brand = BrandSettings::fromArray($this->read(self::BRAND));
+    }
+
+    public function saveBrand(BrandSettings $settings): void
+    {
+        Setting::query()->updateOrCreate(['key' => self::BRAND], ['value' => $settings->toArray()]);
+
+        $this->brand = $settings;
     }
 
     /**

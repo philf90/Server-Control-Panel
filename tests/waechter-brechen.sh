@@ -33574,22 +33574,42 @@ pruefe "Begrenzung faellt aus der Gruppe" \
   ApiThrottleTest::test_every_api_route_carries_a_limit failed
 wiederherstellen
 
-echo "── ApiThrottleTest: der Grenzwert wird still verdoppelt ──"
+echo "── ApiThrottleTest: die Begrenzung zaehlt nicht mehr die Adresse ──"
 #
-# Gemessen wird das aufgeloeste Limit und nicht die Zeile im Provider: Ein
-# Waechter ueber den Quelltext bliebe gruen, wenn jemand den Limiter
-# woanders ueberschriebe.
+# Der Schluessel ist die Regel und nicht die Zahl daneben. Ein Limiter, der
+# alle Anfragen in einen Topf wirft, bremst den ersten Klienten fuer alle —
+# und einer, der je Marke zaehlt, bremst das Durchprobieren gar nicht, weil
+# an dieser Stelle noch kein Konto aufgeloest ist.
 vorher_datei app/Providers/SrvPanelServiceProvider.php
 python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Providers/SrvPanelServiceProvider.php')
 s = p.read_text()
-alt = '    public const API_PER_MINUTE = 60;'
+alt = "->by((string) $request->ip())"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-p.write_text(s.replace(alt, '    public const API_PER_MINUTE = 60;\n\n    private const UNUSED_MARKER = 1;', 1))
+p.write_text(s.replace(alt, "->by('alle')", 1))
 PY
-griff_datei app/Providers/SrvPanelServiceProvider.php "Grenzwert verdoppelt" &&
-pruefe "Grenzwert verdoppelt" \
+griff_datei app/Providers/SrvPanelServiceProvider.php "Begrenzung ohne Adresse" &&
+pruefe "Begrenzung ohne Adresse" \
+  ApiThrottleTest::test_the_limiter_is_registered_and_counts_the_address failed
+wiederherstellen
+
+echo "── ApiThrottleTest: der Grenzwert faellt auf eins ──"
+#
+# Die Spanne faengt, was eine Zuleitung nicht fangen kann: den Tippfehler in
+# der Konstante selbst. Der erste Wurf dieses Eingriffs hat nichts gemessen —
+# er verglich den Wert gegen die Quelle, aus der er stammt.
+vorher_datei app/Providers/SrvPanelServiceProvider.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Providers/SrvPanelServiceProvider.php')
+s = p.read_text()
+alt = 'public const API_PER_MINUTE = 60;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'public const API_PER_MINUTE = 1;', 1))
+PY
+griff_datei app/Providers/SrvPanelServiceProvider.php "Grenzwert faellt auf eins" &&
+pruefe "Grenzwert faellt auf eins" \
   ApiThrottleTest::test_the_limiter_is_registered_and_counts_the_address failed
 wiederherstellen
 

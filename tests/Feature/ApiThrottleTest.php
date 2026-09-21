@@ -109,7 +109,36 @@ final class ApiThrottleTest extends TestCase
         $limit = $limiter($anfrage);
 
         self::assertInstanceOf(Limit::class, $limit);
-        self::assertSame(SrvPanelServiceProvider::API_PER_MINUTE, $limit->maxAttempts);
+
+        /*
+         * **Der Schlüssel ist die Adresse**, und das ist die Regel — nicht die
+         * Zahl daneben.
+         */
         self::assertSame('203.0.113.7', $limit->key);
+
+        /*
+         * **Und die Zahl wird gegen eine Spanne gehalten und nicht gegen sich
+         * selbst.**
+         *
+         * Hier stand `assertSame(API_PER_MINUTE, $limit->maxAttempts)`. Der
+         * Limiter wird aus genau dieser Konstante gebaut — die Behauptung war
+         * also wahr, egal welchen Wert sie trägt, und ein Eingriff, der sie
+         * verdoppelt, blieb grün. Gemeldet hat es der Bruchlauf und nicht das
+         * Nachdenken.
+         *
+         * > **Ein Wächter, der einen Wert gegen die Quelle vergleicht, aus der
+         * > er stammt, prüft die Zuleitung und nicht den Wert.**
+         *
+         * Die Spanne fängt, was eine Zuleitung nicht fangen kann: den Tippfehler
+         * in der Konstante selbst. Eine Null zuviel machte aus der Bremse eine
+         * Verzierung, eine zuwenig aus der API ein Ärgernis.
+         */
+        self::assertGreaterThanOrEqual(10, $limit->maxAttempts,
+            'Weniger als zehn Anfragen je Minute sind keine Schnittstelle mehr.');
+        self::assertLessThanOrEqual(600, $limit->maxAttempts,
+            'Mehr als zehn Anfragen je Sekunde bremsen nichts — das ist eine Verzierung.');
+
+        self::assertSame(SrvPanelServiceProvider::API_PER_MINUTE, $limit->maxAttempts,
+            'Der Grenzwert kommt nicht mehr aus der einen Konstante.');
     }
 }

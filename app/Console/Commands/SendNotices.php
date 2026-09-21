@@ -58,6 +58,20 @@ final class SendNotices extends Command
                 $bilanz['findings'],
             ));
 
+            if ($bilanz['resolved'] > 0) {
+                /*
+                 * **Eine eigene Zeile und keine zweite Zahl in der ersten.**
+                 * Eine Entwarnung ist keine Meldung über einen Befund — sie
+                 * sagt, dass es ihn nicht mehr gibt. In derselben Zeile
+                 * gezählt, liesse sich beides nicht mehr auseinanderhalten.
+                 */
+                $this->info(sprintf(
+                    '  %s: %d Entwarnung(en) verschickt.',
+                    $kanal,
+                    $bilanz['resolved'],
+                ));
+            }
+
             if ($bilanz['without_recipient'] > 0) {
                 $this->warn(sprintf(
                     '  %s: %d ohne Empfänger — dem Kunden fehlt ein Konto mit Adresse.',

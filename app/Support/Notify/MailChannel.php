@@ -100,10 +100,10 @@ final class MailChannel implements Channel
         return $this->settings->mail()->usable();
     }
 
-    public function batchKey(Finding $finding): string
+    public function batchKey(FindingCheck $check, string $subject): string
     {
-        return $finding->check === FindingCheck::QuotaExceeded
-            ? self::SUBSCRIPTION.$finding->subject
+        return $check === FindingCheck::QuotaExceeded
+            ? self::SUBSCRIPTION.$subject
             : self::OPERATOR;
     }
 

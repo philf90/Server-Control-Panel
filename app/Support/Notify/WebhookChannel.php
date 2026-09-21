@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support\Notify;
 
+use App\Enums\FindingCheck;
 use App\Models\Finding;
+use App\Models\FindingResolution;
 use SrvPanel\Agent\AgentException;
 
 /**
@@ -22,12 +24,16 @@ use SrvPanel\Agent\AgentException;
  * sondern **wie gebündelt** wird: Dort eine Nachricht je Empfänger, hier eine
  * Meldung je Gegenstand.
  *
+ * **Und er ist der Kanal, der entwarnt** ({@see ResolvingChannel}). Der Grund
+ * steht dort: Sein Empfänger führt einen Zustand, und ohne die Gegenmeldung
+ * schliesst den Vorfall niemand.
+ *
  * **Warum es hier kein „kein Empfänger" gibt.** Es gibt genau ein Ziel, oder
  * {@see usable()} ist `false`. {@see Delivery::WithoutRecipient} wäre ein
  * Ausgang, den dieser Kanal nicht herstellen kann — und ein Ausgang, der nie
  * eintritt, ist eine Zeile, die niemand prüfen kann.
  */
-final class WebhookChannel implements Channel
+final class WebhookChannel implements ResolvingChannel
 {
     public function __construct(private readonly NotifyTarget $target) {}
 
@@ -64,9 +70,9 @@ final class WebhookChannel implements Channel
      * > **Was ein Mensch in einer Nachricht lesen will, will ein
      * > Vorfallsystem einzeln bekommen.**
      */
-    public function batchKey(Finding $finding): string
+    public function batchKey(FindingCheck $check, string $subject): string
     {
-        return $finding->subject;
+        return $subject;
     }
 
     /** @param  non-empty-list<Finding>  $findings */
@@ -77,6 +83,43 @@ final class WebhookChannel implements Channel
                 'kind' => 'findings',
                 'subject' => $findings[0]->subject,
                 'findings' => self::lines($findings),
+            ]);
+        } catch (AgentException) {
+            return Delivery::Failed;
+        }
+
+        return Delivery::Sent;
+    }
+
+    /**
+     * Und dass sie wieder fort sind.
+     *
+     * **Dieselbe Form wie eine Meldung, mit einem anderen `kind`.** Ein
+     * Empfänger, der Vorfälle verwaltet, ordnet die Entwarnung über
+     * `subject` plus `check`/`reason` dem offenen Vorfall zu — also über
+     * genau die Angaben, mit denen er ihn aufgemacht hat. Ein eigener Rumpf
+     * für die Entwarnung wäre eine zweite Form, die dasselbe beschreibt.
+     *
+     * **Ohne `state`, ohne `detail`, ohne `since`.** Ein Zustand, den es nicht
+     * mehr gibt, hat kein Urteil; der Wortlaut eines Werkzeugs beschreibt einen
+     * Schaden, der fort ist; und „steht seit" wäre eine Angabe über eine Zeile,
+     * die gelöscht ist. Wann es fort war, sagt `at` am Ereignis.
+     *
+     * > **Eine Auskunft über einen Zustand, den es nicht mehr gibt, ist eine
+     * > über den vorigen — und sie liest sich wie eine über den jetzigen.**
+     *
+     * @param  non-empty-list<FindingResolution>  $resolutions
+     */
+    public function deliverResolved(array $resolutions): Delivery
+    {
+        try {
+            $this->target->send([
+                'kind' => 'resolved',
+                'subject' => $resolutions[0]->subject,
+                'findings' => array_map(
+                    static fn (FindingResolution $r): array => $r->line(),
+                    $resolutions,
+                ),
             ]);
         } catch (AgentException) {
             return Delivery::Failed;

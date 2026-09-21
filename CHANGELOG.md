@@ -32136,3 +32136,99 @@ root.
 Neun neue Fälle in `WebhookTransportTest` (21 insgesamt), acht neue Eingriffe —
 und einer, der umziehen musste, weil `body()` nach `Providers` gegangen ist.
 **Gefunden hat ihn diesmal der dateibezogene Griff und nicht der volle Lauf.**
+
+### B1 — das Ereignis „behoben"
+
+**Bis heute meldete dieses Panel nur, dass etwas kaputt ist.** Verschwand der
+Befund, löschte `FindingLog::forgetMissing()` die Zeile — und mit ihr, über
+`cascadeOnDelete`, die Erinnerung daran, wem sie gemeldet worden war. Ein
+Empfänger, der Vorfälle verwaltet, behielt den Vorfall für immer offen.
+
+> **Ein Kanal, der nur meldet, dass etwas kaputt ist, erzieht seinen Leser
+> dazu, ihn zu ignorieren.**
+
+`finding_resolutions` ist die Warteschlange dazu, und sie **schreibt den Befund
+ab, statt auf ihn zu zeigen** — es gibt ihn nicht mehr. Dieselbe Überlegung wie
+bei `subscription_name` seit `docs/35` und der Abschrift des Kontonamens seit
+`docs/901`.
+
+> **Löschen und Vergessen sind zwei Dinge. Die Zeile darf verschwinden; was sie
+> getan hat, darf es nicht.**
+
+**Wem gemeldet wurde, wird vor dem Löschen gelesen.** Danach gibt es nichts
+mehr nachzusehen; ein Aufräumer, der später nachsieht, fände eine leere
+Tabelle.
+
+> **Ein Zustand, der mit seinem Gegenstand verschwindet, wird vor dem
+> Verschwinden gelesen oder gar nicht.**
+
+**Und was nie gemeldet wurde, wird nicht abgemeldet.** Ein Befund, der
+innerhalb der Haltezeit wieder verschwindet, hat niemanden erreicht.
+
+> **Eine Entwarnung ohne vorangegangene Warnung ist eine Meldung über nichts.**
+
+**Nur der Webhook entwarnt — und der Grund ist kein Geschmack, sondern eine
+fehlende Entprellung.** Gemeldet wird, was `Notices::HOLD_HOURS` lang steht;
+entwarnt wird, sobald der Befund fort ist. Ein Kontingent, das um seine
+Schwelle schwankt, ergäbe damit je Nacht eine Warnung und eine Entwarnung im
+Postfach des Kunden — für ein Vorfallsystem ist dieselbe Folge richtig, weil
+sie den Zustand nachzeichnet.
+
+> **Dieselbe Meldung ist für den einen Empfänger die Auskunft, die er braucht,
+> und für den anderen die, die ihn abstumpfen lässt.**
+
+**Das steht als zweite Schnittstelle `ResolvingChannel` da und nicht als
+`resolves(): bool`.** Eine Fahne liesse `deliverResolved()` auch an dem Kanal
+stehen, der sie nie beantworten darf, und ein Rückgabewert für einen Aufruf,
+den es nicht geben soll, ist entweder eine Lüge oder ein Wurf.
+
+> **Ein Zustand, den es nicht geben darf, wird nicht geprüft, sondern unmöglich
+> gemacht.**
+
+**`NoticeResolveTest` hält daneben, dass die Frage die Kanäle wirklich
+trennt** — mindestens einer entwarnt, mindestens einer nicht. Das ist die Lehre
+aus `Channel::carries()`, das gestern verschwand, weil zwei von zwei
+Umsetzungen dasselbe antworteten; was dort eine Erinnerung war, ist jetzt ein
+Wächter.
+
+> **Eine Frage, die alle Umsetzungen gleich beantworten, ist keine Frage.**
+
+**Die Entwarnung geht vor der Meldung hinaus.** Beide betreffen denselben
+Empfänger und oft denselben Gegenstand.
+
+> **Zwei Meldungen über denselben Gegenstand haben eine richtige Reihenfolge,
+> und sie ist nicht die, in der sie entstanden sind.**
+
+Der Rumpf ist derselbe wie bei einer Meldung, mit `kind: resolved` — ein
+Empfänger ordnet sie über `subject` plus `check`/`reason` dem offenen Vorfall
+zu, also über genau die Angaben, mit denen er ihn aufgemacht hat. **Ohne
+`state`, ohne `detail`, ohne `since`:** Ein Zustand, den es nicht mehr gibt,
+hat kein Urteil, und „steht seit" wäre eine Angabe über eine gelöschte Zeile.
+Im Text von Slack und Discord steht `behoben` **vor** dem Gegenstand, weil in
+einem Kanal die Zeilenanfänge gelesen werden.
+
+> **Ein Unterschied, der am Ende einer Zeile steht, ist auf einer schmalen
+> Anzeige keiner.**
+
+**`batchKey()` nimmt seitdem Prüfung und Gegenstand statt eines `Finding`** —
+mehr hat keine Umsetzung je gelesen, und eine Entwarnung trägt genau diese
+beiden. Ein zweites `batchKeyOf(FindingResolution)` wäre die zweite Fassung
+derselben Zuordnung gewesen.
+
+**Ein Prüfkörper hielt zwei Wände statt einer**, und das ist beim Bauen
+aufgefallen: Dass ein Kanal ohne Ziel seine Zeilen behält, sicherten die Frage
+nach dem Ziel **und** der Fehlschlag der Zustellung. Gemessen wird seitdem
+zusätzlich, dass die Bilanz dabei **keinen** Fehlschlag zählt — ein nicht
+eingerichteter Kanal ist keiner, sonst stünde die Unit jede Nacht rot.
+
+> **Ein Prüfkörper, den zwei Wände halten, sagt über keine von beiden etwas.**
+
+Elf neue Fälle in `NoticeResolveTest`, zwei in `WebhookTransportTest`, sechzehn
+neue Eingriffe — **und sechs bestehende, die umziehen mussten.** Gefunden hat
+sie wieder der dateibezogene Griff und nicht der volle Lauf: `forgetMissing()`
+trägt jetzt den Messzeitpunkt, `batchKey()` eine andere Signatur, der Kopf
+einer Slack-Meldung entsteht in einer eigenen Methode, und „zuletzt erfolgreich
+zugestellt" zählt die Entwarnung mit.
+
+> **Wer eine Datei ändert, hat jeden Eingriff berührt, dessen Anker darin
+> steht.**

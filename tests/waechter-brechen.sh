@@ -23362,7 +23362,7 @@ vorher_datei app/Support/Diagnose/FindingLog.php
 python3 - <<'PY2'
 p = 'app/Support/Diagnose/FindingLog.php'
 s = open(p, encoding='utf-8').read()
-alt = """        $this->forgetMissing($check, $seen);\n"""
+alt = """        $this->forgetMissing($check, $seen, $measuredAt);\n"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
 PY2
@@ -32856,7 +32856,7 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/Notices.php')
 s = p.read_text()
-alt = "$channel->batchKey($f)"
+alt = "$channel->batchKey($f->check, $f->subject)"
 assert s.count(alt) == 1
 p.write_text(s.replace(alt, '(string) $f->id', 1))
 PY
@@ -32911,9 +32911,9 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/Notices.php')
 s = p.read_text()
-alt = "if ($bilanz['sent'] > 0) {"
+alt = "if ($bilanz['sent'] + $bilanz['resolved'] > 0) {"
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, "if ($bilanz['sent'] >= 0) {", 1))
+p.write_text(s.replace(alt, "if ($bilanz['sent'] + $bilanz['resolved'] >= 0) {", 1))
 PY
 griff_datei app/Support/Notify/Notices.php "Kanal vermerkt jeden Lauf" &&
 pruefe "Kanal vermerkt jeden Lauf" \
@@ -33159,9 +33159,9 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('agent/src/Notify/Providers.php')
 s = p.read_text()
-alt = "$kopf = $ort !== '' ? sprintf('%s — %s', $server, $ort) : $server;"
+alt = "            : sprintf('%s — %s', $server, $ort);"
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, "$kopf = $ort;", 1))
+p.write_text(s.replace(alt, "            : $ort;", 1))
 PY
 griff_datei agent/src/Notify/Providers.php "Text ohne Absender" &&
 pruefe "Text ohne Absender" \
@@ -33307,11 +33307,11 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/MailChannel.php')
 s = p.read_text()
-alt = """        return $finding->check === FindingCheck::QuotaExceeded
-            ? self::SUBSCRIPTION.$finding->subject
+alt = """        return $check === FindingCheck::QuotaExceeded
+            ? self::SUBSCRIPTION.$subject
             : self::OPERATOR;"""
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, '        return self::SUBSCRIPTION.$finding->subject;', 1))
+p.write_text(s.replace(alt, '        return self::SUBSCRIPTION.$subject;', 1))
 PY
 griff_datei app/Support/Notify/MailChannel.php "eine Mail je Gegenstand" &&
 pruefe "eine Mail je Gegenstand" \
@@ -33327,9 +33327,9 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/MailChannel.php')
 s = p.read_text()
-alt = 'return $finding->check === FindingCheck::QuotaExceeded'
+alt = 'return $check === FindingCheck::QuotaExceeded'
 assert s.count(alt) == 1
-neu = 'return in_array($finding->check, [FindingCheck::QuotaExceeded, FindingCheck::TlsFile], true)'
+neu = 'return in_array($check, [FindingCheck::QuotaExceeded, FindingCheck::TlsFile], true)'
 p.write_text(s.replace(alt, neu, 1))
 PY
 griff_datei app/Support/Notify/MailChannel.php "Serverpruefung als Kundensache" &&
@@ -33346,7 +33346,7 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/WebhookChannel.php')
 s = p.read_text()
-alt = 'return $finding->subject;'
+alt = 'return $subject;'
 assert s.count(alt) == 1
 p.write_text(s.replace(alt, "return 'alles';", 1))
 PY
@@ -34257,6 +34257,317 @@ pruefe "Meldung ins Leere" \
   FlashChannelTest::test_every_written_flash_key_is_carried failed
 wiederherstellen
 
+echo "── NoticeResolveTest: der behobene Befund verschwindet still ──"
+#
+# Ohne die Abschrift ist die Zustellung mit dem Befund fort, und ein
+# Vorfallsystem haelt den Vorfall fuer immer offen.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/FindingLog.php')
+s = p.read_text()
+alt = """                foreach ($finding->notifications as $notification) {
+                    FindingResolution::record($finding, $notification->channel, $measuredAt);
+                }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei app/Support/Diagnose/FindingLog.php "behobener Befund still fort" &&
+pruefe "behobener Befund still fort" \
+  NoticeResolveTest::test_a_reported_finding_that_disappears_is_announced failed
+wiederherstellen
+
+echo "── NoticeResolveTest: entwarnt wird auch, wovon niemand gehoert hat ──"
+#
+# Eine Entwarnung ohne vorangegangene Warnung ist eine Meldung ueber nichts —
+# und ein Befund innerhalb der Haltezeit hat niemanden erreicht.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/FindingLog.php')
+s = p.read_text()
+alt = """                foreach ($finding->notifications as $notification) {
+                    FindingResolution::record($finding, $notification->channel, $measuredAt);"""
+neu = """                foreach (['webhook'] as $kanal) {
+                    FindingResolution::record($finding, $kanal, $measuredAt);"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Diagnose/FindingLog.php "Entwarnung ohne Warnung" &&
+pruefe "Entwarnung ohne Warnung" \
+  NoticeResolveTest::test_a_finding_nobody_heard_of_is_not_announced failed
+wiederherstellen
+
+echo "── NoticeResolveTest: der Zeitpunkt der Entwarnung kommt aus der Uhr ──"
+#
+# Behoben war es, als der Lauf es nicht mehr fand. Ein Zeitpunkt aus `now()`
+# nennt die Zustellung und nicht die Messung.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/FindingLog.php')
+s = p.read_text()
+alt = 'FindingResolution::record($finding, $notification->channel, $measuredAt);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'FindingResolution::record($finding, $notification->channel, Carbon::now());', 1))
+PY
+griff_datei app/Support/Diagnose/FindingLog.php "Entwarnung aus der Uhr" &&
+pruefe "Entwarnung aus der Uhr" \
+  NoticeResolveTest::test_the_moment_is_the_measurement_and_not_the_delivery failed
+wiederherstellen
+
+echo "── NoticeResolveTest: die Zeile wird auch nach einem Fehlschlag verbraucht ──"
+#
+# Eine Zeile, die nach einem Fehlschlag verschwindet, nimmt der Entwarnung ihre
+# Faelligkeit — und der Vorfall bleibt beim Empfaenger fuer immer offen.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = """                $bilanz['failed']++;
+
+                continue;
+            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, """                $bilanz['failed']++;
+            }""", 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Fehlschlag verbraucht die Zeile" &&
+pruefe "Fehlschlag verbraucht die Zeile" \
+  NoticeResolveTest::test_a_failed_delivery_keeps_the_resolution_pending failed
+wiederherstellen
+
+echo "── NoticeResolveTest: die Entwarnung kommt nach der Meldung ──"
+#
+# Zwei Meldungen ueber denselben Gegenstand haben eine richtige Reihenfolge:
+# Hinterher liest sich die Entwarnung wie die Ruecknahme der Meldung.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+block = """        if ($channel instanceof ResolvingChannel) {
+            $this->clear($channel, $bilanz);
+        }
+
+"""
+ziel = "        if ($bilanz['sent'] + $bilanz['resolved'] > 0) {"
+assert s.count(block) == 1 and s.count(ziel) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(block, '', 1).replace(ziel, block + ziel, 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Entwarnung zuletzt" &&
+pruefe "Entwarnung zuletzt" \
+  NoticeResolveTest::test_the_resolution_leaves_before_the_new_finding failed
+wiederherstellen
+
+echo "── NoticeResolveTest: ein Kanal ohne Ziel wird trotzdem befragt ──"
+#
+# Ein nicht eingerichteter Kanal ist kein Fehlschlag. Wer ihn befragt, zaehlt
+# jede Nacht einen — und die Unit steht rot fuer einen Server ohne Meldeziel.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+block = """        if ($channel instanceof ResolvingChannel) {
+            $this->clear($channel, $bilanz);
+        }
+
+"""
+ziel = "        if (! $channel->usable()) {"
+assert s.count(block) == 1 and s.count(ziel) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(block, '', 1).replace(ziel, block + ziel, 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Kanal ohne Ziel befragt" &&
+pruefe "Kanal ohne Ziel befragt" \
+  NoticeResolveTest::test_an_unusable_channel_keeps_its_rows failed
+wiederherstellen
+
+echo "── NoticeResolveTest: die Zeilen eines stummen Kanals bleiben liegen ──"
+#
+# Eine Warteschlange, aus der niemand nimmt, ist eine Tabelle, die waechst.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = "FindingResolution::query()->where('channel', $channel->key())->delete();"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '$channel->key();', 1))
+PY
+griff_datei app/Support/Notify/Notices.php "stummer Kanal sammelt an" &&
+pruefe "stummer Kanal sammelt an" \
+  NoticeResolveTest::test_a_channel_without_resolutions_leaves_no_rows failed
+wiederherstellen
+
+echo "── NoticeResolveTest: eine Entwarnung zaehlt nicht als Zustellung ──"
+#
+# In einer Nacht, in der nur eine Entwarnung hinausging, stuende auf der Seite
+# ein Datum von gestern neben einem Weg, der gerade getragen hat.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = "if ($bilanz['sent'] + $bilanz['resolved'] > 0) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "if ($bilanz['sent'] > 0) {", 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Entwarnung ohne Zustellung" &&
+pruefe "Entwarnung ohne Zustellung" \
+  NoticeResolveTest::test_an_announcement_counts_as_a_delivery failed
+wiederherstellen
+
+echo "── NoticeResolveTest: die Entwarnung buendelt je Befund ──"
+#
+# Zwei Gruende an einem Dienst waeren beim Empfaenger zwei Vorfaelle — und
+# einer von beiden bliebe offen.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = 'static fn (FindingResolution $r): string => $channel->batchKey($r->check, $r->subject),'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'static fn (FindingResolution $r): string => (string) $r->id,', 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Entwarnung je Befund" &&
+pruefe "Entwarnung je Befund" \
+  NoticeResolveTest::test_two_reasons_on_one_subject_are_one_announcement failed
+wiederherstellen
+
+echo "── NoticeResolveTest: kein Kanal entwarnt mehr ──"
+#
+# Antworten alle Umsetzungen gleich, ist die Frage keine Frage mehr — genau
+# daran ist `Channel::carries()` gestorben.
+vorher_datei app/Support/Notify/WebhookChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/WebhookChannel.php')
+s = p.read_text()
+alt = 'final class WebhookChannel implements ResolvingChannel'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'final class WebhookChannel implements Channel', 1))
+PY
+griff_datei app/Support/Notify/WebhookChannel.php "kein Kanal entwarnt" &&
+pruefe "kein Kanal entwarnt" \
+  NoticeResolveTest::test_the_question_separates_the_channels failed
+wiederherstellen
+
+echo "── NoticeResolveTest: die Entwarnung erfindet ihren eigenen Satz ──"
+#
+# Was beim Melden dastand, steht beim Entwarnen wieder da — sonst muss der
+# Leser zwei Formulierungen auf dieselbe Sache beziehen.
+vorher_datei app/Models/FindingResolution.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Models/FindingResolution.php')
+s = p.read_text()
+alt = "'label' => $this->check->sentence($this->reason),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "'label' => 'Der Befund ist behoben.',", 1))
+PY
+griff_datei app/Models/FindingResolution.php "Entwarnung erfindet den Satz" &&
+pruefe "Entwarnung erfindet den Satz" \
+  NoticeResolveTest::test_the_announcement_repeats_check_reason_and_sentence failed
+wiederherstellen
+
+echo "── NoticeResolveTest: die Entwarnung traegt einen Zustand, den es nicht gibt ──"
+#
+# „Steht seit" waere eine Angabe ueber eine Zeile, die geloescht ist — und sie
+# liest sich wie eine ueber den jetzigen Zustand.
+vorher_datei app/Models/FindingResolution.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Models/FindingResolution.php')
+s = p.read_text()
+alt = """            'label' => $this->check->sentence($this->reason),
+        ];"""
+neu = """            'label' => $this->check->sentence($this->reason),
+            'since' => $this->resolved_at->toAtomString(),
+        ];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Models/FindingResolution.php "Entwarnung traegt einen Zustand" &&
+pruefe "Entwarnung traegt einen Zustand" \
+  NoticeResolveTest::test_the_announcement_repeats_check_reason_and_sentence failed
+wiederherstellen
+
+echo "── WebhookTransportTest: die Entwarnung ist im Text nicht zu erkennen ──"
+#
+# Ein Kanal, in dem Meldung und Entwarnung gleich aussehen, sagt ueber den
+# Zustand nichts.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "$behoben = $kind === 'resolved';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '$behoben = false;', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Entwarnung nicht erkennbar" &&
+pruefe "Entwarnung nicht erkennbar" \
+  WebhookTransportTest::test_a_resolution_is_recognisable_and_a_finding_is_not failed
+wiederherstellen
+
+echo "── WebhookTransportTest: jede Meldung heisst behoben ──"
+#
+# Die Gegenrichtung: Ein Wort, das ueber jeder Meldung steht, unterscheidet
+# nichts — und stuende dann ueber jedem toten Dienst.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "$behoben = $kind === 'resolved';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '$behoben = true;', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "jede Meldung heisst behoben" &&
+pruefe "jede Meldung heisst behoben" \
+  WebhookTransportTest::test_a_resolution_is_recognisable_and_a_finding_is_not failed
+wiederherstellen
+
+echo "── WebhookTransportTest: das Wort steht hinter dem Gegenstand ──"
+#
+# Ein Unterschied am Ende einer Zeile ist auf einer schmalen Anzeige keiner —
+# dort steht er in der naechsten Zeile.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "? sprintf('%s — behoben: %s', $server, $ort)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "? sprintf('%s — %s: behoben', $server, $ort)", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Wort hinter dem Gegenstand" &&
+pruefe "Wort hinter dem Gegenstand" \
+  WebhookTransportTest::test_a_resolution_is_recognisable_and_a_finding_is_not failed
+wiederherstellen
+
+echo "── WebhookTransportTest: der eigene Empfaenger verliert die Art ──"
+#
+# Er ist der, der sie auswerten soll: Ginge die Entwarnung als Meldung hinaus,
+# machte sie beim Empfaenger einen zweiten Vorfall auf.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "default => ['server' => $server, 'at' => $at, 'event' => $event],"
+neu = "default => ['server' => $server, 'at' => $at, 'event' => array_diff_key($event, ['kind' => null])],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei agent/src/Notify/Providers.php "eigener Empfaenger ohne Art" &&
+pruefe "eigener Empfaenger ohne Art" \
+  WebhookTransportTest::test_the_own_receiver_sees_which_kind_it_is failed
+wiederherstellen
 
 
 echo

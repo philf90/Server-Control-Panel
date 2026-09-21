@@ -8,6 +8,7 @@ use App\Enums\FindingCheck;
 use App\Enums\FindingState;
 use App\Models\Finding;
 use App\Models\FindingNotification;
+use App\Models\FindingResolution;
 use App\Support\Diagnose\FindingLog;
 use App\Support\Settings\Settings;
 use App\Support\Time\Clock;
@@ -50,6 +51,20 @@ use Illuminate\Support\Collection;
  * zwei Zeilen und nicht zwei Nachrichten. Das Abnahmekriterium sagt „genau eine
  * Mail", und zwei in derselben Minute sind für den Empfänger genau das, wogegen
  * es geschrieben ist.
+ *
+ * ## Und seit dem 24. September auch das Gegenteil
+ *
+ * Was fort ist, wird abgemeldet — bei den Kanälen, die eine Entwarnung kennen
+ * ({@see ResolvingChannel}). Den Augenblick kennt allein
+ * {@see FindingLog::forgetMissing()}, und deshalb schreibt der ihn auf; hier
+ * wird die Warteschlange geleert.
+ *
+ * **Die Entwarnung geht vor der Meldung hinaus.** Beide betreffen denselben
+ * Empfänger und oft denselben Gegenstand; kommt die Entwarnung hinterher,
+ * liest sie sich wie die Rücknahme dessen, was gerade gemeldet wurde.
+ *
+ * > **Zwei Meldungen über denselben Gegenstand haben eine richtige
+ * > Reihenfolge, und sie ist nicht die, in der sie entstanden sind.**
  */
 final class Notices
 {
@@ -84,7 +99,7 @@ final class Notices
      *
      * > **Eine Zahl, die eine Aufteilung zusammenfasst, sagt nicht, welche.**
      *
-     * @return array<string, array{sent: int, findings: int, without_recipient: int, failed: int, skipped: int}>
+     * @return array<string, array{sent: int, resolved: int, findings: int, without_recipient: int, failed: int, skipped: int}>
      */
     public function send(Carbon $now): array
     {
@@ -100,11 +115,28 @@ final class Notices
     /**
      * Ein Kanal, ein Durchgang.
      *
-     * @return array{sent: int, findings: int, without_recipient: int, failed: int, skipped: int}
+     * @return array{sent: int, resolved: int, findings: int, without_recipient: int, failed: int, skipped: int}
      */
     private function over(Channel $channel, Carbon $now): array
     {
-        $bilanz = ['sent' => 0, 'findings' => 0, 'without_recipient' => 0, 'failed' => 0, 'skipped' => 0];
+        $bilanz = ['sent' => 0, 'resolved' => 0, 'findings' => 0, 'without_recipient' => 0, 'failed' => 0, 'skipped' => 0];
+
+        if (! $channel instanceof ResolvingChannel) {
+            /*
+             * **Ein Kanal, der keine Entwarnung kennt, verbraucht seine Zeilen
+             * hier.** {@see FindingLog::forgetMissing()} schreibt eine je
+             * Kanal, dem gemeldet wurde — es weiss nicht, wer daraus etwas
+             * macht, und soll es nicht wissen. Blieben sie liegen, wäre
+             * `finding_resolutions` eine Warteschlange, aus der niemand nimmt,
+             * also eine Tabelle, die wächst.
+             *
+             * **Auch dann, wenn der Kanal gar nicht eingerichtet ist.** Ob
+             * entwarnt wird, entscheidet die Art des Empfängers und nicht sein
+             * Zustand.
+             */
+            FindingResolution::query()->where('channel', $channel->key())->delete();
+        }
+
         $faellig = $this->due($channel, $now);
 
         if (! $channel->usable()) {
@@ -120,7 +152,11 @@ final class Notices
             return $bilanz;
         }
 
-        foreach ($faellig->groupBy(static fn (Finding $f): string => $channel->batchKey($f)) as $findings) {
+        if ($channel instanceof ResolvingChannel) {
+            $this->clear($channel, $bilanz);
+        }
+
+        foreach ($faellig->groupBy(static fn (Finding $f): string => $channel->batchKey($f->check, $f->subject)) as $findings) {
             $bilanz['findings'] += $findings->count();
 
             /** @var non-empty-list<Finding> $gruppe */
@@ -145,11 +181,60 @@ final class Notices
             }
         }
 
-        if ($bilanz['sent'] > 0) {
+        if ($bilanz['sent'] + $bilanz['resolved'] > 0) {
+            /*
+             * **Eine Entwarnung zählt als Zustellung.** „Zuletzt erfolgreich
+             * zugestellt" beantwortet die Frage, ob dieser Weg noch trägt —
+             * und dafür ist es gleichgültig, was in der Nachricht stand.
+             */
             $this->settings->saveNoticeSent($channel->key(), $now->toDateTimeString());
         }
 
         return $bilanz;
+    }
+
+    /**
+     * Was fort ist, abmelden — und die Zeile erst danach verbrauchen.
+     *
+     * **Gelöscht wird nur nach einer gelungenen Zustellung**, aus demselben
+     * Grund, aus dem {@see FindingNotification} nur die gelungene bucht: Eine
+     * Zeile, die nach einem Fehlschlag verschwindet, nimmt der Entwarnung ihre
+     * Fälligkeit, und der Vorfall bliebe beim Empfänger für immer offen.
+     *
+     * > **Ein Vermerk über eine Zustellung, die nicht stattfand, ist teurer als
+     * > keiner.**
+     *
+     * @param  array{sent: int, resolved: int, findings: int, without_recipient: int, failed: int, skipped: int}  $bilanz
+     */
+    private function clear(ResolvingChannel $channel, array &$bilanz): void
+    {
+        $offen = FindingResolution::query()
+            ->where('channel', $channel->key())
+            ->orderBy('check')
+            ->orderBy('subject')
+            ->orderBy('reason')
+            ->get();
+
+        $gebuendelt = $offen->groupBy(
+            static fn (FindingResolution $r): string => $channel->batchKey($r->check, $r->subject),
+        );
+
+        foreach ($gebuendelt as $zeilen) {
+            /** @var non-empty-list<FindingResolution> $gruppe */
+            $gruppe = $zeilen->values()->all();
+
+            if ($channel->deliverResolved($gruppe) !== Delivery::Sent) {
+                $bilanz['failed']++;
+
+                continue;
+            }
+
+            FindingResolution::query()
+                ->whereIn('id', array_map(static fn (FindingResolution $r): int => $r->id, $gruppe))
+                ->delete();
+
+            $bilanz['resolved']++;
+        }
     }
 
     /**

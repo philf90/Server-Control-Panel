@@ -160,13 +160,20 @@ final class Providers
      * ist genau die Angabe, die {@see Delivery} setzt und das Panel nicht
      * bestimmen darf.
      *
+     * **Drei Arten von Ereignis, und die dritte kam am 24. September 2026
+     * dazu:** `test` die Probezustellung, `findings` ein Befund,
+     * `resolved` seine Entwarnung. Ein unbekanntes `kind` wird wie `findings`
+     * gelesen — es trägt dieselben Zeilen, und ein Wurf an dieser Stelle
+     * machte aus einer Meldung, die der Empfänger verstanden hätte, gar keine.
+     *
      * @param  array<string, mixed>  $event
      */
     private static function text(string $provider, string $server, array $event): string
     {
         $findings = is_array($event['findings'] ?? null) ? $event['findings'] : [];
+        $kind = is_string($event['kind'] ?? null) ? $event['kind'] : '';
 
-        if (($event['kind'] ?? null) === 'test') {
+        if ($kind === 'test') {
             return sprintf('%s — Probezustellung von SrvPanel.', $server);
         }
 
@@ -193,9 +200,36 @@ final class Providers
          */
         $ort = is_string($event['subject'] ?? null) ? trim($event['subject']) : '';
 
-        $kopf = $ort !== '' ? sprintf('%s — %s', $server, $ort) : $server;
+        return self::capped($provider, self::head($kind, $server, $ort), $zeilen);
+    }
 
-        return self::capped($provider, $kopf, $zeilen);
+    /**
+     * Die erste Zeile — sie sagt, wovon die Rede ist und in welche Richtung.
+     *
+     * **„Behoben" steht vor dem Gegenstand und nicht dahinter.** In einem
+     * Kanal, in dem Meldungen und Entwarnungen untereinander stehen, liest
+     * jemand die Zeilenanfänge; ein Wort am Ende einer Zeile, die einen langen
+     * Namen trägt, steht auf dem Telefon in der nächsten.
+     *
+     * > **Ein Unterschied, der am Ende einer Zeile steht, ist auf einer
+     * > schmalen Anzeige keiner.**
+     *
+     * **Ein Wort und kein Zeichen.** Ein Haken oder ein Punkt in einer Farbe
+     * sähe auf jedem Empfänger anders aus, und wer Zeichen nicht sieht, sähe
+     * gar keinen Unterschied — derselbe Grund, aus dem die Oberfläche dieses
+     * Panels ohne Emoji auskommt.
+     */
+    private static function head(string $kind, string $server, string $ort): string
+    {
+        $behoben = $kind === 'resolved';
+
+        if ($ort === '') {
+            return $behoben ? sprintf('%s — behoben', $server) : $server;
+        }
+
+        return $behoben
+            ? sprintf('%s — behoben: %s', $server, $ort)
+            : sprintf('%s — %s', $server, $ort);
     }
 
     /**

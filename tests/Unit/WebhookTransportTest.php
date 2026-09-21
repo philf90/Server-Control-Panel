@@ -35,6 +35,8 @@ use Tests\Support\ScriptedOutbound;
  */
 final class WebhookTransportTest extends TestCase
 {
+    private const DIENST = 'srvpanel-metrics.service';
+
     private string $verzeichnis = '';
 
     protected function setUp(): void
@@ -346,6 +348,85 @@ final class WebhookTransportTest extends TestCase
         self::assertStringContainsString('Der Dienst läuft nicht.', $text);
         self::assertStringContainsString('ActiveState=inactive', $text);
         self::assertStringContainsString(Names::host(), $text, 'Ein Kanal, in dem drei Server melden, braucht die Herkunft.');
+    }
+
+    /**
+     * Eine Entwarnung ist im Text als eine zu erkennen — und eine Meldung nicht.
+     *
+     * **Beide Richtungen in einem Fall.** „Der Text enthält das Wort behoben"
+     * allein erfüllte auch eine Fassung, die es immer hinschreibt; dann stünde
+     * es über jedem toten Dienst.
+     *
+     * **Und es steht vor dem Gegenstand.** In einem Kanal, in dem Meldungen und
+     * Entwarnungen untereinander stehen, liest jemand die Zeilenanfänge; ein
+     * Wort hinter einem langen Namen steht auf dem Telefon in der nächsten
+     * Zeile.
+     */
+    public function test_a_resolution_is_recognisable_and_a_finding_is_not(): void
+    {
+        $zeilen = [['label' => 'Der Dienst läuft nicht.', 'detail' => 'ActiveState=inactive']];
+
+        $behoben = $this->textOf(['kind' => 'resolved', 'subject' => self::DIENST, 'findings' => $zeilen]);
+        $offen = $this->textOf(['kind' => 'findings', 'subject' => self::DIENST, 'findings' => $zeilen]);
+
+        self::assertStringContainsString('behoben', $behoben);
+        self::assertStringNotContainsString('behoben', $offen,
+            'Ein Wort, das über jeder Meldung steht, unterscheidet nichts.');
+
+        self::assertLessThan(
+            (int) strpos($behoben, self::DIENST),
+            (int) strpos($behoben, 'behoben'),
+            'Ein Unterschied, der am Ende einer Zeile steht, ist auf einer schmalen Anzeige keiner.',
+        );
+
+        // Und der Satz des Befundes steht weiter da — sonst wäre die
+        // Entwarnung eine Meldung ohne Gegenstand.
+        self::assertStringContainsString('Der Dienst läuft nicht.', $behoben);
+    }
+
+    /**
+     * Der eigene Empfänger bekommt die Art der Meldung unverfälscht.
+     *
+     * **Er ist der, der sie auswerten soll.** Ein Vorfallsystem ordnet die
+     * Entwarnung über `kind` dem offenen Vorfall zu; ginge sie als `findings`
+     * hinaus, machte sie einen zweiten auf.
+     */
+    public function test_the_own_receiver_sees_which_kind_it_is(): void
+    {
+        $http = new ScriptedOutbound;
+        $http->on(ScriptedOutbound::json(['ok' => true]));
+
+        $target = $this->target($http);
+        $target->store('https://hooks.example.org/x', null, Providers::GENERIC);
+
+        (new Delivery($target, $http))->send(['kind' => 'resolved', 'subject' => self::DIENST, 'findings' => []]);
+
+        $rumpf = json_decode((string) $http->calls[0]['body'], true);
+
+        self::assertIsArray($rumpf);
+        self::assertSame('resolved', $rumpf['event']['kind'] ?? null);
+    }
+
+    /**
+     * Den Text einer Meldung an Slack lesen.
+     *
+     * **Durch {@see Delivery} hindurch und nicht über {@see Providers::body()}.**
+     * Ein Aufruf des Rumpfbauers prüfte, dass der Rumpf stimmt — nicht, dass
+     * dieser Weg ihn benutzt.
+     *
+     * @param  array<string, mixed>  $event
+     */
+    private function textOf(array $event): string
+    {
+        $http = new ScriptedOutbound;
+        $http->on(ScriptedOutbound::json(['ok' => true]));
+
+        $target = $this->target($http);
+        $target->store('https://hooks.example.org/x', null, Providers::SLACK);
+
+        (new Delivery($target, $http))->send($event);
+
+        return (string) (json_decode((string) $http->calls[0]['body'], true)['text'] ?? '');
     }
 
     /**

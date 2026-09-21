@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support\Notify;
 
+use App\Enums\FindingCheck;
 use App\Models\Finding;
+use App\Models\FindingResolution;
 
 /**
  * Ein Weg, auf dem eine Meldung den Server verlässt — B1, `docs/129 §7`.
@@ -25,6 +27,11 @@ use App\Models\Finding;
  *
  * Was bleibt, sind zwei echte Fragen: *„kommt dieser Kanal überhaupt durch"*
  * ({@see usable}) und *„wen fasst er zusammen"* ({@see batchKey}).
+ *
+ * **Die dritte hat seit demselben Tag einen eigenen Ort**, weil sie die Kanäle
+ * wirklich trennt: Ob einer auch meldet, dass etwas **wieder in Ordnung** ist,
+ * beantwortet {@see ResolvingChannel} — und zwar dadurch, dass es ihn gibt
+ * oder nicht.
  *
  * **Warum eine Schnittstelle und nicht zwei Zweige in {@see Notices}.** Die
  * Buchung je Kanal, die Entprellung und „zuletzt erfolgreich zugestellt" sind
@@ -74,8 +81,18 @@ interface Channel
      * Der Schlüssel ist **undurchsichtig**: Was er bedeutet, weiss nur der
      * Kanal, der ihn gebildet hat. {@see Notices} vergleicht ihn und liest ihn
      * nicht — sonst stünde die Zuordnung an zwei Stellen.
+     *
+     * **Er nimmt Prüfung und Gegenstand und nicht den Befund.** Bis zum
+     * 24. September 2026 stand hier ein {@see Finding}; gebraucht hat keine
+     * Umsetzung mehr als diese beiden Angaben, und eine
+     * {@see FindingResolution} trägt genau sie — der Befund dahinter ist ja
+     * fort. Ein zweites `batchKeyOf(FindingResolution)` wäre die zweite Fassung
+     * derselben Zuordnung gewesen.
+     *
+     * > **Ein Argument, von dem der Aufgerufene zwei Felder liest, ist zwei
+     * > Argumente.**
      */
-    public function batchKey(Finding $finding): string;
+    public function batchKey(FindingCheck $check, string $subject): string;
 
     /**
      * Zustellen, was **ein** Schlüssel zusammengefasst hat.

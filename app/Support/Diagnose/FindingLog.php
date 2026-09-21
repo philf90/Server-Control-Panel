@@ -6,6 +6,8 @@ namespace App\Support\Diagnose;
 
 use App\Enums\FindingCheck;
 use App\Models\Finding;
+use App\Models\FindingResolution;
+use App\Support\Notify\Notices;
 use Illuminate\Support\Carbon;
 
 /**
@@ -64,7 +66,7 @@ final class FindingLog
             $seen[] = $finding['subject'].'|'.$finding['reason'];
         }
 
-        $this->forgetMissing($check, $seen);
+        $this->forgetMissing($check, $seen, $measuredAt);
 
         return count($seen);
     }
@@ -129,14 +131,57 @@ final class FindingLog
     /**
      * Was diese Prüfung nicht mehr nennt, ist behoben.
      *
+     * ## Wem es gemeldet wurde, wird **vor** dem Löschen gelesen
+     *
+     * Die Zeilen in `finding_notifications` hängen am Befund
+     * (`cascadeOnDelete`). Nach dem `delete()` gibt es sie nicht mehr — und mit
+     * ihnen die einzige Auskunft darüber, wer von diesem Schaden überhaupt
+     * erfahren hat. Deshalb steht die Abschrift hier und nicht in einem
+     * Aufräumer, der später nachsieht: Später gibt es nichts mehr nachzusehen.
+     *
+     * > **Ein Zustand, der mit seinem Gegenstand verschwindet, wird vor dem
+     * > Verschwinden gelesen oder gar nicht.**
+     *
+     * ## Und was nie gemeldet wurde, wird nicht abgemeldet
+     *
+     * Ein Befund, der innerhalb der Haltezeit wieder verschwindet, hat
+     * niemanden erreicht; {@see Notices::HOLD_HOURS} ist
+     * genau dafür da. Eine Entwarnung dafür ginge an einen Empfänger, der von
+     * dem Vorfall nie gehört hat.
+     *
+     * > **Eine Entwarnung ohne vorangegangene Warnung ist eine Meldung über
+     * > nichts.**
+     *
+     * ## Ob ein Kanal überhaupt entwarnt, entscheidet diese Stelle nicht
+     *
+     * Hier steht, **wem** gemeldet wurde. Was daraus wird, ist Sache von
+     * {@see Notices}: Ein Kanal, der keine Entwarnung
+     * kennt, verbraucht seine Zeilen dort. Andersherum müsste der Schreiber der
+     * Befunde die Kanäle kennen — und dann stünde dieselbe Entscheidung an zwei
+     * Stellen.
+     *
+     * > **Zwei Fassungen derselben Regel laufen auseinander, und die zweite ist
+     * > die, die veraltet.**
+     *
+     * **Der Zeitpunkt ist der der Messung und nicht `now()`.** Behoben war es,
+     * als der Lauf es nicht mehr fand; eine Entwarnung, die morgen zugestellt
+     * wird, nennt sonst den morgigen Zeitpunkt.
+     *
      * @param  list<string>  $seen  je Eintrag `subject|reason`
      */
-    private function forgetMissing(FindingCheck $check, array $seen): void
+    private function forgetMissing(FindingCheck $check, array $seen, Carbon $measuredAt): void
     {
         Finding::query()
             ->where('check', $check->value)
-            ->get(['id', 'subject', 'reason'])
+            ->with('notifications')
+            ->get()
             ->reject(fn (Finding $finding): bool => in_array($finding->subject.'|'.$finding->reason, $seen, true))
-            ->each(fn (Finding $finding) => $finding->delete());
+            ->each(function (Finding $finding) use ($measuredAt): void {
+                foreach ($finding->notifications as $notification) {
+                    FindingResolution::record($finding, $notification->channel, $measuredAt);
+                }
+
+                $finding->delete();
+            });
     }
 }

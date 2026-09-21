@@ -137,7 +137,7 @@ final class NoticeAudienceTest extends TestCase
      * Zwei Läufe im Abstand der Haltezeit und danach der Versand.
      *
      * @param  list<array{subject: string, reason: string}>  $zeilen
-     * @return array<string, array{sent: int, findings: int, without_recipient: int, failed: int, skipped: int}>
+     * @return array<string, array{sent: int, resolved: int, findings: int, without_recipient: int, failed: int, skipped: int}>
      */
     private function zweiNaechte(FindingCheck $check, array $zeilen): array
     {
@@ -336,7 +336,7 @@ final class NoticeAudienceTest extends TestCase
         $kunden = [];
 
         foreach (FindingCheck::cases() as $check) {
-            $schluessel = $kanal->batchKey(new Finding(['check' => $check->value, 'subject' => 'p1000']));
+            $schluessel = $kanal->batchKey($check, 'p1000');
 
             if (str_contains($schluessel, 'p1000')) {
                 $kunden[] = $check->value;

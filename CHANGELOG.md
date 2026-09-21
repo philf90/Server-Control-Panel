@@ -32387,3 +32387,29 @@ Fassung jener Liste gewesen.
 
 **Die Seite ist bei 390 px gemessen**: mit dem Chatfeld `dokument = 0`,
 Gegenprobe 200, und der Hinweisblock bleibt bei 126 px.
+
+### Vier PHPStan-Meldungen, die kein Rundenlauf gesehen hat
+
+**Gefunden vor dem Pull Request, nicht von ihm.** PHPStan Stufe 6 mit der
+**Projektdatei** über die **137 geänderten PHP-Dateien des ganzen Zweiges**
+meldet vier Zeilen: zwei Modelle aus B3/B4, die `HasFactory` ohne seinen
+generischen Typ benutzen, ein `?? ''` über einem Offset, den der Ausdruck immer
+liefert, und ein `hash()` als Anweisung ohne Wirkung in einer Messvorschrift.
+Alle vier hätte die CI rot gemeldet.
+
+**Die Regel dagegen steht seit dem 22. August hier** — *„Die Dateiliste kommt
+aus dem Zweig und nicht aus dem Gedächtnis"*, mit
+`git diff --name-only origin/main...HEAD` daneben. Gefahren worden ist sie in
+jeder Runde über die Dateien **der Runde**; der Zweig ist die Summe der Runden,
+und über die Summe lief nie jemand.
+
+> **Ein Werkzeug, das man je Runde über die Dateien der Runde fährt, hat den
+> Zweig nie im Ganzen gesehen.**
+
+**Warum die einzelnen Runden sie übersehen haben, ist nicht gemessen** und
+steht deshalb hier auch nicht als Erklärung.
+
+**Und die Prüfung unter der zweiten Kennung ist nachgeholt:** die 54 Fälle der
+neuen Wächter als `nobody` mit eigenem `TMPDIR` gefahren — 54 von 54, dieselben
+250 Zusicherungen wie als root. Der Unterschied ist eine Warnung über
+`.phpunit.result.cache`, die root gehört.

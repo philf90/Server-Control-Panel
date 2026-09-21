@@ -1191,7 +1191,7 @@ final class BreakScriptTest extends TestCase
 
         foreach ($treffer as $t) {
             $helfer = $t[1];
-            $ziel = $t[2] ?? '';
+            $ziel = $t[2];
 
             if ($helfer === 'vorher_datei' || $helfer === 'vorher') {
                 if ($offen !== null) {

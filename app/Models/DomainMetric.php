@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\DailyMetric;
 use App\Models\Concerns\BelongsToSubscription;
+use Database\Factories\DomainMetricFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -36,6 +37,8 @@ use Illuminate\Support\Carbon;
 final class DomainMetric extends Model
 {
     use BelongsToSubscription;
+
+    /** @use HasFactory<DomainMetricFactory> */
     use HasFactory;
 
     public $timestamps = false;

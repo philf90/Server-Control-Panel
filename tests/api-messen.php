@@ -275,9 +275,13 @@ $klartext = str_repeat('a', 48);
 
 $t = microtime(true);
 for ($i = 0; $i < 10000; $i++) {
-    hash('sha256', $klartext);
+    // Das Ergebnis wird behalten, obwohl niemand es liest: Ein blosser Aufruf
+    // ist eine Anweisung ohne Wirkung, und PHPStan meldet sie zu Recht. An der
+    // Messung aendert die Zuweisung nichts — gemessen wird der Hash.
+    $senke = hash('sha256', $klartext);
 }
 $sha = (microtime(true) - $t) / 10000 * 1000;
+unset($senke);
 
 $hash = password_hash($klartext, PASSWORD_BCRYPT, ['cost' => 12]);
 $t = microtime(true);

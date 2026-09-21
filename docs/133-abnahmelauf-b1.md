@@ -173,14 +173,35 @@ gewesen**, und alle drei stehen im Quelltext:
 > **Ein Pfad, den eine Vorschrift aus dem Gedächtnis nennt, ist eine Vermutung
 > — und der Quelltext steht daneben.**
 
-Deshalb fragt der Block die Wurzel bei **nginx** nach und leitet sie nicht aus
-dem Namen ab:
+**Und eine vierte ist beim Laufen umgefallen, nicht beim Ausschreiben.** Der
+Block mit den berichtigten Pfaden gab auf `cloudsrv24` `KEINE mit gültigem
+Zertifikat` aus — und genau dieselbe Ausgabe bekommt, wessen Verzeichnis leer
+ist, wessen `$ABO` danebenliegt und wer die Dateien nicht lesen darf. Vier
+Zustände, eine Ausgabe: Der Schleifenrumpf lief kein einziges Mal, und nichts
+in der Ausgabe sagte das.
+
+Es ist derselbe Fehler, den `packaging/bin/srvpanel` seit dem 18. August im
+Kopf trägt — dort schweigt `tinker` ohne `HOME`, und das Schweigen sieht aus
+wie ein leeres Ergebnis. Hier schweigt eine Schleife.
+
+> **Eine Schleife, die nichts ausgibt, hat nicht nichts gefunden — sie sagt
+> gar nichts. Wieviele Dateien sie angesehen hat, muss sie selbst nennen.**
+
+Der Block fragt die Wurzel deshalb bei **nginx** nach, statt sie aus dem Namen
+abzuleiten — und zählt die Dateien, bevor er sie durchgeht:
 
 ```bash
 ABO=/var/www/vhosts/<abonnement>
 HAKEN=""; WURZEL=""
 
+# Die Zahl vor der Schleife — ohne sie sieht ein leeres Verzeichnis aus wie
+# „keine Domain hat ein gültiges Zertifikat".
+DATEIEN=$(ls -1 /etc/nginx/srvpanel.d/*.conf 2>/dev/null | wc -l)
+printf 'Server-Blöcke: %s   Abonnementwurzel: %s\n' \
+    "$DATEIEN" "$([ -d "$ABO" ] && echo vorhanden || echo FEHLT)"
+
 for f in /etc/nginx/srvpanel.d/*.conf; do
+  [ -f "$f" ] || continue
   r=$(awk '$1=="root"{gsub(/;/,"",$2); print $2; exit}' "$f")
   case "$r" in "$ABO"/*) ;; *) continue ;; esac
   n=$(awk '$1=="server_name"{gsub(/;/,"",$0); print $2; exit}' "$f")

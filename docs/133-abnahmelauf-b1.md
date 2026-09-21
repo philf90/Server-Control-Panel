@@ -341,26 +341,42 @@ printf 'Durchsucht: %s Datei(en), %s Zeile(n)\n' \
 printf 'Geheimnis in den Protokollen: %s   (erwartet 0)\n' \
     "$(grep -Fl "$GEHEIMNIS" $PROT 2>/dev/null | wc -l)"
 
-# Und im Journal des Agenten — dort reist es als Argument.
-J=$(journalctl -u srvpanel-agentd -n 500 --no-pager)
-printf 'notify.target.store im Journal: %s   (Gegenprobe, erwartet > 0)\n' \
-    "$(printf '%s' "$J" | grep -c 'notify.target.store')"
-printf 'Geheimnis im Journal: %s   (erwartet 0)\n' \
-    "$(printf '%s' "$J" | grep -Fc "$GEHEIMNIS")"
+# Die Gegenprobe: Steht der Vorgang, in dem das Geheimnis als Argument reiste,
+# überhaupt in dem, was eben durchsucht wurde? Sonst misst die Null darüber den
+# leeren Korb. Der Agent schreibt nach /var/log/srvpanel/agent.log
+# ({@see Config::DEFAULT_LOG_FILE}) und nicht ins Journal von systemd.
+printf 'notify.target.store in den Protokollen: %s   (Gegenprobe, erwartet > 0)\n' \
+    "$(grep -h 'notify.target.store' $PROT 2>/dev/null | wc -l)"
+
+# Und die Zeile selbst — sie zeigt beides auf einmal.
+grep -h 'notify.target.store' /var/log/srvpanel/agent.log 2>/dev/null | tail -1 | cut -c1-400; echo
 ```
 
 **Erwartet:** `reachable` = `true`; `describe()` trägt `host`, `provider`,
 `stored_at` und `signed: true` — und **weder die volle Adresse noch das
 Geheimnis noch `config`**. Die Datei liegt `-rw------- root root` in einem
-`drwx------`-Verzeichnis. Beide Geheimniszähler stehen auf `0`, der
-Gegenprobenzähler dazwischen nicht.
+`drwx------`-Verzeichnis. Der Geheimniszähler steht auf `0`, die beiden
+Zahlen darüber und der Gegenprobenzähler darunter nicht — und die letzte Zeile
+zeigt den Vorgang selbst, mit `"secret":"···"` und `"url"` im Klartext.
 
 **Was dieser Punkt nicht sagt:** dass die Adresse nirgends steht.
 {@see Connection::redactArgs()} ersetzt jedes Argument, dessen Name `secret`,
 `key`, `token`, `password` oder `pem` enthält, durch `···`; `url` steht nicht
-darunter und erscheint **vollständig** im Journal. Das ist Absicht — das
-Journal liest root, und die Grenze, die dieser Punkt misst, ist die zur
-**Seite**. Gemessen wird hier das Geheimnis, nicht die Adresse.
+darunter und erscheint **vollständig** in `agent.log`. Das ist Absicht — die
+Datei liegt unter `/var/log/srvpanel`, das liest root, und die Grenze, die
+dieser Punkt misst, ist die zur **Seite**. Gemessen wird hier das Geheimnis,
+nicht die Adresse.
+
+**Und `journalctl` ist hier die falsche Tür.** Am 21. September stand in der
+ersten Fassung dieses Punktes `journalctl -u srvpanel-agentd`; die Gegenprobe
+kam mit `0` zurück, und die Null darunter hätte ohne sie als Beleg gegolten.
+Der Agent schreibt seine Vorgänge als JSON-Zeilen in eine Datei und an den
+Journald-Kanal nur das, was er **nicht** protokollieren konnte
+({@see Journal::write()}).
+
+> **Eine Gegenprobe, die selbst danebengreift, ist der einzige Grund, warum
+> eine Null hier je als Beleg durchgeht — sie gehört deshalb in dieselbe
+> Ausgabe wie die Null.**
 
 **Gegenrichtung im selben Punkt:** Auf der Seite steht der Rechnername und
 sonst nichts vom Ziel. Ein Bildschirmfoto der Seite gehört dazu — es ist der

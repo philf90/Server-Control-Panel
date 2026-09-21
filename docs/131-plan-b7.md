@@ -11,13 +11,19 @@ entsteht."* Dieser Plan ist der Zuschnitt.
 
 **Drei Zeilen, und alle drei aus der Messrunde.**
 
-1. **`ApiTenancyTest` als eigener Wächter fällt weg.** `docs/129 §8` sieht ihn
-   vor — *„Jede Route unter `api/` durchläuft die Mandantenklammer"*.
-   `TenancySweepTest` beansprucht in seinem eigenen Kopf schon *„jede Route,
-   die es gibt"*. Ein zweiter daneben wäre die zweite Fassung derselben Regel.
+1. **`ApiTenancyTest` bleibt — unter dem Namen `ApiEmptyListTest`.** Diese
+   Zeile hat zuerst das Gegenteil gesagt: `TenancySweepTest` beanspruche in
+   seinem Kopf schon *„jede Route, die es gibt"*, ein zweiter Wächter wäre
+   die zweite Fassung. **Beim Bauen hat sich das als falsch erwiesen** (23.
+   September): Sein Ausdruck sammelt
+   `/subscriptions/{subscription}/(files|sftp|cron)` aus `routes/web.php` und
+   hält sie gegen `tests/mandant-messen.js`. Über `api/` sagt er nichts.
 
-   > **Zwei Listen, die dasselbe meinen, laufen auseinander — und keine von
-   > beiden ist der Ort, an dem man nachsieht.**
+   > **Ein Satz im Kopf eines Wächters beschreibt seine Absicht. Was er misst,
+   > steht in seinem Ausdruck.**
+
+   Der neue Wächter hält dafür mehr als bestellt: die Klammer **und** den Fall
+   `200 []` aus `docs/130` A4.
 
 2. **„404 und nicht 403" ist kein Bau, sondern eine Eigenschaft der
    Reihenfolge** (`docs/130` A3). Was gebaut werden muss, ist nicht das
@@ -156,10 +162,10 @@ eigenen Fall gefahren.
 | | hält |
 |---|---|
 | `MiddlewareOrderTest` | Die Klammer steht vor der Bindung — in **beiden** Gruppen. Gemessen an der **Wirkung** durch die Tür und nicht an der Liste: eine umgedrehte Gruppe muss für das **eigene** Abonnement 404 geben. Er schliesst die Lücke, die ein Kommentar seit P7b für geschlossen erklärt. |
-| `TenancySweepTest` *(geweitet)* | liest **beide** Routenverzeichnisse. Seine Zusage lautet „jede Route, die es gibt", und mit einem zweiten Verzeichnis wäre sie falsch. |
+| `ApiEmptyListTest` | Jede Route unter `api/` läuft durch die Klammer — gefragt wird der Router und die Gruppe wird dabei **aufgelöst**, weil `gatherMiddleware()` ihren Namen zurückgibt und nicht ihre Mitglieder. Dazu der Fall durch die Tür: ohne Klammer `200 []`, mit Klammer eine Zeile. |
 | `ApiTokenStorageTest` | Der Klartext steht nirgends in der Ablage; gemessen an der **Spalte** und nicht an der Absicht. Und die Gegenrichtung: derselbe Klartext findet seine Zeile. |
 | `ApiTokenTransportTest` | Die Wache liest den Kopf und **nie** `$request->query()`. Gemessen an der Wirkung: Dasselbe Token im Abfrageteil ergibt 401. |
-| `ApiEmptyListTest` | Eine `api/v1`-Route ohne `ApplyTenancy` ist rot. Gemessen an der **Antwort**: `200 []` gegen `200 [1]`, und die Gegenprobe ist ein Kunde, der wirklich nichts hat. |
+| *(oben zusammengefasst)* | Und die Gegenprobe „ein Kunde, der wirklich nichts hat" hat beim Bauen eine Berichtigung gebracht: Auf der **echten** Route antwortet `SubscriptionPolicy::viewAny()` zuerst, mit **403**. `docs/130` A4 hat an einer Wegwerfroute ohne `can:` gemessen. Der Befund bleibt — die Policy ist ein zweiter Mechanismus und keine Eigenschaft der Klammer. |
 | `OpenApiReachTest` | Beide Richtungen zwischen Beschreibung und Routen. |
 | `ApiThrottleTest` | Jede Route unter `api/` trägt eine Begrenzung — oder steht mit Grund daneben. |
 

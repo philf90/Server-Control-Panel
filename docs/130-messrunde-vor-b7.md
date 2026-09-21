@@ -76,8 +76,15 @@ hatte.** Zwei davon sind meine eigenen Erwartungen, und beide waren falsch.
 
    > **Ein Ausdruck, der einen Methodennamen sucht, findet jede Methode mit,
    > die so heisst — und den Kommentar, der von ihr erzählt.**
-   Der teuerste Fall ist `TenancySweepTest` — er sagt im eigenen Kopf *„jede
-   Route, die es gibt"*, und genau das wäre er nicht mehr.
+   Der Fall, der am teuersten aussah, war `TenancySweepTest` — sein Kopf sagt
+   *„jede Route, die es gibt"*. **Beim Bauen hat sich das als zu weit gelesen
+   erwiesen** (23. September): Sein Ausdruck sammelt
+   `/subscriptions/{subscription}/(files|sftp|cron)` aus `routes/web.php` und
+   hält sie gegen die Liste in `tests/mandant-messen.js`. Der Satz in seinem
+   Kopf meint diesen Bestand und nicht den des Panels.
+
+   > **Ein Satz im Kopf eines Wächters beschreibt seine Absicht. Was er misst,
+   > steht in seinem Ausdruck.**
 
    > **Ein Lauf, der zählt, was er kennt, misst sein Gedächtnis.** (aus seinem
    > eigenen Kopf)
@@ -241,7 +248,7 @@ sind alle achtzehn —, sondern **„gilt seine Regel für `api/` auch?"**
 
 | | |
 |---|---|
-| `TenancySweepTest` | sagt im eigenen Kopf „jede Route, die es gibt" |
+| ~~`TenancySweepTest`~~ | **Berichtigt am 23. September 2026:** Sein Kopf sagt „jede Route, die es gibt", und gemeint ist damit der Bestand, den `tests/mandant-messen.js` misst — die `{subscription}`-Routen unter `files`, `sftp` und `cron`. Über `api/` sagt er nichts, und geweitet gehört er nicht. |
 | `PolicyReachTest` | führt zu jeder Fähigkeit ein Weg — die Gegenrichtung |
 | `AdminAbilityTest` | jede Adminfähigkeit gehört einer Rolle |
 | `AdminPayloadTest` | was eine Rolle nicht sehen darf, steht nicht in der Antwort |
@@ -254,10 +261,15 @@ Formulare: `OperationOriginTest`, `LinkReachTest`, `StreamNotAPageTest`,
 `RoleGateTest`, `RedirectTargetTest` (sein Textfall; sein neuer Fall fragt den
 Router), `BreakScriptTest`.
 
-**Was daraus folgt, ist kein neuer Wächter, sondern eine Weitung.**
-`docs/129 §8` sieht für B7 einen **neuen** `ApiTenancyTest` vor. Gemessen wäre
-das die zweite Fassung einer Regel, die `TenancySweepTest` schon für sich
-beansprucht — und zwei Listen, die dasselbe meinen, laufen auseinander.
+**Was daraus folgt, ist ein eigener Wächter — und `docs/129 §8` lag näher an
+der Wahrheit als meine erste Korrektur daran.** Hier stand, ein neuer
+`ApiTenancyTest` wäre die zweite Fassung der Regel von `TenancySweepTest`.
+Das war aus dessen **Kopf** geschlossen und nicht aus seinem Ausdruck; gebaut
+ist die Regel jetzt als `ApiEmptyListTest`, und sie hält mehr als die
+Klammer — auch den Fall `200 []`, den A4 gemessen hat.
+
+> **Wer entscheidet, ob eine Regel schon jemand hält, liest den Ausdruck und
+> nicht den Kopf.**
 
 ---
 

@@ -31587,3 +31587,118 @@ sieht allein die Messung durch die Tür.
 
 > **Zwei Regeln, von denen die eine den Fehler der anderen nicht sehen kann,
 > brauchen zwei Messungen — und die zweite ist die, die man sich spart.**
+
+### B7 — API v1, Zugangsmarken und OpenAPI
+
+Sechs lesende Routen unter `api/v1`, eine Zugangsmarke je Kunde oder
+Zusatzbenutzer, und eine OpenAPI-Beschreibung, die im Repo steht und in beide
+Richtungen gegen die Routen gehalten wird. Der Plan ist `docs/131`, die
+Messrunde davor **`docs/130`**, das Messmittel **`tests/api-messen.php`**.
+
+**Die Mandantenklammer hat keine zweite Fassung bekommen, und das war die
+Frage.** `ApplyTenancy` fragt `$request->user()` und nicht die Sitzung;
+`forAccount()` unterscheidet Admin → `allowAll()`, Kunde → eigene Abonnements,
+Zusatzbenutzer → zugewiesene. Eine Wache, die das Konto aus einer Marke
+einsetzt, bekommt damit dieselbe Klammer wie eine Seite — gemessen in beiden
+Richtungen (`docs/130` A3).
+
+**„404 und nicht 403" ist deshalb kein Bau, sondern eine Eigenschaft der
+Reihenfolge.** Die Vorgabegruppe `api` trägt genau **einen** Eintrag,
+`SubstituteBindings`, und sonst nichts; eine Route, die dort landet, bindet ihr
+Modell, bevor irgendetwas klammert. Die Gruppe wird deshalb genauso behandelt
+wie `web`: Bindung heraus, hinter die Klammer wieder hinein.
+
+**Und der Wächter dafür fehlte auch für `web`.** `bootstrap/app.php` erklärt die
+Reihenfolge seit P7b und schrieb daneben, ein Test halte sie fest. **Den gab es
+nicht** — gehalten war nur `EnforceAccountAccess` vor `EnforceAdminNetwork`.
+
+> **Eine Zeile, die einen Wächter behauptet, ist teurer als keine — der Nächste
+> baut ihn nicht, weil er ihn für gebaut hält.**
+
+**Die Begründung daneben war ebenfalls ungemessen.** Sie sagte, eine Bindung vor
+der Klammer mache aus „nicht gefunden" ein „verboten", und damit liesse sich
+abzählen, welche Kennungen es gibt. Gemessen gibt die umgedrehte Reihenfolge
+**404 für das fremde und 404 für das eigene** Abonnement: Die Klammer steht beim
+Binden im Grundzustand, und der verweigert alles. Der Schaden ist kein Leck,
+sondern ein Panel, in dem kein Kunde mehr seine eigene Seite sieht.
+`MiddlewareOrderTest` misst deshalb das **eigene** Abonnement — das fremde gibt
+in beiden Reihenfolgen 404 und trennt die Fälle nicht.
+
+**Gehasht mit `sha256` und nicht mit bcrypt**, und das ist gemessen: 0,00011 ms
+gegen 193 ms je Prüfung, Faktor rund 1,7 Millionen. Ein Token sind
+achtundvierzig Zeichen aus `random_bytes()`; der Arbeitsfaktor von bcrypt
+gleicht eine fehlende Entropie aus, und hier fehlt keine.
+
+> **Ein Arbeitsfaktor, der eine fehlende Entropie ausgleicht, ist dort, wo sie
+> nicht fehlt, nur noch Preis.**
+
+**Die Marke reist im Kopf und nie in der Adresse.** nginx schreibt `"$request"`
+ins Zugriffsprotokoll — die Anfragezeile **mitsamt Abfrageteil**. Gemessen gegen
+echtes nginx 1.24.0: Token im Abfrageteil **1** Treffer im Protokoll, Token im
+Kopf **0**. Die Datei bleibt vierzehn Tage liegen und wird von diesem Panel
+selbst angezeigt.
+
+> **Ein Geheimnis, das in der Adresse reist, steht in einer Datei, die das Panel
+> dem Betreiber vorliest.**
+
+**Ein Adminkonto kommt nicht durch**, und gefragt wird in der **Wache** und
+nicht nur dort, wo eine Marke entsteht: Ein Konto kann seinen Typ wechseln, und
+die Marke trüge dann eine Zusage, die niemand mehr gemacht hat.
+
+> **Eine Prüfung beim Anlegen gilt für den Zustand beim Anlegen.**
+
+**Die erste Drosselung dieses Panels.** Bis B7 gab es **keine einzige**
+`throttle`-Mittelschicht; `LoginThrottle` ist handgebaut und bedient die
+Anmeldung. Sie steht **vor** der Wache, damit ein Versuch mit einer erfundenen
+Marke keinen Datenbankzugriff kostet — und gezählt wird deshalb die Adresse und
+nicht die Marke: An dieser Stelle gibt es noch kein Konto.
+
+> **Ein Schlüssel, der einen Wert nennt, den es an dieser Stelle nicht gibt, ist
+> keine Einschränkung, sondern eine Zusage ohne Gegenstand.**
+
+**`cascadeOnDelete` und nicht `nullOnDelete`** — hier geht dieses Repo bewusst
+den anderen Weg als bei `audit_events`. Dort ist die Zeile ein Protokoll, und
+was jemand getan hat, darf sein Konto überleben. Ein Schlüssel ohne sein Schloss
+ist kein Protokolleintrag, sondern ein Risiko.
+
+**Die Marken stehen auf der Kontoseite und nicht auf einer eigenen.** Ein
+neunter Punkt in der Gruppe „Einstellungen" wäre derselbe Befund wie bei B6 —
+und für einen Administrator steht dort `null` und keine leere Liste: Die läse
+sich wie eine Einladung.
+
+### Drei Berichtigungen an der eigenen Messrunde
+
+**Die erste betrifft einen Wächter, den ich aus seinem Kopf gelesen habe statt
+aus seinem Ausdruck.** `docs/130 §4` hat `TenancySweepTest` für zuständig
+erklärt — er sagt im eigenen Kopf „jede Route, die es gibt". Sein Ausdruck
+sammelt `/subscriptions/{subscription}/(files|sftp|cron)` aus `routes/web.php`
+und hält sie gegen `tests/mandant-messen.js`. Über `api/` sagt er nichts.
+
+> **Ein Satz im Kopf eines Wächters beschreibt seine Absicht. Was er misst,
+> steht in seinem Ausdruck.**
+
+Damit lag `docs/129 §8` näher an der Wahrheit als meine Korrektur daran: Es
+**braucht** einen eigenen Wächter. Er heisst `ApiEmptyListTest` und hält mehr
+als bestellt — die Klammer und den Fall `200 []`.
+
+**Die zweite betrifft `200 []` selbst.** `docs/130` A4 hat ihn an einer
+Wegwerfroute **ohne** `can:` gemessen und daraus geschlossen, ein Kunde ohne
+Abonnements und eine Route ohne Klammer seien von aussen gleich. Auf der echten
+Route stimmt das nicht: `SubscriptionPolicy::viewAny()` lässt nur durch, wer
+überhaupt ein Abonnement erreicht, und ein Kunde ohne bekommt **403**.
+
+> **Ein Prüfkörper ohne die Wache des Prüflings misst eine andere Route.**
+
+Der Befund bleibt trotzdem, und der Wächter mit ihm: Die Policy ist ein zweiter
+Mechanismus und keine Eigenschaft der Klammer. Eine Route, die morgen ohne
+`viewAny` entsteht, hat den Fall sofort wieder.
+
+**Und die dritte ist mein eigener Griff in die Middlewareliste.**
+`gatherMiddleware()` gibt den **Namen** einer Gruppe zurück und nicht ihre
+Mitglieder. Für eine Seite fällt das nicht auf, weil `auth` dort an der Route
+steht; eine api-Route trägt `['api']` und sonst nichts. `RouteAuthorizationTest`
+löst Gruppen seitdem auf — und zieht ab, was eine Route mit `withoutMiddleware`
+ausdrücklich ablegt.
+
+> **Eine Liste, die einen Namen statt seines Inhalts nennt, ist vollständig und
+> beantwortet die Frage trotzdem nicht.**

@@ -1367,6 +1367,20 @@ Route::middleware('auth')->group(function (): void {
         ->name('profile.password');
 
     /*
+     * **Die Zugangsmarken für `api/v1`** (B7, `docs/131 §3`).
+     *
+     * Dieselbe Schranke wie beim Konto daneben und aus demselben Grund: Eine
+     * Marke gehört dem angemeldeten Konto, und eine Kennung aus der Anfrage
+     * entscheidet nichts — gesucht wird über `$request->user()->apiTokens()`.
+     * Ein Adminkonto wird im Controller abgewiesen; es bekommt keine Marke,
+     * weil `forAccount()` für ihn `allowAll()` ruft.
+     */
+    Route::post('/settings/tokens', [ProfileController::class, 'storeToken'])
+        ->name('profile.tokens.store');
+    Route::delete('/settings/tokens/{token}', [ProfileController::class, 'destroyToken'])
+        ->name('profile.tokens.destroy');
+
+    /*
      * Die Darstellung — hell, dunkel oder das, was das Betriebssystem sagt.
      *
      * Eigene Route und nicht Teil von `profile.update`: Jene verlangt das

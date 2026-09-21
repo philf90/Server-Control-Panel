@@ -3437,6 +3437,19 @@ tr:has(td.multiline) > td {
 .quiet + .skeleton-stack,
 
 /*
+ * **Und beim nächsten Mal steht ein Geheimnis unter seinem Satz.**
+ *
+ * Die frisch angelegte Zugangsmarke aus B7 steht in einem eigenen Bereich:
+ * ein Satz, warum sie nur einmal dasteht, und darunter die Marke selbst als
+ * Kennung. Zwei bündige Blöcke, dieselbe Fuge, ein neuer Name — gemeldet hat
+ * es wieder der Wächter und nicht das Auge.
+ *
+ * > **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit
+ * > der nächsten Ergänzung.**
+ */
+.quiet + .ident,
+
+/*
  * **Und beim siebten Mal war es die Automatik.**
  *
  * Auf der Updates-Seite steht seit dem 26. August eine Tabelle unmittelbar

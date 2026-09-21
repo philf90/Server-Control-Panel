@@ -1441,6 +1441,19 @@ Abräumens hat sein eigenes Wort und seinen eigenen Satz — über **beide** Paa
 aus Ablageort und Operation, weil ein Wächter über eines grün bliebe, während der
 Befund eine Datei weiter offensteht; der Verweis ist dabei kein Ausgang, sondern
 ein Abbruch, und er wird **vor** dem Verzeichnis gefragt) und
+`MiddlewareOrderTest` (die Mandantenklammer steht vor der Modellbindung — in
+**beiden** Gruppen, und die Wache vor der Klammer; gemessen an der **Wirkung**
+durch die Tür und am **eigenen** Abonnement, weil das fremde in beiden
+Reihenfolgen 404 gibt und die Fälle nicht trennt. Er schliesst die Lücke, die
+ein Kommentar seit P7b für geschlossen erklärt hat) und `ApiEmptyListTest`
+(jede Route unter `api/` läuft durch die Klammer — gefragt wird der Router, und
+die Gruppe wird dabei aufgelöst; dazu der Fall durch die Tür, denn eine Liste
+ohne Klammer gibt `200 []`, und das meldet niemand) und `ApiTokenTransportTest`
+(die Marke reist im Kopf und nie in der Adresse — gemessen an der Wirkung und
+am Quelltext, denn dieselbe Marke im Abfrageteil gäbe auch dann 401, wenn
+jemand einen zweiten Leser mit anderem Namen einbaute) und `OpenApiReachTest`
+(Beschreibung und Routen in beide Richtungen — die zweite ist die, an der ein
+toter Eintrag wirklich entsteht) — und
 `SubscriptionReachTest` (jede Seite, die zu **einem** Abonnement gehört, ist von
 seiner Seite aus erreichbar — die Segmente kommen aus `Route::getRoutes()` und
 nicht aus einer Liste im Test, gefragt wird nach **einem** Segment ohne weiteren
@@ -5494,6 +5507,55 @@ der Sitzung.
 Wer eine schreibende Route durch die Tür misst, schreibt das **Ziel** aus. Ein
 blosses `assertRedirect()` ohne Adresse ist dieselbe Zusicherung noch einmal:
 Sie sagt, dass überhaupt weitergeleitet wird, und genau das war nie die Frage.
+
+---
+
+## Drei Sätze aus B7 — 23. September 2026
+
+**Der erste ist der teuerste, und er trifft jeden Kommentar dieses Repos.**
+`bootstrap/app.php` erklärt seit P7b, warum `ApplyTenancy` vor
+`SubstituteBindings` steht, und schrieb daneben: *„Ein Test hält die
+Reihenfolge fest."* Ausgezählt am 21. September nannte **keine** Datei unter
+`tests/` diese beiden Mittelschichten zusammen.
+
+> **Eine Zeile, die einen Wächter behauptet, ist teurer als keine — der Nächste
+> baut ihn nicht, weil er ihn für gebaut hält.**
+
+Und die Begründung daneben war ebenfalls ungemessen: Sie sagte, eine Bindung
+vor der Klammer mache aus „nicht gefunden" ein „verboten". Gemessen gibt die
+umgedrehte Reihenfolge **404 für das fremde und 404 für das eigene**
+Abonnement — die Klammer steht beim Binden im Grundzustand, und der verweigert
+alles. Der Handgriff war richtig, der Satz daneben nicht.
+
+**Der zweite sagt, wo man nachsieht, ob eine Regel schon jemand hält.**
+`docs/130 §4` hat `TenancySweepTest` für zuständig erklärt, weil sein Kopf
+*„jede Route, die es gibt"* sagt. Sein Ausdruck sammelt
+`/subscriptions/{subscription}/(files|sftp|cron)` aus `routes/web.php` und hält
+sie gegen `tests/mandant-messen.js`.
+
+> **Ein Satz im Kopf eines Wächters beschreibt seine Absicht. Was er misst,
+> steht in seinem Ausdruck.**
+
+Das ist die Schwesterregel zu der aus A8 — *wer entscheidet, was als Nächstes
+gebaut wird, sieht am Quelltext nach, ob es das schon gibt* — eine Ebene
+tiefer: Der Quelltext eines Wächters ist sein Ausdruck und nicht sein
+Dokumentblock.
+
+**Der dritte ist ein Griff, der zweimal in dieser Runde danebenlag.**
+`$route->gatherMiddleware()` gibt den **Namen** einer Gruppe zurück und nicht
+ihre Mitglieder. Für eine Seite fällt das nicht auf, weil `auth` dort an der
+Route steht; eine Route unter `api/` trägt `['api']` und sonst nichts. Wer über
+Mittelschichten urteilt, löst die Gruppen auf — und zieht ab, was eine Route
+mit `withoutMiddleware()` ausdrücklich ablegt, denn davon weiss
+`gatherMiddleware()` nichts.
+
+> **Eine Liste, die einen Namen statt seines Inhalts nennt, ist vollständig und
+> beantwortet die Frage trotzdem nicht.**
+
+Dazu eine Falle der Umgebung, die jeden Wächter über Mittelschichten trifft:
+**Die Gruppen stehen erst im Router, nachdem der HTTP-Kernel sie dorthin
+gespiegelt hat.** Ein Fall, der keine Anfrage schickt, fragt sonst eine leere
+Liste — und eine leere Liste hält jede Reihenfolge ein.
 
 ---
 

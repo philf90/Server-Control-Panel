@@ -388,6 +388,15 @@ final class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
                 'recoveryCodes' => fn () => $request->session()->get('recoveryCodes'),
+
+                /*
+                 * **Der Klartext einer frisch angelegten Zugangsmarke (B7).**
+                 * Er steht genau einmal auf dem Bildschirm und nirgends in der
+                 * Ablage — derselbe Weg wie bei den Wiederherstellungscodes
+                 * daneben und aus demselben Grund: Was man wiederzeigen kann,
+                 * kann man auch mitlesen.
+                 */
+                'apiToken' => fn () => $request->session()->get('apiToken'),
             ],
         ]);
     }

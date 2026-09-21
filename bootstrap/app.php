@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\ApplyTenancy;
+use App\Http\Middleware\AuthenticateToken;
 use App\Http\Middleware\EnforceAccountAccess;
 use App\Http\Middleware\EnforceAdminNetwork;
 use App\Http\Middleware\EnforceSessionLifetime;
@@ -16,6 +17,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 $app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
@@ -85,6 +87,39 @@ $app = Application::configure(basePath: dirname(__DIR__))
                 // Formular — siehe den Klassenkopf.
                 RememberPageUrl::class,
                 HandleInertiaRequests::class,
+            ],
+        );
+
+        /*
+         * **Dieselbe Reihenfolge für `api`, und aus demselben Grund** (B7,
+         * `docs/131 §3`). Die Vorgabegruppe trägt genau einen Eintrag —
+         * `SubstituteBindings` und sonst nichts (gemessen, `docs/130` A1) —,
+         * und eine Route, die dort landet, bindet ihr Modell, bevor
+         * irgendetwas klammert.
+         *
+         * Die Wache steht vorn, weil `ApplyTenancy` `$request->user()` fragt:
+         * Ohne ein eingesetztes Konto bleibt die Klammer im Grundzustand, und
+         * der verweigert alles — auch das eigene Abonnement. Gemessen in
+         * beiden Richtungen (`docs/130` A3), und `MiddlewareOrderTest` hält es
+         * für **beide** Gruppen an der Wirkung.
+         *
+         * `EnforceAccountAccess` steht hier **nicht**: Es beendet eine
+         * Sitzung, und eine Marke hat keine. Denselben Kontozustand fragt
+         * {@see AuthenticateToken} selbst.
+         */
+        $middleware->api(
+            remove: [SubstituteBindings::class],
+            append: [
+                /*
+                 * **Die Drosselung steht vorn**, damit sie greift, bevor die
+                 * Wache in die Datenbank sieht. Der Grenzwert und sein
+                 * Schlüssel stehen in {@see \App\Providers\SrvPanelServiceProvider}.
+                 */
+                'throttle:api',
+
+                AuthenticateToken::class,
+                ApplyTenancy::class,
+                SubstituteBindings::class,
             ],
         );
 

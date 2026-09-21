@@ -33369,6 +33369,249 @@ pruefe "geteilter Name in camelCase" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SharedPropTest passed
 
+echo "── MiddlewareOrderTest: die Bindung zieht vor die Klammer (api) ──"
+#
+# Die Vorgabegruppe `api` traegt `SubstituteBindings` und sonst nichts. Wer
+# sie stehenlaesst, bindet vor der Klammer — und die steht dann im
+# Grundzustand, der alles verweigert. Gemessen in docs/130 A3: 404 auch
+# fuer das eigene Abonnement.
+vorher_datei bootstrap/app.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('bootstrap/app.php')
+s = p.read_text()
+alt = '        $middleware->api(\n            remove: [SubstituteBindings::class],'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '        $middleware->api(\n            remove: [],', 1))
+PY
+griff_datei bootstrap/app.php "Bindung vor Klammer in api" &&
+pruefe "Bindung vor Klammer in api" \
+  MiddlewareOrderTest failed
+wiederherstellen
+
+echo "── MiddlewareOrderTest: die Wache zieht hinter die Klammer ──"
+#
+# `ApplyTenancy` fragt `$request->user()`. Laeuft sie vor der Wache, ist
+# dort niemand, und die Klammer bleibt im Grundzustand — ein Kunde saehe
+# sein eigenes Abonnement nicht mehr.
+vorher_datei bootstrap/app.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('bootstrap/app.php')
+s = p.read_text()
+alt = '                AuthenticateToken::class,\n                ApplyTenancy::class,\n                SubstituteBindings::class,'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '                ApplyTenancy::class,\n                AuthenticateToken::class,\n                SubstituteBindings::class,', 1))
+PY
+griff_datei bootstrap/app.php "Wache hinter der Klammer" &&
+pruefe "Wache hinter der Klammer" \
+  MiddlewareOrderTest failed
+wiederherstellen
+
+echo "── MiddlewareOrderTest: die Bindung zieht vor die Klammer (web) ──"
+#
+# Dieselbe Regel fuer die Seiten. Der Kommentar in bootstrap/app.php hat
+# bis zum 21. September 2026 behauptet, ein Test halte diese Reihenfolge
+# fest — den gab es nicht.
+vorher_datei bootstrap/app.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('bootstrap/app.php')
+s = p.read_text()
+alt = '                ApplyTenancy::class,\n                SubstituteBindings::class,\n\n                // Der Kontozustand vor allem anderen'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '                SubstituteBindings::class,\n                ApplyTenancy::class,\n\n                // Der Kontozustand vor allem anderen', 1))
+PY
+griff_datei bootstrap/app.php "Bindung vor Klammer in web" &&
+pruefe "Bindung vor Klammer in web" \
+  MiddlewareOrderTest failed
+wiederherstellen
+
+echo "── ApiTokenStorageTest: der Klartext wird abgelegt ──"
+#
+# Ein Geheimnis, das sich ein zweites Mal anzeigen laesst, ist keines mehr.
+# Abgelegt gehoert der sha256 und nicht die Marke selbst.
+vorher_datei app/Models/ApiToken.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Models/ApiToken.php')
+s = p.read_text()
+alt = '        $token->token_hash = self::hashOf($plain);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '        $token->token_hash = $plain;', 1))
+PY
+griff_datei app/Models/ApiToken.php "Klartext abgelegt" &&
+pruefe "Klartext abgelegt" \
+  ApiTokenStorageTest failed
+wiederherstellen
+
+echo "── ApiTokenStorageTest: der Gebrauch wird bei jeder Anfrage geschrieben ──"
+#
+# `CACHE_STORE` und `SESSION_DRIVER` stehen auf dem Server auf `database`.
+# Ein Schreibvorgang je API-Anfrage waere eine Zeile, die niemand liest, in
+# einer Tabelle, die jede Anfrage sperrt.
+vorher_datei app/Models/ApiToken.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Models/ApiToken.php')
+s = p.read_text()
+alt = '        if ($this->last_used_at !== null\n            && $this->last_used_at->diffInSeconds($now) < self::USAGE_RESOLUTION_SECONDS) {\n            return false;\n        }'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '        // jede Anfrage schreibt', 1))
+PY
+griff_datei app/Models/ApiToken.php "Gebrauch bei jeder Anfrage" &&
+pruefe "Gebrauch bei jeder Anfrage" \
+  ApiTokenStorageTest failed
+wiederherstellen
+
+echo "── ApiTokenTransportTest: die Wache liest auch die Adresse ──"
+#
+# nginx schreibt `"$request"` mitsamt Abfrageteil ins Zugriffsprotokoll —
+# vierzehn Tage lang, in eine Datei, die dieses Panel selbst anzeigt.
+# Gemessen: Token im Abfrageteil 1 Treffer, Token im Kopf 0 (docs/130 A7).
+vorher_datei app/Http/Middleware/AuthenticateToken.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Middleware/AuthenticateToken.php')
+s = p.read_text()
+alt = '        $plain = $request->bearerToken();'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "        $plain = $request->bearerToken() ?? $request->query('token');", 1))
+PY
+griff_datei app/Http/Middleware/AuthenticateToken.php "Wache liest die Adresse" &&
+pruefe "Wache liest die Adresse" \
+  ApiTokenTransportTest failed
+wiederherstellen
+
+echo "── ApiTokenTransportTest: ein Adminkonto kommt durch ──"
+#
+# `forAccount()` ruft fuer einen Admin `allowAll()`. Eine Marke an einem
+# Adminkonto waere ein Bearer-Token ohne Klammer ueber den ganzen Server —
+# ohne zweiten Faktor und ohne die Netzbeschraenkung aus A9.
+vorher_datei app/Http/Middleware/AuthenticateToken.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Middleware/AuthenticateToken.php')
+s = p.read_text()
+alt = '        if ($account === null || $account->type->isAdmin() || ! AccountAccess::permits($account)) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '        if ($account === null || ! AccountAccess::permits($account)) {', 1))
+PY
+griff_datei app/Http/Middleware/AuthenticateToken.php "Adminkonto kommt durch" &&
+pruefe "Adminkonto kommt durch" \
+  ApiTokenTransportTest failed
+wiederherstellen
+
+echo "── ApiEmptyListTest: eine api-Route ohne Klammer ──"
+#
+# Eine gebundene fremde Kennung gibt 404 und faellt auf. Eine Liste ohne
+# Klammer gibt `200 []` — und das meldet niemand (docs/130 A4).
+vorher_datei bootstrap/app.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('bootstrap/app.php')
+s = p.read_text()
+alt = '                ApplyTenancy::class,\n                SubstituteBindings::class,\n            ],\n        );'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '                SubstituteBindings::class,\n            ],\n        );', 1))
+PY
+griff_datei bootstrap/app.php "api-Route ohne Klammer" &&
+pruefe "api-Route ohne Klammer" \
+  ApiEmptyListTest failed
+wiederherstellen
+
+echo "── OpenApiReachTest: eine Route fehlt in der Beschreibung ──"
+#
+# Ein Klient, der die Beschreibung liest, kennt die Route dann nicht — und
+# fuer ihn gibt es sie nicht.
+vorher_datei docs/openapi-v1.yaml
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('docs/openapi-v1.yaml')
+s = p.read_text()
+alt = '  /domains/{domain}:'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '  /domains-die-es-nicht-gibt/{domain}:', 1))
+PY
+griff_datei docs/openapi-v1.yaml "Route fehlt in der Beschreibung" &&
+pruefe "Route fehlt in der Beschreibung" \
+  OpenApiReachTest::test_every_route_stands_in_the_description failed
+wiederherstellen
+
+echo "── OpenApiReachTest: ein toter Pfad bleibt liegen ──"
+#
+# So entsteht er wirklich: Bei einer Umbenennung traegt man den neuen Pfad
+# nach, die erste Richtung ist wieder gruen, und der alte bleibt stehen.
+vorher_datei docs/openapi-v1.yaml
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('docs/openapi-v1.yaml')
+s = p.read_text()
+alt = 'paths:\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'paths:\n  /gibt-es-nicht:\n    get:\n      summary: Ein toter Eintrag\n      responses:\n        "200":\n          description: Nichts.\n', 1))
+PY
+griff_datei docs/openapi-v1.yaml "toter Pfad in der Beschreibung" &&
+pruefe "toter Pfad in der Beschreibung" \
+  OpenApiReachTest::test_every_documented_path_is_a_route failed
+wiederherstellen
+
+echo "── ApiThrottleTest: die Begrenzung faellt aus der Gruppe ──"
+#
+# Vor B7 hatte dieses Panel keine einzige `throttle`-Mittelschicht. Ohne sie
+# kostet jeder Versuch mit einer erfundenen Marke einen Datenbankzugriff.
+vorher_datei bootstrap/app.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('bootstrap/app.php')
+s = p.read_text()
+alt = "                'throttle:api',\n\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei bootstrap/app.php "Begrenzung faellt aus der Gruppe" &&
+pruefe "Begrenzung faellt aus der Gruppe" \
+  ApiThrottleTest::test_every_api_route_carries_a_limit failed
+wiederherstellen
+
+echo "── ApiThrottleTest: der Grenzwert wird still verdoppelt ──"
+#
+# Gemessen wird das aufgeloeste Limit und nicht die Zeile im Provider: Ein
+# Waechter ueber den Quelltext bliebe gruen, wenn jemand den Limiter
+# woanders ueberschriebe.
+vorher_datei app/Providers/SrvPanelServiceProvider.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Providers/SrvPanelServiceProvider.php')
+s = p.read_text()
+alt = '    public const API_PER_MINUTE = 60;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '    public const API_PER_MINUTE = 60;\n\n    private const UNUSED_MARKER = 1;', 1))
+PY
+griff_datei app/Providers/SrvPanelServiceProvider.php "Grenzwert verdoppelt" &&
+pruefe "Grenzwert verdoppelt" \
+  ApiThrottleTest::test_the_limiter_is_registered_and_counts_the_address failed
+wiederherstellen
+
+echo "── RouteAuthorizationTest: eine api-Route verliert ihre Policy ──"
+#
+# Jede Route dieses Panels traegt `can:` oder steht mit Begruendung in
+# RouteGuard. Eine API bekommt keinen eigenen Rechteweg.
+vorher_datei routes/api.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('routes/api.php')
+s = p.read_text()
+alt = "    Route::get('/subscriptions/{subscription}', [SubscriptionsController::class, 'show'])\n        ->middleware('can:view,subscription')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "    Route::get('/subscriptions/{subscription}', [SubscriptionsController::class, 'show'])", 1))
+PY
+griff_datei routes/api.php "api-Route ohne Policy" &&
+pruefe "api-Route ohne Policy" \
+  RouteAuthorizationTest::test_every_route_is_either_guarded_or_declared failed
+wiederherstellen
+
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

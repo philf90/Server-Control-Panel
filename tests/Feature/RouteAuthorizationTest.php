@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\AuthenticateToken;
 use App\Support\Authorization\RouteGuard;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Route as Router;
 use Tests\TestCase;
@@ -53,7 +55,58 @@ final class RouteAuthorizationTest extends TestCase
      */
     private function middleware(Route $route): array
     {
-        return array_values($route->gatherMiddleware());
+        /*
+         * **Abzüglich dessen, was die Route ausdrücklich ablegt.**
+         * `gatherMiddleware()` sammelt Gruppe und Route zusammen und weiss von
+         * `withoutMiddleware()` nichts — die Ausschlüsse stehen daneben. Ohne
+         * sie läse dieser Wächter `api/v1/openapi.yaml` als „braucht ein
+         * Konto", obwohl die Route ihre Wache ablegt, und die Eintragung
+         * „öffentlich" wäre fälschlich falsch.
+         *
+         * > **Eine Liste, die nur das Hinzugefügte kennt, beschreibt nicht,
+         * > was am Ende läuft.**
+         */
+        $abgelegt = $route->excludedMiddleware();
+
+        /*
+         * **Gruppen werden aufgelöst.** `gatherMiddleware()` gibt den
+         * **Namen** einer Gruppe zurück und nicht ihre Mitglieder — für eine
+         * Seite fällt das nicht auf, weil `auth` dort an der Route steht. Eine
+         * api-Route trägt `['api']` und sonst nichts, und die Wache steckt in
+         * der Gruppe.
+         *
+         * > **Eine Liste, die einen Namen statt seines Inhalts nennt, ist
+         * > vollständig und beantwortet die Frage trotzdem nicht.**
+         */
+        /*
+         * **Der HTTP-Kernel wird angefasst, bevor gefragt wird.** Die Gruppen
+         * kommen aus `withMiddleware(…)` und stehen erst im Router, nachdem
+         * der Kernel sie dorthin gespiegelt hat (`syncMiddlewareToRouter()`).
+         * Ein Fall, der keine Anfrage schickt, fragte sonst eine leere Liste —
+         * und eine leere Liste löst keine Gruppe auf und meldet trotzdem
+         * nichts.
+         */
+        $this->app?->make(HttpKernel::class);
+
+        $gruppen = Router::getMiddlewareGroups();
+        $aufgeloest = [];
+
+        foreach ($route->gatherMiddleware() as $eintrag) {
+            if (is_string($eintrag) && array_key_exists($eintrag, $gruppen)) {
+                foreach ($gruppen[$eintrag] as $mitglied) {
+                    $aufgeloest[] = $mitglied;
+                }
+
+                continue;
+            }
+
+            $aufgeloest[] = $eintrag;
+        }
+
+        return array_values(array_filter(
+            $aufgeloest,
+            static fn (mixed $m): bool => ! in_array($m, $abgelegt, true),
+        ));
     }
 
     private function hasPolicy(Route $route): bool
@@ -71,6 +124,18 @@ final class RouteAuthorizationTest extends TestCase
     {
         foreach ($this->middleware($route) as $middleware) {
             if ($middleware === 'auth' || (is_string($middleware) && str_starts_with($middleware, 'auth:'))) {
+                return true;
+            }
+
+            /*
+             * **Die API verlangt ihr Konto über eine andere Wache.**
+             * {@see AuthenticateToken} löst es aus einer Zugangsmarke statt
+             * aus einer Sitzung; für die Frage „braucht diese Route ein
+             * Konto?" ist das dasselbe. Ohne diese Zeile stünde jede
+             * api-Route als „öffentlich" da — und die Begründung daneben wäre
+             * falsch, nicht die Route.
+             */
+            if ($middleware === AuthenticateToken::class) {
                 return true;
             }
         }

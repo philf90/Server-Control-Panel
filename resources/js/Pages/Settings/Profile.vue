@@ -41,6 +41,21 @@ const props = defineProps<{
     last_login_ip: string | null
   }
   impersonating: boolean
+
+  /*
+   * **`null` für einen Administrator und keine leere Liste.** Er bekommt
+   * keine Marke, und eine leere Liste läse sich wie „noch keine angelegt" —
+   * also wie eine Einladung.
+   */
+  apiTokens:
+    | {
+        id: number
+        name: string
+        preview: string
+        last_used_at: string | null
+        created_at: string | null
+      }[]
+    | null
 }>()
 
 const page = usePage<{ passwordPolicy: PasswordPolicy }>()
@@ -78,6 +93,20 @@ const themes: { wert: 'dark' | 'light' | null; name: string }[] = [
 ]
 
 const darstellung = useForm<{ theme: 'dark' | 'light' | null }>({ theme: props.profile.theme })
+
+const marke = useForm({ name: '' })
+
+/*
+ * Der Klartext einer frisch angelegten Marke. Er kommt über den
+ * Flash-Kanal und steht genau einmal da — abgelegt ist nur sein `sha256`.
+ */
+const frischeMarke = computed(
+  () => (page.props.flash as Record<string, string | null> | undefined)?.apiToken ?? null,
+)
+
+function markeAnlegen(): void {
+  marke.post('/settings/tokens', { onSuccess: () => marke.reset() })
+}
 
 function saveTheme(wahl: 'dark' | 'light' | null): void {
   darstellung.theme = wahl
@@ -232,6 +261,78 @@ function savePassword(): void {
             <tr>
               <td class="quiet">Von</td>
               <td class="right ident">{{ props.profile.last_login_ip ?? '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </Section>
+
+      <!--
+        Die Zugangsmarken für `api/v1` (B7).
+
+        **Hier und nicht auf einer eigenen Seite.** Eine Marke gehört einem
+        Konto, und das Konto hat schon eine Seite; ein neunter Punkt in der
+        Gruppe „Einstellungen" wäre derselbe Befund wie bei B6.
+      -->
+      <!--
+        Der Klartext steht genau einmal da, und er steht in einem **eigenen
+        Bereich** — nicht als grüne Meldung am Formular. Erfolg ist eine
+        Aussage über den Vorgang und nicht über ein Feld (`docs/19 §6.3`);
+        dieselbe Form wie bei den Wiederherstellungscodes des zweiten Faktors.
+      -->
+      <Section v-if="frischeMarke" title="Die neue Zugangsmarke" full>
+        <p class="quiet">
+          Sie steht genau einmal hier. Abgelegt ist nur ihr Hash — ein zweites
+          Anzeigen gibt es nicht.
+        </p>
+        <p class="ident">{{ frischeMarke }}</p>
+      </Section>
+
+      <Section v-if="props.apiTokens !== null" title="Zugangsmarken">
+        <p class="quiet">
+          Eine Marke liest über <span class="ident">api/v1</span> genau das, was dieses Konto
+          auch auf den Seiten sieht. Sie reist im Kopf
+          <span class="ident">Authorization: Bearer …</span> und gehört nicht in eine Adresse:
+          Was dort steht, landet im Zugriffsprotokoll.
+        </p>
+
+        <form class="form" @submit.prevent="markeAnlegen">
+          <label class="field">
+            <span>Bezeichnung</span>
+            <input v-model="marke.name" type="text" name="name" maxlength="64" required>
+          </label>
+
+          <div class="button-row">
+            <button type="submit" class="button primary" :disabled="marke.processing">
+              {{ marke.processing ? 'Einen Moment …' : 'Marke anlegen' }}
+            </button>
+          </div>
+        </form>
+
+        <table v-if="props.apiTokens.length" class="stacks spaced">
+          <thead>
+            <tr>
+              <th>Bezeichnung</th>
+              <th>Anfang</th>
+              <th>Zuletzt benutzt</th>
+              <th>Angelegt</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="eintrag in props.apiTokens" :key="eintrag.id">
+              <td data-column="Bezeichnung">{{ eintrag.name }}</td>
+              <td data-column="Anfang" class="ident">{{ eintrag.preview }}…</td>
+              <td data-column="Zuletzt benutzt">{{ eintrag.last_used_at ?? 'nie' }}</td>
+              <td data-column="Angelegt">{{ eintrag.created_at ?? '—' }}</td>
+              <td class="right">
+                <Link
+                  :href="`/settings/tokens/${eintrag.id}`"
+                  method="delete"
+                  as="button"
+                  type="button"
+                  class="button small danger"
+                >Entfernen</Link>
+              </td>
             </tr>
           </tbody>
         </table>

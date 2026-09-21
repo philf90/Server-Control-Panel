@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Carbon;
@@ -110,6 +111,22 @@ class Account extends Authenticatable
         return $this->belongsToMany(Subscription::class)
             ->withPivot(['permissions', 'domain_ids'])
             ->withTimestamps();
+    }
+
+    /**
+     * Die Zugangsmarken dieses Kontos für `api/v1` (B7).
+     *
+     * **Über diese Beziehung wird auch gesucht und nicht nur gelistet.** Eine
+     * Marke hängt an einem Konto und nicht an einem Abonnement; die
+     * Mandantenklammer greift also nicht. Wer eine Marke über ihre Kennung
+     * sucht, tut es über `$konto->apiTokens()` — sonst löscht eine fremde
+     * Kennung die Marke eines fremden Kontos.
+     *
+     * @return HasMany<ApiToken, $this>
+     */
+    public function apiTokens(): HasMany
+    {
+        return $this->hasMany(ApiToken::class)->orderByDesc('id');
     }
 
     /**

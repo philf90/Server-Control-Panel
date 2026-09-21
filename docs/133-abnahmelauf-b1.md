@@ -471,35 +471,45 @@ ZEILEN=$(wc -l < "$LOG")
 systemctl start srvpanel-diagnose.service
 journalctl -u srvpanel-diagnose.service -n 20 --no-pager
 
-# **Beide** Gegenstände, denn beide sind der Prüfkörper. Einer allein liesse
-# Punkt 6 die Bündelung nicht trennen.
+# **Der ganze Bestand**, und nicht zwei erratene Zeilen daraus. Welche Prüfung
+# einen angehaltenen Gegenstand meldet, entscheidet {@see Units::judge()} und
+# nicht das Gedächtnis: Ein **Timer** ohne Termin fällt in den Zweig davor und
+# kommt als `unit.schedule / no_next` heraus, nie zusätzlich als `inactive`.
 srvpanel tinker --execute='
-  foreach (["srvpanel-metrics.service", "srvpanel-dns.timer"] as $g) {
-      $b = App\Models\Finding::withoutGlobalScopes()
-          ->where("check", "unit.state")->where("subject", $g)->first();
-      printf("  %-26s %s / %s seit %s\n", $g, $b?->check->value ?? "-", $b?->reason ?? "-",
-          $b?->first_seen_at ?? "-");
-  }
+  foreach (App\Models\Finding::withoutGlobalScopes()->orderBy("check")->orderBy("subject")->get() as $b)
+      printf("  %-16s %-28s %-14s seit %s\n", $b->check->value, $b->subject, $b->reason,
+          $b->first_seen_at->toIso8601String());
   printf("Buchungen: %d\n", App\Models\FindingNotification::query()->count());
 '
 printf 'Buchungen: %s -> (oben)   Empfängerprotokoll: %s -> %s Zeile(n)\n' \
     "$VORHER" "$ZEILEN" "$(wc -l < "$LOG")"
 
-# Wann die Frist um ist — ausgerechnet und nicht geschätzt.
-srvpanel tinker --execute='
-  $b = App\Models\Finding::withoutGlobalScopes()
-      ->where("check", "unit.state")->orderBy("first_seen_at")->first();
-  if ($b !== null) printf("Fällig ab: %s (first_seen_at + %d h)\n",
-      $b->first_seen_at->copy()->addHours(App\Support\Notify\Notices::HOLD_HOURS)->toDateTimeString(),
-      App\Support\Notify\Notices::HOLD_HOURS);
-'
+# Wann die Frist um ist — ausgerechnet, nicht geschätzt, und **mit Zone**.
+FAELLIG=$(srvpanel tinker --execute='
+  $b = App\Models\Finding::withoutGlobalScopes()->orderByDesc("first_seen_at")->first();
+  if ($b !== null) printf("%s", $b->first_seen_at->copy()
+      ->addHours(App\Support\Notify\Notices::HOLD_HOURS)->toIso8601String());
+')
+printf 'Fällig ab: %s   lokal: %s\n' "$FAELLIG" "$(date -d "$FAELLIG" '+%Y-%m-%d %H:%M:%S %Z')"
 ```
 
-**Erwartet:** **beide** Gegenstände stehen mit `unit.state / inactive` und
-frischem `first_seen_at` da; beide Kanäle drucken `0 Nachricht(en) über 0
-Befund(e)`; die Zahl der Buchungen ist **dieselbe wie vorher**; im Protokoll
-des Empfängers keine neue Zeile; kein Brief. `Fällig ab` nennt den Augenblick,
-an dem Punkt 6 frühestens misst — er wird abgelesen und nicht geschätzt.
+**Erwartet:** `Kaputt: N + 2`, und in der Tabelle stehen die beiden neuen
+Zeilen — `unit.state / srvpanel-metrics.service / inactive` und
+**`unit.schedule / srvpanel-dns.timer / no_next`**, beide mit frischem
+`first_seen_at`. Beide Kanäle drucken `0 Nachricht(en) über 0 Befund(e)`; die
+Zahl der Buchungen ist **dieselbe wie vorher**; im Protokoll des Empfängers
+keine neue Zeile; kein Brief. `Fällig ab` nennt den Augenblick, an dem Punkt 6
+frühestens misst — abgelesen, nicht geschätzt.
+
+**Die Zeit steht zweimal da, und das ist kein Schmuck.** `first_seen_at` liegt
+in UTC; am 21. September stand `Fällig ab: 2026-09-22 16:09:39` neben einer
+Uhr, die `22:09` zeigte — zwei Stunden Unterschied, und nichts an der Zeile
+sagte, welche der beiden Zonen sie meint. Dieselbe Regel, die
+{@see Site::$maintenanceZone} für die Wartungsseite aufschreibt, gilt für eine
+Vorschrift genauso:
+
+> **Eine Zeitangabe mit ihrer Zone bleibt wahr, auch wenn die Zone sich
+> seither geändert hat — eine ohne wird still falsch.**
 
 **Warum zwei Gegenstände und nicht einer.** Mit **einem** Befund auf **einem**
 Gegenstand drucken beide Kanäle in Punkt 6 dieselbe Zahl — `1 über 1` gegen
@@ -556,7 +566,7 @@ srvpanel tinker --execute='
   foreach (App\Models\FindingNotification::query()->with("finding")->get() as $n)
       printf("%-10s %-18s %-30s %s\n", $n->channel, $n->finding->check->value, $n->finding->subject, $n->notified_at);
 '
-wc -l < "$LOG"
+printf 'Empfängerprotokoll: %s -> %s Zeile(n)\n' "$ZEILEN" "$(wc -l < "$LOG")"
 tail -5 "$LOG"
 ```
 
@@ -587,7 +597,7 @@ Bestandsaufnahme aus §1 vor **jedem** Ablesen noch einmal gefahren wird.
 ```bash
 GEHEIM='<das hinterlegte Geheimnis>'
 tail -1 "$LOG" | awk -F'\t' '{print $2"\n"$3}' \
-| { read SIG; read RUMPF;
+| { read -r SIG; read -r RUMPF;
     T=$(echo "$SIG" | sed 's/^t=\([0-9]*\),.*/\1/')
     V=$(echo "$SIG" | sed 's/.*v1=//')
     echo "gelesen : $V"
@@ -597,6 +607,12 @@ tail -1 "$LOG" | awk -F'\t' '{print $2"\n"$3}' \
 
 **Erwartet:** zwei gleiche Zeilen. Eine Kopfzeile, die dasteht, sagt nichts
 darüber, worüber sie gebildet wurde.
+
+Die Formel ist nicht erfunden, sondern {@see Delivery::signature()}:
+`hash_hmac('sha256', $at.'.'.$body, $secret)`, und der Rumpf geht mit
+`JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE` hinaus. **`read -r` ist
+deshalb kein Stilmittel:** Ein `\"` im Rumpf, das die Schale unterwegs frisst,
+liefert eine andere Summe — und die sähe aus wie eine falsche Signatur.
 
 **Und die Seite:** `/settings/notices` trägt jetzt für **beide** Kanäle einen
 Zeitpunkt unter „Zuletzt erfolgreich zugestellt". Bildschirmfoto in beiden

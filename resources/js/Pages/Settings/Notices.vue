@@ -253,8 +253,9 @@ function forget(): void {
           <small class="quiet">
             Freiwillig; die Mindestlänge beträgt {{ props.secret_min }}.
             Jede Meldung trägt damit eine Kopfzeile, aus der der Empfänger
-            nachrechnen kann, dass sie von hier stammt und von heute ist. Bei
-            Slack und Discord gibt es keines — dort trägt die Adresse alles.
+            nachrechnen kann, dass sie von hier stammt und von heute ist. Viele
+            Eingangshaken brauchen keines — dort berechtigt die Adresse allein
+            zur Zustellung, und genau deshalb zeigt diese Seite sie nicht.
           </small>
         </label>
 

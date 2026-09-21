@@ -5763,6 +5763,58 @@ Erweiterung antworteten zwei von zwei Umsetzungen `true`.
 
 ---
 
+## Zwei tote Anker und ein Eingriff, der meine eigene Arbeit zurücknahm — 24. September 2026
+
+**Beide Befunde kommen aus einem Lauf, und beide sind derselbe Satz aus
+verschiedenen Richtungen: Wer eine Datei ändert, hat jeden Eingriff berührt,
+dessen Anker darin steht.**
+
+**Der erste.** Die Erweiterung von B1 hat `Notices::over()` und
+`MailChannel::deliver()` umgebaut. Danach sind die **neuen** Eingriffe einzeln
+gefahren worden — alle acht bissen — und die **bestehenden** nicht. Der volle
+Lauf meldete zwei „Eingriff hat nichts geändert": Ein Anker war mit der
+Bündelung umgezogen, und ein zweiter stand seit der Erweiterung **zweimal** in
+der Datei, womit die Zusicherung `count == 1` des Eingriffs abbrach.
+
+> **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+> gefahren — man denkt an das Gebaute und nicht an das Berührte.**
+
+Der Satz steht seit dem 20. August hier, und die Regel daneben seit dem
+10. September: *Wer eine Datei ändert, fährt auch die Eingriffe, deren Wächter
+sie liest.* Gebraucht wird dafür kein Gedächtnis, sondern ein Griff — die
+Eingriffe einer Datei lassen sich aus dem Skript lesen und einzeln fahren, und
+genau das kostet zwei Minuten statt eines Laufs von zwanzig.
+
+> **Ein Eingriff, dessen Zusicherung abbricht, meldet sich als „nichts
+> geändert" — also genau so wie einer, dessen Regel nicht mehr gilt.** Beim
+> zweiten Anker war es die Zusicherung; wer die Meldung als „die Regel ist
+> fort" liest, sucht am falschen Ende.
+
+**Der zweite ist teurer, weil die Regel dagegen hier steht und ich sie eine
+Stunde vorher zitiert hatte.** Während der volle Lauf lief, habe ich einen
+Hinweistext in `resources/js` berichtigt. `wiederherstellen()` fährt nach jedem
+Eingriff ein `git checkout --` über zwölf Bäume, `resources/` ist einer davon —
+die Berichtigung war beim nächsten Nachsehen fort, wortlos.
+
+> **Ein Werkzeug, das den Arbeitsbaum herstellt, duldet keinen zweiten
+> Schreiber.**
+
+Verloren gegangen ist nichts, was sich nicht wiederholen liesse, und
+Falsches ist nicht ins Repo gekommen — aber gemerkt habe ich es nicht am
+Arbeitsbaum, sondern daran, dass ich zufällig noch einmal in die Datei sah.
+
+> **Ein Rückweg, der stillschweigend nichts tut, ist schlimmer als keiner — und
+> einer, der stillschweigend etwas zurücknimmt, ist dieselbe Sorte von der
+> anderen Seite.**
+
+Was dagegen hilft, ist kein Wächter, sondern eine Reihenfolge: **erst
+committen, dann den Lauf starten, und bis zur Bilanz nichts anfassen, was in
+`$BAEUME` steht.** Ein Dokument unter `docs/`, das es noch nicht gibt,
+überlebt — `git checkout --` entfernt keine unverfolgten Dateien; `CHANGELOG.md`
+überlebt, weil es nicht in der Liste steht. Alles andere nicht.
+
+---
+
 ## Befehle
 
 ```bash

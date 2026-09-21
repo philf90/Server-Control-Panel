@@ -32856,9 +32856,9 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/Notices.php')
 s = p.read_text()
-alt = "foreach ($faellig->groupBy('subject') as $subject => $findings) {"
+alt = "$channel->batchKey($f)"
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, "foreach ($faellig->groupBy('id') as $findings) {\n            $subject = $findings->first()->subject;", 1))
+p.write_text(s.replace(alt, '(string) $f->id', 1))
 PY
 griff_datei app/Support/Notify/Notices.php "eine Mail je Befund" &&
 pruefe "eine Mail je Befund" \
@@ -32930,9 +32930,13 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/MailChannel.php')
 s = p.read_text()
-alt = 'return Delivery::WithoutRecipient;'
+alt = """        $empfaenger = $this->customerAddresses($subscription);
+
+        if ($empfaenger === []) {
+            return Delivery::WithoutRecipient;
+        }"""
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, 'return Delivery::Sent;', 1))
+p.write_text(s.replace(alt, alt.replace('WithoutRecipient', 'Sent'), 1))
 PY
 griff_datei app/Support/Notify/MailChannel.php "ohne Empfaenger gemeldet" &&
 pruefe "ohne Empfaenger gemeldet" \

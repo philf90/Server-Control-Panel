@@ -32032,3 +32032,56 @@ wer nichts —, dazu die Bündelung je Kanal, das gesperrte Konto, den
 Administrator, den fehlenden Empfänger und die Zahl der Kundenprüfungen über den
 ganzen Katalog. Acht Eingriffe dazu, jeder einzeln gegen seinen eigenen Fall
 gefahren.
+
+### Der Abnahmelauf für B1 steht ausgeschrieben — und hat sich beim Schreiben widerlegt
+
+`docs/133` ist vor dem Fahren geschrieben, und §0 nennt sechs Zeilen, die dabei
+umgefallen sind. Die teuerste betrifft den Punkt, der das Kriterium trägt.
+
+**Der erste Lauf schweigt nicht.** `finding_notifications` ist auf einem Server,
+der diese Fassung zum ersten Mal fährt, **leer** — also ist jeder stehende
+Befund, der älter als die Haltezeit ist, sofort fällig. Ein Lauf unmittelbar
+nach dem Anhalten des Dienstes verschickt damit den ganzen Bestand, und die
+Null, die das Kriterium an dieser Stelle erwartet, stünde nirgends.
+
+> **Eine Erwartung, die man aus den Zahlen ausrechnet statt sie zu schätzen,
+> macht aus dem Ergebnis einen Beleg — eine geschätzte hätte hier einen Befund
+> erfunden.**
+
+Der Lauf räumt den Bestand deshalb zuerst ab, und das ist kein Vorgeplänkel:
+Diese Zustellung ist die Messung, die belegt, dass die Kette trägt. Erst danach
+ist das Schweigen eine Aussage über die Frist statt über den leeren Bestand.
+
+> **Eine Null, die man vor der ersten Zustellung abliest, misst den leeren
+> Anfang und nicht die Regel.**
+
+**Zwei weitere Zeilen sind Erwartungen, die man sonst als Befund gelesen
+hätte:** Der nächtliche Zeitgeber feuert zwischen den beiden Läufen und schweigt
+zu Recht, weil die Haltezeit von zwanzig Stunden dann noch nicht um ist — und
+der Webhook bündelt je Gegenstand, liefert also so viele Meldungen, wie es
+Gegenstände gibt, und nicht eine.
+
+**Und eine betrifft den Prüfling.** Slack und Discord verlangen einen Rumpf mit
+`text` beziehungsweise `content`; unserer trägt `server`, `at` und `event`. Das
+ist hergeleitet und nicht gemessen — aus diesem Container ist keiner von beiden
+erreichbar. Der Hinweis auf `/settings/notices` hat die beiden namentlich
+genannt und damit versprochen, was niemand gemessen hat; er nennt sie nicht
+mehr.
+
+> **Ein Hinweis, der einen Dienst beim Namen nennt, verspricht, dass er
+> funktioniert.**
+
+### Zwei tote Anker, gefunden vom vollen Lauf
+
+Die Erweiterung hat `Notices::over()` und `MailChannel::deliver()` umgebaut.
+Gefahren worden sind danach die **neuen** Eingriffe — alle acht bissen — und
+die **bestehenden** nicht. Der volle Lauf meldete zwei „Eingriff hat nichts
+geändert": Ein Anker war mit der Bündelung umgezogen, ein zweiter stand seit
+der Erweiterung zweimal in der Datei und liess die Zusicherung `count == 1`
+abbrechen.
+
+> **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+> gefahren — man denkt an das Gebaute und nicht an das Berührte.**
+
+Beide sind umgehängt, und danach sind **alle 26** Eingriffe, deren Ziel eine
+der berührten Dateien ist, einzeln gegen ihren eigenen Fall gefahren worden.

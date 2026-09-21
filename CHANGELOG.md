@@ -32232,3 +32232,29 @@ zugestellt" zählt die Entwarnung mit.
 
 > **Wer eine Datei ändert, hat jeden Eingriff berührt, dessen Anker darin
 > steht.**
+
+### Mattermost und Rocket.Chat — ohne eine Zeile Empfänger
+
+Beide nehmen Slacks `{"text": …}` an. Ein eigener Schlüssel für jeden von
+beiden erzeugte denselben Rumpf ein zweites und ein drittes Mal.
+
+> **Zwei Schlüssel, die denselben Rumpf erzeugen, sind ein Schlüssel und ein
+> Hinweis.**
+
+`Notify\Providers::HINTS` ist der Hinweis, und er steht **neben** der Liste und
+nicht darin. **Gezeigt wird er, bevor jemand wählt:** Wer „Mattermost" sucht,
+findet es unter den drei Einträgen nicht und geht — den Hinweis eines
+ausgewählten Eintrags sieht er nie.
+
+> **Ein Hinweis, der erst nach der Entscheidung erscheint, hilft dem nicht, der
+> ihn zum Entscheiden braucht.**
+
+`NoticeHintTest` hält die Naht über drei Dateien — Agent, Controller, Seite —,
+und die mittlere Richtung geht **durch die Tür**: Was die Seite bekommt, wird
+aus der Antwort gelesen und nicht aus dem Quelltext des Controllers.
+
+**Was kein Wächter halten kann:** ob die beiden Dienste die Meldung wirklich
+annehmen. Dieser Container erreicht keinen von ihnen; die Zusage stammt aus
+ihrer Dokumentation und steht als Punkt in `docs/133`.
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen.**

@@ -87,11 +87,18 @@ final class NoticeSettingsController extends Controller
              * `ChannelReachTest` für die Kanäle verhindert — hier eine Ebene
              * tiefer. Ob ein Empfänger signiert, steht daneben und wird nicht
              * am Schlüssel abgelesen: Das ist eine Frage an {@see Providers}.
+             *
+             * **Und der Hinweis reist mit.** Er sagt, wer noch unter diesen
+             * Eintrag fällt — Mattermost und Rocket.Chat nehmen Slacks Form
+             * an und brauchen deshalb keinen eigenen. Eine Aufzählung im
+             * Quelltext der Seite wäre die zweite Fassung von
+             * {@see Providers::HINTS}.
              */
             'providers' => array_map(static fn (string $key, string $label): array => [
                 'value' => $key,
                 'label' => $label,
                 'signs' => Providers::signs($key),
+                'hint' => Providers::HINTS[$key] ?? null,
             ], array_keys(Providers::LABELS), array_values(Providers::LABELS)),
         ]);
     }

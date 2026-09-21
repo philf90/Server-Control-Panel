@@ -42,7 +42,7 @@ const props = defineProps<{
    * Die Empfänger kommen aus der Positivliste des Agenten und nicht aus einer
    * zweiten Aufzählung hier — `SrvPanel\Agent\Notify\Providers`.
    */
-  providers: { value: string, label: string, signs: boolean }[]
+  providers: { value: string, label: string, signs: boolean, hint: string | null }[]
 }>()
 
 const { ask } = useConfirmation()
@@ -84,6 +84,21 @@ const form = useForm({ url: '', secret: '', provider: 'generic' })
  */
 const signiert = computed((): boolean =>
   props.providers.find((p) => p.value === form.provider)?.signs ?? false,
+)
+
+/*
+ * Was neben der Liste stehen muss, damit jemand den richtigen Eintrag findet.
+ *
+ * **Gezeigt wird das, bevor jemand wählt, und nicht danach.** Wer
+ * „Mattermost" sucht, findet es in der Liste nicht und geht — der Hinweis
+ * eines ausgewählten Eintrags erreicht ihn nie.
+ *
+ * **Und die Sätze kommen aus der Positivliste des Agenten**, nicht aus dieser
+ * Datei: Ein Satz hier wäre die zweite Fassung von `Notify\Providers::HINTS`,
+ * und sie bliebe stehen, wenn der Eintrag verschwindet.
+ */
+const hinweise = computed((): string =>
+  props.providers.map((p) => p.hint).filter((h): h is string => h !== null).join(' '),
 )
 
 const zeigen = ref(false)
@@ -250,7 +265,7 @@ function forget(): void {
           </select>
           <small class="quiet">
             Er entscheidet die Form des Rumpfes. Slack und Discord nehmen nur
-            ihre eigene an und weisen jede andere ab.
+            ihre eigene an und weisen jede andere ab. {{ hinweise }}
           </small>
         </label>
 

@@ -52,6 +52,40 @@ final class Providers
     ];
 
     /**
+     * Was neben der Liste stehen muss, damit jemand den richtigen Eintrag
+     * findet.
+     *
+     * **Mattermost und Rocket.Chat stehen hier und nicht in {@see LABELS}**,
+     * weil sie keinen eigenen Eintrag brauchen: Beide nehmen Slacks
+     * `{"text": …}` an. Ein vierter und fünfter Schlüssel, die dieselbe Form
+     * erzeugen, wären drei Fassungen derselben Regel — und die zweite ist die,
+     * die veraltet.
+     *
+     * > **Zwei Schlüssel, die denselben Rumpf erzeugen, sind ein Schlüssel und
+     * > ein Hinweis.**
+     *
+     * **Der Hinweis wird gezeigt, bevor jemand wählt**, und nicht erst
+     * danach: Wer „Mattermost" sucht, findet es in der Liste nicht und geht,
+     * bevor er den Eintrag „Slack" auswählt.
+     *
+     * > **Ein Hinweis, der erst nach der Entscheidung erscheint, hilft dem
+     * > nicht, der ihn zum Entscheiden braucht.**
+     *
+     * **Hergeleitet und nicht gemessen.** Beide Dienste sagen in ihrer
+     * Dokumentation zu, Slacks Eingangshaken zu nehmen; dieser Container
+     * erreicht keinen von beiden. `docs/133` nennt es als Punkt für den
+     * Abnahmelauf — bis dahin steht hier eine Zusage aus zweiter Hand.
+     *
+     * > **Wissen aus zweiter Hand sieht aus wie Wissen.**
+     *
+     * @var array<string, string>
+     */
+    public const HINTS = [
+        self::SLACK => 'Mattermost und Rocket.Chat nehmen dieselbe Form an wie Slack — '.
+            'für sie ist dieser Eintrag der richtige.',
+    ];
+
+    /**
      * Wie lang der Text sein darf, den der Anbieter annimmt.
      *
      * **Gemessene Grenzen des Empfängers und keine gewählten.** Discord weist

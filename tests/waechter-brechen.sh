@@ -34568,6 +34568,78 @@ griff_datei agent/src/Notify/Providers.php "eigener Empfaenger ohne Art" &&
 pruefe "eigener Empfaenger ohne Art" \
   WebhookTransportTest::test_the_own_receiver_sees_which_kind_it_is failed
 wiederherstellen
+echo "── NoticeHintTest: ein Hinweis bietet einen Empfaenger an, den es nicht gibt ──"
+#
+# So entsteht der tote Eintrag wirklich: Jemand nimmt einen Empfaenger aus der
+# Liste, und der Satz daneben bietet ihn weiter an.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = '    public const HINTS = ['
+neu = "    public const HINTS = [\n        'mattermost' => 'Einen Eintrag dafuer gibt es gar nicht.',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Hinweis ohne Empfaenger" &&
+pruefe "Hinweis ohne Empfaenger" \
+  NoticeHintTest::test_every_hint_points_at_a_receiver_that_exists failed
+wiederherstellen
+
+echo "── NoticeHintTest: der Hinweis reist nicht bis zur Seite ──"
+#
+# Der Satz steht im Agenten und kommt nie an — von aussen nicht davon zu
+# unterscheiden, dass es ihn nicht gibt.
+vorher_datei app/Http/Controllers/NoticeSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/NoticeSettingsController.php')
+s = p.read_text()
+alt = "'hint' => Providers::HINTS[$key] ?? null,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "'hint' => null,", 1))
+PY
+griff_datei app/Http/Controllers/NoticeSettingsController.php "Hinweis kommt nicht an" &&
+pruefe "Hinweis kommt nicht an" \
+  NoticeHintTest::test_every_hint_reaches_the_page failed
+wiederherstellen
+
+echo "── NoticeHintTest: der Hinweis haengt am gewaehlten Empfaenger ──"
+#
+# Wer „Mattermost" sucht, findet es in der Liste nicht und geht — den Hinweis
+# eines ausgewaehlten Eintrags sieht er nie.
+vorher_datei resources/js/Pages/Settings/Notices.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Settings/Notices.vue')
+s = p.read_text()
+alt = '  props.providers.map((p) => p.hint)'
+neu = '  props.providers.filter((p) => p.value === form.provider).map((p) => p.hint)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei resources/js/Pages/Settings/Notices.vue "Hinweis erst nach der Wahl" &&
+pruefe "Hinweis erst nach der Wahl" \
+  NoticeHintTest::test_the_hints_stand_before_the_choice failed
+wiederherstellen
+
+echo "── NoticeHintTest: die Seite rechnet den Hinweis aus und zeigt ihn nicht ──"
+#
+# Die Berechnung ist richtig, und die Seite bleibt stumm.
+vorher_datei resources/js/Pages/Settings/Notices.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Settings/Notices.vue')
+s = p.read_text()
+alt = ' {{ hinweise }}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei resources/js/Pages/Settings/Notices.vue "Hinweis gerechnet und stumm" &&
+pruefe "Hinweis gerechnet und stumm" \
+  NoticeHintTest::test_the_hints_stand_before_the_choice failed
+wiederherstellen
 
 
 echo

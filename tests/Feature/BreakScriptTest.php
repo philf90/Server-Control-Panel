@@ -874,14 +874,32 @@ final class BreakScriptTest extends TestCase
         $broken = [];
 
         foreach ($lines as $number => $line) {
-            if (! str_starts_with($line, 'echo "')) {
+            $doppelt = str_starts_with($line, 'echo "');
+            $einfach = str_starts_with($line, "echo '");
+
+            if (! $doppelt && ! $einfach) {
                 continue;
             }
 
             $headings++;
 
-            // Maskierte zählen nicht — sie beenden die Zeichenkette nicht.
-            if (substr_count(str_replace('\\"', '', $line), '"') % 2 !== 0) {
+            /*
+             * **Je Form ihr eigenes Zeichen.** Bis zum 24. September 2026 las
+             * dieser Fall nur die doppelt zitierte Form; die andere war für
+             * ihn nicht vorhanden, und ein fehlendes Schlusszeichen dort hätte
+             * dasselbe angerichtet, ohne dass es jemand meldet.
+             *
+             * In doppelten Anführungszeichen zählt ein maskiertes `\"` nicht
+             * mit — es beendet die Zeichenkette nicht. In einfachen gibt es
+             * keine Maskierung: Dort beendet **jedes** zweite `'` die
+             * Zeichenkette, und genau deshalb ist die Zählung die richtige
+             * Prüfung.
+             */
+            $ungerade = $doppelt
+                ? substr_count(str_replace('\\"', '', $line), '"') % 2 !== 0
+                : substr_count($line, "'") % 2 !== 0;
+
+            if ($ungerade) {
                 $broken[] = sprintf('Zeile %d: %s', $number + 1, $line);
             }
         }
@@ -1276,8 +1294,25 @@ final class BreakScriptTest extends TestCase
 
             $ueberschrift = null;
 
+            /*
+             * **Gesucht wird nach **beiden** Formen und nicht nach einer.**
+             *
+             * Bis zum 24. September 2026 stand hier nur `echo "`. Eine
+             * Überschrift in der anderen Form wurde damit nicht etwa gemeldet
+             * — sie wurde **übergangen**, und der Eingriff darunter bekam die
+             * Überschrift des Eingriffs davor zugeschrieben. Gefunden hat es
+             * keine Prüfung, sondern eine Zahl: 1541 Abschnitte im Protokoll
+             * des Bruchlaufs gegen 1540 im Skript.
+             *
+             * > **Ein Wächter, der beim Suchen nur eine Form kennt, meldet die
+             * > andere nicht — er läuft an ihr vorbei und urteilt über die
+             * > falsche Zeile.**
+             *
+             * Das ist der Satz aus der Fehlermeldung unten, angewandt auf den
+             * Wächter selbst.
+             */
             for ($i = $nr - 1; $i >= 0; $i--) {
-                if (str_starts_with($zeilen[$i], 'echo "')) {
+                if (str_starts_with($zeilen[$i], 'echo "') || str_starts_with($zeilen[$i], "echo '")) {
                     $ueberschrift = $zeilen[$i];
 
                     break;
@@ -1292,26 +1327,81 @@ final class BreakScriptTest extends TestCase
 
             $geprueft++;
 
-            if (preg_match('/^echo "── .* ──"$/D', $ueberschrift) !== 1) {
+            if (! self::formGehaltenVon($ueberschrift)) {
                 $befunde[] = sprintf('Zeile %d: %s', $i + 1, $ueberschrift);
             }
         }
 
         $this->assertSame([], array_values(array_unique($befunde)), implode("\n", array_merge(
-            ['Diese Überschriften haben nicht die eine Form `echo "── … ──"`:'],
+            ['Diese Überschriften halten die Form nicht:'],
             array_unique($befunde),
             [
+                '',
+                'Zugelassen sind `echo "── … ──"` und `echo \'── … ──\'` — die zweite Form für',
+                'Überschriften, die einen Backtick tragen und ihn nicht maskieren wollen.',
                 '',
                 'Zwei Formen laufen auseinander: Ein Werkzeug, das nur die eine kennt, liest',
                 'die Abschnitte der anderen gar nicht — und meldet trotzdem eine Zahl.',
             ],
         )));
 
+        /*
+         * **Die Zahl ist die Untergrenze und zugleich die Grenze dieses
+         * Falls.** Gezählt werden Eingriffe und nicht Überschriften: Gemessen
+         * am 24. September 2026 trägt das Skript **1541** Abschnitte, und
+         * **16** davon greifen ohne `vorher_datei` zu — sie setzen ihr `sed`
+         * unmittelbar ab. Über deren Überschriften sagt dieser Fall nichts,
+         * weil er von einem Griff aus nach oben liest und nicht von einer
+         * Überschrift aus nach unten.
+         *
+         * > **Ein Wächter, der von der einen Seite einer Naht aus liest, sieht
+         * > die Abschnitte nicht, an deren anderer Seite nichts steht, wonach
+         * > er sucht.**
+         *
+         * Das ist eine benannte Grenze und kein Mangel:
+         * {@see self::test_no_heading_swallows_the_intervention_below_it()}
+         * liest die Überschriften **direkt** und deckt die sechzehn mit ab.
+         * Wer sie auch hier will, liest von der Überschrift nach unten — und
+         * muss dann entscheiden, was ein Abschnitt ohne Griff überhaupt ist.
+         */
         $this->assertGreaterThan(
             1000,
             $geprueft,
             'Es werden kaum Eingriffe gefunden — dann prüft dieser Fall nichts.',
         );
+    }
+
+    /**
+     * Hält diese Überschrift ihre Form?
+     *
+     * **Zwei Zitierungen sind zugelassen, und das ist keine Nachsicht.** Eine
+     * Überschrift, die einen Befund zitiert, trägt einen Backtick — und der
+     * ist in doppelten Anführungszeichen kein Zitat, sondern eine
+     * Befehlsersetzung. Dagegen gibt es genau zwei richtige Antworten: ihn
+     * maskieren oder die Zeile einfach zitieren. Beide sind gemessen richtig,
+     * und eine davon zu verbieten wäre ein Urteil und keine Regel — das Skript
+     * führt heute beide.
+     *
+     * **Der gefährliche Fall gehört nicht hierher.** Dass kein *unmaskierter*
+     * Backtick in einer doppelt zitierten Zeile steht, hält
+     * {@see self::test_no_line_runs_a_command_it_only_means_to_print()} — und
+     * zwar für **jede** Zeile des Skripts und nicht nur für Überschriften. Ihn
+     * hier ein zweites Mal zu prüfen wäre die zweite Fassung derselben Regel,
+     * und die zweite ist die, die veraltet.
+     *
+     * > **Ein Wächter, der die Regel eines anderen nachbaut, prüft seine
+     * > eigene Fassung davon.**
+     *
+     * Was dieser Fall hält, ist deshalb die **Gestalt**: Eine Überschrift ist
+     * als solche erkennbar und endet, wie sie anfängt. Dass sie ihre
+     * Zeichenkette auch schliesst, hält
+     * {@see self::test_no_heading_swallows_the_intervention_below_it()} je
+     * Form.
+     */
+    private static function formGehaltenVon(string $ueberschrift): bool
+    {
+        return preg_match('/^echo "── .* ──"$/D', $ueberschrift) === 1
+            || preg_match("/^echo '── .* ──'\$/D", $ueberschrift) === 1;
     }
 
     /**

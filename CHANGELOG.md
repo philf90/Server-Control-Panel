@@ -31933,3 +31933,31 @@ einer Einstellungsgruppe, und dort steht nichts anderes" — und zwei Gruppen
 **Und `SecretsStayOutOfTheQueueTest` hat sofort zugebissen**, als
 `notify.target.store` ein Argument namens `secret` bekam — genau die Frage, für
 die er am 20. September geweitet worden war.
+
+### Eine Überschrift von 1541, die zwei Wächter nicht sehen konnten
+
+Gefunden hat es **keine Prüfung, sondern eine Zahl, die nicht aufging**: 1541
+Abschnitte im Protokoll des Bruchlaufs, 1540 im Skript. Der Unterschied ist eine
+Überschrift, die **einfach** zitiert ist — weil ihr Text einen Backtick trägt
+und der in doppelten Anführungszeichen eine Befehlsersetzung wäre.
+
+`test_every_heading_uses_the_one_form` und
+`test_no_heading_swallows_the_intervention_below_it` ankerten beide auf
+`echo "`. Der erste lief an der Zeile vorbei und schrieb dem Eingriff darunter
+die Überschrift des vorigen zu; der zweite sah sie gar nicht.
+
+> **Ein Wächter, der beim Suchen nur eine Form kennt, meldet die andere nicht —
+> er läuft an ihr vorbei und urteilt über die falsche Zeile.**
+
+Gehalten wird jetzt die Gestalt in **beiden** Zitierungen; der unmaskierte
+Backtick bleibt bei `test_no_line_runs_a_command_it_only_means_to_print`, das
+ihn für jede Zeile prüft. Der erste Wurf der Behebung hat die Regel dort
+nachgebaut und prompt eine zweite Überschrift gemeldet, deren Backticks
+maskiert und damit harmlos sind.
+
+**Die ersten beiden Gegenproben haben nichts gemessen** — beide lagen über
+Abschnitten ohne `vorher_datei`, und dieser Fall liest von einem Griff aus nach
+oben. Ausgezählt sind das 16 von 1541; sie stehen als benannte Grenze im Kopf
+des Wächters. Belegt ist die Verschärfung an derselben kaputten Zeile mit beiden
+Fassungen des Lesers: alte Suche grün, neue rot — dazu die dritte Richtung, dass
+eine einfach zitierte Überschrift in richtiger Gestalt grün bleibt.

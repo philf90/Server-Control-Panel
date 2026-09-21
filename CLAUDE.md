@@ -5666,6 +5666,59 @@ und dort steht nichts anderes" — und zwei Gruppen ändern daran nichts.
 
 ---
 
+## Eine Überschrift von 1541, die zwei Wächter nicht sehen konnten — 24. September 2026
+
+Gefunden hat es **keine Prüfung, sondern eine Zahl, die nicht aufging**: Der
+Bruchlauf meldete 1541 Abschnitte, `grep -c '^echo "── '` über das Skript 1540.
+Der Unterschied ist eine einzige Überschrift, die **einfach** zitiert ist:
+
+```
+echo '── RedirectTargetTest: das Ziel wieder `back()` überlassen ──'
+```
+
+**Und sie ist richtig so.** Ihr Text trägt einen Backtick, und in doppelten
+Anführungszeichen ist der kein Zitat, sondern eine Befehlsersetzung — die Regel
+steht seit dem 20. September hier. Falsch waren die beiden Wächter darüber:
+`test_every_heading_uses_the_one_form` und
+`test_no_heading_swallows_the_intervention_below_it` ankerten beide auf
+`echo "`. Der erste **lief an der Zeile vorbei** und schrieb dem Eingriff
+darunter die Überschrift des vorigen zu; der zweite sah sie gar nicht.
+
+> **Ein Wächter, der beim Suchen nur eine Form kennt, meldet die andere nicht —
+> er läuft an ihr vorbei und urteilt über die falsche Zeile.**
+
+Das ist wörtlich der Satz, den die Fehlermeldung des ersten Wächters seit dem
+23. September führt („Zwei Formen laufen auseinander: Ein Werkzeug, das nur die
+eine kennt, liest die Abschnitte der anderen gar nicht"), angewandt auf ihn
+selbst.
+
+**Die Behebung ist nicht, die zweite Form zu verbieten.** Ein maskierter
+Backtick und eine einfach zitierte Zeile sind beide richtig; eine davon zu
+verbieten wäre ein Urteil. Gehalten wird jetzt die **Gestalt** — beide
+Zitierungen —, und der gefährliche Fall bleibt, wo er hingehört:
+`test_no_line_runs_a_command_it_only_means_to_print` prüft den unmaskierten
+Backtick für **jede** Zeile des Skripts.
+
+> **Ein Wächter, der die Regel eines anderen nachbaut, prüft seine eigene
+> Fassung davon.** Der erste Wurf der Behebung tat genau das — und meldete
+> sofort eine zweite Überschrift, deren Backticks maskiert und damit harmlos
+> sind.
+
+**Und die ersten beiden Gegenproben haben nichts gemessen.** Beide lagen über
+Abschnitten, die ihr `sed -i` unmittelbar absetzen, ohne `vorher_datei` — und
+dieser Wächter liest **von einem Griff aus nach oben**. Ausgezählt sind das
+**16 von 1541**; sie stehen jetzt als benannte Grenze in seinem Kopf.
+
+> **Ein Eingriff, der nicht beisst, ist ein Befund über den Wächter oder über
+> den Eingriff — und welcher von beiden, sagt erst das Nachsehen.**
+
+Belegt ist die Verschärfung an **derselben** kaputten Zeile mit beiden
+Fassungen des Lesers: mit der alten Suche grün, mit der neuen rot. Dazu die
+dritte Richtung — eine einfach zitierte Überschrift in richtiger Gestalt bleibt
+grün, sonst wäre der neue Zweig eine Behauptung.
+
+---
+
 ## Befehle
 
 ```bash

@@ -185,7 +185,7 @@ final class CollectTraffic extends Command
 
         if ($abgeraeumt['subscriptions'] > 0 || $abgeraeumt['domains'] > 0) {
             $this->line(sprintf(
-                '  Älter als %d Tage entfernt: %d je Domain, %d je Abonnement.',
+                '  Älter als %d Tag(e) entfernt: %d je Domain, %d je Abonnement.',
                 Daily::RETENTION_DAYS,
                 $abgeraeumt['domains'],
                 $abgeraeumt['subscriptions'],

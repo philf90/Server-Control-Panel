@@ -6,6 +6,7 @@ import DnsCredentials from '../../Components/DnsCredentials.vue'
 import FormErrors from '../../Components/FormErrors.vue'
 import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
+import Tile, { type TileData } from '../../Components/Tile.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import { useConfirmation } from '../../Composables/useConfirmation'
 
@@ -107,6 +108,14 @@ const props = defineProps<{
     providers: { value: string; label: string; usable: boolean; reason: string | null }[]
   } | null
   operations: { id: number; task: string | null; status_label: string; created_at: string | null }[]
+
+  /*
+   * Die Verläufe der letzten dreissig Tage (B4).
+   *
+   * Der Server schickt fertige Stützstellen — Position, Beschriftung, Wert und
+   * Einheit. Hier wird nichts gerechnet; `SeriesSourceTest` besteht darauf.
+   */
+  history: TileData[]
 }>()
 
 function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
@@ -355,6 +364,33 @@ function remove(): void {
       halben Tag gekostet hat.
     -->
     <FormErrors />
+
+    <!--
+      Die Verläufe der letzten dreissig Tage (B4, `docs/129 §6`).
+
+      **Fünf Kacheln, und es sind nicht die fünf des Plans.** Der nennt als
+      fünfte die FPM-Prozesse; die hat auf keiner Maschine dieses Projekts
+      jemand gezählt. Hier steht stattdessen die Fehlerquote — gerechnet aus
+      Zahlen, die es gibt. Der Unterschied steht im Kopf von
+      `App\Support\Metrics\History` und nicht nur in dieser Zeile.
+
+      **Die Reihe steht nur da, wenn es etwas zu zeigen gibt.** Ein
+      Abonnement, das seit gestern besteht, hat höchstens einen Tag — und eine
+      Kurve aus einem Punkt ist keine. Eine Kachelreihe aus fünf Strichen „noch
+      nichts gemessen" wäre eine Überschrift ohne Inhalt.
+    -->
+    <div v-if="props.history.length > 0" class="tiles">
+      <Tile
+        v-for="tile in props.history"
+        :key="tile.key"
+        :label="tile.label"
+        :value="tile.value"
+        :unit="tile.unit"
+        :subline="tile.subline"
+        :series="tile.series"
+        :second="tile.second"
+      />
+    </div>
 
     <div class="sections">
       <Section title="Stammdaten">

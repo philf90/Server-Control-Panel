@@ -31253,3 +31253,107 @@ Migration.
 
 > **Eine Entscheidung, die eine Messung vorwegnimmt, ist keine Entscheidung —
 > sie ist eine Messung, die niemand gefahren hat.**
+
+### B4 — die Verläufe auf der Abonnement- und der Domainseite
+
+Was B3 Nacht für Nacht ablegt, steht jetzt als Kachelreihe da: **fünf auf der
+Abonnementseite, drei auf der Domainseite**, dreissig Tage, dieselbe Kachel wie
+auf der Übersicht.
+
+**Die fünf sind nicht die fünf des Plans, und das gehört hierher und nicht in
+eine Fussnote.** `docs/129 §6` nennt Speicherplatz, Traffic, Zugriffe,
+Datenbankgrössen und **FPM-Prozesse**. Die letzte hat auf keiner Maschine
+dieses Projekts jemand gezählt — `DailyMetric::ofASubscription()` sagt seit B3,
+warum sie deshalb nicht in der Tabelle steht. Die fünfte Kachel ist stattdessen
+die **Fehlerquote**, gerechnet aus zwei Zahlen, die es gibt.
+
+> **Ein Handgriff, der einen Zähler auf null bringt, hat den Zähler bedient und
+> nicht den Gegenstand.** Fünf Kacheln stehen da; wer die FPM-Prozesse will,
+> misst sie zuerst.
+
+**Die Geometrie zieht in eine eigene Stelle.** Bis B4 hatte das Panel eine
+Quelle für Kurven — den Ringpuffer hinter `Store` —, und die Umrechnung von
+einem Wert in eine Stützstelle stand als private Methode darin. Mit der zweiten
+Quelle wäre daraus eine zweite Fassung geworden.
+
+> **Zwei Leser derselben Marken, die verschieden zählen, sind zwei Fassungen
+> derselben Regel — und die zweite ist die, die veraltet.**
+
+`App\Support\Metrics\Points` trägt sie jetzt für beide; `Store` reicht die
+Beschriftung durch, weil nur sie sich unterscheidet (`H:i` über 24 Stunden,
+`d.m.` über dreissig Tage). Die Gegenprobe des Umzugs sind die vier
+bestehenden Serien-Wächter: 19 Fälle, unverändert grün.
+
+**Eine Rate ist keine Menge.** Der Ringpuffer misst Byte je **Sekunde**, die
+Tagestabelle Byte je **Tag** — dieselbe Grössenordnung, dieselben Schritte, und
+die Nachsilbe ist der einzige sichtbare Unterschied. `Points::bytesUnit()` nimmt
+sie deshalb als Argument, statt `/s` fest hineinzuschreiben.
+
+> **Ein Format, das für eine Rate reicht, reicht nicht für eine Menge.**
+
+**Die Verkehrskachel hat keine Schwelle, obwohl der Katalog eine führt.**
+`Quota::TrafficGb` ist eine Menge je Monat, die Kurve zeigt Tage. Eine
+Tageszahl gegen ein Monatskontingent zu halten hiesse, dreissigmal zu früh zu
+warnen.
+
+> **Eine Schwelle, die eine andere Grösse misst als die Kurve, ist keine.**
+
+Platz und Datenbanken warnen dagegen an ihrem Kontingent: Beides sind Stände
+und keine Flüsse, und ein Stand darf gegen seine Grenze gemessen werden.
+
+**Die Seite braucht die Uhr nicht.** Das Fenster liegt an den Tagen, die
+dastehen, und nicht an „heute" — die Tabelle enthält ohnehin nur abgeschlossene
+Tage. Eine zweite Stelle, die nach der Zone des Servers fragt, wäre die zweite
+Fassung von `ServerZone`, und genau die hat dem Panel ein Jahr lang eine
+falsche Uhrzeit angezeigt (`docs/108`). Abgeschnitten wird trotzdem auf
+dreissig Tage: Hinge die Zusage der Seite allein am Abräumen des Nachtlaufs,
+zeigte sie nach einer ausgefallenen Nacht neunzig Tage und behauptete dreissig.
+
+> **Eine Grenze, die nur ein anderer Lauf herstellt, ist keine Zusage dieser
+> Seite.**
+
+### Jeder geteilte Wert ist ein Verschluss — und einer war es nicht
+
+Die Regel steht seit A14 als Kommentar an drei Einträgen von
+`HandleInertiaRequests::share()` und kommt aus einer Messung
+(`docs/103 §1` M5). Was sie hielt, war die Aufmerksamkeit dessen, der den
+nächsten Eintrag schrieb.
+
+**Gemessen am 21. September 2026**, Kundenkonto auf `/` mit
+`X-Inertia-Partial-Data: subscriptions`:
+
+| | Abfragen | davon für `account` |
+|---|---|---|
+| voller Besuch | 11 | 1 |
+| partielles Nachladen | 10 | **1** |
+
+`has_active_subscription` fragte die Datenbank für eine Eigenschaft, die die
+Antwort gar nicht enthält. **Ein Betreiber sah davon nichts** — bei ihm bricht
+`isAdmin() ||` die Auswertung ab, und gegen ihn gemessen stünde auf beiden
+Seiten eine Null.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+Alle zehn Einträge sind jetzt Verschlüsse, auch die billigen. Eine
+Ausnahmeliste wäre so gut wie das Gedächtnis dessen, der sie pflegt — und die
+erste teure Zeile, die jemand in einen „billigen" Eintrag schreibt, liefe dann
+still in jeder Anfrage.
+
+**`SharedClosureTest` hält beide Hälften, und das ist gemessen nötig.** Der
+Eingriff, der `source` zu einem fertigen Wert macht, lässt die Wirkungsmessung
+**grün** — `source` kostet keine Abfrage — und nur die Formprüfung rot. Die
+Form wird dabei an der **Klammertiefe** gelesen und nicht als Zeichenkette:
+`fn (` steht in dieser Datei vier Mal innerhalb von `flash`.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht.**
+
+**Und ein bestehender Wächter hat den Umbau sofort gemeldet.** `FlashChannelTest`
+liest die `flash`-Ablage der Mittelschicht über einen Ausdruck, der
+`'flash' => [` erwartete; nach dem Umbau fand er nichts und gab eine leere
+Liste zurück. Rot wurde er trotzdem — seine Untergrenze verlangt, dass
+überhaupt etwas gefunden wird.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**

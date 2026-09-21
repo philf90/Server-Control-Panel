@@ -7,6 +7,7 @@ import PanelLayout from '../../Layouts/PanelLayout.vue'
 import FormErrors from '../../Components/FormErrors.vue'
 import { useConfirmation } from '../../Composables/useConfirmation'
 import Idents from '../../Components/Idents.vue'
+import Tile, { type TileData } from '../../Components/Tile.vue'
 
 const { ask } = useConfirmation()
 
@@ -102,6 +103,13 @@ const props = defineProps<{
     addresses: { derived: string[]; override: string[]; effective: string[] }
   }
   operations: { id: number; task: string | null; status_label: string; created_at: string | null }[]
+
+  /*
+   * Die drei Verläufe der letzten dreissig Tage (B4) — Traffic, Zugriffe,
+   * Fehlerquote. Platz und Datenbanken fehlen, weil sie dem Abonnement
+   * gehören und nicht einer seiner Domains.
+   */
+  history: TileData[]
 }>()
 
 /*
@@ -349,6 +357,38 @@ const dnsAdressenWeichenAb = computed(() => {
       An dieser Domain läuft gerade ein Vorgang. Bis er durch ist, lässt sich
       nichts ändern — der Zustand folgt dem Server und nicht dem Formular.
     </p>
+
+    <!--
+      Die Verläufe der Domain (B4, `docs/129 §6`).
+
+      **Die Zahl deckt sich nicht mit der des Providers**, und das gehört
+      neben die Zahl und nicht in eine Fussnote (`docs/129 §11`): Gezählt
+      wird, was nginx protokolliert — TCP, TLS und Wiederholungen zählt er
+      nicht mit. Die Beizeile der Kachel ist dafür zu kurz; der Satz steht
+      deshalb unter der Reihe.
+
+      Die Reihe steht nur da, wenn es mehr als einen Tag zu zeigen gibt: Eine
+      Kurve aus einem Punkt ist keine.
+    -->
+    <template v-if="props.history.length > 0">
+      <div class="tiles">
+        <Tile
+          v-for="tile in props.history"
+          :key="tile.key"
+          :label="tile.label"
+          :value="tile.value"
+          :unit="tile.unit"
+          :subline="tile.subline"
+          :series="tile.series"
+          :second="tile.second"
+        />
+      </div>
+
+      <p class="quiet">
+        Gezählt wird, was der Webserver protokolliert. Die Zahl des Providers
+        liegt höher — er zählt TCP, TLS und Wiederholungen mit.
+      </p>
+    </template>
 
     <div class="sections">
       <Section title="Stammdaten">

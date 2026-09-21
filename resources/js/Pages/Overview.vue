@@ -9,20 +9,8 @@ import { zustand as prozessZustand } from '../Composables/useProcessState'
 import Badge from '../Components/Badge.vue'
 import FormErrors from '../Components/FormErrors.vue'
 import RebootButton from '../Components/RebootButton.vue'
-import Tile, { type Second, type Series } from '../Components/Tile.vue'
+import Tile, { type TileData } from '../Components/Tile.vue'
 import PanelLayout from '../Layouts/PanelLayout.vue'
-
-interface TileData {
-  key: string
-  label: string
-  value: string
-  unit: string
-  subline: string
-  series: Series
-
-  /* Nur das Netz hat sie: die zweite Richtung derselben Kennzahl. */
-  second?: Second
-}
 
 interface Service {
   unit: string

@@ -16,6 +16,7 @@ use App\Support\Audit\Audit;
 use App\Support\Backups\Backups;
 use App\Support\Databases\Databases;
 use App\Support\Databases\Dumps;
+use App\Support\Metrics\History;
 use App\Support\Plans\Feature;
 use App\Support\Plans\Quota;
 use App\Support\Plans\Quotas;
@@ -210,6 +211,7 @@ final class SubscriptionController extends Controller
         Subscription $subscription,
         DnsCredentialAccess $credentials,
         DnsProfile $profiles,
+        History $history,
     ): Response {
         $subscription->loadMissing(['customer', 'plan']);
         $account = $request->user();
@@ -458,6 +460,19 @@ final class SubscriptionController extends Controller
                     'providers' => $credentials->providers(),
                 ]
                 : null,
+
+            /*
+             * Die Verläufe der letzten dreissig Tage (B4, `docs/129 §6`).
+             *
+             * **Als Verschluss und nicht als fertiger Wert.** Ein fertiger
+             * liefe bei jedem partiellen Nachladen mit, das ihn gar nicht
+             * mitschickt — gemessen in `docs/103 §1` M5 und der Grund, aus dem
+             * in `HandleInertiaRequests::share()` alles ein Verschluss ist.
+             * Diese Seite lädt heute nichts partiell nach; die Regel steht
+             * trotzdem, weil die Kosten eines Verschlusses null sind und die
+             * eines vergessenen fertigen Werts eine Abfrage je Anfrage.
+             */
+            'history' => fn (): array => $history->forSubscription($subscription),
 
             'operations' => Operation::query()
                 ->where('subscription_id', $subscription->id)

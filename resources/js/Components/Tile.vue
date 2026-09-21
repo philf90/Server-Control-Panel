@@ -76,6 +76,30 @@ export interface Second {
   series: Series
 }
 
+/**
+ * Eine Kachelzeile, wie der Server sie schickt.
+ *
+ * **Warum die Form hier steht und nicht auf der Seite.** Seit B4 füllen drei
+ * Seiten dieselbe Kachel aus zwei Quellen — die Übersicht aus dem Ringpuffer,
+ * die Abonnement- und die Domainseite aus der Tagestabelle. Stünde die Form
+ * dreimal da, wiche sie beim nächsten Feld an zwei Stellen ab, und der Typ
+ * sagte trotzdem überall, es sei dieselbe Kachel.
+ *
+ * `key` ist keine Eigenschaft der Kachel, sondern die des `v-for` darüber; sie
+ * steht hier, weil sie vom selben Server in derselben Zeile kommt.
+ */
+export interface TileData {
+  key: string
+  label: string
+  value: string
+  unit: string
+  subline: string
+  series: Series
+
+  /* Nur wo eine Kennzahl zwei Richtungen hat: Netz, Traffic. */
+  second?: Second
+}
+
 const props = defineProps<{
   label: string
   value: string

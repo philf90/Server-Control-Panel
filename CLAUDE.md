@@ -5348,6 +5348,51 @@ seit es die Operation gibt. Entscheidung 4 („roh 14 Tage") ist damit nicht
 umzusetzen, sondern bereits erfüllt — nachgesehen in der Vorlage, nicht
 angenommen.
 
+## Zwei Sätze aus B4 — 21. September 2026
+
+Beide gelten über die Kachelreihe hinaus, und beide sind an einer Messung
+bezahlt.
+
+**Der erste trennt zwei Grössen, die gleich aussehen.** Der Ringpuffer hinter
+`Store` misst Byte je **Sekunde**, die Tagestabelle aus B3 Byte je **Tag** —
+dieselbe Grössenordnung, dieselben Tausenderschritte, und der einzige sichtbare
+Unterschied ist die Nachsilbe. Ein gemeinsamer Formatierer ohne sie schriebe
+auf die Abonnementseite „63,4 MB/s" für ein Tagesvolumen.
+
+> **Ein Format, das für eine Rate reicht, reicht nicht für eine Menge.**
+
+Die Schwesterfrage dazu betrifft jede Schwelle: `Quota::TrafficGb` ist eine
+Menge je Monat, die Kurve zeigt Tage. Gegen sie gemessen warnte die Kachel
+dreissigmal zu früh — und eine Warnung, die nicht mehr weggeht, liest nach dem
+dritten Mal niemand.
+
+> **Eine Schwelle, die eine andere Grösse misst als die Kurve, ist keine.**
+
+**Der zweite sagt, warum ein Wächter über die Wirkung allein nicht reicht.**
+`SharedClosureTest` misst, dass eine geteilte Eigenschaft, die eine Antwort
+nicht enthält, auch keine Abfrage kostet — die Hälfte, die etwas bedeutet.
+Gemessen ist aber auch: Der Eingriff, der einen **billigen** Eintrag zu einem
+fertigen Wert macht, lässt genau diese Messung **grün**. Sie sieht nur, was
+heute eine Abfrage kostet; der fertige Wert, der morgen eine kostet, ist für
+sie heute unsichtbar.
+
+> **Eine Wirkungsmessung sieht die Regel nur dort, wo ihre Verletzung heute
+> schon etwas kostet.**
+
+Deshalb steht die Form daneben — und sie wird an der **Klammertiefe** gelesen
+und nicht als Zeichenkette: `fn (` steht in derselben Datei vier Mal innerhalb
+von `flash`, und eine Textsuche wäre grün, egal was daneben steht.
+
+**Und der Prüfkörper dieser Messung ist ein Kunde und kein Betreiber.** Bei
+einem Admin bricht `isAdmin() ||` die Auswertung ab; gegen ihn gemessen stünde
+auf beiden Seiten eine Null — also derselbe Wert, den auch eine kaputte Messung
+liefert.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+---
+
 ## Befehle
 
 ```bash

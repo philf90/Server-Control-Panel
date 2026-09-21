@@ -3360,6 +3360,20 @@ tr:has(td.multiline) > td {
 .quiet + .scrolls,
 
 /*
+ * **Und beim elften Mal steht die Fussnote der Kachelreihe darüber.**
+ *
+ * Seit B4 tragen Abonnement- und Domainseite die Verläufe der letzten dreissig
+ * Tage. Unter der Reihe steht ein leiser Satz — „die Zahl des Providers liegt
+ * höher, er zählt TCP, TLS und Wiederholungen mit" (`docs/129 §11`) —, und
+ * darunter fangen die Bereiche an. Gemeldet hat es wieder der Wächter und
+ * nicht das Auge, und zwar **bevor** eine Aufnahme entstanden ist.
+ *
+ * > **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit
+ * > der nächsten Ergänzung.**
+ */
+.quiet + .sections,
+
+/*
  * **Und beim achten Mal steht der Hinweis unter der Tabelle.**
  *
  * Auf der Diagnose-Seite folgt dem Rollbehälter ein leiser Satz — „den

@@ -879,8 +879,13 @@ echo "── SeriesReadingTest: die Ablesung rundet die Reihe weg ──"
 # grossen Zahl und bei jeder Ablesung auf der Linie —, waehrend die Kurve
 # daneben aus den Rohwerten ihre Ausschlaege zeichnete. Der Wert war nicht
 # falsch, er war weggerundet: alles zwischen 0,1 und 0,9 bei null Stellen.
+#
+# **Der Formatierer ist am 21. September 2026 nach `Points` gezogen** — B4 gibt
+# der Kachel eine zweite Quelle, und die Regel gilt fuer beide. Der Eingriff
+# zeigt seitdem dorthin; sein alter Anker in `Store.php` war ab dem Umzug ein
+# Eingriff ohne Messung, und gemeldet hat ihn `BreakScriptTest`.
 python3 - <<'PY2'
-p = 'app/Support/Metrics/Store.php'
+p = 'app/Support/Metrics/Points.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
     """        return static function (float $value) use ($unit, $decimals): string {
@@ -32317,6 +32322,367 @@ pruefe "zweite Auswahl ohne Katalog" \
   SubscriptionQuotaTest::test_only_one_quota_is_a_selection failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SubscriptionQuotaTest passed
+
+echo "── SharedClosureTest: die Kontenablage als fertiger Wert ──"
+#
+# Der gemessene Befund vom 21. September 2026. `has_active_subscription`
+# stand als fertiger Wert in `share()` und fragte die Datenbank auch bei einem
+# partiellen Nachladen, das `account` gar nicht mitschickt: voller Besuch 1
+# Abfrage, partielles Nachladen ebenfalls 1.
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Middleware/HandleInertiaRequests.php')
+s = p.read_text()
+alt = "'account' => fn (): ?array => $account instanceof Account ? ["
+assert alt in s
+p.write_text(s.replace(alt, "'account' => $account instanceof Account ? [", 1))
+PY
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "Kontenablage als fertiger Wert" &&
+pruefe "Kontenablage als fertiger Wert" \
+  SharedClosureTest::test_a_partial_reload_does_not failed
+wiederherstellen
+
+echo "── SharedClosureTest: ein billiger Eintrag als fertiger Wert ──"
+#
+# Die Haelfte, die die Wirkungsmessung nicht sehen kann. `source` kostet
+# keine Abfrage; als fertiger Wert ist er trotzdem falsch, weil die erste teure
+# Zeile, die jemand spaeter hineinschreibt, dann still in jeder Anfrage laeuft.
+# Gemessen: Der Wirkungsfall bleibt bei diesem Eingriff gruen, der Formfall
+# nicht — und genau deshalb gibt es beide.
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Middleware/HandleInertiaRequests.php')
+s = p.read_text()
+alt = "'source' => fn (): array => ["
+assert alt in s
+p.write_text(s.replace(alt, "'source' => [", 1))
+PY
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "billiger Eintrag als fertiger Wert" &&
+pruefe "billiger Eintrag als fertiger Wert" \
+  SharedClosureTest::test_every_shared_entry_is_a_closure failed
+wiederherstellen
+
+echo "── SharedClosureTest: der Anker des Lesers zieht um ──"
+#
+# Ein gewoehnlicher Umbau — ein benannter Parameter —, und der Leser der
+# obersten Ebene findet seinen Anker nicht mehr. Ohne die Zusicherung gaebe er
+# eine leere Liste zurueck, und die saehe aus wie eine Datei ohne Fehler.
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Middleware/HandleInertiaRequests.php')
+s = p.read_text()
+alt = "return array_merge(parent::share($request), ["
+assert alt in s
+p.write_text(s.replace(alt, "return array_merge(parent::share(request: $request), [", 1))
+PY
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "Anker des Lesers zieht um" &&
+pruefe "Anker des Lesers zieht um" \
+  SharedClosureTest::test_every_shared_entry_is_a_closure failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SharedClosureTest passed
+
+echo "── SeriesSourceTest: der Wert einer Stuetzstelle wird eine Zahl ──"
+#
+# Waere er eine Zahl, muesste die Kachel ihn formatieren — und dann stuende
+# die Frage nach Nachkommastellen, Tausenderpunkt und Einheit dort, wo niemand
+# die Reihe kennt, aus der sie kommt.
+vorher_datei resources/js/Components/Tile.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/Tile.vue')
+s = p.read_text()
+alt = "  t: string\n  v: string\n}"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "  t: string\n  v: number\n}", 1))
+PY
+griff_datei resources/js/Components/Tile.vue "Stuetzstelle traegt eine Zahl" &&
+pruefe "Stuetzstelle traegt eine Zahl" \
+  SeriesSourceTest::test_a_point_carries_text_and_not_a_number failed
+wiederherstellen
+
+echo "── SeriesSourceTest: die Kachel formatiert selbst ──"
+#
+# `toLocaleString` folgt der Sprache des Geraets, `number_format` der des
+# Panels. Zwei Formatierungen derselben Zahl sind nicht doppelt, sondern
+# verschieden — und welche man sieht, entscheidet der Browser des Lesers.
+vorher_datei resources/js/Components/Tile.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/Tile.vue')
+s = p.read_text()
+alt = "  return points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join(' ')"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "  return points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toLocaleString()} ${p.y}`).join(' ')", 1))
+PY
+griff_datei resources/js/Components/Tile.vue "Kachel formatiert selbst" &&
+pruefe "Kachel formatiert selbst" \
+  SeriesSourceTest::test_the_tile_formats_nothing failed
+wiederherstellen
+
+echo "── SeriesSourceTest: eine zweite Stelle rechnet Stuetzstellen ──"
+#
+# Gemessen schreibt genau eine Datei unter `app/` und `agent/` den
+# Schluessel einer Stuetzstelle. Eine zweite waere die zweite Fassung der Umkehr
+# der y-Achse — und die faellt erst auf, wenn eine Kurve auf dem Kopf steht.
+vorher_datei app/Support/Metrics/Store.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/Store.php')
+s = p.read_text()
+alt = "    private static function labels(array $records): array\n    {"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "    private static function labels(array $records): array\n    {\n        $zweiteFassung = ['x' => 0.0];\n", 1))
+PY
+griff_datei app/Support/Metrics/Store.php "zweite Stelle rechnet Stuetzstellen" &&
+pruefe "zweite Stelle rechnet Stuetzstellen" \
+  SeriesSourceTest::test_only_one_place_computes_a_support_point failed
+wiederherstellen
+
+echo "── SeriesSourceTest: eine Seite rechnet ihre Kurve selbst ──"
+#
+# Der Fall, den diese Regel ausschliesst: `:series` an etwas, das die Seite
+# selbst gebaut hat. Der Name der Komponente steht daneben unveraendert da —
+# gelesen wird deshalb die Bindung und nicht der Name.
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Overview.vue')
+s = p.read_text()
+alt = '        :series="tile.series"'
+assert s.count(alt) == 1
+s = s.replace(alt, '        :series="eigeneReihe"', 1)
+alt2 = "const props = defineProps<{"
+assert s.count(alt2) == 1
+s = s.replace(alt2, "const eigeneReihe = { has: false, warns: false, unit: '', points: [] }\n\nconst props = defineProps<{", 1)
+p.write_text(s)
+PY
+griff_datei resources/js/Pages/Overview.vue "Seite rechnet ihre Kurve selbst" &&
+pruefe "Seite rechnet ihre Kurve selbst" \
+  SeriesSourceTest::test_every_curve_on_a_page_comes_from_the_server failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SeriesSourceTest passed
+
+echo "── DailyHistoryTest: ein Monatskontingent als Schwelle einer Tageskurve ──"
+#
+# Quota::TrafficGb ist eine Menge je Monat, die Kurve zeigt Tage. Eine
+# Tageszahl gegen ein Monatskontingent zu halten hiesse, dreissigmal zu frueh
+# zu warnen — und eine Warnung, die nicht mehr weggeht, liest nach dem dritten
+# Mal niemand.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = '            $this->traffic($rows),'
+assert s.count(alt) == 1
+s = s.replace(alt, '            $this->traffic($rows, $this->limit($subscription, Quota::TrafficGb)),', 1)
+s = s.replace('    private function traffic(array $rows): array', '    private function traffic(array $rows, ?float $schwelle = null): array', 1)
+s = s.replace("[1],\n            null,\n        );", "[1],\n            $schwelle,\n        );", 1)
+p.write_text(s)
+PY
+griff_datei app/Support/Metrics/History.php "Monatsschwelle auf Tageskurve" &&
+pruefe "Monatsschwelle auf Tageskurve" \
+  DailyHistoryTest::test_a_monthly_quota_is_no_threshold_for_a_daily_curve failed
+wiederherstellen
+
+echo "── DailyHistoryTest: abgeschnitten wird vorn statt hinten ──"
+#
+# Dreissig Tage zeigen und die aeltesten dreissig nehmen: Die Seite steht dann
+# auf einem Monat, der vorbei ist, und sagt es nicht. Der juengste Tag gehoert
+# nach rechts.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = 'array_slice($tage, -self::DAYS)'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'array_slice($tage, 0, self::DAYS)', 1))
+PY
+griff_datei app/Support/Metrics/History.php "abgeschnitten wird vorn" &&
+pruefe "abgeschnitten wird vorn" \
+  DailyHistoryTest::test_only_the_last_thirty_days_are_shown failed
+wiederherstellen
+
+echo "── DailyHistoryTest: jede Richtung auf ihrer eigenen Achse ──"
+#
+# Gerechnet jede fuer sich, fuellt auch die tausendfach kleinere die 24
+# Einheiten der Kachel aus — und wer das Bild ansieht, liest beide etwa gleich.
+# Der Wert daneben stimmt dabei; die Geometrie luegt.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = '            $min,\n            $max,'
+assert s.count(alt) == 1
+neu = "            $werte === [] ? 0.0 : min($werte),\n            $werte === [] ? 0.0 : max($werte),"
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Metrics/History.php "jede Richtung eigene Achse" &&
+pruefe "jede Richtung eigene Achse" \
+  DailyHistoryTest::test_both_directions_share_one_axis failed
+wiederherstellen
+
+echo "── DailyHistoryTest: die Fehlerquote ohne ihren Nenner ──"
+#
+# Ein Tag ohne Anfragen hat keine Quote. Wer durch die blanke Zahl teilt oder
+# einen Sockel addiert, erfindet eine Fehlerrate fuer einen Tag, an dem niemand
+# da war.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = '$anzahl > 0.0 ? ($fehler[$i] ?? 0.0) / $anzahl * 100.0 : 0.0'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '($fehler[$i] ?? 0.0) / max($anzahl, 1.0) * 100.0 + 1.0', 1))
+PY
+griff_datei app/Support/Metrics/History.php "Fehlerquote ohne Nenner" &&
+pruefe "Fehlerquote ohne Nenner" \
+  DailyHistoryTest::test_a_day_without_requests_has_no_rate failed
+wiederherstellen
+
+echo "── DailyHistoryTest: ein einzelner Tag gilt als Kurve ──"
+#
+# Ein Abonnement am zweiten Tag hat einen Wert. Eine Kurve aus einem Punkt ist
+# keine — und ohne diese Schranke teilt die Geometrie durch null.
+vorher_datei app/Support/Metrics/Points.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/Points.php')
+s = p.read_text()
+alt = 'if ($lastIndex < 1) {'
+assert s.count(alt) == 1
+s = s.replace(alt, 'if ($lastIndex < 0) {', 1)
+alt2 = '        $span = '
+assert s.count(alt2) == 1
+p.write_text(s.replace(alt2, '        $lastIndex = max($lastIndex, 1);\n        $span = ', 1))
+PY
+griff_datei app/Support/Metrics/Points.php "einzelner Tag gilt als Kurve" &&
+pruefe "einzelner Tag gilt als Kurve" \
+  DailyHistoryTest::test_a_single_day_is_not_a_curve failed
+wiederherstellen
+
+echo "── DailyHistoryTest: der Leser loest die Mandantenklammer ──"
+#
+# Die Klammer haengt an den Modellen und nicht an dieser Klasse. Ein
+# withoutRestriction() hier zeigte einem Kunden die Zahlen eines fremden
+# Abonnements — und der Nachtlauf braucht es nur, weil er ohne Konto laeuft.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = "        foreach ($query->orderBy('day')->get() as $row) {"
+assert s.count(alt) == 1
+neu = "        $zeilen = app(\\App\\Support\\Tenancy\\Tenancy::class)->withoutRestriction(static fn () => $query->orderBy('day')->get());\n\n        foreach ($zeilen as $row) {"
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Metrics/History.php "Leser loest die Klammer" &&
+pruefe "Leser loest die Klammer" \
+  DailyHistoryTest::test_a_foreign_customer_sees_nothing failed
+wiederherstellen
+
+echo "── DailyHistoryTest: die Datenbanken bleiben in Byte ──"
+#
+# Der Bereich zwei Zeilen darunter zeigt seit P5 Megabyte. Dieselbe Groesse in
+# zwei Einheiten auf einer Seite laesst den Leser rechnen, statt ihn lesen zu
+# lassen.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = '$v / 1_048_576.0'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '$v', 1))
+PY
+griff_datei app/Support/Metrics/History.php "Datenbanken bleiben in Byte" &&
+pruefe "Datenbanken bleiben in Byte" \
+  DailyHistoryTest::test_the_database_tile_speaks_the_unit_of_its_page failed
+wiederherstellen
+
+echo "── DailyHistoryTest: eine Kachel faellt aus der Reihe ──"
+#
+# Fuenf auf der Abonnementseite, drei auf der Domainseite, und die Reihenfolge
+# steht fest — die Seite ordnet nicht nach. Eine fehlende Kachel faellt
+# niemandem auf, weil die vier daneben richtig aussehen.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = '            $this->errorRate($rows),\n            $this->level($rows, DailyMetric::DatabaseBytes'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '            $this->level($rows, DailyMetric::DatabaseBytes', 1))
+PY
+griff_datei app/Support/Metrics/History.php "Kachel faellt aus der Reihe" &&
+pruefe "Kachel faellt aus der Reihe" \
+  DailyHistoryTest::test_a_subscription_gets_five_tiles_and_a_domain_three failed
+wiederherstellen
+
+echo "── DailyHistoryTest: aus der Tagesmenge wird eine Rate ──"
+#
+# Der Ringpuffer misst Byte je Sekunde, diese Tabelle Byte je Tag. Dieselbe
+# Groessenordnung, dieselben Schritte, zwei verschiedene Groessen — und die
+# Nachsilbe ist der einzige Unterschied, den man sieht.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = "max($werte), ''"
+assert s.count(alt) == 2
+p.write_text(s.replace(alt, "max($werte), '/s'"))
+PY
+griff_datei app/Support/Metrics/History.php "Tagesmenge als Rate" &&
+pruefe "Tagesmenge als Rate" \
+  DailyHistoryTest::test_a_daily_amount_is_not_a_rate failed
+wiederherstellen
+
+echo "── DailyHistoryTest: die Seite fragt je Kachel ──"
+#
+# Die Tabelle ist lang und nicht breit; alle Kennzahlen eines Abonnements
+# kommen mit einem where heraus. Eine Abfrage je Kachel waechst mit der Zahl
+# der Kacheln, und die waechst.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = "        return [\n            $this->level($rows, DailyMetric::DiskMb"
+assert s.count(alt) == 1
+neu = "        $rows = $this->read(SubscriptionMetric::query()->where('subscription_id', (int) $subscription->id));\n\n" + alt
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Metrics/History.php "Seite fragt je Kachel" &&
+pruefe "Seite fragt je Kachel" \
+  DailyHistoryTest::test_the_page_asks_once failed
+wiederherstellen
+
+echo "── DailyHistoryTest: die Ablesung nennt eine Uhrzeit ──"
+#
+# Ueber dreissig Tage gaebe das dreissigmal dieselbe Zahl, und die Ablesung
+# beantwortete jede Frage gleich. Der Ringpuffer schreibt H:i, weil er 24
+# Stunden zeigt — hier ist es der falsche Massstab.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = "format('d.m.')"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "format('H:i')", 1))
+PY
+griff_datei app/Support/Metrics/History.php "Ablesung nennt eine Uhrzeit" &&
+pruefe "Ablesung nennt eine Uhrzeit" \
+  DailyHistoryTest::test_the_reading_names_the_day failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

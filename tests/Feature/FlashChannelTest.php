@@ -79,7 +79,24 @@ final class FlashChannelTest extends TestCase
     {
         $source = (string) file_get_contents($this->root().'/'.self::MIDDLEWARE);
 
-        if (preg_match("/'flash' => \[(.*?)\n            \],/s", $source, $match) !== 1) {
+        /*
+         * **Zwischen dem Schlüssel und der Klammer darf etwas stehen.**
+         *
+         * Seit B4 ist jeder Eintrag von `share()` ein Verschluss
+         * (`SharedClosureTest`), und aus `'flash' => [` wurde
+         * `'flash' => fn (): array => [`. Der alte Ausdruck fand dann nichts
+         * und gab eine leere Liste zurück — der Fall, gegen den die
+         * Untergrenze in `test_every_written_flash_key_is_carried` steht. Sie
+         * hat ihn gemeldet, und zwar sofort.
+         *
+         * > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes
+         * > als Null steht.**
+         *
+         * `[^[]*` statt der ausgeschriebenen Form: Wie der Verschluss genau
+         * geschrieben ist, geht diesen Wächter nichts an — er sucht die
+         * Ablage und nicht ihre Verpackung.
+         */
+        if (preg_match("/'flash' =>[^[]*\[(.*?)\n            \],/s", $source, $match) !== 1) {
             return [];
         }
 

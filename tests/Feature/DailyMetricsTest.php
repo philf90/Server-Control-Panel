@@ -207,8 +207,50 @@ final class DailyMetricsTest extends TestCase
      *
      * Derselbe Bestand an zwei Läufen desselben Tages muss dasselbe Ergebnis
      * geben; `MaintenanceOverdue` hat denselben Griff aus demselben Grund.
+     *
+     * **Der erste Prüfkörper dazu war keiner.** Er übergab als „heute" den Tag,
+     * an dem der Lauf fuhr — und damit sagten `$today` und `now()` dasselbe.
+     * Der Eingriff des Bruchskripts tauschte das eine gegen das andere, und der
+     * Test blieb grün.
+     *
+     * > **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall,
+     * > misst nicht.**
+     *
+     * Die Uhr steht deshalb fest, und der übergebene Tag liegt weit von ihr
+     * entfernt: Nach `now()` bliebe die Hälfte stehen, nach `$today` geht
+     * alles. Erst dadurch unterscheiden sich die beiden Fälle.
      */
-    public function test_retention_counts_from_the_given_day(): void
+    public function test_retention_counts_from_the_given_day_and_not_from_now(): void
+    {
+        Carbon::setTestNow('2026-09-21 03:00:00');
+        $this->abonnement();
+
+        foreach (['2026-08-20', '2026-08-22', '2026-09-20'] as $tag) {
+            $this->daily()->record($this->zeile('beispiel.de', 'beispiel.de', $tag));
+        }
+
+        // 2026-12-01 minus 30 Tage ist 2026-11-01 — davor liegt alles.
+        // Nach `now()` läge die Grenze bei 2026-08-22, und zwei Tage blieben.
+        $ergebnis = $this->daily()->forget('2026-12-01');
+
+        $this->assertSame(12, $ergebnis['domains']);
+        $this->assertSame(12, $ergebnis['subscriptions']);
+
+        app(Tenancy::class)->withoutRestriction(function (): void {
+            $this->assertSame(0, DomainMetric::query()->count());
+            $this->assertSame(0, SubscriptionMetric::query()->count());
+        });
+
+        Carbon::setTestNow();
+    }
+
+    /**
+     * **Und die Grenze selbst wird mitgemessen.**
+     *
+     * Der Tag, der genau auf `heute − 30` fällt, bleibt; der davor geht. Ohne
+     * diesen Fall wäre `<` gegen `<=` eine Entscheidung, die niemand trifft.
+     */
+    public function test_retention_keeps_the_day_on_the_boundary(): void
     {
         [, $domain] = $this->abonnement();
 
@@ -216,8 +258,6 @@ final class DailyMetricsTest extends TestCase
             $this->daily()->record($this->zeile('beispiel.de', 'beispiel.de', $tag));
         }
 
-        // 2026-09-21 minus 30 Tage ist 2026-08-22 — dieser Tag bleibt, der
-        // davor geht. Die Grenze wird mitgemessen und nicht nur überschritten.
         $ergebnis = $this->daily()->forget('2026-09-21');
 
         $this->assertSame(4, $ergebnis['domains']);

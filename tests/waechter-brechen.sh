@@ -5117,7 +5117,7 @@ open(p, 'w', encoding='utf-8').write(s.replace(alt, '$grenze = Carbon::now()->su
 PY2
 griff_datei app/Support/Metrics/Daily.php "abgeraeumt nach der Uhr" &&
 pruefe "abgeraeumt nach der Uhr" \
-  DailyMetricsTest::test_retention_counts_from_the_given_day failed
+  DailyMetricsTest::test_retention_counts_from_the_given_day_and_not_from_now failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
 

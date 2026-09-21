@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Support\Cron\ServerZone;
+use App\Support\Metrics\Daily;
 use App\Support\Web\AccessCounts;
 use Illuminate\Console\Command;
 use SrvPanel\Agent\AgentException;
@@ -45,7 +46,7 @@ final class CollectTraffic extends Command
 
     protected $description = 'Zählt die Zugriffsprotokolle aller Abonnements und meldet, was zählbar war';
 
-    public function handle(Client $agent): int
+    public function handle(Client $agent, Daily $daily): int
     {
         try {
             $result = $agent->call('web.access.count', [], [
@@ -151,6 +152,44 @@ final class CollectTraffic extends Command
             ));
 
             return self::FAILURE;
+        }
+
+        /*
+         * **Erst ablegen, dann abräumen.** Andersherum nähme der Lauf einer
+         * frisch geschriebenen Zeile ihren Tag weg, sobald die Aufbewahrung
+         * genau auf ihn fällt — ein Fehler, der nur einmal im Monat sichtbar
+         * wäre und dann wie ein verlorener Tag aussähe.
+         */
+        $geschrieben = $daily->record($split['countable']);
+
+        $this->line(sprintf(
+            '  Abgelegt: %d Zeile(n) je Domain, %d je Abonnement.',
+            $geschrieben['domains'],
+            $geschrieben['subscriptions'],
+        ));
+
+        /*
+         * **Ein Verzeichnis ohne Zeile wird benannt und nicht übergangen.**
+         * Es ist entweder ein Rest eines Rückbaus oder ein Abonnement, das dem
+         * Panel fehlt — und beides sieht in einer Summe wie „nichts" aus.
+         */
+        foreach ($geschrieben['unknown'] as $eintrag) {
+            $this->warn(sprintf(
+                '  ohne Zeile im Panel: %s / %s — gezählt, aber nirgends abgelegt.',
+                $eintrag['subscription'],
+                $eintrag['domain'],
+            ));
+        }
+
+        $abgeraeumt = $daily->forget($today);
+
+        if ($abgeraeumt['subscriptions'] > 0 || $abgeraeumt['domains'] > 0) {
+            $this->line(sprintf(
+                '  Älter als %d Tage entfernt: %d je Domain, %d je Abonnement.',
+                Daily::RETENTION_DAYS,
+                $abgeraeumt['domains'],
+                $abgeraeumt['subscriptions'],
+            ));
         }
 
         $this->info(sprintf('  Fertig in %d ms.', (int) ($result['duration_ms'] ?? 0)));

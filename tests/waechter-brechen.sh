@@ -5006,6 +5006,161 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TrafficEraTest passed
 
 echo
+echo "── DailyMetricsTest: addiert statt zu ueberschreiben ──"
+#
+# Die tragende Zusage zwischen B2 und B3: web.access.count liest beide
+# Protokolldateien, derselbe Tag kommt an mehreren Naechten vorbei.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "DomainMetric::query()->upsert($domainRows, ['domain_id', 'day', 'metric'], ['value']);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'DomainMetric::query()->insert($domainRows);', 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "addiert statt ueberschreibt" &&
+pruefe "addiert statt ueberschreibt" \
+  DailyMetricsTest::test_the_same_day_twice_overwrites_instead_of_adding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: der eindeutige Schluessel faellt weg ──"
+#
+# Ohne ihn ist das upsert darueber wirkungslos — es legte jede Nacht eine
+# zweite Zeile an, und die Summe waere jeden Tag eine andere.
+vorher_datei database/migrations/2026_09_21_090000_create_daily_metrics_tables.php
+python3 - <<'PY2'
+p = 'database/migrations/2026_09_21_090000_create_daily_metrics_tables.php'
+s = open(p, encoding='utf-8').read()
+alt = "$table->unique(['domain_id', 'day', 'metric']);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$table->index(['domain_id', 'day', 'metric']);", 1))
+PY2
+griff_datei database/migrations/2026_09_21_090000_create_daily_metrics_tables.php "Schluessel faellt weg" &&
+pruefe "Schluessel faellt weg" \
+  DailyMetricsTest::test_the_database_itself_refuses_a_second_row failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: die Mandantenklammer bleibt zu ──"
+#
+# Der Nachtlauf laeuft ohne angemeldetes Konto. Ohne withoutRestriction
+# steht jede Abfrage auf whereRaw(0 = 1), und der Lauf schreibt wortlos
+# nichts — derselbe Fehler, den Cron::store() in P6 hatte.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = 'return $this->tenancy->withoutRestriction(function () use ($countable): array {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'return (function () use ($countable): array {', 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "Klammer bleibt zu" &&
+pruefe "Klammer bleibt zu" \
+  DailyMetricsTest::test_a_countable_day_lands_in_both_tables failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: das unbekannte Verzeichnis wird still uebergangen ──"
+#
+# Ein Rest eines Rueckbaus und ein fehlendes Abonnement sehen in einer
+# Summe beide wie "nichts" aus.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    $unknown[] = [\n                        'subscription' => $eintrag['subscription'],\n                        'domain' => $eintrag['domain'],\n                    ];\n\n                    continue;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '                    continue;', 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "Unbekanntes still uebergangen" &&
+pruefe "Unbekanntes still uebergangen" \
+  DailyMetricsTest::test_a_directory_without_a_row_is_named failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: die Domain wird nur am Namen erkannt ──"
+#
+# Zwei Kunden duerfen denselben Domainnamen im Verzeichnis haben. Gezaehlt
+# wird das Paar und nicht der Name — sonst laufen fremde Zahlen ins
+# falsche Abonnement.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "                $domain = $domains->first(\n                    fn (Domain $d): bool => $d->name === $eintrag['domain']\n                        && $d->subscription_id === $subscriptionId,\n                );"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                $domain = $domains->first(\n                    fn (Domain $d): bool => $d->name === $eintrag['domain'],\n                );", 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "Domain nur am Namen" &&
+pruefe "Domain nur am Namen" \
+  DailyMetricsTest::test_a_domain_of_another_subscription_does_not_count failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: abgeraeumt wird nach der Uhr statt nach dem Tag ──"
+#
+# Derselbe Bestand an zwei Laeufen desselben Tages muss dasselbe Ergebnis
+# geben. MaintenanceOverdue hat denselben Griff aus demselben Grund.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = '$grenze = Carbon::parse($today)->subDays(self::RETENTION_DAYS)->toDateString();'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$grenze = Carbon::now()->subDays(self::RETENTION_DAYS)->toDateString();', 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "abgeraeumt nach der Uhr" &&
+pruefe "abgeraeumt nach der Uhr" \
+  DailyMetricsTest::test_retention_counts_from_the_given_day failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: die Summe je Abonnement wird ueberschrieben statt addiert ──"
+#
+# Das Abonnement ist die Summe ueber seine Domains. Wer hier zuweist,
+# meldet die Zahl der zuletzt gelesenen Domain als die des ganzen Kunden.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = '$sums[$schluessel] = ($sums[$schluessel] ?? 0) + $value;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$sums[$schluessel] = $value;', 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "Summe ueberschrieben" &&
+pruefe "Summe ueberschrieben" \
+  DailyMetricsTest::test_the_subscription_is_the_sum_over_its_domains failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: abgeraeumt wird vor dem Ablegen ──"
+#
+# Faellt die Aufbewahrungsgrenze genau auf den frisch geschriebenen Tag,
+# nimmt der Lauf ihn wieder mit — einmal im Monat, und es sieht aus wie
+# ein verlorener Tag.
+vorher_datei app/Console/Commands/CollectTraffic.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/CollectTraffic.php'
+s = open(p, encoding='utf-8').read()
+alt = "$geschrieben = $daily->record($split['countable']);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$abgeraeumtZuerst = $daily->forget($today);\n        $geschrieben = $daily->record($split['countable']);", 1))
+PY2
+griff_datei app/Console/Commands/CollectTraffic.php "abgeraeumt vor dem Ablegen" &&
+pruefe "abgeraeumt vor dem Ablegen" \
+  DailyMetricsTest::test_the_nightly_run_records_before_it_forgets failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
 echo "── DefinerStripTest: der Filter fasst auch Datenzeilen an ──"
 #
 # Ein blindes Suchen-und-Ersetzen über den ganzen Dump verändert Nutzdaten. Eine

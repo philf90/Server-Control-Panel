@@ -31190,3 +31190,66 @@ der Eintrag trug seine Auflösungsbedingung selbst.
 
 > **Ein Eintrag auf einer Ausnahmeliste, der seine eigene Auflösung benennt,
 > wird aufgelöst. Einer ohne bleibt.**
+
+### B3 — die verdichtete Tabelle
+
+Der Nachtlauf legt ab, was er zählt. Zwei Tabellen, lange Form: je Abonnement
+(oder Domain), Kennzahl und Tag eine Zeile. Aufbewahrt werden **30 Tage** —
+Entscheidung 4 vom 20. September; die andere Hälfte, `rotate 14` für die rohen
+Dateien, steht seit jeher in `WebLogrotate`.
+
+**Zwei Tabellen und nicht eine, und das ist gemessen.** Der naheliegende
+Entwurf ist eine Tabelle mit nullbarer `domain_id`: `NULL` hiesse „die Zahl des
+Abonnements selbst", und der eindeutige Schlüssel
+`(subscription_id, domain_id, day, metric)` trüge das Überschreiben. Gemessen
+gegen SQLite, mit Gegenprobe: **dieselbe Zeile mit `NULL` ging zweimal durch,
+dieselbe mit echter Kennung wurde abgewiesen.**
+
+> **Ein `NULL` in einem eindeutigen Index verhindert nichts — und der Schaden
+> ist eine zweite Zeile je Nacht, die wie ein Messwert aussieht.**
+
+Zwei Tabellen stellen die Frage gar nicht: Jede Spalte ihres Schlüssels ist
+`NOT NULL`. Und geprüft wird sie an der **Datenbank** und nicht am Code —
+`DailyMetricsTest` lässt dieselbe Zeile zweimal einfügen und verlangt die
+Abweisung.
+
+**Überschreibend und nicht addierend** ist die Zusage, an der B2 und B3
+zusammenhängen. `web.access.count` liest `access.log` **und** `access.log.1`,
+weil `logrotate` in einem Fenster läuft; derselbe Tag kommt an mehreren Nächten
+vorbei.
+
+> **Ein Lauf, der denselben Tag mehrfach sieht, darf ihn nicht mehrfach
+> zählen.**
+
+**Das Abonnement ist die Summe über seine Domains und keine zweite Messung.**
+nginx protokolliert je Domain; es gibt keinen Zähler, der ein Abonnement
+unmittelbar zählte. Eine zweite Quelle wären zwei Zahlen über dieselbe Grösse,
+und die zweite liefe weg.
+
+**Die Fehlerquote steht nicht in der Tabelle, sie wird gerechnet.** Eine Quote
+ist keine ganze Zahl, und zwei abgelegte Zahlen, aus denen die dritte folgt,
+sind besser als drei, von denen eine veralten kann.
+
+**Gezählt wird das Paar aus Abonnement und Domain und nicht der Name.** Zwei
+Kunden dürfen denselben Domainnamen im Verzeichnis haben, solange ihn nur einer
+betreibt — sonst liefen fremde Zahlen ins falsche Abonnement. Und ein
+Verzeichnis, zu dem es keine Zeile gibt, wird **benannt und nicht übergangen**:
+
+> **Ein übersprungener Eintrag, den niemand zählt, ist von einem, den es nie
+> gab, nicht zu unterscheiden.**
+
+**Erst ablegen, dann abräumen**, gehalten an der Reihenfolge im Quelltext:
+Andersherum nähme der Lauf einer frisch geschriebenen Zeile ihren Tag weg,
+sobald die Aufbewahrungsgrenze genau auf ihn fällt — einmal im Monat, und es
+sähe aus wie ein verlorener Tag.
+
+**Vier Kennzahlen je Abonnement und nicht fünf.** `docs/129 §6` nennt die
+FPM-Prozesse als fünfte; **gezählt hat sie auf keiner Maschine dieses Projekts
+je jemand** — `Quota::PhpProcesses` führt sie als Kontingent, und das ist eine
+Obergrenze und keine Messung. Sie einzutragen hiesse, eine Spalte für eine Zahl
+zu öffnen, von der niemand weiss, woher sie kommt. Die lange Form ist genau
+dafür gewählt: Wer sie misst, trägt einen Fall im Enum ein und braucht keine
+Migration.
+
+> **Eine Entscheidung, die eine Messung vorwegnimmt, ist keine Entscheidung —
+> sie ist eine Messung, die niemand gefahren hat.**

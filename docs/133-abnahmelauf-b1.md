@@ -155,23 +155,64 @@ Zertifikat auf `127.0.0.1` fällt durch, und das ist Absicht.
 kennt — das ist eine Veröffentlichung und keine Messung. Der eigene Empfänger
 kostet vier Zeilen und bleibt auf der Maschine:
 
+**Drei Dinge daran sind am 21. September 2026 auf `cloudsrv24` falsch
+gewesen**, und alle drei stehen im Quelltext:
+
+- **Das Dokumentenverzeichnis einer zusätzlichen Domain ist das Verzeichnis
+  selbst**, nicht ein `httpdocs` darin. `Site::documentRootPath()` setzt es aus
+  der Abonnementwurzel und `document_root` zusammen; `httpdocs` ist der Wert
+  für die **erste** Domain und steht eine Ebene höher
+  ({@see SubscriptionProvision::TREE}).
+- **Die Abonnementwurzel gehört `root:root`**, und zwar mit Absicht: Ihr
+  Zugriffsbit ist der Schalter von `subscription.suspend`. Wer den
+  Systembenutzer sucht, fragt das **Dokumentenverzeichnis** —
+  `SystemUserVerdictTest` gibt es genau dafür.
+- **Der Empfänger gehört in ein Unterverzeichnis** und nicht an die Wurzel der
+  Domain, sonst überschreibt er die `index.php`, die dort steht.
+
+> **Ein Pfad, den eine Vorschrift aus dem Gedächtnis nennt, ist eine Vermutung
+> — und der Quelltext steht daneben.**
+
+Deshalb fragt der Block die Wurzel bei **nginx** nach und leitet sie nicht aus
+dem Namen ab:
+
 ```bash
-# Auf einer Domain dieses Servers mit gültigem Zertifikat, z. B. haken.cloudlab24.de
-D=/var/www/vhosts/<benutzer>/haken.cloudlab24.de/httpdocs
-install -d -o <benutzer> -g <benutzer> "$D"
+ABO=/var/www/vhosts/<abonnement>
+HAKEN=""; WURZEL=""
+
+for f in /etc/nginx/srvpanel.d/*.conf; do
+  r=$(awk '$1=="root"{gsub(/;/,"",$2); print $2; exit}' "$f")
+  case "$r" in "$ABO"/*) ;; *) continue ;; esac
+  n=$(awk '$1=="server_name"{gsub(/;/,"",$0); print $2; exit}' "$f")
+  m=$(curl -sS -o /dev/null -m 10 -w '%{http_code}:%{ssl_verify_result}' "https://$n/" 2>/dev/null || echo '000:1')
+  printf '  %-30s %-44s %s\n' "$n" "$r" "$m"
+  case "$m" in *:0) [ -z "$HAKEN" ] && { HAKEN="$n"; WURZEL="$r"; } ;; esac
+done
+
+BEN=$(stat -c %U "$WURZEL")
+D="$WURZEL/haken"
+LOG="$ABO/tmp/haken.log"
+
+install -d -o "$BEN" -g www-data -m 2750 "$D"
 cat > "$D/index.php" <<'PHP'
 <?php
-file_put_contents(__DIR__.'/../haken.log',
+file_put_contents(dirname(__DIR__, 2).'/tmp/haken.log',
     date('c')."\t".($_SERVER['HTTP_X_SRVPANEL_SIGNATURE'] ?? '-')."\t".file_get_contents('php://input')."\n",
     FILE_APPEND);
 http_response_code(204);
 PHP
-chown <benutzer>:<benutzer> "$D/index.php"
+chown "$BEN:$BEN" "$D/index.php"
+: > "$LOG"; chown "$BEN:$BEN" "$LOG"; chmod 640 "$LOG"
 
 # Gegenprobe, dass der Empfänger überhaupt annimmt — sonst misst Punkt 3 den Empfänger
-curl -sS -o /dev/null -w '%{http_code}\n' -X POST -d '{"probe":1}' https://haken.cloudlab24.de/
-tail -1 /var/www/vhosts/<benutzer>/haken.cloudlab24.de/haken.log
+curl -sS -o /dev/null -m 10 -w '%{http_code}\n' -X POST -d '{"probe":1}' "https://$HAKEN/haken/"
+tail -1 "$LOG"
 ```
+
+**Das Protokoll liegt in `tmp/` und nicht neben der Domain.** `tmp` gehört dem
+Systembenutzer (`2700`), liegt in der `open_basedir` des Pools und **ausserhalb
+jedes Dokumentenverzeichnisses** — in den Rümpfen stehen die Befunde dieses
+Servers, und was unter der Wurzel liegt, liest jeder, der die Adresse rät.
 
 > **Eine Gegenprobe, deren Ausschlag vom Empfänger abhängt, gehört vor die
 > Messung und nicht daneben.**

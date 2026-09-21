@@ -348,8 +348,11 @@ printf 'Geheimnis in den Protokollen: %s   (erwartet 0)\n' \
 printf 'notify.target.store in den Protokollen: %s   (Gegenprobe, erwartet > 0)\n' \
     "$(grep -h 'notify.target.store' $PROT 2>/dev/null | wc -l)"
 
-# Und die Zeile selbst — sie zeigt beides auf einmal.
-grep -h 'notify.target.store' /var/log/srvpanel/agent.log 2>/dev/null | tail -1 | cut -c1-400; echo
+# Und die Zeile selbst — sie zeigt beides auf einmal. Ausdrücklich die
+# `request`-Zeile: `tail -1` allein nimmt die letzte, und die letzte ist die
+# Antwort. Argumente trägt nur die Anfrage.
+grep -h 'notify.target.store' /var/log/srvpanel/agent.log 2>/dev/null \
+    | grep '"kind":"request"' | tail -1 | cut -c1-400; echo
 ```
 
 **Erwartet:** `reachable` = `true`; `describe()` trägt `host`, `provider`,
@@ -357,7 +360,8 @@ grep -h 'notify.target.store' /var/log/srvpanel/agent.log 2>/dev/null | tail -1 
 Geheimnis noch `config`**. Die Datei liegt `-rw------- root root` in einem
 `drwx------`-Verzeichnis. Der Geheimniszähler steht auf `0`, die beiden
 Zahlen darüber und der Gegenprobenzähler darunter nicht — und die letzte Zeile
-zeigt den Vorgang selbst, mit `"secret":"···"` und `"url"` im Klartext.
+zeigt die **Anfrage** selbst, mit `"secret":"···"` und `"url"` im Klartext.
+Eine `"kind":"result"`-Zeile trägt keine Argumente und belegt hier nichts.
 
 **Was dieser Punkt nicht sagt:** dass die Adresse nirgends steht.
 {@see Connection::redactArgs()} ersetzt jedes Argument, dessen Name `secret`,

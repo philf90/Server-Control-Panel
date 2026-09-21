@@ -14,9 +14,11 @@ use App\Support\Time\Clock;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Notify\Providers;
 use SrvPanel\Agent\Notify\Target;
 
 /**
@@ -78,13 +80,26 @@ final class NoticeSettingsController extends Controller
             'live' => $target->reachable(),
 
             'secret_min' => Target::SECRET_MIN,
+
+            /*
+             * **Die Empfänger kommen aus der Positivliste des Agenten.** Eine
+             * zweite Aufzählung auf der Seite wäre genau der tote Eintrag, den
+             * `ChannelReachTest` für die Kanäle verhindert — hier eine Ebene
+             * tiefer. Ob ein Empfänger signiert, steht daneben und wird nicht
+             * am Schlüssel abgelesen: Das ist eine Frage an {@see Providers}.
+             */
+            'providers' => array_map(static fn (string $key, string $label): array => [
+                'value' => $key,
+                'label' => $label,
+                'signs' => Providers::signs($key),
+            ], array_keys(Providers::LABELS), array_values(Providers::LABELS)),
         ]);
     }
 
     /**
      * Was der Agent über das Ziel sagt — mit dem Zeitpunkt als Anzeige.
      *
-     * @return array{host: string, stored_at: string|null, signed: bool}|null
+     * @return array{host: string, provider: string, stored_at: string|null, signed: bool}|null
      */
     private static function describe(NotifyTarget $target): ?array
     {
@@ -96,6 +111,7 @@ final class NoticeSettingsController extends Controller
 
         return [
             'host' => $beschrieben['host'],
+            'provider' => Providers::LABELS[$beschrieben['provider']] ?? $beschrieben['provider'],
             'stored_at' => Clock::display(Carbon::createFromTimestampUTC($beschrieben['stored_at'])),
             'signed' => $beschrieben['signed'],
         ];
@@ -121,6 +137,11 @@ final class NoticeSettingsController extends Controller
              */
             'url' => ['required', 'string', 'max:2048', 'url', 'starts_with:https://'],
 
+            // Was der Agent nicht kennt, wird hier schon abgewiesen — und der
+            // Agent weist es noch einmal ab. Diese Prüfung sagt dem Betreiber,
+            // was an seiner Eingabe nicht stimmt; die dort ist die Grenze.
+            'provider' => ['required', Rule::in(array_keys(Providers::LABELS))],
+
             // Leer heisst „ohne Signatur" und nicht „unverändert": Bei Slack
             // und Discord gibt es gar keines, dort trägt die Adresse alles.
             'secret' => ['nullable', 'string', 'min:'.Target::SECRET_MIN, 'max:255'],
@@ -134,10 +155,20 @@ final class NoticeSettingsController extends Controller
              * welches (`docs/66`, Befund 3).
              */
             'secret' => 'Geheimnis zum Signieren',
+
+            /*
+             * **„Empfänger" und nicht „Anbieter".** Die Liste in
+             * `lang/de/validation.php` trägt „Anbieter", und das ist auf der
+             * DNS-Seite richtig — dort ist der Anbieter derjenige, der die Zone
+             * führt. Hier ist es der, der die Meldung annimmt, und die beiden
+             * im selben Panel gleich zu nennen wäre die Verwechslung, die diese
+             * Seite gerade auflöst.
+             */
+            'provider' => 'Empfänger',
         ]);
 
         try {
-            $target->store($data['url'], $data['secret'] ?? null);
+            $target->store($data['url'], $data['secret'] ?? null, $data['provider']);
         } catch (AgentException $error) {
             $audit->failure('settings.notices.stored', ['error' => mb_substr($error->getMessage(), 0, 500)]);
 
@@ -152,6 +183,7 @@ final class NoticeSettingsController extends Controller
          */
         $audit->success('settings.notices.stored', context: [
             'host' => (string) parse_url($data['url'], PHP_URL_HOST),
+            'provider' => $data['provider'],
             'signed' => ($data['secret'] ?? null) !== null,
         ]);
 

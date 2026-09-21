@@ -419,8 +419,14 @@ srvpanel tinker --execute='
 fällig.` — und in `finding_notifications` stehen Zeilen für `mail` und
 **keine** für `webhook`. Das ist der Fall, für den es die Tabelle gibt.
 
-**Wer einen Slack- oder Discord-Haken hat, misst hier §0 Punkt 5 mit:** Adresse
-eintragen, Probezustellung drücken, Rückgabewert ablesen.
+**Wer einen Slack- oder Discord-Haken hat, misst hier §0 Punkt 5 mit:**
+Empfänger wählen, Adresse eintragen, Probezustellung drücken — und im Kanal
+nachsehen, dass der Satz dort ankommt und lesbar ist. Das ist die eine Sache
+an dieser Stufe, die nur ein echter Empfänger sagen kann.
+
+**Und die Gegenrichtung im selben Griff:** Bei Slack steht das Feld für das
+Geheimnis gar nicht erst da — wer es über die Anfrage mitschickt, bekommt die
+Ablehnung des Agenten.
 
 ### Punkt 10 · Ohne Ziel und ohne Relay wird nichts gebucht
 

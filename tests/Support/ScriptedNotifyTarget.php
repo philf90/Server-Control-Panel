@@ -26,9 +26,9 @@ final class ScriptedNotifyTarget implements NotifyTarget
     /** @var list<array<string, mixed>> */
     public array $sent = [];
 
-    /** @param array{host: string, stored_at: int, signed: bool}|null $target */
+    /** @param array{host: string, provider: string, stored_at: int, signed: bool}|null $target */
     public function __construct(
-        private ?array $target = ['host' => 'hooks.example.org', 'stored_at' => 1_789_000_000, 'signed' => true],
+        private ?array $target = ['host' => 'hooks.example.org', 'provider' => 'generic', 'stored_at' => 1_789_000_000, 'signed' => true],
         private readonly bool $reachable = true,
         private readonly bool $delivers = true,
     ) {}
@@ -51,7 +51,7 @@ final class ScriptedNotifyTarget implements NotifyTarget
         return new self(delivers: false);
     }
 
-    /** @return array{host: string, stored_at: int, signed: bool}|null */
+    /** @return array{host: string, provider: string, stored_at: int, signed: bool}|null */
     public function describe(): ?array
     {
         return $this->target;
@@ -62,10 +62,11 @@ final class ScriptedNotifyTarget implements NotifyTarget
         return $this->reachable;
     }
 
-    public function store(string $url, ?string $secret): void
+    public function store(string $url, ?string $secret, string $provider): void
     {
         $this->target = [
             'host' => (string) parse_url($url, PHP_URL_HOST),
+            'provider' => $provider,
             'stored_at' => 1_789_000_000,
             'signed' => $secret !== null,
         ];

@@ -81,10 +81,11 @@ final class Target
      * mittendrin abbricht, sonst eine halbe Datei hinterlässt: Die ist beim
      * nächsten Lesen kein Fehler, sondern eine Adresse, die fast stimmt.
      */
-    public function store(mixed $url, mixed $secret): void
+    public function store(mixed $url, mixed $secret, mixed $provider = Providers::GENERIC): void
     {
         $address = self::address($url);
-        $signing = self::signingSecret($secret);
+        $key = Providers::usable($provider);
+        $signing = self::signingSecret($secret, $key);
 
         if (! is_dir($this->directory) && ! @mkdir($this->directory, 0o700, true) && ! is_dir($this->directory)) {
             throw AgentException::execFailed('Das Verzeichnis für das Meldeziel ließ sich nicht anlegen.');
@@ -94,6 +95,7 @@ final class Target
 
         $contents = json_encode([
             'url' => $address,
+            'provider' => $key,
             'secret' => $signing,
             'stored_at' => time(),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
@@ -119,7 +121,7 @@ final class Target
      * **Diese Antwort verlässt den Agenten nie.** Sie ist für {@see Delivery},
      * und für keine Operation, die etwas zurückgibt.
      *
-     * @return array{url: string, secret: ?string}
+     * @return array{url: string, provider: string, secret: ?string}
      */
     public function read(): array
     {
@@ -136,7 +138,11 @@ final class Target
             throw AgentException::execFailed('Das Meldeziel ist unlesbar: '.$this->path());
         }
 
-        return ['url' => $url, 'secret' => is_string($secret) && $secret !== '' ? $secret : null];
+        return [
+            'url' => $url,
+            'provider' => Providers::normalize($data['provider'] ?? null),
+            'secret' => is_string($secret) && $secret !== '' ? $secret : null,
+        ];
     }
 
     /**
@@ -148,7 +154,7 @@ final class Target
      * und fällt auf. Eine Liste dessen, was *nicht* hinaus darf, wäre beim
      * nächsten Feld unvollständig, und niemandem fiele es auf.
      *
-     * @return array{host: string, stored_at: int, signed: bool}|null
+     * @return array{host: string, provider: string, stored_at: int, signed: bool}|null
      */
     public function describe(): ?array
     {
@@ -164,6 +170,14 @@ final class Target
 
         return [
             'host' => self::hostOf($url),
+
+            /*
+             * **Der Anbieter ist kein Geheimnis.** Er sagt, in welcher Form der
+             * Rumpf geht, und das ist dieselbe Art Auskunft wie der Name des
+             * DNS-Anbieters, den `Dns\Credentials::describe()` seit P4
+             * herausgibt.
+             */
+            'provider' => Providers::normalize($data['provider'] ?? null),
             'stored_at' => is_int($stored) ? $stored : 0,
             'signed' => is_string($secret) && $secret !== '',
         ];
@@ -213,11 +227,29 @@ final class Target
         return $address;
     }
 
-    /** Kein Geheimnis ist erlaubt — ein zu kurzes nicht. */
-    private static function signingSecret(mixed $secret): ?string
+    /**
+     * Kein Geheimnis ist erlaubt — ein zu kurzes nicht, und bei Slack und
+     * Discord gar keines.
+     *
+     * **Abgewiesen und nicht stillschweigend weggelassen.** Wer bei Slack ein
+     * Geheimnis einträgt, erwartet, dass die Meldung beglaubigt ist; dort
+     * liest niemand unsere Kopfzeile, und die Seite schriebe „signiert: ja"
+     * für etwas, das nichts bedeutet.
+     *
+     * > **Eine Beglaubigung, die der Empfänger nicht prüft, ist keine
+     * > Beglaubigung, sondern eine Beschriftung.**
+     */
+    private static function signingSecret(mixed $secret, string $provider): ?string
     {
         if ($secret === null || $secret === '') {
             return null;
+        }
+
+        if (! Providers::signs($provider)) {
+            throw AgentException::badRequest(sprintf(
+                'Für %s wird nicht signiert — dort ist die Adresse das Zugangsmittel.',
+                Providers::LABELS[$provider] ?? $provider,
+            ), ['provider' => $provider]);
         }
 
         if (! is_string($secret) || strlen($secret) < self::SECRET_MIN) {

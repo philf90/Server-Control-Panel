@@ -32085,3 +32085,54 @@ abbrechen.
 
 Beide sind umgehängt, und danach sind **alle 26** Eingriffe, deren Ziel eine
 der berührten Dateien ist, einzeln gegen ihren eigenen Fall gefahren worden.
+
+### Slack und Discord — und der Webhook bekommt überhaupt erst Empfänger
+
+**Bis heute kannte der Webhook eine Adresse und *eine* Form.** `docs/133 §0`
+hatte als hergeleitet festgehalten, dass Slack und Discord unseren Rumpf mit
+`400` abweisen würden; der Betreiber hat die beiden daraufhin bestellt.
+
+`SrvPanel\Agent\Notify\Providers` ist die Positivliste dazu — nach dem Vorbild
+von `Acme\Dns\Providers`, mit einem Unterschied: Dort steht auch die **Adresse**
+in der Liste, hier nur die **Form des Rumpfes**. Ein Eingangshaken hat keine
+feste Adresse, er *ist* eine.
+
+| | Rumpf | signiert | Deckel |
+|---|---|---|---|
+| Eigener Empfänger | `{server, at, event}` | ja | — |
+| Slack | `{"text": …}` | **nein** | 40 000 |
+| Discord | `{"content": …}` | **nein** | **2 000** |
+
+**Bei Slack und Discord wird ein Geheimnis abgewiesen und nicht
+weggelassen.** Dort liest niemand unsere Kopfzeile; die Adresse ist das
+Zugangsmittel.
+
+> **Eine Beglaubigung, die der Empfänger nicht prüft, ist keine Beglaubigung,
+> sondern eine Beschriftung.**
+
+**Der Deckel ist der des Empfängers und kein gewählter.** Discord weist ein
+`content` über 2000 Zeichen ab — ein Deckel darüber verschöbe den Fehlschlag
+bloss ans andere Ende der Leitung. Gekürzt wird **zwischen** Zeilen, und die
+Meldung sagt „… und N weitere".
+
+> **Ein Deckel, der nicht sagt, dass er gegriffen hat, macht aus einer
+> unvollständigen Auskunft eine falsche.**
+
+**Ein unbekannter Empfänger wird abgewiesen, ein abgelegter fällt zurück.** Das
+sind zwei Methoden und nicht eine: Wer sich beim Eintragen vertippt, bekäme
+sonst wortlos die JSON-Form; eine Datei aus der Zeit vor der Liste trägt kein
+`provider` und muss trotzdem zustellbar bleiben.
+
+**Ein Zweig war durch die Tür unerreichbar**, und das ist beim Bauen
+aufgefallen: Die Prüfung in `Delivery::send()`, ob dieser Empfänger überhaupt
+signiert, kann für ein hinterlegtes Ziel nie greifen — `Target::store()` lässt
+die Verbindung gar nicht zu, und alte Dateien sind `generic`. Erreichbar ist
+sie nur über eine von Hand geänderte Ablage, und die gibt es: Die Datei gehört
+root.
+
+> **Ein Zweig, den man durch die Tür nicht erreicht, ist keine Zusage, bis
+> jemand den Zustand herstellt, den es wirklich gibt.**
+
+Neun neue Fälle in `WebhookTransportTest` (21 insgesamt), acht neue Eingriffe —
+und einer, der umziehen musste, weil `body()` nach `Providers` gegangen ist.
+**Gefunden hat ihn diesmal der dateibezogene Griff und nicht der volle Lauf.**

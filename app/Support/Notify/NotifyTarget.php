@@ -25,7 +25,7 @@ interface NotifyTarget
     /**
      * Was über das Ziel gesagt werden darf — oder `null`, wenn keines steht.
      *
-     * @return array{host: string, stored_at: int, signed: bool}|null
+     * @return array{host: string, provider: string, stored_at: int, signed: bool}|null
      */
     public function describe(): ?array;
 
@@ -41,8 +41,13 @@ interface NotifyTarget
      */
     public function reachable(): bool;
 
-    /** Adresse und Geheimnis hinterlegen. Das Geheimnis darf fehlen. */
-    public function store(string $url, ?string $secret): void;
+    /**
+     * Adresse, Empfänger und Geheimnis hinterlegen.
+     *
+     * Das Geheimnis darf fehlen — und bei Slack und Discord **muss** es das:
+     * Dort liest niemand unsere Kopfzeile, und der Agent weist es ab.
+     */
+    public function store(string $url, ?string $secret, string $provider): void;
 
     /** Das Ziel wieder entfernen. */
     public function forget(): bool;

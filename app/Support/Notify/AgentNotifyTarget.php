@@ -6,6 +6,7 @@ namespace App\Support\Notify;
 
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
+use SrvPanel\Agent\Notify\Providers;
 
 /**
  * Das Meldeziel, wie der Agent es kennt.
@@ -28,14 +29,14 @@ final class AgentNotifyTarget implements NotifyTarget
     /** Der Kontext, unter dem der Agent die Aufrufe protokolliert. */
     private const CONTEXT = ['source' => 'web', 'command' => 'settings.notices'];
 
-    /** @var array{host: string, stored_at: int, signed: bool}|null */
+    /** @var array{host: string, provider: string, stored_at: int, signed: bool}|null */
     private ?array $beschrieben = null;
 
     private ?bool $erreichbar = null;
 
     public function __construct(private readonly Client $agent) {}
 
-    /** @return array{host: string, stored_at: int, signed: bool}|null */
+    /** @return array{host: string, provider: string, stored_at: int, signed: bool}|null */
     public function describe(): ?array
     {
         $this->ask();
@@ -50,7 +51,7 @@ final class AgentNotifyTarget implements NotifyTarget
         return $this->erreichbar === true;
     }
 
-    public function store(string $url, ?string $secret): void
+    public function store(string $url, ?string $secret, string $provider): void
     {
         /*
          * **Unmittelbar und nicht eingereiht.** Adresse und Geheimnis lägen
@@ -58,7 +59,11 @@ final class AgentNotifyTarget implements NotifyTarget
          * Vorgangsseite rendert ihn als JSON. Das ist die vierte Grenze, und
          * `SecretsStayOutOfTheQueueTest` hält sie.
          */
-        $this->agent->call('notify.target.store', ['url' => $url, 'secret' => $secret], self::CONTEXT);
+        $this->agent->call(
+            'notify.target.store',
+            ['url' => $url, 'secret' => $secret, 'provider' => $provider],
+            self::CONTEXT,
+        );
 
         $this->vergessen();
     }
@@ -112,7 +117,7 @@ final class AgentNotifyTarget implements NotifyTarget
      * Ablage trüge beim nächsten Feld im Agenten etwas mit, das niemand
      * entschieden hat.
      *
-     * @return array{host: string, stored_at: int, signed: bool}|null
+     * @return array{host: string, provider: string, stored_at: int, signed: bool}|null
      */
     private static function shape(mixed $target): ?array
     {
@@ -125,6 +130,7 @@ final class AgentNotifyTarget implements NotifyTarget
 
         return [
             'host' => is_string($host) ? $host : '',
+            'provider' => Providers::normalize($target['provider'] ?? null),
             'stored_at' => is_int($stored) ? $stored : 0,
             'signed' => ($target['signed'] ?? false) === true,
         ];

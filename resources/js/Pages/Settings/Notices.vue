@@ -25,7 +25,7 @@ const props = defineProps<{
    * Zustellung. Sie steht deshalb in keiner Antwort, auch nicht auf dieser
    * Seite, die nur der Betreiber sieht — ein Bildschirmfoto reicht sonst aus.
    */
-  target: { host: string, stored_at: string | null, signed: boolean } | null
+  target: { host: string, provider: string, stored_at: string | null, signed: boolean } | null
 
   /*
    * Antwortet der Agent?
@@ -37,6 +37,12 @@ const props = defineProps<{
   live: boolean
 
   secret_min: number
+
+  /*
+   * Die Empfänger kommen aus der Positivliste des Agenten und nicht aus einer
+   * zweiten Aufzählung hier — `SrvPanel\Agent\Notify\Providers`.
+   */
+  providers: { value: string, label: string, signs: boolean }[]
 }>()
 
 const { ask } = useConfirmation()
@@ -66,7 +72,19 @@ const KANAELE: Record<string, { name: string, satz: string }> = {
   },
 }
 
-const form = useForm({ url: '', secret: '' })
+const form = useForm({ url: '', secret: '', provider: 'generic' })
+
+/*
+ * Trägt der gewählte Empfänger eine Signatur?
+ *
+ * **Slack und Discord lesen unsere Kopfzeile nicht** — dort ist die Adresse
+ * das Zugangsmittel. Das Feld steht deshalb nicht bloss wirkungslos da,
+ * sondern gar nicht: Ein Feld, das man ausfüllen kann und das nichts tut, ist
+ * eine Zusage, die niemand einlöst.
+ */
+const signiert = computed((): boolean =>
+  props.providers.find((p) => p.value === form.provider)?.signs ?? false,
+)
 
 const zeigen = ref(false)
 
@@ -89,6 +107,10 @@ function zustand(kanal: Kanal): { wort: string, rang: 'ok' | 'warn' | 'neutral' 
 const hinterlegt = computed((): boolean => props.live && props.target !== null)
 
 function submit(): void {
+  // Ein Geheimnis, das der Empfänger nicht prüft, geht gar nicht erst hinaus —
+  // der Agent wiese es ab, und die Meldung stünde am falschen Feld.
+  if (!signiert.value) form.secret = ''
+
   form.put('/settings/notices', { onSuccess: () => form.reset() })
 }
 
@@ -183,6 +205,10 @@ function forget(): void {
               <td class="right ident">{{ props.target.host }}</td>
             </tr>
             <tr>
+              <td class="quiet">Empfänger</td>
+              <td class="right">{{ props.target.provider }}</td>
+            </tr>
+            <tr>
               <td class="quiet">Hinterlegt am</td>
               <td class="right">{{ props.target.stored_at ?? '—' }}</td>
             </tr>
@@ -216,6 +242,19 @@ function forget(): void {
     <form v-if="props.live" class="form" @submit.prevent="submit">
       <Section title="Meldeziel">
         <label class="field">
+          <span>Empfänger</span>
+          <select v-model="form.provider" :aria-invalid="Boolean(form.errors.provider)">
+            <option v-for="anbieter in props.providers" :key="anbieter.value" :value="anbieter.value">
+              {{ anbieter.label }}
+            </option>
+          </select>
+          <small class="quiet">
+            Er entscheidet die Form des Rumpfes. Slack und Discord nehmen nur
+            ihre eigene an und weisen jede andere ab.
+          </small>
+        </label>
+
+        <label class="field">
           <span>Adresse</span>
           <input
             v-model="form.url"
@@ -231,7 +270,7 @@ function forget(): void {
           </small>
         </label>
 
-        <label class="field">
+        <label v-if="signiert" class="field">
           <span>Geheimnis zum Signieren</span>
           <span class="with-reveal">
             <input

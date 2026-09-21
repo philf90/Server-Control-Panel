@@ -33099,16 +33099,16 @@ echo "── WebhookTransportTest: das Panel setzt den Absender ──"
 #
 # Der Absender ist eine Angabe des Agenten ueber den Server. Kaeme er aus der
 # Meldung, waere die Herkunft eine Angabe des Absenders ueber sich selbst.
-vorher_datei agent/src/Notify/Delivery.php
+vorher_datei agent/src/Notify/Providers.php
 python3 - <<'PY'
 import pathlib
-p = pathlib.Path('agent/src/Notify/Delivery.php')
+p = pathlib.Path('agent/src/Notify/Providers.php')
 s = p.read_text()
-alt = "'server' => Names::host(),"
+alt = "default => ['server' => $server, 'at' => $at, 'event' => $event],"
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, "'server' => $event['server'] ?? Names::host(),", 1))
+p.write_text(s.replace(alt, "default => ['server' => $event['server'] ?? $server, 'at' => $at, 'event' => $event],", 1))
 PY
-griff_datei agent/src/Notify/Delivery.php "Panel setzt den Absender" &&
+griff_datei agent/src/Notify/Providers.php "Panel setzt den Absender" &&
 pruefe "Panel setzt den Absender" \
   WebhookTransportTest::test_the_sender_is_stamped_and_not_taken_from_the_payload failed
 wiederherstellen
@@ -33129,6 +33129,151 @@ PY
 griff_datei agent/src/Notify/Delivery.php "abgewiesen gilt als zugestellt" &&
 pruefe "abgewiesen gilt als zugestellt" \
   WebhookTransportTest::test_a_rejected_delivery_throws failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WebhookTransportTest passed
+
+echo "── WebhookTransportTest: Slack bekommt die JSON-Form ──"
+#
+# Slack verlangt einen Rumpf mit `text` und weist alles andere mit 400 ab.
+# Genau dafuer gibt es die Positivliste.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "self::SLACK => ['text' => self::text($provider, $server, $event)],"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "self::SLACK => ['event' => $event],", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Slack bekommt JSON" &&
+pruefe "Slack bekommt JSON" \
+  WebhookTransportTest::test_each_receiver_gets_the_shape_it_accepts failed
+wiederherstellen
+
+echo "── WebhookTransportTest: der Text nennt den Absender nicht ──"
+#
+# Ein Kanal, in dem drei Server melden, ist ohne Herkunft eine Liste von
+# Saetzen — und der Absender ist die eine Angabe, die das Panel nicht setzt.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "$kopf = $ort !== '' ? sprintf('%s — %s', $server, $ort) : $server;"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "$kopf = $ort;", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Text ohne Absender" &&
+pruefe "Text ohne Absender" \
+  WebhookTransportTest::test_the_text_names_sender_subject_and_wording failed
+wiederherstellen
+
+echo "── WebhookTransportTest: ein unbekannter Empfaenger faellt auf den Standard ──"
+#
+# Wer sich vertippt, bekaeme wortlos die JSON-Form und wunderte sich ueber ein
+# 400 von Slack.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "        if (! array_key_exists($key, self::LABELS)) {\n            throw AgentException::badRequest("
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "        if (false) {\n            throw AgentException::badRequest(", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "unbekannter Empfaenger faellt zurueck" &&
+pruefe "unbekannter Empfaenger faellt zurueck" \
+  WebhookTransportTest::test_an_unknown_receiver_is_refused failed
+wiederherstellen
+
+echo "── WebhookTransportTest: der Rueckfall wirft statt zurueckzufallen ──"
+#
+# Eine Datei aus der Zeit vor der Liste traegt kein `provider`. Ein Wurf an
+# dieser Stelle machte aus einem hinterlegten Ziel ein unlesbares.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "        return array_key_exists($key, self::LABELS) ? $key : self::GENERIC;"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "        return self::usable($provider);", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Rueckfall wirft" &&
+pruefe "Rueckfall wirft" \
+  WebhookTransportTest::test_a_target_from_before_the_list_still_delivers failed
+wiederherstellen
+
+echo "── WebhookTransportTest: der Deckel greift nicht ──"
+#
+# Discord weist ein `content` ueber 2000 Zeichen ab. Ein Deckel darueber
+# verschiebt den Fehlschlag ans andere Ende der Leitung.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "        if (mb_strlen($text) <= $limit) {"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "        if (true) {", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Deckel greift nicht" &&
+pruefe "Deckel greift nicht" \
+  WebhookTransportTest::test_the_text_stays_under_what_the_receiver_takes failed
+wiederherstellen
+
+echo "── WebhookTransportTest: Slack gilt als signierend ──"
+#
+# Dort liest niemand unsere Kopfzeile. Eine Signatur, die der Empfaenger nicht
+# nachrechnet, ist eine Beschriftung und keine Beglaubigung.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "        return $provider === self::GENERIC;"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "        return true;", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Slack gilt als signierend" &&
+pruefe "Slack gilt als signierend" \
+  WebhookTransportTest::test_a_secret_is_refused_where_nobody_checks_it failed
+wiederherstellen
+
+echo "── WebhookTransportTest: eine von Hand geaenderte Ablage wird signiert ──"
+#
+# Die Datei gehoert root, und root kann sie aendern. Der Zweig in send() ist
+# der einzige Ort, an dem das noch auffaellt.
+vorher_datei agent/src/Notify/Delivery.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Delivery.php')
+s = p.read_text()
+alt = "if ($target['secret'] !== null && Providers::signs($target['provider'])) {"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "if ($target['secret'] !== null) {", 1))
+PY
+griff_datei agent/src/Notify/Delivery.php "Handablage wird signiert" &&
+pruefe "Handablage wird signiert" \
+  WebhookTransportTest::test_a_hand_edited_target_is_still_not_signed failed
+wiederherstellen
+
+echo "── WebhookTransportTest: der Empfaenger kommt nicht zurueck ──"
+#
+# Er ist kein Geheimnis — er sagt, in welcher Form der Rumpf geht, und die
+# Seite braucht ihn, um zu sagen, welches Ziel dasteht.
+vorher_datei agent/src/Notify/Target.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Target.php')
+s = p.read_text()
+alt = "            'provider' => Providers::normalize($data['provider'] ?? null),\n            'stored_at' => is_int($stored) ? $stored : 0,"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "            'stored_at' => is_int($stored) ? $stored : 0,", 1))
+PY
+griff_datei agent/src/Notify/Target.php "Empfaenger kommt nicht zurueck" &&
+pruefe "Empfaenger kommt nicht zurueck" \
+  WebhookTransportTest::test_the_receiver_is_not_a_secret failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" WebhookTransportTest passed
 

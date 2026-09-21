@@ -30,9 +30,16 @@ use SrvPanel\Agent\Names;
  * „zuletzt erfolgreich zugestellt".
  *
  * **Der Absender steht im Agenten und nicht im Rumpf, den das Panel schickt.**
- * `server` und `at` setzt diese Klasse; was das Panel mitgibt, ist der Befund.
- * Ein Empfänger, der Meldungen mehrerer Server sammelt, soll den Absender nicht
- * von dem erfahren, der die Meldung erzeugt hat.
+ * `server` setzt diese Klasse; was das Panel mitgibt, ist der Befund. Ein
+ * Empfänger, der Meldungen mehrerer Server sammelt, soll den Absender nicht von
+ * dem erfahren, der die Meldung erzeugt hat.
+ *
+ * **Welche Form der Rumpf hat, entscheidet {@see Providers}.** Slack will
+ * `text`, Discord `content`, der eigene Empfänger die volle Meldung — und eine
+ * Verzweigung darüber hier wäre eine zweite Fassung jener Liste. Eine
+ * Obergrenze braucht diese Klasse nicht: Was das Panel schickt, hat den Socket
+ * überquert, und {@see Connection::CONTENT_MAX} ist die
+ * Grenze dorthin; was der Empfänger annimmt, deckelt `Providers`.
  */
 final class Delivery
 {
@@ -65,15 +72,21 @@ final class Delivery
     public function send(array $event): array
     {
         $target = $this->target->read();
-        $body = $this->body($event);
         $stamp = time();
+        $body = Providers::body($target['provider'], Names::host(), date(DATE_ATOM), $event);
 
         $headers = [
             'Content-Type: application/json',
             'Accept: application/json',
         ];
 
-        if ($target['secret'] !== null) {
+        /*
+         * **Signiert wird, wo jemand nachrechnet.** `Target::store()` lässt bei
+         * Slack und Discord gar kein Geheimnis zu; die Frage hier ist deshalb
+         * keine zweite Fassung jener Regel, sondern ihre Wirkung — ein Ziel aus
+         * der Zeit davor könnte beides tragen.
+         */
+        if ($target['secret'] !== null && Providers::signs($target['provider'])) {
             $headers[] = self::SIGNATURE_HEADER.': '.self::signature($target['secret'], $stamp, $body);
         }
 
@@ -110,38 +123,5 @@ final class Delivery
     public static function signature(string $secret, int $at, string $body): string
     {
         return sprintf('t=%d,v1=%s', $at, hash_hmac('sha256', $at.'.'.$body, $secret));
-    }
-
-    /**
-     * Der Rumpf einer Meldung.
-     *
-     * **Was das Panel schickt, steht unter `event` und nicht auf oberster
-     * Ebene.** Sonst überschriebe ein Feld namens `server` den Absender, den
-     * diese Klasse gerade gesetzt hat — derselbe Fehler wie eine Seite, die
-     * eine geteilte Eigenschaft überschreibt.
-     *
-     * Eine Obergrenze braucht es hier nicht: Was das Panel schickt, hat den
-     * Socket überquert, und {@see Connection::CONTENT_MAX} ist die Grenze
-     * dorthin.
-     *
-     * @param  array<string, mixed>  $event
-     */
-    private function body(array $event): string
-    {
-        $body = json_encode([
-            // **`host()` und nicht `fqdn()`.** Ein Empfänger, der Meldungen
-            // mehrerer Server sammelt, kann mit `null` nichts anfangen — und
-            // der Knotenname ist kein erfundener Name, sondern ein weniger
-            // vollständiger.
-            'server' => Names::host(),
-            'at' => date(DATE_ATOM),
-            'event' => $event,
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-        if (! is_string($body)) {
-            throw AgentException::badRequest('Die Meldung ließ sich nicht in JSON fassen.');
-        }
-
-        return $body;
     }
 }

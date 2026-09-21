@@ -32258,3 +32258,67 @@ annehmen. Dieser Container erreicht keinen von ihnen; die Zusage stammt aus
 ihrer Dokumentation und steht als Punkt in `docs/133`.
 
 > **Wissen aus zweiter Hand sieht aus wie Wissen.**
+
+### ntfy und Gotify — und die Kopfzeilen ziehen zum Rumpf
+
+**Bis heute stand `Content-Type: application/json` fest in `Delivery`.** Das war
+richtig, solange jeder Empfänger JSON wollte. ntfy nimmt den **Text selbst**:
+Wer an die Adresse eines Themas schreibt, schickt die Nachricht, und ein
+JSON-Objekt käme dort als Nachricht mit geschweiften Klammern an.
+
+> **Eine Kopfzeile, die die Form des Rumpfes nennt, gehört dorthin, wo die Form
+> entschieden wird.**
+
+`Providers::headers()` ist die Stelle, und `Delivery` fragt sie. Damit steht
+jetzt beides an einem Ort — Rumpf und Kopfzeilen —, und
+`WebhookTransportTest::test_the_content_type_says_what_the_body_is` hält sie
+**aneinander**: Der Rumpf wird angesehen, die Kopfzeile daran gemessen. Ein
+Wächter über „ntfy bekommt `text/plain`" bliebe grün, wenn der Rumpf zu JSON
+würde.
+
+| | Rumpf | signiert | Deckel |
+|---|---|---|---|
+| ntfy | der Text selbst | nein | **1300 Zeichen** |
+| Gotify | `{title, message, priority}` | nein | — |
+
+**Der Deckel von ntfy ist in Bytes angegeben und wird in Zeichen gesetzt.**
+ntfy.sh nimmt 4096 Bytes; kein Zeichen dieses Textes ist länger als drei
+(Gedankenstrich, Aufzählungspunkt, Auslassung — Emoji führt die Oberfläche
+nicht), also liegt 1300 × 3 darunter. **Gerechnet wird es nicht, sondern
+gemessen:** Ein Prüfkörper aus lauter Drei-Byte-Zeichen ergibt 1254 Zeichen und
+**3566 Bytes**.
+
+> **Eine Grenze, die man aus einer anderen Einheit herleitet, ist eine
+> Vermutung, bis jemand in der Einheit misst, in der abgewiesen wird.**
+
+**Gotify bekommt keinen Deckel**, weil dort keine Grenze dokumentiert ist — eine
+erfundene wäre keine Grenze des Empfängers, sondern eine Kürzung ohne Grund.
+
+**Eine Entwarnung ist leiser als eine Meldung**, und beide Empfänger tragen den
+Rang an einer anderen Stelle: ntfy in der Kopfzeile `Priority: low`, Gotify als
+Zahl im Rumpf. Ohne Angabe gilt jeweils die Vorgabe des Empfängers; eine
+Kopfzeile, die sie wiederholt, wäre deren zweite Fassung.
+
+> **Eine Entwarnung, die genauso laut ist wie die Meldung, verdoppelt den Lärm,
+> statt ihn zu beenden.**
+
+**`Title` steht nicht in der Kopfzeile.** Kopfzeilen tragen kein UTF-8; `low`
+ist ASCII, „Der Dienst läuft nicht." ist es nicht — und die erste Zeile des
+Rumpfes sagt ohnehin, worum es geht.
+
+> **Eine Angabe, die nur in ASCII reisen darf, nimmt keinen Satz mit.**
+
+**Zwei Wächter führten Listen, wo die Regel eine Ableitung ist.** „Ein Geheimnis
+wird abgewiesen, wo niemand es nachrechnet" und „nur der eigene Empfänger wird
+signiert" liefen über `[SLACK, DISCORD]` — mit ntfy und Gotify wären sie grün
+geblieben, ohne die beiden je anzusehen. Sie fragen jetzt `Providers::signs()`.
+Und die Tabelle der erwarteten Rumpfformen trägt eine
+**Vollständigkeitsprüfung**: Ein Empfänger ohne Eintrag macht sie rot.
+
+> **Ein Wächter, der eine Liste im Test führt, prüft die Liste und nicht die
+> Regel.**
+
+**Der Hinweistext ist gemessen**, weil er einen unbrechbaren Adressbrocken
+enthält: In einem Kasten von **280 px** — schmaler als jedes echte Feld bei
+390 px — läuft nichts über (`278` von `278` nutzbar), die Seite schiebt 0, und
+die Gegenprobe schlägt mit 200 an. Bei 390 px ist der Block 126 px hoch.

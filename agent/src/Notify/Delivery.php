@@ -75,10 +75,17 @@ final class Delivery
         $stamp = time();
         $body = Providers::body($target['provider'], Names::host(), date(DATE_ATOM), $event);
 
-        $headers = [
-            'Content-Type: application/json',
-            'Accept: application/json',
-        ];
+        /*
+         * **Welche Kopfzeilen mitgehen, entscheidet {@see Providers}.** Hier
+         * stand bis zum 24. September 2026 `Content-Type: application/json`
+         * fest — richtig, solange jeder Empfänger JSON wollte. ntfy nimmt den
+         * Text selbst, und eine feste Kopfzeile behauptete dort eine Form, die
+         * der Rumpf nicht hat.
+         *
+         * > **Eine Kopfzeile, die die Form des Rumpfes nennt, gehört dorthin,
+         * > wo die Form entschieden wird.**
+         */
+        $headers = Providers::headers($target['provider'], $event);
 
         /*
          * **Signiert wird, wo jemand nachrechnet.** `Target::store()` lässt bei

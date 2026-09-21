@@ -264,8 +264,8 @@ function forget(): void {
             </option>
           </select>
           <small class="quiet">
-            Er entscheidet die Form des Rumpfes. Slack und Discord nehmen nur
-            ihre eigene an und weisen jede andere ab. {{ hinweise }}
+            Er entscheidet die Form des Rumpfes; jeder Empfänger nimmt nur
+            seine eigene an. {{ hinweise }}
           </small>
         </label>
 

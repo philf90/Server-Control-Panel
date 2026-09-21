@@ -34640,6 +34640,132 @@ griff_datei resources/js/Pages/Settings/Notices.vue "Hinweis gerechnet und stumm
 pruefe "Hinweis gerechnet und stumm" \
   NoticeHintTest::test_the_hints_stand_before_the_choice failed
 wiederherstellen
+echo "── WebhookTransportTest: ntfy bekommt eine Huelle um den Text ──"
+#
+# Wer an die Adresse eines Themas schreibt, schickt die Nachricht selbst. Ein
+# JSON-Objekt kaeme dort als Nachricht mit geschweiften Klammern an.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = 'if ($provider === self::NTFY) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'if ($provider === self::GENERIC && false) {', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "ntfy bekommt eine Huelle" &&
+pruefe "ntfy bekommt eine Huelle" \
+  WebhookTransportTest::test_ntfy_gets_the_text_itself failed
+wiederherstellen
+
+echo "── WebhookTransportTest: die Kopfzeile nennt eine Form, die der Rumpf nicht hat ──"
+#
+# `Content-Type: application/json` ueber einem Rumpf aus Text ist eine Zusage,
+# die der naechste Empfaenger glaubt.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = 'if ($provider !== self::NTFY) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'if ($provider !== self::GENERIC || true) {', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Kopfzeile passt nicht zum Rumpf" &&
+pruefe "Kopfzeile passt nicht zum Rumpf" \
+  WebhookTransportTest::test_the_content_type_says_what_the_body_is failed
+wiederherstellen
+
+echo "── WebhookTransportTest: ntfy bekommt keinen Deckel ──"
+#
+# Abgewiesen wird nach Bytes, gedeckelt wird in Zeichen — ohne Eintrag geht der
+# Rumpf ueber 4096 Bytes hinaus und ntfy nimmt ihn nicht.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = '        self::NTFY => 1300,\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "ntfy ohne Deckel" &&
+pruefe "ntfy ohne Deckel" \
+  WebhookTransportTest::test_the_ntfy_body_stays_under_its_byte_limit failed
+wiederherstellen
+
+echo "── WebhookTransportTest: die Entwarnung ist bei ntfy genauso laut ──"
+#
+# Eine Entwarnung, die genauso laut ist wie die Meldung, verdoppelt den Laerm,
+# statt ihn zu beenden.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "$headers[] = 'Priority: low';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "$headers[] = 'Priority: default';", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "ntfy entwarnt genauso laut" &&
+pruefe "ntfy entwarnt genauso laut" \
+  WebhookTransportTest::test_a_clearing_message_is_quieter_than_a_finding failed
+wiederherstellen
+
+echo "── WebhookTransportTest: die Entwarnung ist bei Gotify genauso laut ──"
+#
+# Dieselbe Regel an der anderen Stelle: Bei Gotify steht der Rang im Rumpf, und
+# ein Waechter ueber die Kopfzeile sagt darueber nichts.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "'priority' => self::quiet($event) ? 2 : 5,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "'priority' => 5,", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Gotify entwarnt genauso laut" &&
+pruefe "Gotify entwarnt genauso laut" \
+  WebhookTransportTest::test_a_clearing_message_is_quieter_than_a_finding failed
+wiederherstellen
+
+echo "── WebhookTransportTest: Gotify bekommt keinen Titel ──"
+#
+# Gotify trennt Titel und Nachricht; ohne Titel steht im Telefon eine Meldung
+# ohne Absender und ohne Gegenstand.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "            'title' => $kopf,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Gotify ohne Titel" &&
+pruefe "Gotify ohne Titel" \
+  WebhookTransportTest::test_each_receiver_gets_the_shape_it_accepts failed
+wiederherstellen
+
+echo "── WebhookTransportTest: ein Empfaenger ohne erwartete Form ──"
+#
+# Wer einen Empfaenger hinzufuegt, ohne die Form seines Rumpfes zu nennen, hat
+# einen gebaut, dessen Rumpf niemand prueft.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "        self::GOTIFY => 'Gotify',\n"
+neu = "        self::GOTIFY => 'Gotify',\n        'weiterer' => 'Ein weiterer Empfaenger',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Empfaenger ohne Form" &&
+pruefe "Empfaenger ohne Form" \
+  WebhookTransportTest::test_each_receiver_gets_the_shape_it_accepts failed
+wiederherstellen
 
 
 echo

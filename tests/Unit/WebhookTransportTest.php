@@ -304,7 +304,22 @@ final class WebhookTransportTest extends TestCase
             Providers::GENERIC => ['server', 'at', 'event'],
             Providers::SLACK => ['text'],
             Providers::DISCORD => ['content'],
+            Providers::GOTIFY => ['title', 'message', 'priority'],
         ];
+
+        /*
+         * **Und die Liste ist vollständig.** Ein Empfänger, den jemand
+         * hinzufügt, ohne die Form seines Rumpfes hier zu nennen, ist einer,
+         * dessen Rumpf niemand prüft — und der Fall darüber bliebe grün.
+         * ntfy steht nicht in der Tabelle, weil es gar keinen JSON-Rumpf hat;
+         * {@see self::test_ntfy_gets_the_text_itself()} misst ihn.
+         */
+        $abgedeckt = [...array_keys($erwartet), Providers::NTFY];
+        $alle = array_keys(Providers::LABELS);
+        sort($abgedeckt);
+        sort($alle);
+
+        self::assertSame($alle, $abgedeckt, 'Für diesen Empfänger sagt kein Fall, welche Form sein Rumpf hat.');
 
         foreach ($erwartet as $provider => $schluessel) {
             $http = new ScriptedOutbound;
@@ -408,6 +423,197 @@ final class WebhookTransportTest extends TestCase
     }
 
     /**
+     * Bei ntfy ist der Rumpf der Text — ohne Hülle.
+     *
+     * **Wer an die Adresse eines Themas schreibt, schickt die Nachricht
+     * selbst.** Ein JSON-Objekt käme dort als Nachricht mit geschweiften
+     * Klammern an, und das sähe im Telefon aus wie eine kaputte Meldung.
+     *
+     * Gemessen in beide Richtungen: Der Rumpf ist kein JSON **und** er trägt,
+     * was drinstehen soll.
+     */
+    public function test_ntfy_gets_the_text_itself(): void
+    {
+        $http = new ScriptedOutbound;
+        $http->on(ScriptedOutbound::json(['ok' => true]));
+
+        $target = $this->target($http);
+        $target->store('https://ntfy.sh/mein-thema', null, Providers::NTFY);
+
+        (new Delivery($target, $http))->send(['kind' => 'findings', 'subject' => self::DIENST, 'findings' => [
+            ['label' => 'Der Dienst läuft nicht.', 'detail' => 'ActiveState=inactive'],
+        ]]);
+
+        $rumpf = (string) $http->calls[0]['body'];
+
+        self::assertNull(json_decode($rumpf, true), 'ntfy bekommt keinen JSON-Rumpf, sondern den Text.');
+        self::assertStringContainsString(self::DIENST, $rumpf);
+        self::assertStringContainsString('Der Dienst läuft nicht.', $rumpf);
+        self::assertStringContainsString(Names::host(), $rumpf);
+    }
+
+    /**
+     * Die Kopfzeile sagt, was der Rumpf ist.
+     *
+     * **Gemessen an beidem zugleich und nicht an einer Tabelle.** Ein Wächter
+     * über „ntfy bekommt `text/plain`" bliebe grün, wenn der Rumpf zu JSON
+     * würde; hier wird der Rumpf angesehen und die Kopfzeile daran gehalten.
+     *
+     * > **Eine Kopfzeile, die die Form des Rumpfes nennt, ist nur zusammen mit
+     * > dem Rumpf eine Aussage.**
+     */
+    public function test_the_content_type_says_what_the_body_is(): void
+    {
+        $arten = [];
+
+        foreach (array_keys(Providers::LABELS) as $provider) {
+            $http = new ScriptedOutbound;
+            $http->on(ScriptedOutbound::json(['ok' => true]));
+
+            $target = $this->target($http);
+            $target->store('https://hooks.example.org/x', null, $provider);
+
+            (new Delivery($target, $http))->send(['kind' => 'findings', 'subject' => self::DIENST, 'findings' => [
+                ['label' => 'Der Dienst läuft nicht.', 'detail' => null],
+            ]]);
+
+            $rumpf = (string) $http->calls[0]['body'];
+            $typ = '';
+
+            foreach ($http->calls[0]['headers'] as $zeile) {
+                if (stripos($zeile, 'Content-Type:') === 0) {
+                    $typ = strtolower(trim(substr($zeile, strlen('Content-Type:'))));
+                }
+            }
+
+            $istJson = is_array(json_decode($rumpf, true));
+            $arten[$istJson ? 'json' : 'text'] = true;
+
+            self::assertStringStartsWith(
+                $istJson ? 'application/json' : 'text/plain',
+                $typ,
+                $provider.' nennt eine Form, die sein Rumpf nicht hat.',
+            );
+        }
+
+        // Ohne diese beiden Zeilen wäre der Fall auch dann grün, wenn jeder
+        // Empfänger dieselbe Form bekäme — und dann prüfte er nichts.
+        self::assertArrayHasKey('json', $arten);
+        self::assertArrayHasKey('text', $arten);
+    }
+
+    /**
+     * Und der Rumpf für ntfy bleibt unter dessen Grenze — in **Bytes**.
+     *
+     * **Gedeckelt wird in Zeichen, abgewiesen wird nach Bytes.** `LIMITS`
+     * führt 1300 Zeichen mit der Begründung, dass kein Zeichen dieses Textes
+     * länger als drei Bytes ist. Dieser Fall rechnet es nach, statt es zu
+     * glauben — mit einem Prüfkörper aus lauter Drei-Byte-Zeichen.
+     *
+     * > **Eine Grenze, die man aus einer anderen Einheit herleitet, ist eine
+     * > Vermutung, bis jemand in der Einheit misst, in der abgewiesen wird.**
+     */
+    public function test_the_ntfy_body_stays_under_its_byte_limit(): void
+    {
+        $http = new ScriptedOutbound;
+        $http->on(ScriptedOutbound::json(['ok' => true]));
+
+        $target = $this->target($http);
+        $target->store('https://ntfy.sh/mein-thema', null, Providers::NTFY);
+
+        $findings = [];
+
+        for ($i = 0; $i < 80; $i++) {
+            // „—" ist U+2014 und drei Bytes lang; mehr kostet in diesem Panel
+            // kein Zeichen, weil die Oberfläche keine Emoji führt.
+            $findings[] = ['label' => str_repeat('—', 40), 'detail' => str_repeat('…', 40)];
+        }
+
+        (new Delivery($target, $http))->send([
+            'kind' => 'findings',
+            'subject' => str_repeat('—', 20),
+            'findings' => $findings,
+        ]);
+
+        $rumpf = (string) $http->calls[0]['body'];
+
+        self::assertLessThanOrEqual(4096, strlen($rumpf), 'ntfy.sh weist alles darüber ab.');
+
+        // Und die Gegenprobe: Der Prüfkörper ist wirklich der teure Fall.
+        self::assertGreaterThan(mb_strlen($rumpf), strlen($rumpf));
+        self::assertStringContainsString('weitere', $rumpf);
+    }
+
+    /**
+     * Eine Entwarnung ist leiser als eine Meldung.
+     *
+     * **Beide Empfänger tragen den Rang an einer anderen Stelle**, und das ist
+     * der Grund für diesen Fall: ntfy in einer Kopfzeile, Gotify im Rumpf. Ein
+     * Wächter über eine von beiden sagte über die andere nichts.
+     *
+     * > **Eine Entwarnung, die genauso laut ist wie die Meldung, verdoppelt
+     * > den Lärm, statt ihn zu beenden.**
+     */
+    public function test_a_clearing_message_is_quieter_than_a_finding(): void
+    {
+        $zeilen = [['label' => 'Der Dienst läuft nicht.', 'detail' => null]];
+
+        $laut = $this->call(Providers::NTFY, ['kind' => 'findings', 'subject' => self::DIENST, 'findings' => $zeilen]);
+        $leise = $this->call(Providers::NTFY, ['kind' => 'resolved', 'subject' => self::DIENST, 'findings' => $zeilen]);
+
+        self::assertNotContains('Priority: low', $laut['headers']);
+        self::assertContains('Priority: low', $leise['headers'], 'Ohne Angabe gilt ntfys Vorgabe, und die ist nicht leise.');
+
+        $laut = $this->call(Providers::GOTIFY, ['kind' => 'findings', 'subject' => self::DIENST, 'findings' => $zeilen]);
+        $leise = $this->call(Providers::GOTIFY, ['kind' => 'resolved', 'subject' => self::DIENST, 'findings' => $zeilen]);
+
+        $rang = static fn (array $anruf): int => (int) (json_decode((string) $anruf['body'], true)['priority'] ?? -1);
+
+        self::assertGreaterThan($rang($leise), $rang($laut), 'Bei Gotify steht der Rang im Rumpf.');
+        self::assertGreaterThanOrEqual(0, $rang($leise), 'Ein fehlender Rang sähe hier aus wie ein leiser.');
+    }
+
+    /**
+     * Eine Zustellung fahren und mitlesen, was am Draht ankam.
+     *
+     * @param  array<string, mixed>  $event
+     * @return array{headers: list<string>, body: string}
+     */
+    private function call(string $provider, array $event): array
+    {
+        $http = new ScriptedOutbound;
+        $http->on(ScriptedOutbound::json(['ok' => true]));
+
+        $target = $this->target($http);
+        $target->store('https://hooks.example.org/x', null, $provider);
+
+        (new Delivery($target, $http))->send($event);
+
+        return ['headers' => $http->calls[0]['headers'], 'body' => (string) $http->calls[0]['body']];
+    }
+
+    /**
+     * Die Empfänger, bei denen niemand eine Signatur nachrechnet.
+     *
+     * **Abgeleitet und nicht aufgezählt.** Eine Liste hier wäre die zweite
+     * Fassung von {@see Providers::signs()} — und der nächste Empfänger stünde
+     * nicht darin, ohne dass etwas rot würde.
+     *
+     * @return list<string>
+     */
+    private function ohneSignatur(): array
+    {
+        $ohne = array_values(array_filter(
+            array_keys(Providers::LABELS),
+            static fn (string $provider): bool => ! Providers::signs($provider),
+        ));
+
+        self::assertGreaterThanOrEqual(2, count($ohne), 'Es werden kaum Empfänger gefunden — dann prüft der Fall nichts.');
+
+        return $ohne;
+    }
+
+    /**
      * Den Text einer Meldung an Slack lesen.
      *
      * **Durch {@see Delivery} hindurch und nicht über {@see Providers::body()}.**
@@ -441,7 +647,7 @@ final class WebhookTransportTest extends TestCase
      */
     public function test_a_secret_is_refused_where_nobody_checks_it(): void
     {
-        foreach ([Providers::SLACK, Providers::DISCORD] as $provider) {
+        foreach ($this->ohneSignatur() as $provider) {
             try {
                 $this->target()->store('https://hooks.example.org/x', 'geheimnis-mit-genug-zeichen', $provider);
                 self::fail($provider.' hat ein Geheimnis angenommen, das niemand prüft.');
@@ -459,7 +665,7 @@ final class WebhookTransportTest extends TestCase
     /** Und nur der eigene Empfänger bekommt die Kopfzeile. */
     public function test_only_the_own_receiver_is_signed(): void
     {
-        foreach ([Providers::SLACK, Providers::DISCORD] as $provider) {
+        foreach ($this->ohneSignatur() as $provider) {
             $http = new ScriptedOutbound;
             $http->on(ScriptedOutbound::json(['ok' => true]));
 

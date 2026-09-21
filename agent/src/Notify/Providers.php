@@ -40,6 +40,12 @@ final class Providers
 
     public const DISCORD = 'discord';
 
+    /** Der Selbstgehostete fürs Telefon: der Rumpf **ist** der Text. */
+    public const NTFY = 'ntfy';
+
+    /** Und der zweite davon: JSON, und die Marke steht in der Adresse. */
+    public const GOTIFY = 'gotify';
+
     /**
      * Was auf der Seite steht.
      *
@@ -49,6 +55,8 @@ final class Providers
         self::GENERIC => 'Eigener Empfänger (JSON)',
         self::SLACK => 'Slack',
         self::DISCORD => 'Discord',
+        self::NTFY => 'ntfy',
+        self::GOTIFY => 'Gotify',
     ];
 
     /**
@@ -83,6 +91,10 @@ final class Providers
     public const HINTS = [
         self::SLACK => 'Mattermost und Rocket.Chat nehmen dieselbe Form an wie Slack — '.
             'für sie ist dieser Eintrag der richtige.',
+        self::NTFY => 'Bei ntfy ist die Adresse die des Themas, etwa '.
+            'https://ntfy.sh/mein-thema.',
+        self::GOTIFY => 'Bei Gotify gehört die Marke in die Adresse, etwa '.
+            'https://gotify.example.org/message?token=… — ein eigenes Feld dafür gibt es nicht.',
     ];
 
     /**
@@ -95,11 +107,28 @@ final class Providers
      *
      * > **Ein Wert, der grösser ist als der Weg dorthin, ist keine Grenze.**
      *
+     * **Und alle drei zählen Zeichen, auch wo der Empfänger Bytes zählt.**
+     * ntfy.sh nimmt 4096 **Bytes**; gedeckelt wird hier in Zeichen, und ein
+     * Zeichen dieses Textes ist höchstens drei Bytes lang — mehr kommt nicht
+     * vor, weil die Oberfläche keine Emoji führt (`docs/19 §3a`) und die
+     * längsten Zeichen der Gedankenstrich, der Aufzählungspunkt und die
+     * Auslassung sind. 1300 × 3 liegt unter 4096, und
+     * `WebhookTransportTest::test_the_ntfy_body_stays_under_its_byte_limit`
+     * rechnet es am gebauten Rumpf nach statt es zu glauben.
+     *
+     * > **Zwei Einheiten in einer Liste sind eine Liste, aus der man die
+     * > falsche liest.**
+     *
+     * **Gotify steht nicht hier.** Eine Grenze ist dort nicht dokumentiert,
+     * und eine erfundene wäre keine Grenze des Empfängers, sondern eine
+     * Kürzung ohne Grund.
+     *
      * @var array<string, int>
      */
     private const LIMITS = [
         self::SLACK => 40000,
         self::DISCORD => 2000,
+        self::NTFY => 1300,
     ];
 
     /** Wieviel vom Wortlaut eines Werkzeugs in eine Zeile passt. */
@@ -164,9 +193,28 @@ final class Providers
      */
     public static function body(string $provider, string $server, string $at, array $event): string
     {
+        /*
+         * **Bei ntfy ist der Rumpf der Text und keine Hülle darum.** Wer an
+         * die Adresse eines Themas schreibt, schickt die Nachricht selbst;
+         * ein JSON-Objekt käme dort als Nachricht mit geschweiften Klammern
+         * an. Deshalb steht diese Verzweigung vor dem `match` und nicht darin
+         * — was danach kommt, wird kodiert.
+         */
+        if ($provider === self::NTFY) {
+            return self::text($provider, $server, $event);
+        }
+
         $fields = match ($provider) {
             self::SLACK => ['text' => self::text($provider, $server, $event)],
             self::DISCORD => ['content' => self::text($provider, $server, $event)],
+
+            /*
+             * **Gotify trennt Titel und Nachricht**, und beides steht ohnehin
+             * schon getrennt da: der Kopf und die Zeilen. Ihn aus dem fertigen
+             * Text wieder herauszuschneiden wäre die zweite Fassung einer
+             * Zusammensetzung, die eine Zeile weiter oben stattfindet.
+             */
+            self::GOTIFY => self::gotify($server, $event),
 
             /*
              * **Der eigene Empfänger bekommt die volle Meldung.** Was das Panel
@@ -204,11 +252,28 @@ final class Providers
      */
     private static function text(string $provider, string $server, array $event): string
     {
+        [$kopf, $zeilen] = self::parts($server, $event);
+
+        return $zeilen === [] ? $kopf : self::capped($provider, $kopf, $zeilen);
+    }
+
+    /**
+     * Kopf und Zeilen — getrennt, weil ein Empfänger sie getrennt will.
+     *
+     * Gotify trägt einen Titel neben der Nachricht; ihn aus dem fertigen Text
+     * wieder herauszuschneiden wäre die zweite Fassung dieser
+     * Zusammensetzung.
+     *
+     * @param  array<string, mixed>  $event
+     * @return array{0: string, 1: list<string>}
+     */
+    private static function parts(string $server, array $event): array
+    {
         $findings = is_array($event['findings'] ?? null) ? $event['findings'] : [];
         $kind = is_string($event['kind'] ?? null) ? $event['kind'] : '';
 
         if ($kind === 'test') {
-            return sprintf('%s — Probezustellung von SrvPanel.', $server);
+            return [sprintf('%s — Probezustellung von SrvPanel.', $server), []];
         }
 
         $zeilen = [];
@@ -222,7 +287,7 @@ final class Providers
         }
 
         if ($zeilen === []) {
-            return sprintf('%s — eine Meldung ohne Befund.', $server);
+            return [sprintf('%s — eine Meldung ohne Befund.', $server), []];
         }
 
         /*
@@ -234,7 +299,92 @@ final class Providers
          */
         $ort = is_string($event['subject'] ?? null) ? trim($event['subject']) : '';
 
-        return self::capped($provider, self::head($kind, $server, $ort), $zeilen);
+        return [self::head($kind, $server, $ort), $zeilen];
+    }
+
+    /**
+     * Der Rumpf für Gotify: Titel, Nachricht, Rang.
+     *
+     * **Der Rang ist eine Zahl von 0 bis 10 und steht im Rumpf**, nicht in
+     * einer Kopfzeile — dort führt Gotify ihn nicht. Eine Entwarnung ist
+     * leiser als eine Meldung, und das ist der ganze Unterschied, den dieser
+     * Agent behaupten kann: Wie dringend ein Befund ist, weiss er nicht.
+     *
+     * > **Ein Rang, den man nicht begründen kann, ist eine Zahl und kein
+     * > Urteil.**
+     *
+     * **Und kein Deckel.** {@see self::LIMITS} führt Gotify nicht, weil dort
+     * keine Grenze dokumentiert ist; eine erfundene wäre keine Grenze des
+     * Empfängers, sondern eine Kürzung ohne Grund.
+     *
+     * @param  array<string, mixed>  $event
+     * @return array{title: string, message: string, priority: int}
+     */
+    private static function gotify(string $server, array $event): array
+    {
+        [$kopf, $zeilen] = self::parts($server, $event);
+
+        return [
+            'title' => $kopf,
+            'message' => $zeilen === [] ? $kopf : implode("\n", $zeilen),
+            'priority' => self::quiet($event) ? 2 : 5,
+        ];
+    }
+
+    /**
+     * Ist diese Meldung die leise Sorte?
+     *
+     * Eine Entwarnung und eine Probezustellung sind beide keine Nachricht, für
+     * die jemand nachts aufstehen soll.
+     *
+     * > **Eine Entwarnung, die genauso laut ist wie die Meldung, verdoppelt
+     * > den Lärm, statt ihn zu beenden.**
+     *
+     * @param  array<string, mixed>  $event
+     */
+    private static function quiet(array $event): bool
+    {
+        return in_array($event['kind'] ?? null, ['resolved', 'test'], true);
+    }
+
+    /**
+     * Die Kopfzeilen, die dieser Empfänger braucht.
+     *
+     * **Sie standen bis zum 24. September 2026 fest in {@see Delivery}** — mit
+     * `Content-Type: application/json`, und das war richtig, solange jeder
+     * Empfänger JSON wollte. ntfy nimmt den Text selbst; eine feste Kopfzeile
+     * behauptete dort eine Form, die der Rumpf nicht hat.
+     *
+     * > **Eine Kopfzeile, die die Form des Rumpfes nennt, gehört dorthin, wo
+     * > die Form entschieden wird.**
+     *
+     * **`Priority` steht hier und `Title` nicht.** Kopfzeilen tragen kein
+     * UTF-8; `low` ist ASCII, „Der Dienst läuft nicht." ist es nicht — und die
+     * erste Zeile des Rumpfes sagt ohnehin, worum es geht.
+     *
+     * > **Eine Angabe, die nur in ASCII reisen darf, nimmt keinen Satz mit.**
+     *
+     * @param  array<string, mixed>  $event
+     * @return list<string>
+     */
+    public static function headers(string $provider, array $event): array
+    {
+        if ($provider !== self::NTFY) {
+            return ['Content-Type: application/json', 'Accept: application/json'];
+        }
+
+        $headers = ['Content-Type: text/plain; charset=utf-8'];
+
+        if (self::quiet($event)) {
+            /*
+             * Ohne Angabe gilt ntfys Vorgabe `default`. Eine Kopfzeile, die
+             * sie wiederholt, wäre eine zweite Fassung davon — und sie
+             * veraltete, sobald ntfy die Vorgabe ändert.
+             */
+            $headers[] = 'Priority: low';
+        }
+
+        return $headers;
     }
 
     /**

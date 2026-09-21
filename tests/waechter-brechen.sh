@@ -32722,21 +32722,36 @@ pruefe "Null als Grenze" \
   QuotaOverrunTest::test_a_quota_of_zero_is_no_limit failed
 wiederherstellen
 
-echo "── QuotaOverrunTest: ein ungemessener Wert faellt auf null zurueck ──"
+echo "── QuotaOverrunTest: ein ungemessener Wert wird gemeldet ──"
 #
-# Der Rueckfall sagt „alles in Ordnung" ueber etwas, das niemand nachgesehen
-# hat — die bequemere von zwei falschen Auskuenften.
+# „Nicht gemessen" ist kein Befund und kein Freispruch. Wer es zum Befund
+# macht, schickt dem Kunden eine Mail ueber eine Grenze, von der niemand weiss,
+# ob sie ueberschritten ist.
+#
+# **Der erste Wurf dieses Eingriffs hat nichts gemessen.** Er liess den Wert auf
+# 0 zurueckfallen — also auf die andere falsche Auskunft —, und der Fall blieb
+# gruen: Null liegt unter jeder Grenze, der Pruefling antwortet auf beide
+# Zustaende gleich. Gemeldet hat es der Lauf ueber diesen Abschnitt.
+#
+# > **Ein Eingriff, der einen Zustand herstellt, den der Pruefling ohnehin
+# > gleich beantwortet, misst die Regel nicht — er misst, dass sie
+# > unempfindlich ist.**
 vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
 python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
 s = p.read_text()
-alt = 'if ($used === null || ! is_numeric($limit)'
+alt = 'if ($used === null || ! is_numeric($limit) || (float) $limit <= 0.0) {'
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, 'if (($used = $used ?? 0) === -1 || ! is_numeric($limit)', 1))
+neu = ('if (! is_numeric($limit) || (float) $limit <= 0.0) {'
+       "\n            return null;\n        }\n\n"
+       '        if ($used === null) {'
+       "\n            return [0.0, (float) $limit];\n        }\n\n"
+       '        if (false) {')
+p.write_text(s.replace(alt, neu, 1))
 PY
-griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "ungemessen faellt auf null" &&
-pruefe "ungemessen faellt auf null" \
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "ungemessen wird gemeldet" &&
+pruefe "ungemessen wird gemeldet" \
   QuotaOverrunTest::test_an_unmeasured_value_is_not_a_finding failed
 wiederherstellen
 

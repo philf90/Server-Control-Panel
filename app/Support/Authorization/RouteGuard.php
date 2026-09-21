@@ -49,6 +49,28 @@ final class RouteGuard
     public static function declarations(): array
     {
         return [
+            /*
+             * **API v1** (B7, `docs/131`). Beide tragen kein `can:`, und
+             * beide aus einem Grund, der nicht „vergessen" heisst.
+             */
+            'POST settings/tokens' => [
+                'kind' => self::AUTHENTICATED,
+                'reason' => 'Eine Zugangsmarke für api/v1 anlegen. Sie gehört dem angemeldeten Konto; eine Kennung aus der Anfrage gibt es nicht, und eine Policy hätte kein Objekt. Ein Adminkonto wird im Controller abgewiesen — es bekommt keine Marke, weil forAccount() für ihn allowAll() ruft.',
+            ],
+            'DELETE settings/tokens/{token}' => [
+                'kind' => self::AUTHENTICATED,
+                'reason' => 'Eine eigene Zugangsmarke entfernen. Gesucht wird über Konto und Kennung, nicht über die Kennung allein — ApiToken hängt an einem Konto und nicht an einem Abonnement, die Mandantenklammer greift hier also nicht. Derselbe Satz wie bei den Sitzungen aus A9.',
+            ],
+
+            'GET api/v1/openapi.yaml' => [
+                'kind' => self::OPEN,
+                'reason' => 'Die OpenAPI-Beschreibung. Sie sagt, welche Felder es gibt, und nicht, welche Abonnements — ein Klient, der sie erst nach einer Anmeldung bekäme, könnte seinen Zugang nicht einrichten, bevor er ihn hat. Die Route legt ihre Wache mit withoutMiddleware ausdrücklich ab; die Datei liegt im Repo und wird vom Wächter gegen die Routen gehalten.',
+            ],
+            'GET api/v1/me' => [
+                'kind' => self::AUTHENTICATED,
+                'reason' => 'Wer die Zugangsmarke trägt, und wie viele Abonnements sie erreicht. Eine Policy hätte hier kein Objekt: Der Gegenstand ist das anfragende Konto selbst, und den Kontozustand hat die Wache schon gefragt. Die Zahl steht bewusst neben dem Namen — eine leere Liste sagt nicht, ob gefragt wurde, eine Null neben einem Namen schon (docs/130 A4).',
+            ],
+
             'GET login' => [
                 'kind' => self::OPEN,
                 'reason' => 'Die Anmeldemaske. Sie zeigt nichts über den Server — keine Version, keinen Hostnamen, keine Kundenzahl.',
@@ -124,6 +146,10 @@ final class RouteGuard
             'GET announcements/{announcement}' => [
                 'kind' => self::OPEN,
                 'reason' => 'Eine Ankündigung im vollen Wortlaut. Offen, weil der Streifen auf der Anmeldeseite Störungen an jeden zeigt, der die Adresse kennt, und dabei bei zwei Zeilen klammert — ein Verweis hinter auth schickte genau diesen Leser auf die Anmeldung statt zum Text. Neu sichtbar wird nichts: Für einen Gast fragt der Controller dieselbe Menge ab, die auch den Streifen dort füllt (Störungen im Fenster), für ein Konto dieselbe wie die geteilte Nutzlast. Alles andere ist ein 404 und kein 403, damit die Kennung nicht die Existenz verrät.',
+            ],
+            'GET branding/logo' => [
+                'kind' => self::OPEN,
+                'reason' => 'Das Logo des Betreibers steht auf der Anmeldeseite — dort ist niemand angemeldet, und hinter auth wäre es genau auf der Seite unsichtbar, für die es das Abnahmekriterium von B6 gibt. Herausgegeben wird eine Datei, die der Betreiber hochgeladen hat, um sie zu zeigen; ihr Typ kommt aus der Positivliste des Panels, SVG ist ausgeschlossen, und `nosniff` verbietet dem Browser, aus dem Bild ein Dokument zu machen. Gibt es kein Logo, ist es ein 404.',
             ],
             'GET health' => [
                 'kind' => self::OPEN,

@@ -1030,6 +1030,37 @@ input[type='radio'] {
    vier Riesenkacheln.
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* ═══════════════════════════════════════════════════════════════════════
+   Das Logo des Betreibers (B6)
+
+   Die Höhe steht hier und nicht als Attribut am Bild: Sie ist eine Aussage
+   über die Zeile, in der die Marke steht, und die Zeile gehört diesem
+   Stylesheet. `max-width` hält ein breites Logo davon ab, die Seitenleiste
+   auseinanderzuschieben — gemessen sind dort 186 px, von denen die
+   Navigation lebt.
+
+   `object-fit: contain` statt einer festen Breite: Ein Logo kommt in jedem
+   Seitenverhältnis, und die Alternative wäre, es zu verzerren.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.brand-logo {
+  height: 24px;
+  width: auto;
+  max-width: 150px;
+  object-fit: contain;
+}
+
+/*
+ * Auf der Anmeldeseite ist die Marke das einzige Bild und darf grösser sein.
+ *
+ * Die Grösse hängt am **Ort** und nicht an einer Fahne der Komponente: Dass
+ * hier mehr Platz ist, weiss dieses Stylesheet und nicht das Markup.
+ */
+.signin .brand-logo {
+  height: 34px;
+  max-width: 220px;
+}
+
 .tiles {
   display: flex;
   flex-wrap: wrap;
@@ -3360,6 +3391,30 @@ tr:has(td.multiline) > td {
 .quiet + .scrolls,
 
 /*
+ * **Und beim elften Mal steht die Fussnote der Kachelreihe darüber.**
+ *
+ * Seit B4 tragen Abonnement- und Domainseite die Verläufe der letzten dreissig
+ * Tage. Unter der Reihe steht ein leiser Satz — „die Zahl des Providers liegt
+ * höher, er zählt TCP, TLS und Wiederholungen mit" (`docs/129 §11`) —, und
+ * darunter fangen die Bereiche an. Gemeldet hat es wieder der Wächter und
+ * nicht das Auge, und zwar **bevor** eine Aufnahme entstanden ist.
+ *
+ * > **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit
+ * > der nächsten Ergänzung.**
+ */
+.quiet + .sections,
+
+/*
+ * **Und beim zwölften Mal steht der Satz über dem Formular.**
+ *
+ * Auf der Seite „Mailversand" sagt seit B5 eine Zeile, wann zuletzt eine
+ * Meldung des Panels angekommen ist — und darunter fängt das Formular an.
+ * Gemeldet hat es derselbe Wächter im selben Lauf wie die Fuge darüber; zwei
+ * neue Nachbarschaften aus einem Merkmal, und keine davon hat jemand gesehen.
+ */
+.quiet + .form,
+
+/*
  * **Und beim achten Mal steht der Hinweis unter der Tabelle.**
  *
  * Auf der Diagnose-Seite folgt dem Rollbehälter ein leiser Satz — „den
@@ -3380,6 +3435,35 @@ tr:has(td.multiline) > td {
  * > der nächsten Ergänzung.**
  */
 .quiet + .skeleton-stack,
+
+/*
+ * **Und beim nächsten Mal steht ein Geheimnis unter seinem Satz.**
+ *
+ * Die frisch angelegte Zugangsmarke aus B7 steht in einem eigenen Bereich:
+ * ein Satz, warum sie nur einmal dasteht, und darunter die Marke selbst als
+ * Kennung. Zwei bündige Blöcke, dieselbe Fuge, ein neuer Name — gemeldet hat
+ * es wieder der Wächter und nicht das Auge.
+ *
+ * > **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit
+ * > der nächsten Ergänzung.**
+ */
+.quiet + .ident,
+
+/*
+ * **Und beim nächsten Mal steht ein Formular unter einem Bereich.**
+ *
+ * Auf der Seite „Benachrichtigungen" (B1) steht oben der Bereich mit dem
+ * hinterlegten Meldeziel und darunter das Formular, mit dem man es
+ * überschreibt. `.sections` endet bündig, `.form` fängt bündig an — dieselbe
+ * Fuge, ein neuer Name, und gemeldet hat es wieder der Wächter und nicht das
+ * Auge, **bevor** eine Aufnahme entstanden ist.
+ *
+ * > **Eine Liste von Nachbarn, die wächst, ist keine Regel — sie ist eine
+ * > Aufzählung der Fälle, die schon jemand gesehen hat.** Der Wächter darunter
+ * > leitet deshalb aus dieser Datei ab, welche Bausteine bündig sind, statt
+ * > die Paare zu zählen, die jemand eingetragen hat.
+ */
+.sections + .form,
 
 /*
  * **Und beim siebten Mal war es die Automatik.**

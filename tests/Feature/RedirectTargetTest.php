@@ -8,6 +8,7 @@ use App\Models\Account;
 use FilesystemIterator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
@@ -104,6 +105,116 @@ final class RedirectTargetTest extends TestCase
             "ein `Referer` noch eine in der Sitzung vermerkte Adresse, und Laravel leitet auf `/`.\n".
             'Wer weiterleitet, nennt das Ziel: `to_route(...)`.',
             implode("\n  ", $found),
+        ));
+    }
+
+    /**
+     * Jede Datei unter `app/` — der Name einer Route kann überall stehen.
+     *
+     * Nicht nur Controller: `HandleInertiaRequests` baut die Adresse des Logos
+     * über `route('branding.logo')`, und ein toter Name dort schlägt auf
+     * **jeder** Seite zu statt auf einer.
+     *
+     * @return list<string>
+     */
+    private function sources(): array
+    {
+        $files = [];
+
+        /** @var SplFileInfo $file */
+        foreach (new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(dirname(__DIR__, 2).'/app', FilesystemIterator::SKIP_DOTS),
+        ) as $file) {
+            if ($file->isFile() && $file->getExtension() === 'php') {
+                $files[] = $file->getPathname();
+            }
+        }
+
+        sort($files);
+
+        return $files;
+    }
+
+    /**
+     * Ein genannter Routenname ist eine Route, die es gibt.
+     *
+     * **Der Befund.** `BrandingSettingsController::update()` leitete auf
+     * `settings.branding` weiter — einen Namen, den `routes/web.php` nie
+     * vergeben hat: Die Markenfelder sind in `/settings/general` gefaltet
+     * worden, und die Weiterleitung blieb stehen. `to_route()` wirft dafür
+     * `RouteNotFoundException`, also gab **jedes** gelungene Speichern einen
+     * 500 — nachdem die Marke gespeichert war.
+     *
+     * **Der Test darüber war grün**, weil er `assertSessionHasNoErrors()`
+     * geprüft hat: Für eine Ausnahme im Controller stehen keine Prüfmeldungen
+     * in der Sitzung, und ein 500 sieht damit aus wie ein gelungener Lauf.
+     *
+     * > **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall,
+     * > misst nicht.**
+     *
+     * Und das ist die Fehlerklasse, die dieses Repo am häufigsten trifft: eine
+     * Zeichenkette, die auf etwas verweist, ohne dass ein Typ, ein Test oder
+     * ein Werkzeug den Bezug prüft. Der Test oben hält, dass ein Ziel
+     * **genannt** wird — über seine Existenz sagt er nichts.
+     *
+     * > **Ein Wächter, der prüft, dass ein Ziel genannt ist, hat nicht
+     * > geprüft, dass es das Ziel gibt.**
+     *
+     * Gemessen wird gegen `Route::getRoutes()` und nicht gegen eine Liste in
+     * diesem Test — eine zweite Liste wäre die, die veraltet.
+     */
+    public function test_every_named_route_the_code_reaches_for_exists(): void
+    {
+        $vorhanden = array_keys(Route::getRoutes()->getRoutesByName());
+
+        $namen = [];
+        $fehlen = [];
+
+        foreach ($this->sources() as $path) {
+            $source = $this->withoutComments((string) file_get_contents($path));
+
+            if (preg_match_all('/(?:to_route|route)\(\s*\'([^\']+)\'/', $source, $treffer, PREG_OFFSET_CAPTURE) === 0) {
+                continue;
+            }
+
+            foreach ($treffer[1] as $i => [$name, $_]) {
+                /*
+                 * **`$request->route('domain')` ist ein Parametername und kein
+                 * Routenname.** Er kommt in `app/` heute nicht vor; die
+                 * Ausnahme steht trotzdem hier, weil der Wächter sonst beim
+                 * ersten solchen Aufruf einen Befund erfindet — und ein
+                 * Wächter, der zu viel meldet, wird abgeschaltet.
+                 */
+                $offset = (int) $treffer[0][$i][1];
+
+                if (preg_match('/\$\w+\s*->\s*$/D', substr($source, max(0, $offset - 40), min(40, $offset))) === 1) {
+                    continue;
+                }
+
+                $namen[$name] = true;
+
+                if (! in_array($name, $vorhanden, true)) {
+                    $fehlen[] = sprintf('%s: %s', str_replace(dirname(__DIR__, 2).'/', '', $path), $name);
+                }
+            }
+        }
+
+        /*
+         * **Die Untergrenze.** Ohne sie stünde dieser Fall grün da, sobald der
+         * Ausdruck ins Leere greift — und genau das ist in diesem Repo schon
+         * dreimal passiert.
+         */
+        $this->assertGreaterThan(
+            20,
+            count($namen),
+            'Es werden kaum Routennamen gefunden — dann prüft dieser Fall nichts.',
+        );
+
+        $this->assertSame([], array_values(array_unique($fehlen)), sprintf(
+            "Diese Stellen nennen eine Route, die es nicht gibt:\n  %s\n\n".
+            "`to_route()` und `route()` werfen dafür `RouteNotFoundException` — die Seite gibt 500,\n".
+            'und zwar erst, nachdem die Handlung schon geschehen ist.',
+            implode("\n  ", array_unique($fehlen)),
         ));
     }
 

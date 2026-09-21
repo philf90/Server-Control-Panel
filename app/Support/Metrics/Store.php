@@ -11,9 +11,25 @@ namespace App\Support\Metrics;
  * ist fertig — Wert, Beschriftung, Einheit, Position. Das ist Regel 2 des
  * Gestaltungssystems (§7.2) und der Grund, warum die Kachel im Browser mit
  * dreißig Zeilen auskommt.
+ *
+ * **Gerechnet wird seit B4 in {@see Points} und nicht mehr hier.** Diese
+ * Klasse ist die Quelle der 24-Stunden-Reihen; die Tagesreihen aus B3 kommen
+ * aus {@see Daily} und gehen durch dieselbe Geometrie. Was hier bleibt, ist
+ * das, was nur für einen Ringpuffer gilt: das Eindampfen auf eine Zielzahl von
+ * Stützstellen, die Spalte und die Beschriftung mit einer Uhrzeit.
  */
 final class Store
 {
+    /**
+     * Was dieser Speicher misst, ist eine **Rate** und keine Menge.
+     *
+     * Die Unterscheidung wandert seit B4 als Nachsilbe in die Einheit, weil
+     * {@see Points} beides bedient: Der Ringpuffer schreibt Bytes je Sekunde,
+     * die Tagestabelle Bytes je Tag. Ohne sie stünde auf der Abonnementseite
+     * „63,4 MB/s" für ein Tagesvolumen.
+     */
+    private const RATE = '/s';
+
     /** @var array<string,RingBuffer> */
     private array $buffers = [];
 
@@ -64,19 +80,19 @@ final class Store
         $records = $this->buffer($name, $columns)->read();
 
         if (count($records) < 2) {
-            return ['has' => false, 'warns' => false, 'unit' => trim($unit), 'points' => []];
+            return Points::empty($unit);
         }
 
         $records = $this->downsample($records, $points);
         $values = $this->column($records, $column);
 
-        return $this->build(
-            $records,
+        return Points::build(
             $values,
+            self::labels($records),
             min($values),
             max($values),
-            $bytes ? $this->bytesFormatter(max($values)) : $this->plainFormatter($unit, $decimals),
-            $bytes ? self::bytesUnit(max($values))[1] : $unit,
+            $bytes ? Points::bytesFormatter(max($values), self::RATE) : Points::plainFormatter($unit, $decimals),
+            $bytes ? Points::bytesUnit(max($values), self::RATE)[1] : $unit,
             $threshold,
         );
     }
@@ -118,7 +134,7 @@ final class Store
         ?float $threshold = null,
     ): array {
         $records = $this->buffer($name, $columns)->read();
-        $empty = ['has' => false, 'warns' => false, 'unit' => '', 'points' => []];
+        $empty = Points::empty('');
 
         if (count($records) < 2) {
             return ['has' => false, 'first' => $empty, 'second' => $empty];
@@ -130,11 +146,12 @@ final class Store
 
         $min = min(min($a), min($b));
         $max = max(max($a), max($b));
+        $labels = self::labels($records);
 
         return [
             'has' => true,
-            'first' => $this->build($records, $a, $min, $max, $this->bytesFormatter(max($a)), self::bytesUnit(max($a))[1], $threshold),
-            'second' => $this->build($records, $b, $min, $max, $this->bytesFormatter(max($b)), self::bytesUnit(max($b))[1], $threshold),
+            'first' => Points::build($a, $labels, $min, $max, Points::bytesFormatter(max($a), self::RATE), Points::bytesUnit(max($a), self::RATE)[1], $threshold),
+            'second' => Points::build($b, $labels, $min, $max, Points::bytesFormatter(max($b), self::RATE), Points::bytesUnit(max($b), self::RATE)[1], $threshold),
         ];
     }
 
@@ -148,135 +165,20 @@ final class Store
     }
 
     /**
-     * Die Stützstellen einer Reihe, gegen eine **vorgegebene** Spanne
-     * gerechnet.
+     * Die Beschriftung der Stützstellen — beim Ringpuffer eine Uhrzeit.
      *
-     * Dass Spanne und Formatierung von aussen kommen, ist der ganze Zweck:
-     * Nur so können sich zwei Kurven eine Achse teilen (siehe `pair()`).
+     * **Sie steht hier und nicht in {@see Points}**, und das ist die Naht
+     * zwischen den beiden Quellen: Die Geometrie ist für beide dieselbe, die
+     * Beschriftung nicht. Eine Reihe über 24 Stunden liest sich an `H:i`, eine
+     * über dreissig Tage an einem Datum — und ein gemeinsamer Formatierer mit
+     * einer Fahne wäre die Stelle, an der später jemand die falsche setzt.
      *
      * @param  list<array{time:float,values:list<float>}>  $records
-     * @param  list<float>  $values
-     * @param  callable(float): string  $format
-     * @return array{has:bool,warns:bool,unit:string,points:list<array{x:float,y:float,t:string,v:string}>}
+     * @return list<string>
      */
-    private function build(array $records, array $values, float $min, float $max, callable $format, string $unit, ?float $threshold): array
+    private static function labels(array $records): array
     {
-        $span = ($max - $min) > 0.0001 ? $max - $min : 1.0;
-        $lastIndex = count($records) - 1;
-
-        $out = [];
-
-        foreach ($records as $i => $record) {
-            $value = $values[$i] ?? 0.0;
-
-            $out[] = [
-                'x' => round($i / $lastIndex * 100, 3),
-                // y wächst im SVG nach unten; die Umkehr steht hier, damit sie
-                // nicht in jeder Komponente noch einmal auftaucht.
-                'y' => round(28 - ($value - $min) / $span * 24, 3),
-                't' => date('H:i', (int) $record['time']),
-                'v' => $format($value),
-            ];
-        }
-
-        return [
-            'has' => true,
-            'warns' => $threshold !== null && ($values[$lastIndex] ?? 0.0) >= $threshold,
-
-            // Die Einheit einmal je Reihe, damit die Kachel sie klein neben
-            // die grosse Zahl setzen kann, ohne sie aus `v` zurückzuschneiden.
-            'unit' => trim($unit),
-            'points' => $out,
-        ];
-    }
-
-    /**
-     * Die Zahl zu einem Wert — mit so vielen Stellen, dass sie etwas sagt.
-     *
-     * **Der Fall, aus dem das kommt.** Die CPU-Kachel stand auf einem ruhigen
-     * Server dauerhaft auf `0 %` — in der Kachel und bei jeder Ablesung auf
-     * der Kurve. Falsch war der Wert nicht: `cpu` wurde mit **null**
-     * Nachkommastellen formatiert, und die Auslastung lag den ganzen Tag
-     * zwischen 0,1 und 0,9. `number_format(0,42, 0)` ist `0`.
-     *
-     * Die Kurve daneben zeichnete derweil aus den **Rohwerten** und zeigte
-     * deshalb ihre Ausschläge. Genau diese Mischung macht den Fehler so
-     * unangenehm: Das Bild sagt „da tut sich etwas", die Zahl sagt „nichts",
-     * und beide kommen aus derselben Reihe.
-     *
-     * > **Eine Zahl, die jeden Wert einer Reihe gleich schreibt, misst nichts
-     * > mehr — sie behauptet nur noch.**
-     *
-     * Die Stellenzahl richtet sich deshalb nach der **Grösse des Wertes** und
-     * nicht mehr allein nach dem Wunsch des Aufrufers: unter 1 zwei Stellen,
-     * unter 10 eine, darüber keine. So schreibt es auch ein Mensch —
-     * „0,42 %", „3,7 %", „37 %".
-     *
-     * **Weniger als gewünscht wird es nie.** Die Load fragt zwei Stellen an
-     * und behält sie auch bei 12,00; sonst hinge ihre Genauigkeit daran, wie
-     * ausgelastet der Server gerade ist.
-     */
-    private function plainFormatter(string $unit, int $decimals): callable
-    {
-        return static function (float $value) use ($unit, $decimals): string {
-            $betrag = abs($value);
-            $noetig = $betrag >= 10.0 ? 0 : ($betrag >= 1.0 ? 1 : 2);
-
-            return number_format($value, max($decimals, $noetig), ',', '.').$unit;
-        };
-    }
-
-    /**
-     * Byte je Sekunde, in der Grössenordnung der Reihe.
-     *
-     * **Warum nicht einfach die rohe Zahl.** Sie stand hier bis August 2026,
-     * und sie passt nicht: Eine Kachel ist auf einem 1440px-Bildschirm 228px
-     * breit, ihre Beizeile 179px — gemessen, nicht geschätzt. „65.981.645 B/s"
-     * sind vierzehn Zeichen, und mit einem Wort davor bricht die Zeile um.
-     * Lesbar war die Zahl ohnehin nie: Wer sieht einem neunstelligen
-     * Bytewert an, dass er 63 Megabyte bedeutet?
-     *
-     * **Eine Grössenordnung für die ganze Reihe**, gewählt nach ihrem
-     * höchsten Wert. Je Stützstelle zu skalieren ergäbe eine Ablesung, die
-     * beim Wandern über die Kurve zwischen kB/s und MB/s springt — und zwei
-     * Zahlen, die man nicht vergleichen kann, ohne die Einheit mitzulesen.
-     *
-     * Tausenderschritte und nicht 1024er: Eine Leitung wird in Megabit
-     * gemessen, und die zählen dezimal. Die Schwelle der Kachel rechnet
-     * genauso (900 Mbit/s).
-     *
-     * @return callable(float): string
-     */
-    private function bytesFormatter(float $max): callable
-    {
-        [$divisor, $unit] = self::bytesUnit($max);
-
-        // Eine Nachkommastelle, sobald geteilt wird: „63 MB/s" verschweigt den
-        // Unterschied zwischen 62,5 und 63,4 — bei einer Leitung ist das
-        // knapp ein Megabyte je Sekunde.
-        $decimals = $divisor > 1.0 ? 1 : 0;
-
-        return static fn (float $value): string => number_format($value / $divisor, $decimals, ',', '.').$unit;
-    }
-
-    /**
-     * Teiler und Einheit — auch für die Kachel, die ihre Einheit klein neben
-     * die grosse Zahl setzt und sie deshalb getrennt braucht.
-     *
-     * Die Einheit aus einer fertigen Zeichenkette zurückzuschneiden wäre der
-     * Fehler, gegen den dieses Projekt seine Wächter baut: eine Zeichenkette,
-     * aus der jemand etwas herausliest, ohne dass der Bezug geprüft wird.
-     *
-     * @return array{0: float, 1: string}
-     */
-    public static function bytesUnit(float $max): array
-    {
-        return match (true) {
-            $max >= 1_000_000_000 => [1_000_000_000.0, ' GB/s'],
-            $max >= 1_000_000 => [1_000_000.0, ' MB/s'],
-            $max >= 1_000 => [1_000.0, ' kB/s'],
-            default => [1.0, ' B/s'],
-        };
+        return array_map(static fn (array $record): string => date('H:i', (int) $record['time']), $records);
     }
 
     /**

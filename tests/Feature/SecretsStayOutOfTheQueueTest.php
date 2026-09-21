@@ -52,6 +52,7 @@ final class SecretsStayOutOfTheQueueTest extends TestCase
         'db.user.password' => 'dasselbe Passwort beim Zurücksetzen',
         'pg.role.create' => 'das Passwort der PostgreSQL-Rolle — auch beim Zurücksetzen, denn setPassword() ruft dieselbe Operation',
         'db.isolation.probe' => 'das Passwort, mit dem die Selbstprobe sich absichtlich abweisen lässt',
+        'notify.target.store' => 'das Geheimnis, mit dem jede Meldung an das Webhook-Ziel signiert wird (B1) — und die Adresse daneben ist bei Slack, Discord und den meisten Eingangshaken selbst eines: Wer sie hat, schreibt in den Kanal',
     ];
 
     /**
@@ -96,6 +97,20 @@ final class SecretsStayOutOfTheQueueTest extends TestCase
      * @var array<string, string> `<tabelle>.<spalte>` => Grund
      */
     private const COLUMNS_WITH_A_REASON = [
+        /*
+         * **Ein Hash und kein Geheimnis — und trotzdem steht er hier.**
+         *
+         * `api_tokens.token_hash` trägt den `sha256` einer Zugangsmarke (B7,
+         * `docs/131 §3`). Der Klartext steht nirgends: Er entsteht in
+         * `ApiToken::mint()`, wird einmal angezeigt und vergessen.
+         *
+         * Warum dann ein Eintrag? Weil die Spalte **aussieht** wie eine, in
+         * der ein Geheimnis liegen könnte, und genau das ist die Frage, die
+         * dieser Wächter stellt. Ein Eintrag mit Grund ist die Antwort; ein
+         * stiller Durchlass wäre eine Gewohnheit.
+         */
+        'api_tokens.token_hash' => 'Der sha256 einer Zugangsmarke. Der Klartext entsteht in ApiToken::mint(), wird einmal angezeigt und nirgends abgelegt — ohne Arbeitsfaktor, weil 192 Bit aus random_bytes() keine fehlende Entropie ausgleichen müssen (docs/130 A5).',
+
         'accounts.password' => 'der Hash des Panelkontos, nicht das Passwort',
         'accounts.two_factor_secret' => 'das TOTP-Geheimnis des Kontos — verschlüsselt abgelegt, und ohne Ablage gäbe es keinen zweiten Faktor',
         'cache.key' => 'der Schlüssel eines Zwischenspeichereintrags; Laravels eigene Tabelle',

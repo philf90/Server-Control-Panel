@@ -23,7 +23,8 @@
 import { Link, router, usePage } from '@inertiajs/vue3'
 import Confirmation from '../Components/Confirmation.vue'
 import Bands from '../Components/Bands.vue'
-import MarkIcon from '../Components/MarkIcon.vue'
+import OperationBand from '../Components/OperationBand.vue'
+import BrandMark from '../Components/BrandMark.vue'
 import NavIcon from '../Components/NavIcon.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 /*
@@ -78,6 +79,25 @@ const maintenance = computed(
 
 const announcements = computed(
   () => (page.props.announcements ?? []) as { id: number; badge: string; rank: string; body: string }[],
+)
+
+/*
+ * Die laufenden Vorgänge dieses Kontos (B8).
+ *
+ * **Derselbe Rückfall wie daneben und aus demselben Grund:** Beim partiellen
+ * Nachladen schickt der Server geteilte Eigenschaften nur mit, wenn sie
+ * angefordert wurden — und der Klient hält die vorige. Ein `?? []` ist hier
+ * also kein Sicherheitsgurt, sondern der Normalfall.
+ */
+const runningOperations = computed(
+  () =>
+    (page.props.runningOperations ?? []) as {
+      id: number
+      label: string
+      status: string
+      progress: number
+      running: boolean
+    }[],
 )
 
 /*
@@ -643,9 +663,39 @@ const navigation = computed<{ group: string | null; items: NavItem[] }[]>(() => 
        */
       { name: 'Automatische Sicherung', href: '/settings/backups', icon: 'backups', ability: 'operate-server' },
 
-      { name: 'Mailversand', href: '/settings/mail', icon: 'mail', ability: 'operate-server' },
       { name: 'Zertifikat', href: '/settings/tls', icon: 'tls', ability: 'operate-server' },
+    ] },
+
+    /*
+     * **„Nach draussen" ist am 24. September 2026 aus „Einstellungen"
+     * herausgelöst worden**, und den Anlass hat ein Wächter gegeben: Die
+     * Gruppe trug acht Punkte, `NavGroupTest` setzt acht als Obergrenze, und
+     * der Kommentar dort sagt seit dem 16. September wörtlich, der nächste
+     * Punkt erzwinge die Teilung. „Benachrichtigungen" war der neunte.
+     *
+     * **Die Trennlinie ist nicht die Grösse, sondern die zweite Frage.** Die
+     * drei hier sind die Stellen, an denen dieser Server **Zugangsdaten eines
+     * Fremden** hält und mit ihm spricht: das Passwort des Relays, das Token
+     * des DNS-Anbieters, Adresse und Geheimnis des Meldeziels. Die übrigen
+     * sagen, wie dieser Server eingestellt ist.
+     *
+     * > **Eine Gruppe ist zu gross, wenn sie zwei Fragen beantwortet — und
+     * > nicht, wenn sie viele Punkte hat.**
+     *
+     * **Das Zertifikat bleibt drüben**, obwohl es über ACME nach draussen
+     * bestellt wird: Es ist das Zertifikat *dieser* Oberfläche, und die
+     * Zugangsdaten, mit denen bestellt wird, sind die des DNS-Zugangs hier.
+     *
+     * **Und die Grenze bleibt aus der Route ableitbar** — das ist die Zusage,
+     * die `NavGroupTest` seit dem 30. August hält. Sie lautet nicht „eine
+     * Gruppe", sondern „was unter `/settings/…` liegt, steht in einer
+     * Einstellungsgruppe, und dort steht nichts anderes". Zwei Gruppen ändern
+     * daran nichts; drei Ausnahmen hätten es zerstört.
+     */
+    { group: 'Nach draussen', items: [
+      { name: 'Mailversand', href: '/settings/mail', icon: 'mail', ability: 'operate-server' },
       { name: 'DNS-Zugang', href: '/settings/dns', icon: 'dns', ability: 'operate-server' },
+      { name: 'Benachrichtigungen', href: '/settings/notices', icon: 'notices', ability: 'operate-server' },
     ] },
     { group: 'Konto', items: [{ name: 'Mein Konto', href: '/settings/profile', icon: 'account' }] },
   ]
@@ -769,7 +819,10 @@ onBeforeUnmount(() => {
       den Rückweg bei sich — ein Wechsel, aus dem man suchen muss, ist einer,
       den jemand vergisst.
     -->
-    <div v-if="impersonation?.active || announcements.length || maintenance" class="bands">
+    <div
+      v-if="impersonation?.active || announcements.length || maintenance || runningOperations.length"
+      class="bands"
+    >
       <div v-if="impersonation?.active" class="band warn">
         <span>
           Sie arbeiten in der Sicht dieses Kunden.
@@ -835,6 +888,14 @@ onBeforeUnmount(() => {
         zwei Fassungen auseinanderläuft.
       -->
       <Bands :items="announcements" />
+
+      <!--
+        Die laufenden Vorgänge (B8). **Zuletzt in der Hülle**, und das ist eine
+        Aussage über den Rang: Eine Störung des Betreibers, eine Wartung und
+        eine Impersonation gelten für den ganzen Server; ein Vorgang gehört
+        dem, der ihn gerade abgesetzt hat.
+      -->
+      <OperationBand :items="runningOperations" />
     </div>
 
     <!--
@@ -897,8 +958,7 @@ onBeforeUnmount(() => {
           der Punkt: Wer mehrere Panels offen hat, erkennt sie am Reiter, und
           erkennt sie nur dann, wenn Reiter und Rail dasselbe zeigen.
         -->
-        <MarkIcon :size="24" />
-        <b>SrvPanel</b>
+        <BrandMark :size="24" />
 
         <!--
           Die Version steht neben dem Schriftzug — und das ging vorher nicht.

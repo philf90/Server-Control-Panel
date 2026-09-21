@@ -14,6 +14,7 @@ use App\Models\Operation;
 use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Dns\Dns;
+use App\Support\Metrics\History;
 use App\Support\Plans\Quota;
 use App\Support\Time\Clock;
 use App\Support\Tls\AcmeSettings;
@@ -182,7 +183,7 @@ final class DomainController extends Controller
             ->with('success', 'Der DNS-Abgleich ist gelaufen.');
     }
 
-    public function show(Domain $domain, Request $request): Response
+    public function show(Domain $domain, Request $request, History $history): Response
     {
         $domain->loadMissing(['subscription', 'parent']);
 
@@ -275,6 +276,16 @@ final class DomainController extends Controller
                 'order_wildcard' => $request->user()?->can('orderWildcard', $domain) ?? false,
                 'check_dns' => $request->user()?->can('view', $domain) ?? false,
             ],
+            /*
+             * Die drei Verläufe der Domain (B4, `docs/129 §6`) — Traffic,
+             * Zugriffe, Fehlerquote. Platz und Datenbanken fehlen hier, weil
+             * sie dem Abonnement gehören und nicht einer seiner Domains.
+             *
+             * Als Verschluss, aus demselben Grund wie auf der
+             * Abonnementseite.
+             */
+            'history' => fn (): array => $history->forDomain($domain),
+
             'operations' => Operation::query()
                 ->where('subject_type', 'domain')
                 ->where('subject_id', $domain->id)
@@ -318,10 +329,17 @@ final class DomainController extends Controller
 
         $audit->success('domain.removed', $domain, ['domain' => $name]);
 
+        /*
+         * **Die Kennung des Vorgangs reist nicht mehr mit (B8).** Sie war seit
+         * P4 ein `flash`-Schlüssel, den die Mittelschicht nicht trägt und den
+         * keine Seite liest — `FlashChannelTest::KNOWN_LOST` hat ihn seit
+         * `docs/59` Befund 13 als Rest geführt. Was er sagen wollte, sagt
+         * jetzt der Streifen oben, und zwar auf jeder Seite.
+         */
         return redirect()->route(
             $subscription === null ? 'domains.index' : 'subscriptions.show',
             $subscription === null ? [] : $subscription,
-        )->with('operation', (int) $operation->id);
+        );
     }
 
     /**
@@ -534,7 +552,13 @@ final class DomainController extends Controller
             'wildcard' => $wildcard,
         ]);
 
-        return redirect()->route('operations.show', $operation);
+        /*
+         * **Zurück auf die Seite, von der aus gedrückt wurde (B8).** Hier
+         * stand eine Weiterleitung auf die Vorgangsseite; der Weg zurück war
+         * der Zurück-Knopf des Browsers. Den Fortschritt trägt jetzt der
+         * Streifen oben, und er steht auf jeder Seite.
+         */
+        return to_route('domains.show', $domain);
     }
 
     /**

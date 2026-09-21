@@ -45,6 +45,13 @@ final class TimeDisplayTest extends TestCase
             .'und die Einstellung eine andere ist. Die Zone steht in der Kopfzeile, die Werte bleiben, '
             .'wie sie gespeichert sind.',
 
+        'app/Support/Notify/Notices.php' => 'Derselbe Fall (B5): „Zuletzt erfolgreich zugestellt" '
+            .'geht als Text in `settings` und liegt dort in UTC. Gezeigt wird der Wert im '
+            .'`MailSettingsController` über `Clock::displayText()` — diese Klasse ruft es sogar '
+            .'selbst, eine Zeile unter der, die den Wert schreibt. Eine Zeit in der Anzeigezone zu '
+            .'speichern hiesse, den Bestand von einer Einstellung abhängig zu machen, die sich '
+            .'ändern darf.',
+
         'app/Support/Diagnose/SettingsRunLog.php' => 'Derselbe Fall wie `Settings` darunter: '
             .'Der Zeitpunkt eines Laufs geht als Text in `settings` und liegt dort in UTC. Gezeigt '
             .'wird er im `DiagnoseController` über `Clock::displayText()`. Eine Zeit in der '

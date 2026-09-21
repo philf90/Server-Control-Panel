@@ -879,8 +879,13 @@ echo "── SeriesReadingTest: die Ablesung rundet die Reihe weg ──"
 # grossen Zahl und bei jeder Ablesung auf der Linie —, waehrend die Kurve
 # daneben aus den Rohwerten ihre Ausschlaege zeichnete. Der Wert war nicht
 # falsch, er war weggerundet: alles zwischen 0,1 und 0,9 bei null Stellen.
+#
+# **Der Formatierer ist am 21. September 2026 nach `Points` gezogen** — B4 gibt
+# der Kachel eine zweite Quelle, und die Regel gilt fuer beide. Der Eingriff
+# zeigt seitdem dorthin; sein alter Anker in `Store.php` war ab dem Umzug ein
+# Eingriff ohne Messung, und gemeldet hat ihn `BreakScriptTest`.
 python3 - <<'PY2'
-p = 'app/Support/Metrics/Store.php'
+p = 'app/Support/Metrics/Points.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
     """        return static function (float $value) use ($unit, $decimals): string {
@@ -4491,9 +4496,9 @@ vorher_datei agent/src/Web/AccessLog.php
 python3 - <<'PY2'
 p = 'agent/src/Web/AccessLog.php'
 s = open(p, encoding='utf-8').read()
-alt = """                if ($satz['sent'] === null) {\n                    $alt++;\n\n                    continue;\n                }"""
+alt = """                if ($satz['sent'] === null) {\n                    $alt++;\n                    $tage[$tag]['legacy']++;\n\n                    continue;\n                }"""
 assert alt in s, 'Zweig des alten Zeitalters nicht gefunden'
-neu = """                if ($satz['sent'] === null) {\n                    $alt++;\n                    $satz['sent'] = 0;\n                    $satz['received'] = 0;\n                }"""
+neu = """                if ($satz['sent'] === null) {\n                    $alt++;\n                    $tage[$tag]['legacy']++;\n                    $satz['sent'] = 0;\n                    $satz['received'] = 0;\n                }"""
 s = s.replace(alt, neu, 1)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
@@ -4845,6 +4850,320 @@ pruefe "Operation nicht registriert" \
   AccessCountTest::test_the_agent_knows_the_operation_by_name failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
+echo "── TrafficEraTest: eine Schwelle statt "eine einzige Zeile" ──"
+#
+# docs/129 §5 sagt: vollstaendig im neuen Format, nicht ueberwiegend. Eine
+# Schwelle ist eine Zahl, die spaeter jemand anders setzt — und dann steht
+# in der Tabelle ein Tag, den niemand nachrechnen kann.
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+alt = 'if ($alt > 0) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if ($alt > 100) {', 1))
+PY2
+griff_datei app/Support/Web/AccessCounts.php "Schwelle statt einer Zeile" &&
+pruefe "Schwelle statt einer Zeile" \
+  TrafficEraTest::test_one_legacy_line_skips_the_whole_day failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficEraTest passed
+
+echo
+echo "── TrafficEraTest: der laufende Tag wird als falsch formatiert gemeldet ──"
+#
+# Die Reihenfolge der beiden Gruende traegt mit: Ein laufender Tag mit alten
+# Zeilen ist "noch offen". Andersherum meldete der Lauf jede Nacht eine
+# Domain als falsch formatiert, deren heutiger Tag schlicht noch laeuft.
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+alt = "                if ($tag >= $today) {\n                    $offen[] = ['subscription' => $abonnement, 'domain' => $domain, 'day' => $tag];\n\n                    continue;\n                }\n\n                $alt = (int) ($werte['legacy'] ?? 0);\n\n                if ($alt > 0) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                $alt = (int) ($werte['legacy'] ?? 0);\n\n                if ($tag >= $today && $alt === 0) {\n                    $offen[] = ['subscription' => $abonnement, 'domain' => $domain, 'day' => $tag];\n\n                    continue;\n                }\n\n                if ($alt > 0) {", 1))
+PY2
+griff_datei app/Support/Web/AccessCounts.php "laufender Tag als Formatfehler" &&
+pruefe "laufender Tag als Formatfehler" \
+  TrafficEraTest::test_a_running_day_with_legacy_lines_is_still_only_open failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficEraTest passed
+
+echo
+echo "── TrafficEraTest: der laufende Tag wird mitgezaehlt ──"
+#
+# Ein angefangener Tag ist nicht falsch, er ist noch nicht fertig. Gezaehlt
+# waere er eine halbe Zahl, die wie eine ganze aussieht.
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+alt = 'if ($tag >= $today) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'if ($tag > $today) {', 1))
+PY2
+griff_datei app/Support/Web/AccessCounts.php "laufender Tag mitgezaehlt" &&
+pruefe "laufender Tag mitgezaehlt" \
+  TrafficEraTest::test_the_running_day_is_open_and_not_counted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficEraTest passed
+
+echo
+echo "── TrafficEraTest: das Liegengebliebene wird nicht gezaehlt ──"
+#
+# Ohne diese Zahl bleibt die Unit gruen, obwohl der Lauf seinen Tag nicht
+# fertig gezaehlt hat — und der naechste wird es auch nicht.
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+alt = '$unvollstaendig = is_array($pending) ? count($pending) : 0;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$unvollstaendig = 0;', 1))
+PY2
+griff_datei app/Support/Web/AccessCounts.php "Liegengebliebenes nicht gezaehlt" &&
+pruefe "Liegengebliebenes nicht gezaehlt" \
+  TrafficEraTest::test_pending_domains_make_the_run_incomplete failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficEraTest passed
+
+echo
+echo "── AccessCountTest: legacy faellt bei der Zusammenfuehrung heraus ──"
+#
+# Genau der Fehler, der am 21. September einmal durchging: AccessLog liefert
+# fuenf Schluessel, die Zusammenfuehrung legte vier an. Der Prueckstand blieb
+# gruen, weil er dieselbe verkuerzte Form erwartete.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = "foreach (['requests', 'sent', 'received', 'errors', 'legacy'] as $feld) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "foreach (['requests', 'sent', 'received', 'errors'] as $feld) {", 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "legacy faellt heraus" &&
+pruefe "legacy faellt heraus" \
+  AccessCountTest::test_a_legacy_line_is_tallied_and_not_added failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
+echo "── LogEraTest: ein reiner Alt-Tag verschwindet wieder ──"
+#
+# Vor dem 21. September gab eine Datei aus dem alten Zeitalter days => [].
+# "Nicht zaehlbar" und "nicht vorhanden" sind zwei Antworten, und ein leeres
+# Feld gibt beide.
+vorher_datei agent/src/Web/AccessLog.php
+python3 - <<'PY2'
+p = 'agent/src/Web/AccessLog.php'
+s = open(p, encoding='utf-8').read()
+alt = "                $tag = $satz['day'];\n                $tage[$tag] ??= ['requests' => 0, 'sent' => 0, 'received' => 0, 'errors' => 0, 'legacy' => 0];\n\n                if ($satz['sent'] === null) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                $tag = $satz['day'];\n\n                if ($satz['sent'] === null) {", 1))
+PY2
+griff_datei agent/src/Web/AccessLog.php "reiner Alt-Tag verschwindet" &&
+pruefe "reiner Alt-Tag verschwindet" \
+  LogEraTest::test_a_legacy_file_is_read_and_not_counted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogEraTest passed
+
+echo
+echo "── TrafficEraTest: der Nachtlauf bleibt bei unvollstaendigem Lauf gruen ──"
+#
+# Die Regel steht in AccessCounts und wird dort geprueft. Ob das Kommando sie
+# auch auswertet, sagt dort niemand — und eine stille Unit ist genau das,
+# wogegen es diese Zahl gibt.
+vorher_datei app/Console/Commands/CollectTraffic.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/CollectTraffic.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if ($split['incomplete'] > 0) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        if (false) {', 1))
+PY2
+griff_datei app/Console/Commands/CollectTraffic.php "Nachtlauf bleibt gruen" &&
+pruefe "Nachtlauf bleibt gruen" \
+  TrafficEraTest::test_the_nightly_run_fails_on_an_incomplete_report failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficEraTest passed
+
+echo
+echo "── TrafficEraTest: der Nachtlauf nimmt den Tag wieder aus dem Panel ──"
+#
+# config/app.php steht fest auf UTC, und now() folgt ihm. Ohne die Umrechnung
+# in die Zone des Servers waere der gestrige Tag auf einer Maschine in +0200 um
+# 01:30 Ortszeit noch "heute" — gezaehlt wuerde nie etwas, und der Lauf bliebe
+# dabei gruen.
+vorher_datei app/Console/Commands/CollectTraffic.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/CollectTraffic.php'
+s = open(p, encoding='utf-8').read()
+alt = '$today = now()->setTimezone($zone)->toDateString();'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$today = now()->toDateString();', 1))
+PY2
+griff_datei app/Console/Commands/CollectTraffic.php "Tag wieder aus dem Panel" &&
+pruefe "Tag wieder aus dem Panel" \
+  TrafficEraTest::test_the_nightly_run_fails_on_an_incomplete_report failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficEraTest passed
+
+echo
+echo "── DailyMetricsTest: addiert statt zu ueberschreiben ──"
+#
+# Die tragende Zusage zwischen B2 und B3: web.access.count liest beide
+# Protokolldateien, derselbe Tag kommt an mehreren Naechten vorbei.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "DomainMetric::query()->upsert($domainRows, ['domain_id', 'day', 'metric'], ['value']);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'DomainMetric::query()->insert($domainRows);', 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "addiert statt ueberschreibt" &&
+pruefe "addiert statt ueberschreibt" \
+  DailyMetricsTest::test_the_same_day_twice_overwrites_instead_of_adding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: der eindeutige Schluessel faellt weg ──"
+#
+# Ohne ihn ist das upsert darueber wirkungslos — es legte jede Nacht eine
+# zweite Zeile an, und die Summe waere jeden Tag eine andere.
+vorher_datei database/migrations/2026_09_21_090000_create_daily_metrics_tables.php
+python3 - <<'PY2'
+p = 'database/migrations/2026_09_21_090000_create_daily_metrics_tables.php'
+s = open(p, encoding='utf-8').read()
+alt = "$table->unique(['domain_id', 'day', 'metric']);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$table->index(['domain_id', 'day', 'metric']);", 1))
+PY2
+griff_datei database/migrations/2026_09_21_090000_create_daily_metrics_tables.php "Schluessel faellt weg" &&
+pruefe "Schluessel faellt weg" \
+  DailyMetricsTest::test_the_database_itself_refuses_a_second_row failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: die Mandantenklammer bleibt zu ──"
+#
+# Der Nachtlauf laeuft ohne angemeldetes Konto. Ohne withoutRestriction
+# steht jede Abfrage auf whereRaw(0 = 1), und der Lauf schreibt wortlos
+# nichts — derselbe Fehler, den Cron::store() in P6 hatte.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = 'return $this->tenancy->withoutRestriction(function () use ($countable): array {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'return (function () use ($countable): array {', 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "Klammer bleibt zu" &&
+pruefe "Klammer bleibt zu" \
+  DailyMetricsTest::test_a_countable_day_lands_in_both_tables failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: das unbekannte Verzeichnis wird still uebergangen ──"
+#
+# Ein Rest eines Rueckbaus und ein fehlendes Abonnement sehen in einer
+# Summe beide wie "nichts" aus.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "                    $unknown[] = [\n                        'subscription' => $eintrag['subscription'],\n                        'domain' => $eintrag['domain'],\n                    ];\n\n                    continue;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '                    continue;', 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "Unbekanntes still uebergangen" &&
+pruefe "Unbekanntes still uebergangen" \
+  DailyMetricsTest::test_a_directory_without_a_row_is_named failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: die Domain wird nur am Namen erkannt ──"
+#
+# Zwei Kunden duerfen denselben Domainnamen im Verzeichnis haben. Gezaehlt
+# wird das Paar und nicht der Name — sonst laufen fremde Zahlen ins
+# falsche Abonnement.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "                $domain = $domains->first(\n                    fn (Domain $d): bool => $d->name === $eintrag['domain']\n                        && $d->subscription_id === $subscriptionId,\n                );"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                $domain = $domains->first(\n                    fn (Domain $d): bool => $d->name === $eintrag['domain'],\n                );", 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "Domain nur am Namen" &&
+pruefe "Domain nur am Namen" \
+  DailyMetricsTest::test_a_domain_of_another_subscription_does_not_count failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: abgeraeumt wird nach der Uhr statt nach dem Tag ──"
+#
+# Derselbe Bestand an zwei Laeufen desselben Tages muss dasselbe Ergebnis
+# geben. MaintenanceOverdue hat denselben Griff aus demselben Grund.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = '$grenze = Carbon::parse($today)->subDays(self::RETENTION_DAYS)->toDateString();'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$grenze = Carbon::now()->subDays(self::RETENTION_DAYS)->toDateString();', 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "abgeraeumt nach der Uhr" &&
+pruefe "abgeraeumt nach der Uhr" \
+  DailyMetricsTest::test_retention_counts_from_the_given_day_and_not_from_now failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: die Summe je Abonnement wird ueberschrieben statt addiert ──"
+#
+# Das Abonnement ist die Summe ueber seine Domains. Wer hier zuweist,
+# meldet die Zahl der zuletzt gelesenen Domain als die des ganzen Kunden.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = '$sums[$schluessel] = ($sums[$schluessel] ?? 0) + $value;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$sums[$schluessel] = $value;', 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "Summe ueberschrieben" &&
+pruefe "Summe ueberschrieben" \
+  DailyMetricsTest::test_the_subscription_is_the_sum_over_its_domains failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: abgeraeumt wird vor dem Ablegen ──"
+#
+# Faellt die Aufbewahrungsgrenze genau auf den frisch geschriebenen Tag,
+# nimmt der Lauf ihn wieder mit — einmal im Monat, und es sieht aus wie
+# ein verlorener Tag.
+vorher_datei app/Console/Commands/CollectTraffic.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/CollectTraffic.php'
+s = open(p, encoding='utf-8').read()
+alt = "$geschrieben = $daily->record($split['countable']);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$abgeraeumtZuerst = $daily->forget($today);\n        $geschrieben = $daily->record($split['countable']);", 1))
+PY2
+griff_datei app/Console/Commands/CollectTraffic.php "abgeraeumt vor dem Ablegen" &&
+pruefe "abgeraeumt vor dem Ablegen" \
+  DailyMetricsTest::test_the_nightly_run_records_before_it_forgets failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
 
 echo
 echo "── DefinerStripTest: der Filter fasst auch Datenzeilen an ──"
@@ -21299,7 +21618,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
 
 echo
-echo "== UnitStateTest: der Leser fuer systemctl show =="
+echo "── UnitStateTest: der Leser fuer systemctl show ──"
 #
 # Die Regeln stammen aus der Messrunde vom 30. August 2026 (docs/89), gefahren
 # gegen echtes systemd 255 in einer eigenen Namespace. Sie lassen sich hier
@@ -21324,7 +21643,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: infinity gilt als Dauer =="
+echo "── UnitStateTest: infinity gilt als Dauer ──"
 #
 # infinity ist der Wert, den systemd fuer -nie- schreibt. Wer ihn nicht
 # ausnimmt, meldet jeden Timer ohne Termin als gesund -- also genau den
@@ -21344,7 +21663,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: hasNext kennt den feuernden Timer nicht =="
+echo "── UnitStateTest: hasNext kennt den feuernden Timer nicht ──"
 #
 # Der Befund vom 13. September 2026 (docs/913 Paragraph 14): Ein Timer, der
 # gefeuert hat und dessen Unit laeuft, schreibt in beide Zeitfelder dasselbe
@@ -21375,7 +21694,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: der Pruefkoerper hoert auf zu trennen =="
+echo "── UnitStateTest: der Pruefkoerper hoert auf zu trennen ──"
 #
 # Der Waechter ueber den feuernden Timer misst nur, solange sein Pruefkoerper
 # in beiden Zeitfeldern dasselbe schreibt wie der gestoppte. Unterscheiden sie
@@ -21400,7 +21719,7 @@ pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 
 echo
-echo "== UnitStateTest: ein fehlendes Feld wird zur gemessenen Null =="
+echo "── UnitStateTest: ein fehlendes Feld wird zur gemessenen Null ──"
 #
 # Der Fehler, den dieser Leser abloest: Ein Timer beantwortet MainPID,
 # NRestarts und ExecMainStartTimestamp gar nicht, und -?? 0- machte daraus
@@ -21420,7 +21739,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: ein leerer Zeitstempel bleibt eine leere Zeichenkette =="
+echo "── UnitStateTest: ein leerer Zeitstempel bleibt eine leere Zeichenkette ──"
 vorher_datei agent/src/Units.php
 python3 - <<'PY2'
 p = 'agent/src/Units.php'
@@ -21436,7 +21755,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: die Art kommt nicht mehr aus dem Namen =="
+echo "── UnitStateTest: die Art kommt nicht mehr aus dem Namen ──"
 vorher_datei agent/src/Units.php
 python3 - <<'PY2'
 p = 'agent/src/Units.php'
@@ -21452,7 +21771,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: getrennt wird an jedem Gleichheitszeichen =="
+echo "── UnitStateTest: getrennt wird an jedem Gleichheitszeichen ──"
 #
 # Eine Description darf eines enthalten, und systemctl show maskiert nichts.
 vorher_datei agent/src/Units.php
@@ -21471,7 +21790,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: die monotone Spalte faellt aus der Abfrage =="
+echo "── UnitStateTest: die monotone Spalte faellt aus der Abfrage ──"
 #
 # Fehlte sie, stuende has_next auf einer halben Auskunft -- und zwar wortlos,
 # weil eine nicht gefragte Eigenschaft in der Ausgabe genauso fehlt wie eine,
@@ -21491,7 +21810,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: jeder Dienst gilt als von einem Timer gestartet =="
+echo "── UnitStateTest: jeder Dienst gilt als von einem Timer gestartet ──"
 #
 # Dann ist die Nachsicht keine Regel mehr, sondern eine Voreinstellung:
 # srvpanel-worker duerfte stillstehen, ohne dass es jemand meldet.
@@ -21510,7 +21829,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: kein Timer traegt seinen Dienst ein =="
+echo "── UnitStateTest: kein Timer traegt seinen Dienst ein ──"
 #
 # Die Zuordnung laeuft dann ins Leere, und jeder oneshot-Dienst steht auf einem
 # gesunden Server als gestoppt da — genau der Befund vom 31. August 2026.
@@ -21529,7 +21848,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: ein Timer bekommt false statt null =="
+echo "── UnitStateTest: ein Timer bekommt false statt null ──"
 #
 # „Wird nicht von einem Timer gestartet" und „kann gar nicht" sind zwei
 # Auskuenfte. Dieselbe Unterscheidung wie bei pid und has_next.
@@ -21550,7 +21869,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: die Abfrage nimmt TriggeredBy dazu =="
+echo "── UnitStateTest: die Abfrage nimmt TriggeredBy dazu ──"
 #
 # Gemessen: TriggeredBy entsteht beim Aktivieren des Timers und verschwindet,
 # sobald er stoppt. Wer daran zuordnet, verliert die Zuordnung mit dem Timer.
@@ -21576,7 +21895,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: die Operation paart die Zeilen nicht mehr =="
+echo "── UnitStateTest: die Operation paart die Zeilen nicht mehr ──"
 #
 # Der Leser rechnet dann weiter richtig und steht in keinem Weg. Ein Wert, den
 # niemand holt, ist von einem, den es nicht gibt, an der Anzeige nicht zu
@@ -21596,7 +21915,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: die Operation holt die Timer aus der Liste =="
+echo "── UnitStateTest: die Operation holt die Timer aus der Liste ──"
 #
 # Gemessen: Ein von Hand gestoppter Timer verschwindet aus list-timers --all
 # vollstaendig, waehrend show ihn weiter beantwortet.
@@ -21615,7 +21934,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitCatalogTest: eine eigene Unit faellt aus dem Katalog =="
+echo "── UnitCatalogTest: eine eigene Unit faellt aus dem Katalog ──"
 #
 # Bis zum 30. August standen Unitnamen in zehn Dateien, und neun der eigenen
 # zwoelf in keiner Anzeige. Der Katalog wird gegen packaging/systemd gehalten.
@@ -21634,7 +21953,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: der Katalog nennt eine Unit, die es nicht gibt =="
+echo "── UnitCatalogTest: der Katalog nennt eine Unit, die es nicht gibt ──"
 #
 # Die Gegenrichtung -- hier entsteht der tote Eintrag wirklich: Bei einer
 # Umbenennung traegt man den neuen Namen nach und der alte bleibt liegen.
@@ -21654,7 +21973,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: ssh wird steuerbar =="
+echo "── UnitCatalogTest: ssh wird steuerbar ──"
 #
 # Damit liesse sich der Zugang zum Server abschalten. SftpAccess sagt das
 # seit P6 im Kopf seiner Klasse; hier wird es gemessen.
@@ -21673,7 +21992,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: nginx gilt wieder als steuerbar =="
+echo "── UnitCatalogTest: nginx gilt wieder als steuerbar ──"
 #
 # Die andere Richtung: Was der Katalog nicht steuert, muss ServiceAction
 # ablehnen -- sonst sagen die beiden Listen Verschiedenes.
@@ -21692,7 +22011,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: die SFTP-Namen werden abgeschrieben =="
+echo "── UnitCatalogTest: die SFTP-Namen werden abgeschrieben ──"
 #
 # ssh gegen sshd ist in docs/50 gemessen und steht in SftpAccess. Eine zweite
 # Fassung daneben ist die, die veraltet.
@@ -21711,7 +22030,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: eine Unit steht zweimal im Katalog =="
+echo "── UnitCatalogTest: eine Unit steht zweimal im Katalog ──"
 
 vorher_datei agent/src/Catalog.php
 python3 - <<'PY2'
@@ -21729,7 +22048,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: die Positivliste laesst ssh durch =="
+echo "── UnitCatalogTest: die Positivliste laesst ssh durch ──"
 #
 # Der Eingriff sitzt in der Positivliste selbst und nicht im Katalog -- er
 # belegt, dass der Waechter die Durchsetzung prueft und nicht die Absicht.
@@ -21749,7 +22068,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: die Positivliste bekommt einen fremden Eintrag =="
+echo "── UnitCatalogTest: die Positivliste bekommt einen fremden Eintrag ──"
 
 vorher_datei agent/src/Ops/ServiceAction.php
 python3 - <<'PY2'
@@ -21766,7 +22085,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: die Uebersicht baut ihre Liste wieder selbst =="
+echo "── UnitCatalogTest: die Uebersicht baut ihre Liste wieder selbst ──"
 #
 # Ein Waechter ueber den Katalog allein saehe das nicht: Die Liste daneben
 # waere vollstaendig richtig -- sie waere nur eine zweite.
@@ -21789,7 +22108,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== UnitCatalogTest: die Datenbank gilt wieder als steuerbar =="
+echo "── UnitCatalogTest: die Datenbank gilt wieder als steuerbar ──"
 #
 # Die Ungleichheit zwischen mariadb und mysql ist der Bestand und kein Entwurf.
 # Wer sie beim Aufraeumen geradezieht, weitet eine Sicherheitsgrenze -- und
@@ -21809,7 +22128,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== ServicesViewTest: die Farbe folgt dem Zustand statt dem Termin =="
+echo "── ServicesViewTest: die Farbe folgt dem Zustand statt dem Termin ──"
 #
 # Gemessen gegen systemd 255: Der gesunde und der kaputte Timer stehen beide
 # auf active. Wer die Farbe daran haengt, malt beide gruen.
@@ -21832,7 +22151,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: kein Termin und unbekannt sehen gleich aus =="
+echo "── ServicesViewTest: kein Termin und unbekannt sehen gleich aus ──"
 #
 # Das erste ist ein Schaden, das zweite eine Luecke im Messmittel. Dieselbe
 # Zelle fuer beides machte aus jeder Luecke einen Befund.
@@ -21851,7 +22170,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: die Seite rechnet die Zeit selbst =="
+echo "── ServicesViewTest: die Seite rechnet die Zeit selbst ──"
 #
 # toLocaleString nimmt die Zone des Betrachters; die Anzeigezone steht in den
 # Einstellungen, und Clock ist die einzige Stelle, die daraus eine Anzeige macht.
@@ -21870,7 +22189,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: Dienste und Timer in einem Bereich =="
+echo "── ServicesViewTest: Dienste und Timer in einem Bereich ──"
 #
 # Ein Timer hat keine PID, keinen Neustartzaehler und keinen Startzeitpunkt.
 vorher_datei resources/js/Pages/Services/Index.vue
@@ -21892,7 +22211,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: ein wartender oneshot-Dienst wird rot =="
+echo "── ServicesViewTest: ein wartender oneshot-Dienst wird rot ──"
 #
 # Vier der eigenen zwoelf Dienste sind Type=oneshot und stehen zwischen ihren
 # Laeufen auf inactive. Ohne die Nachsicht meldet die Seite auf einem gesunden
@@ -21915,7 +22234,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: die Nachsicht steht vor dem Fehlschlag =="
+echo "── ServicesViewTest: die Nachsicht steht vor dem Fehlschlag ──"
 #
 # Dann liest sich ein gescheiterter Lauf als „wartet auf seinen Timer" — der
 # Schaden verschwindet hinter der Nachsicht, die ihn nicht meinen sollte.
@@ -21936,7 +22255,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: die Meldung zaehlt an der Farbe vorbei =="
+echo "── ServicesViewTest: die Meldung zaehlt an der Farbe vorbei ──"
 #
 # Zwei Fassungen derselben Regel: Nach der Behebung waeren vier Zeilen gruen und
 # darueber stuende weiter „4 Dienste laufen nicht".
@@ -21955,7 +22274,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: ein schweigender Agent sieht aus wie ein leerer Server =="
+echo "── ServicesViewTest: ein schweigender Agent sieht aus wie ein leerer Server ──"
 
 vorher_datei resources/js/Pages/Services/Index.vue
 python3 - <<'PY2'
@@ -21972,7 +22291,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: die Huelle verliert ihre Bedingung =="
+echo "── ServicesViewTest: die Huelle verliert ihre Bedingung ──"
 #
 # Der Zustand von vor dem 8. September: Die beiden Tabellen standen ohne
 # Bedingung da und zeigten bei totem Agenten ihre Kopfzeile ueber null Zeilen.
@@ -21991,7 +22310,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: Streifen und Huelle haengen an verschiedenen Bedingungen =="
+echo "── ServicesViewTest: Streifen und Huelle haengen an verschiedenen Bedingungen ──"
 #
 # Die gefaehrlichere Haelfte: Ein Waechter, der bloss nach einem v-if fragte,
 # bliebe hier gruen -- und die zweite Bedingung waere die, die veraltet.
@@ -22010,7 +22329,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: die Huelle steht neben den Bereichen statt um sie =="
+echo "── ServicesViewTest: die Huelle steht neben den Bereichen statt um sie ──"
 #
 # Die Bedingung ist da, sie gilt nur fuer nichts. Ein Waechter, der ihr Dasein
 # prueft statt ihres Inhalts, bliebe hier gruen.
@@ -22029,7 +22348,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== ServicesViewTest: der Termin wird nicht mehr auf dem Server formatiert =="
+echo "── ServicesViewTest: der Termin wird nicht mehr auf dem Server formatiert ──"
 
 vorher_datei app/Http/Controllers/ServicesController.php
 python3 - <<'PY2'
@@ -22046,7 +22365,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== UnitStateTest: eine fehlende Unit meldet 0 Neustarts =="
+echo "── UnitStateTest: eine fehlende Unit meldet 0 Neustarts ──"
 #
 # Was systemd ueber eine Unit sagt, die es nicht gibt, ist keine Messung:
 # NRestarts steht dann auf 0, und die Seite las daraus -nie neugestartet-.
@@ -22065,7 +22384,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== UnitStateTest: eine fehlende Unit traegt ihren Namen als Beschreibung =="
+echo "── UnitStateTest: eine fehlende Unit traegt ihren Namen als Beschreibung ──"
 
 vorher_datei agent/src/Units.php
 python3 - <<'PY2'
@@ -22082,7 +22401,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitStateTest passed
 
 echo
-echo "== NavGroupTest: eine Einstellung kommt dazu =="
+echo "── NavGroupTest: eine Einstellung kommt dazu ──"
 #
 # Die Untergrenze: Ohne die Zahlen waeren beide Richtungen auch dann gruen,
 # wenn der Ausdruck des Lesers gar nichts faende.
@@ -22105,7 +22424,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
 
 echo
-echo "== NavGroupTest: eine Einstellung faellt weg =="
+echo "── NavGroupTest: eine Einstellung faellt weg ──"
 
 vorher_datei resources/js/Layouts/PanelLayout.vue
 python3 - <<'PY2'
@@ -22124,7 +22443,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
 
 echo
-echo "== NavGroupTest: ein fremder Punkt steht in Einstellungen =="
+echo "── NavGroupTest: ein fremder Punkt steht in Einstellungen ──"
 #
 # Die Gegenrichtung -- ohne sie wuechse die Gruppe ueber Jahre zu einem
 # zweiten Topf, genau dem, aus dem sie entstanden ist.
@@ -22144,7 +22463,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
 
 echo
-echo "== NavGroupTest: die beiden Gruppen wachsen wieder zusammen =="
+echo "── NavGroupTest: die beiden Gruppen wachsen wieder zusammen ──"
 #
 # **Zwei Haelften, und das ist der Punkt.** Der erste Wurf entfernte nur die
 # schliessende Klammer; die Gruppenzeile stand weiter da, der Leser sah weiter
@@ -22174,7 +22493,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NavGroupTest passed
 
 echo
-echo "== OperationOriginTest: der Vorgang bekommt keine Herkunft mehr =="
+echo "── OperationOriginTest: der Vorgang bekommt keine Herkunft mehr ──"
 #
 # Einundzwanzig Weiterleitungen enden auf der Vorgangsseite, und bis zum
 # 31. August 2026 fuehrte von dort kein Weg zurueck. Ohne diese eine Zeile ist
@@ -22197,7 +22516,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== OperationOriginTest: die Herkunft bekommt einen Rueckfall =="
+echo "── OperationOriginTest: die Herkunft bekommt einen Rueckfall ──"
 #
 # `url()->previous()` faellt der Reihe nach auf den Referer und dann auf die
 # Wurzel zurueck. Ein Vorgang der Zertifikatsautomatik truege damit `/`, und die
@@ -22217,7 +22536,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== OperationOriginTest: die Kopfzeile heisst am anderen Ende anders =="
+echo "── OperationOriginTest: die Kopfzeile heisst am anderen Ende anders ──"
 #
 # **Die teuerste Naht dieses Merkmals.** Laufen die beiden Namen auseinander,
 # kommt nie eine Herkunft an — und ein Vorgang ohne `←` sieht aus wie einer der
@@ -22237,7 +22556,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== OperationOriginTest: eine fremde Adresse kommt als Herkunft durch =="
+echo "── OperationOriginTest: eine fremde Adresse kommt als Herkunft durch ──"
 #
 # **Gemessen am 1. September 2026** mit dem URL-Parser, den auch der Browser
 # benutzt: `/\evil.example/x` loest gegen `https://panel.example/` zu
@@ -22263,7 +22582,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OriginHeaderTest passed
 
 echo
-echo "== OriginHeaderTest: das Modell ueberschreibt eine gesetzte Herkunft =="
+echo "── OriginHeaderTest: das Modell ueberschreibt eine gesetzte Herkunft ──"
 #
 # `booted()` setzt sie nur, wenn sie leer ist. Ohne die Bedingung verloere eine
 # Stelle, die es besser weiss, ihre Angabe — und zwar wortlos.
@@ -22284,7 +22603,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OriginHeaderTest passed
 
 echo
-echo "== OperationOriginTest: die Herkunft steht da und ist keine Verknuepfung =="
+echo "── OperationOriginTest: die Herkunft steht da und ist keine Verknuepfung ──"
 #
 # Ein Pfad, der nur dasteht, ist kein Weg zurueck — er ist ein Hinweis, den man
 # abtippen muesste. Genau das war der Befund: Die Antwort auf „wie drueck ich
@@ -22309,7 +22628,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== OperationOriginTest: der Gegenstand zeigt auf eine Route, die es nicht gibt =="
+echo "── OperationOriginTest: der Gegenstand zeigt auf eine Route, die es nicht gibt ──"
 #
 # Der Fehler, den dieses Repo sechsmal eingeholt hat: eine Zeichenkette, die auf
 # etwas verweist, ohne dass ein Typ, ein Test oder ein Werkzeug den Bezug
@@ -22329,7 +22648,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== OperationOriginTest: die Seite liest den Gegenstand nicht mehr =="
+echo "── OperationOriginTest: die Seite liest den Gegenstand nicht mehr ──"
 #
 # `subject_type` und `subject_id` gab es seit dem 4. August 2026, und bis zum
 # 31. hat sie keine Oberflaeche gelesen — derselbe Fall wie `context` im
@@ -22354,7 +22673,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== ServicesViewTest: die Uebersicht druckt den Rohwert wieder =="
+echo "── ServicesViewTest: die Uebersicht druckt den Rohwert wieder ──"
 #
 # Befund 5 aus docs/91: Die Uebersicht zeigte `active`, die Dienste-Seite
 # daneben `laeuft` — zwei Seiten, ein Server, zwei Auskuenfte. `WordChoiceTest`
@@ -22375,7 +22694,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServicesViewTest passed
 
 echo
-echo "== OutcomeTest: ein Lauf ohne Anlass ist wieder ein Fehlschlag =="
+echo "── OutcomeTest: ein Lauf ohne Anlass ist wieder ein Fehlschlag ──"
 #
 # Befund 6 aus docs/91, gemessen auf cloudsrv24: Der zweite Druck auf denselben
 # Knopf meldete `fehlgeschlagen` — mit der Zahl `0` im eigenen Satz. „Nichts zu
@@ -22401,7 +22720,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OutcomeTest: die Nachsicht wieder auf einen Modus beschraenkt =="
+echo "── OutcomeTest: die Nachsicht wieder auf einen Modus beschraenkt ──"
 #
 # **Hier stand bis zum 1. September 2026 das Gegenteil.** Der Eingriff nahm die
 # Beschraenkung auf den Zaehlmodus *weg* und erwartete Rot; die Begruendung
@@ -22429,7 +22748,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OperationOriginTest: die Beschriftung traegt die ganze Frage =="
+echo "── OperationOriginTest: die Beschriftung traegt die ganze Frage ──"
 #
 # Gemessen am 31. August 2026 bei 390 px an
 # /updates?nur=sicherheit&herkunft=security.debian.org&name=linux-image-amd64:
@@ -22450,7 +22769,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== OperationOriginTest: der Verweis zeigt auf den gekuerzten Pfad =="
+echo "── OperationOriginTest: der Verweis zeigt auf den gekuerzten Pfad ──"
 #
 # Die Gegenrichtung: Wer zurueckgeht, landete dann auf einer ungefilterten
 # Liste — der Filter, den er gerade gesetzt hatte, waere fort.
@@ -22469,7 +22788,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== MobileTableTest: eine Kennung *in* der Zelle statt an ihr =="
+echo "── MobileTableTest: eine Kennung *in* der Zelle statt an ihr ──"
 #
 # Der Befund vom 31. August, 59 px bei 390 px: `table.pairs td.right.ident`
 # loest die Zelle aus ihrem `flex: none`. Eine Kennung, die nur in ihr steht,
@@ -22499,7 +22818,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MobileTableTest passed
 
 echo
-echo "== MobileTableTest: der Objektschluessel wird zur festen Klasse =="
+echo "── MobileTableTest: der Objektschluessel wird zur festen Klasse ──"
 #
 # Die andere Haelfte der Regel: Eine Zelle, die einmal einen gesprochenen Satz
 # und einmal eine Kennung zeigt, traegt `ident` an einer Bedingung. Ein festes
@@ -22523,7 +22842,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MobileTableTest passed
 
 echo
-echo "== OperationOriginTest: eine anlegende Stelle setzt die Herkunft selbst =="
+echo "── OperationOriginTest: eine anlegende Stelle setzt die Herkunft selbst ──"
 #
 # Die Gegenrichtung, und sie ist die, die am 31. August gefehlt hat. Der alte
 # Wächter fragte, ob *eine* Stelle die Herkunft setzt — und uebersah, dass es
@@ -22544,7 +22863,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OperationOriginTest passed
 
 echo
-echo "== UpdateWaitTest: der Rueckgabewert kommt nicht mehr aus dem Urteil =="
+echo "── UpdateWaitTest: der Rueckgabewert kommt nicht mehr aus dem Urteil ──"
 #
 # Form A aus docs/86 §5 an der Kommandozeile: `srvpanel update && …` bekam fuer
 # ein misslungenes Update ein `ok`, weil der Befehl nur das Absetzen meldete.
@@ -22563,7 +22882,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
-echo "== UpdateWaitTest: vorgeladen wird erst nach dem Absetzen =="
+echo "── UpdateWaitTest: vorgeladen wird erst nach dem Absetzen ──"
 #
 # Die Bauvorschrift aus M1 (docs/94 §6): Nach dem Umschalten ist das
 # Fassungsverzeichnis fort, und agent/ liegt darin. Ein class_exists() danach
@@ -22590,7 +22909,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
-echo "== UpdateWaitTest: eine abgelaufene Frist gilt als Erfolg =="
+echo "── UpdateWaitTest: eine abgelaufene Frist gilt als Erfolg ──"
 #
 # Ein Rueckgabewert kennt kein „ich weiss es nicht". Er faellt zur Seite, die
 # den Aufrufer anhalten laesst — sonst macht ein Skript weiter, obwohl nichts
@@ -22613,7 +22932,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
-echo "== UpdateWaitTest: die Warteschleife kehrt zurueck, statt zu beenden =="
+echo "── UpdateWaitTest: die Warteschleife kehrt zurueck, statt zu beenden ──"
 #
 # Gemessen am 1. September 2026 auf cloudsrv24 (docs/96 §1): Nach dem
 # Symlink-Wechsel zeigt der Autolader dieses Prozesses in ein Verzeichnis, das
@@ -22634,7 +22953,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
-echo "== AptResultTest: die eigene Quelle wird erst nach dem Auffrischen gefragt =="
+echo "── AptResultTest: die eigene Quelle wird erst nach dem Auffrischen gefragt ──"
 #
 # Gemessen am 1. September 2026 auf cloudsrv24 (docs/96 §4b): Mit Enabled: no an
 # der eigenen Quelle meldete srvpanel update gruen "Es stand nichts an". Nach dem
@@ -22658,7 +22977,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
 
 echo
-echo "== AptResultTest: hitting() bekommt wieder alle Adressen =="
+echo "── AptResultTest: hitting() bekommt wieder alle Adressen ──"
 #
 # Eine abgeschaltete Stanza kann keinen Fehlschlag erzeugt haben; sie mitzufuehren
 # hiesse, in den Meldungen nach einer Quelle zu suchen, die apt nie angefasst hat.
@@ -22677,7 +22996,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptResultTest passed
 
 echo
-echo "== SourceListTest: enabledUris uebergeht Enabled =="
+echo "── SourceListTest: enabledUris uebergeht Enabled ──"
 #
 # Ohne diese Frage zaehlt eine abgeschaltete Quelle als Adresse in Kraft — und
 # der Abbruch bliebe aus, fuer den es sie gibt.
@@ -22699,7 +23018,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SourceListTest passed
 
 echo
-echo "== UpdateWaitTest: der Vorbehalt haengt an nichts =="
+echo "── UpdateWaitTest: der Vorbehalt haengt an nichts ──"
 #
 # Gemessen am 1. September 2026 auf cloudsrv24 (docs/96 §2): Unter dem gruenen
 # "Es stand nichts an — Fassung unveraendert" stand der Satz ueber die
@@ -22719,7 +23038,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
-echo "== OutcomeTest: unchanged() sagt zu jedem Urteil ja =="
+echo "── OutcomeTest: unchanged() sagt zu jedem Urteil ja ──"
 #
 # Ein unchanged(), das immer ja sagt, naehme den Vorbehalt auch dem Lauf weg,
 # der ihn braucht — der Fehler faellt dann zur unsicheren Seite.
@@ -22738,7 +23057,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OutcomeTest: die Naht zu apt-run laeuft auseinander =="
+echo "── OutcomeTest: die Naht zu apt-run laeuft auseinander ──"
 #
 # Der Satz steht danach nur noch im Kommentar — roh gelesen faende ein Waechter
 # ihn, mit abgestreiften Kommentaren nicht. Der Fehler faellt hier zur harmlosen
@@ -22759,7 +23078,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== UpdateWaitTest: Warten ist nicht mehr die Vorgabe =="
+echo "── UpdateWaitTest: Warten ist nicht mehr die Vorgabe ──"
 #
 # Der Fall, der stillschweigend das Falsche tat, war der ohne Fahne. Eine
 # Vorgabe, die zurueckfaellt, laesst den Befund bestehen — nur mit einer Fahne
@@ -22779,7 +23098,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
-echo "== UpdateWaitTest: das Log wird erst nach dem Absetzen geleert =="
+echo "── UpdateWaitTest: das Log wird erst nach dem Absetzen geleert ──"
 #
 # **Der erste Wurf dieses Eingriffs hat gewirkt und nichts belegt.** Er schob
 # `@unlink` nur naeher an den Aufruf — textlich immer noch davor, die Regel also
@@ -22807,7 +23126,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UpdateWaitTest passed
 
 echo
-echo "== OutcomeTest: eine Fortschrittszeile traegt wieder den Praefix =="
+echo "── OutcomeTest: eine Fortschrittszeile traegt wieder den Praefix ──"
 #
 # **Der Zustand vom Morgen des 1. September 2026**, wortwoertlich. `srvpanel
 # update` meldete nach zwei Sekunden „Paketlisten werden aufgefrischt." als
@@ -22834,7 +23153,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OutcomeTest: ein Urteil ohne exit =="
+echo "── OutcomeTest: ein Urteil ohne exit ──"
 #
 # Die Regel gilt in beide Richtungen: Was den Praefix traegt, beendet den Lauf.
 # Ein Urteil, das weiterlaeuft, wuerde von der naechsten Zeile ueberschrieben.
@@ -22853,7 +23172,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OutcomeTest: die Fortschrittsmeldung verschwindet ganz =="
+echo "── OutcomeTest: die Fortschrittsmeldung verschwindet ganz ──"
 #
 # Die Gegenrichtung, damit die Regel nicht auch dadurch zu erfuellen ist, dass
 # der Betreiber die Meldung gar nicht mehr sieht.
@@ -22872,7 +23191,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OutcomeTest: apt-run frischt wieder selbst auf =="
+echo "── OutcomeTest: apt-run frischt wieder selbst auf ──"
 #
 # Die dritte Richtung derselben Naht: Stuende die Meldung an beiden Stellen,
 # erschiene sie zweimal — und die zweite kaeme aus einem Lauf, der gar nicht
@@ -22893,7 +23212,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OutcomeTest: anstand wird erst nach dem Lauf gemessen =="
+echo "── OutcomeTest: anstand wird erst nach dem Lauf gemessen ──"
 #
 # **Die Reihenfolge ist die Regel.** Danach gemessen sagt `anstand` nichts
 # darueber, was vorher anstand — es waere immer 0, und jeder Lauf meldete „es
@@ -22917,7 +23236,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== OutcomeTest: ansteht liest apts Klartext statt der Marke =="
+echo "── OutcomeTest: ansteht liest apts Klartext statt der Marke ──"
 #
 # **Genau der Entwurf, den Befund 2 vorschlug.** Der Satz „ist schon die neueste
 # Version" steht im Protokoll und sah nach der fehlenden Auskunft aus — apt
@@ -22939,7 +23258,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutcomeTest passed
 
 echo
-echo "== FindingIdentityTest: first_seen_at bei jedem Lauf neu =="
+echo "── FindingIdentityTest: first_seen_at bei jedem Lauf neu ──"
 #
 # Die Kennung eines Befundes ist check+subject+reason. Bleibt first_seen_at
 # nicht stehen, zieht jeder Lauf das "steht seit" auf heute -- Punkt 8 des
@@ -22963,7 +23282,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
 
 echo
-echo "== FindingIdentityTest: der Wortlaut wird Teil der Kennung =="
+echo "── FindingIdentityTest: der Wortlaut wird Teil der Kennung ──"
 #
 # Jede [emerg]-Zeile von nginx traegt Datum und Prozessnummer, jede Zeile von
 # php-fpm ein Datum (docs/81 §2.3o M9). Gehoerte detail zur Kennung, ergaebe
@@ -22987,7 +23306,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
 
 echo
-echo "== FindingIdentityTest: eine ausgefallene Pruefung loescht =="
+echo "── FindingIdentityTest: eine ausgefallene Pruefung loescht ──"
 #
 # Die Haelfte, die still bricht. Ein Lauf, der bei einem Fehlschlag
 # "nichts gefunden" meldete, machte aus "nicht gemessen" ein "alles in
@@ -23015,7 +23334,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
 
 echo
-echo "== FindingIdentityTest: ein unbekannter Grund kommt durch =="
+echo "── FindingIdentityTest: ein unbekannter Grund kommt durch ──"
 #
 # Der Grund kommt aus dem Code, der den Befund anlegt, und nie von aussen.
 # Ein unbekannter ist ein Programmierfehler und soll einer bleiben -- sonst
@@ -23035,7 +23354,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
 
 echo
-echo "== FindingIdentityTest: ein behobener Befund bleibt stehen =="
+echo "── FindingIdentityTest: ein behobener Befund bleibt stehen ──"
 #
 # Punkt 2 des Abnahmekriteriums: Nach dem Zurueckliegen ist der Befund im
 # uebernaechsten Lauf fort. Ohne das haeuft die Seite an, was einmal war.
@@ -23043,7 +23362,7 @@ vorher_datei app/Support/Diagnose/FindingLog.php
 python3 - <<'PY2'
 p = 'app/Support/Diagnose/FindingLog.php'
 s = open(p, encoding='utf-8').read()
-alt = """        $this->forgetMissing($check, $seen);\n"""
+alt = """        $this->forgetMissing($check, $seen, $measuredAt);\n"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
 PY2
@@ -23054,7 +23373,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
 
 echo
-echo "== FindingIdentityTest: der Wortlaut wird nicht gekuerzt =="
+echo "── FindingIdentityTest: der Wortlaut wird nicht gekuerzt ──"
 #
 # docs/45: Die Begruendung passte nicht in ihre Spalte, die PDOException riss
 # den catch-Zweig mit, und der Vorgang meldete "vermutlich
@@ -23075,7 +23394,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingIdentityTest passed
 
 echo
-echo "== DiagnoseCatalogTest: unreachable ergibt Ok =="
+echo "── DiagnoseCatalogTest: unreachable ergibt Ok ──"
 #
 # Die Regel, an der alles haengt. Ein Diagnoselauf, der bei totem Agenten
 # Entwarnung gibt, ist schlimmer als keiner (docs/44).
@@ -23097,7 +23416,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
 
 echo
-echo "== DiagnoseCatalogTest: eine Pruefung verliert ihr unreachable =="
+echo "── DiagnoseCatalogTest: eine Pruefung verliert ihr unreachable ──"
 #
 # Die Gegenrichtung. Ohne sie fiele eine neue Pruefung, die den Grund zu
 # tragen vergisst, niemandem auf -- sie meldete bei einem Ausfall nichts.
@@ -23123,7 +23442,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
 
 echo
-echo "== DiagnoseCatalogTest: ein Grund urteilt Ok =="
+echo "── DiagnoseCatalogTest: ein Grund urteilt Ok ──"
 #
 # Ein Befund ist der Ort, an dem etwas nicht stimmt. Ein Ok erzeugt keine
 # Zeile -- stuende es in der Liste, haette jemand eine Zeile gebaut, die auf
@@ -23146,7 +23465,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
 
 echo
-echo "== DiagnoseCatalogTest: ein Grund in deutscher Schreibweise =="
+echo "── DiagnoseCatalogTest: ein Grund in deutscher Schreibweise ──"
 #
 # Bezeichner sind englisch (docs/19 §4a), und der Schluessel steht im
 # unique-Index. Eine gemischte Schreibweise faellt sonst erst auf, wenn
@@ -23166,7 +23485,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
 
 echo
-echo "== DiagnoseCatalogTest: ein Satz ist keiner =="
+echo "── DiagnoseCatalogTest: ein Satz ist keiner ──"
 #
 # Der Administrator sieht subject und diesen Satz; der Wortlaut des Werkzeugs
 # bleibt dem Betreiber (docs/98 §9 Frage 5). Ein Fragment waere fuer ihn die
@@ -23186,7 +23505,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
 
 echo
-echo "== FindingStateTest: Unknown bekommt die Marke critical =="
+echo "── FindingStateTest: Unknown bekommt die Marke critical ──"
 #
 # "Nicht gemessen" ist kein Zustand, sondern eine Abwesenheit. Ein rotes
 # Signal behauptete, es sei etwas kaputt, und schickte den Betreiber auf die
@@ -23206,7 +23525,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
 
 echo
-echo "== FindingStateTest: Unknown rutscht unter Warn =="
+echo "── FindingStateTest: Unknown rutscht unter Warn ──"
 #
 # Eine Pruefung, die nicht gelaufen ist, kann alles verbergen -- auch ein
 # Fail. Sie gehoert weit nach oben und trotzdem unter das, was gemessen
@@ -23226,7 +23545,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
 
 echo
-echo "== FindingStateTest: Unknown erzeugt keine Zeile mehr =="
+echo "── FindingStateTest: Unknown erzeugt keine Zeile mehr ──"
 #
 # Der Ausfall einer Pruefung muss auf der Seite stehen. Sonst sieht er aus
 # wie Entwarnung, und das ist genau der Zustand, gegen den es den vierten
@@ -23247,7 +23566,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
 
 echo
-echo "== FindingStateTest: der Hinweis zu Unknown gibt Entwarnung =="
+echo "── FindingStateTest: der Hinweis zu Unknown gibt Entwarnung ──"
 #
 # Derselbe Satz wie bei DnsRecordState::hint(): Ein Hinweis, der bei
 # "nicht gemessen" zum Nichtstun einlaedt, ist die Fehlmeldung, gegen die es
@@ -23267,7 +23586,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
 
 echo
-echo "== FindingStateTest: die Tabelle bekommt eine state-Spalte =="
+echo "── FindingStateTest: die Tabelle bekommt eine state-Spalte ──"
 #
 # Die Schwere folgt aus check und reason. Eine Spalte daneben ist die zweite
 # Fassung derselben Regel, und die zweite ist die, die veraltet.
@@ -23288,7 +23607,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FindingStateTest passed
 
 echo
-echo "== ManagedBlockIntegrityTest: der Leser uebersieht ein BEGIN ohne END =="
+echo "── ManagedBlockIntegrityTest: der Leser uebersieht ein BEGIN ohne END ──"
 #
 # Der Zustand, den Regel 5 fuer fatal erklaert, und den vor Schritt 2 nur der
 # Schreibweg sah (docs/81 §2.3o M15). Ein Leser, der ihn uebersieht, ist der
@@ -23308,7 +23627,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
 
 echo
-echo "== ManagedBlockIntegrityTest: der zweite Bereich bleibt unbemerkt =="
+echo "── ManagedBlockIntegrityTest: der zweite Bereich bleibt unbemerkt ──"
 #
 # managed() uebergeht einen zweiten Block stillschweigend (M14) -- und genau
 # so sieht ein halb durchgelaufener Schreibvorgang aus.
@@ -23327,7 +23646,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
 
 echo
-echo "== ManagedBlockIntegrityTest: ein END ohne BEGIN gilt als 'kein Bereich' =="
+echo "── ManagedBlockIntegrityTest: ein END ohne BEGIN gilt als 'kein Bereich' ──"
 #
 # Der Zustand, den BEGIN-entfernt und Marke-veraendert beide hinterlassen: Die
 # Zeilen bleiben fuer den Dienst wirksam, verwaltet werden sie von niemandem,
@@ -23347,7 +23666,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
 
 echo
-echo "== ManagedBlockIntegrityTest: die Zeilennummern zaehlen ab 0 =="
+echo "── ManagedBlockIntegrityTest: die Zeilennummern zaehlen ab 0 ──"
 #
 # Der Betreiber sucht die Zeile in seinem Editor, und without() zaehlt ab 1.
 vorher_datei agent/src/ManagedBlock.php
@@ -23365,7 +23684,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
 
 echo
-echo "== ManagedBlockIntegrityTest: der Leser liefert andere Zeilen als managed() =="
+echo "── ManagedBlockIntegrityTest: der Leser liefert andere Zeilen als managed() ──"
 #
 # Zwei Lesarten desselben Inhalts sind zwei Fassungen derselben Regel.
 vorher_datei agent/src/ManagedBlock.php
@@ -23383,7 +23702,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
 
 echo
-echo "== ManagedBlockIntegrityTest: der Leser fasst eine Datei an =="
+echo "── ManagedBlockIntegrityTest: der Leser fasst eine Datei an ──"
 #
 # Die Unterschrift nimmt einen Inhalt und keinen Pfad; wer "nur kurz" einen
 # Pfad durchreicht, hat einen zweiten Leser neben read() gebaut -- ohne Sperre.
@@ -23411,7 +23730,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
 
 echo
-echo "== ManagedBlockIntegrityTest: der Leser wirft wie der Schreiber =="
+echo "── ManagedBlockIntegrityTest: der Leser wirft wie der Schreiber ──"
 #
 # Ein Leser, der bei BEGIN ohne END wirft, ist without() mit neuem Namen --
 # und eine Diagnose, die an ihrem ersten Fund abbricht, meldet die anderen
@@ -23438,7 +23757,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
 
 echo
-echo "== ManagedBlockIntegrityTest: managed() bricht wieder am ersten END =="
+echo "── ManagedBlockIntegrityTest: managed() bricht wieder am ersten END ──"
 #
 # M22: Ein verirrtes END vor dem Bereich machte managed() leer, waehrend
 # without() den Bereich heil vorfand. PgRoleRemove haette daraus ein leeres
@@ -23462,7 +23781,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockIntegrityTest passed
 
 echo
-echo "== ValidatorVerdictTest: das Urteil liest 'syntax is ok' statt des Rueckgabewerts =="
+echo "── ValidatorVerdictTest: das Urteil liest 'syntax is ok' statt des Rueckgabewerts ──"
 #
 # M4: nginx schreibt 'syntax is ok' auch in einen Lauf, der mit rc=1 endet.
 # Ein Leser, der die Zeile sucht, meldet Gruen fuer einen gescheiterten Lauf.
@@ -23482,7 +23801,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ValidatorVerdictTest passed
 
 echo
-echo "== ValidatorVerdictTest: der Kanal entscheidet =="
+echo "── ValidatorVerdictTest: der Kanal entscheidet ──"
 #
 # M5: alle drei schreiben auf stderr, auch im Erfolgsfall; sshd schreibt im
 # Erfolgsfall nichts.
@@ -23502,7 +23821,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ValidatorVerdictTest passed
 
 echo
-echo "== QuotaVerdictTest: die dritte Zeile wird zur Entwarnung =="
+echo "── QuotaVerdictTest: die dritte Zeile wird zur Entwarnung ──"
 #
 # M11: Datei da, Quota aus — der Zustand, den das Panel bis A10 als
 # Entwarnung gelesen hat.
@@ -23521,7 +23840,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" QuotaVerdictTest passed
 
 echo
-echo "== QuotaVerdictTest: das Urteil traut dem Rueckgabewert von quotaon =="
+echo "── QuotaVerdictTest: das Urteil traut dem Rueckgabewert von quotaon ──"
 #
 # M10: er ist in jedem gemessenen Zustand 0.
 vorher_datei agent/src/Diagnose/Verdict.php
@@ -23544,7 +23863,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" QuotaVerdictTest passed
 
 echo
-echo "== QuotaVerdictTest: nur stdout wird gelesen =="
+echo "── QuotaVerdictTest: nur stdout wird gelesen ──"
 #
 # M10: ohne Mount-Option antwortet quotaon auf stderr.
 vorher_datei agent/src/Diagnose/Verdict.php
@@ -23562,7 +23881,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" QuotaVerdictTest passed
 
 echo
-echo "== KeyVerdictTest: ein abgelaufener Schluessel neben einem gueltigen faellt durch =="
+echo "── KeyVerdictTest: ein abgelaufener Schluessel neben einem gueltigen faellt durch ──"
 vorher_datei agent/src/Diagnose/Verdict.php
 python3 - <<'PY2'
 p = 'agent/src/Diagnose/Verdict.php'
@@ -23581,7 +23900,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" KeyVerdictTest passed
 
 echo
-echo "== DiagnoseWriteTest: die Diagnose legt /run/sshd an =="
+echo "── DiagnoseWriteTest: die Diagnose legt /run/sshd an ──"
 #
 # Die eine Zeile, die verlockend war (docs/98 §5.1).
 vorher_datei agent/src/Ops/SystemDiagnose.php
@@ -23604,7 +23923,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
 
 echo
-echo "== DiagnoseWriteTest: quotaon ohne -p =="
+echo "── DiagnoseWriteTest: quotaon ohne -p ──"
 #
 # Ohne -p schaltet quotaon die Quota ein.
 vorher_datei agent/src/Ops/SystemDiagnose.php
@@ -23622,7 +23941,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
 
 echo
-echo "== DiagnoseWriteTest: die Operation erklaert sich als schreibend =="
+echo "── DiagnoseWriteTest: die Operation erklaert sich als schreibend ──"
 vorher_datei agent/src/Ops/SystemDiagnose.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/SystemDiagnose.php'
@@ -23641,7 +23960,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
 
 echo
-echo "== DiagnoseSeamTest: der Agent spricht einen Grund aus, den das Panel nicht kennt =="
+echo "── DiagnoseSeamTest: der Agent spricht einen Grund aus, den das Panel nicht kennt ──"
 #
 # FindingLog wuerfe nachts.
 vorher_datei agent/src/Diagnose/Verdict.php
@@ -23659,7 +23978,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
 
 echo
-echo "== DiagnoseSeamTest: die Operation nimmt einen Schluessel ohne Urteil =="
+echo "── DiagnoseSeamTest: die Operation nimmt einen Schluessel ohne Urteil ──"
 vorher_datei agent/src/Ops/SystemDiagnose.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/SystemDiagnose.php'
@@ -23675,7 +23994,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
 
 echo
-echo "== SiteFileIntegrityTest: der Schnitt sieht die verschluckte Anweisung nicht =="
+echo "── SiteFileIntegrityTest: der Schnitt sieht die verschluckte Anweisung nicht ──"
 #
 # M3 Fall 1: server_name ohne Semikolon verschluckt das naechste server_name.
 # Die erste Frage ("steht sie als Anweisung da") sieht das nicht — nur die
@@ -23700,7 +24019,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
 
 echo
-echo "== SiteFileIntegrityTest: der Schnitt zaehlt Kommentare mit =="
+echo "── SiteFileIntegrityTest: der Schnitt zaehlt Kommentare mit ──"
 #
 # Ein Kommentar, der die verlorene Anweisung nennt, stellt sie wieder her —
 # derselbe Fehler wie bei OutcomeTest am 1. September, andersherum.
@@ -23719,7 +24038,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
 
 echo
-echo "== SiteFileIntegrityTest: die Operation sucht die Zeichenkette =="
+echo "── SiteFileIntegrityTest: die Operation sucht die Zeichenkette ──"
 #
 # Genau die Textsuche, die M21 gruen gezeigt hat, waehrend die Domain kein
 # Protokoll mehr schrieb.
@@ -23746,7 +24065,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
 
 echo
-echo "== SiteFileIntegrityTest: eine leere Datei gilt als heil =="
+echo "── SiteFileIntegrityTest: eine leere Datei gilt als heil ──"
 vorher_datei agent/src/Diagnose/Verdict.php
 python3 - <<'PY2'
 p = 'agent/src/Diagnose/Verdict.php'
@@ -23765,7 +24084,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
 
 echo
-echo "== PromiseReachTest: die Zusage ist groesser als die Vorlage =="
+echo "── PromiseReachTest: die Zusage ist groesser als die Vorlage ──"
 #
 # 'deny' steht nur in der ausliefernden Form. Zugesagt, meldete die Diagnose
 # jede Nacht jede gesperrte und jede weiterleitende Domain.
@@ -23784,7 +24103,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
 
 echo
-echo "== PromiseReachTest: die Zusage ist kleiner als die Vorlage =="
+echo "── PromiseReachTest: die Zusage ist kleiner als die Vorlage ──"
 #
 # access_log steht in jeder Form — nicht zugesagt, bliebe M3 Fall 2 stumm.
 vorher_datei agent/src/SiteTemplate.php
@@ -23802,7 +24121,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
 
 echo
-echo "== PromiseReachTest: die Pool-Zusage verliert die Abschottung =="
+echo "── PromiseReachTest: die Pool-Zusage verliert die Abschottung ──"
 vorher_datei agent/src/PoolTemplate.php
 python3 - <<'PY2'
 p = 'agent/src/PoolTemplate.php'
@@ -23820,7 +24139,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
 
 echo
-echo "== DiagnoseSeamTest: web.file spricht einen Grund, den das Panel nicht kennt =="
+echo "── DiagnoseSeamTest: web.file spricht einen Grund, den das Panel nicht kennt ──"
 vorher_datei agent/src/Diagnose/Verdict.php
 python3 - <<'PY2'
 p = 'agent/src/Diagnose/Verdict.php'
@@ -23836,7 +24155,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
 
 echo
-echo "== UnitVerdictTest: ein startender Dienst wird gemeldet =="
+echo "── UnitVerdictTest: ein startender Dienst wird gemeldet ──"
 #
 # Vier Type=oneshot-Dienste dieses Pakets stehen waehrend ihres Laufs auf
 # `activating`, und srvpanel-usage.timer feuert alle fuenfzehn Minuten. Als
@@ -23856,7 +24175,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitVerdictTest passed
 
 echo
-echo "== UnitVerdictTest: derselbe Schaden steht zweimal da =="
+echo "── UnitVerdictTest: derselbe Schaden steht zweimal da ──"
 #
 # Ein gestoppter Timer meldet `inactive` UND keinen Termin. Ohne den Ausstieg
 # stuende er als Zustand und als Termin da — zwei Zeilen fuer einen Schaden.
@@ -23877,7 +24196,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitVerdictTest passed
 
 echo
-echo "== UnitVerdictTest: die fremde Unit, die es nicht gibt, wird gemeldet =="
+echo "── UnitVerdictTest: die fremde Unit, die es nicht gibt, wird gemeldet ──"
 #
 # Catalog::pick() faellt auf den ersten Kandidaten zurueck: Auf einem Server ohne
 # MariaDB kaeme mariadb.service als not-found zurueck — jede Nacht.
@@ -23898,7 +24217,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitVerdictTest passed
 
 echo
-echo "== UnitVerdictTest: die Seite urteilt anders als die Nacht annimmt =="
+echo "── UnitVerdictTest: die Seite urteilt anders als die Nacht annimmt ──"
 #
 # Der Stolperdraht: Aendert sich rang(), ist zu entscheiden, ob der Nachtlauf
 # mitzieht. Ohne ihn liefen die beiden Fassungen unbemerkt auseinander.
@@ -23917,7 +24236,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitVerdictTest passed
 
 echo
-echo "== CertificateVerdictTest: die Leitung wird immer gefragt =="
+echo "── CertificateVerdictTest: die Leitung wird immer gefragt ──"
 #
 # Frage 3 aus docs/98 §9, mit c entschieden: Ein abgelaufenes Zertifikat wird
 # auch ueber die Leitung abgelaufen ausgeliefert — zwei Befunde fuer eine Ursache.
@@ -23942,7 +24261,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateVerdictTest passed
 
 echo
-echo "== CertificateVerdictTest: verglichen wird das Ablaufdatum =="
+echo "── CertificateVerdictTest: verglichen wird das Ablaufdatum ──"
 #
 # Zwei Zertifikate derselben Stunde tragen dasselbe Ablaufdatum; der
 # Fingerabdruck ist der Vergleich, den M23 belegt hat.
@@ -23961,7 +24280,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateVerdictTest passed
 
 echo
-echo "== CertificateVerdictTest: die Frist ist nicht dreissig Tage =="
+echo "── CertificateVerdictTest: die Frist ist nicht dreissig Tage ──"
 vorher_datei app/Support/Diagnose/Checks/Certificates.php
 python3 - <<'PY2'
 p = 'app/Support/Diagnose/Checks/Certificates.php'
@@ -23977,7 +24296,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateVerdictTest passed
 
 echo
-echo "== SystemUserVerdictTest: gefragt wird die Wurzel statt httpdocs =="
+echo "── SystemUserVerdictTest: gefragt wird die Wurzel statt httpdocs ──"
 #
 # Die Wurzel gehoert root:root — ihr Zugriffsbit ist der Schalter von
 # subscription.suspend. Wer sie fragt, meldet jedes Abonnement als wrong_owner.
@@ -23996,7 +24315,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SystemUserVerdictTest passed
 
 echo
-echo "== OrphanRowTest: die Reservierung selbst gilt als Rest =="
+echo "── OrphanRowTest: die Reservierung selbst gilt als Rest ──"
 #
 # system_users fuehrt jede Nummer fuer immer (docs/35). Eine Zeile ohne
 # Abonnement ist der Normalzustand nach jedem Rueckbau — gemeldet stuende sie
@@ -24016,7 +24335,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OrphanRowTest passed
 
 echo
-echo "== DiagnoseWriteTest: die Diagnose raeumt auf =="
+echo "── DiagnoseWriteTest: die Diagnose raeumt auf ──"
 #
 # docs/98 §5.1: Ein Diagnoselauf, der schreibt, ist der naechste Schreiber in
 # derselben Datei. CertificatePrune::forget() haette den Griff dafuer.
@@ -24036,7 +24355,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
 
 echo
-echo "== DiagnoseSeamTest: eine Pruefung im Panel spricht einen fremden Grund =="
+echo "── DiagnoseSeamTest: eine Pruefung im Panel spricht einen fremden Grund ──"
 vorher_datei app/Support/Diagnose/Checks/SystemUsers.php
 python3 - <<'PY2'
 p = 'app/Support/Diagnose/Checks/SystemUsers.php'
@@ -24052,7 +24371,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
 
 echo
-echo "== DiagnoseSeamTest: ein Grund im Katalog verliert seinen Sprecher =="
+echo "── DiagnoseSeamTest: ein Grund im Katalog verliert seinen Sprecher ──"
 vorher_datei app/Support/Diagnose/Checks/Units.php
 python3 - <<'PY2'
 p = 'app/Support/Diagnose/Checks/Units.php'
@@ -24068,7 +24387,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
 
 echo
-echo "== DiagnoseCatalogTest: system.user ohne unreachable und ohne Begruendung =="
+echo "── DiagnoseCatalogTest: system.user ohne unreachable und ohne Begruendung ──"
 vorher_datei tests/Unit/DiagnoseCatalogTest.php
 python3 - <<'PY2'
 p = 'tests/Unit/DiagnoseCatalogTest.php'
@@ -24085,7 +24404,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseCatalogTest passed
 
 echo
-echo "== ManagedBlockDriftTest: die fremde Zeile kommt als unsere zurueck =="
+echo "── ManagedBlockDriftTest: die fremde Zeile kommt als unsere zurueck ──"
 #
 # Der Fund aus M16: Ein `host all all 0.0.0.0/0 trust` innerhalb der Marken
 # oeffnet jede Datenbank dieses Servers fuer jeden — und liest sich als unsere.
@@ -24104,7 +24423,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== ManagedBlockDriftTest: der Abgleich kennt nur eine Richtung =="
+echo "── ManagedBlockDriftTest: der Abgleich kennt nur eine Richtung ──"
 #
 # Die Haelfte, die srvpanel db im August 2026 gekostet hat: Ein gescheiterter
 # Schreibvorgang liess seine Zeile im Bestand stehen, und die Datei hatte nichts.
@@ -24123,7 +24442,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== ManagedBlockDriftTest: je Zeile ein Befund statt je Art =="
+echo "── ManagedBlockDriftTest: je Zeile ein Befund statt je Art ──"
 #
 # Die Kennung ist check+subject+reason. Drei fremde Zeilen ergaeben dreimal
 # dieselbe Kennung — und damit eine Zeile, in der nur die letzte steht.
@@ -24147,7 +24466,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== ManagedBlockDriftTest: der fehlende Block wird auch ohne Bestand gemeldet =="
+echo "── ManagedBlockDriftTest: der fehlende Block wird auch ohne Bestand gemeldet ──"
 #
 # Ein Server ohne Fernzugriff und ohne SFTP-Schluessel hat keinen Bereich in
 # diesen Dateien. Jede Nacht eine Zeile darueber ist die Falle aus docs/98 §4.
@@ -24169,7 +24488,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== ManagedBlockDriftTest: der Sollzustand wird nachgebaut =="
+echo "── ManagedBlockDriftTest: der Sollzustand wird nachgebaut ──"
 #
 # SshdConfig::lines() baut genau die Zeilen, die sftp.access schreiben wuerde.
 # Wer sie hier nachschreibt, hat eine zweite Fassung — und die veraltet.
@@ -24189,7 +24508,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== DiagnoseRunTest: eine zweite Pruefung schreibt block.integrity =="
+echo "── DiagnoseRunTest: eine zweite Pruefung schreibt block.integrity ──"
 #
 # FindingLog::replace() ersetzt alle Zeilen einer Pruefung — die zweite loeschte
 # die Befunde der ersten, und welche zuletzt liefe, entschiede die Reihenfolge.
@@ -24223,7 +24542,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
-echo "== DiagnoseSeamTest: ein sprachloser Grund steht wieder in der Ausnahmeliste =="
+echo "── DiagnoseSeamTest: ein sprachloser Grund steht wieder in der Ausnahmeliste ──"
 #
 # Die Liste ist leer, und das ist eine Aussage. Ein Eintrag darin, dessen Grund
 # einen Sprecher hat, ist genau der tote Eintrag, den sie verhindern soll.
@@ -24243,7 +24562,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseSeamTest passed
 
 echo
-echo "== ManagedBlockDriftTest: die Rolle wird am Pfad geraten =="
+echo "── ManagedBlockDriftTest: die Rolle wird am Pfad geraten ──"
 #
 # pg_hba.conf liegt nicht ueberall gleich. Ein Vergleich am Dateinamen taete bei
 # der ersten Distribution mit anderem Ablageort still das Falsche.
@@ -24263,7 +24582,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== DiagnoseWriteTest: die neue Pruefung steht nicht im Wachbereich =="
+echo "── DiagnoseWriteTest: die neue Pruefung steht nicht im Wachbereich ──"
 vorher_datei tests/Unit/DiagnoseWriteTest.php
 python3 - <<'PY2'
 p = 'tests/Unit/DiagnoseWriteTest.php'
@@ -24280,7 +24599,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseWriteTest passed
 
 echo
-echo "== DiagnoseRunTest: jede Pruefung nimmt sich ihren eigenen Zeitpunkt =="
+echo "── DiagnoseRunTest: jede Pruefung nimmt sich ihren eigenen Zeitpunkt ──"
 #
 # Dann staenden auf der Seite so viele Werte fuer "zuletzt gemessen", wie es
 # Pruefungen gibt, und sie unterschieden sich um Millisekunden.
@@ -24299,7 +24618,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
-echo "== DiagnoseRunTest: eine Ausnahme nimmt den Rest des Laufs mit =="
+echo "── DiagnoseRunTest: eine Ausnahme nimmt den Rest des Laufs mit ──"
 vorher_datei app/Support/Diagnose/Run.php
 python3 - <<'PY2'
 p = 'app/Support/Diagnose/Run.php'
@@ -24321,7 +24640,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
-echo "== DiagnoseRunTest: eine Pruefung steht nicht im Katalog =="
+echo "── DiagnoseRunTest: eine Pruefung steht nicht im Katalog ──"
 #
 # Eine Pruefung, die niemand faehrt, ist Code ohne Wirkung — und von aussen
 # nicht von einer zu unterscheiden, die es nicht gibt.
@@ -24341,7 +24660,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
-echo "== DiagnoseRunTest: der Sammelaufruf holt auch block.integrity =="
+echo "── DiagnoseRunTest: der Sammelaufruf holt auch block.integrity ──"
 #
 # FindingLog::replace() ersetzt alle Zeilen einer Pruefung. Zwei Schreiber
 # loeschten einander die Befunde weg.
@@ -24363,7 +24682,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
-echo "== DiagnoseRunTest: ein Schluessel des Agenten wird von niemandem geholt =="
+echo "── DiagnoseRunTest: ein Schluessel des Agenten wird von niemandem geholt ──"
 vorher_datei app/Support/Diagnose/Checks/Agent.php
 python3 - <<'PY2'
 p = 'app/Support/Diagnose/Checks/Agent.php'
@@ -24380,7 +24699,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
-echo "== OneshotDeadlineTest: der Nachtlauf hat keine Frist =="
+echo "── OneshotDeadlineTest: der Nachtlauf hat keine Frist ──"
 #
 # Ein Type=oneshot ohne eigene Angabe laeuft ohne Frist — gemessen auf
 # cloudsrv24: TimeoutStartUSec=infinity. Ein Haenger nimmt alle folgenden mit.
@@ -24399,7 +24718,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OneshotDeadlineTest passed
 
 echo
-echo "== UnitCatalogTest: die neuen Units stehen nicht im Katalog =="
+echo "── UnitCatalogTest: die neuen Units stehen nicht im Katalog ──"
 #
 # Dann zeigt die Dienste-Seite sie nicht — und die Diagnose saehe sich selbst
 # nicht, obwohl sie jeden anderen Timer prueft.
@@ -24420,7 +24739,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitCatalogTest passed
 
 echo
-echo "== PackagingTest: der Wrapper kennt das neue Kommando nicht =="
+echo "── PackagingTest: der Wrapper kennt das neue Kommando nicht ──"
 #
 # Auf dem Server wird daraus "Command not defined" fuer einen Namen, den die
 # Unit selbst aufruft.
@@ -24440,7 +24759,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
 
 echo
-echo "== ManagedBlockDriftTest: der Waechter sucht die Erwaehnung statt des Aufrufs =="
+echo "── ManagedBlockDriftTest: der Waechter sucht die Erwaehnung statt des Aufrufs ──"
 #
 # `Agent` nennt block.integrity, um ihn auszuschliessen. Ein Waechter, der die
 # Zeichenkette sucht, haelt das fuer einen zweiten Schreiber.
@@ -24459,7 +24778,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== ManagedBlockDriftTest: der Vergleich stolpert wieder ueber die Einrueckung =="
+echo "── ManagedBlockDriftTest: der Vergleich stolpert wieder ueber die Einrueckung ──"
 #
 # Genau der Zustand vom 3. September 2026: SshdConfig::block() rueckt den Rumpf
 # eines Match-Blocks ein, ManagedBlock::managed() gibt jede Zeile getrimmt
@@ -24484,7 +24803,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagedBlockDriftTest passed
 
 echo
-echo "== DiagnoseWiringTest: die Naht zur Leitung ist nicht verdrahtet =="
+echo "── DiagnoseWiringTest: die Naht zur Leitung ist nicht verdrahtet ──"
 #
 # Genau der Zustand vom 3. September 2026: `Wire` war nie gebunden, und der
 # erste Lauf auf einem echten Server starb an „Target [Wire] is not
@@ -24506,7 +24825,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseWiringTest passed
 
 echo
-echo "== DiagnoseWiringTest: die Naht zur Maschine ist nicht verdrahtet =="
+echo "── DiagnoseWiringTest: die Naht zur Maschine ist nicht verdrahtet ──"
 #
 # Dieselbe Luecke eine Zeile weiter: `Host` haette den Lauf an SystemUsers
 # erwischt, wenn Certificates ihn nicht schon vorher beendet haette. Die
@@ -24528,7 +24847,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseWiringTest passed
 
 echo
-echo "== TimestampDefaultTest: die Spalte wird wieder eine timestamp =="
+echo "── TimestampDefaultTest: die Spalte wird wieder eine timestamp ──"
 #
 # Gemessen gegen MariaDB 10.11.14: Die erste TIMESTAMP NOT NULL einer Tabelle
 # bekommt ein ON UPDATE current_timestamp(), das niemand geschrieben hat — ein
@@ -24549,7 +24868,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimestampDefaultTest passed
 
 echo
-echo "== TimestampDefaultTest: ein toter Eintrag in der Ausnahmeliste =="
+echo "── TimestampDefaultTest: ein toter Eintrag in der Ausnahmeliste ──"
 #
 # Die Gegenrichtung, und die ist die, an der ein toter Eintrag wirklich
 # entsteht: Wird eine Spalte umgestellt, bleibt ihr Freibrief stehen und deckt
@@ -24571,7 +24890,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimestampDefaultTest passed
 
 echo
-echo "== DiagnosePageTest: der Administrator bekommt den Wortlaut der Werkzeuge =="
+echo "── DiagnosePageTest: der Administrator bekommt den Wortlaut der Werkzeuge ──"
 #
 # docs/98 §9 Frage 5, mit b entschieden. Der Wortlaut traegt bei php-fpm
 # Poolnamen und Pfade, bei nginx Zertifikatspfade und in einem verwalteten
@@ -24591,7 +24910,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
 
 echo
-echo "== DiagnosePageTest: der Wortlaut wird geschickt und nur ausgeblendet =="
+echo "── DiagnosePageTest: der Wortlaut wird geschickt und nur ausgeblendet ──"
 #
 # Ein v-if im Browser verbirgt den Text und schickt ihn trotzdem — er stuende
 # im Payload jeder Antwort.
@@ -24612,7 +24931,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
 
 echo
-echo "== DiagnosePageTest: die Seite steht jedem offen =="
+echo "── DiagnosePageTest: die Seite steht jedem offen ──"
 vorher_datei routes/web.php
 python3 - <<'PY2'
 p = 'routes/web.php'
@@ -24629,7 +24948,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
 
 echo
-echo "== DiagnosePageTest: der schlimmste Befund steht nicht zuerst =="
+echo "── DiagnosePageTest: der schlimmste Befund steht nicht zuerst ──"
 #
 # Wer eine Seite mit dreissig Zeilen oeffnet, liest die ersten.
 vorher_datei app/Http/Controllers/DiagnoseController.php
@@ -24647,7 +24966,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
 
 echo
-echo "== DiagnosePageTest: die leere Liste sagt nicht, ob gemessen wurde =="
+echo "── DiagnosePageTest: die leere Liste sagt nicht, ob gemessen wurde ──"
 #
 # Punkt 1 des Abnahmekriteriums haengt daran: Eine Seite, die nichts meldet,
 # muss sagen, ob sie geschwiegen oder nicht gemessen hat.
@@ -24666,7 +24985,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
 
 echo
-echo "== DiagnoseRunTest: der Lauf haelt seinen Zeitpunkt nur im Erfolgsfall fest =="
+echo "── DiagnoseRunTest: der Lauf haelt seinen Zeitpunkt nur im Erfolgsfall fest ──"
 #
 # Dann behauptete die Seite nach einer gescheiterten Pruefung, seit Tagen habe
 # niemand gemessen.
@@ -24688,7 +25007,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
-echo "== DiagnoseRunTest: eingetragen wird now() statt des Zeitpunkts der Befunde =="
+echo "── DiagnoseRunTest: eingetragen wird now() statt des Zeitpunkts der Befunde ──"
 #
 # Dann stuende neben einer Zeile von 03:00:07 ein "zuletzt gemessen 03:00:09",
 # und die beiden waeren dieselbe Messung.
@@ -24707,7 +25026,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
-echo "== DiagnoseViewTest: die Spalte zeigt den letzten Lauf statt des ersten =="
+echo "── DiagnoseViewTest: die Spalte zeigt den letzten Lauf statt des ersten ──"
 #
 # Punkt 8 des Abnahmekriteriums haengt daran: Ohne "steht seit" saehe niemand
 # mehr, wie lange etwas schon so ist.
@@ -24726,7 +25045,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
 
 echo
-echo "== DiagnoseViewTest: die leere Liste gilt vor dem ersten Lauf als Entwarnung =="
+echo "── DiagnoseViewTest: die leere Liste gilt vor dem ersten Lauf als Entwarnung ──"
 vorher_datei resources/js/Pages/Diagnose/Index.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Diagnose/Index.vue'
@@ -24747,7 +25066,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
 
 echo
-echo "== DiagnoseViewTest: der Wortlaut bricht nicht um =="
+echo "── DiagnoseViewTest: der Wortlaut bricht nicht um ──"
 #
 # Ein pre bricht von sich aus nicht; bei 390 px rollt die Zelle dann waagerecht,
 # und das Dokument meldet dafuer keine Zahl.
@@ -24767,7 +25086,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
 
 echo
-echo "== DiagnoseViewTest: die Seite misst selbst =="
+echo "── DiagnoseViewTest: die Seite misst selbst ──"
 #
 # Der Lauf hat eine Frist von 1800 Sekunden. Was so lange dauern darf, gehoert
 # an einen Timer und nicht an eine Anfrage, auf die jemand wartet.
@@ -24789,7 +25108,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
 
 echo
-echo "== SiteFileIntegrityTest: die Zusage kommt wieder aus dem Inhalt =="
+echo "── SiteFileIntegrityTest: die Zusage kommt wieder aus dem Inhalt ──"
 #
 # Die Falle vom 3. September 2026: Wer die Form aus der Datei abliest, verliert
 # die Zusage mit dem Schaden — die verschluckte Anweisung faellt aus der
@@ -24810,7 +25129,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
 
 echo
-echo "== PromiseReachTest: die Zusage einer Form ist zu klein =="
+echo "── PromiseReachTest: die Zusage einer Form ist zu klein ──"
 #
 # Die Haelfte, die den Abnahmelauf gekostet hat: Eine Zusage, die eine
 # Anweisung der Form nicht nennt, laesst genau deren Verlust durchgehen.
@@ -24829,7 +25148,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
 
 echo
-echo "== PromiseReachTest: der HSTS-Header wird zur Zusage der Form =="
+echo "── PromiseReachTest: der HSTS-Header wird zur Zusage der Form ──"
 #
 # **Dieser Eingriff hiess bis zum 4. September „add_header wird zur Zusage der
 # Form" und ist an A12 stumpf geworden** — die Wache des Wartungsmodus schreibt
@@ -24858,7 +25177,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PromiseReachTest passed
 
 echo
-echo "== AptKeyReadTest: gpg legt seinen Schluesselbund wieder an =="
+echo "── AptKeyReadTest: gpg legt seinen Schluesselbund wieder an ──"
 #
 # Genau der Zustand vom 3. September 2026: Ohne --no-keyring schreibt gpg eine
 # pubring.kbx in sein Heimverzeichnis — und ohne Heimverzeichnis stirbt der
@@ -24879,7 +25198,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptKeyReadTest passed
 
 echo
-echo "== AptKeyReadTest: gpg legt seine trustdb wieder an =="
+echo "── AptKeyReadTest: gpg legt seine trustdb wieder an ──"
 #
 # Die zweite Haelfte, und sie ist einzeln gemessen: --trust-model always laesst
 # die trustdb.gpg weg, --no-keyring die pubring.kbx. Ein Schalter allein genuegt
@@ -24899,7 +25218,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AptKeyReadTest passed
 
 echo
-echo "== UnitTargetTest: eine Unit faellt aus dem Ziel =="
+echo "── UnitTargetTest: eine Unit faellt aus dem Ziel ──"
 #
 # Das Ziel ist der eine Griff fuer das ganze Panel. Fehlt ein Dauerdienst
 # darin, holt ein `start srvpanel.target` ihn nicht zurueck -- genau die Lage,
@@ -24919,7 +25238,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitTargetTest passed
 
 echo
-echo "== UnitTargetTest: ein Timer-Dienst steht im Ziel =="
+echo "── UnitTargetTest: ein Timer-Dienst steht im Ziel ──"
 #
 # `srvpanel-usage.service` ist `Type=oneshot` und gehoert seinem Timer. Im Ziel
 # liefe er bei jedem `systemctl start srvpanel.target` sofort los -- fuenf
@@ -24940,7 +25259,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitTargetTest passed
 
 echo
-echo "== UnitTargetTest: eine Unit gehoert nicht mehr zum Ziel =="
+echo "── UnitTargetTest: eine Unit gehoert nicht mehr zum Ziel ──"
 #
 # Die andere Haelfte: `Wants=` sagt, was das Ziel startet, `PartOf=`, was es
 # anhaelt. Ohne das zweite waere das Ziel ein Griff, der nur anschaltet.
@@ -24959,7 +25278,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitTargetTest passed
 
 echo
-echo "== UnitTargetTest: das Ziel wird nicht paketiert =="
+echo "── UnitTargetTest: das Ziel wird nicht paketiert ──"
 #
 # Eine Unit, die kein Paket ablegt, gibt es auf dem Server nicht -- und der
 # Griff waere einer, den nur dieses Repository kennt.
@@ -24980,7 +25299,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitTargetTest passed
 
 echo
-echo "== UnitTargetTest: die Installation schaltet das Ziel nicht an =="
+echo "── UnitTargetTest: die Installation schaltet das Ziel nicht an ──"
 #
 # Ohne `enable --now` meldete das Ziel `inactive`, waehrend jede seiner Units
 # laeuft -- und nach einem Neustart kaeme es gar nicht wieder.
@@ -24999,7 +25318,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitTargetTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Wache fehlt ganz =="
+echo "── MaintenanceGuardTest: die Wache fehlt ganz ──"
 #
 # Ohne sie liefe jede Domain waehrend der Wartung weiter — und nginx -t
 # saehe davon nichts (docs/81 §2.3p, M26).
@@ -25018,7 +25337,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Ausnahme steht zu spaet =="
+echo "── MaintenanceGuardTest: die Ausnahme steht zu spaet ──"
 #
 # Steht sie hinter der Entscheidung, kommt sie zu spaet: Die ACME-Pruefadresse
 # bekaeme 503, und waehrend jeder Wartung stuerbe die Zertifikatserneuerung (M24).
@@ -25039,7 +25358,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Ausnahme nennt einen eigenen Pfad =="
+echo "── MaintenanceGuardTest: die Ausnahme nennt einen eigenen Pfad ──"
 #
 # Zwei Listen, die dasselbe meinen, laufen auseinander. Zoege HttpChallenge::PREFIX
 # um, stuerbe die Erneuerung bei jeder Wartung — und kein Pruefer saehe es.
@@ -25058,7 +25377,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Wache fehlt im HTTPS-Block =="
+echo "── MaintenanceGuardTest: die Wache fehlt im HTTPS-Block ──"
 #
 # Der zweite Block ist der, an dem es haengt: Bei einer Domain mit Zertifikat
 # steht der Inhalt dort. Der einfache Fall ohne Zertifikat waere richtig.
@@ -25077,7 +25396,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Endzeit wird nicht geprueft =="
+echo "── MaintenanceGuardTest: die Endzeit wird nicht geprueft ──"
 #
 # Sie landet als Text in einer nginx-Zeichenkette. Ein Apostroph darin beendet
 # sie, und aus einer Auskunft wird eine Konfigurationszeile.
@@ -25096,7 +25415,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Wache steht in keiner Zusage =="
+echo "── MaintenanceGuardTest: die Wache steht in keiner Zusage ──"
 #
 # Dann waere eine Domain ohne Wache eine stille Luecke: nginx -t sieht sie nicht,
 # und die Bestandsdiagnose fragt die Zusage.
@@ -25115,7 +25434,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Endzeit kommt im Block nicht an =="
+echo "── MaintenanceGuardTest: die Endzeit kommt im Block nicht an ──"
 #
 # Dann stuende auf jeder Wartungsseite die Form ohne Zeitangabe — und das Feld
 # im Panel waere eine Eingabe ohne Wirkung.
@@ -25134,7 +25453,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceSwitchTest: das zweite Ausschalten bricht ab =="
+echo "── MaintenanceSwitchTest: das zweite Ausschalten bricht ab ──"
 #
 # unlink() gibt fuer eine Datei, die nicht da ist, false zurueck. Wer das fuer
 # einen Fehlschlag nimmt, macht aus dem zweiten Klick einen Abbruch.
@@ -25153,7 +25472,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
 
 echo
-echo "== MaintenanceSwitchTest: der Wahrheitswert wird nicht geprueft =="
+echo "── MaintenanceSwitchTest: der Wahrheitswert wird nicht geprueft ──"
 #
 # '0', '' und null sind in PHP alle falsch-artig: Ein leeres Feld schaltete den
 # Modus aus, ohne dass jemand das gemeint haette. Der Waechter prueft die ART
@@ -25173,7 +25492,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
 
 echo
-echo "== MaintenanceSwitchTest: die Flagdatei zieht unter /var/lib =="
+echo "── MaintenanceSwitchTest: die Flagdatei zieht unter /var/lib ──"
 #
 # Dort ist 0750 srvpanel:srvpanel, und der nginx-Worker kommt nicht hindurch
 # (docs/78). Die Wache praefte dann immer "liegt nicht", und der Schalter taete
@@ -25193,7 +25512,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
 
 echo
-echo "== MaintenanceSwitchTest: die Vorgabe weicht vom Pfad der Wache ab =="
+echo "── MaintenanceSwitchTest: die Vorgabe weicht vom Pfad der Wache ab ──"
 #
 # Zwei Listen, die dasselbe meinen, laufen auseinander: Das Panel schaltete eine
 # Datei, auf die nginx nicht sieht.
@@ -25212,7 +25531,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceSwitchTest passed
 
 echo
-echo "== DateInputTest: das Datumsfeld wird wieder ein Textfeld =="
+echo "── DateInputTest: das Datumsfeld wird wieder ein Textfeld ──"
 #
 # Der gemeldete Fehler selbst: Ein `type="text"` fuer eine Form, die
 # Bindestriche braucht. Auf dem Telefon ist das Feld damit nicht ausfuellbar.
@@ -25231,7 +25550,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DateInputTest passed
 
 echo
-echo "== DateInputTest: ein Feld verlangt Datum und Uhrzeit zugleich =="
+echo "── DateInputTest: ein Feld verlangt Datum und Uhrzeit zugleich ──"
 #
 # Die Form, die kein Eingabetyp hergibt — `datetime-local` traegt ein `T` statt
 # des Leerzeichens. Sie gehoert auf zwei Felder.
@@ -25250,7 +25569,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DateInputTest passed
 
 echo
-echo "== DateInputTest: der Ausdruck ueber die Eingabefelder laeuft ins Leere =="
+echo "── DateInputTest: der Ausdruck ueber die Eingabefelder laeuft ins Leere ──"
 #
 # Die Untergrenze. Ohne sie waeren beide Pruefungen darueber gruen, ohne etwas
 # gemessen zu haben — eine Null, neben der nichts anderes als Null steht.
@@ -25269,7 +25588,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DateInputTest passed
 
 echo
-echo "== MaintenanceSeamTest: hinaus geht wieder der abgelegte Wert =="
+echo "── MaintenanceSeamTest: hinaus geht wieder der abgelegte Wert ──"
 #
 # Der zweite Befund vom 4. September: Abgelegt ist UTC mit Sekunden, der Agent
 # nimmt `Y-m-d H:i` ohne. Der abgelegte Wert kommt dort nicht durch — und waere
@@ -25289,7 +25608,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceSeamTest passed
 
 echo
-echo "== ClockTest: die Beschriftung kommt von jetzt statt vom Zeitpunkt =="
+echo "── ClockTest: die Beschriftung kommt von jetzt statt vom Zeitpunkt ──"
 #
 # Die Sommerzeit. Dieselbe Zone heisst im Januar anders als im Juli; mit `now()`
 # geben beide gemessenen Zeitpunkte denselben Wert, und einer der beiden ist
@@ -25309,7 +25628,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ClockTest passed
 
 echo
-echo "== MaintenanceSeamTest: die Zone gehoert zu einem anderen Zeitpunkt =="
+echo "── MaintenanceSeamTest: die Zone gehoert zu einem anderen Zeitpunkt ──"
 #
 # Ein fester Sommer-Zeitpunkt statt der Endzeit: Eine Endzeit im Januar bekaeme
 # damit die Abkuerzung des Sommers. Ein Bruch auf `label()` waere saisonal — er
@@ -25329,7 +25648,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceSeamTest passed
 
 echo
-echo "== MaintenanceGuardTest: der Ausdruck kennt nur die eigene Zeitzone =="
+echo "── MaintenanceGuardTest: der Ausdruck kennt nur die eigene Zeitzone ──"
 #
 # Nur Buchstaben: Colombo (+0530) und Kathmandu (+0545) waeren damit abgewiesen,
 # und der Betreiber laese eine Meldung ueber einen Programmierfehler, wo er nur
@@ -25349,7 +25668,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Zone wird ungeprueft durchgereicht =="
+echo "── MaintenanceGuardTest: die Zone wird ungeprueft durchgereicht ──"
 #
 # Sie landet als Text *in* einer nginx-Zeichenkette. Ein Apostroph darin beendet
 # sie, und aus einer Auskunft wird eine Anweisung.
@@ -25368,7 +25687,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceRoundTripTest: die Seite zeigt den abgelegten Wert =="
+echo "── MaintenanceRoundTripTest: die Seite zeigt den abgelegten Wert ──"
 #
 # Ohne die Drehung stuende auf der Seite die UTC-Zeit — der Betreiber tippt
 # 16:00 ein und liest danach 14:00.
@@ -25387,7 +25706,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceRoundTripTest passed
 
 echo
-echo "== DateInputTest: das Datumsfeld nimmt wieder die ganze Zeile =="
+echo "── DateInputTest: das Datumsfeld nimmt wieder die ganze Zeile ──"
 #
 # Gemessen bei 390 px: 358 px breit, gebraucht 176. Ein Feld mit fester
 # Zeichenzahl, das ueber die halbe Breite hinaus leer bleibt, sieht aus wie
@@ -25407,7 +25726,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DateInputTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Ausnahme fragt wieder die gerade gueltige Adresse =="
+echo "── MaintenanceGuardTest: die Ausnahme fragt wieder die gerade gueltige Adresse ──"
 #
 # Der Fund vom 4. September: `try_files ... /index.php` ist eine innere
 # Umleitung, und nginx durchlaeuft die Rewrite-Phase dabei noch einmal — mit
@@ -25427,7 +25746,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== MaintenanceGuardTest: die Ausnahme nennt eigene Tokenzeichen =="
+echo "── MaintenanceGuardTest: die Ausnahme nennt eigene Tokenzeichen ──"
 #
 # Zwei Ausdruecke, die dasselbe meinen, laufen auseinander — und der zweite
 # entscheidet, ob eine Erneuerung waehrend einer Wartung durchkommt.
@@ -25446,7 +25765,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceGuardTest passed
 
 echo
-echo "== SiteFileIntegrityTest: ein Trenner versteckt sich im Anfuehrungszeichen =="
+echo "── SiteFileIntegrityTest: ein Trenner versteckt sich im Anfuehrungszeichen ──"
 #
 # Statements::nginx() zerlegt an ; { } und kennt keine Anfuehrungszeichen. Der
 # Nachtlauf meldete daraufhin erfundene Anweisungen fuer jede heile Domain.
@@ -25465,7 +25784,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SiteFileIntegrityTest passed
 
 echo
-echo "== MaintenanceVerdictTest: die Wache wird nicht mehr gegen die Datei gehalten =="
+echo "── MaintenanceVerdictTest: die Wache wird nicht mehr gegen die Datei gehalten ──"
 #
 # Ohne diese Pruefung sieht die Bestandsdiagnose eine halbe Wache nicht: Fehlt
 # allein die ACME-Ausnahme, meldet die Zusage je Anweisungsname nichts, und die
@@ -25485,7 +25804,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceVerdictTest passed
 
 echo
-echo "== MaintenanceVerdictTest: gezaehlt wird nicht mehr je Server-Block =="
+echo "── MaintenanceVerdictTest: gezaehlt wird nicht mehr je Server-Block ──"
 #
 # Eine Domain mit Zertifikat hat zwei Bloecke, und der Inhalt steht im zweiten.
 # Wer nur fragt "steht die Zeile irgendwo", spricht eine halbe Wache frei.
@@ -25504,7 +25823,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceVerdictTest passed
 
 echo
-echo "== MaintenanceVerdictTest: der Sollzustand wird nachgebaut =="
+echo "── MaintenanceVerdictTest: der Sollzustand wird nachgebaut ──"
 #
 # Zwei Fassungen derselben sechs Zeilen laufen auseinander — und die
 # auseinandergelaufene entscheidet dann jede Nacht ueber jede Domain.
@@ -25527,7 +25846,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceVerdictTest passed
 
 echo
-echo "== MaintenanceOverdueTest: gemessen wird wieder gegen jetzt =="
+echo "── MaintenanceOverdueTest: gemessen wird wieder gegen jetzt ──"
 #
 # Ein Lauf, der now() fragt, haengt daran, wann jemand ihn startet — und die
 # Zeile daneben ("zuletzt gemessen um …") nennt dann eine andere Messung.
@@ -25546,7 +25865,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceOverdueTest passed
 
 echo
-echo "== AnnouncementWindowTest: das Fenster rechnet in der Anzeigezone =="
+echo "── AnnouncementWindowTest: das Fenster rechnet in der Anzeigezone ──"
 #
 # Der Fehler, den docs/81 §2.3q M7 vor dem Bau gemessen hat: Rechnet der
 # Vergleich in der Anzeigezone statt in UTC, ist die Ankuendigung genau
@@ -25569,7 +25888,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementWindowTest passed
 
 echo
-echo "== AnnouncementAudienceTest: der Filter fragt das Publikum nicht =="
+echo "── AnnouncementAudienceTest: der Filter fragt das Publikum nicht ──"
 #
 # Ohne die Bedingung sieht jeder alles. Die Haelfte, die still bricht — ein
 # Hinweis zur Verwaltung stuende dann vor jedem Kunden.
@@ -25588,7 +25907,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementAudienceTest passed
 
 echo
-echo "== AnnouncementAudienceTest: die Rolle wird nicht gefragt =="
+echo "── AnnouncementAudienceTest: die Rolle wird nicht gefragt ──"
 #
 # A9 hat zwei Achsen — Typ und Rolle. Wer nur den Typ fragt, macht jeden
 # Administrator zum Betreiber und zeigt ihm, was nur dem Betreiber gilt.
@@ -25607,7 +25926,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementAudienceTest passed
 
 echo
-echo "== AnnouncementAudienceTest: die Anmeldeseite filtert die Kategorie nicht =="
+echo "── AnnouncementAudienceTest: die Anmeldeseite filtert die Kategorie nicht ──"
 #
 # Die stille Haelfte ist die, die zuviel zeigt: Was auf der Anmeldeseite
 # steht, steht vor jedem, der die Adresse kennt.
@@ -25626,7 +25945,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementAudienceTest passed
 
 echo
-echo "== AnnouncementBandTest: ein zweites Element nimmt die Rasterzeile =="
+echo "── AnnouncementBandTest: ein zweites Element nimmt die Rasterzeile ──"
 #
 # Der Befund aus docs/81 §2.3q M2 in seiner Ursache: `grid-row: 1` an
 # mehreren Geschwistern legt sie in dieselbe Zelle. Drei Baender liegen dann
@@ -25647,7 +25966,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== AnnouncementBandTest: die Klammer zaehlt nicht mehr Zeilen =="
+echo "── AnnouncementBandTest: die Klammer zaehlt nicht mehr Zeilen ──"
 #
 # M8: 40 Zeichen je Zeile bei 390 px, 160 bei 1440 px. Eine Grenze, die nicht
 # ueber Zeilen geht, ist auf zwei Breiten zwei verschiedene Grenzen.
@@ -25666,7 +25985,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== AnnouncementBandTest: ein Rang verliert seinen Rand =="
+echo "── AnnouncementBandTest: ein Rang verliert seinen Rand ──"
 #
 # M9: Die Flaeche allein traegt den Rang nicht — zwischen Warnung und Stoerung
 # liegen im hellen Thema nur DeltaE 3,8.
@@ -25686,7 +26005,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== AnnouncementBandTest: das Rangwort faellt weg =="
+echo "── AnnouncementBandTest: das Rangwort faellt weg ──"
 #
 # Farbe allein traegt fuer jemanden mit Rot-Gruen-Schwaeche gar nichts
 # (WCAG 1.4.1) — deshalb steht die Kategorie als Wort im Streifen.
@@ -25705,7 +26024,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== AnnouncementShareTest: der Verschluss wird ein fertiger Wert =="
+echo "── AnnouncementShareTest: der Verschluss wird ein fertiger Wert ──"
 #
 # M5, gemessen an den Abfragen: Ein fertiger Wert in share() laeuft auch bei
 # einem partiellen Nachladen, das ihn gar nicht mitschickt. Die Uebersicht
@@ -25725,7 +26044,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementShareTest passed
 
 echo
-echo "== AnnouncementPageTest: die Seite steht hinter manage-settings =="
+echo "── AnnouncementPageTest: die Seite steht hinter manage-settings ──"
 #
 # Der Plan hat das einmal so gesagt, mit der Begruendung „ist Text in einer
 # Tabelle". docs/20 §6.1 ordnet nach der Wirkung: kritisch ist unter anderem,
@@ -25747,7 +26066,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementPageTest passed
 
 echo
-echo "== AnnouncementPageTest: die Anmeldeseite zeigt jede Kategorie =="
+echo "── AnnouncementPageTest: die Anmeldeseite zeigt jede Kategorie ──"
 #
 # Die stille Haelfte ist die, die zuviel zeigt: Was auf der Anmeldeseite steht,
 # steht vor jedem, der die Adresse kennt.
@@ -25769,7 +26088,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementPageTest passed
 
 echo
-echo "== AnnouncementBandTest: die Meldung zieht um, das Band bleibt =="
+echo "── AnnouncementBandTest: die Meldung zieht um, das Band bleibt ──"
 #
 # Die stille Richtung. Ein Waechter, der nur `.band` liest, bleibt gruen,
 # wenn `.notice` seine Kante wechselt — und dann sagen zwei Bausteine
@@ -25792,7 +26111,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== AnnouncementBandTest: die Huelle verliert ihre Fugen =="
+echo "── AnnouncementBandTest: die Huelle verliert ihre Fugen ──"
 #
 # Ohne `display: flex` wirkt das `gap` nicht, und die Baender kleben
 # aneinander — auf einem Bild sichtbar, im Ueberlauf nicht.
@@ -25819,7 +26138,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== ButtonRowTest: zwei Knöpfe in einer Zelle ohne Reihe =="
+echo "── ButtonRowTest: zwei Knöpfe in einer Zelle ohne Reihe ──"
 #
 # Derselbe Fehler zum zweiten Mal, gefunden von derselben Person am selben
 # Server: In P5b klebten „Ergaenzen" und „Entfernen" auf der PHP-Seite
@@ -25843,7 +26162,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ButtonRowTest passed
 
 echo
-echo "== ButtonRowTest: die Reihe verliert ihre Fuge =="
+echo "── ButtonRowTest: die Reihe verliert ihre Fuge ──"
 #
 # Die andere Haelfte: Der Name allein genuegt nicht. Ohne `gap` ist die Reihe
 # keine, und die Knoepfe kleben wieder — nur steht dann ueberall das Wort.
@@ -25867,7 +26186,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ButtonRowTest passed
 
 echo
-echo "== SharedPropTest: die Seite nimmt wieder den geteilten Namen =="
+echo "── SharedPropTest: die Seite nimmt wieder den geteilten Namen ──"
 #
 # Der Befund aus dem Abnahmelauf vom 6. September: Auf /announcements zeigte
 # der Streifen alle Zeilen der Verwaltung statt der sichtbaren, weil eine
@@ -25889,7 +26208,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SharedPropTest passed
 
 echo
-echo "== SharedPropTest: der Ausdruck über Inertia::render läuft ins Leere =="
+echo "── SharedPropTest: der Ausdruck über Inertia::render läuft ins Leere ──"
 #
 # Die Untergrenze. Trifft der Ausdruck die Aufrufe nicht mehr, meldet der
 # Waechter nichts und sieht aus wie erfuellt. Gemessen: 173 Eigenschaften auf
@@ -25909,7 +26228,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SharedPropTest passed
 
 echo
-echo "== BandsHullTest: die Hülle fehlt auf der Anmeldeseite =="
+echo "── BandsHullTest: die Hülle fehlt auf der Anmeldeseite ──"
 #
 # Gemeldet hat es der Betreiber am Bild, nicht eine Messung: Das Band lag
 # buendig am Bildschirmrand statt eingerueckt. Die Huelle steht in der
@@ -25930,7 +26249,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BandsHullTest passed
 
 echo
-echo "== BandsHullTest: die Hülle verliert ihr Polster =="
+echo "── BandsHullTest: die Hülle verliert ihr Polster ──"
 #
 # Die andere Haelfte: Der Name allein genuegt nicht, die Klasse muss auch
 # mitbringen, was ihr Fehlen gekostet hat.
@@ -25961,7 +26280,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BandsHullTest passed
 
 echo
-echo "== AnnouncementPageTest: der Gast bekommt die Menge des Angemeldeten =="
+echo "── AnnouncementPageTest: der Gast bekommt die Menge des Angemeldeten ──"
 #
 # Die Leseseite liegt ausserhalb der auth-Klammer, damit der Streifen der
 # Anmeldeseite seine Stoerung zu Ende erzaehlen kann. Faellt der Gast auf
@@ -25985,7 +26304,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementPageTest passed
 
 echo
-echo "== AnnouncementWindowTest: die Leseseite antwortet mit 403 =="
+echo "── AnnouncementWindowTest: die Leseseite antwortet mit 403 ──"
 #
 # Ein 403 bestaetigt die Existenz. Wer Kennungen durchprobiert, soll nicht
 # erfahren, dass es Ankuendigung 7 gibt und sie ihn nur nichts angeht.
@@ -26004,7 +26323,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementWindowTest passed
 
 echo
-echo "== AnnouncementBandTest: das Band ist wieder ein div =="
+echo "── AnnouncementBandTest: das Band ist wieder ein div ──"
 #
 # Der Verweis sass zuerst als „mehr" am Textende, innerhalb der Zeilenklammer
 # — und wurde damit genau dann abgeschnitten, wenn der Text lang ist.
@@ -26023,7 +26342,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== AnnouncementBandTest: der Rang verliert seine Farbe an den Verweis =="
+echo "── AnnouncementBandTest: der Rang verliert seine Farbe an den Verweis ──"
 #
 # Ein <a> erbt die Linkfarbe. Der Rang steht auf drei Traegern — Flaeche, Rand,
 # Textfarbe (M9) —, und die Linkfarbe naehme ihm den dritten.
@@ -26044,7 +26363,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== AnnouncementBandTest: die Fuge steht auf null =="
+echo "── AnnouncementBandTest: die Fuge steht auf null ──"
 #
 # Die andere Haelfte derselben Regel, und die stillere: `display: flex` bleibt
 # stehen, das `gap` ist tot. Ein Eingriff, der nur die Anzeige-Eigenschaft
@@ -26066,7 +26385,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AnnouncementBandTest passed
 
 echo
-echo "== TimeStateTest: der Leser fuer timedatectl show =="
+echo "── TimeStateTest: der Leser fuer timedatectl show ──"
 #
 # Die Pruefkoerper stammen aus der Messrunde vom 6. September 2026
 # (docs/81 §2.3r), gefahren gegen echtes systemd 255 in einer eigenen
@@ -26091,7 +26410,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
 
 echo
-echo "== TimeStateTest: der Fehlerfall traegt einen geratenen Wert =="
+echo "── TimeStateTest: der Fehlerfall traegt einen geratenen Wert ──"
 #
 # Ohne systemd als PID 1 ist stdout leer und die Auskunft steht auf stderr.
 # Ein Feld im Fehlerfall sieht aus wie ein gemessenes -- und zwar in die
@@ -26112,7 +26431,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
 
 echo
-echo "== TimeStateTest: ein unbekannter Wert wird zu false =="
+echo "── TimeStateTest: ein unbekannter Wert wird zu false ──"
 #
 # Gemessen sind ausschliesslich yes und no. Stuende dort eines Tages true,
 # machte ein Leser mit === 'yes' daraus wortlos -ausgeschaltet- und meldete
@@ -26137,7 +26456,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
 
 echo
-echo "== TimeStateTest: die Uhr wird mitgelesen =="
+echo "── TimeStateTest: die Uhr wird mitgelesen ──"
 #
 # Die Uhr des Servers ist die, unter der das Panel selbst laeuft; now() gibt
 # sie. Ein zweiter Weg zur selben Zahl waere die zweite Fassung derselben
@@ -26160,7 +26479,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
 
 echo
-echo "== TimeStateTest: CanNTP zusammengezogen =="
+echo "── TimeStateTest: CanNTP zusammengezogen ──"
 #
 # Zwei Wahrheitswerte tragen vier Zustaende. Wer sie zusammenzieht, verliert
 # genau den Fall, der eine Meldung verdient: -kein Zeitdienst installiert- ist
@@ -26181,7 +26500,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
 
 echo
-echo "== TimeStateTest: ein Grund ausserhalb der geschlossenen Menge =="
+echo "── TimeStateTest: ein Grund ausserhalb der geschlossenen Menge ──"
 #
 # Die Menge ist geschlossen, weil das Panel sie kennen muss -- dieselbe Naht,
 # die DiagnoseSeamTest fuer A10 haelt. Laeuft sie auseinander, zeigt die Seite
@@ -26201,7 +26520,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
 
 echo
-echo "== TimeStateTest: die Operation ruft status statt show =="
+echo "── TimeStateTest: die Operation ruft status statt show ──"
 #
 # status ist fuer Menschen gesetzt und beantwortet dieselbe Frage in
 # Fliesstext. Der Leser meldete die Antwort dann stumm als incomplete -- also
@@ -26222,7 +26541,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimeStateTest passed
 
 echo
-echo "== TimezoneFileTest: ein zweiter Aufrufer =="
+echo "── TimezoneFileTest: ein zweiter Aufrufer ──"
 #
 # Eine zweite Stelle waere die zweite Fassung derselben Frage, und die zweite
 # ist die, die veraltet -- derselbe Grund, aus dem HostnameSourceTest seit dem
@@ -26244,7 +26563,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== TimezoneFileTest: die Positivliste kennt den Pfad nicht =="
+echo "── TimezoneFileTest: die Positivliste kennt den Pfad nicht ──"
 #
 # Der Aufruf steht da und der Pfad fehlt: Der Agent gaebe eine Meldung ueber
 # ein unbekanntes Programm, und die Seite saehe aus, als sei timedatectl
@@ -26264,7 +26583,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== TimezoneFileTest: jemand liest die falsche Datei =="
+echo "── TimezoneFileTest: jemand liest die falsche Datei ──"
 #
 # /etc/timezone beantwortet dieselbe Frage und ist nicht die, der das System
 # folgt: timedatectl folgt dem Symlink /etc/localtime. Gemessen mit den beiden
@@ -26286,7 +26605,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== TimezoneFileTest: die Zone reist durch den Agenten =="
+echo "── TimezoneFileTest: die Zone reist durch den Agenten ──"
 #
 # Der Befund vom 6. September 2026. timedatectl liefert Timezone mit, der Plan
 # sah es in der Antwort vor -- und gebaut waere es der zweite Leser derselben
@@ -26308,7 +26627,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== TimezoneFileTest: ein zweiter Beschaffer der Zone =="
+echo "── TimezoneFileTest: ein zweiter Beschaffer der Zone ──"
 #
 # ServerTime formt und beschafft nicht. Holte es die Zone selbst, gaebe es zwei
 # Stellen, und die Zeile -jetzt auf dem Server- und die Zeile darunter koennten
@@ -26329,7 +26648,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== NtpVerdictTest: die Seite schreibt die Saetze selbst =="
+echo "── NtpVerdictTest: die Seite schreibt die Saetze selbst ──"
 #
 # Eine zweite Fassung entstuende dort, wo jemand die Anzeige anfasst, ohne
 # ServerTime zu kennen -- und sie saehe zuerst richtig aus.
@@ -26349,7 +26668,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
 
 echo
-echo "== NtpVerdictTest: die Hardware-Uhr wird gelesen und nicht gezeigt =="
+echo "── NtpVerdictTest: die Hardware-Uhr wird gelesen und nicht gezeigt ──"
 #
 # Ein Feld, das der Agent liest und keine Seite zeigt, ist von aussen nicht von
 # einem zu unterscheiden, das es nicht gibt.
@@ -26369,7 +26688,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
 
 echo
-echo "== NtpVerdictTest: beide Zeitzeilen zeigen dieselbe Zahl =="
+echo "── NtpVerdictTest: beide Zeitzeilen zeigen dieselbe Zahl ──"
 #
 # Die Bruecke ist der Grund fuer den ganzen Bereich: Die Zeit des Servers und
 # die Anzeigezeit werden sonst verwechselt.
@@ -26389,7 +26708,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
 
 echo
-echo "== ZoneLabelTest: die Beschriftung haengt an der Anzeigezone =="
+echo "── ZoneLabelTest: die Beschriftung haengt an der Anzeigezone ──"
 #
 # label() und labelAt() nageln beide auf Clock::zone(). Wer sie hier mitnimmt,
 # hat die dritte Fassung derselben Falle gebaut.
@@ -26409,7 +26728,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ZoneLabelTest passed
 
 echo
-echo "== ZoneLabelTest: der Zeitpunkt ist keine Bequemlichkeit =="
+echo "── ZoneLabelTest: der Zeitpunkt ist keine Bequemlichkeit ──"
 #
 # Berlin heisst im Januar anders als im Juli. Eine Methode, die now() einbaut,
 # ist die dritte Fassung derselben Falle (docs/102 §3b).
@@ -26429,7 +26748,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ZoneLabelTest passed
 
 echo
-echo "== ZoneLabelTest: eine zweite Fassung der Formel =="
+echo "── ZoneLabelTest: eine zweite Fassung der Formel ──"
 #
 # describe() ist die eine Stelle, durch die alle drei Wege gehen. Stuende die
 # Formel zweimal da, liefe die zweite irgendwann auseinander.
@@ -26451,7 +26770,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ZoneLabelTest passed
 
 echo
-echo "== ZoneLabelTest: isValid statt der Umrechnung =="
+echo "── ZoneLabelTest: isValid statt der Umrechnung ──"
 #
 # Etc/UTC -- der Wert, den timedatectl auf einem frischen Server liefert --
 # steht nicht in DateTimeZone::listIdentifiers(). isValid() ist der Pruefer
@@ -26480,7 +26799,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ZoneLabelTest passed
 
 echo
-echo "== NtpVerdictTest: die beiden Zeitzeilen in zwei Formen =="
+echo "── NtpVerdictTest: die beiden Zeitzeilen in zwei Formen ──"
 #
 # Befund der Bilderrunde vom 6. September 2026. Der erste Wurf zeigte oben H:i
 # und unten H:i:s -- die Zeile darueber war die Antwort, die Zeile darunter die
@@ -26501,7 +26820,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
 
 echo
-echo "== NtpVerdictTest: die Beschriftung gilt fuer jetzt statt fuer den Zeitpunkt =="
+echo "── NtpVerdictTest: die Beschriftung gilt fuer jetzt statt fuer den Zeitpunkt ──"
 #
 # Berlin heisst im Januar anders als im Juli. Eine Zonenangabe, die fuer -jetzt-
 # gilt, gehoert nicht neben einen Zeitpunkt, der woanders liegt (docs/102 §3b).
@@ -26521,7 +26840,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NtpVerdictTest passed
 
 echo
-echo "== TimezoneFileTest: der stille Rueckfall auf UTC kommt zurueck =="
+echo "── TimezoneFileTest: der stille Rueckfall auf UTC kommt zurueck ──"
 #
 # Der Befund vom 7. September 2026 auf cloudsrv24. current() nahm bei einem
 # unlesbaren Symlink UTC -- -die harmloseste Vertretung-. Auf einem Server in
@@ -26543,7 +26862,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== TimezoneFileTest: current() kann kein -ich weiss es nicht- tragen =="
+echo "── TimezoneFileTest: current() kann kein -ich weiss es nicht- tragen ──"
 #
 # Ein Rueckgabewert, der null tragen kann, zwingt jeden Aufrufer zur
 # Entscheidung. Genau das fehlte ein Jahr lang.
@@ -26562,7 +26881,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== TimezoneFileTest: Occurrence rechnet ohne Zone weiter =="
+echo "── TimezoneFileTest: Occurrence rechnet ohne Zone weiter ──"
 #
 # Gemessen an der Wirkung, durch dieselbe Schranke wie auf dem Server: ein
 # Unterprozess mit open_basedir ohne den Pfad. Kommt dabei eine Faelligkeit
@@ -26586,7 +26905,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== TimezoneFileTest: ServerTime beschafft die Zone selbst =="
+echo "── TimezoneFileTest: ServerTime beschafft die Zone selbst ──"
 #
 # Diese Klasse formt und beschafft nicht. Holte sie die Zone, liesse sich
 # -nicht ablesbar- nur auf einem Rechner mit kaputtem Symlink messen.
@@ -26606,7 +26925,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TimezoneFileTest passed
 
 echo
-echo "== ServerZoneSourceTest: die Seite liest die Faelligkeit wieder =="
+echo "── ServerZoneSourceTest: die Seite liest die Faelligkeit wieder ──"
 #
 # Der Rest des Befundes vom 7. September 2026. Die Zone war behoben, und die
 # Cronseite zeigte trotzdem weiter 05:15 fuer einen Job um 03:15: next_due
@@ -26627,7 +26946,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServerZoneSourceTest passed
 
 echo
-echo "== ServerZoneSourceTest: ein Schreiber der Faelligkeit kommt zurueck =="
+echo "── ServerZoneSourceTest: ein Schreiber der Faelligkeit kommt zurueck ──"
 #
 # Ein Wert, der aus -jetzt- folgt und abgelegt wird, ist ab dem naechsten
 # Augenblick falsch -- die Frage ist nur, wie schnell es auffaellt.
@@ -26646,7 +26965,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ServerZoneSourceTest passed
 
 echo
-echo "== PortStateTest: der Leser schneidet nach Spaltenbreite =="
+echo "── PortStateTest: der Leser schneidet nach Spaltenbreite ──"
 #
 # Die Ausgabe von ss richtet sich an ihrer laengsten Zeile aus, und die aendert
 # sich mit dem Bestand. Ein Leser, der ab einer festen Stelle schneidet, trifft
@@ -26667,7 +26986,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PortStateTest passed
 
 echo
-echo "== PortStateTest: die leere Prozessspalte wird zu -niemand- =="
+echo "── PortStateTest: die leere Prozessspalte wird zu -niemand- ──"
 #
 # M4 der Messrunde: ohne root gibt ss dieselben Zeilen, rc=0, und laesst die
 # Spalte wortlos leer. Wer sie ohne Ruecksicht auf die Rechte liest, macht aus
@@ -26688,7 +27007,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PortStateTest passed
 
 echo
-echo "== PortStateTest: der Fehlerfall traegt eine leere Liste =="
+echo "── PortStateTest: der Fehlerfall traegt eine leere Liste ──"
 #
 # Eine leere Liste neben rc=255 waere die Aussage -nichts lauscht-.
 vorher_datei agent/src/PortState.php
@@ -26707,7 +27026,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PortStateTest passed
 
 echo
-echo "== PortStateTest: der Port wird von links getrennt =="
+echo "── PortStateTest: der Port wird von links getrennt ──"
 #
 # Eine IPv6-Adresse traegt selbst Doppelpunkte. Von links getrennt wird aus
 # [::]:80 der Port -- keine Zahl, und die Zeile faellt aus.
@@ -26727,7 +27046,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PortStateTest passed
 
 echo
-echo "== PortStateTest: die Operation fragt ohne -H =="
+echo "── PortStateTest: die Operation fragt ohne -H ──"
 #
 # Ohne -H steht die Kopfzeile in der Ausgabe, und in ihr klebt
 # -Peer Address:PortProcess- ohne Leerzeichen (M1).
@@ -26747,7 +27066,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PortStateTest passed
 
 echo
-echo "== FilterVerdictTest: nur nftables wird gefragt =="
+echo "── FilterVerdictTest: nur nftables wird gefragt ──"
 #
 # M10 der Messrunde: Ein Regelwerk ueber iptables-legacy ist fuer nft
 # unsichtbar, und nft antwortet dabei mit rc=0 und nichts -- also der Antwort
@@ -26768,7 +27087,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FilterVerdictTest passed
 
 echo
-echo "== FilterVerdictTest: konfiguriert haengt an der Zeilenzahl =="
+echo "── FilterVerdictTest: konfiguriert haengt an der Zeilenzahl ──"
 #
 # Der erste Entwurf sagte -lines > 3-. M11b hat gemessen, dass das falsch ist:
 # -P INPUT DROP ohne eine Regel gibt ebenfalls drei Zeilen und sperrt alles.
@@ -26802,7 +27121,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FilterVerdictTest passed
 
 echo
-echo "== FilterVerdictTest: nicht lesbar wird zu -keiner- =="
+echo "── FilterVerdictTest: nicht lesbar wird zu -keiner- ──"
 #
 # Wer nft nicht lesen durfte (M8), weiss nicht, ob dort etwas steht.
 vorher_datei agent/src/FilterState.php
@@ -26821,7 +27140,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FilterVerdictTest passed
 
 echo
-echo "== FilterVerdictTest: firewalld wird am Rueckgabewert gewertet =="
+echo "── FilterVerdictTest: firewalld wird am Rueckgabewert gewertet ──"
 #
 # M15: vier gemessene Ausgaenge, drei davon beantworten die Frage nicht.
 vorher_datei agent/src/FilterState.php
@@ -26840,7 +27159,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FilterVerdictTest passed
 
 echo
-echo "== FilterVerdictTest: die Sichtbarkeit vor der Zustaendigkeit =="
+echo "── FilterVerdictTest: die Sichtbarkeit vor der Zustaendigkeit ──"
 #
 # Bei aktivem ufw stehen table ip filter und ip6 filter da (M19). Wer zuerst
 # nach der Sichtbarkeit fragt, nennt dort nftables -- richtig beobachtet und
@@ -26881,7 +27200,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FilterVerdictTest passed
 
 echo
-echo "== ReachabilityWordTest: die Seite behauptet Erreichbarkeit =="
+echo "── ReachabilityWordTest: die Seite behauptet Erreichbarkeit ──"
 #
 # Die tragende Regel des ersten Wurfs von A3. Gemessen (M20) ist der Blick von
 # innen Feld fuer Feld derselbe, ob eine Sperre davorsteht oder nicht -- eine
@@ -26902,7 +27221,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ReachabilityWordTest passed
 
 echo
-echo "== ReachabilityWordTest: der Satz ueber das Unbekannte faellt weg =="
+echo "── ReachabilityWordTest: der Satz ueber das Unbekannte faellt weg ──"
 #
 # Keinmal waere er eine stille Zusage: Die Seite zeigt Ports und sagt nicht,
 # dass sie ueber den Weg von aussen nichts weiss.
@@ -26921,7 +27240,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ReachabilityWordTest passed
 
 echo
-echo "== ReachabilityWordTest: ein Rohwert des Agenten steht auf der Seite =="
+echo "── ReachabilityWordTest: ein Rohwert des Agenten steht auf der Seite ──"
 #
 # -any-, -loopback- und -specific- sind Werte des Agenten. Derselbe Befund wie
 # -active- auf der Uebersicht (docs/91 Befund 5).
@@ -26941,7 +27260,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ReachabilityWordTest passed
 
 echo
-echo "== ManagerVocabularyTest: der Agent kann ein Wort mehr =="
+echo "── ManagerVocabularyTest: der Agent kann ein Wort mehr ──"
 #
 # Dieselbe Naht wie DiagnoseSeamTest: Kommt im Agenten ein Schluessel dazu, den
 # die Seite nicht kennt, steht dort ein englischer Rohwert -- oder -nicht
@@ -26962,7 +27281,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagerVocabularyTest passed
 
 echo
-echo "== ManagerVocabularyTest: ein toter Eintrag auf der Seite =="
+echo "── ManagerVocabularyTest: ein toter Eintrag auf der Seite ──"
 #
 # So entsteht er wirklich: bei einer Umbenennung traegt man den neuen Namen
 # nach, die erste Richtung ist wieder gruen, und der alte bleibt liegen.
@@ -26982,7 +27301,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ManagerVocabularyTest passed
 
 echo
-echo "== PortAbilityTest: der Filter laesst den Namen stehen =="
+echo "── PortAbilityTest: der Filter laesst den Namen stehen ──"
 #
 # Der Prozessname gehoert dem Betreiber (docs/109 §2, Frage 2). Bleibt er in
 # der Nutzlast, reist er zu jedem Betrachter, der die Antwort ansieht.
@@ -27002,7 +27321,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PortAbilityTest passed
 
 echo
-echo "== PortAbilityTest: privileged bleibt stehen =="
+echo "── PortAbilityTest: privileged bleibt stehen ──"
 #
 # Es sagt, ob der Agent nachsehen durfte. Bleibt es auf true, macht die Seite
 # daraus -keiner sichtbar- -- eine Aussage ueber den Server, wo eine ueber den
@@ -27023,7 +27342,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PortAbilityTest passed
 
 echo
-echo "== PortAbilityTest: die Vorlage entscheidet ueber den Namen =="
+echo "── PortAbilityTest: die Vorlage entscheidet ueber den Namen ──"
 #
 # Ein v-if auf die Faehigkeit ist die zweite Fassung derselben Regel -- und sie
 # stuende hinter der Nutzlast, in der der Name dann trotzdem reist.
@@ -27048,7 +27367,7 @@ pruefe "  … zurückgesetzt wieder grün" PortAbilityTest passed
 # ═══════════════════════════════════════════════════════════════════════════
 
 echo
-echo "== CronTableTest: getrennt wird an einem Leerzeichen =="
+echo "── CronTableTest: getrennt wird an einem Leerzeichen ──"
 #
 # Gemessen: /etc/crontab setzt seine Felder mit Tabulatoren, /etc/cron.d/php mit
 # mehreren Leerzeichen. Wer eines von beiden voraussetzt, liest die andere Datei
@@ -27069,7 +27388,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronTableTest passed
 
 echo
-echo "== CronTableTest: die @-Form bekommt fuenf Zeitfelder =="
+echo "── CronTableTest: die @-Form bekommt fuenf Zeitfelder ──"
 #
 # @daily root /bin/backup traegt ein Zeitfeld und nicht fuenf (M4). In fuenf
 # zerlegt steht der Benutzer als Tag des Monats da, und das Kommando fehlt.
@@ -27089,7 +27408,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronTableTest passed
 
 echo
-echo "== CronTableTest: eine Zuweisung wird zur Zeile =="
+echo "── CronTableTest: eine Zuweisung wird zur Zeile ──"
 #
 # SHELL=/bin/sh stuende dann als Zeitplan mit vier Feldern in der Tabelle.
 vorher_datei agent/src/CronState.php
@@ -27108,7 +27427,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronTableTest passed
 
 echo
-echo "== RunPartsSeamTest: volle Pfade gegen Namen gehalten =="
+echo "── RunPartsSeamTest: volle Pfade gegen Namen gehalten ──"
 #
 # run-parts --test gibt volle Pfade aus. Ohne basename() meldet jeder Lauf jedes
 # Skript als uebergangen -- und das saehe aus wie ein Befund ueber den Server.
@@ -27128,7 +27447,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RunPartsSeamTest passed
 
 echo
-echo "== RunPartsSeamTest: die versteckte Datei zaehlt mit =="
+echo "── RunPartsSeamTest: die versteckte Datei zaehlt mit ──"
 #
 # .placeholder liegt in jedem cron.*-Verzeichnis und gehoert zum Paket (M5).
 # Mitgezaehlt meldet der Bereich -Uebergangen- auf jedem heilen Server fuenf
@@ -27149,7 +27468,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RunPartsSeamTest passed
 
 echo
-echo "== RunPartsSeamTest: nach dem Verzeichnis wird nicht gefragt =="
+echo "── RunPartsSeamTest: nach dem Verzeichnis wird nicht gefragt ──"
 #
 # Als root gibt is_executable() fuer JEDES Verzeichnis true (gemessen, 0644 wie
 # 0755) -- ohne diese Frage faellt ein Unterverzeichnis durch beide Zweige und
@@ -27171,7 +27490,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RunPartsSeamTest passed
 
 echo
-echo "== RunPartsSeamTest: ein stummes run-parts meldet leere Listen =="
+echo "── RunPartsSeamTest: ein stummes run-parts meldet leere Listen ──"
 #
 # Wer nicht weiss, was laeuft, weiss auch nicht, was nicht laeuft. Eine leere
 # Liste sagt -nichts gefunden-, und das ist etwas anderes als -nicht gefragt-.
@@ -27191,7 +27510,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RunPartsSeamTest passed
 
 echo
-echo "== CronScheduleTest: der anacron-Vorbehalt faellt weg =="
+echo "── CronScheduleTest: der anacron-Vorbehalt faellt weg ──"
 #
 # Mit anacron tut cron fuer daily, weekly und monthly gar nichts. Ein Zeitpunkt
 # ohne den Vorbehalt ist auf jedem Server mit anacron falsch.
@@ -27211,7 +27530,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronScheduleTest passed
 
 echo
-echo "== CronScheduleTest: der Zeitplan gilt immer als bekannt =="
+echo "── CronScheduleTest: der Zeitplan gilt immer als bekannt ──"
 #
 # Eine Null, die -nicht nachgesehen- bedeutet, sieht aus wie -nichts zu tun-.
 # cron.yearly und eine unlesbare /etc/crontab liefern beide schedule: null.
@@ -27231,7 +27550,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronScheduleTest passed
 
 echo
-echo "== CronNameRuleTest: die Schreibseite bekommt ihre eigene Fassung zurueck =="
+echo "── CronNameRuleTest: die Schreibseite bekommt ihre eigene Fassung zurueck ──"
 #
 # Zwei Fassungen derselben Regel sind zwei, und die zweite ist die, die
 # veraltet.
@@ -27251,7 +27570,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronNameRuleTest passed
 
 echo
-echo "== CronNameRuleTest: die Leseseite baut die Regel nach =="
+echo "── CronNameRuleTest: die Leseseite baut die Regel nach ──"
 #
 # Dieselbe Regel, andere Richtung -- und diesmal in der Datei, die A6 neu
 # gebracht hat.
@@ -27271,7 +27590,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronNameRuleTest passed
 
 echo
-echo "== CronPayloadTest: der Menuepunkt bekommt eine andere Faehigkeit =="
+echo "── CronPayloadTest: der Menuepunkt bekommt eine andere Faehigkeit ──"
 #
 # Ein Eintrag, den der Betrachter sieht und der ihm einen 403 gibt.
 vorher_datei resources/js/Layouts/PanelLayout.vue
@@ -27290,7 +27609,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
-echo "== CronPayloadTest: der Leser traegt das Praefix woertlich =="
+echo "── CronPayloadTest: der Leser traegt das Praefix woertlich ──"
 #
 # Dieselbe Regel an drei Orten -- und beim naechsten Umbenennen zieht nur einer
 # mit.
@@ -27310,7 +27629,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
-echo "== CronPayloadTest: der Bereich -Uebergangen- steht immer da =="
+echo "── CronPayloadTest: der Bereich -Uebergangen- steht immer da ──"
 #
 # Leer waere er eine Beruhigung, die niemand bestellt hat.
 vorher_datei resources/js/Pages/Schedules/Index.vue
@@ -27329,7 +27648,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
-echo "== UnknownStateTest: der Gegenzweig faellt weg =="
+echo "── UnknownStateTest: der Gegenzweig faellt weg ──"
 #
 # Gemessen auf cloudsrv24 (docs/114 §6): Bei angehaltenem Agenten stand unter
 # der Ueberschrift "Regelwerk" nichts -- die Konsole druckte
@@ -27354,7 +27673,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnknownStateTest passed
 
 echo
-echo "== UnknownStateTest: der Gegenzweig sagt -keine Regeln- =="
+echo "── UnknownStateTest: der Gegenzweig sagt -keine Regeln- ──"
 #
 # "Keine Regeln" ist eine Aussage ueber den Server; gefragt war eine ueber den
 # Aufruf.
@@ -27374,7 +27693,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnknownStateTest passed
 
 echo
-echo "== AgentMessageTest: der Einbetter setzt wieder einen Punkt =="
+echo "── AgentMessageTest: der Einbetter setzt wieder einen Punkt ──"
 #
 # Der erste Wurf dieses Waechters blieb hier gruen: Sein Ausdruck vertrug kein
 # `}` in der Mitte der Klammer und uebersprang ausgerechnet diese Stelle.
@@ -27394,7 +27713,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AgentMessageTest passed
 
 echo
-echo "== AgentMessageTest: eine Meldung verliert ihren Schlusspunkt =="
+echo "── AgentMessageTest: eine Meldung verliert ihren Schlusspunkt ──"
 #
 # Die andere Richtung: Ohne sie duerfte jemand die Schlusszeichen aus Client
 # entfernen, und alle zehn Einbettungen endeten ohne Punkt.
@@ -27414,7 +27733,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AgentMessageTest passed
 
 echo
-echo "== CronPayloadTest: die Bereiche stehen ohne Bedingung da =="
+echo "── CronPayloadTest: die Bereiche stehen ohne Bedingung da ──"
 #
 # Gemessen im Abnahmelauf (docs/113 §9.3): Bei angehaltenem Agenten standen
 # beide Bereiche mit ihrer Kopfzeile ueber null Zeilen -- "ich weiss es nicht"
@@ -27435,7 +27754,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
-echo "== CronPayloadTest: Streifen und Bereiche haengen an verschiedenen Bedingungen =="
+echo "── CronPayloadTest: Streifen und Bereiche haengen an verschiedenen Bedingungen ──"
 #
 # Die gefaehrlichere Haelfte: Ein Waechter, der bloss nach einem v-if fragte,
 # bliebe hier gruen -- und die zweite Bedingung waere eine zweite Fassung
@@ -27456,7 +27775,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
-echo "== CronPayloadTest: der Streifen verliert seine Bedingung =="
+echo "── CronPayloadTest: der Streifen verliert seine Bedingung ──"
 #
 # Die andere Richtung: Steht der Satz "nicht feststellbar" auf jeder Seite,
 # sagt er nichts mehr -- und der Vergleich der beiden Bedingungen ist fort.
@@ -27476,7 +27795,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
-echo "== CronPayloadTest: die Obergrenze faellt weg =="
+echo "── CronPayloadTest: die Obergrenze faellt weg ──"
 #
 # Gemessen bei 1440 px gegen den echten Bestand: ohne Grenze ist die Zelle
 # 1396 px breit und die Tabelle laeuft 736 px ueber ihren Bereich -- waehrend
@@ -27498,7 +27817,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
-echo "== CronPayloadTest: die Grenze haengt an der Zelle =="
+echo "── CronPayloadTest: die Grenze haengt an der Zelle ──"
 #
 # max-width gilt fuer eine Tabellenzelle laut CSS 2.1 nicht; dass dieses
 # Chromium sie dort beachtet, ist gemessen und trotzdem keine Zusage.
@@ -27532,7 +27851,7 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CronPayloadTest passed
 
 echo
-echo "== CronPayloadTest: das Kommando bricht nicht mehr =="
+echo "── CronPayloadTest: das Kommando bricht nicht mehr ──"
 #
 # docs/46 §20.13: Eine Textzelle ohne Umbruch hat den Inhalt einer Tabelle
 # 5710px breit gemacht statt 1907 -- und die Ueberlaufmessung sieht davon nichts.
@@ -32003,6 +32322,2687 @@ pruefe "zweite Auswahl ohne Katalog" \
   SubscriptionQuotaTest::test_only_one_quota_is_a_selection failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SubscriptionQuotaTest passed
+
+echo "── SharedClosureTest: die Kontenablage als fertiger Wert ──"
+#
+# Der gemessene Befund vom 21. September 2026. `has_active_subscription`
+# stand als fertiger Wert in `share()` und fragte die Datenbank auch bei einem
+# partiellen Nachladen, das `account` gar nicht mitschickt: voller Besuch 1
+# Abfrage, partielles Nachladen ebenfalls 1.
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Middleware/HandleInertiaRequests.php')
+s = p.read_text()
+alt = "'account' => fn (): ?array => $account instanceof Account ? ["
+assert alt in s
+p.write_text(s.replace(alt, "'account' => $account instanceof Account ? [", 1))
+PY
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "Kontenablage als fertiger Wert" &&
+pruefe "Kontenablage als fertiger Wert" \
+  SharedClosureTest::test_a_partial_reload_does_not failed
+wiederherstellen
+
+echo "── SharedClosureTest: ein billiger Eintrag als fertiger Wert ──"
+#
+# Die Haelfte, die die Wirkungsmessung nicht sehen kann. `source` kostet
+# keine Abfrage; als fertiger Wert ist er trotzdem falsch, weil die erste teure
+# Zeile, die jemand spaeter hineinschreibt, dann still in jeder Anfrage laeuft.
+# Gemessen: Der Wirkungsfall bleibt bei diesem Eingriff gruen, der Formfall
+# nicht — und genau deshalb gibt es beide.
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Middleware/HandleInertiaRequests.php')
+s = p.read_text()
+alt = "'source' => fn (): array => ["
+assert alt in s
+p.write_text(s.replace(alt, "'source' => [", 1))
+PY
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "billiger Eintrag als fertiger Wert" &&
+pruefe "billiger Eintrag als fertiger Wert" \
+  SharedClosureTest::test_every_shared_entry_is_a_closure failed
+wiederherstellen
+
+echo "── SharedClosureTest: der Anker des Lesers zieht um ──"
+#
+# Ein gewoehnlicher Umbau — ein benannter Parameter —, und der Leser der
+# obersten Ebene findet seinen Anker nicht mehr. Ohne die Zusicherung gaebe er
+# eine leere Liste zurueck, und die saehe aus wie eine Datei ohne Fehler.
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Middleware/HandleInertiaRequests.php')
+s = p.read_text()
+alt = "return array_merge(parent::share($request), ["
+assert alt in s
+p.write_text(s.replace(alt, "return array_merge(parent::share(request: $request), [", 1))
+PY
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "Anker des Lesers zieht um" &&
+pruefe "Anker des Lesers zieht um" \
+  SharedClosureTest::test_every_shared_entry_is_a_closure failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SharedClosureTest passed
+
+echo "── SeriesSourceTest: der Wert einer Stuetzstelle wird eine Zahl ──"
+#
+# Waere er eine Zahl, muesste die Kachel ihn formatieren — und dann stuende
+# die Frage nach Nachkommastellen, Tausenderpunkt und Einheit dort, wo niemand
+# die Reihe kennt, aus der sie kommt.
+vorher_datei resources/js/Components/Tile.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/Tile.vue')
+s = p.read_text()
+alt = "  t: string\n  v: string\n}"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "  t: string\n  v: number\n}", 1))
+PY
+griff_datei resources/js/Components/Tile.vue "Stuetzstelle traegt eine Zahl" &&
+pruefe "Stuetzstelle traegt eine Zahl" \
+  SeriesSourceTest::test_a_point_carries_text_and_not_a_number failed
+wiederherstellen
+
+echo "── SeriesSourceTest: die Kachel formatiert selbst ──"
+#
+# `toLocaleString` folgt der Sprache des Geraets, `number_format` der des
+# Panels. Zwei Formatierungen derselben Zahl sind nicht doppelt, sondern
+# verschieden — und welche man sieht, entscheidet der Browser des Lesers.
+vorher_datei resources/js/Components/Tile.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/Tile.vue')
+s = p.read_text()
+alt = "  return points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join(' ')"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "  return points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toLocaleString()} ${p.y}`).join(' ')", 1))
+PY
+griff_datei resources/js/Components/Tile.vue "Kachel formatiert selbst" &&
+pruefe "Kachel formatiert selbst" \
+  SeriesSourceTest::test_the_tile_formats_nothing failed
+wiederherstellen
+
+echo "── SeriesSourceTest: eine zweite Stelle rechnet Stuetzstellen ──"
+#
+# Gemessen schreibt genau eine Datei unter `app/` und `agent/` den
+# Schluessel einer Stuetzstelle. Eine zweite waere die zweite Fassung der Umkehr
+# der y-Achse — und die faellt erst auf, wenn eine Kurve auf dem Kopf steht.
+vorher_datei app/Support/Metrics/Store.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/Store.php')
+s = p.read_text()
+alt = "    private static function labels(array $records): array\n    {"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "    private static function labels(array $records): array\n    {\n        $zweiteFassung = ['x' => 0.0];\n", 1))
+PY
+griff_datei app/Support/Metrics/Store.php "zweite Stelle rechnet Stuetzstellen" &&
+pruefe "zweite Stelle rechnet Stuetzstellen" \
+  SeriesSourceTest::test_only_one_place_computes_a_support_point failed
+wiederherstellen
+
+echo "── SeriesSourceTest: eine Seite rechnet ihre Kurve selbst ──"
+#
+# Der Fall, den diese Regel ausschliesst: `:series` an etwas, das die Seite
+# selbst gebaut hat. Der Name der Komponente steht daneben unveraendert da —
+# gelesen wird deshalb die Bindung und nicht der Name.
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Overview.vue')
+s = p.read_text()
+alt = '        :series="tile.series"'
+assert s.count(alt) == 1
+s = s.replace(alt, '        :series="eigeneReihe"', 1)
+alt2 = "const props = defineProps<{"
+assert s.count(alt2) == 1
+s = s.replace(alt2, "const eigeneReihe = { has: false, warns: false, unit: '', points: [] }\n\nconst props = defineProps<{", 1)
+p.write_text(s)
+PY
+griff_datei resources/js/Pages/Overview.vue "Seite rechnet ihre Kurve selbst" &&
+pruefe "Seite rechnet ihre Kurve selbst" \
+  SeriesSourceTest::test_every_curve_on_a_page_comes_from_the_server failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SeriesSourceTest passed
+
+echo "── DailyHistoryTest: ein Monatskontingent als Schwelle einer Tageskurve ──"
+#
+# Quota::TrafficGb ist eine Menge je Monat, die Kurve zeigt Tage. Eine
+# Tageszahl gegen ein Monatskontingent zu halten hiesse, dreissigmal zu frueh
+# zu warnen — und eine Warnung, die nicht mehr weggeht, liest nach dem dritten
+# Mal niemand.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = '            $this->traffic($rows),'
+assert s.count(alt) == 1
+s = s.replace(alt, '            $this->traffic($rows, $this->limit($subscription, Quota::TrafficGb)),', 1)
+s = s.replace('    private function traffic(array $rows): array', '    private function traffic(array $rows, ?float $schwelle = null): array', 1)
+s = s.replace("[1],\n            null,\n        );", "[1],\n            $schwelle,\n        );", 1)
+p.write_text(s)
+PY
+griff_datei app/Support/Metrics/History.php "Monatsschwelle auf Tageskurve" &&
+pruefe "Monatsschwelle auf Tageskurve" \
+  DailyHistoryTest::test_a_monthly_quota_is_no_threshold_for_a_daily_curve failed
+wiederherstellen
+
+echo "── DailyHistoryTest: abgeschnitten wird vorn statt hinten ──"
+#
+# Dreissig Tage zeigen und die aeltesten dreissig nehmen: Die Seite steht dann
+# auf einem Monat, der vorbei ist, und sagt es nicht. Der juengste Tag gehoert
+# nach rechts.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = 'array_slice($tage, -self::DAYS)'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'array_slice($tage, 0, self::DAYS)', 1))
+PY
+griff_datei app/Support/Metrics/History.php "abgeschnitten wird vorn" &&
+pruefe "abgeschnitten wird vorn" \
+  DailyHistoryTest::test_only_the_last_thirty_days_are_shown failed
+wiederherstellen
+
+echo "── DailyHistoryTest: jede Richtung auf ihrer eigenen Achse ──"
+#
+# Gerechnet jede fuer sich, fuellt auch die tausendfach kleinere die 24
+# Einheiten der Kachel aus — und wer das Bild ansieht, liest beide etwa gleich.
+# Der Wert daneben stimmt dabei; die Geometrie luegt.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = '            $min,\n            $max,'
+assert s.count(alt) == 1
+neu = "            $werte === [] ? 0.0 : min($werte),\n            $werte === [] ? 0.0 : max($werte),"
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Metrics/History.php "jede Richtung eigene Achse" &&
+pruefe "jede Richtung eigene Achse" \
+  DailyHistoryTest::test_both_directions_share_one_axis failed
+wiederherstellen
+
+echo "── DailyHistoryTest: die Fehlerquote ohne ihren Nenner ──"
+#
+# Ein Tag ohne Anfragen hat keine Quote. Wer durch die blanke Zahl teilt oder
+# einen Sockel addiert, erfindet eine Fehlerrate fuer einen Tag, an dem niemand
+# da war.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = '$anzahl > 0.0 ? ($fehler[$i] ?? 0.0) / $anzahl * 100.0 : 0.0'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '($fehler[$i] ?? 0.0) / max($anzahl, 1.0) * 100.0 + 1.0', 1))
+PY
+griff_datei app/Support/Metrics/History.php "Fehlerquote ohne Nenner" &&
+pruefe "Fehlerquote ohne Nenner" \
+  DailyHistoryTest::test_a_day_without_requests_has_no_rate failed
+wiederherstellen
+
+echo "── DailyHistoryTest: ein einzelner Tag gilt als Kurve ──"
+#
+# Ein Abonnement am zweiten Tag hat einen Wert. Eine Kurve aus einem Punkt ist
+# keine — und ohne diese Schranke teilt die Geometrie durch null.
+vorher_datei app/Support/Metrics/Points.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/Points.php')
+s = p.read_text()
+alt = 'if ($lastIndex < 1) {'
+assert s.count(alt) == 1
+s = s.replace(alt, 'if ($lastIndex < 0) {', 1)
+alt2 = '        $span = '
+assert s.count(alt2) == 1
+p.write_text(s.replace(alt2, '        $lastIndex = max($lastIndex, 1);\n        $span = ', 1))
+PY
+griff_datei app/Support/Metrics/Points.php "einzelner Tag gilt als Kurve" &&
+pruefe "einzelner Tag gilt als Kurve" \
+  DailyHistoryTest::test_a_single_day_is_not_a_curve failed
+wiederherstellen
+
+echo "── DailyHistoryTest: der Leser loest die Mandantenklammer ──"
+#
+# Die Klammer haengt an den Modellen und nicht an dieser Klasse. Ein
+# withoutRestriction() hier zeigte einem Kunden die Zahlen eines fremden
+# Abonnements — und der Nachtlauf braucht es nur, weil er ohne Konto laeuft.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = "        foreach ($query->orderBy('day')->get() as $row) {"
+assert s.count(alt) == 1
+neu = "        $zeilen = app(\\App\\Support\\Tenancy\\Tenancy::class)->withoutRestriction(static fn () => $query->orderBy('day')->get());\n\n        foreach ($zeilen as $row) {"
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Metrics/History.php "Leser loest die Klammer" &&
+pruefe "Leser loest die Klammer" \
+  DailyHistoryTest::test_a_foreign_customer_sees_nothing failed
+wiederherstellen
+
+echo "── DailyHistoryTest: die Datenbanken bleiben in Byte ──"
+#
+# Der Bereich zwei Zeilen darunter zeigt seit P5 Megabyte. Dieselbe Groesse in
+# zwei Einheiten auf einer Seite laesst den Leser rechnen, statt ihn lesen zu
+# lassen.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = '$v / 1_048_576.0'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '$v', 1))
+PY
+griff_datei app/Support/Metrics/History.php "Datenbanken bleiben in Byte" &&
+pruefe "Datenbanken bleiben in Byte" \
+  DailyHistoryTest::test_the_database_tile_speaks_the_unit_of_its_page failed
+wiederherstellen
+
+echo "── DailyHistoryTest: eine Kachel faellt aus der Reihe ──"
+#
+# Fuenf auf der Abonnementseite, drei auf der Domainseite, und die Reihenfolge
+# steht fest — die Seite ordnet nicht nach. Eine fehlende Kachel faellt
+# niemandem auf, weil die vier daneben richtig aussehen.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = '            $this->errorRate($rows),\n            $this->level($rows, DailyMetric::DatabaseBytes'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '            $this->level($rows, DailyMetric::DatabaseBytes', 1))
+PY
+griff_datei app/Support/Metrics/History.php "Kachel faellt aus der Reihe" &&
+pruefe "Kachel faellt aus der Reihe" \
+  DailyHistoryTest::test_a_subscription_gets_five_tiles_and_a_domain_three failed
+wiederherstellen
+
+echo "── DailyHistoryTest: aus der Tagesmenge wird eine Rate ──"
+#
+# Der Ringpuffer misst Byte je Sekunde, diese Tabelle Byte je Tag. Dieselbe
+# Groessenordnung, dieselben Schritte, zwei verschiedene Groessen — und die
+# Nachsilbe ist der einzige Unterschied, den man sieht.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = "max($werte), ''"
+assert s.count(alt) == 2
+p.write_text(s.replace(alt, "max($werte), '/s'"))
+PY
+griff_datei app/Support/Metrics/History.php "Tagesmenge als Rate" &&
+pruefe "Tagesmenge als Rate" \
+  DailyHistoryTest::test_a_daily_amount_is_not_a_rate failed
+wiederherstellen
+
+echo "── DailyHistoryTest: die Seite fragt je Kachel ──"
+#
+# Die Tabelle ist lang und nicht breit; alle Kennzahlen eines Abonnements
+# kommen mit einem where heraus. Eine Abfrage je Kachel waechst mit der Zahl
+# der Kacheln, und die waechst.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = "        return [\n            $this->level($rows, DailyMetric::DiskMb"
+assert s.count(alt) == 1
+neu = "        $rows = $this->read(SubscriptionMetric::query()->where('subscription_id', (int) $subscription->id));\n\n" + alt
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Metrics/History.php "Seite fragt je Kachel" &&
+pruefe "Seite fragt je Kachel" \
+  DailyHistoryTest::test_the_page_asks_once failed
+wiederherstellen
+
+echo "── DailyHistoryTest: die Ablesung nennt eine Uhrzeit ──"
+#
+# Ueber dreissig Tage gaebe das dreissigmal dieselbe Zahl, und die Ablesung
+# beantwortete jede Frage gleich. Der Ringpuffer schreibt H:i, weil er 24
+# Stunden zeigt — hier ist es der falsche Massstab.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Metrics/History.php')
+s = p.read_text()
+alt = "format('d.m.')"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "format('H:i')", 1))
+PY
+griff_datei app/Support/Metrics/History.php "Ablesung nennt eine Uhrzeit" &&
+pruefe "Ablesung nennt eine Uhrzeit" \
+  DailyHistoryTest::test_the_reading_names_the_day failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
+
+echo "── QuotaOverrunTest: der Leser loest die Mandantenklammer nicht ──"
+#
+# Der Nachtlauf hat kein angemeldetes Konto. `databaseUsedMb()` fragt eine
+# zweite Tabelle — ohne geloeste Klammer kommt wortlos „nicht gemessen"
+# heraus, und ein Kunde ueber seinem Datenbankkontingent faellt nie auf.
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text()
+alt = '$this->tenancy->withoutRestriction(function () use ($measuredAt, &$findings): void {'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '(function () use ($measuredAt, &$findings): void {', 1))
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "Klammer nicht geloest" &&
+pruefe "Klammer nicht geloest" \
+  QuotaOverrunTest::test_databases_over_their_quota_is_a_finding failed
+wiederherstellen
+
+echo "── QuotaOverrunTest: ein Kontingent von 0 gilt als Grenze ──"
+#
+# Im Katalog heisst 0 „unbegrenzt" oder „nicht angeboten". Dagegen zu
+# vergleichen machte aus jedem Kunden einen Ueberschreiter — und aus jedem
+# Nachtlauf eine Rundmail.
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text()
+alt = '|| (float) $limit <= 0.0'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '|| (float) $limit < 0.0', 1))
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "Null als Grenze" &&
+pruefe "Null als Grenze" \
+  QuotaOverrunTest::test_a_quota_of_zero_is_no_limit failed
+wiederherstellen
+
+echo "── QuotaOverrunTest: ein ungemessener Wert wird gemeldet ──"
+#
+# „Nicht gemessen" ist kein Befund und kein Freispruch. Wer es zum Befund
+# macht, schickt dem Kunden eine Mail ueber eine Grenze, von der niemand weiss,
+# ob sie ueberschritten ist.
+#
+# **Der erste Wurf dieses Eingriffs hat nichts gemessen.** Er liess den Wert auf
+# 0 zurueckfallen — also auf die andere falsche Auskunft —, und der Fall blieb
+# gruen: Null liegt unter jeder Grenze, der Pruefling antwortet auf beide
+# Zustaende gleich. Gemeldet hat es der Lauf ueber diesen Abschnitt.
+#
+# > **Ein Eingriff, der einen Zustand herstellt, den der Pruefling ohnehin
+# > gleich beantwortet, misst die Regel nicht — er misst, dass sie
+# > unempfindlich ist.**
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text()
+alt = 'if ($used === null || ! is_numeric($limit) || (float) $limit <= 0.0) {'
+assert s.count(alt) == 1
+neu = ('if (! is_numeric($limit) || (float) $limit <= 0.0) {'
+       "\n            return null;\n        }\n\n"
+       '        if ($used === null) {'
+       "\n            return [0.0, (float) $limit];\n        }\n\n"
+       '        if (false) {')
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "ungemessen wird gemeldet" &&
+pruefe "ungemessen wird gemeldet" \
+  QuotaOverrunTest::test_an_unmeasured_value_is_not_a_finding failed
+wiederherstellen
+
+echo "── QuotaOverrunTest: der Verkehr zaehlt ein rollendes Fenster ──"
+#
+# Das Kontingent heisst „Traffic je Monat". Ein rollendes Fenster von
+# dreissig Tagen ist etwas anderes und ergibt eine andere Zahl — am
+# Monatsanfang eine, die den ganzen Vormonat mitnimmt.
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text()
+alt = '->startOfMonth()->toDateString()'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '->subDays(30)->toDateString()', 1))
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "rollendes Fenster statt Monat" &&
+pruefe "rollendes Fenster statt Monat" \
+  QuotaOverrunTest::test_traffic_counts_the_calendar_month failed
+wiederherstellen
+
+echo "── QuotaOverrunTest: der eingehende Verkehr zaehlt mit ──"
+#
+# Gezaehlt wird, was hinausgeht. Wer beide Richtungen summiert, meldet einen
+# Kunden ueber seinem Kontingent, der es nach der vereinbarten Rechnung nicht
+# ist.
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text()
+alt = "->where('metric', DailyMetric::TrafficSentBytes->value)"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "->whereIn('metric', [DailyMetric::TrafficSentBytes->value, DailyMetric::TrafficReceivedBytes->value])", 1))
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "eingehend zaehlt mit" &&
+pruefe "eingehend zaehlt mit" \
+  QuotaOverrunTest::test_only_the_outgoing_direction_counts failed
+wiederherstellen
+
+echo "── QuotaOverrunTest: gesperrte Abonnements werden mitgemeldet ──"
+#
+# Eine Mail ueber ein Kontingent von etwas, das der Kunde nicht mehr benutzt,
+# ist keine Auskunft, sondern Laerm.
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text()
+alt = "->whereIn('status', SubscriptionStatus::usableValues())\n            ->orderBy('id')"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "->orderBy('id')", 1))
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "gesperrte werden gemeldet" &&
+pruefe "gesperrte werden gemeldet" \
+  QuotaOverrunTest::test_a_suspended_subscription_is_left_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaOverrunTest passed
+
+echo "── NotificationLedgerTest: die Haltezeit wird uebergangen ──"
+#
+# Ohne Haltezeit meldet eine Platte, die um die Schwelle pendelt, jede Nacht.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = '$schwelle = $now->copy()->subHours(self::HOLD_HOURS);'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '$schwelle = $now->copy()->addHours(1);', 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Haltezeit uebergangen" &&
+pruefe "Haltezeit uebergangen" \
+  NotificationLedgerTest::test_a_fresh_overrun_is_not_reported_yet failed
+wiederherstellen
+
+echo "── NotificationLedgerTest: die Zustellung wird nicht vermerkt ──"
+#
+# Ohne Buchung ist jede Nacht dieselbe Nachricht faellig. Der Kunde bekommt
+# sie, solange der Zustand steht — und das kann ein Monat sein.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = 'FindingNotification::record($finding, $channel, $now);'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '$finding->refresh();', 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Zustellung nicht vermerkt" &&
+pruefe "Zustellung nicht vermerkt" \
+  NotificationLedgerTest::test_a_later_run_does_not_report_again failed
+wiederherstellen
+
+echo "── NotificationLedgerTest: eine Mail je Befund statt je Abonnement ──"
+#
+# Zwei Ueberschreitungen desselben Abonnements sind zwei Mails in derselben
+# Minute — genau das, wogegen „genau eine Mail" geschrieben ist.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = "$channel->batchKey($f->check, $f->subject)"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '(string) $f->id', 1))
+PY
+griff_datei app/Support/Notify/Notices.php "eine Mail je Befund" &&
+pruefe "eine Mail je Befund" \
+  NotificationLedgerTest::test_two_overruns_of_one_subscription_are_one_mail failed
+wiederherstellen
+
+echo "── NotificationLedgerTest: ohne Relais wird trotzdem vermerkt ──"
+#
+# Eine Buchung ohne Zustellung behauptet eine Mail, die es nicht gab — und
+# nimmt der Zeile fuer immer ihre Faelligkeit.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = 'if (! $channel->usable()) {'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'if (false) {', 1))
+PY
+griff_datei app/Support/Notify/Notices.php "ohne Relais vermerkt" &&
+pruefe "ohne Relais vermerkt" \
+  NotificationLedgerTest::test_without_a_relay_nothing_is_marked failed
+wiederherstellen
+
+echo "── NotificationLedgerTest: ein nicht beurteilter Zustand geht an den Kunden ──"
+#
+# `traffic_unknown` sagt, dass dem Server die Zeitzone fehlt. Das ist ein
+# Problem des Betreibers; eine Mail darueber an den Kunden meldet ihm etwas,
+# das er nicht aendern kann.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = '->filter(static fn (Finding $f): bool => $f->state() !== FindingState::Unknown)'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '->filter(static fn (Finding $f): bool => true)', 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Unbeurteiltes an den Kunden" &&
+pruefe "Unbeurteiltes an den Kunden" \
+  NotificationLedgerTest::test_an_unjudged_state_is_not_mailed failed
+wiederherstellen
+
+echo "── NotificationLedgerTest: der Kanal vermerkt jeden Lauf ──"
+#
+# „Zuletzt erfolgreich zugestellt" neben einem Zeitpunkt, an dem nichts
+# ankam, ist falsch, waehrend es richtig aussieht.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = "if ($bilanz['sent'] + $bilanz['resolved'] > 0) {"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "if ($bilanz['sent'] + $bilanz['resolved'] >= 0) {", 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Kanal vermerkt jeden Lauf" &&
+pruefe "Kanal vermerkt jeden Lauf" \
+  NotificationLedgerTest::test_the_channel_records_only_a_delivery failed
+wiederherstellen
+
+echo "── NotificationLedgerTest: ein Abonnement ohne Empfaenger gilt als gemeldet ──"
+#
+# Was nicht verschickt wurde, darf nicht als gemeldet dastehen. Sonst ist die
+# Ueberschreitung fuer immer stumm, und niemand erfaehrt, dass dem Kunden ein
+# Konto mit Adresse fehlt.
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text()
+alt = """        $empfaenger = $this->customerAddresses($subscription);
+
+        if ($empfaenger === []) {
+            return Delivery::WithoutRecipient;
+        }"""
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, alt.replace('WithoutRecipient', 'Sent'), 1))
+PY
+griff_datei app/Support/Notify/MailChannel.php "ohne Empfaenger gemeldet" &&
+pruefe "ohne Empfaenger gemeldet" \
+  NotificationLedgerTest::test_a_subscription_without_a_recipient_stays_due failed
+wiederherstellen
+
+echo "── NotificationLedgerTest: ein Kanal bucht fuer den anderen mit ──"
+#
+# Der Fall, fuer den es die Tabelle gibt. Faellt die Frage nach dem Kanal weg,
+# nimmt der erste gelungene Kanal dem zweiten seine Meldung — dauerhaft.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = "->whereDoesntHave('notifications', static fn ($q) => $q->where('channel', $channel->key()))"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "->whereDoesntHave('notifications')", 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Kanal bucht mit" &&
+pruefe "Kanal bucht mit" \
+  NotificationLedgerTest::test_each_channel_books_only_for_itself failed
+wiederherstellen
+
+echo "── NotificationLedgerTest: ein Fehlschlag wird gebucht ──"
+#
+# Was nicht ankam, bleibt faellig. Eine Buchung auf dem Fehlerweg nimmt der
+# Meldung ihre Faelligkeit fuer genau den Kanal, der sie nie bekommen hat.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = """                case Delivery::Failed:
+                    $bilanz['failed']++;"""
+assert s.count(alt) == 1
+neu = """                case Delivery::Failed:
+                    foreach ($gruppe as $finding) {
+                        FindingNotification::record($finding, $channel, $now);
+                    }
+
+                    $bilanz['failed']++;"""
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Fehlschlag gebucht" &&
+pruefe "Fehlschlag gebucht" \
+  NotificationLedgerTest::test_each_channel_books_only_for_itself failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NotificationLedgerTest passed
+
+echo "── ChannelReachTest: ein gebauter Kanal steht nicht auf der Seite ──"
+#
+# So entsteht ein toter Eintrag wirklich: Der Kanal meldet, und die Seite, auf
+# der „zuletzt erfolgreich zugestellt" steht, kennt ihn nicht.
+vorher_datei resources/js/Pages/Settings/Notices.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Settings/Notices.vue')
+s = p.read_text()
+alt = '  webhook: {'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '  webhook_alt: {', 1))
+PY
+griff_datei resources/js/Pages/Settings/Notices.vue "Kanal fehlt auf der Seite" &&
+pruefe "Kanal fehlt auf der Seite" \
+  ChannelReachTest::test_every_implementation_stands_on_the_page failed
+wiederherstellen
+
+echo "── ChannelReachTest: ein Kanal der Seite ist nicht gebaut ──"
+#
+# Die Gegenrichtung: Die Seite bietet einen Weg an, den niemand bedient.
+vorher_datei app/Support/Notify/Channels.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Channels.php')
+s = p.read_text()
+alt = '$this->channels = [$mail, $webhook];'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '$this->channels = [$mail];', 1))
+PY
+griff_datei app/Support/Notify/Channels.php "Kanal nicht gebaut" &&
+pruefe "Kanal nicht gebaut" \
+  ChannelReachTest::test_every_channel_on_the_page_has_an_implementation failed
+wiederherstellen
+
+echo "── WebhookTransportTest: eine http-Adresse geht durch ──"
+#
+# Grenze 1. Wer eine Adresse nach draussen waehlen darf, waehlt sonst auch
+# `http://127.0.0.1:…` — und das Panel spraeche als `srvpanel` mit jedem
+# Dienst dieses Servers.
+vorher_datei agent/src/Notify/Target.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Target.php')
+s = p.read_text()
+alt = "if ($address === '' || ! $this->http->permitted($address)) {"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'if (false) {', 1))
+PY
+griff_datei agent/src/Notify/Target.php "http-Adresse geht durch" &&
+pruefe "http-Adresse geht durch" \
+  WebhookTransportTest::test_only_https_reaches_the_store failed
+wiederherstellen
+
+echo "── WebhookTransportTest: ein zu kurzes Geheimnis geht durch ──"
+#
+# Ein Geheimnis von vier Zeichen ist eines, das der Empfaenger nachrechnen
+# kann — und jeder andere auch.
+vorher_datei agent/src/Notify/Target.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Target.php')
+s = p.read_text()
+alt = 'if (! is_string($secret) || strlen($secret) < self::SECRET_MIN) {'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'if (! is_string($secret)) {', 1))
+PY
+griff_datei agent/src/Notify/Target.php "kurzes Geheimnis geht durch" &&
+pruefe "kurzes Geheimnis geht durch" \
+  WebhookTransportTest::test_a_secret_is_long_enough_or_absent failed
+wiederherstellen
+
+echo "── WebhookTransportTest: die Adresse kommt zurueck ──"
+#
+# Bei Slack, Discord und den meisten Eingangshaken berechtigt die Adresse
+# allein zur Zustellung. Sie steht deshalb in keiner Antwort.
+vorher_datei agent/src/Notify/Target.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Target.php')
+s = p.read_text()
+alt = "'host' => self::hostOf($url),"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'host' => $url,", 1))
+PY
+griff_datei agent/src/Notify/Target.php "Adresse kommt zurueck" &&
+pruefe "Adresse kommt zurueck" \
+  WebhookTransportTest::test_neither_address_nor_secret_comes_back failed
+wiederherstellen
+
+echo "── WebhookTransportTest: die Signatur vergisst den Zeitpunkt ──"
+#
+# Eine Signatur ohne Zeitstempel beglaubigt den Inhalt und nicht den
+# Augenblick — dieselbe Meldung gilt morgen noch.
+vorher_datei agent/src/Notify/Delivery.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Delivery.php')
+s = p.read_text()
+alt = "hash_hmac('sha256', $at.'.'.$body, $secret)"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "hash_hmac('sha256', $body, $secret)", 1))
+PY
+griff_datei agent/src/Notify/Delivery.php "Signatur ohne Zeitpunkt" &&
+pruefe "Signatur ohne Zeitpunkt" \
+  WebhookTransportTest::test_the_signature_covers_the_timestamp_and_the_body failed
+wiederherstellen
+
+echo "── WebhookTransportTest: das Panel setzt den Absender ──"
+#
+# Der Absender ist eine Angabe des Agenten ueber den Server. Kaeme er aus der
+# Meldung, waere die Herkunft eine Angabe des Absenders ueber sich selbst.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "default => ['server' => $server, 'at' => $at, 'event' => $event],"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "default => ['server' => $event['server'] ?? $server, 'at' => $at, 'event' => $event],", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Panel setzt den Absender" &&
+pruefe "Panel setzt den Absender" \
+  WebhookTransportTest::test_the_sender_is_stamped_and_not_taken_from_the_payload failed
+wiederherstellen
+
+echo "── WebhookTransportTest: eine abgewiesene Meldung gilt als zugestellt ──"
+#
+# Sonst stuende „zuletzt erfolgreich zugestellt" neben einem Ziel, das jede
+# Meldung mit 500 beantwortet.
+vorher_datei agent/src/Notify/Delivery.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Delivery.php')
+s = p.read_text()
+alt = 'if (! $response->successful()) {'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'if (false) {', 1))
+PY
+griff_datei agent/src/Notify/Delivery.php "abgewiesen gilt als zugestellt" &&
+pruefe "abgewiesen gilt als zugestellt" \
+  WebhookTransportTest::test_a_rejected_delivery_throws failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WebhookTransportTest passed
+
+echo "── WebhookTransportTest: Slack bekommt die JSON-Form ──"
+#
+# Slack verlangt einen Rumpf mit `text` und weist alles andere mit 400 ab.
+# Genau dafuer gibt es die Positivliste.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "self::SLACK => ['text' => self::text($provider, $server, $event)],"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "self::SLACK => ['event' => $event],", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Slack bekommt JSON" &&
+pruefe "Slack bekommt JSON" \
+  WebhookTransportTest::test_each_receiver_gets_the_shape_it_accepts failed
+wiederherstellen
+
+echo "── WebhookTransportTest: der Text nennt den Absender nicht ──"
+#
+# Ein Kanal, in dem drei Server melden, ist ohne Herkunft eine Liste von
+# Saetzen — und der Absender ist die eine Angabe, die das Panel nicht setzt.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "            : sprintf('%s — %s', $server, $ort);"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "            : $ort;", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Text ohne Absender" &&
+pruefe "Text ohne Absender" \
+  WebhookTransportTest::test_the_text_names_sender_subject_and_wording failed
+wiederherstellen
+
+echo "── WebhookTransportTest: ein unbekannter Empfaenger faellt auf den Standard ──"
+#
+# Wer sich vertippt, bekaeme wortlos die JSON-Form und wunderte sich ueber ein
+# 400 von Slack.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "        if (! array_key_exists($key, self::LABELS)) {\n            throw AgentException::badRequest("
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "        if (false) {\n            throw AgentException::badRequest(", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "unbekannter Empfaenger faellt zurueck" &&
+pruefe "unbekannter Empfaenger faellt zurueck" \
+  WebhookTransportTest::test_an_unknown_receiver_is_refused failed
+wiederherstellen
+
+echo "── WebhookTransportTest: der Rueckfall wirft statt zurueckzufallen ──"
+#
+# Eine Datei aus der Zeit vor der Liste traegt kein `provider`. Ein Wurf an
+# dieser Stelle machte aus einem hinterlegten Ziel ein unlesbares.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "        return array_key_exists($key, self::LABELS) ? $key : self::GENERIC;"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "        return self::usable($provider);", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Rueckfall wirft" &&
+pruefe "Rueckfall wirft" \
+  WebhookTransportTest::test_a_target_from_before_the_list_still_delivers failed
+wiederherstellen
+
+echo "── WebhookTransportTest: der Deckel greift nicht ──"
+#
+# Discord weist ein `content` ueber 2000 Zeichen ab. Ein Deckel darueber
+# verschiebt den Fehlschlag ans andere Ende der Leitung.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "        if (mb_strlen($text) <= $limit) {"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "        if (true) {", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Deckel greift nicht" &&
+pruefe "Deckel greift nicht" \
+  WebhookTransportTest::test_the_text_stays_under_what_the_receiver_takes failed
+wiederherstellen
+
+echo "── WebhookTransportTest: Slack gilt als signierend ──"
+#
+# Dort liest niemand unsere Kopfzeile. Eine Signatur, die der Empfaenger nicht
+# nachrechnet, ist eine Beschriftung und keine Beglaubigung.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "        return $provider === self::GENERIC;"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "        return true;", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Slack gilt als signierend" &&
+pruefe "Slack gilt als signierend" \
+  WebhookTransportTest::test_a_secret_is_refused_where_nobody_checks_it failed
+wiederherstellen
+
+echo "── WebhookTransportTest: eine von Hand geaenderte Ablage wird signiert ──"
+#
+# Die Datei gehoert root, und root kann sie aendern. Der Zweig in send() ist
+# der einzige Ort, an dem das noch auffaellt.
+vorher_datei agent/src/Notify/Delivery.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Delivery.php')
+s = p.read_text()
+alt = "if ($target['secret'] !== null && Providers::signs($target['provider'])) {"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "if ($target['secret'] !== null) {", 1))
+PY
+griff_datei agent/src/Notify/Delivery.php "Handablage wird signiert" &&
+pruefe "Handablage wird signiert" \
+  WebhookTransportTest::test_a_hand_edited_target_is_still_not_signed failed
+wiederherstellen
+
+echo "── WebhookTransportTest: der Empfaenger kommt nicht zurueck ──"
+#
+# Er ist kein Geheimnis — er sagt, in welcher Form der Rumpf geht, und die
+# Seite braucht ihn, um zu sagen, welches Ziel dasteht.
+vorher_datei agent/src/Notify/Target.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Target.php')
+s = p.read_text()
+alt = "            'provider' => Providers::normalize($data['provider'] ?? null),\n            'stored_at' => is_int($stored) ? $stored : 0,"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "            'stored_at' => is_int($stored) ? $stored : 0,", 1))
+PY
+griff_datei agent/src/Notify/Target.php "Empfaenger kommt nicht zurueck" &&
+pruefe "Empfaenger kommt nicht zurueck" \
+  WebhookTransportTest::test_the_receiver_is_not_a_secret failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WebhookTransportTest passed
+
+echo "── NoticeAudienceTest: ein Serverbefund geht an den Kunden ──"
+#
+# Wen eine Meldung angeht, folgt aus dem Befund. Ein toter Dienst gehoert dem
+# Betreiber; an den Kunden geschickt meldet er ihm etwas, das er weder aendern
+# kann noch sehen darf.
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text()
+alt = """        return $erster->check === FindingCheck::QuotaExceeded
+            ? $this->toCustomer($erster->subject, $findings)
+            : $this->toOperator($findings);"""
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '        return $this->toCustomer($erster->subject, $findings);', 1))
+PY
+griff_datei app/Support/Notify/MailChannel.php "Serverbefund an den Kunden" &&
+pruefe "Serverbefund an den Kunden" \
+  NoticeAudienceTest::test_a_server_finding_goes_to_the_operator_and_not_to_the_customer failed
+wiederherstellen
+
+echo "── NoticeAudienceTest: der Betreiber bekommt eine Mail je Gegenstand ──"
+#
+# Eine Nacht mit drei Befunden an drei Orten waeren drei Mails in derselben
+# Minute — genau das, wogegen „genau eine" geschrieben ist.
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text()
+alt = """        return $check === FindingCheck::QuotaExceeded
+            ? self::SUBSCRIPTION.$subject
+            : self::OPERATOR;"""
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '        return self::SUBSCRIPTION.$subject;', 1))
+PY
+griff_datei app/Support/Notify/MailChannel.php "eine Mail je Gegenstand" &&
+pruefe "eine Mail je Gegenstand" \
+  NoticeAudienceTest::test_the_operator_gets_one_mail_for_a_whole_night failed
+wiederherstellen
+
+echo "── NoticeAudienceTest: eine Pruefung des Servers gilt als Kundensache ──"
+#
+# Die Zahl ist ein Halt: Wer eine Pruefung dem Kunden zuschlaegt, entscheidet
+# damit, wer sie bekommt — und das gehoert bemerkt.
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text()
+alt = 'return $check === FindingCheck::QuotaExceeded'
+assert s.count(alt) == 1
+neu = 'return in_array($check, [FindingCheck::QuotaExceeded, FindingCheck::TlsFile], true)'
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Notify/MailChannel.php "Serverpruefung als Kundensache" &&
+pruefe "Serverpruefung als Kundensache" \
+  NoticeAudienceTest::test_exactly_one_check_belongs_to_the_customer failed
+wiederherstellen
+
+echo "── NoticeAudienceTest: der Webhook fasst alles in eine Meldung ──"
+#
+# Ein Vorfallsystem will drei Sachen einzeln bekommen: Ein toter Dienst und ein
+# ablaufendes Zertifikat bleiben verschieden lange offen.
+vorher_datei app/Support/Notify/WebhookChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/WebhookChannel.php')
+s = p.read_text()
+alt = 'return $subject;'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "return 'alles';", 1))
+PY
+griff_datei app/Support/Notify/WebhookChannel.php "Webhook fasst alles zusammen" &&
+pruefe "Webhook fasst alles zusammen" \
+  NoticeAudienceTest::test_the_webhook_sends_one_delivery_per_subject failed
+wiederherstellen
+
+echo "── NoticeAudienceTest: ein gesperrtes Konto bekommt Post ──"
+#
+# Wer sich nicht anmelden darf, bekommt auch keine Auskunft ueber den Server.
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text()
+alt = "            ->where('status', AccountStatus::Active->value)\n"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei app/Support/Notify/MailChannel.php "gesperrtes Konto bekommt Post" &&
+pruefe "gesperrtes Konto bekommt Post" \
+  NoticeAudienceTest::test_a_disabled_account_gets_nothing failed
+wiederherstellen
+
+echo "── NoticeAudienceTest: ohne Betreiberadresse gilt die Meldung als zugestellt ──"
+#
+# Was nicht verschickt wurde, darf nicht als gemeldet dastehen. Sonst ist der
+# Befund fuer immer stumm, und niemand erfaehrt, dass dem Betreiberkonto eine
+# Adresse fehlt.
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text()
+alt = """             * rot für etwas, das auf der Kontenseite behoben wird.
+             */
+            return Delivery::WithoutRecipient;"""
+assert s.count(alt) == 1
+neu = """             * rot für etwas, das auf der Kontenseite behoben wird.
+             */
+            return Delivery::Sent;"""
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Notify/MailChannel.php "ohne Betreiberadresse zugestellt" &&
+pruefe "ohne Betreiberadresse zugestellt" \
+  NoticeAudienceTest::test_without_an_operator_address_the_finding_stays_due failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NoticeAudienceTest passed
+
+echo "── Account: die Betreiberabfrage fragt nur die Rolle ──"
+#
+# Die Rolle allein gewaehrt nichts — `isOperator()` fragt seit A9 beide Achsen.
+# Ein Kundenkonto, das die Spalte traegt, waere sonst ein Betreiber, und die
+# Meldung ueber einen toten Dienst ginge an den Kunden.
+vorher_datei app/Models/Account.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Models/Account.php')
+s = p.read_text()
+alt = "            ->where('type', AccountType::Admin->value)\n"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei app/Models/Account.php "Betreiberabfrage ohne Typ" &&
+pruefe "Betreiberabfrage ohne Typ" \
+  NoticeAudienceTest::test_the_query_and_the_question_agree failed
+wiederherstellen
+
+echo "── Account: die Betreiberabfrage fragt nur den Typ ──"
+#
+# Dann bekaeme jeder Administrator die Aufforderung zu handeln — und handeln
+# darf hier der Betreiber.
+vorher_datei app/Models/Account.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Models/Account.php')
+s = p.read_text()
+alt = "            ->where('role', AdminRole::Operator->value);"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "            ->whereNotNull('role');", 1))
+PY
+griff_datei app/Models/Account.php "Betreiberabfrage ohne Rolle" &&
+pruefe "Betreiberabfrage ohne Rolle" \
+  NoticeAudienceTest::test_an_administrator_is_not_an_operator failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NoticeAudienceTest passed
+
+echo "── MailTimeoutTest: die Zeitgrenze steht wieder auf null ──"
+#
+# Gemessen kostet ein toter Empfaenger dann 60,02 s je Versand; bei 400
+# faelligen Meldungen sind das 6,7 Stunden, in denen ein Nachtlauf an einem
+# Relais haengt, das nicht antwortet.
+vorher_datei config/mail.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('config/mail.php')
+s = p.read_text()
+alt = "'timeout' => 10,"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'timeout' => null,", 1))
+PY
+griff_datei config/mail.php "Zeitgrenze auf null" &&
+pruefe "Zeitgrenze auf null" \
+  MailTimeoutTest::test_the_default_carries_a_timeout failed
+wiederherstellen
+
+echo "── MailTimeoutTest: das Anwenden setzt die Zeitgrenze zurueck ──"
+#
+# Was am Ende gilt, schreibt `MailConfiguration::apply()`. Ein Waechter ueber
+# die Zeile in `config/mail.php` bliebe hier gruen — und jeder Versand hinge
+# wieder 60 s an einem toten Relais.
+vorher_datei app/Support/Settings/MailConfiguration.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/MailConfiguration.php')
+s = p.read_text()
+alt = "$config->set('mail.mailers.smtp.transport', 'smtp');"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "$config->set('mail.mailers.smtp.transport', 'smtp');\n        $config->set('mail.mailers.smtp.timeout', null);", 1))
+PY
+griff_datei app/Support/Settings/MailConfiguration.php "Anwenden setzt zurueck" &&
+pruefe "Anwenden setzt zurueck" \
+  MailTimeoutTest::test_the_applied_configuration_keeps_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MailTimeoutTest passed
+
+echo "── BrandContrastTest: die Schwelle faellt auf eins ──"
+#
+# Vier Komma fuenf zu eins steht in WCAG 1.4.3 und in `docs/20 §7.2`. Eine
+# Schwelle von eins laesst jede Farbe durch — auch die, unter der niemand
+# mehr liest.
+vorher_datei app/Support/Design/Contrast.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Design/Contrast.php')
+s = p.read_text()
+alt = 'public const TEXT = 4.5;'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'public const TEXT = 1.0;', 1))
+PY
+griff_datei app/Support/Design/Contrast.php "Schwelle faellt auf eins" &&
+pruefe "Schwelle faellt auf eins" \
+  BrandContrastTest::test_a_washed_out_colour_is_refused failed
+wiederherstellen
+
+echo "── BrandContrastTest: die Anmeldeseite faellt aus der Messung ──"
+#
+# Sie traegt einen eigenen Markensatz und ist die Seite, die das
+# Abnahmekriterium nennt. Wer nur `:root` rechnet, laesst genau sie
+# ungemessen.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = "['#0f1116', '#14171d', '#1a0b2e']"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "['#0f1116', '#14171d']", 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "Anmeldeseite faellt heraus" &&
+pruefe "Anmeldeseite faellt heraus" \
+  BrandContrastTest::test_the_surfaces_are_the_ones_the_stylesheet_has failed
+wiederherstellen
+
+echo "── BrandContrastTest: gemessen wird die erste Flaeche statt der schlechtesten ──"
+#
+# Gegen die freundlichste zu rechnen laesst eine Farbe zu, die auf der
+# Haelfte der Flaechen durchfaellt — und die Haelfte sieht man erst, wenn
+# jemand das Theme umschaltet.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = 'if ($verhaeltnis < $wert) {'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'if ($schlechteste === null) {', 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "erste statt schlechteste Flaeche" &&
+pruefe "erste statt schlechteste Flaeche" \
+  BrandContrastTest::test_the_worst_surface_decides failed
+wiederherstellen
+
+echo "── BrandContrastTest: die Schriftfarbe auf dem Akzent wird geraten ──"
+#
+# „Heller Grund, dunkle Schrift" stimmt meistens und bei den Toenen
+# dazwischen nicht — und genau die waehlt jemand, der eine Markenfarbe
+# eingibt.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = "return Contrast::readableOn($accent, '#ffffff', '#0f1116');"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "return '#ffffff';", 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "Schriftfarbe geraten" &&
+pruefe "Schriftfarbe geraten" \
+  BrandContrastTest::test_the_text_on_the_accent_is_computed failed
+wiederherstellen
+
+echo "── BrandContrastTest: eine unlesbare Ablage faellt auf Schwarz ──"
+#
+# Was in der Ablage steht, ist geprueft worden; steht dort Unsinn, ist sie
+# beschaedigt — und dann ist die eingebaute Farbe die einzige, von der man
+# weiss, dass sie traegt. Schwarz waere eine erfundene Marke.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = 'return is_string($value) && Contrast::isColour($value) ? strtolower($value) : $fallback;'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "return is_string($value) && Contrast::isColour($value) ? strtolower($value) : '#000000';", 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "Ablage faellt auf Schwarz" &&
+pruefe "Ablage faellt auf Schwarz" \
+  BrandContrastTest::test_a_broken_store_falls_back_to_the_shipped_colour failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BrandContrastTest passed
+
+echo "── BrandStyleTest: der Block schreibt eine Regel statt einer Marke ──"
+#
+# Jede Farbe kommt aus `app.css` — die Regel gilt weiter, solange von aussen
+# nur der **Wert** einer Marke kommt. Eine Eigenschaft hier waere eine Regel
+# ausserhalb des Stylesheets, und genau die soll es nicht geben.
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = "'--accent:%s;--accent-on:%s;--accent-surface:rgb(%s / %s);'"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'color:%s;--accent-on:%s;--accent-surface:rgb(%s / %s);'", 1))
+PY
+griff_datei app/Support/Brand/Style.php "Regel statt Marke" &&
+pruefe "Regel statt Marke" \
+  BrandStyleTest::test_only_custom_properties_are_declared failed
+wiederherstellen
+
+echo "── BrandStyleTest: die Anmeldeseite bekommt die Farbe nicht ──"
+#
+# Sie ist die Seite, die das Abnahmekriterium nennt — und sie traegt einen
+# eigenen Markensatz, den `:root` nicht erreicht.
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = "'.signin{'.$dunkel.'--focus:'.$brand->accent_dark.';}',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'',", 1))
+PY
+griff_datei app/Support/Brand/Style.php "Anmeldeseite ohne Farbe" &&
+pruefe "Anmeldeseite ohne Farbe" \
+  BrandStyleTest::test_the_sign_in_surface_gets_the_colour_too failed
+wiederherstellen
+
+echo "── BrandStyleTest: die Anmeldeseite bekommt den hellen Akzent ──"
+#
+# Sie ist in beiden Themes dunkel. Ein heller Akzent von dort ist auf ihrer
+# pflaumenfarbenen Flaeche der falsche — und gemessen wurde er gegen einen
+# weissen Grund.
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = "'.signin{'.$dunkel.'--focus:'.$brand->accent_dark.';}',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'.signin{'.$hell.'--focus:'.$brand->accent_light.';}',", 1))
+PY
+griff_datei app/Support/Brand/Style.php "Anmeldeseite hell" &&
+pruefe "Anmeldeseite hell" \
+  BrandStyleTest::test_the_sign_in_surface_takes_the_dark_accent failed
+wiederherstellen
+
+echo "── BrandStyleTest: der Block steht auch bei der Auslieferung da ──"
+#
+# Die Vorgabewerte noch einmal hinzuschreiben ist eine zweite Fassung der
+# Farben aus `app.css` — und die zweite ist die, die veraltet, sobald jemand
+# das Stylesheet anfasst.
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = "            return '';"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "            return ':root{}';", 1))
+PY
+griff_datei app/Support/Brand/Style.php "Block auch bei Vorgabe" &&
+pruefe "Block auch bei Vorgabe" \
+  BrandStyleTest::test_the_shipped_colours_produce_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BrandStyleTest passed
+
+echo "── BrandReachTest: SVG kommt durch ──"
+#
+# Ein SVG ist ein Dokument und kein Bild: Es darf `<script>` enthalten, und
+# ausgeliefert vom eigenen Ursprung laeuft dieses Skript in der Sitzung jedes
+# Betrachters — auf der einen Seite, die jeder ohne Konto sieht.
+vorher_datei app/Support/Brand/Logo.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Logo.php')
+s = p.read_text()
+alt = "        'image/webp' => 'webp',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "        'image/webp' => 'webp',\n        'image/svg+xml' => 'svg',", 1))
+PY
+griff_datei app/Support/Brand/Logo.php "SVG kommt durch" &&
+pruefe "SVG kommt durch" \
+  BrandReachTest::test_an_svg_is_refused failed
+wiederherstellen
+
+echo "── BrandReachTest: die Groessengrenze wird nicht geprueft ──"
+#
+# Das Bild steht auf der Anmeldeseite, und die laedt, bevor irgendetwas
+# anderes laedt. Ohne Grenze verschiebt ein Logo den Aufbau der einen Seite,
+# auf die es ankommt.
+vorher_datei app/Support/Brand/Logo.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Logo.php')
+s = p.read_text()
+alt = 'if ($file->getSize() > self::MAX_BYTES) {'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'if (false) {', 1))
+PY
+griff_datei app/Support/Brand/Logo.php "Groessengrenze fehlt" &&
+pruefe "Groessengrenze fehlt" \
+  BrandReachTest::test_a_file_over_the_limit_is_refused failed
+wiederherstellen
+
+echo "── BrandReachTest: der Browser darf raten, was er bekommen hat ──"
+#
+# Ohne `nosniff` macht ein Browser aus einem Bild ein Dokument, sobald der
+# Inhalt danach aussieht — bei einer Datei, die von aussen kommt und ohne
+# Anmeldung ausgeliefert wird.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "            'X-Content-Type-Options' => 'nosniff',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "Browser darf raten" &&
+pruefe "Browser darf raten" \
+  BrandReachTest::test_an_uploaded_logo_is_served_without_a_login failed
+wiederherstellen
+
+echo "── BrandReachTest: die Farbe wird nicht gegen ihren Grund gerechnet ──"
+#
+# Eine Farbe, die 4,5:1 nicht erreicht, macht Teile des Panels unlesbar — und
+# zwar erst, nachdem sie gespeichert ist. `--accent` traegt in `app.css`
+# sechsmal Schrift.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "        if ($urteil['passes']) {\n            return;\n        }"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '        if (true) {\n            return;\n        }', 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "Farbe ungeprueft" &&
+pruefe "Farbe ungeprueft" \
+  BrandReachTest::test_an_unreadable_colour_is_refused_with_its_number failed
+wiederherstellen
+
+echo "── BrandReachTest: die Fusszeile faellt aus der Mail ──"
+#
+# Das Abnahmekriterium verlangt sie in einer verschickten Mail. Eine Vorlage,
+# die die Unterschrift vergisst, faellt niemandem auf — die Mail sieht
+# vollstaendig aus.
+vorher_datei resources/views/mail/quota.blade.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/views/mail/quota.blade.php')
+s = p.read_text()
+alt = "@include('mail.signature')"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei resources/views/mail/quota.blade.php "Fusszeile faellt aus der Mail" &&
+pruefe "Fusszeile faellt aus der Mail" \
+  BrandReachTest::test_a_sent_mail_carries_name_and_footer failed
+wiederherstellen
+
+echo "── BrandReachTest: der Titel traegt wieder den eingebauten Namen ──"
+#
+# Er steht im Reiter des Browsers, und wer mehrere Panels offen hat,
+# unterscheidet sie daran. Ein fester Name macht aus zwei Panels zwei Reiter
+# mit derselben Aufschrift.
+vorher_datei resources/views/app.blade.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/views/app.blade.php')
+s = p.read_text()
+alt = '<title inertia>{{ $marke->name }}</title>'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '<title inertia>SrvPanel</title>', 1))
+PY
+griff_datei resources/views/app.blade.php "Titel fest verdrahtet" &&
+pruefe "Titel fest verdrahtet" \
+  BrandReachTest::test_the_document_title_carries_the_name failed
+wiederherstellen
+
+echo "── SharedClosureTest: die Marke als fertiger Wert ──"
+#
+# Sie kommt aus `settings`, also aus der Datenbank. Ein fertiger Wert liefe
+# bei jedem partiellen Nachladen mit, das ihn gar nicht mitschickt
+# (`docs/103 §1` M5).
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Middleware/HandleInertiaRequests.php')
+s = p.read_text()
+alt = "'brand' => function () use ($settings, $logo): array {"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'brand' => (function () use ($settings, $logo): array {", 1))
+PY
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "Marke als fertiger Wert" &&
+pruefe "Marke als fertiger Wert" \
+  SharedClosureTest::test_every_shared_entry_is_a_closure failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SharedClosureTest passed
+
+echo "── RedirectTargetTest: ein Ziel, das es nicht gibt ──"
+#
+# `to_route()` wirft fuer einen unbekannten Namen `RouteNotFoundException` —
+# die Seite gibt 500, und zwar erst, nachdem die Handlung schon geschehen ist.
+# Der Fall daneben haelt nur, dass ein Ziel *genannt* wird; ueber seine
+# Existenz sagt er nichts. Genau so ist `settings.branding` in B6 durch jeden
+# Waechter gekommen.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "to_route('settings.general')->with('success', 'Die Marke ist gespeichert.')"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "to_route('settings.branding')->with('success', 'Die Marke ist gespeichert.')", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "totes Weiterleitungsziel" &&
+pruefe "totes Weiterleitungsziel" \
+  RedirectTargetTest::test_every_named_route_the_code_reaches_for_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RedirectTargetTest passed
+
+echo "── BrandReachTest: das Speichern landet auf der Uebersicht ──"
+#
+# `overview` ist eine Route, die es **gibt** — der Waechter ueber die Namen
+# bleibt also gruen, und das ist der Punkt: Gespeichert waere richtig, man
+# stuende danach nur woanders. Genau dieser Befund hat `RedirectTargetTest`
+# ueberhaupt erst ausgeloest, und gemessen wird er nur durch die Tuer.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "to_route('settings.general')->with('success', 'Die Marke ist gespeichert.')"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "to_route('overview')->with('success', 'Die Marke ist gespeichert.')", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "Speichern traegt auf die Uebersicht" &&
+pruefe "Speichern traegt auf die Uebersicht" \
+  BrandReachTest::test_the_login_page_carries_name_and_footer failed
+wiederherstellen
+
+echo "── SharedPropTest: die Markenseite nimmt den geteilten Namen ──"
+#
+# Der Fehler, den B6 wirklich hatte. `share()` gibt `brand` fuer jede Seite
+# heraus, und `BrandMark.vue` liest daraus die Adresse des Logos; eine
+# Seiten-Eigenschaft desselben Namens nimmt sie fort — auf genau der Seite,
+# auf der man das Logo einstellt. Gefunden hat es dieser Waechter erst,
+# nachdem sein Leser repariert war.
+vorher_datei app/Http/Controllers/GeneralSettingsController.php
+python3 - <<'PY'
+p = 'app/Http/Controllers/GeneralSettingsController.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'brandSettings' => ["
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'brand' => [", 1))
+PY
+griff_datei app/Http/Controllers/GeneralSettingsController.php "Markenseite nimmt den geteilten Namen" &&
+pruefe "Markenseite nimmt den geteilten Namen" \
+  SharedPropTest::test_no_page_prop_takes_the_name_of_a_shared_one failed
+wiederherstellen
+
+echo "── SharedPropTest: ein geteilter Name in camelCase ──"
+#
+# Bis zum 21. September 2026 las `topLevelKeys` nur `[a-z_][a-z0-9_]*`. Vier
+# der elf geteilten Namen sind camelCase — `pendingUpdates`,
+# `pendingFindings`, `maintenanceBand`, `passwordPolicy` —, und eine Seite,
+# die eine davon ueberschreibt, kam durch. Dieser Eingriff waere vorher gruen
+# geblieben.
+vorher_datei app/Http/Controllers/GeneralSettingsController.php
+python3 - <<'PY'
+p = 'app/Http/Controllers/GeneralSettingsController.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'brandLimits' => ["
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'passwordPolicy' => [", 1))
+PY
+griff_datei app/Http/Controllers/GeneralSettingsController.php "geteilter Name in camelCase" &&
+pruefe "geteilter Name in camelCase" \
+  SharedPropTest::test_no_page_prop_takes_the_name_of_a_shared_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SharedPropTest passed
+
+echo "── MiddlewareOrderTest: die Bindung zieht vor die Klammer (api) ──"
+#
+# Die Vorgabegruppe `api` traegt `SubstituteBindings` und sonst nichts. Wer
+# sie stehenlaesst, bindet vor der Klammer — und die steht dann im
+# Grundzustand, der alles verweigert. Gemessen in docs/130 A3: 404 auch
+# fuer das eigene Abonnement.
+vorher_datei bootstrap/app.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('bootstrap/app.php')
+s = p.read_text()
+alt = '        $middleware->api(\n            remove: [SubstituteBindings::class],'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '        $middleware->api(\n            remove: [],', 1))
+PY
+griff_datei bootstrap/app.php "Bindung vor Klammer in api" &&
+pruefe "Bindung vor Klammer in api" \
+  MiddlewareOrderTest failed
+wiederherstellen
+
+echo "── MiddlewareOrderTest: die Wache zieht hinter die Klammer ──"
+#
+# `ApplyTenancy` fragt `$request->user()`. Laeuft sie vor der Wache, ist
+# dort niemand, und die Klammer bleibt im Grundzustand — ein Kunde saehe
+# sein eigenes Abonnement nicht mehr.
+vorher_datei bootstrap/app.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('bootstrap/app.php')
+s = p.read_text()
+alt = '                AuthenticateToken::class,\n                ApplyTenancy::class,\n                SubstituteBindings::class,'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '                ApplyTenancy::class,\n                AuthenticateToken::class,\n                SubstituteBindings::class,', 1))
+PY
+griff_datei bootstrap/app.php "Wache hinter der Klammer" &&
+pruefe "Wache hinter der Klammer" \
+  MiddlewareOrderTest failed
+wiederherstellen
+
+echo "── MiddlewareOrderTest: die Bindung zieht vor die Klammer (web) ──"
+#
+# Dieselbe Regel fuer die Seiten. Der Kommentar in bootstrap/app.php hat
+# bis zum 21. September 2026 behauptet, ein Test halte diese Reihenfolge
+# fest — den gab es nicht.
+vorher_datei bootstrap/app.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('bootstrap/app.php')
+s = p.read_text()
+alt = '                ApplyTenancy::class,\n                SubstituteBindings::class,\n\n                // Der Kontozustand vor allem anderen'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '                SubstituteBindings::class,\n                ApplyTenancy::class,\n\n                // Der Kontozustand vor allem anderen', 1))
+PY
+griff_datei bootstrap/app.php "Bindung vor Klammer in web" &&
+pruefe "Bindung vor Klammer in web" \
+  MiddlewareOrderTest failed
+wiederherstellen
+
+echo "── ApiTokenStorageTest: der Klartext wird abgelegt ──"
+#
+# Ein Geheimnis, das sich ein zweites Mal anzeigen laesst, ist keines mehr.
+# Abgelegt gehoert der sha256 und nicht die Marke selbst.
+vorher_datei app/Models/ApiToken.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Models/ApiToken.php')
+s = p.read_text()
+alt = '        $token->token_hash = self::hashOf($plain);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '        $token->token_hash = $plain;', 1))
+PY
+griff_datei app/Models/ApiToken.php "Klartext abgelegt" &&
+pruefe "Klartext abgelegt" \
+  ApiTokenStorageTest failed
+wiederherstellen
+
+echo "── ApiTokenStorageTest: der Gebrauch wird bei jeder Anfrage geschrieben ──"
+#
+# `CACHE_STORE` und `SESSION_DRIVER` stehen auf dem Server auf `database`.
+# Ein Schreibvorgang je API-Anfrage waere eine Zeile, die niemand liest, in
+# einer Tabelle, die jede Anfrage sperrt.
+vorher_datei app/Models/ApiToken.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Models/ApiToken.php')
+s = p.read_text()
+alt = '        if ($this->last_used_at !== null\n            && $this->last_used_at->diffInSeconds($now) < self::USAGE_RESOLUTION_SECONDS) {\n            return false;\n        }'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '        // jede Anfrage schreibt', 1))
+PY
+griff_datei app/Models/ApiToken.php "Gebrauch bei jeder Anfrage" &&
+pruefe "Gebrauch bei jeder Anfrage" \
+  ApiTokenStorageTest failed
+wiederherstellen
+
+echo "── ApiTokenTransportTest: die Wache liest auch die Adresse ──"
+#
+# nginx schreibt `"$request"` mitsamt Abfrageteil ins Zugriffsprotokoll —
+# vierzehn Tage lang, in eine Datei, die dieses Panel selbst anzeigt.
+# Gemessen: Token im Abfrageteil 1 Treffer, Token im Kopf 0 (docs/130 A7).
+vorher_datei app/Http/Middleware/AuthenticateToken.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Middleware/AuthenticateToken.php')
+s = p.read_text()
+alt = '        $plain = $request->bearerToken();'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "        $plain = $request->bearerToken() ?? $request->query('token');", 1))
+PY
+griff_datei app/Http/Middleware/AuthenticateToken.php "Wache liest die Adresse" &&
+pruefe "Wache liest die Adresse" \
+  ApiTokenTransportTest failed
+wiederherstellen
+
+echo "── ApiTokenTransportTest: ein Adminkonto kommt durch ──"
+#
+# `forAccount()` ruft fuer einen Admin `allowAll()`. Eine Marke an einem
+# Adminkonto waere ein Bearer-Token ohne Klammer ueber den ganzen Server —
+# ohne zweiten Faktor und ohne die Netzbeschraenkung aus A9.
+vorher_datei app/Http/Middleware/AuthenticateToken.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Middleware/AuthenticateToken.php')
+s = p.read_text()
+alt = '        if ($account === null || $account->type->isAdmin() || ! AccountAccess::permits($account)) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '        if ($account === null || ! AccountAccess::permits($account)) {', 1))
+PY
+griff_datei app/Http/Middleware/AuthenticateToken.php "Adminkonto kommt durch" &&
+pruefe "Adminkonto kommt durch" \
+  ApiTokenTransportTest failed
+wiederherstellen
+
+echo "── ApiEmptyListTest: eine api-Route ohne Klammer ──"
+#
+# Eine gebundene fremde Kennung gibt 404 und faellt auf. Eine Liste ohne
+# Klammer gibt `200 []` — und das meldet niemand (docs/130 A4).
+vorher_datei bootstrap/app.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('bootstrap/app.php')
+s = p.read_text()
+alt = '                ApplyTenancy::class,\n                SubstituteBindings::class,\n            ],\n        );'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '                SubstituteBindings::class,\n            ],\n        );', 1))
+PY
+griff_datei bootstrap/app.php "api-Route ohne Klammer" &&
+pruefe "api-Route ohne Klammer" \
+  ApiEmptyListTest failed
+wiederherstellen
+
+echo "── OpenApiReachTest: eine Route fehlt in der Beschreibung ──"
+#
+# Ein Klient, der die Beschreibung liest, kennt die Route dann nicht — und
+# fuer ihn gibt es sie nicht.
+vorher_datei docs/openapi-v1.yaml
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('docs/openapi-v1.yaml')
+s = p.read_text()
+alt = '  /domains/{domain}:'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '  /domains-die-es-nicht-gibt/{domain}:', 1))
+PY
+griff_datei docs/openapi-v1.yaml "Route fehlt in der Beschreibung" &&
+pruefe "Route fehlt in der Beschreibung" \
+  OpenApiReachTest::test_every_route_stands_in_the_description failed
+wiederherstellen
+
+echo "── OpenApiReachTest: ein toter Pfad bleibt liegen ──"
+#
+# So entsteht er wirklich: Bei einer Umbenennung traegt man den neuen Pfad
+# nach, die erste Richtung ist wieder gruen, und der alte bleibt stehen.
+vorher_datei docs/openapi-v1.yaml
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('docs/openapi-v1.yaml')
+s = p.read_text()
+alt = 'paths:\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'paths:\n  /gibt-es-nicht:\n    get:\n      summary: Ein toter Eintrag\n      responses:\n        "200":\n          description: Nichts.\n', 1))
+PY
+griff_datei docs/openapi-v1.yaml "toter Pfad in der Beschreibung" &&
+pruefe "toter Pfad in der Beschreibung" \
+  OpenApiReachTest::test_every_documented_path_is_a_route failed
+wiederherstellen
+
+echo "── ApiThrottleTest: die Begrenzung faellt aus der Gruppe ──"
+#
+# Vor B7 hatte dieses Panel keine einzige `throttle`-Mittelschicht. Ohne sie
+# kostet jeder Versuch mit einer erfundenen Marke einen Datenbankzugriff.
+vorher_datei bootstrap/app.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('bootstrap/app.php')
+s = p.read_text()
+alt = "                'throttle:api',\n\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei bootstrap/app.php "Begrenzung faellt aus der Gruppe" &&
+pruefe "Begrenzung faellt aus der Gruppe" \
+  ApiThrottleTest::test_every_api_route_carries_a_limit failed
+wiederherstellen
+
+echo "── ApiThrottleTest: die Begrenzung zaehlt nicht mehr die Adresse ──"
+#
+# Der Schluessel ist die Regel und nicht die Zahl daneben. Ein Limiter, der
+# alle Anfragen in einen Topf wirft, bremst den ersten Klienten fuer alle —
+# und einer, der je Marke zaehlt, bremst das Durchprobieren gar nicht, weil
+# an dieser Stelle noch kein Konto aufgeloest ist.
+vorher_datei app/Providers/SrvPanelServiceProvider.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Providers/SrvPanelServiceProvider.php')
+s = p.read_text()
+alt = "->by((string) $request->ip())"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "->by('alle')", 1))
+PY
+griff_datei app/Providers/SrvPanelServiceProvider.php "Begrenzung ohne Adresse" &&
+pruefe "Begrenzung ohne Adresse" \
+  ApiThrottleTest::test_the_limiter_is_registered_and_counts_the_address failed
+wiederherstellen
+
+echo "── ApiThrottleTest: der Grenzwert faellt auf eins ──"
+#
+# Die Spanne faengt, was eine Zuleitung nicht fangen kann: den Tippfehler in
+# der Konstante selbst. Der erste Wurf dieses Eingriffs hat nichts gemessen —
+# er verglich den Wert gegen die Quelle, aus der er stammt.
+vorher_datei app/Providers/SrvPanelServiceProvider.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Providers/SrvPanelServiceProvider.php')
+s = p.read_text()
+alt = 'public const API_PER_MINUTE = 60;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'public const API_PER_MINUTE = 1;', 1))
+PY
+griff_datei app/Providers/SrvPanelServiceProvider.php "Grenzwert faellt auf eins" &&
+pruefe "Grenzwert faellt auf eins" \
+  ApiThrottleTest::test_the_limiter_is_registered_and_counts_the_address failed
+wiederherstellen
+
+echo "── RouteAuthorizationTest: eine api-Route verliert ihre Policy ──"
+#
+# Jede Route dieses Panels traegt `can:` oder steht mit Begruendung in
+# RouteGuard. Eine API bekommt keinen eigenen Rechteweg.
+vorher_datei routes/api.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('routes/api.php')
+s = p.read_text()
+alt = "    Route::get('/subscriptions/{subscription}', [SubscriptionsController::class, 'show'])\n        ->middleware('can:view,subscription')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "    Route::get('/subscriptions/{subscription}', [SubscriptionsController::class, 'show'])", 1))
+PY
+griff_datei routes/api.php "api-Route ohne Policy" &&
+pruefe "api-Route ohne Policy" \
+  RouteAuthorizationTest::test_every_route_is_either_guarded_or_declared failed
+wiederherstellen
+
+echo "── OperationDetourTest: die Weiterleitung auf die Vorgangsseite kommt zurueck ──"
+#
+# 22 Weiterleitungen aus acht Controllern haben ihren Betrachter fortgetragen;
+# der Weg zurueck war der Zurueck-Knopf des Browsers. Gefunden wurde das beim
+# Erklaeren und nicht beim Pruefen (docs/92 §1).
+vorher_datei app/Http/Controllers/TlsSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/TlsSettingsController.php')
+s = p.read_text()
+alt = "        return to_route('settings.tls');"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "        return to_route('operations.show', $operation);", 1))
+PY
+griff_datei app/Http/Controllers/TlsSettingsController.php "Weiterleitung auf die Vorgangsseite" &&
+pruefe "Weiterleitung auf die Vorgangsseite" \
+  OperationDetourTest::test_no_controller_carries_the_viewer_to_the_operation_page failed
+wiederherstellen
+
+echo "── StreamPageTest: der Streifen oeffnet einen Ereigniskanal ──"
+#
+# Gemessen (docs/128 M9): Der Panel-Pool hat zwoelf Arbeiter, und zwei belegte
+# lassen die naechste Anfrage 16 s warten. Ein Strom auf jeder Seite hiesse,
+# aus einer von 58 Seiten alle 58 zu machen.
+vorher_datei resources/js/Components/OperationBand.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/OperationBand.vue')
+s = p.read_text()
+alt = "function nachsehen(): void {\n  router.reload({ only: ['runningOperations'] })\n}"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "function nachsehen(): void {\n  new EventSource('/operations/1/stream')\n}", 1))
+PY
+griff_datei resources/js/Components/OperationBand.vue "Streifen oeffnet einen Strom" &&
+pruefe "Streifen oeffnet einen Strom" \
+  StreamPageTest::test_only_the_operation_page_opens_a_stream failed
+wiederherstellen
+
+echo "── RunningBandTest: der Streifen zeigt fremde Vorgaenge ──"
+#
+# Wessen Vorgang das ist, sagt nicht die Mandantenklammer, sondern wer ihn
+# abgesetzt hat. Ohne die Frage nach dem Konto saehe ein Kunde, was ein
+# Zusatzbenutzer am selben Abonnement losgeschickt hat.
+vorher_datei app/Support/Operations/RunningBand.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Operations/RunningBand.php')
+s = p.read_text()
+alt = "            ->where('account_id', $account->id)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "            ->whereNotNull('id')", 1))
+PY
+griff_datei app/Support/Operations/RunningBand.php "Streifen zeigt fremde Vorgaenge" &&
+pruefe "Streifen zeigt fremde Vorgaenge" \
+  RunningBandTest failed
+wiederherstellen
+
+echo "── RunningBandTest: ein fertiger Vorgang altert nie aus ──"
+#
+# Er bleibt zwei Minuten stehen, damit der Ausgang lesbar ist — und vergeht
+# dann von selbst. Ein Streifen, der nicht vergisst, braucht eine Ablage
+# „gesehen", und die waere eine zweite Tabelle bei jedem Seitenaufbau.
+vorher_datei app/Support/Operations/RunningBand.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Operations/RunningBand.php')
+s = p.read_text()
+alt = '    public const FRESH_SECONDS = 120;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '    public const FRESH_SECONDS = 400;', 1))
+PY
+griff_datei app/Support/Operations/RunningBand.php "fertiger Vorgang altert nicht aus" &&
+pruefe "fertiger Vorgang altert nicht aus" \
+  RunningBandTest::test_a_finished_operation_ages_out failed
+wiederherstellen
+
+echo "── RunningBandTest: der Streifen kennt keine Obergrenze ──"
+#
+# Vier Baender sind bei 390 px schon die halbe Seite. Wer zwanzig Vorgaenge
+# absetzt, bekommt sonst einen Bildschirm voll Baender statt einer Seite.
+vorher_datei app/Support/Operations/RunningBand.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Operations/RunningBand.php')
+s = p.read_text()
+alt = '            ->limit(self::LIMIT)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '            ->limit(1000)', 1))
+PY
+griff_datei app/Support/Operations/RunningBand.php "Streifen ohne Obergrenze" &&
+pruefe "Streifen ohne Obergrenze" \
+  RunningBandTest::test_the_band_is_capped failed
+wiederherstellen
+
+echo "── RunningBandTest: der Streifen kommt nicht mehr an der Seite an ──"
+#
+# Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+# keine. Ein Waechter ueber die Klasse sagt, dass sie richtig rechnet — dass
+# jemand sie ruft, sagt erst die Antwort.
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Middleware/HandleInertiaRequests.php')
+s = p.read_text()
+alt = "            'runningOperations' => fn (): array => app(RunningBand::class)->rows("
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "            'runningOperationsX' => fn (): array => app(RunningBand::class)->rows(", 1))
+PY
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "Streifen kommt nicht an" &&
+pruefe "Streifen kommt nicht an" \
+  RunningBandTest::test_the_band_reaches_the_page failed
+wiederherstellen
+
+echo "── FlashChannelTest: eine Meldung geht wieder ins Leere ──"
+#
+# `status` stand seit docs/59 Befund 13 als Ausnahme in der Liste: elf
+# Meldungen in drei Controllern, die die Mittelschicht nicht traegt. B8 hat
+# sie geschlossen, und die Ausnahme ist gestrichen.
+vorher_datei app/Http/Controllers/GeneralSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/GeneralSettingsController.php')
+s = p.read_text()
+alt = "->with('success', 'Die Anzeigezone ist jetzt '.Clock::label().'.')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "->with('status', 'Die Anzeigezone ist jetzt '.Clock::label().'.')", 1))
+PY
+griff_datei app/Http/Controllers/GeneralSettingsController.php "Meldung ins Leere" &&
+pruefe "Meldung ins Leere" \
+  FlashChannelTest::test_every_written_flash_key_is_carried failed
+wiederherstellen
+
+echo "── NoticeResolveTest: der behobene Befund verschwindet still ──"
+#
+# Ohne die Abschrift ist die Zustellung mit dem Befund fort, und ein
+# Vorfallsystem haelt den Vorfall fuer immer offen.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/FindingLog.php')
+s = p.read_text()
+alt = """                foreach ($finding->notifications as $notification) {
+                    FindingResolution::record($finding, $notification->channel, $measuredAt);
+                }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei app/Support/Diagnose/FindingLog.php "behobener Befund still fort" &&
+pruefe "behobener Befund still fort" \
+  NoticeResolveTest::test_a_reported_finding_that_disappears_is_announced failed
+wiederherstellen
+
+echo "── NoticeResolveTest: entwarnt wird auch, wovon niemand gehoert hat ──"
+#
+# Eine Entwarnung ohne vorangegangene Warnung ist eine Meldung ueber nichts —
+# und ein Befund innerhalb der Haltezeit hat niemanden erreicht.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/FindingLog.php')
+s = p.read_text()
+alt = """                foreach ($finding->notifications as $notification) {
+                    FindingResolution::record($finding, $notification->channel, $measuredAt);"""
+neu = """                foreach (['webhook'] as $kanal) {
+                    FindingResolution::record($finding, $kanal, $measuredAt);"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Diagnose/FindingLog.php "Entwarnung ohne Warnung" &&
+pruefe "Entwarnung ohne Warnung" \
+  NoticeResolveTest::test_a_finding_nobody_heard_of_is_not_announced failed
+wiederherstellen
+
+echo "── NoticeResolveTest: der Zeitpunkt der Entwarnung kommt aus der Uhr ──"
+#
+# Behoben war es, als der Lauf es nicht mehr fand. Ein Zeitpunkt aus `now()`
+# nennt die Zustellung und nicht die Messung.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/FindingLog.php')
+s = p.read_text()
+alt = 'FindingResolution::record($finding, $notification->channel, $measuredAt);'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'FindingResolution::record($finding, $notification->channel, Carbon::now());', 1))
+PY
+griff_datei app/Support/Diagnose/FindingLog.php "Entwarnung aus der Uhr" &&
+pruefe "Entwarnung aus der Uhr" \
+  NoticeResolveTest::test_the_moment_is_the_measurement_and_not_the_delivery failed
+wiederherstellen
+
+echo "── NoticeResolveTest: die Zeile wird auch nach einem Fehlschlag verbraucht ──"
+#
+# Eine Zeile, die nach einem Fehlschlag verschwindet, nimmt der Entwarnung ihre
+# Faelligkeit — und der Vorfall bleibt beim Empfaenger fuer immer offen.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = """                $bilanz['failed']++;
+
+                continue;
+            }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, """                $bilanz['failed']++;
+            }""", 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Fehlschlag verbraucht die Zeile" &&
+pruefe "Fehlschlag verbraucht die Zeile" \
+  NoticeResolveTest::test_a_failed_delivery_keeps_the_resolution_pending failed
+wiederherstellen
+
+echo "── NoticeResolveTest: die Entwarnung kommt nach der Meldung ──"
+#
+# Zwei Meldungen ueber denselben Gegenstand haben eine richtige Reihenfolge:
+# Hinterher liest sich die Entwarnung wie die Ruecknahme der Meldung.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+block = """        if ($channel instanceof ResolvingChannel) {
+            $this->clear($channel, $bilanz);
+        }
+
+"""
+ziel = "        if ($bilanz['sent'] + $bilanz['resolved'] > 0) {"
+assert s.count(block) == 1 and s.count(ziel) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(block, '', 1).replace(ziel, block + ziel, 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Entwarnung zuletzt" &&
+pruefe "Entwarnung zuletzt" \
+  NoticeResolveTest::test_the_resolution_leaves_before_the_new_finding failed
+wiederherstellen
+
+echo "── NoticeResolveTest: ein Kanal ohne Ziel wird trotzdem befragt ──"
+#
+# Ein nicht eingerichteter Kanal ist kein Fehlschlag. Wer ihn befragt, zaehlt
+# jede Nacht einen — und die Unit steht rot fuer einen Server ohne Meldeziel.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+block = """        if ($channel instanceof ResolvingChannel) {
+            $this->clear($channel, $bilanz);
+        }
+
+"""
+ziel = "        if (! $channel->usable()) {"
+assert s.count(block) == 1 and s.count(ziel) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(block, '', 1).replace(ziel, block + ziel, 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Kanal ohne Ziel befragt" &&
+pruefe "Kanal ohne Ziel befragt" \
+  NoticeResolveTest::test_an_unusable_channel_keeps_its_rows failed
+wiederherstellen
+
+echo "── NoticeResolveTest: die Zeilen eines stummen Kanals bleiben liegen ──"
+#
+# Eine Warteschlange, aus der niemand nimmt, ist eine Tabelle, die waechst.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = "FindingResolution::query()->where('channel', $channel->key())->delete();"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '$channel->key();', 1))
+PY
+griff_datei app/Support/Notify/Notices.php "stummer Kanal sammelt an" &&
+pruefe "stummer Kanal sammelt an" \
+  NoticeResolveTest::test_a_channel_without_resolutions_leaves_no_rows failed
+wiederherstellen
+
+echo "── NoticeResolveTest: eine Entwarnung zaehlt nicht als Zustellung ──"
+#
+# In einer Nacht, in der nur eine Entwarnung hinausging, stuende auf der Seite
+# ein Datum von gestern neben einem Weg, der gerade getragen hat.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = "if ($bilanz['sent'] + $bilanz['resolved'] > 0) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "if ($bilanz['sent'] > 0) {", 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Entwarnung ohne Zustellung" &&
+pruefe "Entwarnung ohne Zustellung" \
+  NoticeResolveTest::test_an_announcement_counts_as_a_delivery failed
+wiederherstellen
+
+echo "── NoticeResolveTest: die Entwarnung buendelt je Befund ──"
+#
+# Zwei Gruende an einem Dienst waeren beim Empfaenger zwei Vorfaelle — und
+# einer von beiden bliebe offen.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = 'static fn (FindingResolution $r): string => $channel->batchKey($r->check, $r->subject),'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'static fn (FindingResolution $r): string => (string) $r->id,', 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Entwarnung je Befund" &&
+pruefe "Entwarnung je Befund" \
+  NoticeResolveTest::test_two_reasons_on_one_subject_are_one_announcement failed
+wiederherstellen
+
+echo "── NoticeResolveTest: kein Kanal entwarnt mehr ──"
+#
+# Antworten alle Umsetzungen gleich, ist die Frage keine Frage mehr — genau
+# daran ist `Channel::carries()` gestorben.
+vorher_datei app/Support/Notify/WebhookChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/WebhookChannel.php')
+s = p.read_text()
+alt = 'final class WebhookChannel implements ResolvingChannel'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'final class WebhookChannel implements Channel', 1))
+PY
+griff_datei app/Support/Notify/WebhookChannel.php "kein Kanal entwarnt" &&
+pruefe "kein Kanal entwarnt" \
+  NoticeResolveTest::test_the_question_separates_the_channels failed
+wiederherstellen
+
+echo "── NoticeResolveTest: die Entwarnung erfindet ihren eigenen Satz ──"
+#
+# Was beim Melden dastand, steht beim Entwarnen wieder da — sonst muss der
+# Leser zwei Formulierungen auf dieselbe Sache beziehen.
+vorher_datei app/Models/FindingResolution.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Models/FindingResolution.php')
+s = p.read_text()
+alt = "'label' => $this->check->sentence($this->reason),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "'label' => 'Der Befund ist behoben.',", 1))
+PY
+griff_datei app/Models/FindingResolution.php "Entwarnung erfindet den Satz" &&
+pruefe "Entwarnung erfindet den Satz" \
+  NoticeResolveTest::test_the_announcement_repeats_check_reason_and_sentence failed
+wiederherstellen
+
+echo "── NoticeResolveTest: die Entwarnung traegt einen Zustand, den es nicht gibt ──"
+#
+# „Steht seit" waere eine Angabe ueber eine Zeile, die geloescht ist — und sie
+# liest sich wie eine ueber den jetzigen Zustand.
+vorher_datei app/Models/FindingResolution.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Models/FindingResolution.php')
+s = p.read_text()
+alt = """            'label' => $this->check->sentence($this->reason),
+        ];"""
+neu = """            'label' => $this->check->sentence($this->reason),
+            'since' => $this->resolved_at->toAtomString(),
+        ];"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Models/FindingResolution.php "Entwarnung traegt einen Zustand" &&
+pruefe "Entwarnung traegt einen Zustand" \
+  NoticeResolveTest::test_the_announcement_repeats_check_reason_and_sentence failed
+wiederherstellen
+
+echo "── WebhookTransportTest: die Entwarnung ist im Text nicht zu erkennen ──"
+#
+# Ein Kanal, in dem Meldung und Entwarnung gleich aussehen, sagt ueber den
+# Zustand nichts.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "$behoben = $kind === 'resolved';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '$behoben = false;', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Entwarnung nicht erkennbar" &&
+pruefe "Entwarnung nicht erkennbar" \
+  WebhookTransportTest::test_a_resolution_is_recognisable_and_a_finding_is_not failed
+wiederherstellen
+
+echo "── WebhookTransportTest: jede Meldung heisst behoben ──"
+#
+# Die Gegenrichtung: Ein Wort, das ueber jeder Meldung steht, unterscheidet
+# nichts — und stuende dann ueber jedem toten Dienst.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "$behoben = $kind === 'resolved';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '$behoben = true;', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "jede Meldung heisst behoben" &&
+pruefe "jede Meldung heisst behoben" \
+  WebhookTransportTest::test_a_resolution_is_recognisable_and_a_finding_is_not failed
+wiederherstellen
+
+echo "── WebhookTransportTest: das Wort steht hinter dem Gegenstand ──"
+#
+# Ein Unterschied am Ende einer Zeile ist auf einer schmalen Anzeige keiner —
+# dort steht er in der naechsten Zeile.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "? sprintf('%s — behoben: %s', $server, $ort)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "? sprintf('%s — %s: behoben', $server, $ort)", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Wort hinter dem Gegenstand" &&
+pruefe "Wort hinter dem Gegenstand" \
+  WebhookTransportTest::test_a_resolution_is_recognisable_and_a_finding_is_not failed
+wiederherstellen
+
+echo "── WebhookTransportTest: der eigene Empfaenger verliert die Art ──"
+#
+# Er ist der, der sie auswerten soll: Ginge die Entwarnung als Meldung hinaus,
+# machte sie beim Empfaenger einen zweiten Vorfall auf.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "default => ['server' => $server, 'at' => $at, 'event' => $event],"
+neu = "default => ['server' => $server, 'at' => $at, 'event' => array_diff_key($event, ['kind' => null])],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei agent/src/Notify/Providers.php "eigener Empfaenger ohne Art" &&
+pruefe "eigener Empfaenger ohne Art" \
+  WebhookTransportTest::test_the_own_receiver_sees_which_kind_it_is failed
+wiederherstellen
+echo "── NoticeHintTest: ein Hinweis bietet einen Empfaenger an, den es nicht gibt ──"
+#
+# So entsteht der tote Eintrag wirklich: Jemand nimmt einen Empfaenger aus der
+# Liste, und der Satz daneben bietet ihn weiter an.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = '    public const HINTS = ['
+neu = "    public const HINTS = [\n        'mattermost' => 'Einen Eintrag dafuer gibt es gar nicht.',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Hinweis ohne Empfaenger" &&
+pruefe "Hinweis ohne Empfaenger" \
+  NoticeHintTest::test_every_hint_points_at_a_receiver_that_exists failed
+wiederherstellen
+
+echo "── NoticeHintTest: der Hinweis reist nicht bis zur Seite ──"
+#
+# Der Satz steht im Agenten und kommt nie an — von aussen nicht davon zu
+# unterscheiden, dass es ihn nicht gibt.
+vorher_datei app/Http/Controllers/NoticeSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/NoticeSettingsController.php')
+s = p.read_text()
+alt = "'hint' => Providers::HINTS[$key] ?? null,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "'hint' => null,", 1))
+PY
+griff_datei app/Http/Controllers/NoticeSettingsController.php "Hinweis kommt nicht an" &&
+pruefe "Hinweis kommt nicht an" \
+  NoticeHintTest::test_every_hint_reaches_the_page failed
+wiederherstellen
+
+echo "── NoticeHintTest: der Hinweis haengt am gewaehlten Empfaenger ──"
+#
+# Wer „Mattermost" sucht, findet es in der Liste nicht und geht — den Hinweis
+# eines ausgewaehlten Eintrags sieht er nie.
+vorher_datei resources/js/Pages/Settings/Notices.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Settings/Notices.vue')
+s = p.read_text()
+alt = '  props.providers.map((p) => p.hint)'
+neu = '  props.providers.filter((p) => p.value === form.provider).map((p) => p.hint)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei resources/js/Pages/Settings/Notices.vue "Hinweis erst nach der Wahl" &&
+pruefe "Hinweis erst nach der Wahl" \
+  NoticeHintTest::test_the_hints_stand_before_the_choice failed
+wiederherstellen
+
+echo "── NoticeHintTest: die Seite rechnet den Hinweis aus und zeigt ihn nicht ──"
+#
+# Die Berechnung ist richtig, und die Seite bleibt stumm.
+vorher_datei resources/js/Pages/Settings/Notices.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Settings/Notices.vue')
+s = p.read_text()
+alt = ' {{ hinweise }}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei resources/js/Pages/Settings/Notices.vue "Hinweis gerechnet und stumm" &&
+pruefe "Hinweis gerechnet und stumm" \
+  NoticeHintTest::test_the_hints_stand_before_the_choice failed
+wiederherstellen
+echo "── WebhookTransportTest: ntfy bekommt eine Huelle um den Text ──"
+#
+# Wer an die Adresse eines Themas schreibt, schickt die Nachricht selbst. Ein
+# JSON-Objekt kaeme dort als Nachricht mit geschweiften Klammern an.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = 'if ($provider === self::NTFY) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'if ($provider === self::GENERIC && false) {', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "ntfy bekommt eine Huelle" &&
+pruefe "ntfy bekommt eine Huelle" \
+  WebhookTransportTest::test_ntfy_gets_the_text_itself failed
+wiederherstellen
+
+echo "── WebhookTransportTest: die Kopfzeile nennt eine Form, die der Rumpf nicht hat ──"
+#
+# `Content-Type: application/json` ueber einem Rumpf aus Text ist eine Zusage,
+# die der naechste Empfaenger glaubt.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = 'if ($provider !== self::NTFY) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'if ($provider !== self::GENERIC || true) {', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Kopfzeile passt nicht zum Rumpf" &&
+pruefe "Kopfzeile passt nicht zum Rumpf" \
+  WebhookTransportTest::test_the_content_type_says_what_the_body_is failed
+wiederherstellen
+
+echo "── WebhookTransportTest: ntfy bekommt keinen Deckel ──"
+#
+# Abgewiesen wird nach Bytes, gedeckelt wird in Zeichen — ohne Eintrag geht der
+# Rumpf ueber 4096 Bytes hinaus und ntfy nimmt ihn nicht.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = '        self::NTFY => 1300,\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "ntfy ohne Deckel" &&
+pruefe "ntfy ohne Deckel" \
+  WebhookTransportTest::test_the_ntfy_body_stays_under_its_byte_limit failed
+wiederherstellen
+
+echo "── WebhookTransportTest: die Entwarnung ist bei ntfy genauso laut ──"
+#
+# Eine Entwarnung, die genauso laut ist wie die Meldung, verdoppelt den Laerm,
+# statt ihn zu beenden.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "$headers[] = 'Priority: low';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "$headers[] = 'Priority: default';", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "ntfy entwarnt genauso laut" &&
+pruefe "ntfy entwarnt genauso laut" \
+  WebhookTransportTest::test_a_clearing_message_is_quieter_than_a_finding failed
+wiederherstellen
+
+echo "── WebhookTransportTest: die Entwarnung ist bei Gotify genauso laut ──"
+#
+# Dieselbe Regel an der anderen Stelle: Bei Gotify steht der Rang im Rumpf, und
+# ein Waechter ueber die Kopfzeile sagt darueber nichts.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "'priority' => self::quiet($event) ? 2 : 5,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "'priority' => 5,", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Gotify entwarnt genauso laut" &&
+pruefe "Gotify entwarnt genauso laut" \
+  WebhookTransportTest::test_a_clearing_message_is_quieter_than_a_finding failed
+wiederherstellen
+
+echo "── WebhookTransportTest: Gotify bekommt keinen Titel ──"
+#
+# Gotify trennt Titel und Nachricht; ohne Titel steht im Telefon eine Meldung
+# ohne Absender und ohne Gegenstand.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "            'title' => $kopf,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Gotify ohne Titel" &&
+pruefe "Gotify ohne Titel" \
+  WebhookTransportTest::test_each_receiver_gets_the_shape_it_accepts failed
+wiederherstellen
+
+echo "── WebhookTransportTest: ein Empfaenger ohne erwartete Form ──"
+#
+# Wer einen Empfaenger hinzufuegt, ohne die Form seines Rumpfes zu nennen, hat
+# einen gebaut, dessen Rumpf niemand prueft.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "        self::GOTIFY => 'Gotify',\n"
+neu = "        self::GOTIFY => 'Gotify',\n        'weiterer' => 'Ein weiterer Empfaenger',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Empfaenger ohne Form" &&
+pruefe "Empfaenger ohne Form" \
+  WebhookTransportTest::test_each_receiver_gets_the_shape_it_accepts failed
+wiederherstellen
+echo "── NotifyTargetStoreTest: der Empfaenger geht in der Operation verloren ──"
+#
+# Genau das war am 24. September 2026 der Fall: provider reiste vom Formular
+# bis in die Operation und wurde verworfen. Wer Slack waehlte, bekam die
+# JSON-Form und von Slack ein 400.
+vorher_datei agent/src/Ops/NotifyTargetStore.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Ops/NotifyTargetStore.php')
+s = p.read_text()
+alt = "$args['provider'] ?? Providers::GENERIC,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'Providers::GENERIC,', 1))
+PY
+griff_datei agent/src/Ops/NotifyTargetStore.php "Empfaenger geht verloren" &&
+pruefe "Empfaenger geht verloren" \
+  NotifyTargetStoreTest::test_the_chosen_receiver_reaches_the_file failed
+wiederherstellen
+
+echo "── NotifyTargetStoreTest: die Angaben gehen in der Operation verloren ──"
+#
+# Dieselbe Naht, das andere Feld: Ohne den Chat weist der Agent Telegram ab —
+# und die Meldung erklaert eine Angabe, die das Formular mitgeschickt hat.
+vorher_datei agent/src/Ops/NotifyTargetStore.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Ops/NotifyTargetStore.php')
+s = p.read_text()
+alt = "$args['config'] ?? [],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '[],', 1))
+PY
+griff_datei agent/src/Ops/NotifyTargetStore.php "Angaben gehen verloren" &&
+pruefe "Angaben gehen verloren" \
+  NotifyTargetStoreTest::test_the_settings_reach_the_message failed
+wiederherstellen
+
+echo "── NotifyTargetStoreTest: die Antwort traegt die Angaben mit ──"
+#
+# Die Positivliste von describe() ist genau dagegen geschrieben: Der Chat
+# gehoert zur Adressierung wie die Adresse selbst.
+vorher_datei agent/src/Notify/Target.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Target.php')
+s = p.read_text()
+alt = "'signed' => is_string($secret) && $secret !== '',"
+neu = "'signed' => is_string($secret) && $secret !== '',\n            'config' => self::settings($data['config'] ?? null),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei agent/src/Notify/Target.php "Antwort traegt die Angaben" &&
+pruefe "Antwort traegt die Angaben" \
+  NotifyTargetStoreTest::test_the_answer_carries_nothing_the_page_may_not_see failed
+wiederherstellen
+
+echo "── WebhookTransportTest: die Angabe reist nicht bis zum Rumpf ──"
+#
+# Abgelegt und nie gelesen: Telegram bekaeme einen leeren Chat und antwortete
+# mit 400 — und die Ablage sieht dabei richtig aus.
+vorher_datei agent/src/Notify/Delivery.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Delivery.php')
+s = p.read_text()
+alt = ", $event, $target['config']);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, ', $event);', 1))
+PY
+griff_datei agent/src/Notify/Delivery.php "Angabe reist nicht zum Rumpf" &&
+pruefe "Angabe reist nicht zum Rumpf" \
+  WebhookTransportTest::test_the_stored_setting_reaches_the_wire failed
+wiederherstellen
+
+echo "── WebhookTransportTest: ein leeres Pflichtfeld wird hinterlegt ──"
+#
+# Ein fehlender Chat fiele sonst erst in der Nacht auf, in der etwas zu melden
+# waere — und dann sieht der Betreiber einen stillen Server und keine Ursache.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "if ($wert === '') {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'if ($wert === null) {', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "leeres Pflichtfeld hinterlegt" &&
+pruefe "leeres Pflichtfeld hinterlegt" \
+  WebhookTransportTest::test_a_receiver_that_needs_a_field_does_not_get_stored_without_it failed
+wiederherstellen
+
+echo "── WebhookTransportTest: eine fremde Angabe wird abgelegt ──"
+#
+# Ein Feld, das die Ablage traegt und niemand liest, ist von aussen nicht von
+# einem zu unterscheiden, das es nicht gibt.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = 'if ($fremd !== []) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'if ($fremd !== [] && false) {', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "fremde Angabe abgelegt" &&
+pruefe "fremde Angabe abgelegt" \
+  WebhookTransportTest::test_a_setting_the_receiver_does_not_know_is_refused failed
+wiederherstellen
+
+echo "── WebhookTransportTest: ein Empfaenger ohne Felder nimmt Angaben an ──"
+#
+# Die andere Haelfte derselben Positivliste: Slack kennt keinen Chat, und eine
+# Ablage, die ihn trotzdem traegt, erklaert beim naechsten Umbau niemand.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = 'if ($roh !== []) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'if ($roh !== [] && false) {', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Empfaenger ohne Felder nimmt an" &&
+pruefe "Empfaenger ohne Felder nimmt an" \
+  WebhookTransportTest::test_a_setting_the_receiver_does_not_know_is_refused failed
+wiederherstellen
+
+echo "── NoticeFieldTest: das Feld haengt an einem Namen im Quelltext ──"
+#
+# Eine Bedingung auf den Schluessel des Empfaengers ist die zweite Fassung von
+# Providers::FIELDS — und sie bleibt stehen, wenn dort ein zweiter dasselbe
+# Feld bekommt.
+vorher_datei resources/js/Pages/Settings/Notices.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Settings/Notices.vue')
+s = p.read_text()
+alt = 'v-if="felder.includes(\'chat_id\')"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'v-if="form.provider === \'telegram\'"', 1))
+PY
+griff_datei resources/js/Pages/Settings/Notices.vue "Feld haengt am Namen" &&
+pruefe "Feld haengt am Namen" \
+  NoticeFieldTest::test_a_field_is_shown_for_the_receiver_that_needs_it failed
+wiederherstellen
+
+echo "── NoticeFieldTest: ein Feld, das der Agent nicht kennt ──"
+#
+# So entsteht der tote Eintrag wirklich: Jemand benennt ein Feld im Agenten um
+# und laesst das alte auf der Seite stehen.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "self::TELEGRAM => ['chat_id'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "self::TELEGRAM => ['chat'],", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Feld auf der Seite unbekannt" &&
+pruefe "Feld auf der Seite unbekannt" \
+  NoticeFieldTest::test_every_field_on_the_page_is_one_the_agent_asks_for failed
+wiederherstellen
+
+echo "── NoticeFieldTest: der Controller schickt jedem Empfaenger jedes Feld ──"
+#
+# Wer von Telegram auf Slack umstellt, leert das Feld nicht — und der Agent
+# wiese das ganze Hinterlegen ab.
+vorher_datei app/Http/Controllers/NoticeSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/NoticeSettingsController.php')
+s = p.read_text()
+alt = "foreach (Providers::FIELDS[$data['provider']] ?? [] as $feld) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'foreach (Providers::fieldKeys() as $feld) {', 1))
+PY
+griff_datei app/Http/Controllers/NoticeSettingsController.php "jedes Feld an jeden" &&
+pruefe "jedes Feld an jeden" \
+  NoticeFieldTest::test_a_receiver_without_fields_carries_none failed
+wiederherstellen
+
+echo "── NoticeFieldTest: die Pflicht am Feld faellt weg ──"
+#
+# Der Agent weist es ohnehin ab — aber als Ausnahme, und die landet als roter
+# Streifen oben statt als Satz am Feld.
+vorher_datei app/Http/Controllers/NoticeSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/NoticeSettingsController.php')
+s = p.read_text()
+alt = "$regeln[$feld] = ['required_if:provider,'.$anbieter, 'nullable', 'string', 'max:255'];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "$regeln[$feld] = ['nullable', 'string', 'max:255'];", 1))
+PY
+griff_datei app/Http/Controllers/NoticeSettingsController.php "Pflicht am Feld faellt weg" &&
+pruefe "Pflicht am Feld faellt weg" \
+  NoticeFieldTest::test_a_receiver_that_needs_a_field_is_refused_without_it failed
+wiederherstellen
+
+echo "── NoticeFieldTest: die Felder kommen nicht auf der Seite an ──"
+#
+# Sie stehen im Agenten und erreichen das Formular nie — von aussen nicht davon
+# zu unterscheiden, dass es sie nicht gibt.
+vorher_datei app/Http/Controllers/NoticeSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/NoticeSettingsController.php')
+s = p.read_text()
+alt = "'fields' => Providers::FIELDS[$key] ?? [],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "'fields' => [],", 1))
+PY
+griff_datei app/Http/Controllers/NoticeSettingsController.php "Felder kommen nicht an" &&
+pruefe "Felder kommen nicht an" \
+  NoticeFieldTest::test_the_fields_reach_the_page failed
+wiederherstellen
+
+echo "── NoticeFieldTest: der Chat steht im Protokoll ──"
+#
+# Ein Chat gehoert zur Adressierung wie die Adresse selbst, und die steht dort
+# schon nicht — festgehalten wird der Rechnername.
+vorher_datei app/Http/Controllers/NoticeSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/NoticeSettingsController.php')
+s = p.read_text()
+alt = "'config' => array_keys($config),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "'config' => $config,", 1))
+PY
+griff_datei app/Http/Controllers/NoticeSettingsController.php "Chat im Protokoll" &&
+pruefe "Chat im Protokoll" \
+  NoticeFieldTest::test_the_chat_is_not_written_into_the_log failed
+wiederherstellen
+
 
 echo
 if [ "$fehler" -eq 0 ]; then

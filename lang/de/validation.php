@@ -95,6 +95,14 @@ return [
         'string' => 'Das Feld :attribute muss genau :size Zeichen lang sein.',
     ],
 
+    /*
+     * **`starts_with` steht neben `url` und nicht statt seiner.** Die Adresse
+     * des Meldeziels wird gegen beide geprüft: `url`, damit sie überhaupt eine
+     * ist, und `starts_with:https://`, weil Laravels `url` **jedes** Schema
+     * nimmt — `http://127.0.0.1:9200` eingeschlossen, und genau das ist der
+     * Fall, gegen den Grenze 1 geschrieben ist.
+     */
+    'starts_with' => 'Das Feld :attribute muss mit einem der folgenden Werte beginnen: :values.',
     'string' => 'Das Feld :attribute muss eine Zeichenkette sein.',
     'timezone' => 'Das Feld :attribute muss eine gültige Zeitzone sein.',
     'unique' => 'Das Feld :attribute ist bereits vergeben.',
@@ -182,6 +190,14 @@ return [
         'argument' => 'Argument',
 
         /*
+         * Der Chat eines Telegram-Ziels (B1). **„Chat" und nicht
+         * „Chat-Kennung":** Der Wert ist eine Zahl oder ein `@name`, und auf
+         * der Seite steht darunter, woher man ihn bekommt. Ein Name, der die
+         * Form beschreibt, beschriebe die falsche Hälfte.
+         */
+        'chat_id' => 'Chat',
+
+        /*
          * Die beiden Schalter der Sicherungsseite (P8 Schritte 9 und 10).
          * Sie tragen **die Überschrift ihres Bereichs** und nicht den Satz
          * am Kästchen: „Das Feld Jede Nacht eine Sicherung je Abonnement
@@ -228,6 +244,13 @@ return [
         'filter.value' => 'Wert des Filters',
         'first_name' => 'Vorname',
         'from' => 'Von',
+        // Die Marke des Betreibers (B6).
+        'accent_light' => 'Akzent im hellen Thema',
+        'accent_dark' => 'Akzent im dunklen Thema',
+        'footer' => 'Fusszeile',
+        'logo' => 'Logo',
+        'remove_logo' => 'Logo entfernen',
+
         'from_address' => 'Absenderadresse',
         'from_name' => 'Anzeigename des Absenders',
         'granted' => 'Rechte',
@@ -268,6 +291,7 @@ return [
         'result' => 'Ergebnis',
         'role' => 'Rolle',
         'secret' => 'Geheimnis',
+        'url' => 'Adresse',
         'session' => 'Sitzung',
         'server' => 'Nameserver',
         'shared_secret' => 'Gemeinsames Geheimnis',

@@ -7,6 +7,8 @@ namespace App\Http\Controllers;
 use App\Mail\TestMessage;
 use App\Models\Account;
 use App\Support\Audit\Audit;
+use App\Support\Notify\MailChannel;
+use App\Support\Notify\Notices;
 use App\Support\Settings\MailSettings;
 use App\Support\Settings\Settings;
 use App\Support\Time\Clock;
@@ -39,7 +41,7 @@ use Throwable;
  */
 final class MailSettingsController extends Controller
 {
-    public function show(Settings $settings): Response
+    public function show(Settings $settings, Notices $notices): Response
     {
         return Inertia::render('Settings/Mail', [
             'mail' => $settings->mail()->forDisplay(),
@@ -49,6 +51,20 @@ final class MailSettingsController extends Controller
                 ['value' => 'none', 'label' => 'ohne Verschlüsselung'],
             ],
             'usable' => $settings->mail()->usable(),
+
+            /*
+             * „Zuletzt erfolgreich zugestellt" (B5, `docs/80`).
+             *
+             * > **Ein Kanal, der schweigt, ist von einem, der nichts zu melden
+             * > hat, nicht zu unterscheiden.**
+             *
+             * `null` heisst „noch nie" und nicht „geht nicht" — auf einem
+             * Server, auf dem nie etwas zu melden war, ist das die richtige
+             * Auskunft. Die Testmail schreibt den Wert **nicht**: Sie belegt,
+             * dass das Relay erreichbar ist, und nicht, dass eine Meldung
+             * ankam.
+             */
+            'delivered_at' => $notices->lastDelivered(MailChannel::CHANNEL),
         ]);
     }
 

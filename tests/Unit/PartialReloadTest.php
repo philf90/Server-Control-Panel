@@ -403,6 +403,34 @@ final class PartialReloadTest extends TestCase
     }
 
     /** Jeder Name in einem `only:` zeigt auf einen Verschluss, den es gibt. */
+    /**
+     * Sind **alle** verlangten Namen geteilte Verschlüsse?
+     *
+     * Gefragt wird die Mittelschicht und keine Liste hier. Dass ein geteilter
+     * Eintrag überhaupt ein Verschluss ist, hält `SharedClosureTest` für alle;
+     * diese Methode löst nur den Bezug auf.
+     *
+     * **Alle und nicht einer:** Eine Vorlage, die eine geteilte und eine
+     * Seiten-Eigenschaft zusammen nachlädt, gehört weiter zu ihrer Seite — und
+     * die soll dieser Wächter dann auch finden.
+     *
+     * @param  list<string>  $verlangt
+     */
+    private function alleGeteilt(array $verlangt): bool
+    {
+        $quelle = (string) file_get_contents($this->root().'/app/Http/Middleware/HandleInertiaRequests.php');
+
+        foreach ($verlangt as $name) {
+            $muster = sprintf("/^            '%s' => (fn|function)\\b/m", preg_quote($name, '/'));
+
+            if (preg_match($muster, $quelle) !== 1) {
+                return false;
+            }
+        }
+
+        return $verlangt !== [];
+    }
+
     public function test_every_partially_reloaded_prop_is_a_closure(): void
     {
         $seiten = $this->rendered();
@@ -417,6 +445,27 @@ final class PartialReloadTest extends TestCase
             }
 
             $seite = $this->component($pfad);
+
+            /*
+             * **Eine Vorlage ohne Seite kann trotzdem richtig sein.**
+             *
+             * Seit B8 lädt `Components/OperationBand.vue` die geteilte
+             * Eigenschaft `runningOperations` nach. Sie gehört keiner Seite,
+             * sondern `HandleInertiaRequests::share()` — und dort ist sie ein
+             * Verschluss, wie alle daneben. Ohne diese Auflösung meldete
+             * dieser Wächter eine Vorlage, die genau das Richtige tut.
+             *
+             * > **Ein Wächter, der einen Bezug nicht auflösen kann, hat an
+             * > dieser Stelle nicht wenig gemessen — er hat gar nicht
+             * > gemessen.** Und wer ihn deshalb rot macht, muss ihm auch
+             * > beibringen, wo der Bezug sonst noch stehen darf.
+             */
+            if (($seite === null || ! isset($seiten[$seite]))
+                && $this->alleGeteilt($verlangt)) {
+                $geprueft += count($verlangt);
+
+                continue;
+            }
 
             if ($seite === null || ! isset($seiten[$seite])) {
                 /*

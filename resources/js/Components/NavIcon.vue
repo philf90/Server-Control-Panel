@@ -159,6 +159,20 @@ const PATHS: Record<string, string> = {
   // Mailversand: ein Umschlag.
   mail: 'M3 6h18v12H3zM3 6.5l9 6.5 9-6.5',
 
+  /*
+   * Benachrichtigungen: eine Glocke.
+   *
+   * **Die Verkehrsform, und hier ist sie die richtige** — dieselbe Überlegung
+   * wie beim Zylinder für `databases`: Wer eine Glocke sieht, denkt an eine
+   * Benachrichtigung und an nichts sonst.
+   *
+   * **Kein zweiter Umschlag**, obwohl ein Kanal Mail ist: `mail` ist einer, und
+   * die Seite handelt nicht vom Weg, sondern davon, *dass* gemeldet wird. Und
+   * kein Ausrufezeichen: Das steht auf dieser Oberfläche für eine Warnung und
+   * hiesse hier, es sei etwas passiert.
+   */
+  notices: 'M12 4a5 5 0 0 1 5 5v3.6l1.6 2.9H5.4L7 12.6V9a5 5 0 0 1 5-5zM10.2 18.4a1.8 1.8 0 0 0 3.6 0',
+
   // Zertifikat: ein Schild.
   tls: 'M12 3l7 2.6v5.6c0 4.2-2.8 7.6-7 9.8-4.2-2.2-7-5.6-7-9.8V5.6z',
 

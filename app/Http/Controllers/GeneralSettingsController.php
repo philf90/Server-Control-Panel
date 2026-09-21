@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Support\Audit\Audit;
+use App\Support\Brand\Logo;
 use App\Support\Cron\ServerZone;
+use App\Support\Design\Contrast;
 use App\Support\Dns\Dns;
 use App\Support\Dns\ServerAddresses;
+use App\Support\Settings\BrandSettings;
 use App\Support\Settings\Settings;
 use App\Support\Time\Clock;
 use App\Support\Time\ServerTime;
@@ -38,7 +41,7 @@ use SrvPanel\Agent\Names;
  */
 final class GeneralSettingsController extends Controller
 {
-    public function show(Dns $dns, Client $agent): Response
+    public function show(Dns $dns, Client $agent, Settings $settings, Logo $logo): Response
     {
         /*
          * **Ein Augenblick für beide Zeitzeilen.** Zwei Aufrufe von `now()`
@@ -48,7 +51,59 @@ final class GeneralSettingsController extends Controller
          */
         $jetzt = now();
 
+        $marke = $settings->brand();
+
         return Inertia::render('Settings/General', [
+            /*
+             * Die Marke des Betreibers (B6).
+             *
+             * **Hier und nicht auf einer eigenen Seite.** Diese Seite
+             * beantwortet, wie dieses Panel eingestellt ist — Anzeigezeit,
+             * Adressen, und seit B6 auch Name, Logo, Farbe und Fusszeile. Eine
+             * neunte Zeile im Menü hätte die Teilung der Gruppe
+             * „Einstellungen" erzwungen, die `NavGroupTest` seit dem
+             * 16. September ankündigt; geteilt gehört sie entlang der Route,
+             * und das ist eine eigene Entscheidung.
+             *
+             * Die gemessenen Kontraste stehen **neben den Feldern** und nicht
+             * erst in einer Fehlermeldung: Wer eine Farbe wählt, soll sehen,
+             * wie knapp sie ist, bevor er speichert — und wogegen gerechnet
+             * wurde.
+             */
+            /*
+             * **`brandSettings` und nicht `brand`.** Der geteilte Name ist
+             * vergeben: `HandleInertiaRequests::share()` gibt `brand` für
+             * jede Seite heraus, und `BrandMark.vue` liest daraus die Adresse
+             * des Logos. Eine Seiten-Eigenschaft desselben Namens
+             * überschreibt sie — auf genau der Seite, auf der man das Logo
+             * einstellt, wäre es dann fort.
+             *
+             * Derselbe Satz hat A9 schon bezahlt (`abilities` statt `can`) und
+             * `/updates` ein zweites Mal (`errors`). Gefunden hat es hier
+             * `SharedPropTest`, nachdem sein Leser repariert war.
+             */
+            'brandSettings' => [
+                'name' => $marke->name,
+                'accent_light' => $marke->accent_light,
+                'accent_dark' => $marke->accent_dark,
+                'footer' => $marke->footer,
+                'has_logo' => $logo->path($marke->logo) !== null,
+            ],
+
+            'contrast' => [
+                'light' => BrandSettings::verdict($marke->accent_light, BrandSettings::SURFACES_LIGHT),
+                'dark' => BrandSettings::verdict($marke->accent_dark, BrandSettings::SURFACES_DARK),
+                'required' => Contrast::TEXT,
+            ],
+
+            'brandLimits' => [
+                'logo_kb' => (int) (Logo::MAX_BYTES / 1024),
+                'types' => array_values(Logo::TYPES),
+            ],
+
+            // Wohin für die Absenderadresse — ein Verweis und keine Abschrift.
+            'sender' => $settings->mail()->from_address,
+
             /*
              * **Beide Listen, und das ist keine Bequemlichkeit**
              * (`docs/72 §2.1a`). Eine übersteuerte Adresse ist eine im Panel
@@ -169,7 +224,7 @@ final class GeneralSettingsController extends Controller
          */
         $audit->success('settings.dns_addresses', null, ['addresses' => $adressen]);
 
-        return redirect()->route('settings.general')->with('status', 'Die Anzeigezone ist jetzt '.Clock::label().'.');
+        return redirect()->route('settings.general')->with('success', 'Die Anzeigezone ist jetzt '.Clock::label().'.');
     }
 
     /**

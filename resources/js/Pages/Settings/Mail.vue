@@ -23,6 +23,14 @@ const props = defineProps<{
   }
   encryptions: Encryption[]
   usable: boolean
+
+  /*
+   * Wann zuletzt eine Meldung des Panels angekommen ist (B5).
+   *
+   * `null` heisst „noch nie" und nicht „geht nicht" — die Unterscheidung
+   * trifft die Seite und nicht der Leser.
+   */
+  delivered_at: string | null
 }>()
 
 /*
@@ -76,6 +84,23 @@ function test(): void {
         Noch kein Relay hinterlegt. Bis dahin verschickt das Panel nichts —
         Einmal-Links und Warnungen entstehen, erreichen aber niemanden.
       </span>
+    </p>
+
+    <!--
+      **„Zuletzt erfolgreich zugestellt" und nicht „zuletzt versucht."**
+
+      Der Satz beantwortet die eine Frage, die ein schweigender Kanal offen
+      lässt: Ein Relay, das nie etwas zu melden hatte, sieht von aussen aus wie
+      eines, das nichts durchlässt. Die Testmail steht bewusst nicht dahinter —
+      sie belegt die Leitung und nicht die Zustellung einer Meldung.
+    -->
+    <p v-if="props.usable" class="quiet">
+      <template v-if="props.delivered_at">
+        Zuletzt erfolgreich zugestellt: {{ props.delivered_at }}
+      </template>
+      <template v-else>
+        Über diesen Kanal ist noch keine Meldung des Panels hinausgegangen.
+      </template>
     </p>
 
     <FormErrors />

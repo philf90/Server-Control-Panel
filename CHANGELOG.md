@@ -31128,3 +31128,1288 @@ Zeitalters ist die erste, die am 20. September 2026 auf `cloudsrv24` im neuen
 Format gelandet ist. Sie trägt `200 687 … 990 172` — 687 Bytes Rumpf, 990 Bytes
 auf der Leitung. Die 303 Bytes Unterschied sind der Kopf, und sie sind der ganze
 Grund, warum `$bytes_sent` im Format steht.
+
+### Der Nachtlauf — B2 ist fertig
+
+`srvpanel:traffic` am Timer `srvpanel-traffic` ruft einmal pro Nacht
+`web.access.count` und meldet, was zählbar war. Damit steht B2 aus `docs/129 §3`
+vollständig: Format, Leser, Operation, Nachtlauf.
+
+**Er legt noch nichts ab, und das ist der Zuschnitt und keine Auslassung.** Die
+verdichtete Tabelle ist B3. Was dieser Lauf schon heute festlegt, ist die
+Pflicht für sie: Er sieht denselben Tag mehrfach und schreibt deshalb je Tag
+**überschreibend** und nicht addierend.
+
+**Die Regel aus `docs/129 §5` ist jetzt gebaut — und sie brauchte eine Änderung
+am Leser.** Gezählt wird erst der Tag, der **vollständig** im neuen Format
+steht. Diese Entscheidung kann nur treffen, wer je Tag weiss, ob eine alte
+Zeile darin steht; `AccessLog::countFile()` führte `legacy` bis dahin nur als
+Summe über die Datei. Es steht jetzt auch je Tag, und ein Tag mit **nur** alten
+Zeilen erscheint mit Nullen statt gar nicht:
+
+> **„Nicht zählbar" und „nicht vorhanden" sind zwei Antworten, und ein leeres
+> Feld gibt beide.**
+
+**Dabei ist ein Fehler durchgegangen, den erst der zweite Blick fand.**
+`WebAccessCount` führt die Tage zweier Dateien zusammen; die Zusammenführung
+legte vier Schlüssel an und addierte vier, während der Leser fünf lieferte.
+`legacy` fiel still heraus — und der Prüfstand blieb grün, weil er dieselbe
+verkürzte Form erwartete.
+
+> **Zwei Stellen, die sich auf eine Form einigen, ohne dass eine dritte sie
+> nachzählt, einigen sich irgendwann auf die falsche.**
+
+**Drei Gründe, aus denen ein Tag keine Zahl bekommt, stehen in drei Töpfen.**
+`countable`, `skipped` (gemischtes Format, mit Namen und Zeilenzahl) und `open`
+(der laufende Tag). Die Reihenfolge der Prüfung trägt mit: Ein laufender Tag mit
+alten Zeilen ist „noch offen" und nicht „falsch formatiert" — sonst meldete der
+Lauf jede Nacht eine Domain, deren heutiger Tag schlicht noch läuft.
+
+**Und was liegen blieb, ist ein Fehlschlag.** Das Budget der Operation lässt
+Domains liegen, statt gar nichts zu liefern; ein Lauf, der das ignorierte, hätte
+seinen Tag nicht fertig gezählt und wäre trotzdem grün. Die Zahl steht in
+`AccessCounts` und nicht im Kommando, denn:
+
+> **Eine Regel, die nur mit halbem Server zu prüfen ist, wird nicht geprüft.**
+
+**Der Timer streut eine Stunde wie seine acht Nachbarn — und das ist hier
+gefahrlos.** `docs/129 §5` verlangte ursprünglich einen Lauf „hinter dem von
+`logrotate` und mit genug Abstand davor". Gemessen steht `logrotate.timer` auf
+`OnCalendar=daily` mit `AccuracySec=1h`: ein Fenster, kein Zeitpunkt. Weil die
+Operation beide Dateien liest und nach dem Tag *in der Zeile* gruppiert, ist es
+gleichgültig, wo im Fenster der Lauf ankommt.
+
+> **Ein Abstand zu einem Zeitpunkt, den es nicht gibt, lässt sich nicht
+> einhalten.**
+
+**`PackagingTest` hat den vierten Verdrahtungspunkt gefunden**, den zu kennen
+ich nicht behaupten kann: `preremove.sh` hält jeden Timer beim Entfernen an, und
+der neue stand nicht darin. Und `AgentOperationReachTest` hat seinen eigenen
+`UNREACHED`-Eintrag eingefordert, sobald `CollectTraffic` den Namen nannte —
+der Eintrag trug seine Auflösungsbedingung selbst.
+
+> **Ein Eintrag auf einer Ausnahmeliste, der seine eigene Auflösung benennt,
+> wird aufgelöst. Einer ohne bleibt.**
+
+### B3 — die verdichtete Tabelle
+
+Der Nachtlauf legt ab, was er zählt. Zwei Tabellen, lange Form: je Abonnement
+(oder Domain), Kennzahl und Tag eine Zeile. Aufbewahrt werden **30 Tage** —
+Entscheidung 4 vom 20. September; die andere Hälfte, `rotate 14` für die rohen
+Dateien, steht seit jeher in `WebLogrotate`.
+
+**Zwei Tabellen und nicht eine, und das ist gemessen.** Der naheliegende
+Entwurf ist eine Tabelle mit nullbarer `domain_id`: `NULL` hiesse „die Zahl des
+Abonnements selbst", und der eindeutige Schlüssel
+`(subscription_id, domain_id, day, metric)` trüge das Überschreiben. Gemessen
+gegen SQLite, mit Gegenprobe: **dieselbe Zeile mit `NULL` ging zweimal durch,
+dieselbe mit echter Kennung wurde abgewiesen.**
+
+> **Ein `NULL` in einem eindeutigen Index verhindert nichts — und der Schaden
+> ist eine zweite Zeile je Nacht, die wie ein Messwert aussieht.**
+
+Zwei Tabellen stellen die Frage gar nicht: Jede Spalte ihres Schlüssels ist
+`NOT NULL`. Und geprüft wird sie an der **Datenbank** und nicht am Code —
+`DailyMetricsTest` lässt dieselbe Zeile zweimal einfügen und verlangt die
+Abweisung.
+
+**Überschreibend und nicht addierend** ist die Zusage, an der B2 und B3
+zusammenhängen. `web.access.count` liest `access.log` **und** `access.log.1`,
+weil `logrotate` in einem Fenster läuft; derselbe Tag kommt an mehreren Nächten
+vorbei.
+
+> **Ein Lauf, der denselben Tag mehrfach sieht, darf ihn nicht mehrfach
+> zählen.**
+
+**Das Abonnement ist die Summe über seine Domains und keine zweite Messung.**
+nginx protokolliert je Domain; es gibt keinen Zähler, der ein Abonnement
+unmittelbar zählte. Eine zweite Quelle wären zwei Zahlen über dieselbe Grösse,
+und die zweite liefe weg.
+
+**Die Fehlerquote steht nicht in der Tabelle, sie wird gerechnet.** Eine Quote
+ist keine ganze Zahl, und zwei abgelegte Zahlen, aus denen die dritte folgt,
+sind besser als drei, von denen eine veralten kann.
+
+**Gezählt wird das Paar aus Abonnement und Domain und nicht der Name.** Zwei
+Kunden dürfen denselben Domainnamen im Verzeichnis haben, solange ihn nur einer
+betreibt — sonst liefen fremde Zahlen ins falsche Abonnement. Und ein
+Verzeichnis, zu dem es keine Zeile gibt, wird **benannt und nicht übergangen**:
+
+> **Ein übersprungener Eintrag, den niemand zählt, ist von einem, den es nie
+> gab, nicht zu unterscheiden.**
+
+**Erst ablegen, dann abräumen**, gehalten an der Reihenfolge im Quelltext:
+Andersherum nähme der Lauf einer frisch geschriebenen Zeile ihren Tag weg,
+sobald die Aufbewahrungsgrenze genau auf ihn fällt — einmal im Monat, und es
+sähe aus wie ein verlorener Tag.
+
+**Vier Kennzahlen je Abonnement und nicht fünf.** `docs/129 §6` nennt die
+FPM-Prozesse als fünfte; **gezählt hat sie auf keiner Maschine dieses Projekts
+je jemand** — `Quota::PhpProcesses` führt sie als Kontingent, und das ist eine
+Obergrenze und keine Messung. Sie einzutragen hiesse, eine Spalte für eine Zahl
+zu öffnen, von der niemand weiss, woher sie kommt. Die lange Form ist genau
+dafür gewählt: Wer sie misst, trägt einen Fall im Enum ein und braucht keine
+Migration.
+
+> **Eine Entscheidung, die eine Messung vorwegnimmt, ist keine Entscheidung —
+> sie ist eine Messung, die niemand gefahren hat.**
+
+### B4 — die Verläufe auf der Abonnement- und der Domainseite
+
+Was B3 Nacht für Nacht ablegt, steht jetzt als Kachelreihe da: **fünf auf der
+Abonnementseite, drei auf der Domainseite**, dreissig Tage, dieselbe Kachel wie
+auf der Übersicht.
+
+**Die fünf sind nicht die fünf des Plans, und das gehört hierher und nicht in
+eine Fussnote.** `docs/129 §6` nennt Speicherplatz, Traffic, Zugriffe,
+Datenbankgrössen und **FPM-Prozesse**. Die letzte hat auf keiner Maschine
+dieses Projekts jemand gezählt — `DailyMetric::ofASubscription()` sagt seit B3,
+warum sie deshalb nicht in der Tabelle steht. Die fünfte Kachel ist stattdessen
+die **Fehlerquote**, gerechnet aus zwei Zahlen, die es gibt.
+
+> **Ein Handgriff, der einen Zähler auf null bringt, hat den Zähler bedient und
+> nicht den Gegenstand.** Fünf Kacheln stehen da; wer die FPM-Prozesse will,
+> misst sie zuerst.
+
+**Die Geometrie zieht in eine eigene Stelle.** Bis B4 hatte das Panel eine
+Quelle für Kurven — den Ringpuffer hinter `Store` —, und die Umrechnung von
+einem Wert in eine Stützstelle stand als private Methode darin. Mit der zweiten
+Quelle wäre daraus eine zweite Fassung geworden.
+
+> **Zwei Leser derselben Marken, die verschieden zählen, sind zwei Fassungen
+> derselben Regel — und die zweite ist die, die veraltet.**
+
+`App\Support\Metrics\Points` trägt sie jetzt für beide; `Store` reicht die
+Beschriftung durch, weil nur sie sich unterscheidet (`H:i` über 24 Stunden,
+`d.m.` über dreissig Tage). Die Gegenprobe des Umzugs sind die vier
+bestehenden Serien-Wächter: 19 Fälle, unverändert grün.
+
+**Eine Rate ist keine Menge.** Der Ringpuffer misst Byte je **Sekunde**, die
+Tagestabelle Byte je **Tag** — dieselbe Grössenordnung, dieselben Schritte, und
+die Nachsilbe ist der einzige sichtbare Unterschied. `Points::bytesUnit()` nimmt
+sie deshalb als Argument, statt `/s` fest hineinzuschreiben.
+
+> **Ein Format, das für eine Rate reicht, reicht nicht für eine Menge.**
+
+**Die Verkehrskachel hat keine Schwelle, obwohl der Katalog eine führt.**
+`Quota::TrafficGb` ist eine Menge je Monat, die Kurve zeigt Tage. Eine
+Tageszahl gegen ein Monatskontingent zu halten hiesse, dreissigmal zu früh zu
+warnen.
+
+> **Eine Schwelle, die eine andere Grösse misst als die Kurve, ist keine.**
+
+Platz und Datenbanken warnen dagegen an ihrem Kontingent: Beides sind Stände
+und keine Flüsse, und ein Stand darf gegen seine Grenze gemessen werden.
+
+**Die Seite braucht die Uhr nicht.** Das Fenster liegt an den Tagen, die
+dastehen, und nicht an „heute" — die Tabelle enthält ohnehin nur abgeschlossene
+Tage. Eine zweite Stelle, die nach der Zone des Servers fragt, wäre die zweite
+Fassung von `ServerZone`, und genau die hat dem Panel ein Jahr lang eine
+falsche Uhrzeit angezeigt (`docs/108`). Abgeschnitten wird trotzdem auf
+dreissig Tage: Hinge die Zusage der Seite allein am Abräumen des Nachtlaufs,
+zeigte sie nach einer ausgefallenen Nacht neunzig Tage und behauptete dreissig.
+
+> **Eine Grenze, die nur ein anderer Lauf herstellt, ist keine Zusage dieser
+> Seite.**
+
+### Jeder geteilte Wert ist ein Verschluss — und einer war es nicht
+
+Die Regel steht seit A14 als Kommentar an drei Einträgen von
+`HandleInertiaRequests::share()` und kommt aus einer Messung
+(`docs/103 §1` M5). Was sie hielt, war die Aufmerksamkeit dessen, der den
+nächsten Eintrag schrieb.
+
+**Gemessen am 21. September 2026**, Kundenkonto auf `/` mit
+`X-Inertia-Partial-Data: subscriptions`:
+
+| | Abfragen | davon für `account` |
+|---|---|---|
+| voller Besuch | 11 | 1 |
+| partielles Nachladen | 10 | **1** |
+
+`has_active_subscription` fragte die Datenbank für eine Eigenschaft, die die
+Antwort gar nicht enthält. **Ein Betreiber sah davon nichts** — bei ihm bricht
+`isAdmin() ||` die Auswertung ab, und gegen ihn gemessen stünde auf beiden
+Seiten eine Null.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+Alle zehn Einträge sind jetzt Verschlüsse, auch die billigen. Eine
+Ausnahmeliste wäre so gut wie das Gedächtnis dessen, der sie pflegt — und die
+erste teure Zeile, die jemand in einen „billigen" Eintrag schreibt, liefe dann
+still in jeder Anfrage.
+
+**`SharedClosureTest` hält beide Hälften, und das ist gemessen nötig.** Der
+Eingriff, der `source` zu einem fertigen Wert macht, lässt die Wirkungsmessung
+**grün** — `source` kostet keine Abfrage — und nur die Formprüfung rot. Die
+Form wird dabei an der **Klammertiefe** gelesen und nicht als Zeichenkette:
+`fn (` steht in dieser Datei vier Mal innerhalb von `flash`.
+
+> **Ein Wächter, der eine Zeichenkette sucht, ist grün, sobald sie irgendwo
+> steht.**
+
+**Und ein bestehender Wächter hat den Umbau sofort gemeldet.** `FlashChannelTest`
+liest die `flash`-Ablage der Mittelschicht über einen Ausdruck, der
+`'flash' => [` erwartete; nach dem Umbau fand er nichts und gab eine leere
+Liste zurück. Rot wurde er trotzdem — seine Untergrenze verlangt, dass
+überhaupt etwas gefunden wird.
+
+> **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
+> steht.**
+
+### B5 — Meldungen an den Kunden
+
+Ein Kunde, dessen Kontingent überschritten ist, bekommt **eine** Mail, und der
+Betreiber sieht auf der Seite „Mailversand", wann zuletzt etwas angekommen ist.
+
+**B5 hing an B1, und B1 war nicht gebaut.** `docs/129 §3` sagt es in seiner
+Abhängigkeitsspalte; gemessen am Quelltext fehlten drei von vier Bausteinen —
+kein `notified_at`, kein `timeout` am Mailweg, kein `app/Notifications/`, ein
+einziger Mailable (der Probeversand). Gebaut sind hier genau die drei, die B5
+braucht; was von B1 offen bleibt, steht weiter unten.
+
+**Ein zweites Zustandsbuch wäre die zweite Fassung derselben Regel gewesen.**
+Die Zusage „genau eine Mail" zerfällt in zwei Teile, und den ersten hält
+{@see FindingLog} seit A10: Ein Zustand über zwei Läufe ist **eine** Zeile,
+`first_seen_at` steht dabei still, und was ein Lauf nicht mehr nennt, wird
+gelöscht. Genau das ist die Entprellung, die `docs/129 §4` beschreibt:
+
+```
+gemeldet wird, was   now − first_seen_at ≥ Haltezeit
+                und  notified_at is null
+```
+
+Die Überschreitung ist deshalb ein **Befund** (`quota.exceeded`) und keine
+eigene Tabelle. Dass ein behobener Befund wieder melden darf, folgt daraus
+ohne eine Zeile Code: Mit der Zeile geht die Erinnerung an die Zustellung.
+
+**Und der Betreiber sieht sie dadurch, wie es zugesagt war.**
+`Quota::TrafficGb` trägt seit P1 den Hinweis *„Die Überschreitung erscheint in
+der Übersicht"*. Bis heute löste das niemand ein.
+
+> **Eine Zusage im Hinweistext ist eine Zusage.**
+
+**Drei Kontingente und nicht vierzehn.** Die meisten werden beim Anlegen
+geprüft — was nicht entsteht, steht auch nicht über der Grenze. Überschreitbar
+sind die, die ein **gemessener** Wert füllt: Platz, Datenbankgrösse, Verkehr.
+
+**Der Verkehr zählt den Kalendermonat und nicht dreissig Tage**, weil das
+Kontingent „Traffic je Monat" heisst — und er zählt, was **hinausgeht**. Beide
+Entscheidungen stehen an einer Stelle, damit der Betreiber sie an einer Stelle
+ändert. Dazu eine benannte Grenze: B3 hebt dreissig Tage auf, ein Monat hat bis
+zu einunddreissig; am letzten Tag eines langen Monats fehlt der erste. Die Zahl
+ist damit eine **Untergrenze** — für eine Warnung die richtige Richtung.
+
+**Die Haltezeit hängt am Zeitgeber und nicht am Gefühl.** `srvpanel-diagnose`
+läuft täglich mit `RandomizedDelaySec=1h`; zwischen zwei Läufen liegen 23 bis 25
+Stunden. Zwanzig Stunden heissen deshalb: gemeldet wird, was **zwei Läufe
+hintereinander** dasteht. Eine Haltezeit über 23 Stunden verschöbe die Meldung
+unvorhersehbar auf den dritten Lauf, weil der Abstand streut.
+
+> **Eine Entprellung ohne ihren Takt ist eine halbe Zahl.**
+
+**Die Zeitgrenze am Mailweg stand auf `null`.** Gemessen (`docs/128` M6) kostet
+ein toter Empfänger damit 60,02 s je Versand; bei 400 fälligen Meldungen sind
+das 6,7 Stunden, in denen ein Nachtlauf hängt, während der Zeitgeber den
+nächsten feuert. Jetzt zehn Sekunden — dieselbe Zahl wie
+`Acme\Curl::CONNECT_TIMEOUT`.
+
+> **Eine Grenze, die auf `null` steht, ist keine Voreinstellung — sie ist die
+> Abwesenheit einer Entscheidung.**
+
+`MailTimeoutTest` misst dabei den **aufgelösten** Wert: `MailConfiguration`
+schreibt bei jedem Versand über den Mailer, und ein Wächter über die Zeile in
+`config/mail.php` bliebe grün, wenn jemand dort ein `timeout => null` ergänzte.
+
+**Was nicht ankam, bleibt fällig.** Ohne eingetragenes Relais, ohne Empfänger
+und nach einem Fehlschlag wird **nichts** vermerkt — ein `notified_at` ohne
+Zustellung nähme der Zeile für immer ihre Fälligkeit. Und „zuletzt erfolgreich
+zugestellt" entsteht nur bei einer Zustellung; ein Zeitpunkt, an dem nichts
+ankam, wäre ein Satz, der falsch ist und richtig aussieht.
+
+**Gefahren wird der Versand als zweite `ExecStart`-Zeile von
+`srvpanel-diagnose.service`** und nicht von einem eigenen Zeitgeber: Der könnte
+vor der Messung feuern und meldete dann den Stand von gestern.
+
+> **Eine Reihenfolge, die ein Zeitgeber herstellen soll, ist keine.**
+
+**Was von B1 offen bleibt** und hier ausdrücklich nicht gebaut ist: die
+Meldungen an den **Betreiber** (Dienst tot, Timer ohne Termin, Zertifikat,
+Sicherung, Updates), der zweite Kanal (Webhook, `docs/129 §7`) und der eigene,
+häufigere Lauf für die Kennzahlen aus dem Ringpuffer. Die Ablage trägt sie: Ein
+zweiter Kanal braucht dann die kleine Tabelle statt der Spalte, und `docs/129
+§4` sagt das voraus.
+
+### Zwei Wächter haben den Bau angehalten, und einer meldete zu viel
+
+`TimeDisplayTest` hat `Notices` gemeldet, weil es eine Zeit selbst formatiert —
+zu Recht, und die Stelle steht jetzt mit ihrer Begründung in seiner
+Ausnahmeliste: Der Wert geht als Text in `settings` und liegt dort in UTC,
+gezeigt wird er über `Clock::displayText()`.
+
+`ServerZoneSourceTest` hat eine **Testdatei** gemeldet — für einen Satz in
+ihrem Dokumentblock, der den Pfad nennt, den `ServerZone` liest. Er liest den
+Quelltext roh und streift die Kommentare nicht ab.
+
+> **Derselbe Kommentar, der einen Wächter fälschlich grün hält, macht eine
+> Messung fälschlich rot.**
+
+Behoben ist es am Satz und nicht am Wächter: Ihn auf `WithoutPhpComments`
+umzustellen ist eine Änderung an einem bestehenden Wächter und braucht ihren
+eigenen Bruchlauf. Der Satz sagt jetzt, warum er den Pfad nicht ausschreibt.
+
+**Und ein Prüfkörper war still.** `$abo->update(['disk_used_mb' => 100])` tut
+wortlos nichts — die Spalte steht nicht in `$fillable`, weil sie ein gemessener
+Wert ist und keiner, den ein Formular setzt. Die Fabrik daneben setzt sie, weil
+sie den Schutz umgeht; genau deshalb sah der Prüfkörper richtig aus.
+
+> **Ein Prüfkörper, der überspringt, meldet das Überspringen nicht.**
+
+### B6 — Marke, Farbe und Logo des Betreibers
+
+Ein Panel, das nicht „SrvPanel" heissen muss: Name, Fusszeile, zwei
+Akzentfarben und ein Logo stehen auf `/settings/general`, und was dort steht,
+trägt die Anmeldeseite, der Reiter des Browsers und die Unterschrift jeder Mail.
+
+**„Eine Farbe des Betreibers" und „jede Farbe kommt aus `resources/css/app.css`"
+sind kein Widerspruch**, sobald man liest, wogegen die Regel geschrieben ist:
+gegen Hexwerte, die in dreissig Komponenten liegen und sich nicht umstellen
+lassen. {@see App\Support\Brand\Style} gibt deshalb **keinen einzigen Selektor
+mit einer Eigenschaft** aus — nur Werte für Marken, deren Regeln in `app.css`
+stehen. `BrandStyleTest` hält es an der Ausgabe und nicht an der Absicht.
+
+> **Eine Marke, die an einer Stelle gesetzt wird, ist das Gegenteil einer Farbe,
+> die verstreut ist.**
+
+**Bei den Vorgabewerten steht gar kein Block da.** Einer, der die Vorgabe noch
+einmal hinschreibt, wäre eine zweite Fassung der Farben aus `app.css` — und die
+zweite ist die, die veraltet, sobald jemand das Stylesheet anfasst.
+
+**Die Anmeldeseite ist eine dritte Fläche, und sie ist die gemeinte.** `.signin`
+trägt seit „Kontor" einen eigenen, vollständigen Markensatz (`--bg`, `--surface`
+und eine pflaumenfarbene Fläche, die es sonst nirgends gibt) — und sie ist genau
+die Seite, die das Abnahmekriterium nennt. Gerechnet wird deshalb gegen **fünf**
+Gründe über zwei Themes, und gewertet wird der **schlechteste**.
+
+> **Eine Farbe, die auf einem von drei Gründen lesbar ist, ist auf der Seite
+> unlesbar, auf der sie steht.**
+
+**Der Kontrast wird jetzt an einer Stelle gerechnet.** Dieselbe Formel stand
+dreimal da — in `SurfaceTokenTest`, `ColorRoleTest` und `ButtonStyleTest` —, und
+eine der drei Kopien war schon abgedriftet. Eine vierte für B6 zu schreiben wäre
+die naheliegende und die falsche Antwort gewesen;
+{@see App\Support\Design\Contrast} ist die eine Stelle, die drei Wächter rufen.
+
+**Abgewiesen wird an der Tür, mit der gemessenen Zahl und dem Grund.** Eine
+Farbe, die 4,5:1 nicht erreicht, macht Teile des Panels unlesbar — und zwar
+erst, **nachdem** sie gespeichert ist. Die Meldung nennt das Verhältnis und die
+Fläche, gegen die es gerechnet wurde; ein blosses „zu wenig Kontrast" liesse den
+Betreiber raten, welchen Grund er nicht gesehen hat.
+
+**Kein SVG, und das ist keine Bequemlichkeit.** Ein SVG ist ein Dokument und
+kein Bild: Es darf `<script>` enthalten, und ausgeliefert vom **eigenen**
+Ursprung läuft dieses Skript in der Sitzung jedes Betrachters. Das Logo steht
+ausgerechnet auf der Anmeldeseite — der einen Seite, die jeder Besucher ohne
+Konto sieht.
+
+> **Eine Datei, die der Betreiber hochlädt und die das Panel unter seinem
+> eigenen Ursprung ausliefert, ist Code, sobald ihr Format welchen zulässt.**
+
+**Und der Typ kommt aus der Datei und nicht aus dem Umschlag.**
+`getClientMimeType()` liest, was der Browser behauptet; gelesen wird der Inhalt,
+und ausgeliefert wird der Typ aus **unserer** Positivliste — dazu `nosniff`,
+damit der Browser die Entscheidung nicht noch einmal trifft.
+
+> **Ein Typ, den der Absender mitschickt, ist eine Behauptung und keine
+> Messung.**
+
+**Die Absenderadresse wird nicht abgeschrieben.** Das Kriterium nennt sie, und
+es gibt sie seit P2 auf der Seite „Mailversand". Sie hier ein zweites Mal
+aufzunehmen hiesse, zwei Formulare für einen Wert zu pflegen — die Markenfelder
+verweisen darauf und zeigen den eingetragenen Wert an.
+
+**Logo und Farbe stehen nicht in der verschickten Mail, und das ist eine
+Entscheidung von P2.** Diese Mails sind reiner Text; HTML kann auf dem Weg
+verändert werden, Text nicht. Was eine Mail von der Marke trägt, ist die
+**Unterschrift** — Name und Fusszeile, aus einer Datei und nicht als Textbaustein
+in zwei Vorlagen, und über einen View-Composer für `mail.*` angehängt, damit
+keine Vorlage ihn durchreichen muss und keine ihn vergessen kann. Der Teil des
+Kriteriums, der Bild und Farbe in der Mail verlangt, ist damit **benannt nicht
+erfüllt** und nicht stillschweigend weggelassen.
+
+**Eine eigene Markenseite gibt es nicht.** Sie wäre der neunte Punkt der Gruppe
+„Einstellungen" gewesen, und `NavGroupTest` besteht darauf, dass eine Gruppe
+dort trennt, wo auch die Route trennt. Die Felder sitzen deshalb auf
+`/settings/general` — der Seite, die ohnehin beantwortet, wie dieses Panel
+heisst und wie es rechnet.
+
+> **Eine Gruppe ist zu gross, wenn sie zwei Fragen beantwortet — und nicht, wenn
+> sie viele Punkte hat.**
+
+### Ein Weiterleitungsziel, das es nie gab — und der Wächter, der es nicht sehen konnte
+
+`BrandingSettingsController::update()` leitete auf `settings.branding` weiter.
+Diesen Namen vergibt `routes/web.php` nicht: Die Markenfelder sind nach
+`/settings/general` gefaltet worden, und die Weiterleitung blieb stehen.
+`to_route()` wirft dafür `RouteNotFoundException` — **jedes** gelungene
+Speichern gab also einen 500, nachdem die Marke gespeichert war.
+
+**Fünf Wächter sind darüber grün geblieben**, und alle fünf aus demselben Grund:
+Sie prüften `assertSessionHasNoErrors()`. Das ist ein Urteil über die Prüfung
+und keines über den Lauf — für eine Ausnahme im Controller stehen ebenfalls
+keine Prüfmeldungen in der Sitzung.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+**Und `RedirectTargetTest` konnte es strukturell nicht sehen.** Er hält seit P2,
+dass eine Weiterleitung ihr Ziel **nennt**, weil `back()` in diesem Panel auf
+`/` fällt. Über die Existenz des genannten Ziels sagte er nichts — dieselbe
+Fehlerklasse, die dieses Repo am häufigsten trifft: eine Zeichenkette, die auf
+etwas verweist, ohne dass ein Typ, ein Test oder ein Werkzeug den Bezug prüft.
+
+> **Ein Wächter, der prüft, dass ein Ziel genannt ist, hat nicht geprüft, dass
+> es das Ziel gibt.**
+
+`test_every_named_route_the_code_reaches_for_exists` liest jetzt **jede** Datei
+unter `app/` — nicht nur die Controller, denn `HandleInertiaRequests` baut die
+Adresse des Logos über `route('branding.logo')`, und ein toter Name dort schlüge
+auf jeder Seite zu statt auf einer. Gemessen wird gegen `Route::getRoutes()` und
+nicht gegen eine Liste im Test; 29 Namen stehen heute in `app/`, einer davon war
+tot.
+
+**Die beiden Eingriffe dazu sind bewusst zwei und nicht einer.** Der erste
+schreibt den toten Namen zurück — das sieht der strukturelle Wächter. Der zweite
+schreibt `overview`, eine Route, die es **gibt**: Der strukturelle Wächter
+bleibt grün, gespeichert wäre richtig, und man stünde danach nur woanders. Das
+sieht allein die Messung durch die Tür.
+
+> **Zwei Regeln, von denen die eine den Fehler der anderen nicht sehen kann,
+> brauchen zwei Messungen — und die zweite ist die, die man sich spart.**
+
+### B7 — API v1, Zugangsmarken und OpenAPI
+
+Sechs lesende Routen unter `api/v1`, eine Zugangsmarke je Kunde oder
+Zusatzbenutzer, und eine OpenAPI-Beschreibung, die im Repo steht und in beide
+Richtungen gegen die Routen gehalten wird. Der Plan ist `docs/131`, die
+Messrunde davor **`docs/130`**, das Messmittel **`tests/api-messen.php`**.
+
+**Die Mandantenklammer hat keine zweite Fassung bekommen, und das war die
+Frage.** `ApplyTenancy` fragt `$request->user()` und nicht die Sitzung;
+`forAccount()` unterscheidet Admin → `allowAll()`, Kunde → eigene Abonnements,
+Zusatzbenutzer → zugewiesene. Eine Wache, die das Konto aus einer Marke
+einsetzt, bekommt damit dieselbe Klammer wie eine Seite — gemessen in beiden
+Richtungen (`docs/130` A3).
+
+**„404 und nicht 403" ist deshalb kein Bau, sondern eine Eigenschaft der
+Reihenfolge.** Die Vorgabegruppe `api` trägt genau **einen** Eintrag,
+`SubstituteBindings`, und sonst nichts; eine Route, die dort landet, bindet ihr
+Modell, bevor irgendetwas klammert. Die Gruppe wird deshalb genauso behandelt
+wie `web`: Bindung heraus, hinter die Klammer wieder hinein.
+
+**Und der Wächter dafür fehlte auch für `web`.** `bootstrap/app.php` erklärt die
+Reihenfolge seit P7b und schrieb daneben, ein Test halte sie fest. **Den gab es
+nicht** — gehalten war nur `EnforceAccountAccess` vor `EnforceAdminNetwork`.
+
+> **Eine Zeile, die einen Wächter behauptet, ist teurer als keine — der Nächste
+> baut ihn nicht, weil er ihn für gebaut hält.**
+
+**Die Begründung daneben war ebenfalls ungemessen.** Sie sagte, eine Bindung vor
+der Klammer mache aus „nicht gefunden" ein „verboten", und damit liesse sich
+abzählen, welche Kennungen es gibt. Gemessen gibt die umgedrehte Reihenfolge
+**404 für das fremde und 404 für das eigene** Abonnement: Die Klammer steht beim
+Binden im Grundzustand, und der verweigert alles. Der Schaden ist kein Leck,
+sondern ein Panel, in dem kein Kunde mehr seine eigene Seite sieht.
+`MiddlewareOrderTest` misst deshalb das **eigene** Abonnement — das fremde gibt
+in beiden Reihenfolgen 404 und trennt die Fälle nicht.
+
+**Gehasht mit `sha256` und nicht mit bcrypt**, und das ist gemessen: 0,00011 ms
+gegen 193 ms je Prüfung, Faktor rund 1,7 Millionen. Ein Token sind
+achtundvierzig Zeichen aus `random_bytes()`; der Arbeitsfaktor von bcrypt
+gleicht eine fehlende Entropie aus, und hier fehlt keine.
+
+> **Ein Arbeitsfaktor, der eine fehlende Entropie ausgleicht, ist dort, wo sie
+> nicht fehlt, nur noch Preis.**
+
+**Die Marke reist im Kopf und nie in der Adresse.** nginx schreibt `"$request"`
+ins Zugriffsprotokoll — die Anfragezeile **mitsamt Abfrageteil**. Gemessen gegen
+echtes nginx 1.24.0: Token im Abfrageteil **1** Treffer im Protokoll, Token im
+Kopf **0**. Die Datei bleibt vierzehn Tage liegen und wird von diesem Panel
+selbst angezeigt.
+
+> **Ein Geheimnis, das in der Adresse reist, steht in einer Datei, die das Panel
+> dem Betreiber vorliest.**
+
+**Ein Adminkonto kommt nicht durch**, und gefragt wird in der **Wache** und
+nicht nur dort, wo eine Marke entsteht: Ein Konto kann seinen Typ wechseln, und
+die Marke trüge dann eine Zusage, die niemand mehr gemacht hat.
+
+> **Eine Prüfung beim Anlegen gilt für den Zustand beim Anlegen.**
+
+**Die erste Drosselung dieses Panels.** Bis B7 gab es **keine einzige**
+`throttle`-Mittelschicht; `LoginThrottle` ist handgebaut und bedient die
+Anmeldung. Sie steht **vor** der Wache, damit ein Versuch mit einer erfundenen
+Marke keinen Datenbankzugriff kostet — und gezählt wird deshalb die Adresse und
+nicht die Marke: An dieser Stelle gibt es noch kein Konto.
+
+> **Ein Schlüssel, der einen Wert nennt, den es an dieser Stelle nicht gibt, ist
+> keine Einschränkung, sondern eine Zusage ohne Gegenstand.**
+
+**`cascadeOnDelete` und nicht `nullOnDelete`** — hier geht dieses Repo bewusst
+den anderen Weg als bei `audit_events`. Dort ist die Zeile ein Protokoll, und
+was jemand getan hat, darf sein Konto überleben. Ein Schlüssel ohne sein Schloss
+ist kein Protokolleintrag, sondern ein Risiko.
+
+**Die Marken stehen auf der Kontoseite und nicht auf einer eigenen.** Ein
+neunter Punkt in der Gruppe „Einstellungen" wäre derselbe Befund wie bei B6 —
+und für einen Administrator steht dort `null` und keine leere Liste: Die läse
+sich wie eine Einladung.
+
+### Drei Berichtigungen an der eigenen Messrunde
+
+**Die erste betrifft einen Wächter, den ich aus seinem Kopf gelesen habe statt
+aus seinem Ausdruck.** `docs/130 §4` hat `TenancySweepTest` für zuständig
+erklärt — er sagt im eigenen Kopf „jede Route, die es gibt". Sein Ausdruck
+sammelt `/subscriptions/{subscription}/(files|sftp|cron)` aus `routes/web.php`
+und hält sie gegen `tests/mandant-messen.js`. Über `api/` sagt er nichts.
+
+> **Ein Satz im Kopf eines Wächters beschreibt seine Absicht. Was er misst,
+> steht in seinem Ausdruck.**
+
+Damit lag `docs/129 §8` näher an der Wahrheit als meine Korrektur daran: Es
+**braucht** einen eigenen Wächter. Er heisst `ApiEmptyListTest` und hält mehr
+als bestellt — die Klammer und den Fall `200 []`.
+
+**Die zweite betrifft `200 []` selbst.** `docs/130` A4 hat ihn an einer
+Wegwerfroute **ohne** `can:` gemessen und daraus geschlossen, ein Kunde ohne
+Abonnements und eine Route ohne Klammer seien von aussen gleich. Auf der echten
+Route stimmt das nicht: `SubscriptionPolicy::viewAny()` lässt nur durch, wer
+überhaupt ein Abonnement erreicht, und ein Kunde ohne bekommt **403**.
+
+> **Ein Prüfkörper ohne die Wache des Prüflings misst eine andere Route.**
+
+Der Befund bleibt trotzdem, und der Wächter mit ihm: Die Policy ist ein zweiter
+Mechanismus und keine Eigenschaft der Klammer. Eine Route, die morgen ohne
+`viewAny` entsteht, hat den Fall sofort wieder.
+
+**Und die dritte ist mein eigener Griff in die Middlewareliste.**
+`gatherMiddleware()` gibt den **Namen** einer Gruppe zurück und nicht ihre
+Mitglieder. Für eine Seite fällt das nicht auf, weil `auth` dort an der Route
+steht; eine api-Route trägt `['api']` und sonst nichts. `RouteAuthorizationTest`
+löst Gruppen seitdem auf — und zieht ab, was eine Route mit `withoutMiddleware`
+ausdrücklich ablegt.
+
+> **Eine Liste, die einen Namen statt seines Inhalts nennt, ist vollständig und
+> beantwortet die Frage trotzdem nicht.**
+
+### B8 — Ein Vorgang ohne Weiterleitung
+
+Wer einen Knopf drückt, bleibt, wo er ist. **22 Weiterleitungen aus acht
+Controllern** endeten bisher auf der Vorgangsseite; den Fortschritt trägt
+jetzt ein Streifen oben, und der steht auf jeder Seite. Der Befund ist
+`docs/92`, der Plan **`docs/132`**.
+
+**Gefunden wurde er beim Erklären und nicht beim Prüfen.** Die Frage lautete,
+wie man denselben Knopf ein zweites Mal drückt, und die Antwort war „mit dem
+Zurück-Knopf des Browsers".
+
+> **Ein Weg, den man nur erklären kann, indem man den Browser zu Hilfe nimmt,
+> ist keiner, den die Anwendung anbietet.**
+
+**Drei Zahlen aus `docs/92` stimmten nicht mehr**, und eine davon hat den
+Umfang geändert: Es sind **22 aus acht** und nicht 21 aus sieben —
+`BackupController` ist mit P8 dazugekommen.
+
+> **Eine Zahl im Kommentar altert mit dem Code, den sie zählt, und nichts
+> meldet es.**
+
+Die beiden anderen haben Arbeit gespart. `docs/92 §3` beschreibt den Streifen,
+als wäre seine Form neu — A14 hat die `.bands`-Hülle gebaut, drei Bänder hängen
+darin, und der M2-Befund (drei Bänder liegen bei 1440 px aufeinander, weil
+`.band` `grid-row: 1` nimmt) ist dort behoben. Und die Form „im Takt
+nachfragen" steht seit P8 in `Subscriptions/Backups.vue`: `NACHFRAGE_MS = 3000`,
+der Takt an den Zustand gehängt, in `onUnmounted` abgeräumt.
+
+> **Wer entscheidet, was als Nächstes gebaut wird, sieht vorher am Quelltext
+> nach, ob es das schon gibt.**
+
+**Nachgefragt und nicht gestreamt**, und die Begründung ist eine Zahl: Der
+Panel-Pool hat zwölf Arbeiter, und zwei belegte lassen die nächste Anfrage
+**16 s** warten (`docs/128` M9). Ein Strom auf jeder Seite hiesse, aus einer
+von 58 Seiten alle 58 zu machen. Gefragt wird deshalb im Takt — und **nur
+solange etwas läuft**.
+
+**Der Streifen überlebt den Seitenwechsel, weil er eine geteilte Eigenschaft
+ist.** Eine Seiten-Eigenschaft müsste jede der 58 Seiten durchreichen, und die
+erste, die es vergisst, fällt niemandem auf. Als Verschluss, wie die elf
+daneben.
+
+**Ein fertiger Vorgang bleibt zwei Minuten stehen.** Verschwände er beim
+Fertigwerden aus der Liste, wüsste der Klient, *dass* er weg ist, und nicht,
+*wie* er ausgegangen ist. Danach altert er von selbst aus.
+
+> **Ein Zustand, der von selbst vergeht, braucht kein Gedächtnis.**
+
+Das erspart eine Ablage „gesehen" und damit eine zweite Tabelle, die bei jedem
+Seitenaufbau geschrieben würde.
+
+**Die Seite lädt sich nicht von selbst nach.** Aus „läuft" wird „fertig — Seite
+aktualisieren", und wer will, drückt. `docs/92 §4` nennt das Nachladen eine
+Entscheidung je Seite; so wird aus der Entscheidung ein Knopf. Ein Nachladen
+unter den Händen nähme dem, der gerade tippt, seinen Stand.
+
+**Und Vorgänge ohne Konto erscheinen bei niemandem.** Die Zertifikatsautomatik
+und der Cron-Einsammler setzen `account_id` auf `null` — dieselbe Null, die
+`docs/901` als „System" liest. Damit ist Frage 4 aus `docs/92 §4` beantwortet:
+Sie sind gemeint, und für sie ändert sich nichts.
+
+### Zwölf Meldungen, die seit August ins Leere gingen
+
+`FlashChannelTest` führte zwei Ausnahmen, seit `docs/59` Befund 13: `status`
+(elf Stellen in drei Controllern) und `operation` (eine). Beide schreibt ein
+Controller auf eine Weiterleitung, und die Mittelschicht trägt sie nicht —
+**die Seite sah sie nie**.
+
+Sie standen dort mit Begründung und nicht aus Versehen: Sie gehören zu P5b, P5c
+und `docs/40`, jede mit eigenem Abnahmelauf. B8 schliesst sie beiläufig, weil
+es ohnehin an denselben Zeilen arbeitet — `status` heisst jetzt `success` und
+wird gerendert, und die Kennung des Vorgangs sagt der Streifen.
+
+> **Ein Rest, den ein Merkmal beiläufig schliesst, war der Grund, ihn nicht
+> früher zu schliessen — nicht der, ihn zu vergessen.**
+
+**Und beinahe hätte ich sie als neuen Fund gemeldet.** Der Blick auf die
+Symptome — zwölf `->with()`, kein Leser — sah nach einem Befund aus; der Blick
+auf den Wächter zeigte die Liste mit ihren Gründen. Dieselbe Gewohnheit wie bei
+A8, nur andersherum.
+
+**Die leere Ausnahmeliste ist dabei zu einer Methode geworden.** Als leere
+Konstante ist sie für PHPStan `array{}`, und jeder `array_key_exists()` darüber
+gilt ihm als immer falsch — zu Recht. Ein `ignore` daneben hiesse, das Werkzeug
+für eine Zeile abzuschalten, die morgen wieder etwas enthält.
+
+> **Ein Mechanismus, der leer richtig ist, darf nicht daran zerbrechen, dass er
+> leer ist.**
+
+### Zwei Wächter mussten lernen, wo ein Bezug sonst noch steht
+
+**`PartialReloadTest` hat den Streifen gemeldet**, und er hatte recht mit dem,
+was er sah: Zu `Components/OperationBand.vue` findet sich kein
+`Inertia::render`. Nur ist die Eigenschaft, die er nachlädt, eine **geteilte** —
+sie gehört keiner Seite, sondern `share()`, und dort ist sie ein Verschluss.
+
+> **Ein Wächter, der einen Bezug nicht auflösen kann, hat an dieser Stelle
+> nicht wenig gemessen — er hat gar nicht gemessen.** Und wer ihn deshalb rot
+> macht, muss ihm auch beibringen, wo der Bezug sonst noch stehen darf.
+
+**Und `RunningBandTest` war in seinem ersten Wurf fünfmal rot**, ohne dass am
+Prüfling etwas war: Er rief `RunningBand::rows()` ohne Anfrage, die Klammer
+stand im Grundzustand, und der verweigert alles.
+
+> **Eine Frage, die im Grundzustand alles verweigert, antwortet mit einer
+> leeren Liste und nicht mit einem Fehler.**
+
+Beim Beheben ist ein Fall schärfer geworden: Der Vorgang des Nachbarn liegt
+jetzt am **eigenen** Abonnement. Läge er an einem fremden, filterte ihn schon
+die Mandantenklammer weg — und der Fall bewiese nicht, dass die Frage nach dem
+Konto etwas tut.
+
+> **Ein Prüfkörper, den zwei Wände halten, sagt über keine der beiden etwas.**
+
+### B1 — der zweite Meldekanal
+
+**Der Webhook liegt im Agenten, hinter dem Socket, und das ist Grenze 1 und
+keine Vorliebe.** `SrvPanel\Agent\Notify\Target` hält Adresse und Geheimnis
+0600 in einem 0700-Verzeichnis — wie die Zugangsdaten des DNS-Anbieters —, und
+`Notify\Delivery` schickt über dieselbe Stelle nach draussen wie ACME und die
+DNS-Anbieter: `Acme\Curl`, mit dessen vier Zusagen (nur https, keine
+Umleitungen, gedeckelte Antwort, Zeitlimit). Das Panel schickt einen Befund und
+**nie eine Adresse**.
+
+> **Wer eine Adresse nach draussen wählen darf, wählt sonst auch
+> `http://127.0.0.1:…`.**
+
+Vier Operationen: `notify.target.store`, `notify.target.describe`,
+`notify.target.forget`, `notify.send`. Keine davon wird eingereiht, und bei der
+ersten ist das die Grenze und keine Bequemlichkeit — Adresse und Geheimnis lägen
+sonst im Klartext in `operations.payload`, den die Vorgangsseite als JSON
+rendert.
+
+**Die Adresse kommt nicht zurück, und der Grund ist gemessen und nicht
+gefühlt.** Bei Slack, Discord und den meisten Eingangshaken berechtigt sie
+*allein* zur Zustellung. `describe()` gibt deshalb den **Rechnernamen** heraus,
+den Zeitpunkt und „signiert" — keinen Ausschnitt der Adresse, keinen des
+Geheimnisses.
+
+> **Eine Adresse, die allein zur Zustellung berechtigt, ist ein Geheimnis in
+> Gestalt einer Adresse — und sie sieht auf einer Seite aus wie eine Auskunft.**
+
+**Jede Meldung trägt eine Signatur über Zeitpunkt *und* Rumpf**
+(`X-Srvpanel-Signature: t=…,v1=…`, `hmac_sha256(secret, "<t>.<rumpf>")`), wenn
+ein Geheimnis hinterlegt ist. Der Zeitstempel steht **im signierten Material**
+und nicht nur daneben: Sonst könnte ein Mitleser dieselbe Meldung morgen noch
+einmal einliefern, und der Empfänger sähe einen Dienst, der längst wieder läuft,
+als tot.
+
+> **Eine Signatur ohne Zeitstempel beglaubigt den Inhalt und nicht den
+> Augenblick.**
+
+**Und der Absender wird gestempelt und nicht durchgereicht.** `server` und `at`
+setzt der Agent; was das Panel schickt, steht unter `event`. Ein Feld `server`
+in der Meldung überschreibt ihn nicht — sonst wäre die Herkunft eine Angabe des
+Absenders über sich selbst.
+
+### Ein gemeinsames `notified_at` verliert die Meldung des zweiten Kanals
+
+**Die Spalte aus B5 ist eine Tabelle geworden**, und zwar genau an der Stelle,
+die ihre eigene Migration dafür benannt hatte: *„eine eigene kleine Tabelle …
+braucht es erst, wenn mehrere Kanäle je Befund getrennt buchen sollen."* Mit dem
+Webhook gibt es zwei, und die Frage „ist dieser Befund gemeldet" hat ab da zwei
+Antworten.
+
+Mit **einer** Spalte gibt es genau zwei Regeln, und beide sind falsch:
+
+- *Gesetzt, wenn **einer** zustellte* — dann ist die Meldung des anderen
+  dauerhaft fort. Die Zeile wird nie wieder fällig.
+- *Gesetzt, wenn **alle** zustellten* — dann hält ein kaputter Mailweg den
+  Webhook fest, und der meldet denselben Befund jede Nacht neu.
+
+> **Ein Kanal, der für einen anderen mitbucht, verliert dessen Meldung — und
+> zwar dauerhaft.**
+
+`finding_notifications` bucht je Paar aus Befund und Kanal, mit `unique` und
+`cascadeOnDelete` — damit hält weiterhin `FindingLog::forgetMissing()`, dass ein
+behobener Befund wieder melden darf, und zwar in der Datenbank und nicht in
+einer zweiten Schreibstelle, die jemand vergessen kann.
+
+**Der Fall, für den die Tabelle da ist, steht als eigener Wächterfall da**
+(`NotificationLedgerTest::test_each_channel_books_only_for_itself`): Die Mail
+kommt an, der Webhook nicht — danach ist die Zeile für den Mailweg gebucht und
+für den Webhook fällig, und der nächste Lauf versucht **nur** den Webhook.
+
+**Die Kanäle sind jetzt Code und kein Zweig.** `App\Support\Notify\Channel` mit
+`MailChannel` (an den Kunden) und `WebhookChannel` (an den Betreiber);
+`Channels` ist die eine Liste, gegen die `ChannelReachTest` die
+Einstellungsseite in **beide** Richtungen hält.
+
+### Eine Gruppe, die zwei Fragen beantwortet — und der Wächter hat es angesagt
+
+**„Benachrichtigungen" war der neunte Punkt unter „Einstellungen"**, und
+`NavGroupTest` setzt acht. Der Kommentar dort sagte seit dem 16. September
+wörtlich, der nächste Punkt erzwinge die Teilung — das ist jetzt eingetreten.
+
+Geteilt ist entlang der **zweiten Frage** und nicht entlang der Grösse: Unter
+**„Nach draussen"** stehen die drei Stellen, an denen dieser Server
+**Zugangsdaten eines Fremden** hält — Relay-Passwort, DNS-Token, Meldeziel. Die
+sechs daneben sagen, wie er eingestellt ist.
+
+> **Eine Gruppe ist zu gross, wenn sie zwei Fragen beantwortet — und nicht, wenn
+> sie viele Punkte hat.**
+
+**Der naheliegende Ausweg wäre der falsche gewesen.** Drei Einträge in
+`NavGroupTest::AUSNAHMEN` hätten die Zahl gerettet und die Zusage zerstört, für
+die es diesen Wächter gibt: dass die Gruppengrenze **aus der Route folgt**. Sie
+lautet nicht „eine Gruppe", sondern „was unter `/settings/…` liegt, steht in
+einer Einstellungsgruppe, und dort steht nichts anderes" — und zwei Gruppen
+ändern daran nichts.
+
+> **Eine Gruppe, deren Grenze aus der Route folgt, kann ein Wächter halten;
+> eine, die an einem Urteil hängt, nicht.**
+
+### Vier Wächter haben den Bau angehalten, bevor ein Auge hinsah
+
+- **`SectionSpacingTest` und `BlockSpacingTest`** haben die neue Nachbarschaft
+  `.sections + .form` gemeldet, **bevor** eine Aufnahme entstanden ist — die
+  Fuge zwischen dem hinterlegten Ziel und dem Formular darunter.
+- **`DisplayTimeZoneTest`** hat ein `toLocaleString()` im Template gefunden:
+  Daneben steht „zuletzt erfolgreich zugestellt" in der Anzeigezone, und zwei
+  Angaben hätten in zwei Zonen gerechnet. Der Zeitpunkt geht jetzt durch
+  `Clock`.
+- **`ValidationLanguageTest`** hat `starts_with` gemeldet — die Regel, die die
+  Adresse auf `https://` festnagelt, weil Laravels `url` **jedes** Schema nimmt.
+- **`CountedNounTest`** hat „{{ secret_min }} Zeichen" gemeldet.
+
+**Und `SecretsStayOutOfTheQueueTest` hat sofort zugebissen**, als
+`notify.target.store` ein Argument namens `secret` bekam — genau die Frage, für
+die er am 20. September geweitet worden war.
+
+### Eine Überschrift von 1541, die zwei Wächter nicht sehen konnten
+
+Gefunden hat es **keine Prüfung, sondern eine Zahl, die nicht aufging**: 1541
+Abschnitte im Protokoll des Bruchlaufs, 1540 im Skript. Der Unterschied ist eine
+Überschrift, die **einfach** zitiert ist — weil ihr Text einen Backtick trägt
+und der in doppelten Anführungszeichen eine Befehlsersetzung wäre.
+
+`test_every_heading_uses_the_one_form` und
+`test_no_heading_swallows_the_intervention_below_it` ankerten beide auf
+`echo "`. Der erste lief an der Zeile vorbei und schrieb dem Eingriff darunter
+die Überschrift des vorigen zu; der zweite sah sie gar nicht.
+
+> **Ein Wächter, der beim Suchen nur eine Form kennt, meldet die andere nicht —
+> er läuft an ihr vorbei und urteilt über die falsche Zeile.**
+
+Gehalten wird jetzt die Gestalt in **beiden** Zitierungen; der unmaskierte
+Backtick bleibt bei `test_no_line_runs_a_command_it_only_means_to_print`, das
+ihn für jede Zeile prüft. Der erste Wurf der Behebung hat die Regel dort
+nachgebaut und prompt eine zweite Überschrift gemeldet, deren Backticks
+maskiert und damit harmlos sind.
+
+**Die ersten beiden Gegenproben haben nichts gemessen** — beide lagen über
+Abschnitten ohne `vorher_datei`, und dieser Fall liest von einem Griff aus nach
+oben. Ausgezählt sind das 16 von 1541; sie stehen als benannte Grenze im Kopf
+des Wächters. Belegt ist die Verschärfung an derselben kaputten Zeile mit beiden
+Fassungen des Lesers: alte Suche grün, neue rot — dazu die dritte Richtung, dass
+eine einfach zitierte Überschrift in richtiger Gestalt grün bleibt.
+
+### B1 — die übrigen siebzehn Prüfungen bekommen einen Weg nach draussen
+
+**Bis heute trug der Mailkanal nur die Kontingentbefunde.** `docs/129 §4` zählt
+die Auslöser von B1 auf — Dienst tot, Timer ohne Termin, Zertifikat, Sicherung,
+Updates —, und für die gab es bis zum Webhook keinen Weg. Jetzt gibt es zwei.
+
+**Wer gemeint ist, folgt aus dem Befund und nicht aus dem Kanal.**
+`quota.exceeded` ist die eine der achtzehn Prüfungen, deren Gegenstand einem
+Kunden gehört; die übrigen siebzehn messen den Server. Die Mail geht deshalb an
+den Kunden oder an den Betreiber, und die Adresse des Betreibers ist die seines
+Kontos — eine eigene Einstellung „Meldeadresse" wäre eine zweite Wahrheit neben
+`accounts.email`.
+
+> **Eine Angabe, die es schon gibt, bekommt keine zweite Stelle, nur weil ein
+> neues Merkmal sie braucht.**
+
+**Gebündelt wird nach dem Empfänger und nicht nach dem Gegenstand.** Ein
+Betreiber, dessen Server in einer Nacht einen toten Dienst und ein ablaufendes
+Zertifikat hat, bekommt **eine** Nachricht. Der Webhook bündelt dagegen weiter
+je Gegenstand: Ein Vorfallsystem will zwei Sachen, die verschieden lange offen
+bleiben, einzeln bekommen.
+
+> **Was ein Mensch in einer Nachricht lesen will, will ein Vorfallsystem
+> einzeln bekommen.**
+
+Dafür ist `Channel::deliver()` von `(string $subject, array $findings)` auf
+`(array $findings)` gegangen und hat `batchKey()` bekommen — der Gegenstand
+steht in den Befunden, und ihn daneben zu übergeben hiesse, dieselbe Angabe
+zweimal zu führen.
+
+**Und `Channel::carries()` ist wieder fort, zwei Tage nach seinem Bau.**
+Gemessen antworten seitdem **zwei von zwei** Umsetzungen dasselbe: Beide Kanäle
+tragen jeden beurteilten Befund.
+
+> **Eine Erklärung, die fast immer dasselbe sagt, wird abgeschrieben statt
+> beantwortet.** Der Satz hat am 20. September die vierte Methode an `Op`
+> verhindert; er gilt für eine dritte Methode an `Channel` genauso.
+
+**Was ausdrücklich nicht gemeldet wird, ist `unreachable`.** „Diese Prüfung ist
+nicht durchgelaufen" ist `FindingState::Unknown` und bleibt gefiltert. Für den
+Betreiber ist das eine offene Frage und keine Entscheidung — sie steht als
+solche im Kopf von `Notices::due()`.
+
+### Die Betreiberabfrage fragte eine von zwei Achsen — und war durch die Daten richtig
+
+**Gefunden hat es der neue Wächter auf seinem ersten Lauf.** `MailChannel`
+suchte die Betreiber über `where('role', 'operator')` und sonst nichts.
+`Account::isOperator()` fragt seit A9 **beide** Achsen, und der Kopf dort sagt
+warum: *„Ein Kundenkonto, das durch einen Fehler `operator` trüge, ist damit
+trotzdem keiner."*
+
+Im Betrieb wäre die Abfrage heute richtig gewesen — die Migration vom 24. August
+hat die Spalte nur an Adminkonten gefüllt. Richtig war sie damit **aus den
+Daten** und nicht aus der Regel.
+
+> **Eine Sicherheit, die aus einer Eigenschaft der Daten folgt und nicht aus
+> einer Prüfung, hält genau so lange, bis jemand die Daten ändert.**
+
+Sichtbar gemacht hat es die Kontenfabrik: Sie setzt `role` in ihrer Vorgabe,
+ein Kundenkonto im Prüfstand trägt sie also mit — und die Meldung über einen
+toten Dienst ging an den Kunden. `Account::operators()` ist jetzt die
+Abfrageform von `isOperator()`, und
+`NoticeAudienceTest::test_the_query_and_the_question_agree()` hält die beiden an
+der Wirkung aneinander, über einen Bestand mit allen vier Fällen.
+
+**`NoticeAudienceTest` misst je Fall beide Richtungen** — wer etwas bekommt und
+wer nichts —, dazu die Bündelung je Kanal, das gesperrte Konto, den
+Administrator, den fehlenden Empfänger und die Zahl der Kundenprüfungen über den
+ganzen Katalog. Acht Eingriffe dazu, jeder einzeln gegen seinen eigenen Fall
+gefahren.
+
+### Der Abnahmelauf für B1 steht ausgeschrieben — und hat sich beim Schreiben widerlegt
+
+`docs/133` ist vor dem Fahren geschrieben, und §0 nennt sechs Zeilen, die dabei
+umgefallen sind. Die teuerste betrifft den Punkt, der das Kriterium trägt.
+
+**Der erste Lauf schweigt nicht.** `finding_notifications` ist auf einem Server,
+der diese Fassung zum ersten Mal fährt, **leer** — also ist jeder stehende
+Befund, der älter als die Haltezeit ist, sofort fällig. Ein Lauf unmittelbar
+nach dem Anhalten des Dienstes verschickt damit den ganzen Bestand, und die
+Null, die das Kriterium an dieser Stelle erwartet, stünde nirgends.
+
+> **Eine Erwartung, die man aus den Zahlen ausrechnet statt sie zu schätzen,
+> macht aus dem Ergebnis einen Beleg — eine geschätzte hätte hier einen Befund
+> erfunden.**
+
+Der Lauf räumt den Bestand deshalb zuerst ab, und das ist kein Vorgeplänkel:
+Diese Zustellung ist die Messung, die belegt, dass die Kette trägt. Erst danach
+ist das Schweigen eine Aussage über die Frist statt über den leeren Bestand.
+
+> **Eine Null, die man vor der ersten Zustellung abliest, misst den leeren
+> Anfang und nicht die Regel.**
+
+**Zwei weitere Zeilen sind Erwartungen, die man sonst als Befund gelesen
+hätte:** Der nächtliche Zeitgeber feuert zwischen den beiden Läufen und schweigt
+zu Recht, weil die Haltezeit von zwanzig Stunden dann noch nicht um ist — und
+der Webhook bündelt je Gegenstand, liefert also so viele Meldungen, wie es
+Gegenstände gibt, und nicht eine.
+
+**Und eine betrifft den Prüfling.** Slack und Discord verlangen einen Rumpf mit
+`text` beziehungsweise `content`; unserer trägt `server`, `at` und `event`. Das
+ist hergeleitet und nicht gemessen — aus diesem Container ist keiner von beiden
+erreichbar. Der Hinweis auf `/settings/notices` hat die beiden namentlich
+genannt und damit versprochen, was niemand gemessen hat; er nennt sie nicht
+mehr.
+
+> **Ein Hinweis, der einen Dienst beim Namen nennt, verspricht, dass er
+> funktioniert.**
+
+### Zwei tote Anker, gefunden vom vollen Lauf
+
+Die Erweiterung hat `Notices::over()` und `MailChannel::deliver()` umgebaut.
+Gefahren worden sind danach die **neuen** Eingriffe — alle acht bissen — und
+die **bestehenden** nicht. Der volle Lauf meldete zwei „Eingriff hat nichts
+geändert": Ein Anker war mit der Bündelung umgezogen, ein zweiter stand seit
+der Erweiterung zweimal in der Datei und liess die Zusicherung `count == 1`
+abbrechen.
+
+> **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+> gefahren — man denkt an das Gebaute und nicht an das Berührte.**
+
+Beide sind umgehängt, und danach sind **alle 26** Eingriffe, deren Ziel eine
+der berührten Dateien ist, einzeln gegen ihren eigenen Fall gefahren worden.
+
+### Slack und Discord — und der Webhook bekommt überhaupt erst Empfänger
+
+**Bis heute kannte der Webhook eine Adresse und *eine* Form.** `docs/133 §0`
+hatte als hergeleitet festgehalten, dass Slack und Discord unseren Rumpf mit
+`400` abweisen würden; der Betreiber hat die beiden daraufhin bestellt.
+
+`SrvPanel\Agent\Notify\Providers` ist die Positivliste dazu — nach dem Vorbild
+von `Acme\Dns\Providers`, mit einem Unterschied: Dort steht auch die **Adresse**
+in der Liste, hier nur die **Form des Rumpfes**. Ein Eingangshaken hat keine
+feste Adresse, er *ist* eine.
+
+| | Rumpf | signiert | Deckel |
+|---|---|---|---|
+| Eigener Empfänger | `{server, at, event}` | ja | — |
+| Slack | `{"text": …}` | **nein** | 40 000 |
+| Discord | `{"content": …}` | **nein** | **2 000** |
+
+**Bei Slack und Discord wird ein Geheimnis abgewiesen und nicht
+weggelassen.** Dort liest niemand unsere Kopfzeile; die Adresse ist das
+Zugangsmittel.
+
+> **Eine Beglaubigung, die der Empfänger nicht prüft, ist keine Beglaubigung,
+> sondern eine Beschriftung.**
+
+**Der Deckel ist der des Empfängers und kein gewählter.** Discord weist ein
+`content` über 2000 Zeichen ab — ein Deckel darüber verschöbe den Fehlschlag
+bloss ans andere Ende der Leitung. Gekürzt wird **zwischen** Zeilen, und die
+Meldung sagt „… und N weitere".
+
+> **Ein Deckel, der nicht sagt, dass er gegriffen hat, macht aus einer
+> unvollständigen Auskunft eine falsche.**
+
+**Ein unbekannter Empfänger wird abgewiesen, ein abgelegter fällt zurück.** Das
+sind zwei Methoden und nicht eine: Wer sich beim Eintragen vertippt, bekäme
+sonst wortlos die JSON-Form; eine Datei aus der Zeit vor der Liste trägt kein
+`provider` und muss trotzdem zustellbar bleiben.
+
+**Ein Zweig war durch die Tür unerreichbar**, und das ist beim Bauen
+aufgefallen: Die Prüfung in `Delivery::send()`, ob dieser Empfänger überhaupt
+signiert, kann für ein hinterlegtes Ziel nie greifen — `Target::store()` lässt
+die Verbindung gar nicht zu, und alte Dateien sind `generic`. Erreichbar ist
+sie nur über eine von Hand geänderte Ablage, und die gibt es: Die Datei gehört
+root.
+
+> **Ein Zweig, den man durch die Tür nicht erreicht, ist keine Zusage, bis
+> jemand den Zustand herstellt, den es wirklich gibt.**
+
+Neun neue Fälle in `WebhookTransportTest` (21 insgesamt), acht neue Eingriffe —
+und einer, der umziehen musste, weil `body()` nach `Providers` gegangen ist.
+**Gefunden hat ihn diesmal der dateibezogene Griff und nicht der volle Lauf.**
+
+### B1 — das Ereignis „behoben"
+
+**Bis heute meldete dieses Panel nur, dass etwas kaputt ist.** Verschwand der
+Befund, löschte `FindingLog::forgetMissing()` die Zeile — und mit ihr, über
+`cascadeOnDelete`, die Erinnerung daran, wem sie gemeldet worden war. Ein
+Empfänger, der Vorfälle verwaltet, behielt den Vorfall für immer offen.
+
+> **Ein Kanal, der nur meldet, dass etwas kaputt ist, erzieht seinen Leser
+> dazu, ihn zu ignorieren.**
+
+`finding_resolutions` ist die Warteschlange dazu, und sie **schreibt den Befund
+ab, statt auf ihn zu zeigen** — es gibt ihn nicht mehr. Dieselbe Überlegung wie
+bei `subscription_name` seit `docs/35` und der Abschrift des Kontonamens seit
+`docs/901`.
+
+> **Löschen und Vergessen sind zwei Dinge. Die Zeile darf verschwinden; was sie
+> getan hat, darf es nicht.**
+
+**Wem gemeldet wurde, wird vor dem Löschen gelesen.** Danach gibt es nichts
+mehr nachzusehen; ein Aufräumer, der später nachsieht, fände eine leere
+Tabelle.
+
+> **Ein Zustand, der mit seinem Gegenstand verschwindet, wird vor dem
+> Verschwinden gelesen oder gar nicht.**
+
+**Und was nie gemeldet wurde, wird nicht abgemeldet.** Ein Befund, der
+innerhalb der Haltezeit wieder verschwindet, hat niemanden erreicht.
+
+> **Eine Entwarnung ohne vorangegangene Warnung ist eine Meldung über nichts.**
+
+**Nur der Webhook entwarnt — und der Grund ist kein Geschmack, sondern eine
+fehlende Entprellung.** Gemeldet wird, was `Notices::HOLD_HOURS` lang steht;
+entwarnt wird, sobald der Befund fort ist. Ein Kontingent, das um seine
+Schwelle schwankt, ergäbe damit je Nacht eine Warnung und eine Entwarnung im
+Postfach des Kunden — für ein Vorfallsystem ist dieselbe Folge richtig, weil
+sie den Zustand nachzeichnet.
+
+> **Dieselbe Meldung ist für den einen Empfänger die Auskunft, die er braucht,
+> und für den anderen die, die ihn abstumpfen lässt.**
+
+**Das steht als zweite Schnittstelle `ResolvingChannel` da und nicht als
+`resolves(): bool`.** Eine Fahne liesse `deliverResolved()` auch an dem Kanal
+stehen, der sie nie beantworten darf, und ein Rückgabewert für einen Aufruf,
+den es nicht geben soll, ist entweder eine Lüge oder ein Wurf.
+
+> **Ein Zustand, den es nicht geben darf, wird nicht geprüft, sondern unmöglich
+> gemacht.**
+
+**`NoticeResolveTest` hält daneben, dass die Frage die Kanäle wirklich
+trennt** — mindestens einer entwarnt, mindestens einer nicht. Das ist die Lehre
+aus `Channel::carries()`, das gestern verschwand, weil zwei von zwei
+Umsetzungen dasselbe antworteten; was dort eine Erinnerung war, ist jetzt ein
+Wächter.
+
+> **Eine Frage, die alle Umsetzungen gleich beantworten, ist keine Frage.**
+
+**Die Entwarnung geht vor der Meldung hinaus.** Beide betreffen denselben
+Empfänger und oft denselben Gegenstand.
+
+> **Zwei Meldungen über denselben Gegenstand haben eine richtige Reihenfolge,
+> und sie ist nicht die, in der sie entstanden sind.**
+
+Der Rumpf ist derselbe wie bei einer Meldung, mit `kind: resolved` — ein
+Empfänger ordnet sie über `subject` plus `check`/`reason` dem offenen Vorfall
+zu, also über genau die Angaben, mit denen er ihn aufgemacht hat. **Ohne
+`state`, ohne `detail`, ohne `since`:** Ein Zustand, den es nicht mehr gibt,
+hat kein Urteil, und „steht seit" wäre eine Angabe über eine gelöschte Zeile.
+Im Text von Slack und Discord steht `behoben` **vor** dem Gegenstand, weil in
+einem Kanal die Zeilenanfänge gelesen werden.
+
+> **Ein Unterschied, der am Ende einer Zeile steht, ist auf einer schmalen
+> Anzeige keiner.**
+
+**`batchKey()` nimmt seitdem Prüfung und Gegenstand statt eines `Finding`** —
+mehr hat keine Umsetzung je gelesen, und eine Entwarnung trägt genau diese
+beiden. Ein zweites `batchKeyOf(FindingResolution)` wäre die zweite Fassung
+derselben Zuordnung gewesen.
+
+**Ein Prüfkörper hielt zwei Wände statt einer**, und das ist beim Bauen
+aufgefallen: Dass ein Kanal ohne Ziel seine Zeilen behält, sicherten die Frage
+nach dem Ziel **und** der Fehlschlag der Zustellung. Gemessen wird seitdem
+zusätzlich, dass die Bilanz dabei **keinen** Fehlschlag zählt — ein nicht
+eingerichteter Kanal ist keiner, sonst stünde die Unit jede Nacht rot.
+
+> **Ein Prüfkörper, den zwei Wände halten, sagt über keine von beiden etwas.**
+
+Elf neue Fälle in `NoticeResolveTest`, zwei in `WebhookTransportTest`, sechzehn
+neue Eingriffe — **und sechs bestehende, die umziehen mussten.** Gefunden hat
+sie wieder der dateibezogene Griff und nicht der volle Lauf: `forgetMissing()`
+trägt jetzt den Messzeitpunkt, `batchKey()` eine andere Signatur, der Kopf
+einer Slack-Meldung entsteht in einer eigenen Methode, und „zuletzt erfolgreich
+zugestellt" zählt die Entwarnung mit.
+
+> **Wer eine Datei ändert, hat jeden Eingriff berührt, dessen Anker darin
+> steht.**
+
+### Mattermost und Rocket.Chat — ohne eine Zeile Empfänger
+
+Beide nehmen Slacks `{"text": …}` an. Ein eigener Schlüssel für jeden von
+beiden erzeugte denselben Rumpf ein zweites und ein drittes Mal.
+
+> **Zwei Schlüssel, die denselben Rumpf erzeugen, sind ein Schlüssel und ein
+> Hinweis.**
+
+`Notify\Providers::HINTS` ist der Hinweis, und er steht **neben** der Liste und
+nicht darin. **Gezeigt wird er, bevor jemand wählt:** Wer „Mattermost" sucht,
+findet es unter den drei Einträgen nicht und geht — den Hinweis eines
+ausgewählten Eintrags sieht er nie.
+
+> **Ein Hinweis, der erst nach der Entscheidung erscheint, hilft dem nicht, der
+> ihn zum Entscheiden braucht.**
+
+`NoticeHintTest` hält die Naht über drei Dateien — Agent, Controller, Seite —,
+und die mittlere Richtung geht **durch die Tür**: Was die Seite bekommt, wird
+aus der Antwort gelesen und nicht aus dem Quelltext des Controllers.
+
+**Was kein Wächter halten kann:** ob die beiden Dienste die Meldung wirklich
+annehmen. Dieser Container erreicht keinen von ihnen; die Zusage stammt aus
+ihrer Dokumentation und steht als Punkt in `docs/133`.
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen.**
+
+### ntfy und Gotify — und die Kopfzeilen ziehen zum Rumpf
+
+**Bis heute stand `Content-Type: application/json` fest in `Delivery`.** Das war
+richtig, solange jeder Empfänger JSON wollte. ntfy nimmt den **Text selbst**:
+Wer an die Adresse eines Themas schreibt, schickt die Nachricht, und ein
+JSON-Objekt käme dort als Nachricht mit geschweiften Klammern an.
+
+> **Eine Kopfzeile, die die Form des Rumpfes nennt, gehört dorthin, wo die Form
+> entschieden wird.**
+
+`Providers::headers()` ist die Stelle, und `Delivery` fragt sie. Damit steht
+jetzt beides an einem Ort — Rumpf und Kopfzeilen —, und
+`WebhookTransportTest::test_the_content_type_says_what_the_body_is` hält sie
+**aneinander**: Der Rumpf wird angesehen, die Kopfzeile daran gemessen. Ein
+Wächter über „ntfy bekommt `text/plain`" bliebe grün, wenn der Rumpf zu JSON
+würde.
+
+| | Rumpf | signiert | Deckel |
+|---|---|---|---|
+| ntfy | der Text selbst | nein | **1300 Zeichen** |
+| Gotify | `{title, message, priority}` | nein | — |
+
+**Der Deckel von ntfy ist in Bytes angegeben und wird in Zeichen gesetzt.**
+ntfy.sh nimmt 4096 Bytes; kein Zeichen dieses Textes ist länger als drei
+(Gedankenstrich, Aufzählungspunkt, Auslassung — Emoji führt die Oberfläche
+nicht), also liegt 1300 × 3 darunter. **Gerechnet wird es nicht, sondern
+gemessen:** Ein Prüfkörper aus lauter Drei-Byte-Zeichen ergibt 1254 Zeichen und
+**3566 Bytes**.
+
+> **Eine Grenze, die man aus einer anderen Einheit herleitet, ist eine
+> Vermutung, bis jemand in der Einheit misst, in der abgewiesen wird.**
+
+**Gotify bekommt keinen Deckel**, weil dort keine Grenze dokumentiert ist — eine
+erfundene wäre keine Grenze des Empfängers, sondern eine Kürzung ohne Grund.
+
+**Eine Entwarnung ist leiser als eine Meldung**, und beide Empfänger tragen den
+Rang an einer anderen Stelle: ntfy in der Kopfzeile `Priority: low`, Gotify als
+Zahl im Rumpf. Ohne Angabe gilt jeweils die Vorgabe des Empfängers; eine
+Kopfzeile, die sie wiederholt, wäre deren zweite Fassung.
+
+> **Eine Entwarnung, die genauso laut ist wie die Meldung, verdoppelt den Lärm,
+> statt ihn zu beenden.**
+
+**`Title` steht nicht in der Kopfzeile.** Kopfzeilen tragen kein UTF-8; `low`
+ist ASCII, „Der Dienst läuft nicht." ist es nicht — und die erste Zeile des
+Rumpfes sagt ohnehin, worum es geht.
+
+> **Eine Angabe, die nur in ASCII reisen darf, nimmt keinen Satz mit.**
+
+**Zwei Wächter führten Listen, wo die Regel eine Ableitung ist.** „Ein Geheimnis
+wird abgewiesen, wo niemand es nachrechnet" und „nur der eigene Empfänger wird
+signiert" liefen über `[SLACK, DISCORD]` — mit ntfy und Gotify wären sie grün
+geblieben, ohne die beiden je anzusehen. Sie fragen jetzt `Providers::signs()`.
+Und die Tabelle der erwarteten Rumpfformen trägt eine
+**Vollständigkeitsprüfung**: Ein Empfänger ohne Eintrag macht sie rot.
+
+> **Ein Wächter, der eine Liste im Test führt, prüft die Liste und nicht die
+> Regel.**
+
+**Der Hinweistext ist gemessen**, weil er einen unbrechbaren Adressbrocken
+enthält: In einem Kasten von **280 px** — schmaler als jedes echte Feld bei
+390 px — läuft nichts über (`278` von `278` nutzbar), die Seite schiebt 0, und
+die Gegenprobe schlägt mit 200 an. Bei 390 px ist der Block 126 px hoch.
+
+### Telegram — und ein Empfänger, der seit zwei Tagen verlorenging
+
+**Telegram ist der erste Empfänger mit einem zweiten Feld.** Die Marke des Bots
+steht in der Adresse, der Chat nicht: `sendMessage` will ihn im Rumpf, und ohne
+ihn antwortet die Schnittstelle mit `400`. `Notify\Providers::FIELDS` nennt die
+Schlüssel, `configure()` prüft sie beim **Hinterlegen** — nach dem Vorbild von
+`Acme\Dns\Providers::configure()` —, und abgelegt wird die geprüfte Fassung.
+
+> **Ein fehlendes Feld fiele sonst erst in der Nacht auf, in der etwas zu
+> melden wäre — und dann sieht der Betreiber einen stillen Server und keine
+> Ursache.**
+
+**Gelesen wird über eine Positivliste.** Eine Angabe, die der Empfänger nicht
+kennt, wird abgewiesen und nicht stillschweigend abgelegt; ein Empfänger ohne
+Felder nimmt gar keine an. **Und `describe()` gibt sie nicht heraus:** Ein Chat
+gehört zur Adressierung wie die Adresse selbst. Im Protokoll stehen die
+**Namen** der Felder, nicht ihre Werte.
+
+**Der Fund des Tages steckte in der Naht.** `notify.target.store` rief
+`Target::store($url, $secret)` — **ohne den Empfänger**. Er reiste vom Formular
+über den Socket bis in die Operation und wurde verworfen; der Vorgabewert
+`generic` gewann. Wer seit vorgestern Slack wählte, bekam die JSON-Form und von
+Slack ein `400`. Gemessen durch die Operation: `provider: slack` hinein,
+`provider: generic` abgelegt.
+
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+> keine.**
+
+**Kein Wächter konnte es sehen.** `WebhookTransportTest` ruft `Target::store()`
+unmittelbar und kommt an der Operation nie vorbei; die Seite prüft, dass sie den
+Empfänger mitschickt. Beide Seiten der Naht waren in Ordnung.
+
+> **Zwei Prüfungen, die je eine Seite einer Naht mit einem selbst geschriebenen
+> Wert füttern, prüfen die Naht nicht — sie prüfen zweimal denselben
+> Prüfkörper.**
+
+`NotifyTargetStoreTest` misst sie jetzt durch die Operation, und `docs/133`
+bekommt einen eigenen Punkt dafür: Gemessen wird die **Ablage**, nicht das
+Formular.
+
+**Ein Prüfkörper hat dabei aufgehört zu messen, ohne es zu sagen.**
+`test_an_unknown_receiver_is_refused` benutzte den Namen `telegram` als Beispiel
+für einen Empfänger, den es nicht gibt — seit heute gibt es ihn. Der Fall blieb
+grün, scheiterte aber an der fehlenden Angabe statt am unbekannten Empfänger,
+und **sein Eingriff biss nicht mehr**. Er trägt jetzt einen Namen, den niemand
+baut, und die Zusicherung daneben.
+
+> **Ein Prüfkörper, der einen Zustand behauptet, statt ihn zu prüfen, hört auf
+> zu messen, sobald jemand den Zustand herstellt — und sagt es nicht.**
+
+Gefunden hat ihn, wie die sechs toten Anker gestern, der **dateibezogene Griff**
+und nicht der volle Lauf.
+
+**Und ein Wächter musste von einer Konstante zu einer Methode werden.**
+`AttributeNameTest::RESOLVED_SPREADS` löst die Spreads in Regelblöcken auf; der
+neue Spread bringt die Felder aus `Providers::FIELDS` mit, und ein konstanter
+Ausdruck kann sie nicht flach machen. Sie dort abzuschreiben wäre die zweite
+Fassung jener Liste gewesen.
+
+> **Ein Wächter, der eine Liste im Test führt, prüft die Liste und nicht die
+> Regel.**
+
+**Die Seite ist bei 390 px gemessen**: mit dem Chatfeld `dokument = 0`,
+Gegenprobe 200, und der Hinweisblock bleibt bei 126 px.
+
+### Vier PHPStan-Meldungen, die kein Rundenlauf gesehen hat
+
+**Gefunden vor dem Pull Request, nicht von ihm.** PHPStan Stufe 6 mit der
+**Projektdatei** über die **137 geänderten PHP-Dateien des ganzen Zweiges**
+meldet vier Zeilen: zwei Modelle aus B3/B4, die `HasFactory` ohne seinen
+generischen Typ benutzen, ein `?? ''` über einem Offset, den der Ausdruck immer
+liefert, und ein `hash()` als Anweisung ohne Wirkung in einer Messvorschrift.
+Alle vier hätte die CI rot gemeldet.
+
+**Die Regel dagegen steht seit dem 22. August hier** — *„Die Dateiliste kommt
+aus dem Zweig und nicht aus dem Gedächtnis"*, mit
+`git diff --name-only origin/main...HEAD` daneben. Gefahren worden ist sie in
+jeder Runde über die Dateien **der Runde**; der Zweig ist die Summe der Runden,
+und über die Summe lief nie jemand.
+
+> **Ein Werkzeug, das man je Runde über die Dateien der Runde fährt, hat den
+> Zweig nie im Ganzen gesehen.**
+
+**Warum die einzelnen Runden sie übersehen haben, ist nicht gemessen** und
+steht deshalb hier auch nicht als Erklärung.
+
+**Und die Prüfung unter der zweiten Kennung ist nachgeholt:** die 54 Fälle der
+neuen Wächter als `nobody` mit eigenem `TMPDIR` gefahren — 54 von 54, dieselben
+250 Zusicherungen wie als root. Der Unterschied ist eine Warnung über
+`.phpunit.result.cache`, die root gehört.

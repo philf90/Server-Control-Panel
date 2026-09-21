@@ -142,11 +142,16 @@ final class AgentOperationReachTest extends TestCase
          * Bestand, den er führte, und keinen Vorgang, den jemand ausgelöst hat.
          * Er läuft einmal in der Nacht über alle Abonnements und liest.
          *
-         * Dass ihn heute noch niemand ruft, steht in {@see self::UNREACHED} —
-         * mit Datum, Grund und der Bedingung, unter der der Eintrag wieder
-         * verschwindet.
+         * **Der Eintrag in {@see self::UNREACHED} ist am 21. September 2026
+         * wieder verschwunden**, und zwar nicht aus Ordnungsliebe: Er trug
+         * seine Auflösungsbedingung — „mit dem Nachtlauf" —, und
+         * `test_the_list_of_unreached_operations_does_not_outlive_them` hat
+         * sie eingefordert, sobald `CollectTraffic` den Namen nannte.
+         *
+         * > **Ein Eintrag auf einer Ausnahmeliste, der seine eigene Auflösung
+         * > benennt, wird aufgelöst. Einer ohne bleibt.**
          */
-        'web.access.count' => 'Zählt die Zugriffsprotokolle aller Abonnements. Kein Bestand im Panel und kein Vorgang: Der nächtliche Lauf ruft ihn und legt die Tageszahlen ab. Ein Aufruf je Abonnement wäre hundert Vorgänge im Protokoll für eine Messung, die niemand ausgelöst hat.',
+        'web.access.count' => 'Zählt die Zugriffsprotokolle aller Abonnements. Kein Bestand im Panel und kein Vorgang: App\\Console\\Commands\\CollectTraffic ruft ihn einmal pro Nacht am Timer srvpanel-traffic. Ein Aufruf je Abonnement wäre hundert Vorgänge im Protokoll für eine Messung, die niemand ausgelöst hat.',
 
         /*
          * **P6 Schritt 9: Cron.** Kein Lebenslauf, und der Grund ist derselbe
@@ -266,6 +271,24 @@ final class AgentOperationReachTest extends TestCase
          */
         'dns.check' => 'Fragt die autoritativen Nameserver einer Zone. Ändert nichts — weder am System noch am Bestand des Panels.',
 
+        /*
+         * **P9 B1: der zweite Meldekanal** (`docs/129 §7`).
+         *
+         * Drei der vier ändern am Bestand des Panels nichts — das Meldeziel
+         * liegt 0600 root im Agenten, und eine zweite Liste im Panel wäre die
+         * zweite Wahrheit zu derselben Frage. Die vierte, `notify.send`,
+         * ändert überhaupt nichts: Sie schickt etwas fort.
+         *
+         * **Keine von ihnen wird eingereiht, und bei zweien ist das die
+         * Grenze und keine Bequemlichkeit.** `notify.target.store` trägt
+         * Adresse und Geheimnis; beides läge sonst im Klartext in
+         * `operations.payload`, den `Operations/Show.vue` als JSON rendert.
+         * `SecretsStayOutOfTheQueueTest` hält genau das.
+         */
+        'notify.target.store' => 'Hinterlegt Adresse und Geheimnis des Meldeziels (B1). Darf nicht eingereiht werden: Beides läge sonst dauerhaft im Klartext in operations.payload. Der Aufruf steht in App\Support\Notify\AgentNotifyTarget::store().',
+        'notify.target.describe' => 'Liest, ob ein Meldeziel hinterlegt ist, und gibt Rechnername, Zeitpunkt und „signiert" zurück — nie die Adresse. Kein Bestand im Panel und kein Vorgang: Die Einstellungsseite fragt sie beim Aufbau, und eine Anzeige „wartet · läuft · fertig" dafür wäre eine über nichts.',
+        'notify.target.forget' => 'Entfernt das Meldeziel. Ändert nur die Datei im Agenten; im Panel steht dazu nichts. Der Aufruf steht in App\Support\Notify\AgentNotifyTarget::forget().',
+        'notify.send' => 'Stellt eine Meldung an das hinterlegte Ziel zu. Kein Lebenslauf, weil nichts entsteht und nichts vergeht — und kein Vorgang, weil der Nachtlauf meldet, was er gerade gemessen hat: Ein eingereihter Vorgang zöge die Zustellung hinter den nächsten Warteschlangendurchlauf, und eine Meldung über einen toten Dienst ist eine Stunde später eine Stunde zu spät. Der Aufruf steht in App\Support\Notify\AgentNotifyTarget::send().',
     ];
 
     private function registry(): Registry
@@ -354,12 +377,6 @@ final class AgentOperationReachTest extends TestCase
      * @var array<string, string>
      */
     private const UNREACHED = [
-        'web.access.count' => 'Eingetragen am 20. September 2026 mit der Operation selbst (B2, '
-            .'zweite Hälfte). Sie zählt die Zugriffsprotokolle; gerufen wird sie vom nächtlichen '
-            .'Lauf, und den gibt es noch nicht — seine Uhrzeit hängt an einer Messung, die '
-            .'`docs/129 §10` als Punkt 1 führt. Dieser Eintrag ist mit dem Nachtlauf zu '
-            .'entfernen, und `test_the_list_of_unreached_operations_does_not_outlive_them` '
-            .'besteht darauf.',
 
         'acme.account.ensure' => 'Gefunden am 8. August 2026, als dieser Wächter entstand. Der '
             .'Kommentar der Operation sagt, die Oberfläche zeige die Adresse an dem Knopf, der '

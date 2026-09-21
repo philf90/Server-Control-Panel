@@ -3,7 +3,7 @@ import Bands from '../../Components/Bands.vue'
 import { useForm, Head, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import EyeIcon from '../../Components/EyeIcon.vue'
-import MarkIcon from '../../Components/MarkIcon.vue'
+import BrandMark from '../../Components/BrandMark.vue'
 import FormErrors from '../../Components/FormErrors.vue'
 
 /*
@@ -42,6 +42,10 @@ const form = useForm({
 const passwortSichtbar = ref(false)
 
 const page = usePage()
+
+const brand = computed(
+  () => (page.props.brand as { footer: string } | undefined) ?? { footer: '' },
+)
 const notice = computed(() => (page.props.flash as Record<string, string> | undefined)?.notice)
 const version = computed(() => (page.props.source as { version: string } | undefined)?.version)
 
@@ -90,7 +94,7 @@ function submit(): void {
         der Seitenleiste: Dort steht es neben einer Navigation und ordnet sich
         unter, hier ist es das einzige Bild auf der Seite.
       -->
-      <h1><MarkIcon :size="26" /> SrvPanel</h1>
+      <h1><BrandMark :size="26" /></h1>
 
       <p v-if="notice" class="notice warn">
         <span>{{ notice }}</span>
@@ -163,6 +167,17 @@ function submit(): void {
       Anmeldung — dort unten ist sie eine Fussnote zur Seite, und genau das
       ist sie auch.
     -->
+    <!--
+      Die Fusszeile des Betreibers (B6).
+
+      **Über der Versionsnummer und nicht darunter.** Die Nummer ist eine
+      Angabe über dieses Panel, die Fusszeile eine über den, der es betreibt —
+      und wer eine Anmeldeseite ansieht, sucht das Zweite. Reiner Text: Was
+      hier steht, kommt aus einem Formular, und diese Seite hat kein
+      angemeldetes Konto.
+    -->
+    <p v-if="brand.footer" class="release">{{ brand.footer }}</p>
+
     <p v-if="version" class="release">
       <span class="version">{{ version }}</span>
     </p>

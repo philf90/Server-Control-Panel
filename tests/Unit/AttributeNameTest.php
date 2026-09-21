@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\Cron\Schedule;
+use SrvPanel\Agent\Notify\Providers as NotifyProviders;
 
 /**
  * Jedes Feld, über das eine Meldung sprechen kann, hat einen deutschen Namen.
@@ -37,13 +38,26 @@ use SrvPanel\Agent\Cron\Schedule;
 final class AttributeNameTest extends TestCase
 {
     /**
-     * Spreads in einem Regelblock, deren Schlüssel hier statisch bekannt sind.
+     * Spreads in einem Regelblock, deren Schlüssel hier auflösbar sind.
      *
-     * @var array<string,list<string>>
+     * **Eine Methode und keine Konstante**, seit `self::fieldRules()` dazukam:
+     * Die Felder der Meldeziel-Empfänger stehen in
+     * {@see NotifyProviders::FIELDS}, und ein konstanter Ausdruck kann sie
+     * nicht flach machen. Sie hier abzuschreiben wäre die zweite Fassung jener
+     * Liste — und die zweite ist die, die beim nächsten Feld vergessen wird.
+     *
+     * > **Ein Wächter, der eine Liste im Test führt, prüft die Liste und nicht
+     * > die Regel.**
+     *
+     * @return array<string,list<string>>
      */
-    private const RESOLVED_SPREADS = [
-        'array_fill_keys(Schedule::FIELDS' => Schedule::FIELDS,
-    ];
+    private static function resolvedSpreads(): array
+    {
+        return [
+            'array_fill_keys(Schedule::FIELDS' => Schedule::FIELDS,
+            'self::fieldRules()' => NotifyProviders::fieldKeys(),
+        ];
+    }
 
     /**
      * Spreads, deren Schlüssel erst beim Ausführen entstehen.
@@ -166,7 +180,7 @@ final class AttributeNameTest extends TestCase
                 foreach ($this->spreads($eintrag['block']) as $spread) {
                     $gesehen++;
 
-                    foreach (array_keys(self::RESOLVED_SPREADS) as $marke) {
+                    foreach (array_keys(self::resolvedSpreads()) as $marke) {
                         if (str_starts_with($spread, $marke)) {
                             continue 2;
                         }
@@ -249,7 +263,7 @@ final class AttributeNameTest extends TestCase
                 $felder = $this->topLevelKeys($eintrag['block']);
 
                 foreach ($this->spreads($eintrag['block']) as $spread) {
-                    foreach (self::RESOLVED_SPREADS as $marke => $schluessel) {
+                    foreach (self::resolvedSpreads() as $marke => $schluessel) {
                         if (str_starts_with($spread, $marke)) {
                             $felder = array_merge($felder, $schluessel);
                         }

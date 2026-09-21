@@ -1,0 +1,224 @@
+# Die Beschreibung von API v1 (B7, `docs/131 §5`).
+#
+# **Von Hand gepflegt, und gegen die Routen gehalten.** `OpenApiReachTest`
+# prüft beide Richtungen: Jede Route unter `api/v1` steht hier, und jeder Pfad
+# hier ist eine Route. Die zweite Richtung ist die, an der ein toter Eintrag
+# wirklich entsteht — bei einer Umbenennung trägt man den neuen Pfad nach, und
+# der alte bleibt liegen.
+openapi: 3.1.0
+
+info:
+  title: SrvPanel API
+  version: "1.0"
+  description: >-
+    Lesender Zugang zu den eigenen Abonnements, Domains und Kennzahlen.
+    Die Marke reist im Kopf `Authorization: Bearer …` und niemals im
+    Abfrageteil: nginx schreibt die Anfragezeile mitsamt Abfrageteil ins
+    Zugriffsprotokoll, und das steht vierzehn Tage lang in einer Datei, die
+    das Panel selbst anzeigt.
+  license:
+    name: AGPL-3.0-only
+
+servers:
+  - url: /api/v1
+
+security:
+  - bearerToken: []
+
+components:
+  securitySchemes:
+    bearerToken:
+      type: http
+      scheme: bearer
+      description: >-
+        Eine Zugangsmarke aus den Kontoeinstellungen. Sie beginnt mit `srvp_`
+        und steht genau einmal auf dem Bildschirm — beim Anlegen.
+
+  schemas:
+    Subscription:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        status: { type: string }
+        plan: { type: [string, "null"] }
+        main_domain: { type: [string, "null"] }
+        disk_used_mb: { type: [integer, "null"] }
+        created_at: { type: [string, "null"], format: date-time }
+
+    Domain:
+      type: object
+      properties:
+        id: { type: integer }
+        subscription_id: { type: integer }
+        name: { type: string }
+        type: { type: string }
+        status: { type: string }
+        php_version: { type: [string, "null"] }
+        created_at: { type: [string, "null"], format: date-time }
+
+    DailyMetric:
+      type: object
+      properties:
+        day: { type: string, format: date }
+        metric:
+          type: string
+          enum:
+            - traffic_sent_bytes
+            - traffic_received_bytes
+            - requests
+            - errors
+            - disk_mb
+            - database_bytes
+        value: { type: integer }
+
+  responses:
+    Unauthorized:
+      description: >-
+        Keine Marke, eine unbekannte Marke, ein gesperrtes Konto — oder ein
+        Adminkonto. Die vier sind von aussen ununterscheidbar, und das ist
+        Absicht.
+    NotFound:
+      description: >-
+        Es gibt die Zeile nicht, oder sie gehört einem anderen Kunden. Die
+        beiden Fälle geben dieselbe Antwort; sonst liesse sich abzählen,
+        welche Kennungen vergeben sind.
+
+paths:
+  /openapi.yaml:
+    get:
+      summary: Diese Beschreibung
+      security: []
+      responses:
+        "200":
+          description: Die Beschreibung als YAML.
+          content:
+            application/yaml:
+              schema: { type: string }
+
+  /me:
+    get:
+      summary: Wer die Marke trägt
+      responses:
+        "200":
+          description: Das Konto hinter der Marke und die Zahl seiner Abonnements.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      account_id: { type: integer }
+                      name: { type: string }
+                      type: { type: string }
+                      subscriptions: { type: integer }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /subscriptions:
+    get:
+      summary: Die eigenen Abonnements
+      responses:
+        "200":
+          description: >-
+            Die Abonnements, die die Mandantenklammer durchlässt. Eine leere
+            Liste heisst „keine" und nicht „nicht gefragt" — wer das
+            unterscheiden will, fragt `/me`.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Subscription" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /subscriptions/{subscription}:
+    get:
+      summary: Ein Abonnement
+      parameters:
+        - name: subscription
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Das Abonnement.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Subscription" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /subscriptions/{subscription}/domains:
+    get:
+      summary: Die Domains eines Abonnements
+      parameters:
+        - name: subscription
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Die Domains.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Domain" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /subscriptions/{subscription}/metrics:
+    get:
+      summary: Die Tageswerte eines Abonnements
+      description: >-
+        Roh und nicht als Kurve. Aufbewahrt werden sie `retention_days` Tage;
+        was älter ist, hat der Nachtlauf abgeräumt.
+      parameters:
+        - name: subscription
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Die Tageswerte.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  retention_days: { type: integer }
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/DailyMetric" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /domains/{domain}:
+    get:
+      summary: Eine Domain
+      parameters:
+        - name: domain
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Die Domain.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Domain" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }

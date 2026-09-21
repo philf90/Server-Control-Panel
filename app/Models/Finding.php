@@ -6,7 +6,9 @@ namespace App\Models;
 
 use App\Enums\FindingCheck;
 use App\Enums\FindingState;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -48,6 +50,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $detail
  * @property Carbon $first_seen_at
  * @property Carbon $measured_at
+ * @property-read Collection<int, FindingNotification> $notifications
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -72,6 +75,23 @@ final class Finding extends Model
 
     /** @var list<string> */
     protected $fillable = ['check', 'subject', 'reason', 'detail', 'first_seen_at', 'measured_at'];
+
+    /**
+     * Über welche Kanäle dieser Befund schon gemeldet wurde (B1).
+     *
+     * **Eine Beziehung und keine Spalte**, seit es zwei Kanäle gibt: Die
+     * Begründung steht in der Migration `…_create_finding_notifications_table`.
+     * Kurz: Ein gemeinsames `notified_at` müsste entweder beim ersten
+     * gelungenen Kanal gesetzt werden — dann ist die Meldung des zweiten
+     * dauerhaft fort — oder erst beim letzten, und dann hält ein kaputter Kanal
+     * alle anderen fest.
+     *
+     * @return HasMany<FindingNotification, $this>
+     */
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(FindingNotification::class);
+    }
 
     /** Das Urteil — gefragt wird die Prüfung und nicht die Zeile. */
     public function state(): FindingState

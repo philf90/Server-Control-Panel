@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\AuthenticateToken;
 use App\Models\Account;
+use App\Models\ApiToken;
 use App\Support\Audit\Audit;
 use App\Support\Audit\Impersonation;
 use App\Support\Passwords\Policy;
@@ -57,7 +59,102 @@ final class ProfileController extends Controller
                 'last_login_ip' => $account->last_login_ip,
             ],
             'impersonating' => $this->impersonating($request),
+
+            /*
+             * **Die Zugangsmarken (B7).** Sie stehen hier und nicht auf einer
+             * eigenen Seite: Eine Marke gehört einem Konto, und das Konto hat
+             * schon eine Seite. Ein neunter Punkt in der Gruppe
+             * „Einstellungen" wäre ausserdem derselbe Befund wie bei B6 —
+             * `NavGroupTest` besteht darauf, dass eine Gruppe dort trennt, wo
+             * auch die Route trennt.
+             *
+             * **Für einen Administrator steht hier `null` und keine leere
+             * Liste.** Er bekommt keine Marke: `forAccount()` ruft für ihn
+             * `allowAll()`, und eine Marke wäre ein Bearer-Token ohne Klammer
+             * über den ganzen Server. Eine leere Liste läse sich wie „noch
+             * keine angelegt" — also wie eine Einladung.
+             */
+            'apiTokens' => $account->type->isAdmin() ? null : $account->apiTokens()->get()
+                ->map(fn (ApiToken $marke): array => [
+                    'id' => $marke->id,
+                    'name' => $marke->name,
+                    'preview' => $marke->preview,
+                    'last_used_at' => Clock::display($marke->last_used_at),
+                    'created_at' => Clock::display($marke->created_at),
+                ])->all(),
         ]);
+    }
+
+    /**
+     * Eine Marke anlegen — und ihren Klartext **einmal** zeigen.
+     *
+     * Er reist über die Sitzung zurück auf die Seite und wird nirgends
+     * abgelegt; was in der Tabelle steht, ist sein `sha256`.
+     */
+    public function storeToken(Request $request, Audit $audit): RedirectResponse
+    {
+        $account = $this->account($request);
+        $this->refuseWhileImpersonating($request, $audit, 'api.token.created');
+        $this->refuseForAdmins($account);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:64'],
+        ], [], [
+            /*
+             * **Der Name muss heissen wie das Feld auf der Seite**
+             * (`docs/66`, Befund 3). Das Feld heisst dort „Bezeichnung", weil
+             * „Name" neben dem Kontonamen im selben Formularbereich stünde —
+             * und ohne diese Zeile läse der Kunde „Das Feld Name ist
+             * erforderlich" und suchte das falsche.
+             */
+            'name' => 'Bezeichnung',
+        ]);
+
+        ['token' => $marke, 'plain' => $klartext] = ApiToken::mint($account, trim($data['name']));
+
+        $audit->success('api.token.created', $account, ['name' => $marke->name]);
+
+        return to_route('profile')
+            ->with('success', 'Die Zugangsmarke ist angelegt. Sie steht genau einmal hier.')
+            ->with('apiToken', $klartext);
+    }
+
+    /**
+     * Eine Marke entfernen.
+     *
+     * **Gesucht wird über die Beziehung und nicht über die Kennung allein.**
+     * `ApiToken` hängt an einem Konto und nicht an einem Abonnement — die
+     * Mandantenklammer greift hier nicht, und ein `findOrFail($id)` löschte
+     * die Marke eines fremden Kontos. Derselbe Satz wie bei den Sitzungen aus
+     * A9: gesucht wird über **Konto und Kennung**.
+     */
+    public function destroyToken(Request $request, string $token, Audit $audit): RedirectResponse
+    {
+        $account = $this->account($request);
+        $this->refuseWhileImpersonating($request, $audit, 'api.token.removed');
+        $this->refuseForAdmins($account);
+
+        $marke = $account->apiTokens()->findOrFail((int) $token);
+        $name = $marke->name;
+        $marke->delete();
+
+        $audit->success('api.token.removed', $account, ['name' => $name]);
+
+        return to_route('profile')->with('success', 'Die Zugangsmarke ist entfernt.');
+    }
+
+    /**
+     * Ein Adminkonto bekommt keine Marke.
+     *
+     * Gefragt wird an der Tür **und** in der Wache
+     * ({@see AuthenticateToken}). Das sind nicht zwei
+     * Fassungen derselben Regel, sondern zwei Zeitpunkte: Hier geht es darum,
+     * dass gar keine entsteht; dort darum, dass eine bestehende nicht trägt,
+     * wenn ein Konto seinen Typ wechselt.
+     */
+    private function refuseForAdmins(Account $account): void
+    {
+        abort_if($account->type->isAdmin(), 403, 'Ein Adminkonto bekommt keine Zugangsmarke.');
     }
 
     public function update(Request $request, Audit $audit): RedirectResponse

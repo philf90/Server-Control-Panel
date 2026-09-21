@@ -131,6 +131,19 @@ final class ServerController extends Controller
             'operation' => (int) $operation->id,
         ]);
 
-        return redirect()->route('operations.show', $operation);
+        /*
+         * **Zurück auf die Seite, von der aus gedrückt wurde (B8).** Hier
+         * stand eine Weiterleitung auf die Vorgangsseite; der Weg zurück war
+         * der Zurück-Knopf des Browsers. Den Fortschritt trägt jetzt der
+         * Streifen oben, und er steht auf jeder Seite.
+         */
+        /*
+         * **`updates` und nicht die Übersicht.** Der Neustart lässt sich von
+         * beiden Seiten auslösen — der Anlass steht auf beiden. Gewählt ist
+         * die Seite, die ihn **benennt** („Ein Neustart steht aus"); die
+         * Übersicht verweist dorthin. Das Band sagt den Ausgang unabhängig
+         * davon, auf welcher der beiden man landet.
+         */
+        return to_route('updates');
     }
 }

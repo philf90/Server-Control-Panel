@@ -99,7 +99,7 @@ final class AccessCountTest extends TestCase
         $this->assertSame('p1001', $domain['subscription']);
         $this->assertSame('beispiel.de', $domain['domain']);
         $this->assertSame([
-            '2026-09-20' => ['requests' => 1, 'sent' => 990, 'received' => 172, 'errors' => 0],
+            '2026-09-20' => ['requests' => 1, 'sent' => 990, 'received' => 172, 'errors' => 0, 'legacy' => 0],
         ], $domain['days']);
     }
 
@@ -162,6 +162,11 @@ final class AccessCountTest extends TestCase
         $this->assertSame(2, $domain['legacy']);
         $this->assertSame(0, $domain['unreadable']);
         $this->assertSame(990, $domain['days']['2026-09-20']['sent']);
+
+        // **Und der Tag selbst trägt es.** Die Summe über die Domain sagt
+        // nicht, *welcher* Tag halb ist — und genau das muss der Nachtlauf
+        // wissen, um ihn zu überspringen statt halb zu zählen.
+        $this->assertSame(2, $domain['days']['2026-09-20']['legacy']);
     }
 
     /**
@@ -255,27 +260,6 @@ final class AccessCountTest extends TestCase
     }
 
     /**
-     * **Die Wurzel kommt aus der Konstante und nie aus den Argumenten.**
-     *
-     * Das ist die erste Grenze und kein Stil: Eine Operation, der man sagen
-     * kann, wo sie lesen soll, ist ein Leser für beliebige Dateien mit
-     * Systemrechten. Geprüft wird am Quelltext, weil ein Aufruf mit `root` im
-     * Argument heute schlicht ignoriert würde — und ein Test, der das zeigt,
-     * bliebe auch dann grün, wenn jemand die Zeile später einbaut.
-     */
-    /**
-     * **Und die Operation setzt den Pfad nicht selbst zusammen.**
-     *
-     * Die Prüfungen darüber liefen auch dann durch, wenn `WebAccessCount` den
-     * Aufbau `…/logs/…` eigenhändig bildete — solange beide Zeichenketten
-     * zufällig übereinstimmen. Sie gingen erst auseinander, wenn jemand
-     * {@see Site} aufräumt, und dann stünde der Fehler in einer Operation, die
-     * seit Monaten niemand angefasst hat.
-     *
-     * > **Zwei Stellen, die dieselbe Zeichenkette bilden, sind kein Fehler —
-     * > sie sind einer, der auf seinen Tag wartet.**
-     */
-    /**
      * **Und der Agent kennt sie unter ihrem Namen.**
      *
      * Ohne die Zeile in {@see Registry} ist diese Klasse Code, den niemand
@@ -294,6 +278,18 @@ final class AccessCountTest extends TestCase
         $this->assertContains(WebAccessCount::name(), (new Registry(new Config))->names());
     }
 
+    /**
+     * **Und die Operation setzt den Pfad nicht selbst zusammen.**
+     *
+     * Die Prüfungen darüber liefen auch dann durch, wenn `WebAccessCount` den
+     * Aufbau `…/logs/…` eigenhändig bildete — solange beide Zeichenketten
+     * zufällig übereinstimmen. Sie gingen erst auseinander, wenn jemand
+     * {@see Site} aufräumt, und dann stünde der Fehler in einer Operation, die
+     * seit Monaten niemand angefasst hat.
+     *
+     * > **Zwei Stellen, die dieselbe Zeichenkette bilden, sind kein Fehler —
+     * > sie sind einer, der auf seinen Tag wartet.**
+     */
     public function test_the_operation_does_not_build_the_path_itself(): void
     {
         $quelle = file_get_contents(__DIR__.'/../../agent/src/Ops/WebAccessCount.php');
@@ -304,6 +300,15 @@ final class AccessCountTest extends TestCase
         $this->assertStringNotContainsString("'/logs/'", $quelle);
     }
 
+    /**
+     * **Die Wurzel kommt aus der Konstante und nie aus den Argumenten.**
+     *
+     * Das ist die erste Grenze und kein Stil: Eine Operation, der man sagen
+     * kann, wo sie lesen soll, ist ein Leser für beliebige Dateien mit
+     * Systemrechten. Geprüft wird am Quelltext, weil ein Aufruf mit `root` im
+     * Argument heute schlicht ignoriert würde — und ein Test, der das zeigt,
+     * bliebe auch dann grün, wenn jemand die Zeile später einbaut.
+     */
     public function test_the_root_never_comes_from_the_arguments(): void
     {
         $quelle = file_get_contents(__DIR__.'/../../agent/src/Ops/WebAccessCount.php');

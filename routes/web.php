@@ -11,6 +11,7 @@ use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Auth\TwoFactorSetupController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\BackupSettingsController;
+use App\Http\Controllers\BrandingSettingsController;
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DatabaseController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\LogsController;
 use App\Http\Controllers\MailSettingsController;
 use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\NoticeSettingsController;
 use App\Http\Controllers\OperationController;
 use App\Http\Controllers\OperationStreamController;
 use App\Http\Controllers\OverviewController;
@@ -1280,6 +1282,29 @@ Route::middleware('auth')->group(function (): void {
         ->name('settings.general.update');
 
     /*
+     * **Die Marke des Betreibers** (B6, `docs/129 §9`).
+     *
+     * `manage-settings` wie die Anzeigezeitzone daneben, und aus demselben
+     * Grund: Es ändert nichts am System, sondern wie das Panel aussieht. „Des
+     * Betreibers" im Abnahmekriterium grenzt gegen eine Marke **je Abonnement**
+     * ab und nicht gegen den Administrator.
+     *
+     * **Kein eigenes `GET` und kein Menüpunkt.** Die Felder stehen auf
+     * `/settings/general` — der Seite, die ohnehin beantwortet, wie dieses
+     * Panel eingestellt ist. Eine neunte Zeile in der Gruppe „Einstellungen"
+     * hätte die Teilung erzwungen, die `NavGroupTest` seit dem 16. September
+     * ankündigt; geteilt gehört sie entlang der **Route**, und dafür müsste
+     * zuerst `/settings/general` umziehen. Das ist eine Entscheidung des
+     * Betreibers und kein Nebenbei dieses Merkmals.
+     *
+     * > **Eine Gruppe ist zu gross, wenn sie zwei Fragen beantwortet — und
+     * > nicht, wenn sie viele Punkte hat.**
+     */
+    Route::put('/settings/branding', [BrandingSettingsController::class, 'update'])
+        ->middleware('can:manage-settings')
+        ->name('settings.branding.update');
+
+    /*
      * **Was der Server von sich aus sichert** (P8 Schritt 9 und 10).
      *
      * `operate-server` wie bei PHP und den Datenbanken: Was den Datenträger
@@ -1343,6 +1368,20 @@ Route::middleware('auth')->group(function (): void {
         ->name('profile.password');
 
     /*
+     * **Die Zugangsmarken für `api/v1`** (B7, `docs/131 §3`).
+     *
+     * Dieselbe Schranke wie beim Konto daneben und aus demselben Grund: Eine
+     * Marke gehört dem angemeldeten Konto, und eine Kennung aus der Anfrage
+     * entscheidet nichts — gesucht wird über `$request->user()->apiTokens()`.
+     * Ein Adminkonto wird im Controller abgewiesen; es bekommt keine Marke,
+     * weil `forAccount()` für ihn `allowAll()` ruft.
+     */
+    Route::post('/settings/tokens', [ProfileController::class, 'storeToken'])
+        ->name('profile.tokens.store');
+    Route::delete('/settings/tokens/{token}', [ProfileController::class, 'destroyToken'])
+        ->name('profile.tokens.destroy');
+
+    /*
      * Die Darstellung — hell, dunkel oder das, was das Betriebssystem sagt.
      *
      * Eigene Route und nicht Teil von `profile.update`: Jene verlangt das
@@ -1371,6 +1410,30 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/settings/mail/test', [MailSettingsController::class, 'test'])
         ->middleware('can:operate-server')
         ->name('settings.mail.test');
+
+    /*
+     * Die Meldewege dieses Servers (B1, docs/129 §7).
+     *
+     * **`can:operate-server`, Entscheidung 3 aus `docs/129 §2`:** Nur der
+     * Betreiber richtet ein Fernziel ein. Wer eine Adresse nach draussen
+     * wählen darf, wählt sonst auch `http://127.0.0.1:…` — die Grenze steht
+     * im Agenten, und diese hier hält den Weg dorthin.
+     */
+    Route::get('/settings/notices', [NoticeSettingsController::class, 'show'])
+        ->middleware('can:operate-server')
+        ->name('settings.notices');
+
+    Route::put('/settings/notices', [NoticeSettingsController::class, 'update'])
+        ->middleware('can:operate-server')
+        ->name('settings.notices.update');
+
+    Route::delete('/settings/notices', [NoticeSettingsController::class, 'destroy'])
+        ->middleware('can:operate-server')
+        ->name('settings.notices.forget');
+
+    Route::post('/settings/notices/test', [NoticeSettingsController::class, 'test'])
+        ->middleware('can:operate-server')
+        ->name('settings.notices.test');
 
     /*
      * Das Zertifikat der Oberfläche (docs/27).
@@ -1443,6 +1506,20 @@ Route::middleware('auth')->group(function (): void {
  * Paket umschaltet, und es gibt in diesem Moment niemanden, der angemeldet
  * wäre. Sie gibt nur Fassungsnummern und einen Bereitschaftszustand heraus.
  */
+/*
+ * Das Logo des Betreibers (B6).
+ *
+ * **Ohne Anmeldung, und das ist der Zweck.** Es steht auf der Anmeldeseite —
+ * der einen Seite, die jeder Besucher ohne Konto sieht. Hinter `auth` wäre es
+ * genau dort unsichtbar, wo das Abnahmekriterium es verlangt.
+ *
+ * Was herausgeht, ist ein Bild, das der Betreiber hochgeladen hat, um es zu
+ * zeigen. Der Typ kommt aus der Positivliste in {@see \App\Support\Brand\Logo}
+ * und nicht aus der Datei, SVG ist ausgeschlossen, und `nosniff` verbietet dem
+ * Browser, aus dem Bild etwas anderes zu machen.
+ */
+Route::get('/branding/logo', [BrandingSettingsController::class, 'logo'])->name('branding.logo');
+
 Route::get('/health', function (Client $agent) {
     $agentUp = $agent->reachable();
 

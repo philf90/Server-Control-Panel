@@ -22,14 +22,20 @@ use App\Support\Dns\AgentMeasurement;
 use App\Support\Dns\Measurement;
 use App\Support\Metrics\Collector;
 use App\Support\Metrics\Store;
+use App\Support\Notify\AgentNotifyTarget;
+use App\Support\Notify\NotifyTarget;
 use App\Support\Settings\MailConfiguration;
 use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tls\AgentDnsCredentials;
 use App\Support\Tls\DnsCredentials;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Mail\MailManager;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use SrvPanel\Agent\Client;
 
@@ -134,6 +140,17 @@ final class SrvPanelServiceProvider extends ServiceProvider
         $this->app->singleton(DnsCredentials::class, AgentDnsCredentials::class);
 
         /*
+         * **B1: Wohin der Server meldet, weiss der Agent** — dieselbe Naht wie
+         * bei `DnsCredentials` darüber und aus demselben Grund. Ohne sie liesse
+         * sich der Fall „der Agent antwortet gar nicht" nirgends herstellen,
+         * und genau der entscheidet, was auf der Einstellungsseite steht:
+         * „kein Meldeziel" und „nicht feststellbar" sind zwei Zustände.
+         *
+         * Als Singleton, damit die Seite einmal fragt und nicht je Bereich.
+         */
+        $this->app->singleton(NotifyTarget::class, AgentNotifyTarget::class);
+
+        /*
          * **P7: der Abgleich misst über den Agenten.** {@see Survey} kennt die
          * Reihenfolge des Merkmals und keine Steckdose; welche Umsetzung
          * misst, wird hier entschieden. Genau dieselbe Naht wie bei
@@ -148,8 +165,62 @@ final class SrvPanelServiceProvider extends ServiceProvider
         $this->app->singleton(Settings::class);
     }
 
+    /**
+     * Wie viele API-Anfragen je Minute und Adresse durchkommen.
+     *
+     * Sechzig ist eine Anfrage je Sekunde — mehr, als ein lesender Klient
+     * braucht, und wenig genug, dass das Durchprobieren von Marken keinen
+     * Sinn ergibt: Bei 192 Bit Zufall hilft auch eine Milliarde Versuche
+     * nicht, und sechzig je Minute machen daraus eine Zahl, die niemand mehr
+     * aufschreibt.
+     */
+    public const API_PER_MINUTE = 60;
+
     public function boot(): void
     {
+        /*
+         * **Die Drosselung von `api/v1`** (B7, `docs/131`).
+         *
+         * Vor dieser Stufe hatte dieses Panel **keine einzige**
+         * `throttle`-Mittelschicht; `LoginThrottle` ist handgebaut und rechnet
+         * auf IP und Anmeldeadresse. Eine Schnittstelle, die ein Skript
+         * bedient, braucht eine — und zwar dort, wo sie **vor** dem
+         * Datenbankzugriff greift.
+         *
+         * **Gezählt wird die Adresse und nicht die Marke.** `ThrottleRequests`
+         * läuft als Erstes in der Gruppe, also bevor {@see AuthenticateToken}
+         * ein Konto aufgelöst hat — `$request->user()` ist dort immer `null`,
+         * und ein Schlüssel, der so tut, als wäre er es nicht, wäre eine
+         * Zeile, die etwas anderes behauptet, als sie tut.
+         *
+         * > **Ein Schlüssel, der einen Wert nennt, den es an dieser Stelle
+         * > nicht gibt, ist keine Einschränkung, sondern eine Zusage ohne
+         * > Gegenstand.**
+         *
+         * Damit bremst sie zweierlei: das Durchprobieren von Marken und einen
+         * Klienten, der in einer Schleife hängt. Was sie **nicht** kann, ist
+         * zwei Marken hinter derselben Adresse auseinanderhalten; das steht in
+         * `docs/131 §9` als Entscheidung und nicht als Lücke.
+         */
+        RateLimiter::for('api', static fn (Request $request): Limit => Limit::perMinute(self::API_PER_MINUTE)
+            ->by((string) $request->ip()));
+
+        /*
+         * Die Marke steht in jeder Mail (B6).
+         *
+         * **Ein Composer und kein Durchreichen.** Jede Vorlage unter `mail.`
+         * bekommt `$brand`, ohne dass ein Mailable ihn mitgeben muss — und
+         * damit kann keiner ihn vergessen. Ein Mailable, der ihn durchreicht,
+         * wäre die Stelle, an der der nächste es nicht tut.
+         *
+         * Gelesen wird über {@see Settings::brand()}, und das merkt sich den
+         * Wert: Eine Mail ist selten, und zwei Mails in einem Lauf fragen
+         * nicht zweimal.
+         */
+        View::composer('mail.*', static function (\Illuminate\View\View $view): void {
+            $view->with('brand', app(Settings::class)->brand());
+        });
+
         /*
          * Einstellungen des Betreibers sind Betreibersache.
          *

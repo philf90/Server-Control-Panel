@@ -16,6 +16,7 @@ use App\Support\Audit\Audit;
 use App\Support\Backups\Backups;
 use App\Support\Databases\Databases;
 use App\Support\Databases\Dumps;
+use App\Support\Metrics\History;
 use App\Support\Plans\Feature;
 use App\Support\Plans\Quota;
 use App\Support\Plans\Quotas;
@@ -202,7 +203,13 @@ final class SubscriptionController extends Controller
 
         $operation = $this->start($subscription, 'subscription.provision', 'Abonnement anlegen', $audit, $lifecycle);
 
-        return redirect()->route('operations.show', $operation);
+        /*
+         * **Zurück auf die Seite, von der aus gedrückt wurde (B8).** Hier
+         * stand eine Weiterleitung auf die Vorgangsseite; der Weg zurück war
+         * der Zurück-Knopf des Browsers. Den Fortschritt trägt jetzt der
+         * Streifen oben, und er steht auf jeder Seite.
+         */
+        return to_route('subscriptions.show', $subscription);
     }
 
     public function show(
@@ -210,6 +217,7 @@ final class SubscriptionController extends Controller
         Subscription $subscription,
         DnsCredentialAccess $credentials,
         DnsProfile $profiles,
+        History $history,
     ): Response {
         $subscription->loadMissing(['customer', 'plan']);
         $account = $request->user();
@@ -459,6 +467,19 @@ final class SubscriptionController extends Controller
                 ]
                 : null,
 
+            /*
+             * Die Verläufe der letzten dreissig Tage (B4, `docs/129 §6`).
+             *
+             * **Als Verschluss und nicht als fertiger Wert.** Ein fertiger
+             * liefe bei jedem partiellen Nachladen mit, das ihn gar nicht
+             * mitschickt — gemessen in `docs/103 §1` M5 und der Grund, aus dem
+             * in `HandleInertiaRequests::share()` alles ein Verschluss ist.
+             * Diese Seite lädt heute nichts partiell nach; die Regel steht
+             * trotzdem, weil die Kosten eines Verschlusses null sind und die
+             * eines vergessenen fertigen Werts eine Abfrage je Anfrage.
+             */
+            'history' => fn (): array => $history->forSubscription($subscription),
+
             'operations' => Operation::query()
                 ->where('subscription_id', $subscription->id)
                 ->orderByDesc('id')
@@ -592,9 +613,17 @@ final class SubscriptionController extends Controller
                 ->with('success', 'Abonnement gespeichert.');
         }
 
-        return redirect()->route('operations.show', $this->start(
+        /*
+         * **Zurück auf die Seite, von der aus gedrückt wurde (B8).** Hier
+         * stand eine Weiterleitung auf die Vorgangsseite; der Weg zurück war
+         * der Zurück-Knopf des Browsers. Den Fortschritt trägt jetzt der
+         * Streifen oben, und er steht auf jeder Seite.
+         */
+        $this->start(
             $subscription, 'subscription.quota', 'Speichergrenze anwenden', $audit, $lifecycle,
-        ));
+        );
+
+        return to_route('subscriptions.show', $subscription);
     }
 
     /**
@@ -635,9 +664,17 @@ final class SubscriptionController extends Controller
             'disk_mb' => $subscription->quota(Quota::DiskMb->value),
         ]);
 
-        return redirect()->route('operations.show', $this->start(
+        /*
+         * **Zurück auf die Seite, von der aus gedrückt wurde (B8).** Hier
+         * stand eine Weiterleitung auf die Vorgangsseite; der Weg zurück war
+         * der Zurück-Knopf des Browsers. Den Fortschritt trägt jetzt der
+         * Streifen oben, und er steht auf jeder Seite.
+         */
+        $this->start(
             $subscription, 'subscription.quota', 'Speichergrenze anwenden', $audit, $lifecycle,
-        ));
+        );
+
+        return to_route('subscriptions.show', $subscription);
     }
 
     public function suspend(Subscription $subscription, Audit $audit, Lifecycle $lifecycle): RedirectResponse
@@ -654,9 +691,17 @@ final class SubscriptionController extends Controller
         // aus einem eigenen Grund gesperrt hat.
         $subscription->forceFill(['suspended_with_customer' => false])->save();
 
-        return redirect()->route('operations.show', $this->start(
+        /*
+         * **Zurück auf die Seite, von der aus gedrückt wurde (B8).** Hier
+         * stand eine Weiterleitung auf die Vorgangsseite; der Weg zurück war
+         * der Zurück-Knopf des Browsers. Den Fortschritt trägt jetzt der
+         * Streifen oben, und er steht auf jeder Seite.
+         */
+        $this->start(
             $subscription, 'subscription.suspend', 'Abonnement sperren', $audit, $lifecycle,
-        ));
+        );
+
+        return to_route('subscriptions.show', $subscription);
     }
 
     public function resume(Subscription $subscription, Audit $audit, Lifecycle $lifecycle): RedirectResponse
@@ -675,9 +720,17 @@ final class SubscriptionController extends Controller
             ]);
         }
 
-        return redirect()->route('operations.show', $this->start(
+        /*
+         * **Zurück auf die Seite, von der aus gedrückt wurde (B8).** Hier
+         * stand eine Weiterleitung auf die Vorgangsseite; der Weg zurück war
+         * der Zurück-Knopf des Browsers. Den Fortschritt trägt jetzt der
+         * Streifen oben, und er steht auf jeder Seite.
+         */
+        $this->start(
             $subscription, 'subscription.resume', 'Abonnement entsperren', $audit, $lifecycle,
-        ));
+        );
+
+        return to_route('subscriptions.show', $subscription);
     }
 
     /**
@@ -748,9 +801,22 @@ final class SubscriptionController extends Controller
         // mehr zeigt, ist genau der Rest, den P5 nicht hinterlassen darf.
         $dumps->removeAllFor($subscription);
 
-        return redirect()->route('operations.show', $this->start(
+        /*
+         * **Zurück auf die Seite, von der aus gedrückt wurde (B8).** Hier
+         * stand eine Weiterleitung auf die Vorgangsseite; der Weg zurück war
+         * der Zurück-Knopf des Browsers. Den Fortschritt trägt jetzt der
+         * Streifen oben, und er steht auf jeder Seite.
+         */
+        /*
+         * **Die Liste und nicht das Abonnement.** Es wird gerade
+         * zurückgebaut; seine Seite wäre in dem Augenblick, in dem der
+         * Vorgang durchläuft, keine mehr.
+         */
+        $this->start(
             $subscription, 'subscription.remove', 'Abonnement zurückbauen', $audit, $lifecycle,
-        ));
+        );
+
+        return to_route('subscriptions.index');
     }
 
     /**

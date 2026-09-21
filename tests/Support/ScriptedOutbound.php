@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support;
 
 use RuntimeException;
+use SrvPanel\Agent\Acme\Curl;
 use SrvPanel\Agent\Acme\Outbound;
 use SrvPanel\Agent\Acme\Response;
 
@@ -78,6 +79,22 @@ final class ScriptedOutbound implements Outbound
         }
 
         return self::json(['info' => 'success', 'subdomains' => $subdomains]);
+    }
+
+    /**
+     * **Diese eine Zusage baut das Drehbuch nicht nach.**
+     *
+     * Ein Doppel gibt es für die **Antworten** und nicht für die Grenzen. Eine
+     * eigene Bedingung hier wäre eine zweite Fassung von Zusage 1 aus
+     * {@see Curl} — und die zweite ist die, die veraltet: Der Prüfstand liesse
+     * dann eine Adresse durch, die der Agent abweist, oder umgekehrt.
+     *
+     * > **Ein Doppel, das eine Grenze nachbaut, prüft seine eigene Fassung der
+     * > Grenze.**
+     */
+    public function permitted(string $url): bool
+    {
+        return (new Curl)->permitted($url);
     }
 
     /** @param  list<string>  $headers */

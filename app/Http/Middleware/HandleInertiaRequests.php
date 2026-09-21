@@ -10,8 +10,10 @@ use App\Models\Announcement;
 use App\Models\Subscription;
 use App\Support\Audit\Impersonation;
 use App\Support\Authorization\AdminAbility;
+use App\Support\Brand\Logo;
 use App\Support\Diagnose\Checks\MaintenanceWindow;
 use App\Support\Diagnose\PendingFindings;
+use App\Support\Operations\RunningBand;
 use App\Support\Panel\Source;
 use App\Support\Passwords\Policy;
 use App\Support\Settings\Settings;
@@ -105,11 +107,42 @@ final class HandleInertiaRequests extends Middleware
      * aus Abschnitt 13 der AGPL gilt für die Oberfläche, nicht für eine
      * Unterseite davon.
      *
+     * ## Jeder Eintrag ist ein Verschluss, ausnahmslos
+     *
+     * Die Regel steht seit A14 in den Kommentaren einzelner Einträge und galt
+     * seit B4 für alle (`docs/129 §8`). Der Grund ist gemessen
+     * (`docs/103 §1` M5): **Ein fertiger Wert in `share()` läuft bei jeder
+     * Anfrage, auch bei einer, die ihn gar nicht mitschickt. Ein Verschluss
+     * läuft nur, wenn er gesendet wird.**
+     *
+     * **Was das bis zum 21. September 2026 gekostet hat**, gemessen an einem
+     * Kundenkonto auf `/` mit `X-Inertia-Partial-Data: subscriptions`:
+     *
+     * | | Abfragen | davon für `account` |
+     * |---|---|---|
+     * | voller Besuch | 11 | 1 |
+     * | partielles Nachladen | 10 | **1** |
+     *
+     * Die zweite Zeile ist der Befund: `has_active_subscription` fragte die
+     * Datenbank für eine Eigenschaft, die die Antwort nicht enthält. Ein Admin
+     * sah davon nichts — bei ihm bricht `isAdmin() ||` die Auswertung ab, und
+     * genau deshalb ist der Prüfkörper von `SharedClosureTest` ein Kunde.
+     *
+     * > **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall,
+     * > misst nicht.**
+     *
+     * Billige Einträge sind mitgegangen, obwohl sie nichts kosten — eine
+     * Ausnahmeliste wäre so gut wie das Gedächtnis dessen, der sie pflegt, und
+     * die erste teure Zeile, die jemand in einen „billigen" Eintrag schreibt,
+     * steht dann still in jeder Anfrage.
+     *
      * @return array<string,mixed>
      */
     public function share(Request $request): array
     {
         $account = $request->user();
+        $settings = app(Settings::class);
+        $logo = app(Logo::class);
 
         return array_merge(parent::share($request), [
             /*
@@ -119,7 +152,7 @@ final class HandleInertiaRequests extends Middleware
              * Template. {@see Source::url()} entscheidet jetzt, und die
              * Oberfläche zeigt nur noch an.
              */
-            'source' => [
+            'source' => fn (): array => [
                 'url' => Source::url(),
                 'version' => config('app.version'),
             ],
@@ -131,7 +164,7 @@ final class HandleInertiaRequests extends Middleware
             // steht dann als JSON im Quelltext jeder Seite. Passwort-Hash und
             // 2FA-Geheimnis wären zwar über $hidden ausgenommen, aber die
             // nächste Spalte ist es nicht.
-            'account' => $account instanceof Account ? [
+            'account' => fn (): ?array => $account instanceof Account ? [
                 'name' => $account->name,
                 'email' => $account->email,
                 'type' => $account->type->value,
@@ -193,12 +226,12 @@ final class HandleInertiaRequests extends Middleware
              * Die beiden sind auch inhaltlich verschieden: `can` beantwortet
              * eine Frage über ein Objekt, `abilities` eine über den Server.
              */
-            'abilities' => $account instanceof Account ? $this->abilities($account) : [],
+            'abilities' => fn (): array => $account instanceof Account ? $this->abilities($account) : [],
 
             // „Anmelden als" muss auf jeder Seite sichtbar sein (§6.3). Ein
             // Admin, der vergisst, in wessen Sicht er ist, tut sonst im Namen
             // eines Kunden Dinge, die er für seine eigenen hält.
-            'impersonation' => $this->impersonation($request),
+            'impersonation' => fn (): ?array => $this->impersonation($request),
 
             /*
              * Die Ankündigungen des Betreibers (A14, `docs/103 §7`).
@@ -307,7 +340,33 @@ final class HandleInertiaRequests extends Middleware
             // und sie kommt aus derselben Klasse wie die Validierung: Was der
             // Browser als Prüfliste zeigt, ist damit keine Behauptung über die
             // Regeln, sondern die Regeln.
-            'passwordPolicy' => [
+            /*
+             * Die Marke des Betreibers für die Oberfläche (B6).
+             *
+             * **Farbe und Titel stehen nicht hier** — die setzt
+             * `app.blade.php`, weil beides vor dem ersten Zeichnen feststehen
+             * muss. Hier steht, was Vue zeigt: Name, Logo, Fusszeile.
+             *
+             * **Ein Verschluss wie alles hier.** Die Marke kommt aus
+             * `settings`, also aus der Datenbank; ein fertiger Wert liefe bei
+             * jedem partiellen Nachladen mit, das ihn gar nicht mitschickt
+             * (`docs/103 §1` M5).
+             *
+             * `logo` ist eine **Adresse und kein Dateiname**: Die Seite soll
+             * nicht wissen, wie die Ablage heisst, und der Name allein liesse
+             * offen, woher man das Bild bekommt.
+             */
+            'brand' => function () use ($settings, $logo): array {
+                $marke = $settings->brand();
+
+                return [
+                    'name' => $marke->name,
+                    'footer' => $marke->footer,
+                    'logo' => $logo->path($marke->logo) === null ? null : route('branding.logo'),
+                ];
+            },
+
+            'passwordPolicy' => fn (): array => [
                 'minimum' => Policy::MINIMUM_LENGTH,
                 'requirements' => Policy::requirements(),
             ],
@@ -325,11 +384,41 @@ final class HandleInertiaRequests extends Middleware
              *
              * `FlashChannelTest` prüft beide Richtungen.
              */
-            'flash' => [
+            /*
+             * **Der Streifen der laufenden Vorgänge (B8).**
+             *
+             * Er steht auf **jeder** Seite und überlebt damit jeden
+             * Seitenwechsel — das ist Entscheidung 2 aus `docs/92 §4`. Eine
+             * Seiten-Eigenschaft müsste jede der 58 Seiten durchreichen, und
+             * die erste, die es vergisst, fällt niemandem auf.
+             *
+             * **Ein Verschluss wie alles hier**: Der Klient lädt ihn im Takt
+             * mit `only: ['runningOperations']` nach, und ein fertiger Wert
+             * liefe bei jeder anderen Anfrage mit (`docs/103 §1` M5).
+             *
+             * Wen er zeigt und wie lange, entscheidet {@see RunningBand} und
+             * nicht diese Zeile — drei Bedingungen mit je einer Begründung
+             * gehören nicht in eine Kette in der Mittelschicht.
+             */
+            'runningOperations' => fn (): array => app(RunningBand::class)->rows(
+                $account instanceof Account ? $account : null,
+                now(),
+            ),
+
+            'flash' => fn (): array => [
                 'notice' => fn () => $request->session()->get('notice'),
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
                 'recoveryCodes' => fn () => $request->session()->get('recoveryCodes'),
+
+                /*
+                 * **Der Klartext einer frisch angelegten Zugangsmarke (B7).**
+                 * Er steht genau einmal auf dem Bildschirm und nirgends in der
+                 * Ablage — derselbe Weg wie bei den Wiederherstellungscodes
+                 * daneben und aus demselben Grund: Was man wiederzeigen kann,
+                 * kann man auch mitlesen.
+                 */
+                'apiToken' => fn () => $request->session()->get('apiToken'),
             ],
         ]);
     }

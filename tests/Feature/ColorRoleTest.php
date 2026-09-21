@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Support\Design\Contrast;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -153,26 +154,16 @@ final class ColorRoleTest extends TestCase
         return $marken;
     }
 
+    /**
+     * Die Rechnung steht seit B6 in {@see Contrast} und nicht mehr hier.
+     *
+     * **Sie stand in drei Wächtern gleich.** Das ging, solange nur Wächter sie
+     * brauchten; seit der Betreiber eine Farbe vorgeben darf, rechnet auch die
+     * Anwendung — und eine vierte Kopie wäre der Fehler, gegen den dieses Repo
+     * seine Wächter baut.
+     */
     private function contrast(string $a, string $b): float
     {
-        $hoch = max($this->luminance($a), $this->luminance($b));
-        $tief = min($this->luminance($a), $this->luminance($b));
-
-        return ($hoch + 0.05) / ($tief + 0.05);
-    }
-
-    private function luminance(string $hex): float
-    {
-        $rgb = sscanf(ltrim($hex, '#'), '%2x%2x%2x') ?? [0, 0, 0];
-
-        $kanal = static function (int|float|null $wert): float {
-            $wert = ((int) $wert) / 255;
-
-            return $wert <= 0.03928 ? $wert / 12.92 : (($wert + 0.055) / 1.055) ** 2.4;
-        };
-
-        return 0.2126 * $kanal($rgb[0] ?? 0)
-            + 0.7152 * $kanal($rgb[1] ?? 0)
-            + 0.0722 * $kanal($rgb[2] ?? 0);
+        return Contrast::between($a, $b);
     }
 }

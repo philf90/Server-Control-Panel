@@ -13,6 +13,7 @@ use App\Models\Customer;
 use App\Models\Database;
 use App\Models\Domain;
 use App\Models\Subscription;
+use App\Support\Metrics\Points;
 use App\Support\Metrics\Store;
 use App\Support\Settings\Settings;
 use App\Support\Time\Clock;
@@ -532,16 +533,19 @@ final class OverviewController extends Controller
         return number_format($size, $step === 0 ? 0 : 1, ',', '.').' '.$units[$step];
     }
 
-    /** @param array{has:bool,points:list<array{x:float,y:float,t:string,v:string}>} $series */
+    /**
+     * Die grosse Zahl der Kachel.
+     *
+     * **Steht seit B4 in {@see Points} und nicht mehr hier.** Die
+     * Abonnementseite baut dieselben Kacheln aus einer anderen Quelle; zwei
+     * Fassungen dieser Regel hiessen, dass die eine Seite die Einheit
+     * abschneidet und die andere nicht.
+     *
+     * @param  array{has:bool,points:list<array{x:float,y:float,t:string,v:string}>}  $series
+     */
     private function latest(array $series, string $fallback): string
     {
-        if (! $series['has'] || $series['points'] === []) {
-            return $fallback;
-        }
-
-        $letzter = $series['points'][count($series['points']) - 1];
-
-        return trim(str_replace(['%', ' '], '', $letzter['v'])) === '' ? $fallback : trim(explode(' ', $letzter['v'])[0]);
+        return Points::latest($series, $fallback);
     }
 
     /**

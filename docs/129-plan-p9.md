@@ -518,7 +518,7 @@ nach dem Umbau anders — er wäre ab da ein Eingriff ohne Messung gewesen.
 | B3 | `DailyRunIdempotenceTest` | Zweimal derselbe Tag ergibt eine Zeile und nicht zwei — derselbe Satz wie bei `FindingLog`, an einer anderen Tabelle. |
 | B4 | `SeriesSourceTest` | `Tile.vue` bekommt fertige Stützstellen vom Server; kein Rechnen im Klienten. |
 | B4 | `SharedClosureTest` | Was in `share()` steht, steht dort als Verschluss — die Regel aus `docs/103 M5`, die bisher niemand hält. |
-| B7 | `ApiTenancyTest` | Jede Route unter `api/` durchläuft die Mandantenklammer — gemessen an der **Antwort** und nicht an der Middlewareliste. |
+| B7 | `ApiEmptyListTest` (hiess im Plan `ApiTenancyTest`) | Jede Route unter `api/` durchläuft die Mandantenklammer — gemessen an der **Antwort** und nicht an der Middlewareliste. **Gebaut am 23. September 2026** unter anderem Namen, und er hält mehr: auch den Fall `200 []`, den `docs/130` A4 gemessen hat. Eine Zwischenfassung dieser Zeile hat `TenancySweepTest` für zuständig erklärt — das war aus dessen Kopf geschlossen und nicht aus seinem Ausdruck, der nur die `{subscription}`-Routen der Weboberfläche sammelt. |
 
 **Und einer, den `docs/92` nötig macht, sobald B8 drankommt:**
 

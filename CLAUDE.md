@@ -1372,7 +1372,11 @@ auch — oder ein begründeter Eintrag sagt warum nicht), `LifecycleReachTest`, 
 gibt), `TableStyleTest`, `ClassNameTest` (jeder Klassenname ist englisch, und
 jede Regel in app.css wird von einem Template erreicht) und `PaginationTest`
 (wer paginiert, lässt auch blättern) — dazu `RedirectTargetTest` (wer
-weiterleitet, nennt das Ziel; `back()` kennt es hier nicht) und
+weiterleitet, nennt das Ziel; `back()` kennt es hier nicht — **und seit dem
+23. September 2026 ist der genannte Name eine Route, die es gibt**: gemessen
+gegen `Route::getRoutes()` über jede Datei unter `app/` und nicht nur über die
+Controller, denn ein toter Name in einer Mittelschicht schlägt auf jeder Seite
+zu statt auf einer) und
 `PairedSeriesTest` (zwei Kurven in einem Feld teilen sich die Achse) und
 `ChallengeReachTest` (der Webserver kommt bis zur ACME-Prüfdatei — geprüft an
 den Rechten jedes Verzeichnisses auf dem Weg dorthin) und
@@ -1437,6 +1441,27 @@ Abräumens hat sein eigenes Wort und seinen eigenen Satz — über **beide** Paa
 aus Ablageort und Operation, weil ein Wächter über eines grün bliebe, während der
 Befund eine Datei weiter offensteht; der Verweis ist dabei kein Ausgang, sondern
 ein Abbruch, und er wird **vor** dem Verzeichnis gefragt) und
+`OperationDetourTest` (wer einen Vorgang absetzt, bleibt, wo er ist — kein
+Controller ausser `OperationController` leitet auf die Vorgangsseite, und die
+Gegenrichtung hält fest, dass überhaupt noch jemand Vorgänge absetzt) und
+`StreamPageTest` (nur die Vorgangsseite öffnet einen Ereigniskanal — die
+Begründung ist eine Zahl: zwölf Arbeiter, 16 s Wartezeit bei zweien; was er
+nicht kann, sind zwei Reiter auf derselben Seite) und `RunningBandTest` (was
+der Streifen zeigt und wen nicht — **jede Richtung einzeln**, denn ein Filter,
+der zu viel wegwirft, sieht aus wie einer, der richtig rechnet) und
+`MiddlewareOrderTest` (die Mandantenklammer steht vor der Modellbindung — in
+**beiden** Gruppen, und die Wache vor der Klammer; gemessen an der **Wirkung**
+durch die Tür und am **eigenen** Abonnement, weil das fremde in beiden
+Reihenfolgen 404 gibt und die Fälle nicht trennt. Er schliesst die Lücke, die
+ein Kommentar seit P7b für geschlossen erklärt hat) und `ApiEmptyListTest`
+(jede Route unter `api/` läuft durch die Klammer — gefragt wird der Router, und
+die Gruppe wird dabei aufgelöst; dazu der Fall durch die Tür, denn eine Liste
+ohne Klammer gibt `200 []`, und das meldet niemand) und `ApiTokenTransportTest`
+(die Marke reist im Kopf und nie in der Adresse — gemessen an der Wirkung und
+am Quelltext, denn dieselbe Marke im Abfrageteil gäbe auch dann 401, wenn
+jemand einen zweiten Leser mit anderem Namen einbaute) und `OpenApiReachTest`
+(Beschreibung und Routen in beide Richtungen — die zweite ist die, an der ein
+toter Eintrag wirklich entsteht) — und
 `SubscriptionReachTest` (jede Seite, die zu **einem** Abonnement gehört, ist von
 seiner Seite aus erreichbar — die Segmente kommen aus `Route::getRoutes()` und
 nicht aus einer Liste im Test, gefragt wird nach **einem** Segment ohne weiteren
@@ -5347,6 +5372,448 @@ bekommt, die er schon hat.
 seit es die Operation gibt. Entscheidung 4 („roh 14 Tage") ist damit nicht
 umzusetzen, sondern bereits erfüllt — nachgesehen in der Vorlage, nicht
 angenommen.
+
+## Zwei Sätze aus B4 — 21. September 2026
+
+Beide gelten über die Kachelreihe hinaus, und beide sind an einer Messung
+bezahlt.
+
+**Der erste trennt zwei Grössen, die gleich aussehen.** Der Ringpuffer hinter
+`Store` misst Byte je **Sekunde**, die Tagestabelle aus B3 Byte je **Tag** —
+dieselbe Grössenordnung, dieselben Tausenderschritte, und der einzige sichtbare
+Unterschied ist die Nachsilbe. Ein gemeinsamer Formatierer ohne sie schriebe
+auf die Abonnementseite „63,4 MB/s" für ein Tagesvolumen.
+
+> **Ein Format, das für eine Rate reicht, reicht nicht für eine Menge.**
+
+Die Schwesterfrage dazu betrifft jede Schwelle: `Quota::TrafficGb` ist eine
+Menge je Monat, die Kurve zeigt Tage. Gegen sie gemessen warnte die Kachel
+dreissigmal zu früh — und eine Warnung, die nicht mehr weggeht, liest nach dem
+dritten Mal niemand.
+
+> **Eine Schwelle, die eine andere Grösse misst als die Kurve, ist keine.**
+
+**Der zweite sagt, warum ein Wächter über die Wirkung allein nicht reicht.**
+`SharedClosureTest` misst, dass eine geteilte Eigenschaft, die eine Antwort
+nicht enthält, auch keine Abfrage kostet — die Hälfte, die etwas bedeutet.
+Gemessen ist aber auch: Der Eingriff, der einen **billigen** Eintrag zu einem
+fertigen Wert macht, lässt genau diese Messung **grün**. Sie sieht nur, was
+heute eine Abfrage kostet; der fertige Wert, der morgen eine kostet, ist für
+sie heute unsichtbar.
+
+> **Eine Wirkungsmessung sieht die Regel nur dort, wo ihre Verletzung heute
+> schon etwas kostet.**
+
+Deshalb steht die Form daneben — und sie wird an der **Klammertiefe** gelesen
+und nicht als Zeichenkette: `fn (` steht in derselben Datei vier Mal innerhalb
+von `flash`, und eine Textsuche wäre grün, egal was daneben steht.
+
+**Und der Prüfkörper dieser Messung ist ein Kunde und kein Betreiber.** Bei
+einem Admin bricht `isAdmin() ||` die Auswertung ab; gegen ihn gemessen stünde
+auf beiden Seiten eine Null — also derselbe Wert, den auch eine kaputte Messung
+liefert.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+---
+
+## Drei Sätze aus B5 — 22. September 2026
+
+**Der erste ist eine Fundstelle und keine Regel.** `Quota::TrafficGb` trägt
+seit P1 den Hinweistext *„Gemessen, nicht erzwungen. Die Überschreitung
+erscheint in der Übersicht."* Der zweite Halbsatz ist eine Zusage an den
+Kunden, und bis B5 löste sie niemand ein — sie stand in einem Feld, das die
+Oberfläche als Hilfetext rendert, und niemand las sie als Aufgabe.
+
+> **Eine Zusage im Hinweistext ist eine Zusage.** Wer ein Merkmal baut, liest
+> die Hinweistexte seines Gegenstandes mit — dort steht, was jemand versprochen
+> hat, bevor es jemand gebaut hat.
+
+**Der zweite ist die bekannte Kommentarfalle, andersherum.**
+`ServerZoneSourceTest` liest den Quelltext **roh**; ein Satz in einem
+Dokumentblock, der den Pfad nennt, den `ServerZone` liest, gilt ihm als zweite
+Stelle. Gemeldet hat er dafür eine Testdatei, die nichts liest.
+
+> **Derselbe Kommentar, der einen Wächter fälschlich grün hält, macht eine
+> Messung fälschlich rot.**
+
+Der Satz steht seit dem 1. September hier und galt bisher für Shellskripte und
+Messvorschriften. Er gilt für Wächter über PHP genauso, sobald einer die
+Kommentare nicht abstreift — und **welche das tun, weiss man erst, wenn man
+rot ist**. Wer einen Satz schreibt, der einen verbotenen Namen nennt, prüft
+vorher, ob der zuständige Wächter `WithoutPhpComments` benutzt.
+
+**Der dritte ist ein stiller Prüfkörper, und er trifft jede Messung an einem
+Modell.** `$model->update(['spalte' => …])` auf eine Spalte, die nicht in
+`$fillable` steht, tut **wortlos nichts** — und eine Fabrik daneben setzt
+dieselbe Spalte, weil sie den Schutz umgeht. Ein Prüfstand, der den
+Ausgangszustand mit der Fabrik herstellt und ihn dann mit `update()` ändert,
+misst danach den alten Zustand.
+
+> **Ein Prüfkörper, der überspringt, meldet das Überspringen nicht.**
+
+Betroffen ist hier alles, was **gemessen** und nicht eingetippt wird:
+`disk_used_mb`, `disk_usage_measured_at`, `main_domain`. Wer einen solchen Wert
+in einem Test ändert, nimmt `forceFill(...)->save()` — oder sieht nach, ob die
+Spalte überhaupt füllbar ist.
+
+---
+
+## Drei Sätze aus B6 — 23. September 2026
+
+**Der erste löst eine Spannung auf, die wie ein Widerspruch aussah.** Das
+Abnahmekriterium von B6 verlangt eine Farbe des Betreibers und hält zugleich an
+„jede Farbe kommt aus `resources/css/app.css`" fest. Aufgelöst wird das nicht
+durch eine Ausnahme, sondern durch eine Unterscheidung: Die Regel ist gegen
+**Hexwerte in Komponenten** geschrieben, nicht gegen Werte für Marken, deren
+Regeln im Stylesheet stehen. Was `App\Support\Brand\Style` ausgibt, enthält
+ausschliesslich `--`-Zuweisungen, und `BrandStyleTest` hält das an der Ausgabe.
+
+> **Eine Marke, die an einer Stelle gesetzt wird, ist das Gegenteil einer Farbe,
+> die verstreut ist.**
+
+Und bei den Vorgabewerten gibt es **gar keinen Block**: Einer, der die Vorgabe
+noch einmal hinschreibt, wäre eine zweite Fassung der Farben aus `app.css`.
+
+**Der zweite ist eine Fläche, die niemand mitzählt.** Gerechnet wurde zuerst
+gegen zwei Gründe, hell und dunkel — und die Seite, die das Kriterium
+**namentlich nennt**, trägt seit „Kontor" einen dritten, vollständigen
+Markensatz: `.signin` mit eigenem `--bg`, eigenem `--surface` und einer
+pflaumenfarbenen Fläche, die es sonst nirgends gibt. Gerechnet wird seitdem
+gegen fünf Gründe über zwei Themes, und gewertet der schlechteste.
+
+> **Eine Farbe, die auf einem von drei Gründen lesbar ist, ist auf der Seite
+> unlesbar, auf der sie steht.**
+
+Die Schwesterfrage dazu gilt jeder Marke: `.signin` führt `--text-strong` mit
+**demselben Wert** wie `--accent`, und es ist eine andere Marke — die
+Schriftfarbe der Überschrift, gegen die Fläche gerechnet und von
+`SurfaceTokenTest` gehalten. Sie mitzuziehen hiesse, eine gemessene Zusage durch
+eine ungemessene zu ersetzen.
+
+> **Zwei Marken mit demselben Wert sind nicht dieselbe Marke.**
+
+**Der dritte ist die Fehlerklasse dieses Repos, und diesmal an einer
+Weiterleitung.** `BrandingSettingsController` leitete auf `settings.branding`
+weiter — einen Namen, den `routes/web.php` nie vergeben hat. `to_route()` wirft
+dafür, also gab **jedes** gelungene Speichern einen 500, nachdem gespeichert
+war. `RedirectTargetTest` hält seit P2, dass eine Weiterleitung ihr Ziel
+**nennt**; über dessen Existenz sagte er nichts.
+
+> **Ein Wächter, der prüft, dass ein Ziel genannt ist, hat nicht geprüft, dass
+> es das Ziel gibt.**
+
+**Fünf Wächter sind darüber grün geblieben**, alle fünf mit
+`assertSessionHasNoErrors()` — einem Urteil über die Prüfung und keinem über den
+Lauf: Für eine Ausnahme im Controller stehen ebenfalls keine Prüfmeldungen in
+der Sitzung.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+Wer eine schreibende Route durch die Tür misst, schreibt das **Ziel** aus. Ein
+blosses `assertRedirect()` ohne Adresse ist dieselbe Zusicherung noch einmal:
+Sie sagt, dass überhaupt weitergeleitet wird, und genau das war nie die Frage.
+
+---
+
+## Drei Sätze aus B7 — 23. September 2026
+
+**Der erste ist der teuerste, und er trifft jeden Kommentar dieses Repos.**
+`bootstrap/app.php` erklärt seit P7b, warum `ApplyTenancy` vor
+`SubstituteBindings` steht, und schrieb daneben: *„Ein Test hält die
+Reihenfolge fest."* Ausgezählt am 21. September nannte **keine** Datei unter
+`tests/` diese beiden Mittelschichten zusammen.
+
+> **Eine Zeile, die einen Wächter behauptet, ist teurer als keine — der Nächste
+> baut ihn nicht, weil er ihn für gebaut hält.**
+
+Und die Begründung daneben war ebenfalls ungemessen: Sie sagte, eine Bindung
+vor der Klammer mache aus „nicht gefunden" ein „verboten". Gemessen gibt die
+umgedrehte Reihenfolge **404 für das fremde und 404 für das eigene**
+Abonnement — die Klammer steht beim Binden im Grundzustand, und der verweigert
+alles. Der Handgriff war richtig, der Satz daneben nicht.
+
+**Der zweite sagt, wo man nachsieht, ob eine Regel schon jemand hält.**
+`docs/130 §4` hat `TenancySweepTest` für zuständig erklärt, weil sein Kopf
+*„jede Route, die es gibt"* sagt. Sein Ausdruck sammelt
+`/subscriptions/{subscription}/(files|sftp|cron)` aus `routes/web.php` und hält
+sie gegen `tests/mandant-messen.js`.
+
+> **Ein Satz im Kopf eines Wächters beschreibt seine Absicht. Was er misst,
+> steht in seinem Ausdruck.**
+
+Das ist die Schwesterregel zu der aus A8 — *wer entscheidet, was als Nächstes
+gebaut wird, sieht am Quelltext nach, ob es das schon gibt* — eine Ebene
+tiefer: Der Quelltext eines Wächters ist sein Ausdruck und nicht sein
+Dokumentblock.
+
+**Der dritte ist ein Griff, der zweimal in dieser Runde danebenlag.**
+`$route->gatherMiddleware()` gibt den **Namen** einer Gruppe zurück und nicht
+ihre Mitglieder. Für eine Seite fällt das nicht auf, weil `auth` dort an der
+Route steht; eine Route unter `api/` trägt `['api']` und sonst nichts. Wer über
+Mittelschichten urteilt, löst die Gruppen auf — und zieht ab, was eine Route
+mit `withoutMiddleware()` ausdrücklich ablegt, denn davon weiss
+`gatherMiddleware()` nichts.
+
+> **Eine Liste, die einen Namen statt seines Inhalts nennt, ist vollständig und
+> beantwortet die Frage trotzdem nicht.**
+
+Dazu eine Falle der Umgebung, die jeden Wächter über Mittelschichten trifft:
+**Die Gruppen stehen erst im Router, nachdem der HTTP-Kernel sie dorthin
+gespiegelt hat.** Ein Fall, der keine Anfrage schickt, fragt sonst eine leere
+Liste — und eine leere Liste hält jede Reihenfolge ein.
+
+---
+
+## Drei Sätze aus B8 — 23. September 2026
+
+**Der erste sagt, was ein Wächter meldet, wenn er einen Bezug nicht auflösen
+kann.** `PartialReloadTest` hat den neuen Streifen gemeldet: Zu
+`Components/OperationBand.vue` findet sich kein `Inertia::render`. Er hatte
+recht mit dem, was er sah — die Eigenschaft, die der Streifen nachlädt, ist
+eine **geteilte** und gehört keiner Seite.
+
+> **Ein Wächter, der einen Bezug nicht auflösen kann, hat an dieser Stelle
+> nicht wenig gemessen — er hat gar nicht gemessen.** Und wer ihn deshalb rot
+> macht, muss ihm auch beibringen, wo der Bezug sonst noch stehen darf.
+
+Das ist die Kehrseite der Regel aus B7: Dort las ich den **Kopf** eines
+Wächters statt seines Ausdrucks und hielt ihn für zuständig; hier meldet ein
+Ausdruck etwas, das er nicht kennt. Beide Male hilft dasselbe — den Ausdruck
+lesen.
+
+**Der zweite ist ein Prüfkörper, den zwei Wände halten.** `RunningBandTest`
+prüft, dass der Streifen fremde Vorgänge nicht zeigt. Im ersten Wurf lag der
+fremde Vorgang an einem fremden Abonnement — und damit filterte ihn schon die
+Mandantenklammer weg. Der Fall war grün und bewies nichts über die Frage nach
+dem Konto.
+
+> **Ein Prüfkörper, den zwei Wände halten, sagt über keine der beiden etwas.**
+
+Derselbe Satz steht seit `docs/61 §1` im Repo, dort über eine Gegenprobe, die
+zwei Wände **zugleich wegnimmt**. Hier ist es die andere Richtung: zwei Wände,
+die zugleich halten.
+
+**Und der dritte ist eine Gewohnheit, die eine Fehlmeldung verhindert hat.**
+Beim Umschreiben der Weiterleitungen fielen zwölf `->with()`-Meldungen auf, die
+keine Mittelschicht trägt — elfmal `status`, einmal `operation`. Das sah nach
+einem Fund aus. Der Blick in den zuständigen Wächter zeigte eine Ausnahmeliste
+mit Begründung, geführt seit `docs/59` Befund 13.
+
+> **Wer ein Symptom für einen Fund hält, liest zuerst den Wächter, der darüber
+> wacht — er weiss vielleicht schon davon.**
+
+Geschlossen sind sie jetzt trotzdem, weil B8 ohnehin an denselben Zeilen
+arbeitet. Und die leer gewordene Liste ist dabei von einer Konstante zu einer
+Methode geworden: Als leere Konstante ist sie für PHPStan `array{}`, und jeder
+`array_key_exists()` darüber gilt ihm als immer falsch.
+
+> **Ein Mechanismus, der leer richtig ist, darf nicht daran zerbrechen, dass er
+> leer ist.**
+
+---
+
+## Drei Sätze aus B1 — 24. September 2026
+
+**Der erste ist ein Geheimnis, das nicht wie eines aussieht.** Die Adresse eines
+Eingangshakens ist bei Slack, Discord und den meisten Anbietern das *ganze*
+Zugangsmittel: Wer sie hat, schreibt in den Kanal. Sie steht deshalb in keiner
+Antwort des Agenten — `Notify\Target::describe()` gibt den **Rechnernamen**
+heraus, den Zeitpunkt und „signiert", und keinen Ausschnitt von beidem.
+
+> **Eine Adresse, die allein zur Zustellung berechtigt, ist ein Geheimnis in
+> Gestalt einer Adresse — und sie sieht auf einer Seite aus wie eine Auskunft.**
+
+Die Schwesterfrage gilt jedem künftigen Feld dieser Art: Gelesen wird über eine
+**Positivliste**. Was hinaus soll, steht da; was neu dazukommt, fehlt und fällt
+auf. Eine Liste dessen, was *nicht* hinaus darf, ist beim nächsten Feld
+unvollständig, und niemandem fällt es auf.
+
+**Der zweite ist der Grund, aus dem eine Spalte zur Tabelle wurde.** B5 hat die
+Zustellung als `findings.notified_at` gebucht, und das war richtig, solange es
+**einen** Kanal gab. Mit dem zweiten gibt es genau zwei mögliche Regeln, und
+beide sind falsch: Bucht die Spalte beim ersten gelungenen Kanal, ist die
+Meldung des zweiten dauerhaft fort; bucht sie erst beim letzten, hält ein
+kaputter Kanal alle anderen fest.
+
+> **Ein Kanal, der für einen anderen mitbucht, verliert dessen Meldung — und
+> zwar dauerhaft.**
+
+Die Migration hatte den Verzweigungspunkt selbst benannt („braucht es erst, wenn
+mehrere Kanäle je Befund getrennt buchen sollen"), und das ist die eigentliche
+Lehre: **Eine Ablage, die ihren eigenen Wendepunkt aufschreibt, wird beim
+Wenden gelesen statt neu erfunden.**
+
+**Der dritte ist ein Wächter, der seine eigene Teilung angesagt hatte.**
+`NavGroupTest` hielt seit dem 16. September zwei Regeln: Was unter
+`/settings/…` liegt, steht in der Gruppe „Einstellungen" — und keine Gruppe hat
+mehr als acht Punkte. Bei acht Einträgen war das kein Widerspruch. Der neunte
+hat ihn hergestellt, und der Kommentar im Wächter sagte wörtlich voraus, dass
+das passieren würde.
+
+> **Zwei Regeln, die sich erst an einer Zahl widersprechen, sind bis dahin von
+> einer nicht zu unterscheiden.**
+
+Aufgelöst wird es **nicht** über die Ausnahmeliste. Drei Ausnahmen hätten die
+Zahl gerettet und die Zusage zerstört, für die es den Wächter gibt: dass die
+Gruppengrenze aus der Route folgt. Die Zusage lautete nie „eine Gruppe",
+sondern „was unter `/settings/…` liegt, steht in **einer** Einstellungsgruppe,
+und dort steht nichts anderes" — und zwei Gruppen ändern daran nichts.
+
+> **Eine Ausnahme, die eine Zahl rettet, bezahlt sie mit der Regel.**
+
+---
+
+## Eine Überschrift von 1541, die zwei Wächter nicht sehen konnten — 24. September 2026
+
+Gefunden hat es **keine Prüfung, sondern eine Zahl, die nicht aufging**: Der
+Bruchlauf meldete 1541 Abschnitte, `grep -c '^echo "── '` über das Skript 1540.
+Der Unterschied ist eine einzige Überschrift, die **einfach** zitiert ist:
+
+```
+echo '── RedirectTargetTest: das Ziel wieder `back()` überlassen ──'
+```
+
+**Und sie ist richtig so.** Ihr Text trägt einen Backtick, und in doppelten
+Anführungszeichen ist der kein Zitat, sondern eine Befehlsersetzung — die Regel
+steht seit dem 20. September hier. Falsch waren die beiden Wächter darüber:
+`test_every_heading_uses_the_one_form` und
+`test_no_heading_swallows_the_intervention_below_it` ankerten beide auf
+`echo "`. Der erste **lief an der Zeile vorbei** und schrieb dem Eingriff
+darunter die Überschrift des vorigen zu; der zweite sah sie gar nicht.
+
+> **Ein Wächter, der beim Suchen nur eine Form kennt, meldet die andere nicht —
+> er läuft an ihr vorbei und urteilt über die falsche Zeile.**
+
+Das ist wörtlich der Satz, den die Fehlermeldung des ersten Wächters seit dem
+23. September führt („Zwei Formen laufen auseinander: Ein Werkzeug, das nur die
+eine kennt, liest die Abschnitte der anderen gar nicht"), angewandt auf ihn
+selbst.
+
+**Die Behebung ist nicht, die zweite Form zu verbieten.** Ein maskierter
+Backtick und eine einfach zitierte Zeile sind beide richtig; eine davon zu
+verbieten wäre ein Urteil. Gehalten wird jetzt die **Gestalt** — beide
+Zitierungen —, und der gefährliche Fall bleibt, wo er hingehört:
+`test_no_line_runs_a_command_it_only_means_to_print` prüft den unmaskierten
+Backtick für **jede** Zeile des Skripts.
+
+> **Ein Wächter, der die Regel eines anderen nachbaut, prüft seine eigene
+> Fassung davon.** Der erste Wurf der Behebung tat genau das — und meldete
+> sofort eine zweite Überschrift, deren Backticks maskiert und damit harmlos
+> sind.
+
+**Und die ersten beiden Gegenproben haben nichts gemessen.** Beide lagen über
+Abschnitten, die ihr `sed -i` unmittelbar absetzen, ohne `vorher_datei` — und
+dieser Wächter liest **von einem Griff aus nach oben**. Ausgezählt sind das
+**16 von 1541**; sie stehen jetzt als benannte Grenze in seinem Kopf.
+
+> **Ein Eingriff, der nicht beisst, ist ein Befund über den Wächter oder über
+> den Eingriff — und welcher von beiden, sagt erst das Nachsehen.**
+
+Belegt ist die Verschärfung an **derselben** kaputten Zeile mit beiden
+Fassungen des Lesers: mit der alten Suche grün, mit der neuen rot. Dazu die
+dritte Richtung — eine einfach zitierte Überschrift in richtiger Gestalt bleibt
+grün, sonst wäre der neue Zweig eine Behauptung.
+
+---
+
+## Eine Abfrage, die durch die Daten richtig war — 24. September 2026
+
+Die Erweiterung von B1 auf die übrigen siebzehn Prüfungen brauchte die Adresse
+des Betreibers. Sie ist die seines Kontos — eine eigene Einstellung
+„Meldeadresse" wäre eine zweite Wahrheit neben `accounts.email`. Gesucht wurde
+sie mit `where('role', 'operator')`.
+
+**Das ist heute richtig und aus dem falschen Grund.** Die Migration vom
+24. August füllt `accounts.role` **nur an Adminkonten**; ein Kundenkonto mit
+dieser Spalte entsteht im Betrieb nicht. `Account::isOperator()` fragt seit A9
+trotzdem **beide** Achsen, und sein Kopf sagt warum: *„Die Spalte allein
+gewährt nichts."*
+
+> **Eine Sicherheit, die aus einer Eigenschaft der Daten folgt und nicht aus
+> einer Prüfung, hält genau so lange, bis jemand die Daten ändert.**
+
+**Gefunden hat es der Wächter auf seinem ersten Lauf, und der Prüfstand hat die
+Lücke hergestellt:** `AccountFactory::definition()` setzt `role` in ihrer
+Vorgabe, `customer()` nimmt sie nicht zurück — ein Kundenkonto im Prüfstand
+trägt sie also mit. Die Meldung über einen toten Dienst ging an den Kunden.
+
+> **Ein Prüfstand, der einen Zustand herstellt, den der Betrieb nicht kennt,
+> ist keine falsche Umgebung — er ist die einzige, in der die Regel überhaupt
+> gemessen werden kann.**
+
+Das ist die nützliche Seite von *„Ein Test, dessen Ergebnis davon abhängt, was
+gerade nebenher liegt, misst die Umgebung mit"*: Hier hat genau das den Fehler
+gezeigt. `Account::operators()` ist seitdem die **Abfrageform** von
+`isOperator()`, beide stehen nebeneinander, und
+`NoticeAudienceTest::test_the_query_and_the_question_agree()` hält sie an der
+Wirkung aneinander — über einen Bestand mit allen vier Fällen und mit einer
+Untergrenze, damit die Gleichheit nicht die zweier leerer Listen ist.
+
+**Und ein Merkmal, das zwei Tage alt war, ist dabei wieder verschwunden.**
+`Channel::carries()` beantwortete *„trägt dieser Kanal diesen Befund"*. Nach der
+Erweiterung antworteten zwei von zwei Umsetzungen `true`.
+
+> **Eine Erklärung, die fast immer dasselbe sagt, wird abgeschrieben statt
+> beantwortet.** Derselbe Satz, der am 20. September die vierte Methode an `Op`
+> verhindert hat — diesmal gegen etwas, das ich selbst zwei Tage vorher gebaut
+> hatte.
+
+---
+
+## Zwei tote Anker und ein Eingriff, der meine eigene Arbeit zurücknahm — 24. September 2026
+
+**Beide Befunde kommen aus einem Lauf, und beide sind derselbe Satz aus
+verschiedenen Richtungen: Wer eine Datei ändert, hat jeden Eingriff berührt,
+dessen Anker darin steht.**
+
+**Der erste.** Die Erweiterung von B1 hat `Notices::over()` und
+`MailChannel::deliver()` umgebaut. Danach sind die **neuen** Eingriffe einzeln
+gefahren worden — alle acht bissen — und die **bestehenden** nicht. Der volle
+Lauf meldete zwei „Eingriff hat nichts geändert": Ein Anker war mit der
+Bündelung umgezogen, und ein zweiter stand seit der Erweiterung **zweimal** in
+der Datei, womit die Zusicherung `count == 1` des Eingriffs abbrach.
+
+> **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+> gefahren — man denkt an das Gebaute und nicht an das Berührte.**
+
+Der Satz steht seit dem 20. August hier, und die Regel daneben seit dem
+10. September: *Wer eine Datei ändert, fährt auch die Eingriffe, deren Wächter
+sie liest.* Gebraucht wird dafür kein Gedächtnis, sondern ein Griff — die
+Eingriffe einer Datei lassen sich aus dem Skript lesen und einzeln fahren, und
+genau das kostet zwei Minuten statt eines Laufs von zwanzig.
+
+> **Ein Eingriff, dessen Zusicherung abbricht, meldet sich als „nichts
+> geändert" — also genau so wie einer, dessen Regel nicht mehr gilt.** Beim
+> zweiten Anker war es die Zusicherung; wer die Meldung als „die Regel ist
+> fort" liest, sucht am falschen Ende.
+
+**Der zweite ist teurer, weil die Regel dagegen hier steht und ich sie eine
+Stunde vorher zitiert hatte.** Während der volle Lauf lief, habe ich einen
+Hinweistext in `resources/js` berichtigt. `wiederherstellen()` fährt nach jedem
+Eingriff ein `git checkout --` über zwölf Bäume, `resources/` ist einer davon —
+die Berichtigung war beim nächsten Nachsehen fort, wortlos.
+
+> **Ein Werkzeug, das den Arbeitsbaum herstellt, duldet keinen zweiten
+> Schreiber.**
+
+Verloren gegangen ist nichts, was sich nicht wiederholen liesse, und
+Falsches ist nicht ins Repo gekommen — aber gemerkt habe ich es nicht am
+Arbeitsbaum, sondern daran, dass ich zufällig noch einmal in die Datei sah.
+
+> **Ein Rückweg, der stillschweigend nichts tut, ist schlimmer als keiner — und
+> einer, der stillschweigend etwas zurücknimmt, ist dieselbe Sorte von der
+> anderen Seite.**
+
+Was dagegen hilft, ist kein Wächter, sondern eine Reihenfolge: **erst
+committen, dann den Lauf starten, und bis zur Bilanz nichts anfassen, was in
+`$BAEUME` steht.** Ein Dokument unter `docs/`, das es noch nicht gibt,
+überlebt — `git checkout --` entfernt keine unverfolgten Dateien; `CHANGELOG.md`
+überlebt, weil es nicht in der Liste steht. Alles andere nicht.
+
+---
 
 ## Befehle
 

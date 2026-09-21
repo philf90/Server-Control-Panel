@@ -56,6 +56,10 @@ use SrvPanel\Agent\Ops\FilesSearch;
 use SrvPanel\Agent\Ops\FilesTree;
 use SrvPanel\Agent\Ops\FilesUpload;
 use SrvPanel\Agent\Ops\FilesWrite;
+use SrvPanel\Agent\Ops\NotifySend;
+use SrvPanel\Agent\Ops\NotifyTargetDescribe;
+use SrvPanel\Agent\Ops\NotifyTargetForget;
+use SrvPanel\Agent\Ops\NotifyTargetStore;
 use SrvPanel\Agent\Ops\PanelProvision;
 use SrvPanel\Agent\Ops\PanelTls;
 use SrvPanel\Agent\Ops\PanelTlsInfo;
@@ -439,6 +443,21 @@ final class Registry
         $this->register(new PgConsoleRows);
         $this->register(new PgConsoleCell);
         $this->register(new PgConsoleRowWrite);
+
+        /*
+         * P9 B1 — der zweite Kanal (docs/129 §7).
+         *
+         * Vier Operationen und nicht eine: Ablegen, Nachsehen, Entfernen,
+         * Zustellen. Das Ablegen ist der eine Weg, auf dem Adresse und
+         * Geheimnis den Socket überqueren; das Zustellen kennt die Adresse gar
+         * nicht, es holt sie aus der Ablage des Agenten. Genau darin liegt
+         * Grenze 1: Wer die Adresse mitgeben dürfte, gäbe irgendwann
+         * `http://127.0.0.1:…` mit.
+         */
+        $this->register(new NotifyTargetStore);
+        $this->register(new NotifyTargetDescribe);
+        $this->register(new NotifyTargetForget);
+        $this->register(new NotifySend);
     }
 
     public function register(Op $op): void

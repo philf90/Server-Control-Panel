@@ -40,30 +40,33 @@ final class FlashChannelTest extends TestCase
     private const MIDDLEWARE = 'app/Http/Middleware/HandleInertiaRequests.php';
 
     /**
-     * Schlüssel, die heute ins Leere gehen — mit Begründung, wie im `RouteGuard`.
+     * Schlüssel, die ein Controller schreibt und die Mittelschicht nicht trägt.
      *
-     * **Diese beiden sind derselbe Fehler und nicht in diesem Wurf behoben.**
-     * `status` steht achtmal im `DatabaseController` und einmal in
-     * `GeneralSettingsController` („Die Anzeigezone ist jetzt …"), `operation`
-     * einmal im `DomainController` und trägt eine Kennung statt eines Satzes.
-     * Sie gehören zu P5b, P5c und `docs/40`, haben ihre eigenen Abnahmeläufe,
-     * und keiner davon ist in diesem Lauf gemessen worden.
+     * **Seit dem 23. September ist sie leer, und das ist ein Ergebnis.** Sie
+     * führte seit `docs/59` Befund 13 zwei Einträge: `status` (elf Stellen in
+     * drei Controllern) und `operation` (eine). Beide hat B8 geschlossen —
+     * `status` heisst jetzt `success` und wird gerendert, und die Kennung des
+     * Vorgangs sagt der Streifen oben.
      *
-     * > **Ein Fehler, den man an zehn Stellen gleichzeitig behebt, ist an neun
-     * > davon ungemessen behoben.**
+     * > **Ein Rest, den ein Merkmal beiläufig schliesst, war der Grund, ihn
+     * > nicht früher zu schliessen — nicht der, ihn zu vergessen.**
      *
-     * Die Liste kann nur **kleiner** werden: Ein Eintrag, der nirgends mehr
-     * geschrieben wird, ist ein Rest und macht diesen Wächter rot
-     * ({@see self::test_no_exception_outlives_its_reason()}). Wer einen davon
-     * behebt, streicht ihn hier — und niemand kann einen neuen dazuschreiben,
-     * ohne diese Begründung mitzuschreiben.
-     *
-     * @var array<string,string>
+     * @return array<string, string>
      */
-    private const KNOWN_LOST = [
-        'status' => 'P5b/P5c und docs/40 — eigene Abnahmeläufe, hier ungemessen (docs/59, Befund 13)',
-        'operation' => 'P4, trägt eine Kennung statt eines Satzes (docs/59, Befund 13)',
-    ];
+    private function knownLost(): array
+    {
+        /*
+         * **Eine Methode und keine Konstante.** Eine leere Konstante ist für
+         * PHPStan `array{}`, und jeder `array_key_exists()` darüber gilt ihm
+         * als immer falsch — zu Recht. Ein `ignore` daneben hiesse, das
+         * Werkzeug für eine Zeile abzuschalten, die morgen wieder etwas
+         * enthält.
+         *
+         * > **Ein Mechanismus, der leer richtig ist, darf nicht daran
+         * > zerbrechen, dass er leer ist.**
+         */
+        return [];
+    }
 
     private function root(): string
     {
@@ -79,7 +82,24 @@ final class FlashChannelTest extends TestCase
     {
         $source = (string) file_get_contents($this->root().'/'.self::MIDDLEWARE);
 
-        if (preg_match("/'flash' => \[(.*?)\n            \],/s", $source, $match) !== 1) {
+        /*
+         * **Zwischen dem Schlüssel und der Klammer darf etwas stehen.**
+         *
+         * Seit B4 ist jeder Eintrag von `share()` ein Verschluss
+         * (`SharedClosureTest`), und aus `'flash' => [` wurde
+         * `'flash' => fn (): array => [`. Der alte Ausdruck fand dann nichts
+         * und gab eine leere Liste zurück — der Fall, gegen den die
+         * Untergrenze in `test_every_written_flash_key_is_carried` steht. Sie
+         * hat ihn gemeldet, und zwar sofort.
+         *
+         * > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes
+         * > als Null steht.**
+         *
+         * `[^[]*` statt der ausgeschriebenen Form: Wie der Verschluss genau
+         * geschrieben ist, geht diesen Wächter nichts an — er sucht die
+         * Ablage und nicht ihre Verpackung.
+         */
+        if (preg_match("/'flash' =>[^[]*\[(.*?)\n            \],/s", $source, $match) !== 1) {
             return [];
         }
 
@@ -139,7 +159,7 @@ final class FlashChannelTest extends TestCase
         $lost = [];
 
         foreach ($written as $key => $files) {
-            if (array_key_exists($key, self::KNOWN_LOST)) {
+            if (array_key_exists($key, $this->knownLost())) {
                 continue;
             }
 
@@ -169,19 +189,23 @@ final class FlashChannelTest extends TestCase
     {
         $written = $this->written();
 
-        foreach (self::KNOWN_LOST as $key => $reason) {
-            $this->assertArrayHasKey(
-                $key,
-                $written,
-                sprintf(
-                    'Der Schlüssel „%s" wird nirgends mehr auf eine Weiterleitung geschrieben. '
-                    .'Dann ist die Ausnahme in KNOWN_LOST ein Rest und gehört gestrichen — '
-                    .'die Begründung war: %s',
-                    $key,
-                    $reason,
-                ),
-            );
-        }
+        /*
+         * **Eine Behauptung und keine Schleife.** Eine `foreach` über eine
+         * leere Liste führt keine Zusicherung aus; PHPUnit nennt den Fall dann
+         * riskant, und vier solche Fälle stehen in `CLAUDE.md` schon als
+         * „nebenbei aufgefallen und nicht angefasst". Der Vergleich hier läuft
+         * auch über die leere Liste und sagt dasselbe.
+         *
+         * > **Ein Fall, der bei leerer Liste nichts behauptet, ist von einem,
+         * > der nichts prüft, nicht zu unterscheiden.**
+         */
+        $tot = array_values(array_diff(array_keys($this->knownLost()), array_keys($written)));
+
+        $this->assertSame([], $tot, sprintf(
+            "Diese Ausnahmen nennen einen Schlüssel, den niemand mehr schreibt:\n  %s\n\n".
+            'Dann ist die Ausnahme ein Rest und gehört gestrichen.',
+            implode("\n  ", $tot),
+        ));
     }
 
     /**

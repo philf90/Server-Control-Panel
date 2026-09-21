@@ -149,8 +149,16 @@ final class AccessLog
      * > **Eine richtige Folgerung aus einem falschen Grund hält nur so lange,
      * > wie niemand den Grund nachprüft.**
      *
+     * **`legacy` steht auch je Tag und nicht nur als Summe.** `docs/129 §5`
+     * entscheidet: Gezählt wird erst ab dem Tag, der **vollständig** im neuen
+     * Format geschrieben ist — „ein Tag ohne Zahlen ist ehrlicher als ein Tag
+     * mit halben". Diese Entscheidung kann nur treffen, wer je Tag weiss, ob
+     * eine alte Zeile darin steht; eine Summe über die Datei weiss es nicht.
+     * Ein Tag, der **nur** alte Zeilen trägt, steht deshalb mit Nullen und
+     * seinem `legacy` da und fehlt nicht.
+     *
      * @return array{
-     *     days: array<string, array{requests:int, sent:int, received:int, errors:int}>,
+     *     days: array<string, array{requests:int, sent:int, received:int, errors:int, legacy:int}>,
      *     lines: int, parsed: int, legacy: int, unreadable: int
      * }
      */
@@ -201,16 +209,17 @@ final class AccessLog
                     continue;
                 }
 
+                $tag = $satz['day'];
+                $tage[$tag] ??= ['requests' => 0, 'sent' => 0, 'received' => 0, 'errors' => 0, 'legacy' => 0];
+
                 if ($satz['sent'] === null) {
                     $alt++;
+                    $tage[$tag]['legacy']++;
 
                     continue;
                 }
 
                 $gedeutet++;
-                $tag = $satz['day'];
-
-                $tage[$tag] ??= ['requests' => 0, 'sent' => 0, 'received' => 0, 'errors' => 0];
                 $tage[$tag]['requests']++;
                 $tage[$tag]['sent'] += $satz['sent'];
                 $tage[$tag]['received'] += $satz['received'];

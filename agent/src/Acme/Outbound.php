@@ -23,6 +23,20 @@ namespace SrvPanel\Agent\Acme;
 interface Outbound
 {
     /**
+     * Darf der Agent diese Adresse überhaupt wählen?
+     *
+     * **Sie steht hier und nicht nur an {@see Curl}, seit B1.** Das Meldeziel
+     * wird beim Hinterlegen gegen dieselbe Schranke geprüft, gegen die eine
+     * Bestellung geprüft wird — und wer eine eigene Bedingung dafür schriebe,
+     * hätte eine zweite Fassung von Zusage 1. Die zweite ist die, die
+     * veraltet.
+     *
+     * > **Grenze 1 lässt nichts anderes zu: Wer eine Adresse nach draussen
+     * > wählen darf, wählt sonst auch `http://127.0.0.1:…`.**
+     */
+    public function permitted(string $url): bool;
+
+    /**
      * @param  list<string>  $headers  Fertige Kopfzeilen, `Name: Wert`
      * @param  string|null  $body  `null` heisst: kein Rumpf
      */

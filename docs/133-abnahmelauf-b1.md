@@ -1,6 +1,6 @@
 # B1 — der Abnahmelauf
 
-Ausgeschrieben am 24. September 2026, **vor** dem Fahren. Das Kriterium steht in
+Ausgeschrieben am 21. September 2026, **vor** dem Fahren. Das Kriterium steht in
 `docs/129 §9`:
 
 > Ein herbeigeführter Zustand (Dienst gestoppt) erzeugt **eine** Meldung, die
@@ -63,7 +63,7 @@ Gegenstände gibt. Wer hier „eine Meldung über beide Kanäle" abliest, misst 
 Webhook falsch.
 
 **5 · Slack und Discord waren als Meldeziel nicht zu gebrauchen — und sind es
-seit dem 24. September.** Beide verlangen einen Rumpf mit `text` beziehungsweise
+seit dem 21. September.** Beide verlangen einen Rumpf mit `text` beziehungsweise
 `content` und weisen alles andere mit `400` ab; unser Rumpf trug `server`, `at`
 und `event`. Der Betreiber hat die beiden daraufhin bestellt; seitdem wählt man
 den Empfänger auf `/settings/notices`, und `Notify\Providers` baut den Rumpf,
@@ -288,8 +288,10 @@ Meldeziels). Die Zeiten darunter sind daraus ausgerechnet:
 | **T0 + 6 min** | 22:05 | Punkt 3: **den stehenden Bestand abgeräumt** — der Lauf, der die Kette belegt |
 | **T0 + ~10 min** | ~22:10 | Punkt 4: Dienste anhalten, Lauf fahren — und **jetzt** schweigt er |
 | **T0 + ~2 h** | 22. Sep, 00:15:22, von selbst | Punkt 5: der Zeitgeber feuert und **schweigt zu Recht** |
-| **T0 + 20 h** | 22. Sep, **abends** ab ~18:10 | Punkte 6–8: der Lauf sendet, der nächste schweigt, Dienste zurück |
-| | anschliessend | Punkte 9–12: die Gegenrichtungen |
+| **T0 + 20 h** | 22. Sep, **abends** ab ~18:10 | Punkte 6–8c: der Lauf sendet, der nächste schweigt, der Dienst kommt zurück |
+| | gleich danach | Punkte 10–12: die Gegenrichtungen ohne Frist |
+| **T1 + 20 h** | einen Tag später | Punkt 9: das Ziel, das abweist — er braucht einen **zweiten** alten Zustand |
+| | zum Schluss | Punkt 13: die Maschine bleibt, wie sie war |
 
 **Zwei Zeilen haben sich dadurch verschoben, und beide sind §0 Punkt 2 im
 Kleinen.** Der nächtliche Lauf ist nicht `T0 + 10 h`, sondern `T0 + 2 h` — der
@@ -304,6 +306,17 @@ Punkt 6 nur die Frist ein zweites Mal.
 Punkt 6 wird **von Hand ausgelöst**, sobald `Fällig ab` aus Punkt 4 erreicht
 ist. Wer wartet, bekommt ihn in der Nacht auf den 23. vom Zeitgeber — dieselbe
 Messung, nur einen halben Tag später und ohne jemanden davor.
+
+**Punkt 9 kostet eine zweite Frist, und er lässt sich nicht vorziehen.** Er
+braucht einen Befund, der für den Webhook fällig ist; nach Punkt 6 ist jeder
+vorhandene gebucht. Ihn **vor** Punkt 6 zu fahren, scheitert an der anderen
+Seite: Der Lauf, dessen Webhook abweist, bucht für `mail` trotzdem — und Punkt
+6 läse danach `mail: 0 über 0`, weil die Mail schon draussen war. `srvpanel
+notices` kennt keinen Schalter, der die Frist überginge (`SendNotices` hat kein
+Argument), und das ist richtig so.
+
+> **Zwei Messungen, die dieselbe Buchung verbrauchen, lassen sich nicht in
+> dieselbe Frist legen.**
 
 **Der nächtliche Lauf ist kein Störfall, sondern eine Messung, die sich von
 selbst einstellt** — und sie gehört vorhergesagt. Wer sie nicht erwartet, liest
@@ -623,10 +636,11 @@ Themen und bei 390 px.
 Unmittelbar danach:
 
 ```bash
+ZEILEN=$(wc -l < "$LOG")
 systemctl start srvpanel-diagnose.service
 journalctl -u srvpanel-diagnose.service -n 15 --no-pager
 srvpanel tinker --execute='printf("Buchungen: %d\n", App\Models\FindingNotification::query()->count());'
-wc -l < "$LOG"
+printf 'Empfängerprotokoll: %s -> %s Zeile(n)\n' "$ZEILEN" "$(wc -l < "$LOG")"
 ```
 
 **Erwartet:** `0 Nachricht(en) über 0 Befund(e)` auf beiden Kanälen, dieselbe
@@ -639,7 +653,12 @@ keine zweite Mail.
 systemctl start srvpanel-metrics.service
 systemctl is-active srvpanel-metrics.service
 sleep 5
-systemctl start srvpanel-diagnose.service
+
+# **`srvpanel diagnose` und nicht die Unit.** Die Unit hat zwei ExecStart-Zeilen
+# — erst die Messung, dann den Versand. Sie legte die Entwarnungszeilen an und
+# verbrauchte sie im selben Lauf; Punkt 8b fände danach eine leere
+# Warteschlange und läse sie als fehlendes Merkmal.
+srvpanel diagnose
 
 srvpanel tinker --execute='
   printf("Befund noch da: %s\n", App\Models\Finding::withoutGlobalScopes()
@@ -659,12 +678,23 @@ Das `sleep 5` steht da, weil ein `is-active` unmittelbar nach dem `start` den
 Übergang misst und nicht den Zustand — derselbe Satz wie am 4. September bei
 `srvpanel.target`.
 
+> **Ein Punkt, der eine Warteschlange füllen soll, damit der nächste sie misst,
+> darf nicht den Befehl nehmen, der sie auch leert.**
+
 ### Punkt 8b · Und der Empfänger erfährt, dass es vorbei ist
 
 **Unmittelbar nach Punkt 8 und vor irgendeinem weiteren Lauf**, denn die
 Warteschlange wird beim Zustellen geleert.
 
 ```bash
+# Vorbedingung, und zwar ausdrücklich: Ohne die Tabelle misst dieser Punkt
+# nichts, und ein Fehler hier ist ein fehlendes Update und kein fehlendes
+# Merkmal.
+srvpanel tinker --execute='
+  printf("finding_resolutions: %s\n",
+      Illuminate\Support\Facades\Schema::hasTable("finding_resolutions") ? "da" : "FEHLT");
+'
+
 srvpanel tinker --execute='
   foreach (App\Models\FindingResolution::query()->get() as $z) {
       printf("offen: %s / %s / %s / %s\n", $z->check->value, $z->subject, $z->reason, $z->channel);
@@ -680,15 +710,23 @@ srvpanel tinker --execute='
 '
 ```
 
-**Erwartet:** **genau eine** offene Zeile, und zwar für den Kanal `webhook` —
-der Mailkanal entwarnt nicht, seine Zeile ist beim Lauf davor schon verbraucht
-worden. Der Lauf druckt `webhook: 1 Entwarnung(en) verschickt.`, beim Empfänger
-steht eine Meldung, deren Kopf mit `behoben:` **vor** dem Namen des Dienstes
-beginnt, und danach ist die Warteschlange leer.
+**Erwartet:** **zwei** offene Zeilen für denselben Gegenstand — eine je Kanal,
+`mail` und `webhook`. {@see FindingLog::forgetMissing()} schreibt sie je
+Buchung, und der Befund hatte zwei. Dann druckt `srvpanel notices`
+`webhook: 1 Entwarnung(en) verschickt.`, beim Empfänger steht eine Meldung,
+deren Kopf mit `behoben:` **vor** dem Namen des Dienstes beginnt, und danach
+ist die Warteschlange **leer** — beide Zeilen.
 
-**Die Zeile für `mail` ist die Gegenprobe und nicht ein Rest.** Steht sie nach
-dem Lauf noch da, verbraucht sie niemand, und `finding_resolutions` wächst mit
-jedem behobenen Befund.
+**Die Zeile für `mail` verschwindet, ohne dass eine Mail hinausgeht, und das
+ist die eigentliche Messung.** Der Mailkanal entwarnt nicht; seine Zeilen
+löscht {@see Notices::deliver()} ungelesen. Bliebe sie stehen, nähme sie
+niemand, und `finding_resolutions` wüchse mit jedem behobenen Befund. Bliebe
+statt dessen die Webhook-Zeile stehen, wäre die Entwarnung nicht zugestellt,
+sondern nur vorbereitet.
+
+> **Zwei Zeilen hinein, keine hinaus, und genau eine davon ist unterwegs
+> gewesen** — das ist der Unterschied zwischen einer Warteschlange und einem
+> Protokoll.
 
 > **Eine Warteschlange, aus der niemand nimmt, ist eine Tabelle, die wächst.**
 
@@ -759,7 +797,7 @@ keine neue Buchung für diesen Kanal.
 
 ### Punkt 11 · Der gewählte Empfänger überlebt das Hinterlegen
 
-**Der Punkt, den es ohne einen Befund vom 24. September 2026 nicht gäbe.**
+**Der Punkt, den es ohne einen Befund vom 21. September 2026 nicht gäbe.**
 `notify.target.store` verwarf den Empfänger und legte für jede Wahl `generic`
 ab; wer Slack wählte, bekam die JSON-Form und von Slack ein `400`. Gemessen
 wird deshalb nicht das Formular, sondern die **Ablage**.
@@ -769,7 +807,8 @@ wird deshalb nicht das Formular, sondern die **Ablage**.
 jq -r '.provider, .config' /etc/srvpanel/notify/webhook.json
 ```
 
-**Erwartet:** `slack` und `{}`. Danach dasselbe mit **Telegram**, Adresse
+**Erwartet:** `slack` und `[]` — ein leeres PHP-Array, und `json_encode`
+schreibt dafür `[]` und nicht `{}`. Danach dasselbe mit **Telegram**, Adresse
 `https://api.telegram.org/bot<marke>/sendMessage` und einem Chat:
 
 **Erwartet:** `telegram` und `{"chat_id": "…"}` — und auf der Seite steht
@@ -791,12 +830,49 @@ Probezustellung gemessen ist:
 
 > **Ein Beleg für den Weg ist keiner für das Ziel.**
 
+### Punkt 13 · Die Maschine bleibt, wie sie war
+
+**Der Lauf hat zwei Gegenstände angehalten, und einer davon ist ein Zeitgeber,
+den niemand vermisst, solange niemand hinsieht.** `srvpanel-dns.timer` gleicht
+die DNS-Einträge ab; er steht seit Punkt 4 still, und Punkt 8 holt nur den
+Dienst zurück.
+
+```bash
+systemctl start srvpanel-dns.timer
+systemctl start srvpanel-metrics.service
+sleep 5
+systemctl is-active srvpanel-metrics.service srvpanel-dns.timer
+systemctl list-timers srvpanel-dns.timer --no-pager
+
+srvpanel diagnose
+srvpanel tinker --execute='
+  foreach (App\Models\Finding::withoutGlobalScopes()->orderBy("check")->get() as $b)
+      printf("  %-16s %-28s %s\n", $b->check->value, $b->subject, $b->reason);
+  printf("Buchungen: %d\n", App\Models\FindingNotification::query()->count());
+'
+```
+
+**Erwartet:** beide `active`, der Zeitgeber hat wieder einen `NEXT`-Termin, und
+die beiden Befunde aus Punkt 4 stehen **nicht** mehr da — übrig bleibt der
+Bestand aus §1. Damit ist zugleich Punkt 8 ein zweites Mal gemessen, diesmal an
+`unit.schedule` statt an `unit.state`: Auch dieser Befund verschwindet, wenn
+sein Grund verschwindet.
+
+**Steht zu diesem Zeitpunkt noch ein Meldeziel**, erzeugt der Lauf eine zweite
+Entwarnung; wurde es in Punkt 10 entfernt, bleibt die Warteschlange für
+`webhook` stehen, bis wieder eines da ist. Beides ist richtig, und welches von
+beidem gilt, entscheidet die Reihenfolge, in der gefahren wurde — nicht der
+Zufall.
+
+> **Ein Abnahmelauf, der einen Zeitgeber angehalten lässt, hat den Server
+> schlechter zurückgegeben, als er ihn vorgefunden hat.**
+
 ---
 
 ## §5 · Was dieser Lauf ausdrücklich **nicht** prüft
 
 - **Ob der Zeitgeber über viele Nächte trägt.** Er feuert in diesem Lauf
-  einmal von selbst (Punkt 4); alles andere wird angestossen.
+  einmal von selbst (Punkt 5); alles andere wird angestossen.
 - **Ob Mattermost und Rocket.Chat unseren Rumpf annehmen.** Sie sagen in ihrer
   Dokumentation zu, Slacks Eingangshaken zu nehmen, und stehen deshalb als
   Hinweis neben dem Eintrag „Slack" — gemessen hat es niemand.
@@ -817,7 +893,7 @@ Probezustellung gemessen ist:
 
 ## §6 · Wann er durch ist
 
-**Erfüllt, wenn die Punkte 1 bis 8c, 10, 11 und 12 erfüllt sind.**
+**Erfüllt, wenn die Punkte 1 bis 8c, 10, 11, 12 und 13 erfüllt sind.**
 
 **Punkt 6 und Punkt 7 dürfen nicht ausfallen** — sie sind das Kriterium: eine
 Meldung über beide Kanäle, und beim nächsten Lauf keine.
@@ -831,6 +907,10 @@ entfällt**, wenn in §1 Block 4 kein beurteilter Befund steht, **Punkt 9
 darf auf den Webhook-Teil verkürzt werden**, wenn kein zweiter alter Zustand zur
 Hand ist, und **Punkt 12 darf auf die Probezustellung verkürzt werden**, wenn
 in der Zeit des Laufs kein Befund nachwächst.
+
+**Punkt 13 darf nicht ausfallen, und er ist keine Messung, sondern eine
+Schuld.** Der Lauf hat einen Dienst und einen Zeitgeber angehalten; wer ihn
+abbricht, holt wenigstens diesen Punkt nach.
 
 **Ein Punkt, der am Werkzeug scheitert und nicht am Gegenstand, ist nicht
 „nicht herstellbar"** — er wird nachgeholt.

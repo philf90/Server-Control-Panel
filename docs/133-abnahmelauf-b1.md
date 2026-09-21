@@ -295,22 +295,72 @@ das Schweigen des Zeitgebers als Ausfall.
 
 ## §4 · Die Punkte
 
+**Jeder Punkt kann in einer frischen Schale anfangen**, und mehrere liegen
+Stunden auseinander. Die vier Namen aus §2 stehen deshalb hier einmal, und die
+Punkte darunter benutzen sie, statt ihre Pfade noch einmal zu buchstabieren —
+sonst steht derselbe Pfad neunmal da, und acht davon zieht niemand nach, wenn
+der Empfänger wechselt:
+
+```bash
+ABO=/var/www/vhosts/<abonnement>
+HAKEN=<der in §2 gewählte Name>
+LOG=$ABO/tmp/haken.log
+
+# Die Wurzel wird auch hier nicht zusammengesetzt, sondern nachgefragt:
+# `$ABO/$HAKEN` gilt für eine Zusatzdomain und für die Hauptdomain nicht — die
+# liegt in `httpdocs`. Es ist dieselbe Regel wie in §2 und deshalb derselbe
+# Ausdruck.
+WURZEL=$(awk -v abo="$ABO/" '$1=="root"{gsub(/;/,"",$2); if (index($2,abo)==1) {print $2; exit}}' \
+    "/etc/nginx/srvpanel.d/$HAKEN.conf")
+printf 'Empfänger: %s   Wurzel: %s   Protokoll: %s\n' "$HAKEN" "${WURZEL:-FEHLT}" "$LOG"
+```
+
+> **Ein Pfad, der in neun Blöcken steht, ist eine Angabe an acht Stellen zu
+> viel — und eine Wurzel, die man aus zwei Namen zusammensetzt, ist für die
+> Hauptdomain falsch.**
+
 ### Punkt 1 · Das Meldeziel steht, und die Adresse kommt nicht zurück
 
 ```bash
 # Auf /settings/notices eintragen: Adresse + Geheimnis (mind. 16 Zeichen).
-# Danach von der Kommandozeile gegenprüfen:
+# Das Geheimnis erzeugt der Betreiber auf dem Server und nirgends sonst:
+#   openssl rand -hex 32
+GEHEIMNIS='<das eingetragene Geheimnis>'
+
 srvpanel tinker --execute='
   $t = app(App\Support\Notify\NotifyTarget::class);
   var_dump($t->reachable(), $t->describe());
 '
-grep -c 'haken.cloudlab24.de' /var/lib/srvpanel/*.log 2>/dev/null || true
-ls -l /etc/srvpanel/notify/
+ls -la /etc/srvpanel/notify/
+
+# Steht das Geheimnis irgendwo im Klartext? Mit der Zahl daneben, die sagt,
+# wieviel überhaupt durchsucht wurde — sonst misst die Null den leeren Korb.
+PROT=$(ls /var/lib/srvpanel/storage/logs/*.log /var/log/srvpanel/*.log 2>/dev/null)
+printf 'Durchsucht: %s Datei(en), %s Zeile(n)\n' \
+    "$(printf '%s\n' "$PROT" | grep -c .)" "$(cat $PROT 2>/dev/null | wc -l)"
+printf 'Geheimnis in den Protokollen: %s   (erwartet 0)\n' \
+    "$(grep -Fl "$GEHEIMNIS" $PROT 2>/dev/null | wc -l)"
+
+# Und im Journal des Agenten — dort reist es als Argument.
+J=$(journalctl -u srvpanel-agentd -n 500 --no-pager)
+printf 'notify.target.store im Journal: %s   (Gegenprobe, erwartet > 0)\n' \
+    "$(printf '%s' "$J" | grep -c 'notify.target.store')"
+printf 'Geheimnis im Journal: %s   (erwartet 0)\n' \
+    "$(printf '%s' "$J" | grep -Fc "$GEHEIMNIS")"
 ```
 
-**Erwartet:** `reachable` = `true`; `describe()` trägt `host`, `stored_at`,
-`signed: true` — und **weder die volle Adresse noch das Geheimnis**. Die Datei
-liegt `-rw------- root root` in einem `drwx------`-Verzeichnis.
+**Erwartet:** `reachable` = `true`; `describe()` trägt `host`, `provider`,
+`stored_at` und `signed: true` — und **weder die volle Adresse noch das
+Geheimnis noch `config`**. Die Datei liegt `-rw------- root root` in einem
+`drwx------`-Verzeichnis. Beide Geheimniszähler stehen auf `0`, der
+Gegenprobenzähler dazwischen nicht.
+
+**Was dieser Punkt nicht sagt:** dass die Adresse nirgends steht.
+{@see Connection::redactArgs()} ersetzt jedes Argument, dessen Name `secret`,
+`key`, `token`, `password` oder `pem` enthält, durch `···`; `url` steht nicht
+darunter und erscheint **vollständig** im Journal. Das ist Absicht — das
+Journal liest root, und die Grenze, die dieser Punkt misst, ist die zur
+**Seite**. Gemessen wird hier das Geheimnis, nicht die Adresse.
 
 **Gegenrichtung im selben Punkt:** Auf der Seite steht der Rechnername und
 sonst nichts vom Ziel. Ein Bildschirmfoto der Seite gehört dazu — es ist der
@@ -341,7 +391,7 @@ srvpanel tinker --execute='
   foreach (App\Models\FindingNotification::query()->get()->groupBy("channel") as $k => $g)
       printf("  %-10s %d\n", $k, $g->count());
 '
-wc -l < /var/www/vhosts/<benutzer>/haken.cloudlab24.de/haken.log
+wc -l < "$LOG"
 ```
 
 **Erwartet, ausgerechnet aus der Bestandsaufnahme in §1 Block 4** — `N` ist die
@@ -368,7 +418,7 @@ systemctl stop srvpanel-dns.timer
 systemctl is-active srvpanel-metrics.service srvpanel-dns.timer
 
 VORHER=$(srvpanel tinker --execute='printf("%d", App\Models\FindingNotification::query()->count());')
-ZEILEN=$(wc -l < /var/www/vhosts/<benutzer>/haken.cloudlab24.de/haken.log)
+ZEILEN=$(wc -l < "$LOG")
 
 systemctl start srvpanel-diagnose.service
 journalctl -u srvpanel-diagnose.service -n 20 --no-pager
@@ -380,7 +430,7 @@ srvpanel tinker --execute='
   printf("Buchungen: %d\n", App\Models\FindingNotification::query()->count());
 '
 echo "Buchungen vorher: $VORHER   Zeilen vorher: $ZEILEN"
-wc -l < /var/www/vhosts/<benutzer>/haken.cloudlab24.de/haken.log
+wc -l < "$LOG"
 ```
 
 **Erwartet:** `unit.state / inactive` steht mit einem frischen `first_seen_at`
@@ -444,8 +494,8 @@ srvpanel tinker --execute='
   foreach (App\Models\FindingNotification::query()->with("finding")->get() as $n)
       printf("%-10s %-18s %-30s %s\n", $n->channel, $n->finding->check->value, $n->finding->subject, $n->notified_at);
 '
-wc -l < /var/www/vhosts/<benutzer>/haken.cloudlab24.de/haken.log
-tail -5 /var/www/vhosts/<benutzer>/haken.cloudlab24.de/haken.log
+wc -l < "$LOG"
+tail -5 "$LOG"
 ```
 
 **Erwartet — Punkt 3 hat den Bestand geräumt, und Punkt 4 hat zwei Gegenstände
@@ -474,7 +524,7 @@ Bestandsaufnahme aus §1 vor **jedem** Ablesen noch einmal gefahren wird.
 
 ```bash
 GEHEIM='<das hinterlegte Geheimnis>'
-tail -1 /var/www/vhosts/<benutzer>/haken.cloudlab24.de/haken.log | awk -F'\t' '{print $2"\n"$3}' \
+tail -1 "$LOG" | awk -F'\t' '{print $2"\n"$3}' \
 | { read SIG; read RUMPF;
     T=$(echo "$SIG" | sed 's/^t=\([0-9]*\),.*/\1/')
     V=$(echo "$SIG" | sed 's/.*v1=//')
@@ -498,7 +548,7 @@ Unmittelbar danach:
 systemctl start srvpanel-diagnose.service
 journalctl -u srvpanel-diagnose.service -n 15 --no-pager
 srvpanel tinker --execute='printf("Buchungen: %d\n", App\Models\FindingNotification::query()->count());'
-wc -l < /var/www/vhosts/<benutzer>/haken.cloudlab24.de/haken.log
+wc -l < "$LOG"
 ```
 
 **Erwartet:** `0 Nachricht(en) über 0 Befund(e)` auf beiden Kanälen, dieselbe
@@ -590,7 +640,7 @@ also nie gemeldet worden — und was nie hinausging, wird nicht zurückgenommen.
 ```bash
 # Den Empfänger auf 500 stellen:
 sed -i 's/http_response_code(204)/http_response_code(500)/' \
-  /var/www/vhosts/<benutzer>/haken.cloudlab24.de/httpdocs/index.php
+  "$WURZEL/haken/index.php"
 
 systemctl stop srvpanel-metrics.service
 systemctl start srvpanel-diagnose.service      # Lauf A — stellt den Zustand her

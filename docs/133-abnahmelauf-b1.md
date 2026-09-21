@@ -266,7 +266,8 @@ Punkt 4 misst trotzdem: Die Ablage ist dann ohnehin leer.
 ```bash
 date -Is
 systemctl stop srvpanel-metrics.service
-systemctl is-active srvpanel-metrics.service
+systemctl stop srvpanel-dns.timer
+systemctl is-active srvpanel-metrics.service srvpanel-dns.timer
 
 VORHER=$(srvpanel tinker --execute='printf("%d", App\Models\FindingNotification::query()->count());')
 ZEILEN=$(wc -l < /var/www/vhosts/<benutzer>/haken.cloudlab24.de/haken.log)
@@ -285,9 +286,23 @@ wc -l < /var/www/vhosts/<benutzer>/haken.cloudlab24.de/haken.log
 ```
 
 **Erwartet:** `unit.state / inactive` steht mit einem frischen `first_seen_at`
-da; beide Kanäle drucken `0 Nachricht(en) über 0 Befund(e)`; die Zahl der
-Buchungen ist **dieselbe wie vorher**; im Protokoll des Empfängers keine neue
-Zeile; kein Brief.
+da, und daneben ein zweiter Befund auf `srvpanel-dns.timer`; beide Kanäle
+drucken `0 Nachricht(en) über 0 Befund(e)`; die Zahl der Buchungen ist
+**dieselbe wie vorher**; im Protokoll des Empfängers keine neue Zeile; kein
+Brief.
+
+**Warum zwei Gegenstände und nicht einer.** Mit **einem** Befund auf **einem**
+Gegenstand drucken beide Kanäle in Punkt 6 dieselbe Zahl — `1 über 1` gegen
+`1 über 1` —, und ein Kanal, der nach dem falschen Schlüssel bündelt, druckt
+dasselbe. Die Bündelung ist dann nicht gemessen, sondern nur nicht widerlegt.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+Der zweite Gegenstand kostet einen pausierten DNS-Abgleich für einen Tag und
+trennt die beiden Kanäle in Punkt 6. Gewählt ist ein **Timer** und kein
+zweiter Dauerdienst: Ein angehaltener `srvpanel-worker` nähme die
+Warteschlange mit, und ein angehaltener `srvpanel-web` das Panel.
 
 > **Eine Null ist nur dann eine Messung, wenn daneben etwas anderes als Null
 > steht.** Sie bekommt ihre Bedeutung hier zweifach: durch den Befund, der
@@ -335,16 +350,21 @@ wc -l < /var/www/vhosts/<benutzer>/haken.cloudlab24.de/haken.log
 tail -5 /var/www/vhosts/<benutzer>/haken.cloudlab24.de/haken.log
 ```
 
-**Erwartet — und weil Punkt 3 den Bestand geräumt hat, sind es hier Einsen:**
+**Erwartet — Punkt 3 hat den Bestand geräumt, und Punkt 4 hat zwei Gegenstände
+hergestellt. Hier trennen sich die Kanäle:**
 
-- `mail: 1 Nachricht(en) über 1 Befund(e)`.
-- `webhook: 1 Nachricht(en) über 1 Befund(e)`.
-- **Zwei** Buchungen mehr als in Punkt 4, eine je Kanal.
-- Im Postfach des Betreibers **eine** Mail mit dem Betreff
-  `SrvPanel — ein neuer Befund auf <rechner>` — die Einzahl ist gebaut und
-  gehört abgelesen.
-- **Eine** neue Zeile im Protokoll des Empfängers, mit einer Signatur
+- `mail: 1 Nachricht(en) über 2 Befund(e)` — **eine** Mail, zwei Zeilen darin.
+- `webhook: 2 Nachricht(en) über 2 Befund(e)` — **zwei** Meldungen.
+- **Vier** Buchungen mehr als in Punkt 4, zwei je Kanal.
+- Im Postfach des Betreibers **eine** Mail, und ihr Betreff steht jetzt in der
+  **Mehrzahl**. Die Einzahl ist in Punkt 3 abgelesen, wo `N` = 1 war — beide
+  Formen sind gebaut, und jede wird an dem Lauf gemessen, der sie erzeugt.
+- **Zwei** neue Zeilen im Protokoll des Empfängers, je mit einer Signatur
   `t=…,v1=…`.
+
+**Diese vier Zahlen sind der Grund für den zweiten Gegenstand.** `1 über 2`
+gegen `2 über 2` lässt sich von einer falschen Bündelung unterscheiden; `1 über
+1` gegen `1 über 1` nicht.
 
 **Kommt in der Nacht dazwischen ein weiterer Befund auf** — eine Sicherung
 scheitert, ein Zertifikat rutscht in die Frist —, dann sind es entsprechend
@@ -556,6 +576,10 @@ Probezustellung gemessen ist:
   Hinweis neben dem Eintrag „Slack" — gemessen hat es niemand.
 - **Die Empfänger, die der Betreiber nicht hat.** Punkt 12 misst einen; über
   die übrigen vier sagt dieser Lauf nichts.
+- **Die Bündelung über mehr als zwei Gegenstände.** Punkt 6 trennt die beiden
+  Kanäle an zwei Befunden auf zwei Gegenständen; dass ein Kunde mit Platz
+  **und** Verkehr eine Mail mit zwei Zeilen bekommt, hält
+  `NoticeAudienceTest` über drei Gegenstände und nicht dieser Lauf.
 - **Den Fall „Prüfung nicht durchgelaufen".** `unreachable` ist
   `FindingState::Unknown` und wird bewusst nicht gemeldet; ob das für den
   Betreiber richtig ist, steht als Frage im Kopf von `Notices::due()`.

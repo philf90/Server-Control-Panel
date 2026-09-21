@@ -278,14 +278,32 @@ Servers, und was unter der Wurzel liegt, liest jeder, der die Adresse rät.
 
 ## §3 · Der Zeitplan
 
+**Gemessen, nicht geplant.** Die erste Fassung dieser Tabelle nahm einen
+Nachmittag an; angefangen wurde am 21. September um **21:59** (`stored_at` des
+Meldeziels). Die Zeiten darunter sind daraus ausgerechnet:
+
 | | wann | was |
 |---|---|---|
-| **T0** | nachmittags | Punkte 1–2: Ziel hinterlegen, `http` abweisen lassen |
-| **T0** | gleich danach | Punkt 3: **den stehenden Bestand abräumen** — der Lauf, der die Kette belegt |
-| **T0** | gleich danach | Punkt 4: Dienst anhalten, Lauf fahren — und **jetzt** schweigt er |
-| **T0 + ~10 h** | nachts, von selbst | Punkt 5: der Zeitgeber feuert und **schweigt zu Recht** |
-| **T0 + 21 h** | am Morgen danach | Punkte 6–8: der Lauf sendet, der nächste schweigt, Dienst zurück |
-| | anschliessend | Punkte 9–10: die Gegenrichtungen |
+| **T0** | 21. Sep, 21:59 | Punkte 1–2: Ziel hinterlegt, `http` abgewiesen |
+| **T0 + 6 min** | 22:05 | Punkt 3: **den stehenden Bestand abgeräumt** — der Lauf, der die Kette belegt |
+| **T0 + ~10 min** | ~22:10 | Punkt 4: Dienste anhalten, Lauf fahren — und **jetzt** schweigt er |
+| **T0 + ~2 h** | 22. Sep, 00:15:22, von selbst | Punkt 5: der Zeitgeber feuert und **schweigt zu Recht** |
+| **T0 + 20 h** | 22. Sep, **abends** ab ~18:10 | Punkte 6–8: der Lauf sendet, der nächste schweigt, Dienste zurück |
+| | anschliessend | Punkte 9–12: die Gegenrichtungen |
+
+**Zwei Zeilen haben sich dadurch verschoben, und beide sind §0 Punkt 2 im
+Kleinen.** Der nächtliche Lauf ist nicht `T0 + 10 h`, sondern `T0 + 2 h` — der
+Zustand ist dann zwei Stunden alt statt zehn, und er schweigt umso
+deutlicher zu Recht. Und der Lauf, der sendet, liegt nicht am *Morgen* danach,
+sondern am **Abend**: Zwanzig Stunden ab 22:10 sind um 18:10, und vorher misst
+Punkt 6 nur die Frist ein zweites Mal.
+
+> **Wer einen Ablauf in Tageszeiten plant und in Fristen misst, bekommt beides
+> — aber nicht am selben Tag.**
+
+Punkt 6 wird **von Hand ausgelöst**, sobald `Fällig ab` aus Punkt 4 erreicht
+ist. Wer wartet, bekommt ihn in der Nacht auf den 23. vom Zeitgeber — dieselbe
+Messung, nur einen halben Tag später und ohne jemanden davor.
 
 **Der nächtliche Lauf ist kein Störfall, sondern eine Messung, die sich von
 selbst einstellt** — und sie gehört vorhergesagt. Wer sie nicht erwartet, liest
@@ -453,21 +471,35 @@ ZEILEN=$(wc -l < "$LOG")
 systemctl start srvpanel-diagnose.service
 journalctl -u srvpanel-diagnose.service -n 20 --no-pager
 
+# **Beide** Gegenstände, denn beide sind der Prüfkörper. Einer allein liesse
+# Punkt 6 die Bündelung nicht trennen.
 srvpanel tinker --execute='
-  $b = App\Models\Finding::withoutGlobalScopes()
-      ->where("check", "unit.state")->where("subject", "srvpanel-metrics.service")->first();
-  printf("Befund: %s / %s seit %s\n", $b?->check->value ?? "-", $b?->reason ?? "-", $b?->first_seen_at ?? "-");
+  foreach (["srvpanel-metrics.service", "srvpanel-dns.timer"] as $g) {
+      $b = App\Models\Finding::withoutGlobalScopes()
+          ->where("check", "unit.state")->where("subject", $g)->first();
+      printf("  %-26s %s / %s seit %s\n", $g, $b?->check->value ?? "-", $b?->reason ?? "-",
+          $b?->first_seen_at ?? "-");
+  }
   printf("Buchungen: %d\n", App\Models\FindingNotification::query()->count());
 '
-echo "Buchungen vorher: $VORHER   Zeilen vorher: $ZEILEN"
-wc -l < "$LOG"
+printf 'Buchungen: %s -> (oben)   Empfängerprotokoll: %s -> %s Zeile(n)\n' \
+    "$VORHER" "$ZEILEN" "$(wc -l < "$LOG")"
+
+# Wann die Frist um ist — ausgerechnet und nicht geschätzt.
+srvpanel tinker --execute='
+  $b = App\Models\Finding::withoutGlobalScopes()
+      ->where("check", "unit.state")->orderBy("first_seen_at")->first();
+  if ($b !== null) printf("Fällig ab: %s (first_seen_at + %d h)\n",
+      $b->first_seen_at->copy()->addHours(App\Support\Notify\Notices::HOLD_HOURS)->toDateTimeString(),
+      App\Support\Notify\Notices::HOLD_HOURS);
+'
 ```
 
-**Erwartet:** `unit.state / inactive` steht mit einem frischen `first_seen_at`
-da, und daneben ein zweiter Befund auf `srvpanel-dns.timer`; beide Kanäle
-drucken `0 Nachricht(en) über 0 Befund(e)`; die Zahl der Buchungen ist
-**dieselbe wie vorher**; im Protokoll des Empfängers keine neue Zeile; kein
-Brief.
+**Erwartet:** **beide** Gegenstände stehen mit `unit.state / inactive` und
+frischem `first_seen_at` da; beide Kanäle drucken `0 Nachricht(en) über 0
+Befund(e)`; die Zahl der Buchungen ist **dieselbe wie vorher**; im Protokoll
+des Empfängers keine neue Zeile; kein Brief. `Fällig ab` nennt den Augenblick,
+an dem Punkt 6 frühestens misst — er wird abgelesen und nicht geschätzt.
 
 **Warum zwei Gegenstände und nicht einer.** Mit **einem** Befund auf **einem**
 Gegenstand drucken beide Kanäle in Punkt 6 dieselbe Zahl — `1 über 1` gegen

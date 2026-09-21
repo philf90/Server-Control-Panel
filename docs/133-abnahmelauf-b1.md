@@ -399,6 +399,8 @@ steht unverändert da. Das ist Grenze 1 an der Tür.
 
 ```bash
 date -Is
+VORHER=$(wc -l < "$LOG")
+
 systemctl start srvpanel-diagnose.service
 journalctl -u srvpanel-diagnose.service -n 30 --no-pager
 
@@ -407,7 +409,11 @@ srvpanel tinker --execute='
   foreach (App\Models\FindingNotification::query()->get()->groupBy("channel") as $k => $g)
       printf("  %-10s %d\n", $k, $g->count());
 '
-wc -l < "$LOG"
+
+# Beide Zahlen in einer Zeile. „2 Zeilen" allein ist keine Aussage — die
+# Gegenprobe aus §2 hat selbst eine hinterlassen.
+printf 'Empfängerprotokoll: %s -> %s Zeile(n)\n' "$VORHER" "$(wc -l < "$LOG")"
+tail -1 "$LOG" | awk -F'\t' '{printf "  Signatur: %s\n  Rumpf   : %.200s\n", $2, $3}'
 ```
 
 **Erwartet, ausgerechnet aus der Bestandsaufnahme in §1 Block 4** — `N` ist die
@@ -417,7 +423,11 @@ darunter:
 - `mail: 1 Nachricht(en) über N Befund(e)` — **eine** Mail, `N` Zeilen darin.
 - `webhook: M Nachricht(en) über N Befund(e)`.
 - `Buchungen: 2 × N`, davon `mail` = `N` und `webhook` = `N`.
-- `M` neue Zeilen im Protokoll des Empfängers.
+- `M` neue Zeilen im Protokoll des Empfängers — abgelesen als `vorher -> nachher`
+  und nicht als Endstand: In der Datei steht schon die Gegenprobe aus §2.
+- **Eine Signatur, die nicht `-` ist.** Die Gegenprobe aus §2 kam mit `curl` und
+  ohne Kopfzeile; steht in der neuen Zeile eine, hat der Agent sie gesetzt — und
+  das `signed: true` aus Punkt 1 ist keine Beschriftung mehr, sondern gemessen.
 
 **Das ist die Messung, die belegt, dass die Kette trägt** — und ohne sie wäre
 das Schweigen in Punkt 4 von einem kaputten Mailweg nicht zu unterscheiden.

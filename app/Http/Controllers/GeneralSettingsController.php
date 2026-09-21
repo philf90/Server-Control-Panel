@@ -224,7 +224,7 @@ final class GeneralSettingsController extends Controller
          */
         $audit->success('settings.dns_addresses', null, ['addresses' => $adressen]);
 
-        return redirect()->route('settings.general')->with('status', 'Die Anzeigezone ist jetzt '.Clock::label().'.');
+        return redirect()->route('settings.general')->with('success', 'Die Anzeigezone ist jetzt '.Clock::label().'.');
     }
 
     /**

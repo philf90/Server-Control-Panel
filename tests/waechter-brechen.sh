@@ -33631,6 +33631,139 @@ pruefe "api-Route ohne Policy" \
   RouteAuthorizationTest::test_every_route_is_either_guarded_or_declared failed
 wiederherstellen
 
+echo "── OperationDetourTest: die Weiterleitung auf die Vorgangsseite kommt zurueck ──"
+#
+# 22 Weiterleitungen aus acht Controllern haben ihren Betrachter fortgetragen;
+# der Weg zurueck war der Zurueck-Knopf des Browsers. Gefunden wurde das beim
+# Erklaeren und nicht beim Pruefen (docs/92 §1).
+vorher_datei app/Http/Controllers/UpdatesController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/UpdatesController.php')
+s = p.read_text()
+alt = "        return to_route('updates');"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "        return to_route('operations.show', $operation);", 1))
+PY
+griff_datei app/Http/Controllers/UpdatesController.php "Weiterleitung auf die Vorgangsseite" &&
+pruefe "Weiterleitung auf die Vorgangsseite" \
+  OperationDetourTest::test_no_controller_carries_the_viewer_to_the_operation_page failed
+wiederherstellen
+
+echo "── StreamPageTest: der Streifen oeffnet einen Ereigniskanal ──"
+#
+# Gemessen (docs/128 M9): Der Panel-Pool hat zwoelf Arbeiter, und zwei belegte
+# lassen die naechste Anfrage 16 s warten. Ein Strom auf jeder Seite hiesse,
+# aus einer von 58 Seiten alle 58 zu machen.
+vorher_datei resources/js/Components/OperationBand.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/OperationBand.vue')
+s = p.read_text()
+alt = "function nachsehen(): void {\n  router.reload({ only: ['runningOperations'] })\n}"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "function nachsehen(): void {\n  new EventSource('/operations/1/stream')\n}", 1))
+PY
+griff_datei resources/js/Components/OperationBand.vue "Streifen oeffnet einen Strom" &&
+pruefe "Streifen oeffnet einen Strom" \
+  StreamPageTest::test_only_the_operation_page_opens_a_stream failed
+wiederherstellen
+
+echo "── RunningBandTest: der Streifen zeigt fremde Vorgaenge ──"
+#
+# Wessen Vorgang das ist, sagt nicht die Mandantenklammer, sondern wer ihn
+# abgesetzt hat. Ohne die Frage nach dem Konto saehe ein Kunde, was ein
+# Zusatzbenutzer am selben Abonnement losgeschickt hat.
+vorher_datei app/Support/Operations/RunningBand.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Operations/RunningBand.php')
+s = p.read_text()
+alt = "            ->where('account_id', $account->id)"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "            ->whereNotNull('id')", 1))
+PY
+griff_datei app/Support/Operations/RunningBand.php "Streifen zeigt fremde Vorgaenge" &&
+pruefe "Streifen zeigt fremde Vorgaenge" \
+  RunningBandTest failed
+wiederherstellen
+
+echo "── RunningBandTest: ein fertiger Vorgang altert nie aus ──"
+#
+# Er bleibt zwei Minuten stehen, damit der Ausgang lesbar ist — und vergeht
+# dann von selbst. Ein Streifen, der nicht vergisst, braucht eine Ablage
+# „gesehen", und die waere eine zweite Tabelle bei jedem Seitenaufbau.
+vorher_datei app/Support/Operations/RunningBand.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Operations/RunningBand.php')
+s = p.read_text()
+alt = '    public const FRESH_SECONDS = 120;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '    public const FRESH_SECONDS = 86400;', 1))
+PY
+griff_datei app/Support/Operations/RunningBand.php "fertiger Vorgang altert nicht aus" &&
+pruefe "fertiger Vorgang altert nicht aus" \
+  RunningBandTest::test_a_finished_operation_ages_out failed
+wiederherstellen
+
+echo "── RunningBandTest: der Streifen kennt keine Obergrenze ──"
+#
+# Vier Baender sind bei 390 px schon die halbe Seite. Wer zwanzig Vorgaenge
+# absetzt, bekommt sonst einen Bildschirm voll Baender statt einer Seite.
+vorher_datei app/Support/Operations/RunningBand.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Operations/RunningBand.php')
+s = p.read_text()
+alt = '            ->limit(self::LIMIT)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '            ->limit(1000)', 1))
+PY
+griff_datei app/Support/Operations/RunningBand.php "Streifen ohne Obergrenze" &&
+pruefe "Streifen ohne Obergrenze" \
+  RunningBandTest::test_the_band_is_capped failed
+wiederherstellen
+
+echo "── RunningBandTest: der Streifen kommt nicht mehr an der Seite an ──"
+#
+# Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+# keine. Ein Waechter ueber die Klasse sagt, dass sie richtig rechnet — dass
+# jemand sie ruft, sagt erst die Antwort.
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Middleware/HandleInertiaRequests.php')
+s = p.read_text()
+alt = "            'runningOperations' => fn (): array => app(RunningBand::class)->rows("
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "            'runningOperationsX' => fn (): array => app(RunningBand::class)->rows(", 1))
+PY
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "Streifen kommt nicht an" &&
+pruefe "Streifen kommt nicht an" \
+  RunningBandTest::test_the_band_reaches_the_page failed
+wiederherstellen
+
+echo "── FlashChannelTest: eine Meldung geht wieder ins Leere ──"
+#
+# `status` stand seit docs/59 Befund 13 als Ausnahme in der Liste: elf
+# Meldungen in drei Controllern, die die Mittelschicht nicht traegt. B8 hat
+# sie geschlossen, und die Ausnahme ist gestrichen.
+vorher_datei app/Http/Controllers/GeneralSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/GeneralSettingsController.php')
+s = p.read_text()
+alt = "->with('success', 'Die Anzeigezone ist jetzt '.Clock::label().'.')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "->with('status', 'Die Anzeigezone ist jetzt '.Clock::label().'.')", 1))
+PY
+griff_datei app/Http/Controllers/GeneralSettingsController.php "Meldung ins Leere" &&
+pruefe "Meldung ins Leere" \
+  FlashChannelTest::test_every_written_flash_key_is_carried failed
+wiederherstellen
+
+
 
 echo
 if [ "$fehler" -eq 0 ]; then

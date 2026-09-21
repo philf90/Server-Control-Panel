@@ -1441,6 +1441,14 @@ Abräumens hat sein eigenes Wort und seinen eigenen Satz — über **beide** Paa
 aus Ablageort und Operation, weil ein Wächter über eines grün bliebe, während der
 Befund eine Datei weiter offensteht; der Verweis ist dabei kein Ausgang, sondern
 ein Abbruch, und er wird **vor** dem Verzeichnis gefragt) und
+`OperationDetourTest` (wer einen Vorgang absetzt, bleibt, wo er ist — kein
+Controller ausser `OperationController` leitet auf die Vorgangsseite, und die
+Gegenrichtung hält fest, dass überhaupt noch jemand Vorgänge absetzt) und
+`StreamPageTest` (nur die Vorgangsseite öffnet einen Ereigniskanal — die
+Begründung ist eine Zahl: zwölf Arbeiter, 16 s Wartezeit bei zweien; was er
+nicht kann, sind zwei Reiter auf derselben Seite) und `RunningBandTest` (was
+der Streifen zeigt und wen nicht — **jede Richtung einzeln**, denn ein Filter,
+der zu viel wegwirft, sieht aus wie einer, der richtig rechnet) und
 `MiddlewareOrderTest` (die Mandantenklammer steht vor der Modellbindung — in
 **beiden** Gruppen, und die Wache vor der Klammer; gemessen an der **Wirkung**
 durch die Tür und am **eigenen** Abonnement, weil das fremde in beiden
@@ -5556,6 +5564,54 @@ Dazu eine Falle der Umgebung, die jeden Wächter über Mittelschichten trifft:
 **Die Gruppen stehen erst im Router, nachdem der HTTP-Kernel sie dorthin
 gespiegelt hat.** Ein Fall, der keine Anfrage schickt, fragt sonst eine leere
 Liste — und eine leere Liste hält jede Reihenfolge ein.
+
+---
+
+## Drei Sätze aus B8 — 23. September 2026
+
+**Der erste sagt, was ein Wächter meldet, wenn er einen Bezug nicht auflösen
+kann.** `PartialReloadTest` hat den neuen Streifen gemeldet: Zu
+`Components/OperationBand.vue` findet sich kein `Inertia::render`. Er hatte
+recht mit dem, was er sah — die Eigenschaft, die der Streifen nachlädt, ist
+eine **geteilte** und gehört keiner Seite.
+
+> **Ein Wächter, der einen Bezug nicht auflösen kann, hat an dieser Stelle
+> nicht wenig gemessen — er hat gar nicht gemessen.** Und wer ihn deshalb rot
+> macht, muss ihm auch beibringen, wo der Bezug sonst noch stehen darf.
+
+Das ist die Kehrseite der Regel aus B7: Dort las ich den **Kopf** eines
+Wächters statt seines Ausdrucks und hielt ihn für zuständig; hier meldet ein
+Ausdruck etwas, das er nicht kennt. Beide Male hilft dasselbe — den Ausdruck
+lesen.
+
+**Der zweite ist ein Prüfkörper, den zwei Wände halten.** `RunningBandTest`
+prüft, dass der Streifen fremde Vorgänge nicht zeigt. Im ersten Wurf lag der
+fremde Vorgang an einem fremden Abonnement — und damit filterte ihn schon die
+Mandantenklammer weg. Der Fall war grün und bewies nichts über die Frage nach
+dem Konto.
+
+> **Ein Prüfkörper, den zwei Wände halten, sagt über keine der beiden etwas.**
+
+Derselbe Satz steht seit `docs/61 §1` im Repo, dort über eine Gegenprobe, die
+zwei Wände **zugleich wegnimmt**. Hier ist es die andere Richtung: zwei Wände,
+die zugleich halten.
+
+**Und der dritte ist eine Gewohnheit, die eine Fehlmeldung verhindert hat.**
+Beim Umschreiben der Weiterleitungen fielen zwölf `->with()`-Meldungen auf, die
+keine Mittelschicht trägt — elfmal `status`, einmal `operation`. Das sah nach
+einem Fund aus. Der Blick in den zuständigen Wächter zeigte eine Ausnahmeliste
+mit Begründung, geführt seit `docs/59` Befund 13.
+
+> **Wer ein Symptom für einen Fund hält, liest zuerst den Wächter, der darüber
+> wacht — er weiss vielleicht schon davon.**
+
+Geschlossen sind sie jetzt trotzdem, weil B8 ohnehin an denselben Zeilen
+arbeitet. Und die leer gewordene Liste ist dabei von einer Konstante zu einer
+Methode geworden: Als leere Konstante ist sie für PHPStan `array{}`, und jeder
+`array_key_exists()` darüber gilt ihm als immer falsch.
+
+> **Ein Mechanismus, der leer richtig ist, darf nicht daran zerbrechen, dass er
+> leer ist.**
 
 ---
 

@@ -99,7 +99,13 @@ final class TlsSettingsController extends Controller
 
         $audit->success('panel.tls.reissued', context: ['operation' => (int) $operation->id]);
 
-        return redirect()->route('operations.show', $operation);
+        /*
+         * **Zurück auf die Seite, von der aus gedrückt wurde (B8).** Hier
+         * stand eine Weiterleitung auf die Vorgangsseite; der Weg zurück war
+         * der Zurück-Knopf des Browsers. Den Fortschritt trägt jetzt der
+         * Streifen oben, und er steht auf jeder Seite.
+         */
+        return to_route('settings.tls');
     }
 
     /**

@@ -285,7 +285,7 @@ final class DatabaseController extends Controller
 
         if (($data['user_label'] ?? null) === null) {
             return to_route('databases.show', $database)
-                ->with('status', 'Datenbank '.$database->name.' angelegt.');
+                ->with('success', 'Datenbank '.$database->name.' angelegt.');
         }
 
         return $this->createUserFor($database, $subscription, (string) $data['user_label'], field: 'user_label');
@@ -534,8 +534,14 @@ final class DatabaseController extends Controller
 
         $this->audit->record('database.dump.created', target: $database, subscriptionId: (int) $database->subscription_id);
 
-        return to_route('operations.show', $operation)
-            ->with('status', 'Die Sicherung wird erstellt.');
+        /*
+         * **Zurück auf die Seite, von der aus gedrückt wurde (B8).** Hier
+         * stand eine Weiterleitung auf die Vorgangsseite; der Weg zurück war
+         * der Zurück-Knopf des Browsers. Den Fortschritt trägt jetzt der
+         * Streifen oben, und er steht auf jeder Seite.
+         */
+        return to_route('databases.show', $database)
+            ->with('success', 'Die Sicherung wird erstellt.');
     }
 
     /**
@@ -597,8 +603,14 @@ final class DatabaseController extends Controller
 
         $this->audit->record('database.dump.imported', target: $database, subscriptionId: (int) $database->subscription_id);
 
-        return to_route('operations.show', $operation)
-            ->with('status', 'Die Sicherung wird übernommen.');
+        /*
+         * **Zurück auf die Seite, von der aus gedrückt wurde (B8).** Hier
+         * stand eine Weiterleitung auf die Vorgangsseite; der Weg zurück war
+         * der Zurück-Knopf des Browsers. Den Fortschritt trägt jetzt der
+         * Streifen oben, und er steht auf jeder Seite.
+         */
+        return to_route('databases.show', $database)
+            ->with('success', 'Die Sicherung wird übernommen.');
     }
 
     /**
@@ -667,8 +679,14 @@ final class DatabaseController extends Controller
 
         $this->audit->record('database.dump.restored', target: $dump, subscriptionId: (int) $database->subscription_id);
 
-        return to_route('operations.show', $operation)
-            ->with('status', 'Die Sicherung wird zurückgespielt.');
+        /*
+         * **Zurück auf die Seite, von der aus gedrückt wurde (B8).** Hier
+         * stand eine Weiterleitung auf die Vorgangsseite; der Weg zurück war
+         * der Zurück-Knopf des Browsers. Den Fortschritt trägt jetzt der
+         * Streifen oben, und er steht auf jeder Seite.
+         */
+        return to_route('databases.show', $database)
+            ->with('success', 'Die Sicherung wird zurückgespielt.');
     }
 
     public function destroyDump(Database $database, DatabaseDump $dump): RedirectResponse
@@ -683,8 +701,14 @@ final class DatabaseController extends Controller
 
         $this->audit->record('database.dump.removed', target: $database, subscriptionId: (int) $database->subscription_id);
 
-        return to_route('operations.show', $operation)
-            ->with('status', 'Die Sicherung wird entfernt.');
+        /*
+         * **Zurück auf die Seite, von der aus gedrückt wurde (B8).** Hier
+         * stand eine Weiterleitung auf die Vorgangsseite; der Weg zurück war
+         * der Zurück-Knopf des Browsers. Den Fortschritt trägt jetzt der
+         * Streifen oben, und er steht auf jeder Seite.
+         */
+        return to_route('databases.show', $database)
+            ->with('success', 'Die Sicherung wird entfernt.');
     }
 
     /**
@@ -926,7 +950,7 @@ final class DatabaseController extends Controller
         $this->audit->record('database.user.removed', target: $database, subscriptionId: (int) $database->subscription_id);
 
         return to_route('databases.show', $database)
-            ->with('status', 'Zugang entfernt.');
+            ->with('success', 'Zugang entfernt.');
     }
 
     /**
@@ -944,8 +968,19 @@ final class DatabaseController extends Controller
 
         $this->audit->record('database.removed', target: $database, subscriptionId: $subscriptionId);
 
-        return to_route('operations.show', $operation)
-            ->with('status', 'Datenbank '.$name.' wird entfernt.');
+        /*
+         * **Zurück auf die Seite, von der aus gedrückt wurde (B8).** Hier
+         * stand eine Weiterleitung auf die Vorgangsseite; der Weg zurück war
+         * der Zurück-Knopf des Browsers. Den Fortschritt trägt jetzt der
+         * Streifen oben, und er steht auf jeder Seite.
+         */
+        /*
+         * **Die Liste und nicht die Datenbank.** Sie wird gerade entfernt;
+         * ihre Seite wäre in dem Augenblick, in dem der Vorgang durchläuft,
+         * keine mehr.
+         */
+        return to_route('databases.index')
+            ->with('success', 'Datenbank '.$name.' wird entfernt.');
     }
 
     /** Anlegen und danach das Passwort genau einmal zeigen. */

@@ -23,6 +23,7 @@
 import { Link, router, usePage } from '@inertiajs/vue3'
 import Confirmation from '../Components/Confirmation.vue'
 import Bands from '../Components/Bands.vue'
+import OperationBand from '../Components/OperationBand.vue'
 import BrandMark from '../Components/BrandMark.vue'
 import NavIcon from '../Components/NavIcon.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -78,6 +79,25 @@ const maintenance = computed(
 
 const announcements = computed(
   () => (page.props.announcements ?? []) as { id: number; badge: string; rank: string; body: string }[],
+)
+
+/*
+ * Die laufenden Vorgänge dieses Kontos (B8).
+ *
+ * **Derselbe Rückfall wie daneben und aus demselben Grund:** Beim partiellen
+ * Nachladen schickt der Server geteilte Eigenschaften nur mit, wenn sie
+ * angefordert wurden — und der Klient hält die vorige. Ein `?? []` ist hier
+ * also kein Sicherheitsgurt, sondern der Normalfall.
+ */
+const runningOperations = computed(
+  () =>
+    (page.props.runningOperations ?? []) as {
+      id: number
+      label: string
+      status: string
+      progress: number
+      running: boolean
+    }[],
 )
 
 /*
@@ -769,7 +789,10 @@ onBeforeUnmount(() => {
       den Rückweg bei sich — ein Wechsel, aus dem man suchen muss, ist einer,
       den jemand vergisst.
     -->
-    <div v-if="impersonation?.active || announcements.length || maintenance" class="bands">
+    <div
+      v-if="impersonation?.active || announcements.length || maintenance || runningOperations.length"
+      class="bands"
+    >
       <div v-if="impersonation?.active" class="band warn">
         <span>
           Sie arbeiten in der Sicht dieses Kunden.
@@ -835,6 +858,14 @@ onBeforeUnmount(() => {
         zwei Fassungen auseinanderläuft.
       -->
       <Bands :items="announcements" />
+
+      <!--
+        Die laufenden Vorgänge (B8). **Zuletzt in der Hülle**, und das ist eine
+        Aussage über den Rang: Eine Störung des Betreibers, eine Wartung und
+        eine Impersonation gelten für den ganzen Server; ein Vorgang gehört
+        dem, der ihn gerade abgesetzt hat.
+      -->
+      <OperationBand :items="runningOperations" />
     </div>
 
     <!--

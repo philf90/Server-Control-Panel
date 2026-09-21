@@ -282,7 +282,7 @@ class BackupController extends Controller
         );
 
         return to_route('backups.show', ['subscription' => $subscription->id])
-            ->with('status', 'Die Sicherung wird erstellt. Ihr Fortschritt steht unter „Vorgänge".');
+            ->with('success', 'Die Sicherung wird erstellt.');
     }
 
     /**
@@ -425,7 +425,13 @@ class BackupController extends Controller
             context: ['storage' => $backup->storage_name, 'name' => $data['name']],
         );
 
-        return redirect()->route('operations.show', $operation);
+        /*
+         * **Zurück auf die Seite, von der aus gedrückt wurde (B8).** Hier
+         * stand eine Weiterleitung auf die Vorgangsseite; der Weg zurück war
+         * der Zurück-Knopf des Browsers. Den Fortschritt trägt jetzt der
+         * Streifen oben, und er steht auf jeder Seite.
+         */
+        return to_route('backups.show', $backup->subscription_id);
     }
 
     /**
@@ -471,7 +477,7 @@ class BackupController extends Controller
         );
 
         return to_route('backups.pick')
-            ->with('status', 'Die Sicherung wird entfernt.');
+            ->with('success', 'Die Sicherung wird entfernt.');
     }
 
     public function destroy(Subscription $subscription, Backup $backup): RedirectResponse
@@ -494,6 +500,6 @@ class BackupController extends Controller
         );
 
         return to_route('backups.show', ['subscription' => $subscription->id])
-            ->with('status', 'Die Sicherung wird entfernt.');
+            ->with('success', 'Die Sicherung wird entfernt.');
     }
 }

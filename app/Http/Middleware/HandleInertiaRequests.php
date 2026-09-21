@@ -13,6 +13,7 @@ use App\Support\Authorization\AdminAbility;
 use App\Support\Brand\Logo;
 use App\Support\Diagnose\Checks\MaintenanceWindow;
 use App\Support\Diagnose\PendingFindings;
+use App\Support\Operations\RunningBand;
 use App\Support\Panel\Source;
 use App\Support\Passwords\Policy;
 use App\Support\Settings\Settings;
@@ -383,6 +384,27 @@ final class HandleInertiaRequests extends Middleware
              *
              * `FlashChannelTest` prüft beide Richtungen.
              */
+            /*
+             * **Der Streifen der laufenden Vorgänge (B8).**
+             *
+             * Er steht auf **jeder** Seite und überlebt damit jeden
+             * Seitenwechsel — das ist Entscheidung 2 aus `docs/92 §4`. Eine
+             * Seiten-Eigenschaft müsste jede der 58 Seiten durchreichen, und
+             * die erste, die es vergisst, fällt niemandem auf.
+             *
+             * **Ein Verschluss wie alles hier**: Der Klient lädt ihn im Takt
+             * mit `only: ['runningOperations']` nach, und ein fertiger Wert
+             * liefe bei jeder anderen Anfrage mit (`docs/103 §1` M5).
+             *
+             * Wen er zeigt und wie lange, entscheidet {@see RunningBand} und
+             * nicht diese Zeile — drei Bedingungen mit je einer Begründung
+             * gehören nicht in eine Kette in der Mittelschicht.
+             */
+            'runningOperations' => fn (): array => app(RunningBand::class)->rows(
+                $account instanceof Account ? $account : null,
+                now(),
+            ),
+
             'flash' => fn (): array => [
                 'notice' => fn () => $request->session()->get('notice'),
                 'success' => fn () => $request->session()->get('success'),

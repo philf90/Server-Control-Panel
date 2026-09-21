@@ -31702,3 +31702,117 @@ ausdrücklich ablegt.
 
 > **Eine Liste, die einen Namen statt seines Inhalts nennt, ist vollständig und
 > beantwortet die Frage trotzdem nicht.**
+
+### B8 — Ein Vorgang ohne Weiterleitung
+
+Wer einen Knopf drückt, bleibt, wo er ist. **22 Weiterleitungen aus acht
+Controllern** endeten bisher auf der Vorgangsseite; den Fortschritt trägt
+jetzt ein Streifen oben, und der steht auf jeder Seite. Der Befund ist
+`docs/92`, der Plan **`docs/132`**.
+
+**Gefunden wurde er beim Erklären und nicht beim Prüfen.** Die Frage lautete,
+wie man denselben Knopf ein zweites Mal drückt, und die Antwort war „mit dem
+Zurück-Knopf des Browsers".
+
+> **Ein Weg, den man nur erklären kann, indem man den Browser zu Hilfe nimmt,
+> ist keiner, den die Anwendung anbietet.**
+
+**Drei Zahlen aus `docs/92` stimmten nicht mehr**, und eine davon hat den
+Umfang geändert: Es sind **22 aus acht** und nicht 21 aus sieben —
+`BackupController` ist mit P8 dazugekommen.
+
+> **Eine Zahl im Kommentar altert mit dem Code, den sie zählt, und nichts
+> meldet es.**
+
+Die beiden anderen haben Arbeit gespart. `docs/92 §3` beschreibt den Streifen,
+als wäre seine Form neu — A14 hat die `.bands`-Hülle gebaut, drei Bänder hängen
+darin, und der M2-Befund (drei Bänder liegen bei 1440 px aufeinander, weil
+`.band` `grid-row: 1` nimmt) ist dort behoben. Und die Form „im Takt
+nachfragen" steht seit P8 in `Subscriptions/Backups.vue`: `NACHFRAGE_MS = 3000`,
+der Takt an den Zustand gehängt, in `onUnmounted` abgeräumt.
+
+> **Wer entscheidet, was als Nächstes gebaut wird, sieht vorher am Quelltext
+> nach, ob es das schon gibt.**
+
+**Nachgefragt und nicht gestreamt**, und die Begründung ist eine Zahl: Der
+Panel-Pool hat zwölf Arbeiter, und zwei belegte lassen die nächste Anfrage
+**16 s** warten (`docs/128` M9). Ein Strom auf jeder Seite hiesse, aus einer
+von 58 Seiten alle 58 zu machen. Gefragt wird deshalb im Takt — und **nur
+solange etwas läuft**.
+
+**Der Streifen überlebt den Seitenwechsel, weil er eine geteilte Eigenschaft
+ist.** Eine Seiten-Eigenschaft müsste jede der 58 Seiten durchreichen, und die
+erste, die es vergisst, fällt niemandem auf. Als Verschluss, wie die elf
+daneben.
+
+**Ein fertiger Vorgang bleibt zwei Minuten stehen.** Verschwände er beim
+Fertigwerden aus der Liste, wüsste der Klient, *dass* er weg ist, und nicht,
+*wie* er ausgegangen ist. Danach altert er von selbst aus.
+
+> **Ein Zustand, der von selbst vergeht, braucht kein Gedächtnis.**
+
+Das erspart eine Ablage „gesehen" und damit eine zweite Tabelle, die bei jedem
+Seitenaufbau geschrieben würde.
+
+**Die Seite lädt sich nicht von selbst nach.** Aus „läuft" wird „fertig — Seite
+aktualisieren", und wer will, drückt. `docs/92 §4` nennt das Nachladen eine
+Entscheidung je Seite; so wird aus der Entscheidung ein Knopf. Ein Nachladen
+unter den Händen nähme dem, der gerade tippt, seinen Stand.
+
+**Und Vorgänge ohne Konto erscheinen bei niemandem.** Die Zertifikatsautomatik
+und der Cron-Einsammler setzen `account_id` auf `null` — dieselbe Null, die
+`docs/901` als „System" liest. Damit ist Frage 4 aus `docs/92 §4` beantwortet:
+Sie sind gemeint, und für sie ändert sich nichts.
+
+### Zwölf Meldungen, die seit August ins Leere gingen
+
+`FlashChannelTest` führte zwei Ausnahmen, seit `docs/59` Befund 13: `status`
+(elf Stellen in drei Controllern) und `operation` (eine). Beide schreibt ein
+Controller auf eine Weiterleitung, und die Mittelschicht trägt sie nicht —
+**die Seite sah sie nie**.
+
+Sie standen dort mit Begründung und nicht aus Versehen: Sie gehören zu P5b, P5c
+und `docs/40`, jede mit eigenem Abnahmelauf. B8 schliesst sie beiläufig, weil
+es ohnehin an denselben Zeilen arbeitet — `status` heisst jetzt `success` und
+wird gerendert, und die Kennung des Vorgangs sagt der Streifen.
+
+> **Ein Rest, den ein Merkmal beiläufig schliesst, war der Grund, ihn nicht
+> früher zu schliessen — nicht der, ihn zu vergessen.**
+
+**Und beinahe hätte ich sie als neuen Fund gemeldet.** Der Blick auf die
+Symptome — zwölf `->with()`, kein Leser — sah nach einem Befund aus; der Blick
+auf den Wächter zeigte die Liste mit ihren Gründen. Dieselbe Gewohnheit wie bei
+A8, nur andersherum.
+
+**Die leere Ausnahmeliste ist dabei zu einer Methode geworden.** Als leere
+Konstante ist sie für PHPStan `array{}`, und jeder `array_key_exists()` darüber
+gilt ihm als immer falsch — zu Recht. Ein `ignore` daneben hiesse, das Werkzeug
+für eine Zeile abzuschalten, die morgen wieder etwas enthält.
+
+> **Ein Mechanismus, der leer richtig ist, darf nicht daran zerbrechen, dass er
+> leer ist.**
+
+### Zwei Wächter mussten lernen, wo ein Bezug sonst noch steht
+
+**`PartialReloadTest` hat den Streifen gemeldet**, und er hatte recht mit dem,
+was er sah: Zu `Components/OperationBand.vue` findet sich kein
+`Inertia::render`. Nur ist die Eigenschaft, die er nachlädt, eine **geteilte** —
+sie gehört keiner Seite, sondern `share()`, und dort ist sie ein Verschluss.
+
+> **Ein Wächter, der einen Bezug nicht auflösen kann, hat an dieser Stelle
+> nicht wenig gemessen — er hat gar nicht gemessen.** Und wer ihn deshalb rot
+> macht, muss ihm auch beibringen, wo der Bezug sonst noch stehen darf.
+
+**Und `RunningBandTest` war in seinem ersten Wurf fünfmal rot**, ohne dass am
+Prüfling etwas war: Er rief `RunningBand::rows()` ohne Anfrage, die Klammer
+stand im Grundzustand, und der verweigert alles.
+
+> **Eine Frage, die im Grundzustand alles verweigert, antwortet mit einer
+> leeren Liste und nicht mit einem Fehler.**
+
+Beim Beheben ist ein Fall schärfer geworden: Der Vorgang des Nachbarn liegt
+jetzt am **eigenen** Abonnement. Läge er an einem fremden, filterte ihn schon
+die Mandantenklammer weg — und der Fall bewiese nicht, dass die Frage nach dem
+Konto etwas tut.
+
+> **Ein Prüfkörper, den zwei Wände halten, sagt über keine der beiden etwas.**

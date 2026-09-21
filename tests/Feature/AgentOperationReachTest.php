@@ -271,6 +271,24 @@ final class AgentOperationReachTest extends TestCase
          */
         'dns.check' => 'Fragt die autoritativen Nameserver einer Zone. Ändert nichts — weder am System noch am Bestand des Panels.',
 
+        /*
+         * **P9 B1: der zweite Meldekanal** (`docs/129 §7`).
+         *
+         * Drei der vier ändern am Bestand des Panels nichts — das Meldeziel
+         * liegt 0600 root im Agenten, und eine zweite Liste im Panel wäre die
+         * zweite Wahrheit zu derselben Frage. Die vierte, `notify.send`,
+         * ändert überhaupt nichts: Sie schickt etwas fort.
+         *
+         * **Keine von ihnen wird eingereiht, und bei zweien ist das die
+         * Grenze und keine Bequemlichkeit.** `notify.target.store` trägt
+         * Adresse und Geheimnis; beides läge sonst im Klartext in
+         * `operations.payload`, den `Operations/Show.vue` als JSON rendert.
+         * `SecretsStayOutOfTheQueueTest` hält genau das.
+         */
+        'notify.target.store' => 'Hinterlegt Adresse und Geheimnis des Meldeziels (B1). Darf nicht eingereiht werden: Beides läge sonst dauerhaft im Klartext in operations.payload. Der Aufruf steht in App\Support\Notify\AgentNotifyTarget::store().',
+        'notify.target.describe' => 'Liest, ob ein Meldeziel hinterlegt ist, und gibt Rechnername, Zeitpunkt und „signiert" zurück — nie die Adresse. Kein Bestand im Panel und kein Vorgang: Die Einstellungsseite fragt sie beim Aufbau, und eine Anzeige „wartet · läuft · fertig" dafür wäre eine über nichts.',
+        'notify.target.forget' => 'Entfernt das Meldeziel. Ändert nur die Datei im Agenten; im Panel steht dazu nichts. Der Aufruf steht in App\Support\Notify\AgentNotifyTarget::forget().',
+        'notify.send' => 'Stellt eine Meldung an das hinterlegte Ziel zu. Kein Lebenslauf, weil nichts entsteht und nichts vergeht — und kein Vorgang, weil der Nachtlauf meldet, was er gerade gemessen hat: Ein eingereihter Vorgang zöge die Zustellung hinter den nächsten Warteschlangendurchlauf, und eine Meldung über einen toten Dienst ist eine Stunde später eine Stunde zu spät. Der Aufruf steht in App\Support\Notify\AgentNotifyTarget::send().',
     ];
 
     private function registry(): Registry

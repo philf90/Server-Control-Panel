@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
 /**
- * Verschickt die fälligen Meldungen an die Kunden (B5, `docs/129 §9`).
+ * Verschickt die fälligen Meldungen (B5 und B1, `docs/129 §4`).
  *
  * **Ein eigenes Kommando und kein Teil von `srvpanel:diagnose`.** Die Diagnose
  * misst und schreibt Befunde; dieses hier schickt etwas nach draussen. Zwei
@@ -22,53 +22,68 @@ use Illuminate\Support\Carbon;
  * seine Zeilen der Reihe nach aus und bricht ab, wenn die erste scheitert.
  *
  * > **Eine Reihenfolge, die ein Zeitgeber herstellen soll, ist keine.**
+ *
+ * **Gedruckt wird je Kanal und nicht in einer Summe.** Seit B1 gibt es zwei;
+ * eine Zeile „2 Nachrichten verschickt" liesse offen, ob das zweimal Mail war
+ * und der Webhook geschwiegen hat.
  */
 final class SendNotices extends Command
 {
     protected $signature = 'srvpanel:notices';
 
-    protected $description = 'Verschickt die fälligen Meldungen über überschrittene Kontingente an die Kunden';
+    protected $description = 'Verschickt die fälligen Meldungen über die eingerichteten Kanäle';
 
     public function handle(Notices $notices): int
     {
         $jetzt = Carbon::now();
-        $bilanz = $notices->send($jetzt);
+        $fehlschlaege = 0;
 
-        if ($bilanz['skipped'] > 0) {
-            $this->warn(sprintf(
-                '  Kein Mailversand eingerichtet — %d Befund(e) bleiben fällig.',
-                $bilanz['skipped'],
+        foreach ($notices->send($jetzt) as $kanal => $bilanz) {
+            $fehlschlaege += $bilanz['failed'];
+
+            if ($bilanz['skipped'] > 0) {
+                $this->warn(sprintf(
+                    '  %s: nicht eingerichtet — %d Befund(e) bleiben fällig.',
+                    $kanal,
+                    $bilanz['skipped'],
+                ));
+
+                continue;
+            }
+
+            $this->info(sprintf(
+                '  %s: %d Nachricht(en) über %d Befund(e).',
+                $kanal,
+                $bilanz['sent'],
+                $bilanz['findings'],
             ));
 
-            // Kein Fehlschlag: Ein Server ohne eingetragenes Relay ist nicht
-            // kaputt, er ist unvollständig eingerichtet. Ein Rückgabewert
-            // ungleich null hielte `Type=oneshot` für einen Ausfall und
-            // färbte die Unit rot.
-            return self::SUCCESS;
+            if ($bilanz['without_recipient'] > 0) {
+                $this->warn(sprintf(
+                    '  %s: %d ohne Empfänger — dem Kunden fehlt ein Konto mit Adresse.',
+                    $kanal,
+                    $bilanz['without_recipient'],
+                ));
+            }
+
+            if ($bilanz['failed'] > 0) {
+                $this->error(sprintf(
+                    '  %s: %d Nachricht(en) sind nicht angekommen. Sie bleiben fällig.',
+                    $kanal,
+                    $bilanz['failed'],
+                ));
+            }
         }
 
-        $this->info(sprintf(
-            '  %d Nachricht(en) verschickt über %d Befund(e).',
-            $bilanz['sent'],
-            $bilanz['findings'],
-        ));
-
-        if ($bilanz['without_recipient'] > 0) {
-            $this->warn(sprintf(
-                '  %d Abonnement(s) ohne Empfänger — dem Kunden fehlt ein Konto mit Adresse.',
-                $bilanz['without_recipient'],
-            ));
-        }
-
-        if ($bilanz['failed'] > 0) {
-            $this->error(sprintf(
-                '  %d Nachricht(en) sind nicht angekommen. Sie bleiben fällig und werden erneut versucht.',
-                $bilanz['failed'],
-            ));
-
-            return self::FAILURE;
-        }
-
-        return self::SUCCESS;
+        /*
+         * **Ein nicht eingerichteter Kanal ist kein Fehlschlag.** Ein Server
+         * ohne Relay und ohne Meldeziel ist nicht kaputt, er ist unvollständig
+         * eingerichtet. Ein Rückgabewert ungleich null hielte `Type=oneshot`
+         * für einen Ausfall und färbte die Unit rot — und zwar jede Nacht.
+         *
+         * Ein **Fehlschlag** ist etwas anderes: Dort war ein Weg eingerichtet
+         * und hat nicht getragen, und genau das soll auffallen.
+         */
+        return $fehlschlaege > 0 ? self::FAILURE : self::SUCCESS;
     }
 }

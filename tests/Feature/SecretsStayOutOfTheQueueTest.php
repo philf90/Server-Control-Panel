@@ -52,6 +52,7 @@ final class SecretsStayOutOfTheQueueTest extends TestCase
         'db.user.password' => 'dasselbe Passwort beim Zurücksetzen',
         'pg.role.create' => 'das Passwort der PostgreSQL-Rolle — auch beim Zurücksetzen, denn setPassword() ruft dieselbe Operation',
         'db.isolation.probe' => 'das Passwort, mit dem die Selbstprobe sich absichtlich abweisen lässt',
+        'notify.target.store' => 'das Geheimnis, mit dem jede Meldung an das Webhook-Ziel signiert wird (B1) — und die Adresse daneben ist bei Slack, Discord und den meisten Eingangshaken selbst eines: Wer sie hat, schreibt in den Kanal',
     ];
 
     /**

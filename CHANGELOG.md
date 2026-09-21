@@ -31816,3 +31816,120 @@ die Mandantenklammer weg — und der Fall bewiese nicht, dass die Frage nach dem
 Konto etwas tut.
 
 > **Ein Prüfkörper, den zwei Wände halten, sagt über keine der beiden etwas.**
+
+### B1 — der zweite Meldekanal
+
+**Der Webhook liegt im Agenten, hinter dem Socket, und das ist Grenze 1 und
+keine Vorliebe.** `SrvPanel\Agent\Notify\Target` hält Adresse und Geheimnis
+0600 in einem 0700-Verzeichnis — wie die Zugangsdaten des DNS-Anbieters —, und
+`Notify\Delivery` schickt über dieselbe Stelle nach draussen wie ACME und die
+DNS-Anbieter: `Acme\Curl`, mit dessen vier Zusagen (nur https, keine
+Umleitungen, gedeckelte Antwort, Zeitlimit). Das Panel schickt einen Befund und
+**nie eine Adresse**.
+
+> **Wer eine Adresse nach draussen wählen darf, wählt sonst auch
+> `http://127.0.0.1:…`.**
+
+Vier Operationen: `notify.target.store`, `notify.target.describe`,
+`notify.target.forget`, `notify.send`. Keine davon wird eingereiht, und bei der
+ersten ist das die Grenze und keine Bequemlichkeit — Adresse und Geheimnis lägen
+sonst im Klartext in `operations.payload`, den die Vorgangsseite als JSON
+rendert.
+
+**Die Adresse kommt nicht zurück, und der Grund ist gemessen und nicht
+gefühlt.** Bei Slack, Discord und den meisten Eingangshaken berechtigt sie
+*allein* zur Zustellung. `describe()` gibt deshalb den **Rechnernamen** heraus,
+den Zeitpunkt und „signiert" — keinen Ausschnitt der Adresse, keinen des
+Geheimnisses.
+
+> **Eine Adresse, die allein zur Zustellung berechtigt, ist ein Geheimnis in
+> Gestalt einer Adresse — und sie sieht auf einer Seite aus wie eine Auskunft.**
+
+**Jede Meldung trägt eine Signatur über Zeitpunkt *und* Rumpf**
+(`X-Srvpanel-Signature: t=…,v1=…`, `hmac_sha256(secret, "<t>.<rumpf>")`), wenn
+ein Geheimnis hinterlegt ist. Der Zeitstempel steht **im signierten Material**
+und nicht nur daneben: Sonst könnte ein Mitleser dieselbe Meldung morgen noch
+einmal einliefern, und der Empfänger sähe einen Dienst, der längst wieder läuft,
+als tot.
+
+> **Eine Signatur ohne Zeitstempel beglaubigt den Inhalt und nicht den
+> Augenblick.**
+
+**Und der Absender wird gestempelt und nicht durchgereicht.** `server` und `at`
+setzt der Agent; was das Panel schickt, steht unter `event`. Ein Feld `server`
+in der Meldung überschreibt ihn nicht — sonst wäre die Herkunft eine Angabe des
+Absenders über sich selbst.
+
+### Ein gemeinsames `notified_at` verliert die Meldung des zweiten Kanals
+
+**Die Spalte aus B5 ist eine Tabelle geworden**, und zwar genau an der Stelle,
+die ihre eigene Migration dafür benannt hatte: *„eine eigene kleine Tabelle …
+braucht es erst, wenn mehrere Kanäle je Befund getrennt buchen sollen."* Mit dem
+Webhook gibt es zwei, und die Frage „ist dieser Befund gemeldet" hat ab da zwei
+Antworten.
+
+Mit **einer** Spalte gibt es genau zwei Regeln, und beide sind falsch:
+
+- *Gesetzt, wenn **einer** zustellte* — dann ist die Meldung des anderen
+  dauerhaft fort. Die Zeile wird nie wieder fällig.
+- *Gesetzt, wenn **alle** zustellten* — dann hält ein kaputter Mailweg den
+  Webhook fest, und der meldet denselben Befund jede Nacht neu.
+
+> **Ein Kanal, der für einen anderen mitbucht, verliert dessen Meldung — und
+> zwar dauerhaft.**
+
+`finding_notifications` bucht je Paar aus Befund und Kanal, mit `unique` und
+`cascadeOnDelete` — damit hält weiterhin `FindingLog::forgetMissing()`, dass ein
+behobener Befund wieder melden darf, und zwar in der Datenbank und nicht in
+einer zweiten Schreibstelle, die jemand vergessen kann.
+
+**Der Fall, für den die Tabelle da ist, steht als eigener Wächterfall da**
+(`NotificationLedgerTest::test_each_channel_books_only_for_itself`): Die Mail
+kommt an, der Webhook nicht — danach ist die Zeile für den Mailweg gebucht und
+für den Webhook fällig, und der nächste Lauf versucht **nur** den Webhook.
+
+**Die Kanäle sind jetzt Code und kein Zweig.** `App\Support\Notify\Channel` mit
+`MailChannel` (an den Kunden) und `WebhookChannel` (an den Betreiber);
+`Channels` ist die eine Liste, gegen die `ChannelReachTest` die
+Einstellungsseite in **beide** Richtungen hält.
+
+### Eine Gruppe, die zwei Fragen beantwortet — und der Wächter hat es angesagt
+
+**„Benachrichtigungen" war der neunte Punkt unter „Einstellungen"**, und
+`NavGroupTest` setzt acht. Der Kommentar dort sagte seit dem 16. September
+wörtlich, der nächste Punkt erzwinge die Teilung — das ist jetzt eingetreten.
+
+Geteilt ist entlang der **zweiten Frage** und nicht entlang der Grösse: Unter
+**„Nach draussen"** stehen die drei Stellen, an denen dieser Server
+**Zugangsdaten eines Fremden** hält — Relay-Passwort, DNS-Token, Meldeziel. Die
+sechs daneben sagen, wie er eingestellt ist.
+
+> **Eine Gruppe ist zu gross, wenn sie zwei Fragen beantwortet — und nicht, wenn
+> sie viele Punkte hat.**
+
+**Der naheliegende Ausweg wäre der falsche gewesen.** Drei Einträge in
+`NavGroupTest::AUSNAHMEN` hätten die Zahl gerettet und die Zusage zerstört, für
+die es diesen Wächter gibt: dass die Gruppengrenze **aus der Route folgt**. Sie
+lautet nicht „eine Gruppe", sondern „was unter `/settings/…` liegt, steht in
+einer Einstellungsgruppe, und dort steht nichts anderes" — und zwei Gruppen
+ändern daran nichts.
+
+> **Eine Gruppe, deren Grenze aus der Route folgt, kann ein Wächter halten;
+> eine, die an einem Urteil hängt, nicht.**
+
+### Vier Wächter haben den Bau angehalten, bevor ein Auge hinsah
+
+- **`SectionSpacingTest` und `BlockSpacingTest`** haben die neue Nachbarschaft
+  `.sections + .form` gemeldet, **bevor** eine Aufnahme entstanden ist — die
+  Fuge zwischen dem hinterlegten Ziel und dem Formular darunter.
+- **`DisplayTimeZoneTest`** hat ein `toLocaleString()` im Template gefunden:
+  Daneben steht „zuletzt erfolgreich zugestellt" in der Anzeigezone, und zwei
+  Angaben hätten in zwei Zonen gerechnet. Der Zeitpunkt geht jetzt durch
+  `Clock`.
+- **`ValidationLanguageTest`** hat `starts_with` gemeldet — die Regel, die die
+  Adresse auf `https://` festnagelt, weil Laravels `url` **jedes** Schema nimmt.
+- **`CountedNounTest`** hat „{{ secret_min }} Zeichen" gemeldet.
+
+**Und `SecretsStayOutOfTheQueueTest` hat sofort zugebissen**, als
+`notify.target.store` ein Argument namens `secret` bekam — genau die Frage, für
+die er am 20. September geweitet worden war.

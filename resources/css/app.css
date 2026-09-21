@@ -3450,6 +3450,22 @@ tr:has(td.multiline) > td {
 .quiet + .ident,
 
 /*
+ * **Und beim nächsten Mal steht ein Formular unter einem Bereich.**
+ *
+ * Auf der Seite „Benachrichtigungen" (B1) steht oben der Bereich mit dem
+ * hinterlegten Meldeziel und darunter das Formular, mit dem man es
+ * überschreibt. `.sections` endet bündig, `.form` fängt bündig an — dieselbe
+ * Fuge, ein neuer Name, und gemeldet hat es wieder der Wächter und nicht das
+ * Auge, **bevor** eine Aufnahme entstanden ist.
+ *
+ * > **Eine Liste von Nachbarn, die wächst, ist keine Regel — sie ist eine
+ * > Aufzählung der Fälle, die schon jemand gesehen hat.** Der Wächter darunter
+ * > leitet deshalb aus dieser Datei ab, welche Bausteine bündig sind, statt
+ * > die Paare zu zählen, die jemand eingetragen hat.
+ */
+.sections + .form,
+
+/*
  * **Und beim siebten Mal war es die Automatik.**
  *
  * Auf der Updates-Seite steht seit dem 26. August eine Tabelle unmittelbar

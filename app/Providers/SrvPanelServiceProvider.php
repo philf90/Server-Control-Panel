@@ -22,6 +22,8 @@ use App\Support\Dns\AgentMeasurement;
 use App\Support\Dns\Measurement;
 use App\Support\Metrics\Collector;
 use App\Support\Metrics\Store;
+use App\Support\Notify\AgentNotifyTarget;
+use App\Support\Notify\NotifyTarget;
 use App\Support\Settings\MailConfiguration;
 use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
@@ -136,6 +138,17 @@ final class SrvPanelServiceProvider extends ServiceProvider
         // Welche DNS-Profile hinterlegt sind, weiss der Agent — als Singleton,
         // damit eine Domainseite ihn einmal fragt und nicht je Zeile.
         $this->app->singleton(DnsCredentials::class, AgentDnsCredentials::class);
+
+        /*
+         * **B1: Wohin der Server meldet, weiss der Agent** — dieselbe Naht wie
+         * bei `DnsCredentials` darüber und aus demselben Grund. Ohne sie liesse
+         * sich der Fall „der Agent antwortet gar nicht" nirgends herstellen,
+         * und genau der entscheidet, was auf der Einstellungsseite steht:
+         * „kein Meldeziel" und „nicht feststellbar" sind zwei Zustände.
+         *
+         * Als Singleton, damit die Seite einmal fragt und nicht je Bereich.
+         */
+        $this->app->singleton(NotifyTarget::class, AgentNotifyTarget::class);
 
         /*
          * **P7: der Abgleich misst über den Agenten.** {@see Survey} kennt die

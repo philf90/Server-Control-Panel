@@ -38,9 +38,27 @@ final class NavGroupTest extends TestCase
     private const LAYOUT = 'resources/js/Layouts/PanelLayout.vue';
 
     /**
-     * Die Gruppe, in die alles unter `/settings/…` gehört.
+     * Die Gruppen, in die alles unter `/settings/…` gehört.
+     *
+     * **Bis zum 24. September 2026 stand hier eine einzige.** Die Zusage war
+     * aber nie „eine Gruppe", sondern *„was unter `/settings/…` liegt, steht
+     * in einer Einstellungsgruppe — und dort steht nichts anderes"*: eine
+     * Grenze, die aus der Route folgt und die ein Wächter deshalb halten kann.
+     * Zwei Gruppen ändern daran nichts, solange **beide** ausschliesslich von
+     * `/settings/…` gefüllt werden.
+     *
+     * > **Eine Gruppe, deren Grenze aus der Route folgt, kann ein Wächter
+     * > halten; eine, die an einem Urteil hängt, nicht.**
+     *
+     * Der Anlass war {@see self::test_no_group_grows_back_into_a_pot()}: Die
+     * Gruppe stand bei acht, und „Benachrichtigungen" (B1) war der neunte
+     * Punkt. Der naheliegende Ausweg — drei Einträge in {@see self::AUSNAHMEN}
+     * — hätte genau die ableitbare Grenze in ein Urteil verwandelt, also das,
+     * wogegen es diesen Wächter gibt.
+     *
+     * @var list<string>
      */
-    private const EINSTELLUNGEN = 'Einstellungen';
+    private const EINSTELLUNGEN = ['Einstellungen', 'Nach draussen'];
 
     /**
      * Die eine Gruppe, die heute schon zu gross ist — benannt statt geduldet.
@@ -168,13 +186,13 @@ final class NavGroupTest extends TestCase
                 continue;
             }
 
-            if ($eintrag['gruppe'] !== self::EINSTELLUNGEN) {
+            if (! in_array($eintrag['gruppe'], self::EINSTELLUNGEN, true)) {
                 $falsch[] = sprintf('%s (%s) steht in „%s"', $eintrag['name'], $eintrag['href'], $eintrag['gruppe']);
             }
         }
 
         $this->assertSame([], $falsch, implode("\n  ", array_merge(
-            ['Diese Punkte liegen unter /settings/ und stehen nicht in „Einstellungen":'],
+            ['Diese Punkte liegen unter /settings/ und stehen in keiner Einstellungsgruppe:'],
             $falsch,
         )));
     }
@@ -190,7 +208,7 @@ final class NavGroupTest extends TestCase
         $fremd = [];
 
         foreach ($this->eintraege() as $eintrag) {
-            if ($eintrag['gruppe'] !== self::EINSTELLUNGEN) {
+            if (! in_array($eintrag['gruppe'], self::EINSTELLUNGEN, true)) {
                 continue;
             }
 
@@ -200,7 +218,7 @@ final class NavGroupTest extends TestCase
         }
 
         $this->assertSame([], $fremd, implode("\n  ", array_merge(
-            ['Diese Punkte stehen in „Einstellungen" und sind keine:'],
+            ['Diese Punkte stehen in einer Einstellungsgruppe und sind keine Einstellung:'],
             $fremd,
         )));
     }
@@ -213,29 +231,32 @@ final class NavGroupTest extends TestCase
     {
         $eintraege = $this->eintraege();
 
-        $einstellungen = array_filter($eintraege, static fn (array $e): bool => $e['gruppe'] === self::EINSTELLUNGEN);
+        $einstellungen = array_filter($eintraege, static fn (array $e): bool => $e['gruppe'] === 'Einstellungen');
+        $draussen = array_filter($eintraege, static fn (array $e): bool => $e['gruppe'] === 'Nach draussen');
         $betrieb = array_filter($eintraege, static fn (array $e): bool => $e['gruppe'] === 'Betrieb');
         $verlauf = array_filter($eintraege, static fn (array $e): bool => $e['gruppe'] === 'Verlauf');
 
         /*
-         * **Acht seit dem 16. September 2026** — „Sicherungen" (P8 Schritt 9)
-         * steht neben dem Datenbankserver: was der Server von sich aus sichert
-         * und was beim Rückbau geschieht.
-         *
-         * Damit ist die Gruppe an der Grenze, die
-         * {@see self::test_no_group_grows_back_into_a_pot()} setzt, und dieser
-         * Halt ist der Ort, an dem das einmal entschieden gehört: Sie bleibt
-         * eine Gruppe, weil jeder ihrer Punkte dieselbe Frage beantwortet —
-         * *„wie ist dieser Server eingestellt"*. „Betrieb" war bei neun keine
-         * mehr, weil dort zwei Fragen standen: was **ist** und was **war**.
+         * **Sechs und drei seit dem 24. September 2026** — und die Teilung ist
+         * genau die, die der Satz darunter seit dem 16. September angekündigt
+         * hat: Die Gruppe stand bei acht, „Benachrichtigungen" (B1) war der
+         * neunte Punkt, und die Obergrenze hat die Entscheidung fällig
+         * gemacht.
          *
          * > **Eine Gruppe ist zu gross, wenn sie zwei Fragen beantwortet — und
          * > nicht, wenn sie viele Punkte hat.**
          *
-         * Der nächste Punkt hier bricht die Obergrenze und erzwingt die
-         * Teilung. Das ist Absicht und keine Härte.
+         * Die zweite Frage stand schon länger da: Mailversand, DNS-Zugang und
+         * Meldeziel sind die drei Stellen, an denen dieser Server
+         * **Zugangsdaten eines Fremden** hält. Die sechs daneben sagen, wie er
+         * eingestellt ist.
+         *
+         * **Und die Zahl ist wieder ein Halt und kein Befund.** Wer hier den
+         * siebten Punkt einträgt, hat noch Luft; wer den neunten einträgt,
+         * entscheidet wieder.
          */
-        $this->assertCount(8, $einstellungen, 'Die Gruppe „Einstellungen" trägt acht Punkte.');
+        $this->assertCount(6, $einstellungen, 'Die Gruppe „Einstellungen" trägt sechs Punkte — wie dieser Server eingestellt ist.');
+        $this->assertCount(3, $draussen, 'Die Gruppe „Nach draussen" trägt drei Punkte — wo Zugangsdaten eines Fremden liegen.');
 
         /*
          * **Sechs und drei seit dem 5. September 2026.** „Betrieb" trug acht und

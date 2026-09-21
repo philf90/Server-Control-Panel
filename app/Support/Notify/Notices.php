@@ -4,46 +4,51 @@ declare(strict_types=1);
 
 namespace App\Support\Notify;
 
-use App\Enums\FindingCheck;
 use App\Enums\FindingState;
-use App\Mail\QuotaWarning;
 use App\Models\Finding;
-use App\Models\Subscription;
+use App\Models\FindingNotification;
 use App\Support\Diagnose\FindingLog;
 use App\Support\Settings\Settings;
-use App\Support\Tenancy\Tenancy;
 use App\Support\Time\Clock;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Mail;
 
 /**
- * Was der Nachtlauf gefunden hat, an den Kunden — B5, `docs/129 §9`.
+ * Was der Nachtlauf gefunden hat, nach draussen — B5 und B1, `docs/129 §4`.
  *
- * ## Genau eine Mail, und das ist keine eigene Mechanik
+ * ## Genau eine Meldung je Kanal, und das ist keine eigene Mechanik
  *
- * Die Zusage steht in zwei Feldern, die es schon gibt:
+ * Die Zusage steht in zwei Dingen, die es schon gibt:
  *
  * ```
  * gemeldet wird, was   now − first_seen_at ≥ HOLD
- *                und   notified_at is null
+ *                und   für diesen Kanal keine Zeile in finding_notifications hat
  * ```
  *
- * Den ersten Teil hält {@see FindingLog}, seit A10: Eine
- * Zeile über zwei Läufe bleibt **eine**, und `first_seen_at` steht dabei still.
- * Den zweiten hält die Spalte aus B5. Und dass ein behobener Befund **wieder**
- * melden darf, hält `FindingLog::forgetMissing()` — was ein Lauf nicht mehr
- * nennt, wird gelöscht, mitsamt der Erinnerung an die Zustellung.
+ * Den ersten Teil hält {@see FindingLog}, seit A10: Eine Zeile über zwei Läufe
+ * bleibt **eine**, und `first_seen_at` steht dabei still. Den zweiten hält die
+ * Tabelle aus B1. Und dass ein behobener Befund **wieder** melden darf, hält
+ * `FindingLog::forgetMissing()` — was ein Lauf nicht mehr nennt, wird gelöscht,
+ * mitsamt den Zeilen der Zustellung (`cascadeOnDelete`).
  *
  * > **Ein zweites Zustandsbuch wäre die zweite Fassung derselben Regel — und
  * > die zweite ist die, die veraltet.**
  *
- * ## Eine Mail je Abonnement und nicht je Befund
+ * ## Je Kanal gebucht und nicht gemeinsam
+ *
+ * Bis zum 24. September 2026 war die Buchung eine Spalte `notified_at`. Mit
+ * dem zweiten Kanal trägt sie nicht mehr; die Begründung steht in der
+ * Migration `…_create_finding_notifications_table` und kurz:
+ *
+ * > **Ein Kanal, der für einen anderen mitbucht, verliert dessen Meldung — und
+ * > zwar dauerhaft.**
+ *
+ * ## Eine Nachricht je Gegenstand und nicht je Befund
  *
  * Ein Kunde, der Platz **und** Verkehr überzieht, bekommt eine Nachricht mit
  * zwei Zeilen und nicht zwei Nachrichten. Das Abnahmekriterium sagt „genau eine
- * Mail", und zwei Mails in derselben Minute sind für den Empfänger genau das,
- * wogegen es geschrieben ist.
+ * Mail", und zwei in derselben Minute sind für den Empfänger genau das, wogegen
+ * es geschrieben ist.
  */
 final class Notices
 {
@@ -64,148 +69,121 @@ final class Notices
      */
     public const HOLD_HOURS = 20;
 
-    /** Der einzige Kanal, den es heute gibt. Der zweite ist der Webhook aus `docs/129 §7`. */
-    public const CHANNEL = 'mail';
-
     public function __construct(
-        private readonly Tenancy $tenancy,
         private readonly Settings $settings,
+        private readonly Channels $channels,
     ) {}
 
     /**
-     * Die fälligen Meldungen verschicken.
+     * Die fälligen Meldungen verschicken — über jeden Kanal, der durchkommt.
      *
-     * @return array{sent: int, findings: int, without_recipient: int, failed: int, skipped: int}
+     * **Je Kanal eine eigene Bilanz.** Eine Summe über beide sagte „zwei
+     * Nachrichten verschickt" und liesse offen, ob das zweimal Mail war und der
+     * Webhook geschwiegen hat.
+     *
+     * > **Eine Zahl, die eine Aufteilung zusammenfasst, sagt nicht, welche.**
+     *
+     * @return array<string, array{sent: int, findings: int, without_recipient: int, failed: int, skipped: int}>
      */
     public function send(Carbon $now): array
     {
-        $bilanz = ['sent' => 0, 'findings' => 0, 'without_recipient' => 0, 'failed' => 0, 'skipped' => 0];
+        $bilanz = [];
 
-        if (! $this->settings->mail()->usable()) {
-            /*
-             * **Ohne eingetragenes Relay wird nichts gemeldet und nichts
-             * vermerkt.** `notified_at` zu setzen hiesse, eine Zustellung zu
-             * behaupten, die es nicht gab — und die Meldung wäre für immer
-             * fort, weil dieselbe Zeile nie wieder fällig wird.
-             */
-            $bilanz['skipped'] = $this->due($now)->count();
-
-            return $bilanz;
-        }
-
-        foreach ($this->due($now)->groupBy('subject') as $subject => $findings) {
-            $bilanz['findings'] += $findings->count();
-            $empfaenger = $this->recipients((string) $subject);
-
-            if ($empfaenger === []) {
-                $bilanz['without_recipient']++;
-
-                continue;
-            }
-
-            try {
-                Mail::to($empfaenger)->send(new QuotaWarning((string) $subject, $this->lines($findings->all())));
-            } catch (\Throwable $e) {
-                // Kein `notified_at`: Was nicht ankam, bleibt fällig. Der
-                // nächste Lauf versucht es wieder, und bis dahin steht
-                // „zuletzt erfolgreich zugestellt" unverändert da.
-                $bilanz['failed']++;
-
-                continue;
-            }
-
-            $findings->each(static function (Finding $finding) use ($now): void {
-                $finding->notified_at = $now;
-                $finding->save();
-            });
-
-            $bilanz['sent']++;
-        }
-
-        if ($bilanz['sent'] > 0) {
-            $this->settings->saveNoticeSent(self::CHANNEL, $now->toDateTimeString());
+        foreach ($this->channels->all() as $channel) {
+            $bilanz[$channel->key()] = $this->over($channel, $now);
         }
 
         return $bilanz;
     }
 
     /**
-     * Die Befunde, die fällig sind.
+     * Ein Kanal, ein Durchgang.
+     *
+     * @return array{sent: int, findings: int, without_recipient: int, failed: int, skipped: int}
+     */
+    private function over(Channel $channel, Carbon $now): array
+    {
+        $bilanz = ['sent' => 0, 'findings' => 0, 'without_recipient' => 0, 'failed' => 0, 'skipped' => 0];
+        $faellig = $this->due($channel, $now);
+
+        if (! $channel->usable()) {
+            /*
+             * **Ohne eingerichteten Kanal wird nichts gemeldet und nichts
+             * gebucht.** Eine Zeile zu schreiben hiesse, eine Zustellung zu
+             * behaupten, die es nicht gab — und die Meldung wäre für immer
+             * fort, weil derselbe Befund über diesen Kanal nie wieder fällig
+             * wird.
+             */
+            $bilanz['skipped'] = $faellig->count();
+
+            return $bilanz;
+        }
+
+        foreach ($faellig->groupBy('subject') as $subject => $findings) {
+            $bilanz['findings'] += $findings->count();
+
+            /** @var list<Finding> $gruppe */
+            $gruppe = $findings->values()->all();
+
+            switch ($channel->deliver((string) $subject, $gruppe)) {
+                case Delivery::Sent:
+                    foreach ($gruppe as $finding) {
+                        FindingNotification::record($finding, $channel, $now);
+                    }
+
+                    $bilanz['sent']++;
+                    break;
+
+                case Delivery::WithoutRecipient:
+                    $bilanz['without_recipient']++;
+                    break;
+
+                case Delivery::Failed:
+                    $bilanz['failed']++;
+                    break;
+            }
+        }
+
+        if ($bilanz['sent'] > 0) {
+            $this->settings->saveNoticeSent($channel->key(), $now->toDateTimeString());
+        }
+
+        return $bilanz;
+    }
+
+    /**
+     * Die Befunde, die über diesen Kanal fällig sind.
      *
      * **`Unknown` wird nicht gemeldet.** Ein `traffic_unknown` sagt „nicht
-     * beurteilt"; eine Mail darüber wäre eine Meldung an den Kunden über ein
-     * Problem des Servers, und die gehört dem Betreiber (B1).
+     * beurteilt"; eine Meldung darüber wäre eine über ein Problem der Messung
+     * und nicht über einen Zustand.
+     *
+     * **Gefiltert wird zweimal, und das ist Absicht.** Die Datenbank wirft
+     * weg, was schon gebucht ist oder die Haltezeit nicht erreicht hat; der
+     * Kanal entscheidet danach, was ihn angeht ({@see Channel::carries()}).
+     * Die zweite Frage in SQL zu stellen hiesse, jeden Kanal eine Abfrage
+     * schreiben zu lassen — und die Befunde einer Nacht sind zweistellig.
      *
      * @return Collection<int, Finding>
      */
-    private function due(Carbon $now): Collection
+    private function due(Channel $channel, Carbon $now): Collection
     {
         $schwelle = $now->copy()->subHours(self::HOLD_HOURS);
 
         return Finding::query()
-            ->where('check', FindingCheck::QuotaExceeded->value)
-            ->whereNull('notified_at')
+            ->whereDoesntHave('notifications', static fn ($q) => $q->where('channel', $channel->key()))
             ->where('first_seen_at', '<=', $schwelle)
             ->orderBy('subject')
             ->orderBy('reason')
             ->get()
-            ->filter(static fn (Finding $f): bool => $f->check->state($f->reason) !== FindingState::Unknown)
+            ->filter(static fn (Finding $f): bool => $f->state() !== FindingState::Unknown)
+            ->filter(static fn (Finding $f): bool => $channel->carries($f))
             ->values();
     }
 
-    /**
-     * Die Zeilen einer Nachricht — Beschriftung und gemessener Wert.
-     *
-     * Die Beschriftung kommt aus {@see FindingCheck::sentence()} und nicht aus
-     * einer zweiten Liste hier: Was der Betreiber auf der Diagnoseseite liest,
-     * liest der Kunde in seiner Mail.
-     *
-     * @param  list<Finding>  $findings
-     * @return list<array{label: string, detail: string}>
-     */
-    private function lines(array $findings): array
-    {
-        return array_map(static fn (Finding $f): array => [
-            'label' => $f->check->sentence($f->reason),
-            'detail' => (string) ($f->detail ?? '—'),
-        ], $findings);
-    }
-
-    /**
-     * An wen die Nachricht geht.
-     *
-     * **An die Konten des Kunden und nicht an eine Adresse am Abonnement** —
-     * eine solche gibt es nicht, und sie zu erfinden hiesse, eine zweite
-     * Wahrheit neben `accounts.email` zu pflegen.
-     *
-     * Die Klammer wird gelöst, weil dieser Lauf kein angemeldetes Konto hat;
-     * im Grundzustand käme eine leere Liste zurück, und das sähe aus wie
-     * „dieser Kunde hat kein Konto".
-     *
-     * @return list<string>
-     */
-    private function recipients(string $subscription): array
-    {
-        /** @var list<string> $adressen */
-        $adressen = [];
-
-        $this->tenancy->withoutRestriction(static function () use ($subscription, &$adressen): void {
-            $abo = Subscription::query()->where('name', $subscription)->first();
-
-            $adressen = $abo?->customer?->accounts()
-                ->whereNotNull('email')
-                ->orderBy('id')
-                ->pluck('email')
-                ->map(static fn (mixed $mail): string => (string) $mail)
-                ->all() ?? [];
-        });
-
-        return array_values(array_filter($adressen, static fn (string $mail): bool => $mail !== ''));
-    }
-
     /** Wann zuletzt etwas über diesen Kanal angekommen ist — für die Einstellungsseite. */
-    public function lastDelivered(): ?string
+    public function lastDelivered(string $channel): ?string
     {
-        return Clock::displayText($this->settings->noticeSentAt(self::CHANNEL));
+        return Clock::displayText($this->settings->noticeSentAt($channel));
     }
 }

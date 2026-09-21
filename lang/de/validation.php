@@ -95,6 +95,14 @@ return [
         'string' => 'Das Feld :attribute muss genau :size Zeichen lang sein.',
     ],
 
+    /*
+     * **`starts_with` steht neben `url` und nicht statt seiner.** Die Adresse
+     * des Meldeziels wird gegen beide geprüft: `url`, damit sie überhaupt eine
+     * ist, und `starts_with:https://`, weil Laravels `url` **jedes** Schema
+     * nimmt — `http://127.0.0.1:9200` eingeschlossen, und genau das ist der
+     * Fall, gegen den Grenze 1 geschrieben ist.
+     */
+    'starts_with' => 'Das Feld :attribute muss mit einem der folgenden Werte beginnen: :values.',
     'string' => 'Das Feld :attribute muss eine Zeichenkette sein.',
     'timezone' => 'Das Feld :attribute muss eine gültige Zeitzone sein.',
     'unique' => 'Das Feld :attribute ist bereits vergeben.',
@@ -275,6 +283,7 @@ return [
         'result' => 'Ergebnis',
         'role' => 'Rolle',
         'secret' => 'Geheimnis',
+        'url' => 'Adresse',
         'session' => 'Sitzung',
         'server' => 'Nameserver',
         'shared_secret' => 'Gemeinsames Geheimnis',

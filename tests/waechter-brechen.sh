@@ -32814,8 +32814,7 @@ pruefe "  … zurückgesetzt wieder grün" QuotaOverrunTest passed
 
 echo "── NotificationLedgerTest: die Haltezeit wird uebergangen ──"
 #
-# Eine Platte, die um die Schwelle pendelt, erzeugt sonst in jeder Nacht eine
-# Mail. Die Entprellung ist die halbe Zusage von „genau eine Mail".
+# Ohne Haltezeit meldet eine Platte, die um die Schwelle pendelt, jede Nacht.
 vorher_datei app/Support/Notify/Notices.php
 python3 - <<'PY'
 import pathlib
@@ -32832,16 +32831,16 @@ wiederherstellen
 
 echo "── NotificationLedgerTest: die Zustellung wird nicht vermerkt ──"
 #
-# Ohne `notified_at` ist jede Nacht dieselbe Nachricht faellig. Der Kunde
-# bekommt sie, solange der Zustand steht — und das kann ein Monat sein.
+# Ohne Buchung ist jede Nacht dieselbe Nachricht faellig. Der Kunde bekommt
+# sie, solange der Zustand steht — und das kann ein Monat sein.
 vorher_datei app/Support/Notify/Notices.php
 python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/Notices.php')
 s = p.read_text()
-alt = '$finding->notified_at = $now;'
+alt = 'FindingNotification::record($finding, $channel, $now);'
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, '$finding->notified_at = null;', 1))
+p.write_text(s.replace(alt, '$finding->refresh();', 1))
 PY
 griff_datei app/Support/Notify/Notices.php "Zustellung nicht vermerkt" &&
 pruefe "Zustellung nicht vermerkt" \
@@ -32857,9 +32856,9 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/Notices.php')
 s = p.read_text()
-alt = "foreach ($this->due($now)->groupBy('subject') as $subject => $findings) {"
+alt = "foreach ($faellig->groupBy('subject') as $subject => $findings) {"
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, "foreach ($this->due($now)->groupBy('id') as $findings) {\n            $subject = $findings->first()->subject;", 1))
+p.write_text(s.replace(alt, "foreach ($faellig->groupBy('id') as $findings) {\n            $subject = $findings->first()->subject;", 1))
 PY
 griff_datei app/Support/Notify/Notices.php "eine Mail je Befund" &&
 pruefe "eine Mail je Befund" \
@@ -32868,14 +32867,14 @@ wiederherstellen
 
 echo "── NotificationLedgerTest: ohne Relais wird trotzdem vermerkt ──"
 #
-# Ein `notified_at` ohne Zustellung behauptet eine Mail, die es nicht gab —
-# und nimmt der Zeile fuer immer ihre Faelligkeit.
+# Eine Buchung ohne Zustellung behauptet eine Mail, die es nicht gab — und
+# nimmt der Zeile fuer immer ihre Faelligkeit.
 vorher_datei app/Support/Notify/Notices.php
 python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/Notices.php')
 s = p.read_text()
-alt = 'if (! $this->settings->mail()->usable()) {'
+alt = 'if (! $channel->usable()) {'
 assert s.count(alt) == 1
 p.write_text(s.replace(alt, 'if (false) {', 1))
 PY
@@ -32894,7 +32893,7 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/Notices.php')
 s = p.read_text()
-alt = '->filter(static fn (Finding $f): bool => $f->check->state($f->reason) !== FindingState::Unknown)'
+alt = '->filter(static fn (Finding $f): bool => $f->state() !== FindingState::Unknown)'
 assert s.count(alt) == 1
 p.write_text(s.replace(alt, '->filter(static fn (Finding $f): bool => true)', 1))
 PY
@@ -32926,20 +32925,208 @@ echo "── NotificationLedgerTest: ein Abonnement ohne Empfaenger gilt als gem
 # Was nicht verschickt wurde, darf nicht als gemeldet dastehen. Sonst ist die
 # Ueberschreitung fuer immer stumm, und niemand erfaehrt, dass dem Kunden ein
 # Konto mit Adresse fehlt.
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text()
+alt = 'return Delivery::WithoutRecipient;'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'return Delivery::Sent;', 1))
+PY
+griff_datei app/Support/Notify/MailChannel.php "ohne Empfaenger gemeldet" &&
+pruefe "ohne Empfaenger gemeldet" \
+  NotificationLedgerTest::test_a_subscription_without_a_recipient_stays_due failed
+wiederherstellen
+
+echo "── NotificationLedgerTest: ein Kanal bucht fuer den anderen mit ──"
+#
+# Der Fall, fuer den es die Tabelle gibt. Faellt die Frage nach dem Kanal weg,
+# nimmt der erste gelungene Kanal dem zweiten seine Meldung — dauerhaft.
 vorher_datei app/Support/Notify/Notices.php
 python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/Notices.php')
 s = p.read_text()
-alt = "if ($empfaenger === []) {\n                $bilanz['without_recipient']++;\n\n                continue;\n            }"
+alt = "->whereDoesntHave('notifications', static fn ($q) => $q->where('channel', $channel->key()))"
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, "if ($empfaenger === []) {\n                $bilanz['without_recipient']++;\n            }", 1))
+p.write_text(s.replace(alt, "->whereDoesntHave('notifications')", 1))
 PY
-griff_datei app/Support/Notify/Notices.php "ohne Empfaenger gemeldet" &&
-pruefe "ohne Empfaenger gemeldet" \
-  NotificationLedgerTest::test_a_subscription_without_a_recipient_stays_due failed
+griff_datei app/Support/Notify/Notices.php "Kanal bucht mit" &&
+pruefe "Kanal bucht mit" \
+  NotificationLedgerTest::test_each_channel_books_only_for_itself failed
+wiederherstellen
+
+echo "── NotificationLedgerTest: ein Fehlschlag wird gebucht ──"
+#
+# Was nicht ankam, bleibt faellig. Eine Buchung auf dem Fehlerweg nimmt der
+# Meldung ihre Faelligkeit fuer genau den Kanal, der sie nie bekommen hat.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text()
+alt = """                case Delivery::Failed:
+                    $bilanz['failed']++;"""
+assert s.count(alt) == 1
+neu = """                case Delivery::Failed:
+                    foreach ($gruppe as $finding) {
+                        FindingNotification::record($finding, $channel, $now);
+                    }
+
+                    $bilanz['failed']++;"""
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Notify/Notices.php "Fehlschlag gebucht" &&
+pruefe "Fehlschlag gebucht" \
+  NotificationLedgerTest::test_each_channel_books_only_for_itself failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NotificationLedgerTest passed
+
+echo "── ChannelReachTest: ein gebauter Kanal steht nicht auf der Seite ──"
+#
+# So entsteht ein toter Eintrag wirklich: Der Kanal meldet, und die Seite, auf
+# der „zuletzt erfolgreich zugestellt" steht, kennt ihn nicht.
+vorher_datei resources/js/Pages/Settings/Notices.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Settings/Notices.vue')
+s = p.read_text()
+alt = '  webhook: {'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '  webhook_alt: {', 1))
+PY
+griff_datei resources/js/Pages/Settings/Notices.vue "Kanal fehlt auf der Seite" &&
+pruefe "Kanal fehlt auf der Seite" \
+  ChannelReachTest::test_every_implementation_stands_on_the_page failed
+wiederherstellen
+
+echo "── ChannelReachTest: ein Kanal der Seite ist nicht gebaut ──"
+#
+# Die Gegenrichtung: Die Seite bietet einen Weg an, den niemand bedient.
+vorher_datei app/Support/Notify/Channels.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Channels.php')
+s = p.read_text()
+alt = '$this->channels = [$mail, $webhook];'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '$this->channels = [$mail];', 1))
+PY
+griff_datei app/Support/Notify/Channels.php "Kanal nicht gebaut" &&
+pruefe "Kanal nicht gebaut" \
+  ChannelReachTest::test_every_channel_on_the_page_has_an_implementation failed
+wiederherstellen
+
+echo "── WebhookTransportTest: eine http-Adresse geht durch ──"
+#
+# Grenze 1. Wer eine Adresse nach draussen waehlen darf, waehlt sonst auch
+# `http://127.0.0.1:…` — und das Panel spraeche als `srvpanel` mit jedem
+# Dienst dieses Servers.
+vorher_datei agent/src/Notify/Target.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Target.php')
+s = p.read_text()
+alt = "if ($address === '' || ! $this->http->permitted($address)) {"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'if (false) {', 1))
+PY
+griff_datei agent/src/Notify/Target.php "http-Adresse geht durch" &&
+pruefe "http-Adresse geht durch" \
+  WebhookTransportTest::test_only_https_reaches_the_store failed
+wiederherstellen
+
+echo "── WebhookTransportTest: ein zu kurzes Geheimnis geht durch ──"
+#
+# Ein Geheimnis von vier Zeichen ist eines, das der Empfaenger nachrechnen
+# kann — und jeder andere auch.
+vorher_datei agent/src/Notify/Target.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Target.php')
+s = p.read_text()
+alt = 'if (! is_string($secret) || strlen($secret) < self::SECRET_MIN) {'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'if (! is_string($secret)) {', 1))
+PY
+griff_datei agent/src/Notify/Target.php "kurzes Geheimnis geht durch" &&
+pruefe "kurzes Geheimnis geht durch" \
+  WebhookTransportTest::test_a_secret_is_long_enough_or_absent failed
+wiederherstellen
+
+echo "── WebhookTransportTest: die Adresse kommt zurueck ──"
+#
+# Bei Slack, Discord und den meisten Eingangshaken berechtigt die Adresse
+# allein zur Zustellung. Sie steht deshalb in keiner Antwort.
+vorher_datei agent/src/Notify/Target.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Target.php')
+s = p.read_text()
+alt = "'host' => self::hostOf($url),"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'host' => $url,", 1))
+PY
+griff_datei agent/src/Notify/Target.php "Adresse kommt zurueck" &&
+pruefe "Adresse kommt zurueck" \
+  WebhookTransportTest::test_neither_address_nor_secret_comes_back failed
+wiederherstellen
+
+echo "── WebhookTransportTest: die Signatur vergisst den Zeitpunkt ──"
+#
+# Eine Signatur ohne Zeitstempel beglaubigt den Inhalt und nicht den
+# Augenblick — dieselbe Meldung gilt morgen noch.
+vorher_datei agent/src/Notify/Delivery.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Delivery.php')
+s = p.read_text()
+alt = "hash_hmac('sha256', $at.'.'.$body, $secret)"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "hash_hmac('sha256', $body, $secret)", 1))
+PY
+griff_datei agent/src/Notify/Delivery.php "Signatur ohne Zeitpunkt" &&
+pruefe "Signatur ohne Zeitpunkt" \
+  WebhookTransportTest::test_the_signature_covers_the_timestamp_and_the_body failed
+wiederherstellen
+
+echo "── WebhookTransportTest: das Panel setzt den Absender ──"
+#
+# Der Absender ist eine Angabe des Agenten ueber den Server. Kaeme er aus der
+# Meldung, waere die Herkunft eine Angabe des Absenders ueber sich selbst.
+vorher_datei agent/src/Notify/Delivery.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Delivery.php')
+s = p.read_text()
+alt = "'server' => Names::host(),"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'server' => $event['server'] ?? Names::host(),", 1))
+PY
+griff_datei agent/src/Notify/Delivery.php "Panel setzt den Absender" &&
+pruefe "Panel setzt den Absender" \
+  WebhookTransportTest::test_the_sender_is_stamped_and_not_taken_from_the_payload failed
+wiederherstellen
+
+echo "── WebhookTransportTest: eine abgewiesene Meldung gilt als zugestellt ──"
+#
+# Sonst stuende „zuletzt erfolgreich zugestellt" neben einem Ziel, das jede
+# Meldung mit 500 beantwortet.
+vorher_datei agent/src/Notify/Delivery.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Delivery.php')
+s = p.read_text()
+alt = 'if (! $response->successful()) {'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'if (false) {', 1))
+PY
+griff_datei agent/src/Notify/Delivery.php "abgewiesen gilt als zugestellt" &&
+pruefe "abgewiesen gilt als zugestellt" \
+  WebhookTransportTest::test_a_rejected_delivery_throws failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WebhookTransportTest passed
 
 echo "── MailTimeoutTest: die Zeitgrenze steht wieder auf null ──"
 #

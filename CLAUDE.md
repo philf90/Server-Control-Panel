@@ -5615,6 +5615,57 @@ Methode geworden: Als leere Konstante ist sie für PHPStan `array{}`, und jeder
 
 ---
 
+## Drei Sätze aus B1 — 24. September 2026
+
+**Der erste ist ein Geheimnis, das nicht wie eines aussieht.** Die Adresse eines
+Eingangshakens ist bei Slack, Discord und den meisten Anbietern das *ganze*
+Zugangsmittel: Wer sie hat, schreibt in den Kanal. Sie steht deshalb in keiner
+Antwort des Agenten — `Notify\Target::describe()` gibt den **Rechnernamen**
+heraus, den Zeitpunkt und „signiert", und keinen Ausschnitt von beidem.
+
+> **Eine Adresse, die allein zur Zustellung berechtigt, ist ein Geheimnis in
+> Gestalt einer Adresse — und sie sieht auf einer Seite aus wie eine Auskunft.**
+
+Die Schwesterfrage gilt jedem künftigen Feld dieser Art: Gelesen wird über eine
+**Positivliste**. Was hinaus soll, steht da; was neu dazukommt, fehlt und fällt
+auf. Eine Liste dessen, was *nicht* hinaus darf, ist beim nächsten Feld
+unvollständig, und niemandem fällt es auf.
+
+**Der zweite ist der Grund, aus dem eine Spalte zur Tabelle wurde.** B5 hat die
+Zustellung als `findings.notified_at` gebucht, und das war richtig, solange es
+**einen** Kanal gab. Mit dem zweiten gibt es genau zwei mögliche Regeln, und
+beide sind falsch: Bucht die Spalte beim ersten gelungenen Kanal, ist die
+Meldung des zweiten dauerhaft fort; bucht sie erst beim letzten, hält ein
+kaputter Kanal alle anderen fest.
+
+> **Ein Kanal, der für einen anderen mitbucht, verliert dessen Meldung — und
+> zwar dauerhaft.**
+
+Die Migration hatte den Verzweigungspunkt selbst benannt („braucht es erst, wenn
+mehrere Kanäle je Befund getrennt buchen sollen"), und das ist die eigentliche
+Lehre: **Eine Ablage, die ihren eigenen Wendepunkt aufschreibt, wird beim
+Wenden gelesen statt neu erfunden.**
+
+**Der dritte ist ein Wächter, der seine eigene Teilung angesagt hatte.**
+`NavGroupTest` hielt seit dem 16. September zwei Regeln: Was unter
+`/settings/…` liegt, steht in der Gruppe „Einstellungen" — und keine Gruppe hat
+mehr als acht Punkte. Bei acht Einträgen war das kein Widerspruch. Der neunte
+hat ihn hergestellt, und der Kommentar im Wächter sagte wörtlich voraus, dass
+das passieren würde.
+
+> **Zwei Regeln, die sich erst an einer Zahl widersprechen, sind bis dahin von
+> einer nicht zu unterscheiden.**
+
+Aufgelöst wird es **nicht** über die Ausnahmeliste. Drei Ausnahmen hätten die
+Zahl gerettet und die Zusage zerstört, für die es den Wächter gibt: dass die
+Gruppengrenze aus der Route folgt. Die Zusage lautete nie „eine Gruppe",
+sondern „was unter `/settings/…` liegt, steht in **einer** Einstellungsgruppe,
+und dort steht nichts anderes" — und zwei Gruppen ändern daran nichts.
+
+> **Eine Ausnahme, die eine Zahl rettet, bezahlt sie mit der Regel.**
+
+---
+
 ## Befehle
 
 ```bash

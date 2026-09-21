@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Mail\TestMessage;
 use App\Models\Account;
 use App\Support\Audit\Audit;
+use App\Support\Notify\MailChannel;
 use App\Support\Notify\Notices;
 use App\Support\Settings\MailSettings;
 use App\Support\Settings\Settings;
@@ -63,7 +64,7 @@ final class MailSettingsController extends Controller
              * dass das Relay erreichbar ist, und nicht, dass eine Meldung
              * ankam.
              */
-            'delivered_at' => $notices->lastDelivered(),
+            'delivered_at' => $notices->lastDelivered(MailChannel::CHANNEL),
         ]);
     }
 

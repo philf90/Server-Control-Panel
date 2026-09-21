@@ -663,9 +663,39 @@ const navigation = computed<{ group: string | null; items: NavItem[] }[]>(() => 
        */
       { name: 'Automatische Sicherung', href: '/settings/backups', icon: 'backups', ability: 'operate-server' },
 
-      { name: 'Mailversand', href: '/settings/mail', icon: 'mail', ability: 'operate-server' },
       { name: 'Zertifikat', href: '/settings/tls', icon: 'tls', ability: 'operate-server' },
+    ] },
+
+    /*
+     * **„Nach draussen" ist am 24. September 2026 aus „Einstellungen"
+     * herausgelöst worden**, und den Anlass hat ein Wächter gegeben: Die
+     * Gruppe trug acht Punkte, `NavGroupTest` setzt acht als Obergrenze, und
+     * der Kommentar dort sagt seit dem 16. September wörtlich, der nächste
+     * Punkt erzwinge die Teilung. „Benachrichtigungen" war der neunte.
+     *
+     * **Die Trennlinie ist nicht die Grösse, sondern die zweite Frage.** Die
+     * drei hier sind die Stellen, an denen dieser Server **Zugangsdaten eines
+     * Fremden** hält und mit ihm spricht: das Passwort des Relays, das Token
+     * des DNS-Anbieters, Adresse und Geheimnis des Meldeziels. Die übrigen
+     * sagen, wie dieser Server eingestellt ist.
+     *
+     * > **Eine Gruppe ist zu gross, wenn sie zwei Fragen beantwortet — und
+     * > nicht, wenn sie viele Punkte hat.**
+     *
+     * **Das Zertifikat bleibt drüben**, obwohl es über ACME nach draussen
+     * bestellt wird: Es ist das Zertifikat *dieser* Oberfläche, und die
+     * Zugangsdaten, mit denen bestellt wird, sind die des DNS-Zugangs hier.
+     *
+     * **Und die Grenze bleibt aus der Route ableitbar** — das ist die Zusage,
+     * die `NavGroupTest` seit dem 30. August hält. Sie lautet nicht „eine
+     * Gruppe", sondern „was unter `/settings/…` liegt, steht in einer
+     * Einstellungsgruppe, und dort steht nichts anderes". Zwei Gruppen ändern
+     * daran nichts; drei Ausnahmen hätten es zerstört.
+     */
+    { group: 'Nach draussen', items: [
+      { name: 'Mailversand', href: '/settings/mail', icon: 'mail', ability: 'operate-server' },
       { name: 'DNS-Zugang', href: '/settings/dns', icon: 'dns', ability: 'operate-server' },
+      { name: 'Benachrichtigungen', href: '/settings/notices', icon: 'notices', ability: 'operate-server' },
     ] },
     { group: 'Konto', items: [{ name: 'Mein Konto', href: '/settings/profile', icon: 'account' }] },
   ]

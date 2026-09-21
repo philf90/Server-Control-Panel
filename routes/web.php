@@ -25,6 +25,7 @@ use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\LogsController;
 use App\Http\Controllers\MailSettingsController;
 use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\NoticeSettingsController;
 use App\Http\Controllers\OperationController;
 use App\Http\Controllers\OperationStreamController;
 use App\Http\Controllers\OverviewController;
@@ -1409,6 +1410,30 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/settings/mail/test', [MailSettingsController::class, 'test'])
         ->middleware('can:operate-server')
         ->name('settings.mail.test');
+
+    /*
+     * Die Meldewege dieses Servers (B1, docs/129 §7).
+     *
+     * **`can:operate-server`, Entscheidung 3 aus `docs/129 §2`:** Nur der
+     * Betreiber richtet ein Fernziel ein. Wer eine Adresse nach draussen
+     * wählen darf, wählt sonst auch `http://127.0.0.1:…` — die Grenze steht
+     * im Agenten, und diese hier hält den Weg dorthin.
+     */
+    Route::get('/settings/notices', [NoticeSettingsController::class, 'show'])
+        ->middleware('can:operate-server')
+        ->name('settings.notices');
+
+    Route::put('/settings/notices', [NoticeSettingsController::class, 'update'])
+        ->middleware('can:operate-server')
+        ->name('settings.notices.update');
+
+    Route::delete('/settings/notices', [NoticeSettingsController::class, 'destroy'])
+        ->middleware('can:operate-server')
+        ->name('settings.notices.forget');
+
+    Route::post('/settings/notices/test', [NoticeSettingsController::class, 'test'])
+        ->middleware('can:operate-server')
+        ->name('settings.notices.test');
 
     /*
      * Das Zertifikat der Oberfläche (docs/27).

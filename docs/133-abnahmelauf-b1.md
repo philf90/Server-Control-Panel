@@ -173,42 +173,72 @@ gewesen**, und alle drei stehen im Quelltext:
 > **Ein Pfad, den eine Vorschrift aus dem Gedächtnis nennt, ist eine Vermutung
 > — und der Quelltext steht daneben.**
 
-**Und eine vierte ist beim Laufen umgefallen, nicht beim Ausschreiben.** Der
-Block mit den berichtigten Pfaden gab auf `cloudsrv24` `KEINE mit gültigem
-Zertifikat` aus — und genau dieselbe Ausgabe bekommt, wessen Verzeichnis leer
-ist, wessen `$ABO` danebenliegt und wer die Dateien nicht lesen darf. Vier
-Zustände, eine Ausgabe: Der Schleifenrumpf lief kein einziges Mal, und nichts
-in der Ausgabe sagte das.
+**Und eine vierte ist beim Laufen umgefallen, nicht beim Ausschreiben** — es
+ist wieder ein Pfad, und es ist der teuerste der vier:
 
-Es ist derselbe Fehler, den `packaging/bin/srvpanel` seit dem 18. August im
-Kopf trägt — dort schweigt `tinker` ohne `HOME`, und das Schweigen sieht aus
-wie ein leeres Ergebnis. Hier schweigt eine Schleife.
+- **Der erste `root` eines Server-Blocks ist nie der der Domain.**
+  {@see SiteTemplate::render()} setzt `HttpChallenge::nginxLocation()` **vor**
+  den Inhaltsblock, und diese `location` bringt ihr eigenes `root` mit:
+  `/var/spool/srvpanel/acme-challenge`, für alle Domains des Servers an einer
+  Stelle, damit kein Kunde irgendwo Schreibrechte braucht. Ein `awk` mit `exit`
+  hinter dem ersten Treffer liest deshalb **immer** das Prüfverzeichnis.
+
+Gemessen auf `cloudsrv24` am 21. September 2026: sechs Server-Blöcke, sechsmal
+`continue`, null Kandidaten — bei drei Domains mit gültigem Zertifikat, die auf
+Nachfrage alle mit `200` und `ssl_verify_result=0` antworteten. Der Filter hat
+das Material weggeworfen, nicht der Server.
+
+Und weil der Block das nicht sagte, sah sein Ergebnis aus wie vier andere
+Zustände zugleich: leeres Verzeichnis, falsches `$ABO`, fehlende Leserechte,
+kein gültiges Zertifikat. Es ist derselbe Fehler, den `packaging/bin/srvpanel`
+seit dem 18. August im Kopf trägt — dort schweigt `tinker` ohne `HOME`, und das
+Schweigen sieht aus wie ein leeres Ergebnis. Hier schwieg eine Schleife.
 
 > **Eine Schleife, die nichts ausgibt, hat nicht nichts gefunden — sie sagt
-> gar nichts. Wieviele Dateien sie angesehen hat, muss sie selbst nennen.**
+> gar nichts. Wieviele Dateien sie angesehen hat und wieviele davon in Frage
+> kamen, muss sie selbst nennen.**
 
 Der Block fragt die Wurzel deshalb bei **nginx** nach, statt sie aus dem Namen
-abzuleiten — und zählt die Dateien, bevor er sie durchgeht:
+abzuleiten; `awk` sucht die **erste Wurzel unterhalb des Abonnements** statt
+der ersten überhaupt, und beide Zahlen — angesehen und in Frage gekommen —
+stehen vor dem Ergebnis:
 
 ```bash
 ABO=/var/www/vhosts/<abonnement>
-HAKEN=""; WURZEL=""
+HAKEN=""; WURZEL=""; TREFFER=0
 
-# Die Zahl vor der Schleife — ohne sie sieht ein leeres Verzeichnis aus wie
-# „keine Domain hat ein gültiges Zertifikat".
+# Die Zahlen vor der Schleife. Ohne sie sieht ein leeres Verzeichnis aus wie
+# „keine Domain hat ein gültiges Zertifikat" — und ein Filter, der danebengreift,
+# auch.
 DATEIEN=$(ls -1 /etc/nginx/srvpanel.d/*.conf 2>/dev/null | wc -l)
 printf 'Server-Blöcke: %s   Abonnementwurzel: %s\n' \
     "$DATEIEN" "$([ -d "$ABO" ] && echo vorhanden || echo FEHLT)"
 
 for f in /etc/nginx/srvpanel.d/*.conf; do
   [ -f "$f" ] || continue
-  r=$(awk '$1=="root"{gsub(/;/,"",$2); print $2; exit}' "$f")
-  case "$r" in "$ABO"/*) ;; *) continue ;; esac
+
+  # Die erste Wurzel *unterhalb des Abonnements* — nicht die erste im Block.
+  # Die ist das Prüfverzeichnis von ACME und gehört keiner Domain.
+  r=$(awk -v abo="$ABO/" '$1=="root"{gsub(/;/,"",$2); if (index($2,abo)==1) {print $2; exit}}' "$f")
+  [ -n "$r" ] || continue
+  TREFFER=$((TREFFER + 1))
+
   n=$(awk '$1=="server_name"{gsub(/;/,"",$0); print $2; exit}' "$f")
+  p=$(awk '$1=="fastcgi_pass"{print "ja"; exit}' "$f"); p=${p:-nein}
   m=$(curl -sS -o /dev/null -m 10 -w '%{http_code}:%{ssl_verify_result}' "https://$n/" 2>/dev/null || echo '000:1')
-  printf '  %-30s %-44s %s\n' "$n" "$r" "$m"
-  case "$m" in *:0) [ -z "$HAKEN" ] && { HAKEN="$n"; WURZEL="$r"; } ;; esac
+  printf '  %-30s %-44s php=%-5s %s\n' "$n" "$r" "$p" "$m"
+
+  # Ohne PHP führt der Empfänger nichts aus: nginx liefert die index.php als
+  # Datei aus, der Aufruf sieht mit 200 gelungen aus, und das Protokoll bleibt leer.
+  case "$m:$p" in *:0:ja) [ -z "$HAKEN" ] && { HAKEN="$n"; WURZEL="$r"; } ;; esac
 done
+
+printf 'Angesehen: %s   unter %s: %s   gewählt: %s\n' \
+    "$DATEIEN" "$ABO" "$TREFFER" "${HAKEN:-KEINE}"
+
+# Ohne Kandidat wird hier nichts angelegt. `install -d "$WURZEL/haken"` mit
+# leerem WURZEL legte `/haken` an — als root, an der Wurzel des Dateisystems.
+if [ -n "$HAKEN" ]; then
 
 BEN=$(stat -c %U "$WURZEL")
 D="$WURZEL/haken"
@@ -228,7 +258,13 @@ chown "$BEN:$BEN" "$D/index.php"
 # Gegenprobe, dass der Empfänger überhaupt annimmt — sonst misst Punkt 3 den Empfänger
 curl -sS -o /dev/null -m 10 -w '%{http_code}\n' -X POST -d '{"probe":1}' "https://$HAKEN/haken/"
 tail -1 "$LOG"
+
+fi
 ```
+
+> **Ein Installierer, der seinen Zielpfad aus einer Variablen baut, gehört
+> hinter die Frage, ob sie gefüllt ist — sonst legt er bei der leeren an der
+> Wurzel an.**
 
 **Das Protokoll liegt in `tmp/` und nicht neben der Domain.** `tmp` gehört dem
 Systembenutzer (`2700`), liegt in der `open_basedir` des Pools und **ausserhalb

@@ -31961,3 +31961,74 @@ oben. Ausgezählt sind das 16 von 1541; sie stehen als benannte Grenze im Kopf
 des Wächters. Belegt ist die Verschärfung an derselben kaputten Zeile mit beiden
 Fassungen des Lesers: alte Suche grün, neue rot — dazu die dritte Richtung, dass
 eine einfach zitierte Überschrift in richtiger Gestalt grün bleibt.
+
+### B1 — die übrigen siebzehn Prüfungen bekommen einen Weg nach draussen
+
+**Bis heute trug der Mailkanal nur die Kontingentbefunde.** `docs/129 §4` zählt
+die Auslöser von B1 auf — Dienst tot, Timer ohne Termin, Zertifikat, Sicherung,
+Updates —, und für die gab es bis zum Webhook keinen Weg. Jetzt gibt es zwei.
+
+**Wer gemeint ist, folgt aus dem Befund und nicht aus dem Kanal.**
+`quota.exceeded` ist die eine der achtzehn Prüfungen, deren Gegenstand einem
+Kunden gehört; die übrigen siebzehn messen den Server. Die Mail geht deshalb an
+den Kunden oder an den Betreiber, und die Adresse des Betreibers ist die seines
+Kontos — eine eigene Einstellung „Meldeadresse" wäre eine zweite Wahrheit neben
+`accounts.email`.
+
+> **Eine Angabe, die es schon gibt, bekommt keine zweite Stelle, nur weil ein
+> neues Merkmal sie braucht.**
+
+**Gebündelt wird nach dem Empfänger und nicht nach dem Gegenstand.** Ein
+Betreiber, dessen Server in einer Nacht einen toten Dienst und ein ablaufendes
+Zertifikat hat, bekommt **eine** Nachricht. Der Webhook bündelt dagegen weiter
+je Gegenstand: Ein Vorfallsystem will zwei Sachen, die verschieden lange offen
+bleiben, einzeln bekommen.
+
+> **Was ein Mensch in einer Nachricht lesen will, will ein Vorfallsystem
+> einzeln bekommen.**
+
+Dafür ist `Channel::deliver()` von `(string $subject, array $findings)` auf
+`(array $findings)` gegangen und hat `batchKey()` bekommen — der Gegenstand
+steht in den Befunden, und ihn daneben zu übergeben hiesse, dieselbe Angabe
+zweimal zu führen.
+
+**Und `Channel::carries()` ist wieder fort, zwei Tage nach seinem Bau.**
+Gemessen antworten seitdem **zwei von zwei** Umsetzungen dasselbe: Beide Kanäle
+tragen jeden beurteilten Befund.
+
+> **Eine Erklärung, die fast immer dasselbe sagt, wird abgeschrieben statt
+> beantwortet.** Der Satz hat am 20. September die vierte Methode an `Op`
+> verhindert; er gilt für eine dritte Methode an `Channel` genauso.
+
+**Was ausdrücklich nicht gemeldet wird, ist `unreachable`.** „Diese Prüfung ist
+nicht durchgelaufen" ist `FindingState::Unknown` und bleibt gefiltert. Für den
+Betreiber ist das eine offene Frage und keine Entscheidung — sie steht als
+solche im Kopf von `Notices::due()`.
+
+### Die Betreiberabfrage fragte eine von zwei Achsen — und war durch die Daten richtig
+
+**Gefunden hat es der neue Wächter auf seinem ersten Lauf.** `MailChannel`
+suchte die Betreiber über `where('role', 'operator')` und sonst nichts.
+`Account::isOperator()` fragt seit A9 **beide** Achsen, und der Kopf dort sagt
+warum: *„Ein Kundenkonto, das durch einen Fehler `operator` trüge, ist damit
+trotzdem keiner."*
+
+Im Betrieb wäre die Abfrage heute richtig gewesen — die Migration vom 24. August
+hat die Spalte nur an Adminkonten gefüllt. Richtig war sie damit **aus den
+Daten** und nicht aus der Regel.
+
+> **Eine Sicherheit, die aus einer Eigenschaft der Daten folgt und nicht aus
+> einer Prüfung, hält genau so lange, bis jemand die Daten ändert.**
+
+Sichtbar gemacht hat es die Kontenfabrik: Sie setzt `role` in ihrer Vorgabe,
+ein Kundenkonto im Prüfstand trägt sie also mit — und die Meldung über einen
+toten Dienst ging an den Kunden. `Account::operators()` ist jetzt die
+Abfrageform von `isOperator()`, und
+`NoticeAudienceTest::test_the_query_and_the_question_agree()` hält die beiden an
+der Wirkung aneinander, über einen Bestand mit allen vier Fällen.
+
+**`NoticeAudienceTest` misst je Fall beide Richtungen** — wer etwas bekommt und
+wer nichts —, dazu die Bündelung je Kanal, das gesperrte Konto, den
+Administrator, den fehlenden Empfänger und die Zahl der Kundenprüfungen über den
+ganzen Katalog. Acht Eingriffe dazu, jeder einzeln gegen seinen eigenen Fall
+gefahren.

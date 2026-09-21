@@ -5719,6 +5719,50 @@ grün, sonst wäre der neue Zweig eine Behauptung.
 
 ---
 
+## Eine Abfrage, die durch die Daten richtig war — 24. September 2026
+
+Die Erweiterung von B1 auf die übrigen siebzehn Prüfungen brauchte die Adresse
+des Betreibers. Sie ist die seines Kontos — eine eigene Einstellung
+„Meldeadresse" wäre eine zweite Wahrheit neben `accounts.email`. Gesucht wurde
+sie mit `where('role', 'operator')`.
+
+**Das ist heute richtig und aus dem falschen Grund.** Die Migration vom
+24. August füllt `accounts.role` **nur an Adminkonten**; ein Kundenkonto mit
+dieser Spalte entsteht im Betrieb nicht. `Account::isOperator()` fragt seit A9
+trotzdem **beide** Achsen, und sein Kopf sagt warum: *„Die Spalte allein
+gewährt nichts."*
+
+> **Eine Sicherheit, die aus einer Eigenschaft der Daten folgt und nicht aus
+> einer Prüfung, hält genau so lange, bis jemand die Daten ändert.**
+
+**Gefunden hat es der Wächter auf seinem ersten Lauf, und der Prüfstand hat die
+Lücke hergestellt:** `AccountFactory::definition()` setzt `role` in ihrer
+Vorgabe, `customer()` nimmt sie nicht zurück — ein Kundenkonto im Prüfstand
+trägt sie also mit. Die Meldung über einen toten Dienst ging an den Kunden.
+
+> **Ein Prüfstand, der einen Zustand herstellt, den der Betrieb nicht kennt,
+> ist keine falsche Umgebung — er ist die einzige, in der die Regel überhaupt
+> gemessen werden kann.**
+
+Das ist die nützliche Seite von *„Ein Test, dessen Ergebnis davon abhängt, was
+gerade nebenher liegt, misst die Umgebung mit"*: Hier hat genau das den Fehler
+gezeigt. `Account::operators()` ist seitdem die **Abfrageform** von
+`isOperator()`, beide stehen nebeneinander, und
+`NoticeAudienceTest::test_the_query_and_the_question_agree()` hält sie an der
+Wirkung aneinander — über einen Bestand mit allen vier Fällen und mit einer
+Untergrenze, damit die Gleichheit nicht die zweier leerer Listen ist.
+
+**Und ein Merkmal, das zwei Tage alt war, ist dabei wieder verschwunden.**
+`Channel::carries()` beantwortete *„trägt dieser Kanal diesen Befund"*. Nach der
+Erweiterung antworteten zwei von zwei Umsetzungen `true`.
+
+> **Eine Erklärung, die fast immer dasselbe sagt, wird abgeschrieben statt
+> beantwortet.** Derselbe Satz, der am 20. September die vierte Methode an `Op`
+> verhindert hat — diesmal gegen etwas, das ich selbst zwei Tage vorher gebaut
+> hatte.
+
+---
+
 ## Befehle
 
 ```bash

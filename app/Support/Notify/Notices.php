@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Notify;
 
+use App\Enums\FindingCheck;
 use App\Enums\FindingState;
 use App\Models\Finding;
 use App\Models\FindingNotification;
@@ -119,13 +120,13 @@ final class Notices
             return $bilanz;
         }
 
-        foreach ($faellig->groupBy('subject') as $subject => $findings) {
+        foreach ($faellig->groupBy(static fn (Finding $f): string => $channel->batchKey($f)) as $findings) {
             $bilanz['findings'] += $findings->count();
 
-            /** @var list<Finding> $gruppe */
+            /** @var non-empty-list<Finding> $gruppe */
             $gruppe = $findings->values()->all();
 
-            switch ($channel->deliver((string) $subject, $gruppe)) {
+            switch ($channel->deliver($gruppe)) {
                 case Delivery::Sent:
                     foreach ($gruppe as $finding) {
                         FindingNotification::record($finding, $channel, $now);
@@ -154,15 +155,20 @@ final class Notices
     /**
      * Die Befunde, die über diesen Kanal fällig sind.
      *
-     * **`Unknown` wird nicht gemeldet.** Ein `traffic_unknown` sagt „nicht
-     * beurteilt"; eine Meldung darüber wäre eine über ein Problem der Messung
-     * und nicht über einen Zustand.
+     * **`Unknown` wird nicht gemeldet**, und das schliesst
+     * {@see FindingCheck::UNREACHABLE} ein: „Diese Prüfung ist nicht
+     * durchgelaufen" sagt etwas über die Messung und nicht über einen Zustand.
      *
-     * **Gefiltert wird zweimal, und das ist Absicht.** Die Datenbank wirft
-     * weg, was schon gebucht ist oder die Haltezeit nicht erreicht hat; der
-     * Kanal entscheidet danach, was ihn angeht ({@see Channel::carries()}).
-     * Die zweite Frage in SQL zu stellen hiesse, jeden Kanal eine Abfrage
-     * schreiben zu lassen — und die Befunde einer Nacht sind zweistellig.
+     * **Für den Betreiber ist das eine offene Frage und keine Entscheidung.**
+     * Ein Kunde kann mit „nicht beurteilt" nichts anfangen; ein Betreiber
+     * schon — eine Prüfung, die zwei Nächte lang nicht durchläuft, heisst, dass
+     * der Agent nicht antwortet. Dagegen steht, dass `docs/129 §4` die Auslöser
+     * von B1 aufzählt und diesen nicht nennt, und dass ein ausgefallener Agent
+     * **beide** Kanäle betrifft — der Webhook geht durch ihn hindurch. Wer es
+     * bauen will, entscheidet zuerst, wer es bekommt.
+     *
+     * > **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und
+     * > nicht als Zusage.**
      *
      * @return Collection<int, Finding>
      */
@@ -173,11 +179,11 @@ final class Notices
         return Finding::query()
             ->whereDoesntHave('notifications', static fn ($q) => $q->where('channel', $channel->key()))
             ->where('first_seen_at', '<=', $schwelle)
+            ->orderBy('check')
             ->orderBy('subject')
             ->orderBy('reason')
             ->get()
             ->filter(static fn (Finding $f): bool => $f->state() !== FindingState::Unknown)
-            ->filter(static fn (Finding $f): bool => $channel->carries($f))
             ->values();
     }
 

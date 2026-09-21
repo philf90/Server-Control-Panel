@@ -58,11 +58,11 @@ const { ask } = useConfirmation()
 const KANAELE: Record<string, { name: string, satz: string }> = {
   mail: {
     name: 'Mailversand',
-    satz: 'An die Konten des Kunden, über das Relay des Betreibers.',
+    satz: 'Kontingente an den Kunden, alles Übrige an den Betreiber.',
   },
   webhook: {
     name: 'Meldeziel (Webhook)',
-    satz: 'An eine Adresse dieses Servers — für den Betreiber.',
+    satz: 'Jeder Befund an eine Adresse dieses Servers, je Gegenstand einer.',
   },
 }
 

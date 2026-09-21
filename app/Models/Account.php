@@ -10,6 +10,7 @@ use App\Enums\AdminRole;
 use App\Enums\Permission;
 use App\Support\Tenancy\Tenancy;
 use Database\Factories\AccountFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -296,6 +297,42 @@ class Account extends Authenticatable
     public function isOperator(): bool
     {
         return $this->type->isAdmin() && $this->role === AdminRole::Operator;
+    }
+
+    /**
+     * Dieselbe Frage als Abfrage — für die Stellen, die **alle** Betreiber
+     * suchen.
+     *
+     * **Sie steht hier und nicht dort, wo jemand sie braucht.** Der erste Wurf
+     * der Betreibermeldung (B1) fragte `where('role', 'operator')` und sonst
+     * nichts. Das war heute richtig — die Migration hat die Spalte nur an
+     * Adminkonten gefüllt —, und richtig war es damit **aus den Daten** und
+     * nicht aus der Regel.
+     *
+     * > **Eine Sicherheit, die aus einer Eigenschaft der Daten folgt und nicht
+     * > aus einer Prüfung, hält genau so lange, bis jemand die Daten ändert.**
+     *
+     * Gefunden hat es kein Nachdenken, sondern der Wächter auf seinem ersten
+     * Lauf: Die Kontenfabrik setzt `role` in ihrer Vorgabe, ein Kundenkonto im
+     * Prüfstand trägt sie also mit — und die Meldung über einen toten Dienst
+     * ging an den Kunden.
+     *
+     * `NoticeAudienceTest::test_the_query_and_the_question_agree()` hält diese
+     * Fassung und {@see self::isOperator()} aneinander — an der **Wirkung**
+     * über einen Bestand, der alle vier Fälle enthält.
+     *
+     * **Eine statische Methode und kein Scope.** Dieses Repo führt keine
+     * Scopes; einen für eine einzige Aufrufstelle einzuführen hiesse, ein
+     * Muster zu eröffnen, das der Nächste anderswo nachbaut. Was hier gebraucht
+     * wird, ist eine Abfrage mit Namen.
+     *
+     * @return Builder<self>
+     */
+    public static function operators(): Builder
+    {
+        return self::query()
+            ->where('type', AccountType::Admin->value)
+            ->where('role', AdminRole::Operator->value);
     }
 
     /**

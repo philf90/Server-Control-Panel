@@ -33128,6 +33128,164 @@ pruefe "abgewiesen gilt als zugestellt" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" WebhookTransportTest passed
 
+echo "── NoticeAudienceTest: ein Serverbefund geht an den Kunden ──"
+#
+# Wen eine Meldung angeht, folgt aus dem Befund. Ein toter Dienst gehoert dem
+# Betreiber; an den Kunden geschickt meldet er ihm etwas, das er weder aendern
+# kann noch sehen darf.
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text()
+alt = """        return $erster->check === FindingCheck::QuotaExceeded
+            ? $this->toCustomer($erster->subject, $findings)
+            : $this->toOperator($findings);"""
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '        return $this->toCustomer($erster->subject, $findings);', 1))
+PY
+griff_datei app/Support/Notify/MailChannel.php "Serverbefund an den Kunden" &&
+pruefe "Serverbefund an den Kunden" \
+  NoticeAudienceTest::test_a_server_finding_goes_to_the_operator_and_not_to_the_customer failed
+wiederherstellen
+
+echo "── NoticeAudienceTest: der Betreiber bekommt eine Mail je Gegenstand ──"
+#
+# Eine Nacht mit drei Befunden an drei Orten waeren drei Mails in derselben
+# Minute — genau das, wogegen „genau eine" geschrieben ist.
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text()
+alt = """        return $finding->check === FindingCheck::QuotaExceeded
+            ? self::SUBSCRIPTION.$finding->subject
+            : self::OPERATOR;"""
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '        return self::SUBSCRIPTION.$finding->subject;', 1))
+PY
+griff_datei app/Support/Notify/MailChannel.php "eine Mail je Gegenstand" &&
+pruefe "eine Mail je Gegenstand" \
+  NoticeAudienceTest::test_the_operator_gets_one_mail_for_a_whole_night failed
+wiederherstellen
+
+echo "── NoticeAudienceTest: eine Pruefung des Servers gilt als Kundensache ──"
+#
+# Die Zahl ist ein Halt: Wer eine Pruefung dem Kunden zuschlaegt, entscheidet
+# damit, wer sie bekommt — und das gehoert bemerkt.
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text()
+alt = 'return $finding->check === FindingCheck::QuotaExceeded'
+assert s.count(alt) == 1
+neu = 'return in_array($finding->check, [FindingCheck::QuotaExceeded, FindingCheck::TlsFile], true)'
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Notify/MailChannel.php "Serverpruefung als Kundensache" &&
+pruefe "Serverpruefung als Kundensache" \
+  NoticeAudienceTest::test_exactly_one_check_belongs_to_the_customer failed
+wiederherstellen
+
+echo "── NoticeAudienceTest: der Webhook fasst alles in eine Meldung ──"
+#
+# Ein Vorfallsystem will drei Sachen einzeln bekommen: Ein toter Dienst und ein
+# ablaufendes Zertifikat bleiben verschieden lange offen.
+vorher_datei app/Support/Notify/WebhookChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/WebhookChannel.php')
+s = p.read_text()
+alt = 'return $finding->subject;'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "return 'alles';", 1))
+PY
+griff_datei app/Support/Notify/WebhookChannel.php "Webhook fasst alles zusammen" &&
+pruefe "Webhook fasst alles zusammen" \
+  NoticeAudienceTest::test_the_webhook_sends_one_delivery_per_subject failed
+wiederherstellen
+
+echo "── NoticeAudienceTest: ein gesperrtes Konto bekommt Post ──"
+#
+# Wer sich nicht anmelden darf, bekommt auch keine Auskunft ueber den Server.
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text()
+alt = "            ->where('status', AccountStatus::Active->value)\n"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei app/Support/Notify/MailChannel.php "gesperrtes Konto bekommt Post" &&
+pruefe "gesperrtes Konto bekommt Post" \
+  NoticeAudienceTest::test_a_disabled_account_gets_nothing failed
+wiederherstellen
+
+echo "── NoticeAudienceTest: ohne Betreiberadresse gilt die Meldung als zugestellt ──"
+#
+# Was nicht verschickt wurde, darf nicht als gemeldet dastehen. Sonst ist der
+# Befund fuer immer stumm, und niemand erfaehrt, dass dem Betreiberkonto eine
+# Adresse fehlt.
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text()
+alt = """             * rot für etwas, das auf der Kontenseite behoben wird.
+             */
+            return Delivery::WithoutRecipient;"""
+assert s.count(alt) == 1
+neu = """             * rot für etwas, das auf der Kontenseite behoben wird.
+             */
+            return Delivery::Sent;"""
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei app/Support/Notify/MailChannel.php "ohne Betreiberadresse zugestellt" &&
+pruefe "ohne Betreiberadresse zugestellt" \
+  NoticeAudienceTest::test_without_an_operator_address_the_finding_stays_due failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NoticeAudienceTest passed
+
+echo "── Account: die Betreiberabfrage fragt nur die Rolle ──"
+#
+# Die Rolle allein gewaehrt nichts — `isOperator()` fragt seit A9 beide Achsen.
+# Ein Kundenkonto, das die Spalte traegt, waere sonst ein Betreiber, und die
+# Meldung ueber einen toten Dienst ginge an den Kunden.
+vorher_datei app/Models/Account.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Models/Account.php')
+s = p.read_text()
+alt = "            ->where('type', AccountType::Admin->value)\n"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei app/Models/Account.php "Betreiberabfrage ohne Typ" &&
+pruefe "Betreiberabfrage ohne Typ" \
+  NoticeAudienceTest::test_the_query_and_the_question_agree failed
+wiederherstellen
+
+echo "── Account: die Betreiberabfrage fragt nur den Typ ──"
+#
+# Dann bekaeme jeder Administrator die Aufforderung zu handeln — und handeln
+# darf hier der Betreiber.
+vorher_datei app/Models/Account.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Models/Account.php')
+s = p.read_text()
+alt = "            ->where('role', AdminRole::Operator->value);"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "            ->whereNotNull('role');", 1))
+PY
+griff_datei app/Models/Account.php "Betreiberabfrage ohne Rolle" &&
+pruefe "Betreiberabfrage ohne Rolle" \
+  NoticeAudienceTest::test_an_administrator_is_not_an_operator failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NoticeAudienceTest passed
+
 echo "── MailTimeoutTest: die Zeitgrenze steht wieder auf null ──"
 #
 # Gemessen kostet ein toter Empfaenger dann 60,02 s je Versand; bei 400

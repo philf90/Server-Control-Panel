@@ -9,12 +9,22 @@ use App\Models\Finding;
 /**
  * Ein Weg, auf dem eine Meldung den Server verlässt — B1, `docs/129 §7`.
  *
- * **Es gibt zwei, und sie haben verschiedene Empfänger.** {@see MailChannel}
- * schreibt dem **Kunden** über das Relay des Betreibers; {@see WebhookChannel}
- * meldet dem **Betreiber** an ein Ziel je Server. Sie sind deshalb keine zwei
- * Fassungen derselben Sache, sondern zwei Kanäle mit je eigener Frage: *„trägt
- * dieser Kanal diesen Befund"* ({@see carries}) und *„kommt er überhaupt
- * durch"* ({@see usable}).
+ * **Es gibt zwei.** {@see MailChannel} schreibt über das Relay des Betreibers —
+ * an den **Kunden**, wenn der Befund sein Kontingent betrifft, und sonst an den
+ * **Betreiber**. {@see WebhookChannel} meldet an ein Ziel je Server, das allein
+ * dem Betreiber gehört.
+ *
+ * **Hier stand bis zum 24. September eine dritte Frage, `carries()`** — *„trägt
+ * dieser Kanal diesen Befund"*. Mit der Erweiterung auf die übrigen siebzehn
+ * Prüfungen tragen **beide** Kanäle **jeden** beurteilten Befund, und damit
+ * antworteten zwei von zwei Umsetzungen dasselbe.
+ *
+ * > **Eine Erklärung, die fast immer dasselbe sagt, wird abgeschrieben statt
+ * > beantwortet.** Der Satz hat am 20. September die vierte Methode an `Op`
+ * > verhindert; er gilt hier genauso.
+ *
+ * Was bleibt, sind zwei echte Fragen: *„kommt dieser Kanal überhaupt durch"*
+ * ({@see usable}) und *„wen fasst er zusammen"* ({@see batchKey}).
  *
  * **Warum eine Schnittstelle und nicht zwei Zweige in {@see Notices}.** Die
  * Buchung je Kanal, die Entprellung und „zuletzt erfolgreich zugestellt" sind
@@ -50,28 +60,36 @@ interface Channel
     public function usable(): bool;
 
     /**
-     * Trägt dieser Kanal diesen Befund?
+     * Nach welchem Schlüssel dieser Kanal seine Meldungen bündelt.
      *
-     * **Die Frage gehört dem Kanal und nicht dem Befund.** Ein Befund weiss,
-     * was er misst; wen das angeht, entscheidet der Weg hinaus. Stünde es am
-     * Befund, müsste jede neue Prüfung jeden Kanal kennen — und die nächste
-     * vergisst einen.
+     * **Die Bündelung folgt dem Empfänger und nicht dem Gegenstand.** Ein
+     * Kunde, der Platz **und** Verkehr überzieht, bekommt eine Nachricht mit
+     * zwei Zeilen und nicht zwei Nachrichten — und ein Betreiber, dessen
+     * Server in einer Nacht einen toten Dienst und ein ablaufendes Zertifikat
+     * hat, ebenso. Nach `subject` gebündelt wären das zwei Mails, und das
+     * Abnahmekriterium sagt „genau eine".
+     *
+     * > **Eine Bündelung nach dem Gegenstand ist eine nach dem Absender.**
+     *
+     * Der Schlüssel ist **undurchsichtig**: Was er bedeutet, weiss nur der
+     * Kanal, der ihn gebildet hat. {@see Notices} vergleicht ihn und liest ihn
+     * nicht — sonst stünde die Zuordnung an zwei Stellen.
      */
-    public function carries(Finding $finding): bool;
+    public function batchKey(Finding $finding): string;
 
     /**
-     * Zustellen, was zu **einem** Gegenstand gehört — in einer Nachricht.
+     * Zustellen, was **ein** Schlüssel zusammengefasst hat.
      *
-     * Ein Kunde, der Platz **und** Verkehr überzieht, bekommt eine Nachricht
-     * mit zwei Zeilen und nicht zwei Nachrichten; das Abnahmekriterium sagt
-     * „genau eine Mail", und zwei in derselben Minute sind für den Empfänger
-     * genau das, wogegen es geschrieben ist.
+     * **Der Gegenstand steht in den Befunden und nicht in einem Argument
+     * daneben.** Er ist `$findings[0]->subject`; ihn zusätzlich zu übergeben
+     * hiesse, dieselbe Angabe zweimal zu führen — und die zweite wäre die, die
+     * beim nächsten Umbau nicht mitgeht.
      *
      * **Diese Methode wirft nicht.** Ein Fehlschlag ist ein Ergebnis und kein
      * Ausnahmezustand: Der Nachtlauf fährt danach weiter, der nächste Kanal
      * bekommt seine Gelegenheit, und was nicht ankam, bleibt fällig.
      *
-     * @param  list<Finding>  $findings
+     * @param  non-empty-list<Finding>  $findings
      */
-    public function deliver(string $subject, array $findings): Delivery;
+    public function deliver(array $findings): Delivery;
 }

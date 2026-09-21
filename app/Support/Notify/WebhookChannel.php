@@ -16,11 +16,11 @@ use SrvPanel\Agent\AgentException;
  * `srvpanel` mit jedem Dienst dieses Servers. Die Adresse holt
  * {@see \SrvPanel\Agent\Notify\Delivery} aus der Ablage des Agenten.
  *
- * **Er trägt jeden beurteilten Befund und nicht nur die des Betreibers.** Ein
- * überzogenes Kontingent geht den Kunden an — und den Betreiber auch, denn auf
- * seinem Server wächst die Platte. Der Unterschied zu {@see MailChannel} ist
- * nicht die Schwere, sondern der Empfänger: Ein Ziel je Server gehört dem
- * Betreiber, und der sieht ohnehin jede Zeile der Diagnoseseite.
+ * **Er trägt jeden beurteilten Befund.** Ein überzogenes Kontingent geht den
+ * Kunden an — und den Betreiber auch, denn auf seinem Server wächst die Platte.
+ * Der Unterschied zu {@see MailChannel} ist nicht, **was** getragen wird,
+ * sondern **wie gebündelt** wird: Dort eine Nachricht je Empfänger, hier eine
+ * Meldung je Gegenstand.
  *
  * **Warum es hier kein „kein Empfänger" gibt.** Es gibt genau ein Ziel, oder
  * {@see usable()} ist `false`. {@see Delivery::WithoutRecipient} wäre ein
@@ -52,18 +52,30 @@ final class WebhookChannel implements Channel
         return $this->target->describe() !== null;
     }
 
-    public function carries(Finding $finding): bool
+    /**
+     * Gebündelt wird nach dem **Gegenstand** und nicht nach dem Empfänger.
+     *
+     * Es gibt nur einen Empfänger — ein Ziel je Server —, also trüge eine
+     * Bündelung danach jede Nacht alles in **eine** Meldung. Ein Empfänger,
+     * der Vorfälle verwaltet, will sie einzeln: ein toter Dienst und ein
+     * ablaufendes Zertifikat sind zwei Sachen, die verschieden lange offen
+     * bleiben.
+     *
+     * > **Was ein Mensch in einer Nachricht lesen will, will ein
+     * > Vorfallsystem einzeln bekommen.**
+     */
+    public function batchKey(Finding $finding): string
     {
-        return true;
+        return $finding->subject;
     }
 
-    /** @param  list<Finding>  $findings */
-    public function deliver(string $subject, array $findings): Delivery
+    /** @param  non-empty-list<Finding>  $findings */
+    public function deliver(array $findings): Delivery
     {
         try {
             $this->target->send([
                 'kind' => 'findings',
-                'subject' => $subject,
+                'subject' => $findings[0]->subject,
                 'findings' => self::lines($findings),
             ]);
         } catch (AgentException) {

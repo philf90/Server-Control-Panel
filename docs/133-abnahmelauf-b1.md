@@ -62,12 +62,28 @@ werden also **eine** Mail und **so viele** Zustellungen, wie es fällige
 Gegenstände gibt. Wer hier „eine Meldung über beide Kanäle" abliest, misst den
 Webhook falsch.
 
-**5 · Slack und Discord sind als Meldeziel nicht ohne Weiteres zu gebrauchen.**
-Beide verlangen einen Rumpf mit `text` beziehungsweise `content` und weisen
-alles andere mit `400` ab; unser Rumpf trägt `server`, `at` und `event`. Das ist
-**hergeleitet und nicht gemessen** — aus diesem Container ist keiner der beiden
-erreichbar. Wer einen solchen Haken hat, misst es in Punkt 8 mit; bis dahin
-steht es als Frage und nicht als Zusage.
+**5 · Slack und Discord waren als Meldeziel nicht zu gebrauchen — und sind es
+seit dem 24. September.** Beide verlangen einen Rumpf mit `text` beziehungsweise
+`content` und weisen alles andere mit `400` ab; unser Rumpf trug `server`, `at`
+und `event`. Der Betreiber hat die beiden daraufhin bestellt; seitdem wählt man
+den Empfänger auf `/settings/notices`, und `Notify\Providers` baut den Rumpf,
+den er annimmt.
+
+**Gemessen ist damit die Form und nicht die Annahme.** Dass Slack ein `text`
+wirklich annimmt, sagt seine Schnittstellenbeschreibung und kein Lauf von hier —
+aus diesem Container ist keiner der beiden erreichbar. Punkt 9 misst es, wenn
+ein solcher Haken zur Hand ist.
+
+**Zwei Dinge daran gehören in den Lauf:** Bei Slack und Discord weist der Agent
+ein Geheimnis **ab** — dort ist die Adresse das Zugangsmittel —, und der Text
+wird auf die Grenze des Empfängers gekürzt (Discord: 2000 Zeichen) mit einem
+„… und N weitere" am Ende.
+
+**Und dieser Absatz stand bis zuletzt mit „Punkt 8" da** — die Umnummerierung
+nach §0 Punkt 3 hat die Verweise in den Punkten mitgenommen und den hier nicht.
+
+> **Eine Umnummerierung nimmt die Verweise mit, die im selben Abschnitt stehen
+> — und lässt die zurück, die woanders auf ihn zeigen.**
 
 **6 · Welcher Dienst sich anhalten lässt, ist keine freie Wahl.**
 `srvpanel-agentd` trägt den Webhook, `srvpanel-worker` die Warteschlange,

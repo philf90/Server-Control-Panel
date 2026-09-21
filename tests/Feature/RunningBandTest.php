@@ -149,15 +149,38 @@ final class RunningBandTest extends TestCase
 
         $abo = $this->abo($konto);
 
+        /*
+         * **Feste Sekunden und keine, die aus der Konstante folgen.**
+         *
+         * Hier stand `FRESH_SECONDS - 10` und `FRESH_SECONDS + 10`. Damit
+         * wanderten beide Prüfkörper mit, sobald jemand die Frist änderte —
+         * der Fall war wahr, egal welchen Wert sie trug, und ein Eingriff, der
+         * sie auf einen Tag stellte, blieb grün. Gemeldet hat es der
+         * Bruchlauf und nicht das Nachdenken, **zum zweiten Mal in zwei
+         * Stufen** (in B7 war es der Grenzwert der Drosselung).
+         *
+         * > **Ein Wächter, der einen Wert gegen die Quelle vergleicht, aus der
+         * > er stammt, prüft die Zuleitung und nicht den Wert.**
+         */
         $frisch = $this->vorgang($konto, $abo, [
             'status' => OperationStatus::Succeeded,
-            'finished_at' => $this->jetzt->copy()->subSeconds(RunningBand::FRESH_SECONDS - 10),
+            'finished_at' => $this->jetzt->copy()->subSeconds(60),
         ]);
 
         $alt = $this->vorgang($konto, $abo, [
             'status' => OperationStatus::Succeeded,
-            'finished_at' => $this->jetzt->copy()->subSeconds(RunningBand::FRESH_SECONDS + 10),
+            'finished_at' => $this->jetzt->copy()->subSeconds(600),
         ]);
+
+        /*
+         * **Und die Frist selbst gegen eine Spanne.** Sie fängt, was zwei
+         * feste Prüfkörper nicht fangen können: eine Frist, die zwischen
+         * ihnen hindurchpasst.
+         */
+        self::assertGreaterThan(30, RunningBand::FRESH_SECONDS,
+            'Kürzer als eine halbe Minute: Der Ausgang wäre fort, bevor jemand hinsieht.');
+        self::assertLessThan(300, RunningBand::FRESH_SECONDS,
+            'Länger als fünf Minuten: Der Streifen redet über etwas, das niemand mehr sucht.');
 
         $gezeigt = $this->kennungen($konto);
 

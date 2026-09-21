@@ -33636,16 +33636,16 @@ echo "── OperationDetourTest: die Weiterleitung auf die Vorgangsseite kommt 
 # 22 Weiterleitungen aus acht Controllern haben ihren Betrachter fortgetragen;
 # der Weg zurueck war der Zurueck-Knopf des Browsers. Gefunden wurde das beim
 # Erklaeren und nicht beim Pruefen (docs/92 §1).
-vorher_datei app/Http/Controllers/UpdatesController.php
+vorher_datei app/Http/Controllers/TlsSettingsController.php
 python3 - <<'PY'
 import pathlib
-p = pathlib.Path('app/Http/Controllers/UpdatesController.php')
+p = pathlib.Path('app/Http/Controllers/TlsSettingsController.php')
 s = p.read_text()
-alt = "        return to_route('updates');"
+alt = "        return to_route('settings.tls');"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 p.write_text(s.replace(alt, "        return to_route('operations.show', $operation);", 1))
 PY
-griff_datei app/Http/Controllers/UpdatesController.php "Weiterleitung auf die Vorgangsseite" &&
+griff_datei app/Http/Controllers/TlsSettingsController.php "Weiterleitung auf die Vorgangsseite" &&
 pruefe "Weiterleitung auf die Vorgangsseite" \
   OperationDetourTest::test_no_controller_carries_the_viewer_to_the_operation_page failed
 wiederherstellen
@@ -33700,7 +33700,7 @@ p = pathlib.Path('app/Support/Operations/RunningBand.php')
 s = p.read_text()
 alt = '    public const FRESH_SECONDS = 120;'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-p.write_text(s.replace(alt, '    public const FRESH_SECONDS = 86400;', 1))
+p.write_text(s.replace(alt, '    public const FRESH_SECONDS = 400;', 1))
 PY
 griff_datei app/Support/Operations/RunningBand.php "fertiger Vorgang altert nicht aus" &&
 pruefe "fertiger Vorgang altert nicht aus" \

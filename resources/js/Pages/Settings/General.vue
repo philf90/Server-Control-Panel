@@ -47,7 +47,7 @@ const props = defineProps<{
    * Panel eingestellt —, und deshalb steht die Marke hier und nicht auf einer
    * neunten Zeile im Menü.
    */
-  brand: {
+  brandSettings: {
     name: string
     accent_light: string
     accent_dark: string
@@ -82,10 +82,10 @@ function submit(): void {
 }
 
 const marke = useForm({
-  name: props.brand.name,
-  accent_light: props.brand.accent_light,
-  accent_dark: props.brand.accent_dark,
-  footer: props.brand.footer,
+  name: props.brandSettings.name,
+  accent_light: props.brandSettings.accent_light,
+  accent_dark: props.brandSettings.accent_dark,
+  footer: props.brandSettings.footer,
 })
 
 const logo = ref<File | null>(null)
@@ -382,7 +382,7 @@ function waehleLogo(event: Event): void {
             Logo ersetzt Zeichen und Namen; der Name bleibt als Alternativtext.
           </p>
 
-          <div v-if="props.brand.has_logo" class="button-row">
+          <div v-if="props.brandSettings.has_logo" class="button-row">
             <button type="button" class="button danger" @click="speichereMarke({ remove_logo: true })">
               Logo entfernen
             </button>

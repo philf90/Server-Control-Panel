@@ -70,7 +70,19 @@ final class GeneralSettingsController extends Controller
              * wie knapp sie ist, bevor er speichert — und wogegen gerechnet
              * wurde.
              */
-            'brand' => [
+            /*
+             * **`brandSettings` und nicht `brand`.** Der geteilte Name ist
+             * vergeben: `HandleInertiaRequests::share()` gibt `brand` für
+             * jede Seite heraus, und `BrandMark.vue` liest daraus die Adresse
+             * des Logos. Eine Seiten-Eigenschaft desselben Namens
+             * überschreibt sie — auf genau der Seite, auf der man das Logo
+             * einstellt, wäre es dann fort.
+             *
+             * Derselbe Satz hat A9 schon bezahlt (`abilities` statt `can`) und
+             * `/updates` ein zweites Mal (`errors`). Gefunden hat es hier
+             * `SharedPropTest`, nachdem sein Leser repariert war.
+             */
+            'brandSettings' => [
                 'name' => $marke->name,
                 'accent_light' => $marke->accent_light,
                 'accent_dark' => $marke->accent_dark,

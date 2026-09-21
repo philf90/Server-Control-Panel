@@ -73,6 +73,18 @@ final class SharedPropTest extends TestCase
      */
     private const AT_LEAST = 120;
 
+    /**
+     * Wie viele geteilte Namen mindestens zusammenkommen müssen.
+     *
+     * Gemessen am 21. September 2026: **elf** (`source`, `account`,
+     * `abilities`, `impersonation`, `announcements`, `pendingUpdates`,
+     * `pendingFindings`, `maintenanceBand`, `brand`, `passwordPolicy`,
+     * `flash`). Die Grenze liegt darunter, weil sie nicht die Zahl
+     * festschreiben soll, sondern den Fall abfangen, dass der Leser das
+     * falsche Array erwischt.
+     */
+    private const SHARED_AT_LEAST = 8;
+
     private function root(): string
     {
         return dirname(__DIR__, 2);
@@ -95,7 +107,36 @@ final class SharedPropTest extends TestCase
             'share() ist nicht mehr lesbar — dieser Wächter kennt dann keine geteilten Namen.',
         );
 
-        return $this->topLevelKeys($this->arrayAfter($rumpf[0], strpos($rumpf[0], 'return [') ?: 0));
+        /*
+         * **Die Rückgabe der Methode und nicht irgendein `return` in ihr.**
+         *
+         * Hier stand `strpos($rumpf, 'return [') ?: 0`. Die oberste Rückgabe
+         * lautet `return array_merge(parent::share($request), [` — also
+         * **nicht** `return [`; `strpos` gab `false`, das `?: 0` machte daraus
+         * die Null, und `arrayAfter` nahm die erste `[` des Rumpfes. Das war
+         * zufällig die richtige.
+         *
+         * > **Ein Rückfall, der zufällig das Richtige tut, ist von einer
+         * > Absicht nicht zu unterscheiden — bis jemand die Bedingung
+         * > herstellt, unter der er greift.**
+         *
+         * Hergestellt hat sie B6 am 21. September 2026: Der Verschluss für
+         * `brand` trägt ein eigenes `return [`, und ab da las dieser Wächter
+         * dessen drei Schlüssel — `name`, `footer`, `logo` — als die geteilten
+         * Namen. Gemeldet hat es nicht er selbst, sondern ein Eingriff des
+         * Bruchskripts, der nicht mehr biss.
+         *
+         * Gesucht wird deshalb die Rückgabe auf der **obersten Ebene der
+         * Methode**, und die erkennt man an ihrer Einrückung: acht Leerzeichen.
+         * Ein `return` in einem Verschluss steht tiefer.
+         */
+        self::assertSame(
+            1,
+            preg_match('/^        return .*$/m', $rumpf[0], $rueckgabe, PREG_OFFSET_CAPTURE),
+            'share() hat keine Rückgabe auf oberster Ebene — dieser Wächter liest dann irgendein Array.',
+        );
+
+        return $this->topLevelKeys($this->arrayAfter($rumpf[0], (int) $rueckgabe[0][1]));
     }
 
     /**
@@ -143,7 +184,17 @@ final class SharedPropTest extends TestCase
      */
     private function topLevelKeys(string $block): array
     {
-        preg_match_all("/'([a-z_][a-z0-9_]*)'\s*=>/", $block, $treffer, PREG_OFFSET_CAPTURE);
+        /*
+         * **Auch camelCase.** Hier stand `[a-z_][a-z0-9_]*`, und damit waren
+         * vier der elf geteilten Namen für diesen Wächter nie da:
+         * `pendingUpdates`, `pendingFindings`, `maintenanceBand` und
+         * `passwordPolicy`. Eine Seite, die eine davon überschreibt, kam
+         * durch — und die Zahl daneben sah gesund aus.
+         *
+         * > **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die
+         * > Gewohnheit und nicht die Regel.**
+         */
+        preg_match_all("/'([a-zA-Z_][a-zA-Z0-9_]*)'\s*=>/", $block, $treffer, PREG_OFFSET_CAPTURE);
 
         $namen = [];
 
@@ -164,7 +215,35 @@ final class SharedPropTest extends TestCase
     {
         $geteilt = $this->sharedKeys();
 
-        self::assertNotSame([], $geteilt, 'Keine geteilten Namen gefunden — der Wächter misst nichts.');
+        /*
+         * **Die Untergrenze zählt und nennt.**
+         *
+         * „Nicht leer" hat den Befund vom 21. September nicht gesehen: Der
+         * Leser fand drei Namen, nur die falschen.
+         *
+         * > **Eine Untergrenze „nicht leer" ist von einer richtigen Liste nicht
+         * > zu unterscheiden, sobald eine falsche Liste auch nicht leer ist.**
+         *
+         * `flash` steht dabei als Kanarienvogel und nicht als Liste: Es ist die
+         * **letzte** geteilte Eigenschaft und gibt es seit P2. Wer ein Array
+         * weiter oben liest, hat es nicht dabei.
+         */
+        self::assertGreaterThanOrEqual(
+            self::SHARED_AT_LEAST,
+            count($geteilt),
+            sprintf(
+                'Nur %d geteilte Namen gefunden (%s). Der Leser greift dann ein anderes Array '
+                .'als das, was share() zurückgibt.',
+                count($geteilt),
+                implode(', ', $geteilt),
+            ),
+        );
+
+        self::assertContains(
+            'flash',
+            $geteilt,
+            'Unter den geteilten Namen fehlt `flash` — der Leser hat ein anderes Array erwischt.',
+        );
 
         $befunde = [];
         $geprueft = 0;

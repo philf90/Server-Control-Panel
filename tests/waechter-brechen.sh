@@ -33328,6 +33328,47 @@ pruefe "Speichern traegt auf die Uebersicht" \
   BrandReachTest::test_the_login_page_carries_name_and_footer failed
 wiederherstellen
 
+echo "── SharedPropTest: die Markenseite nimmt den geteilten Namen ──"
+#
+# Der Fehler, den B6 wirklich hatte. `share()` gibt `brand` fuer jede Seite
+# heraus, und `BrandMark.vue` liest daraus die Adresse des Logos; eine
+# Seiten-Eigenschaft desselben Namens nimmt sie fort — auf genau der Seite,
+# auf der man das Logo einstellt. Gefunden hat es dieser Waechter erst,
+# nachdem sein Leser repariert war.
+vorher_datei app/Http/Controllers/GeneralSettingsController.php
+python3 - <<'PY'
+p = 'app/Http/Controllers/GeneralSettingsController.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'brandSettings' => ["
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'brand' => [", 1))
+PY
+griff_datei app/Http/Controllers/GeneralSettingsController.php "Markenseite nimmt den geteilten Namen" &&
+pruefe "Markenseite nimmt den geteilten Namen" \
+  SharedPropTest::test_no_page_prop_takes_the_name_of_a_shared_one failed
+wiederherstellen
+
+echo "── SharedPropTest: ein geteilter Name in camelCase ──"
+#
+# Bis zum 21. September 2026 las `topLevelKeys` nur `[a-z_][a-z0-9_]*`. Vier
+# der elf geteilten Namen sind camelCase — `pendingUpdates`,
+# `pendingFindings`, `maintenanceBand`, `passwordPolicy` —, und eine Seite,
+# die eine davon ueberschreibt, kam durch. Dieser Eingriff waere vorher gruen
+# geblieben.
+vorher_datei app/Http/Controllers/GeneralSettingsController.php
+python3 - <<'PY'
+p = 'app/Http/Controllers/GeneralSettingsController.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'brandLimits' => ["
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'passwordPolicy' => [", 1))
+PY
+griff_datei app/Http/Controllers/GeneralSettingsController.php "geteilter Name in camelCase" &&
+pruefe "geteilter Name in camelCase" \
+  SharedPropTest::test_no_page_prop_takes_the_name_of_a_shared_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SharedPropTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

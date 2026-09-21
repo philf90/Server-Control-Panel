@@ -134,6 +134,14 @@ final class WebhookTransportTest extends TestCase
         // Und die Gegenrichtung: Etwas kommt zurück, sonst prüfte der Fall nichts.
         self::assertSame('hooks.example.org', $target->describe()['host'] ?? null);
         self::assertTrue($target->describe()['signed'] ?? false);
+
+        /*
+         * **Und die Schlüsselmenge steht fest.** Der Fall darüber sucht drei
+         * Zeichenketten; ein viertes Feld, das jemand der Ablage hinzufügt,
+         * reiste an ihm vorbei. Die Positivliste in `describe()` ist genau
+         * dagegen geschrieben, und hier steht sie noch einmal als Zusage.
+         */
+        self::assertSame(['host', 'provider', 'stored_at', 'signed'], array_keys($target->describe() ?? []));
     }
 
     /** Ein zu kurzes Geheimnis ist keines — und gar keines ist erlaubt. */
@@ -305,6 +313,7 @@ final class WebhookTransportTest extends TestCase
             Providers::SLACK => ['text'],
             Providers::DISCORD => ['content'],
             Providers::GOTIFY => ['title', 'message', 'priority'],
+            Providers::TELEGRAM => ['chat_id', 'text'],
         ];
 
         /*
@@ -326,7 +335,7 @@ final class WebhookTransportTest extends TestCase
             $http->on(ScriptedOutbound::json(['ok' => true]));
 
             $target = $this->target($http);
-            $target->store('https://hooks.example.org/x', null, $provider);
+            $target->store('https://hooks.example.org/x', null, $provider, $this->konfig($provider));
 
             (new Delivery($target, $http))->send(['kind' => 'findings', 'subject' => 'p1000', 'findings' => [
                 ['label' => 'Der Dienst läuft nicht.', 'detail' => 'ActiveState=inactive'],
@@ -471,7 +480,7 @@ final class WebhookTransportTest extends TestCase
             $http->on(ScriptedOutbound::json(['ok' => true]));
 
             $target = $this->target($http);
-            $target->store('https://hooks.example.org/x', null, $provider);
+            $target->store('https://hooks.example.org/x', null, $provider, $this->konfig($provider));
 
             (new Delivery($target, $http))->send(['kind' => 'findings', 'subject' => self::DIENST, 'findings' => [
                 ['label' => 'Der Dienst läuft nicht.', 'detail' => null],
@@ -585,11 +594,27 @@ final class WebhookTransportTest extends TestCase
         $http->on(ScriptedOutbound::json(['ok' => true]));
 
         $target = $this->target($http);
-        $target->store('https://hooks.example.org/x', null, $provider);
+        $target->store('https://hooks.example.org/x', null, $provider, $this->konfig($provider));
 
         (new Delivery($target, $http))->send($event);
 
         return ['headers' => $http->calls[0]['headers'], 'body' => (string) $http->calls[0]['body']];
+    }
+
+    /**
+     * Die zusätzlichen Angaben, die ein Empfänger zum Hinterlegen braucht.
+     *
+     * **Abgeleitet aus {@see Providers::FIELDS} und nicht aufgezählt.** Ein
+     * Fall, der über alle Empfänger läuft, scheitert sonst an dem, der als
+     * nächster ein Feld bekommt — und der Fehlschlag sähe aus wie ein Befund
+     * am Prüfling.
+     *
+     * @return array<string, string>
+     */
+    private function konfig(string $provider): array
+    {
+        // Der Wert ist beliebig; geprüft wird heute nur, dass er dasteht.
+        return array_fill_keys(Providers::FIELDS[$provider] ?? [], '-1001234567890');
     }
 
     /**
@@ -636,6 +661,114 @@ final class WebhookTransportTest extends TestCase
     }
 
     /**
+     * Die hinterlegte Angabe kommt am Draht an.
+     *
+     * **Das ist die zweite Hälfte der Naht.** Dass der Chat in der Datei
+     * steht, sagt noch nicht, dass die Meldung ihn trägt — und genau
+     * dazwischen ist am 24. September 2026 der Empfänger verlorengegangen.
+     *
+     * > **Ein Wert, der abgelegt ist, wird zu einer Auskunft erst durch die
+     * > Stelle, die ihn liest.**
+     */
+    public function test_the_stored_setting_reaches_the_wire(): void
+    {
+        $http = new ScriptedOutbound;
+        $http->on(ScriptedOutbound::json(['ok' => true]));
+
+        $target = $this->target($http);
+        $target->store(
+            'https://api.telegram.org/bot123:ABC/sendMessage',
+            null,
+            Providers::TELEGRAM,
+            ['chat_id' => '-1001234567890'],
+        );
+
+        (new Delivery($target, $http))->send(['kind' => 'findings', 'subject' => self::DIENST, 'findings' => [
+            ['label' => 'Der Dienst läuft nicht.', 'detail' => null],
+        ]]);
+
+        $rumpf = json_decode((string) $http->calls[0]['body'], true);
+
+        self::assertIsArray($rumpf);
+        self::assertSame('-1001234567890', $rumpf['chat_id'] ?? null);
+        self::assertStringContainsString('Der Dienst läuft nicht.', (string) ($rumpf['text'] ?? ''));
+    }
+
+    /**
+     * Was ein Empfänger braucht, wird beim Hinterlegen verlangt.
+     *
+     * **Und nicht beim Melden.** Ein fehlender Chat fiele sonst erst in der
+     * Nacht auf, in der etwas zu melden wäre — und dann sieht der Betreiber
+     * einen stillen Server und keine Ursache. Derselbe Grund, aus dem die
+     * Adresse hier geprüft wird.
+     *
+     * Gemessen über **alle** Empfänger mit Feldern und nicht über Telegram
+     * allein: Der nächste erbt die Regel, ohne dass jemand diesen Fall anfasst.
+     */
+    public function test_a_receiver_that_needs_a_field_does_not_get_stored_without_it(): void
+    {
+        $mitFeldern = array_keys(Providers::FIELDS);
+
+        self::assertNotSame([], $mitFeldern, 'Ohne einen Empfänger mit Feldern prüft dieser Fall nichts.');
+
+        foreach ($mitFeldern as $provider) {
+            try {
+                $this->target()->store('https://hooks.example.org/x', null, $provider, []);
+                self::fail($provider.' wurde ohne seine Angaben hinterlegt.');
+            } catch (AgentException $e) {
+                self::assertStringContainsString('fehlt', $e->getMessage());
+            }
+
+            // Die Gegenrichtung — sonst wäre eine Ablage grün, die alles abweist.
+            $target = $this->target();
+            $target->store('https://hooks.example.org/x', null, $provider, $this->konfig($provider));
+
+            self::assertSame($provider, $target->describe()['provider'] ?? null);
+        }
+    }
+
+    /**
+     * Und eine Angabe, die der Empfänger nicht kennt, kommt gar nicht erst in
+     * die Datei.
+     *
+     * **Gelesen wird über eine Positivliste.** Ein Feld, das die Ablage trägt
+     * und niemand liest, ist von aussen nicht von einem zu unterscheiden, das
+     * es nicht gibt — und beim nächsten Umbau erklärt es niemand mehr.
+     *
+     * Beide Fälle: ein fremder Schlüssel bei einem Empfänger mit Feldern, und
+     * überhaupt eine Angabe bei einem ohne.
+     */
+    public function test_a_setting_the_receiver_does_not_know_is_refused(): void
+    {
+        $mitFeldern = array_keys(Providers::FIELDS)[0];
+
+        try {
+            $this->target()->store(
+                'https://hooks.example.org/x',
+                null,
+                $mitFeldern,
+                [...$this->konfig($mitFeldern), 'erfunden' => 'x'],
+            );
+            self::fail('Eine unbekannte Angabe wurde hinterlegt.');
+        } catch (AgentException $e) {
+            self::assertStringContainsString('kennt diese Angabe nicht', $e->getMessage());
+        }
+
+        try {
+            $this->target()->store('https://hooks.example.org/x', null, Providers::SLACK, ['chat_id' => '1']);
+            self::fail('Slack hat eine Angabe angenommen, die es nicht kennt.');
+        } catch (AgentException $e) {
+            self::assertStringContainsString('keine weiteren Angaben', $e->getMessage());
+        }
+
+        // Und die Gegenrichtung: ohne Angaben geht Slack durch.
+        $target = $this->target();
+        $target->store('https://hooks.example.org/x', null, Providers::SLACK);
+
+        self::assertSame(Providers::SLACK, $target->describe()['provider'] ?? null);
+    }
+
+    /**
      * Ein Geheimnis wird dort abgewiesen, wo niemand es nachrechnet.
      *
      * **Abgewiesen und nicht weggelassen.** Wer es einträgt, erwartet eine
@@ -670,7 +803,7 @@ final class WebhookTransportTest extends TestCase
             $http->on(ScriptedOutbound::json(['ok' => true]));
 
             $target = $this->target($http);
-            $target->store('https://hooks.example.org/x', null, $provider);
+            $target->store('https://hooks.example.org/x', null, $provider, $this->konfig($provider));
             (new Delivery($target, $http))->send(['kind' => 'test']);
 
             foreach ($http->calls[0]['headers'] as $zeile) {
@@ -688,8 +821,31 @@ final class WebhookTransportTest extends TestCase
      */
     public function test_an_unknown_receiver_is_refused(): void
     {
-        $this->expectException(AgentException::class);
-        $this->target()->store('https://hooks.example.org/x', null, 'telegram');
+        /*
+         * **Der Prüfkörper hiess bis zum 24. September 2026 `telegram`** — und
+         * an dem Tag kam Telegram dazu. Der Fall blieb grün, aber aus einem
+         * anderen Grund: Er scheiterte an der fehlenden Angabe statt am
+         * unbekannten Empfänger, und sein Eingriff biss nicht mehr.
+         *
+         * > **Ein Prüfkörper, der einen Zustand behauptet, statt ihn zu
+         * > prüfen, hört auf zu messen, sobald jemand den Zustand herstellt —
+         * > und sagt es nicht.**
+         *
+         * Deshalb ein Name, den niemand baut, **und** die Zusicherung
+         * daneben: Gibt es ihn doch, bricht der Fall laut ab.
+         */
+        $erfunden = 'receiverThatIsGone';
+
+        self::assertArrayNotHasKey($erfunden, Providers::LABELS,
+            'Diesen Empfänger gibt es — dann misst dieser Fall nicht mehr die Abweisung.');
+
+        try {
+            $this->target()->store('https://hooks.example.org/x', null, $erfunden);
+            self::fail('Ein unbekannter Empfänger wurde hinterlegt.');
+        } catch (AgentException $e) {
+            // Und am Wortlaut, weil `store()` aus mehreren Gründen wirft.
+            self::assertStringContainsString('kennt der Agent nicht', $e->getMessage());
+        }
     }
 
     /**

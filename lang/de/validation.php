@@ -190,6 +190,14 @@ return [
         'argument' => 'Argument',
 
         /*
+         * Der Chat eines Telegram-Ziels (B1). **„Chat" und nicht
+         * „Chat-Kennung":** Der Wert ist eine Zahl oder ein `@name`, und auf
+         * der Seite steht darunter, woher man ihn bekommt. Ein Name, der die
+         * Form beschreibt, beschriebe die falsche Hälfte.
+         */
+        'chat_id' => 'Chat',
+
+        /*
          * Die beiden Schalter der Sicherungsseite (P8 Schritte 9 und 10).
          * Sie tragen **die Überschrift ihres Bereichs** und nicht den Satz
          * am Kästchen: „Das Feld Jede Nacht eine Sicherung je Abonnement

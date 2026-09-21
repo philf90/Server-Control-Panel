@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Notify\Providers;
 use SrvPanel\Agent\Notify\Target;
 use SrvPanel\Agent\Op;
 
@@ -36,7 +37,29 @@ final class NotifyTargetStore implements Op
 
     public function execute(array $args, Context $context): array
     {
-        $this->target->store($args['url'] ?? null, $args['secret'] ?? null);
+        /*
+         * **Alle vier Angaben, und das stand hier bis zum 24. September 2026
+         * nicht so.** `provider` reiste vom Formular bis hierher und wurde
+         * verworfen; {@see Target::store()} fiel auf seinen Vorgabewert zurück,
+         * und wer Slack wählte, bekam die JSON-Form und von Slack ein `400`.
+         * Gemessen durch diese Operation: `provider: slack` hinein,
+         * `provider: generic` abgelegt.
+         *
+         * > **Eine Auskunft, die entsteht und die niemand weitergibt, ist so
+         * > gut wie keine.**
+         *
+         * Kein Wächter konnte es sehen: {@see \Tests\Unit\WebhookTransportTest}
+         * ruft `Target::store()` unmittelbar und kommt hier nie vorbei.
+         *
+         * > **Zwei Prüfungen, die je eine Seite einer Naht mit einem selbst
+         * > geschriebenen Wert füttern, prüfen die Naht nicht.**
+         */
+        $this->target->store(
+            $args['url'] ?? null,
+            $args['secret'] ?? null,
+            $args['provider'] ?? Providers::GENERIC,
+            $args['config'] ?? [],
+        );
 
         // Zurück geht, was auch auf der Seite stehen darf — siehe
         // {@see Target::describe()}. Die Adresse ist ein halbes Geheimnis und

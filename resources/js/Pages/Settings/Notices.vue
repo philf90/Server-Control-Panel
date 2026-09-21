@@ -42,7 +42,7 @@ const props = defineProps<{
    * Die Empfänger kommen aus der Positivliste des Agenten und nicht aus einer
    * zweiten Aufzählung hier — `SrvPanel\Agent\Notify\Providers`.
    */
-  providers: { value: string, label: string, signs: boolean, hint: string | null }[]
+  providers: { value: string, label: string, signs: boolean, hint: string | null, fields: string[] }[]
 }>()
 
 const { ask } = useConfirmation()
@@ -72,7 +72,7 @@ const KANAELE: Record<string, { name: string, satz: string }> = {
   },
 }
 
-const form = useForm({ url: '', secret: '', provider: 'generic' })
+const form = useForm({ url: '', secret: '', provider: 'generic', chat_id: '' })
 
 /*
  * Trägt der gewählte Empfänger eine Signatur?
@@ -99,6 +99,18 @@ const signiert = computed((): boolean =>
  */
 const hinweise = computed((): string =>
   props.providers.map((p) => p.hint).filter((h): h is string => h !== null).join(' '),
+)
+
+/*
+ * Welche Felder der gewählte Empfänger ausser Adresse und Geheimnis braucht.
+ *
+ * **Die Liste kommt aus dem Agenten und nicht aus dieser Datei.** Telegram ist
+ * der erste mit einem zweiten Feld; eine Bedingung auf `form.provider ===
+ * 'telegram'` wäre die zweite Fassung von `Notify\Providers::FIELDS`, und sie
+ * bliebe stehen, wenn dort etwas dazukommt.
+ */
+const felder = computed((): string[] =>
+  props.providers.find((p) => p.value === form.provider)?.fields ?? [],
 )
 
 const zeigen = ref(false)
@@ -282,6 +294,24 @@ function forget(): void {
           <small class="quiet">
             Nur https. Eine Adresse ohne TLS weist der Agent ab, bevor er sie
             wählt — und eine ins eigene Netz gehört gar nicht erst hierher.
+          </small>
+        </label>
+
+        <label v-if="felder.includes('chat_id')" class="field">
+          <span>Chat</span>
+          <input
+            v-model="form.chat_id"
+            type="text"
+            autocomplete="off"
+            placeholder="-1001234567890"
+            required
+            :aria-invalid="Boolean(form.errors.chat_id)"
+          >
+          <small class="quiet">
+            Die Kennung des Chats, in den der Bot schreiben soll — eine Zahl
+            oder ein Name mit vorangestelltem Klammeraffen. Sie steht nicht in
+            der Adresse: Die trägt die Marke des Bots, und derselbe Bot
+            schreibt in viele Chats.
           </small>
         </label>
 

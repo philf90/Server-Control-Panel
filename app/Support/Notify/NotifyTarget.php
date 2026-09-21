@@ -42,12 +42,20 @@ interface NotifyTarget
     public function reachable(): bool;
 
     /**
-     * Adresse, Empfänger und Geheimnis hinterlegen.
+     * Adresse, Empfänger, Geheimnis und die Angaben des Empfängers hinterlegen.
      *
-     * Das Geheimnis darf fehlen — und bei Slack und Discord **muss** es das:
-     * Dort liest niemand unsere Kopfzeile, und der Agent weist es ab.
+     * Das Geheimnis darf fehlen — und bei jedem Empfänger ausser dem eigenen
+     * **muss** es das: Dort liest niemand unsere Kopfzeile, und der Agent weist
+     * es ab.
+     *
+     * **`$config` ist die vierte Angabe und nicht ein Sonderfall für
+     * Telegram.** Welche Felder ein Empfänger braucht, steht in
+     * `Notify\Providers::FIELDS`; wer keine braucht, bekommt ein leeres Feld
+     * übergeben, und der Agent weist alles andere ab.
+     *
+     * @param  array<string, string>  $config
      */
-    public function store(string $url, ?string $secret, string $provider): void;
+    public function store(string $url, ?string $secret, string $provider, array $config = []): void;
 
     /** Das Ziel wieder entfernen. */
     public function forget(): bool;

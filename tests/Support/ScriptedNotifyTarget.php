@@ -26,6 +26,9 @@ final class ScriptedNotifyTarget implements NotifyTarget
     /** @var list<array<string, mixed>> */
     public array $sent = [];
 
+    /** @var list<array{url: string, secret: ?string, provider: string, config: array<string, string>}> */
+    public array $stored = [];
+
     /** @param array{host: string, provider: string, stored_at: int, signed: bool}|null $target */
     public function __construct(
         private ?array $target = ['host' => 'hooks.example.org', 'provider' => 'generic', 'stored_at' => 1_789_000_000, 'signed' => true],
@@ -62,8 +65,19 @@ final class ScriptedNotifyTarget implements NotifyTarget
         return $this->reachable;
     }
 
-    public function store(string $url, ?string $secret, string $provider): void
+    /**
+     * @param  array<string, string>  $config
+     */
+    public function store(string $url, ?string $secret, string $provider, array $config = []): void
     {
+        /*
+         * **Die Angaben werden mitgeschrieben und nicht beschrieben.** Ein
+         * Doppel, das `$config` wegwirft, liesse jeden Fall grün, der nur
+         * fragt, *ob* hinterlegt wurde — und genau daran ist die Naht zum
+         * Agenten am 24. September einmal gerissen.
+         */
+        $this->stored[] = ['url' => $url, 'secret' => $secret, 'provider' => $provider, 'config' => $config];
+
         $this->target = [
             'host' => (string) parse_url($url, PHP_URL_HOST),
             'provider' => $provider,

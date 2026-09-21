@@ -51,7 +51,8 @@ final class AgentNotifyTarget implements NotifyTarget
         return $this->erreichbar === true;
     }
 
-    public function store(string $url, ?string $secret, string $provider): void
+    /** @param  array<string, string>  $config */
+    public function store(string $url, ?string $secret, string $provider, array $config = []): void
     {
         /*
          * **Unmittelbar und nicht eingereiht.** Adresse und Geheimnis lägen
@@ -61,7 +62,7 @@ final class AgentNotifyTarget implements NotifyTarget
          */
         $this->agent->call(
             'notify.target.store',
-            ['url' => $url, 'secret' => $secret, 'provider' => $provider],
+            ['url' => $url, 'secret' => $secret, 'provider' => $provider, 'config' => $config],
             self::CONTEXT,
         );
 

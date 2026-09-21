@@ -32322,3 +32322,68 @@ Und die Tabelle der erwarteten Rumpfformen trägt eine
 enthält: In einem Kasten von **280 px** — schmaler als jedes echte Feld bei
 390 px — läuft nichts über (`278` von `278` nutzbar), die Seite schiebt 0, und
 die Gegenprobe schlägt mit 200 an. Bei 390 px ist der Block 126 px hoch.
+
+### Telegram — und ein Empfänger, der seit zwei Tagen verlorenging
+
+**Telegram ist der erste Empfänger mit einem zweiten Feld.** Die Marke des Bots
+steht in der Adresse, der Chat nicht: `sendMessage` will ihn im Rumpf, und ohne
+ihn antwortet die Schnittstelle mit `400`. `Notify\Providers::FIELDS` nennt die
+Schlüssel, `configure()` prüft sie beim **Hinterlegen** — nach dem Vorbild von
+`Acme\Dns\Providers::configure()` —, und abgelegt wird die geprüfte Fassung.
+
+> **Ein fehlendes Feld fiele sonst erst in der Nacht auf, in der etwas zu
+> melden wäre — und dann sieht der Betreiber einen stillen Server und keine
+> Ursache.**
+
+**Gelesen wird über eine Positivliste.** Eine Angabe, die der Empfänger nicht
+kennt, wird abgewiesen und nicht stillschweigend abgelegt; ein Empfänger ohne
+Felder nimmt gar keine an. **Und `describe()` gibt sie nicht heraus:** Ein Chat
+gehört zur Adressierung wie die Adresse selbst. Im Protokoll stehen die
+**Namen** der Felder, nicht ihre Werte.
+
+**Der Fund des Tages steckte in der Naht.** `notify.target.store` rief
+`Target::store($url, $secret)` — **ohne den Empfänger**. Er reiste vom Formular
+über den Socket bis in die Operation und wurde verworfen; der Vorgabewert
+`generic` gewann. Wer seit vorgestern Slack wählte, bekam die JSON-Form und von
+Slack ein `400`. Gemessen durch die Operation: `provider: slack` hinein,
+`provider: generic` abgelegt.
+
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+> keine.**
+
+**Kein Wächter konnte es sehen.** `WebhookTransportTest` ruft `Target::store()`
+unmittelbar und kommt an der Operation nie vorbei; die Seite prüft, dass sie den
+Empfänger mitschickt. Beide Seiten der Naht waren in Ordnung.
+
+> **Zwei Prüfungen, die je eine Seite einer Naht mit einem selbst geschriebenen
+> Wert füttern, prüfen die Naht nicht — sie prüfen zweimal denselben
+> Prüfkörper.**
+
+`NotifyTargetStoreTest` misst sie jetzt durch die Operation, und `docs/133`
+bekommt einen eigenen Punkt dafür: Gemessen wird die **Ablage**, nicht das
+Formular.
+
+**Ein Prüfkörper hat dabei aufgehört zu messen, ohne es zu sagen.**
+`test_an_unknown_receiver_is_refused` benutzte den Namen `telegram` als Beispiel
+für einen Empfänger, den es nicht gibt — seit heute gibt es ihn. Der Fall blieb
+grün, scheiterte aber an der fehlenden Angabe statt am unbekannten Empfänger,
+und **sein Eingriff biss nicht mehr**. Er trägt jetzt einen Namen, den niemand
+baut, und die Zusicherung daneben.
+
+> **Ein Prüfkörper, der einen Zustand behauptet, statt ihn zu prüfen, hört auf
+> zu messen, sobald jemand den Zustand herstellt — und sagt es nicht.**
+
+Gefunden hat ihn, wie die sechs toten Anker gestern, der **dateibezogene Griff**
+und nicht der volle Lauf.
+
+**Und ein Wächter musste von einer Konstante zu einer Methode werden.**
+`AttributeNameTest::RESOLVED_SPREADS` löst die Spreads in Regelblöcken auf; der
+neue Spread bringt die Felder aus `Providers::FIELDS` mit, und ein konstanter
+Ausdruck kann sie nicht flach machen. Sie dort abzuschreiben wäre die zweite
+Fassung jener Liste gewesen.
+
+> **Ein Wächter, der eine Liste im Test führt, prüft die Liste und nicht die
+> Regel.**
+
+**Die Seite ist bei 390 px gemessen**: mit dem Chatfeld `dokument = 0`,
+Gegenprobe 200, und der Hinweisblock bleibt bei 126 px.

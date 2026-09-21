@@ -73,7 +73,7 @@ final class Delivery
     {
         $target = $this->target->read();
         $stamp = time();
-        $body = Providers::body($target['provider'], Names::host(), date(DATE_ATOM), $event);
+        $body = Providers::body($target['provider'], Names::host(), date(DATE_ATOM), $event, $target['config']);
 
         /*
          * **Welche Kopfzeilen mitgehen, entscheidet {@see Providers}.** Hier

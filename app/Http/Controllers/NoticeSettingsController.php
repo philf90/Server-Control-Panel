@@ -99,6 +99,15 @@ final class NoticeSettingsController extends Controller
                 'label' => $label,
                 'signs' => Providers::signs($key),
                 'hint' => Providers::HINTS[$key] ?? null,
+
+                /*
+                 * **Welche Felder ein Empfänger braucht, sagt der Agent.**
+                 * Telegram ist der erste mit einem zweiten Feld; eine Liste
+                 * auf der Seite wäre die zweite Fassung von
+                 * {@see Providers::FIELDS}, und sie bliebe stehen, wenn dort
+                 * ein Feld dazukommt.
+                 */
+                'fields' => Providers::FIELDS[$key] ?? [],
             ], array_keys(Providers::LABELS), array_values(Providers::LABELS)),
         ]);
     }
@@ -136,6 +145,7 @@ final class NoticeSettingsController extends Controller
     public function update(Request $request, NotifyTarget $target, Audit $audit): RedirectResponse
     {
         $data = $request->validate([
+            ...self::fieldRules(),
             /*
              * **`https` steht als eigene Regel da und nicht nur in `url`.**
              * Laravels `url` nimmt jedes Schema, `http://127.0.0.1:9200`
@@ -174,8 +184,20 @@ final class NoticeSettingsController extends Controller
             'provider' => 'Empfänger',
         ]);
 
+        /*
+         * **Was der gewählte Empfänger braucht, und nichts sonst.** Wer von
+         * Telegram auf Slack umstellt, ohne das Feld zu leeren, schickte sonst
+         * einen Chat mit, den Slack nicht kennt — und der Agent wiese das
+         * ganze Hinterlegen ab.
+         */
+        $config = [];
+
+        foreach (Providers::FIELDS[$data['provider']] ?? [] as $feld) {
+            $config[$feld] = (string) ($data[$feld] ?? '');
+        }
+
         try {
-            $target->store($data['url'], $data['secret'] ?? null, $data['provider']);
+            $target->store($data['url'], $data['secret'] ?? null, $data['provider'], $config);
         } catch (AgentException $error) {
             $audit->failure('settings.notices.stored', ['error' => mb_substr($error->getMessage(), 0, 500)]);
 
@@ -192,9 +214,43 @@ final class NoticeSettingsController extends Controller
             'host' => (string) parse_url($data['url'], PHP_URL_HOST),
             'provider' => $data['provider'],
             'signed' => ($data['secret'] ?? null) !== null,
+
+            /*
+             * **Die Namen der Felder und nicht ihre Werte.** Ein Chat gehört
+             * zur Adressierung wie die Adresse selbst; das Protokoll darf
+             * jeder Administrator lesen.
+             */
+            'config' => array_keys($config),
         ]);
 
         return to_route('settings.notices')->with('success', 'Meldeziel hinterlegt.');
+    }
+
+    /**
+     * Die Regeln der Felder, die ein Empfänger ausser Adresse und Geheimnis
+     * braucht.
+     *
+     * **Abgeleitet aus {@see Providers::FIELDS} und nicht aufgezählt.** Ein
+     * Feld, das dort dazukommt und hier fehlte, käme ungeprüft am Agenten an —
+     * und der wiese es mit einer Ausnahme ab statt mit einer Meldung am Feld.
+     *
+     * **`required_if` und nicht `required`.** Dasselbe Formular trägt die
+     * Felder aller Empfänger; verlangt würde sonst ein Chat auch von dem, der
+     * Slack wählt.
+     *
+     * @return array<string, list<string>>
+     */
+    private static function fieldRules(): array
+    {
+        $regeln = [];
+
+        foreach (Providers::FIELDS as $anbieter => $felder) {
+            foreach ($felder as $feld) {
+                $regeln[$feld] = ['required_if:provider,'.$anbieter, 'nullable', 'string', 'max:255'];
+            }
+        }
+
+        return $regeln;
     }
 
     /** Das Meldeziel wieder entfernen. */

@@ -46,6 +46,9 @@ final class Providers
     /** Und der zweite davon: JSON, und die Marke steht in der Adresse. */
     public const GOTIFY = 'gotify';
 
+    /** Der erste Empfänger mit einem zweiten Feld: ohne Chat kein Ziel. */
+    public const TELEGRAM = 'telegram';
+
     /**
      * Was auf der Seite steht.
      *
@@ -57,6 +60,7 @@ final class Providers
         self::DISCORD => 'Discord',
         self::NTFY => 'ntfy',
         self::GOTIFY => 'Gotify',
+        self::TELEGRAM => 'Telegram',
     ];
 
     /**
@@ -95,6 +99,33 @@ final class Providers
             'https://ntfy.sh/mein-thema.',
         self::GOTIFY => 'Bei Gotify gehört die Marke in die Adresse, etwa '.
             'https://gotify.example.org/message?token=… — ein eigenes Feld dafür gibt es nicht.',
+        self::TELEGRAM => 'Bei Telegram ist die Adresse die des Bots und endet auf /sendMessage; '.
+            'der Chat steht im Feld darunter.',
+    ];
+
+    /**
+     * Was ein Empfänger ausser Adresse und Geheimnis braucht.
+     *
+     * **Telegram ist der erste, der etwas braucht.** Die Marke des Bots steht
+     * in der Adresse, der Chat aber nicht — `sendMessage` will ihn im Rumpf,
+     * und ohne ihn antwortet die Schnittstelle mit `400`. Ein Feld, das nur
+     * für einen Empfänger gilt, ist deshalb kein Sonderfall, sondern die Form,
+     * die der nächste erbt.
+     *
+     * **Hier stehen die Schlüssel und nicht ihre Beschriftungen.** Wie ein Feld
+     * auf der Seite heisst, ist eine Frage der Oberfläche, und die Oberfläche
+     * liegt im Panel — dieselbe Trennung wie zwischen Kanalschlüssel und
+     * Menüpunkt. `NoticeFieldTest` hält beide Richtungen aneinander: Was hier
+     * steht, hat auf der Seite ein Feld, und was dort steht, hat hier einen
+     * Schlüssel.
+     *
+     * > **Ein Feld, das der Agent verlangt und die Seite nicht zeigt, ist ein
+     * > Formular, das man nicht abschicken kann.**
+     *
+     * @var array<string, list<string>>
+     */
+    public const FIELDS = [
+        self::TELEGRAM => ['chat_id'],
     ];
 
     /**
@@ -129,10 +160,35 @@ final class Providers
         self::SLACK => 40000,
         self::DISCORD => 2000,
         self::NTFY => 1300,
+        self::TELEGRAM => 4096,
     ];
 
     /** Wieviel vom Wortlaut eines Werkzeugs in eine Zeile passt. */
     private const DETAIL_MAX = 200;
+
+    /**
+     * Jedes Feld, das irgendein Empfänger braucht — flach und ohne Doppel.
+     *
+     * **Es gibt sie, weil zwei Stellen dieselbe Frage anders stellen.** Der
+     * Controller baut seine Prüfregeln je Empfänger, ein Wächter über die
+     * deutschen Feldnamen braucht die blosse Liste. Beide aus
+     * {@see self::FIELDS} abzuleiten ist eine Zeile; eine zweite Aufzählung
+     * wäre die, die beim nächsten Feld vergessen wird.
+     *
+     * @return list<string>
+     */
+    public static function fieldKeys(): array
+    {
+        $felder = [];
+
+        foreach (self::FIELDS as $eintrag) {
+            foreach ($eintrag as $feld) {
+                $felder[$feld] = true;
+            }
+        }
+
+        return array_keys($felder);
+    }
 
     /**
      * Prüft dieser Anbieter eine Signatur?
@@ -187,11 +243,76 @@ final class Providers
     }
 
     /**
+     * Die zusätzlichen Angaben prüfen, ohne etwas abzulegen.
+     *
+     * **Nach dem Vorbild von {@see DnsProviders::configure()}**: Was abgelegt
+     * wird, ist die **geprüfte** Fassung und nicht die rohe. Ein Feld, das
+     * hier durchginge, fiele sonst erst in der Nacht auf, in der etwas zu
+     * melden wäre.
+     *
+     * **Gelesen wird über eine Positivliste.** Was {@see self::FIELDS} nennt,
+     * kommt durch; alles andere wird abgewiesen und nicht stillschweigend
+     * abgelegt. Ein Feld, das die Datei trägt und niemand liest, ist von aussen
+     * nicht von einem zu unterscheiden, das es nicht gibt — und beim nächsten
+     * Umbau erklärt es niemand mehr.
+     *
+     * > **Eine Liste dessen, was nicht hinein darf, ist beim nächsten Feld
+     * > unvollständig, und niemandem fällt es auf.**
+     *
+     * @param  array<string, mixed>  $config
+     * @return array<string, string>
+     */
+    public static function configure(string $provider, mixed $config): array
+    {
+        $roh = is_array($config) ? $config : [];
+        $felder = self::FIELDS[$provider] ?? [];
+
+        if ($felder === []) {
+            if ($roh !== []) {
+                throw AgentException::badRequest(sprintf(
+                    '%s kennt keine weiteren Angaben.',
+                    self::LABELS[$provider] ?? $provider,
+                ), ['provider' => $provider, 'given' => array_keys($roh)]);
+            }
+
+            return [];
+        }
+
+        $fremd = array_diff(array_keys($roh), $felder);
+
+        if ($fremd !== []) {
+            throw AgentException::badRequest(sprintf(
+                '%s kennt diese Angabe nicht.',
+                self::LABELS[$provider] ?? $provider,
+            ), ['provider' => $provider, 'unknown' => array_values($fremd)]);
+        }
+
+        $geprueft = [];
+
+        foreach ($felder as $feld) {
+            $wert = $roh[$feld] ?? null;
+            $wert = is_string($wert) || is_int($wert) ? trim((string) $wert) : '';
+
+            if ($wert === '') {
+                throw AgentException::badRequest(sprintf(
+                    'Für %s fehlt eine Angabe.',
+                    self::LABELS[$provider] ?? $provider,
+                ), ['provider' => $provider, 'missing' => $feld]);
+            }
+
+            $geprueft[$feld] = $wert;
+        }
+
+        return $geprueft;
+    }
+
+    /**
      * Der Rumpf einer Meldung, in der Form, die dieser Anbieter annimmt.
      *
      * @param  array<string, mixed>  $event
+     * @param  array<string, string>  $config  Was {@see self::configure()} geprüft hat
      */
-    public static function body(string $provider, string $server, string $at, array $event): string
+    public static function body(string $provider, string $server, string $at, array $event, array $config = []): string
     {
         /*
          * **Bei ntfy ist der Rumpf der Text und keine Hülle darum.** Wer an
@@ -215,6 +336,17 @@ final class Providers
              * Zusammensetzung, die eine Zeile weiter oben stattfindet.
              */
             self::GOTIFY => self::gotify($server, $event),
+
+            /*
+             * **Der Chat steht im Rumpf und nicht in der Adresse.** Telegrams
+             * `sendMessage` nimmt ihn als Feld; die Marke des Bots steht im
+             * Pfad. Fehlt er, antwortet die Schnittstelle mit `400` — und
+             * deshalb wird er beim Hinterlegen verlangt und nicht hier.
+             */
+            self::TELEGRAM => [
+                'chat_id' => $config['chat_id'] ?? '',
+                'text' => self::text($provider, $server, $event),
+            ],
 
             /*
              * **Der eigene Empfänger bekommt die volle Meldung.** Was das Panel

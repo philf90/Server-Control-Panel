@@ -413,6 +413,60 @@ Das `sleep 5` steht da, weil ein `is-active` unmittelbar nach dem `start` den
 Übergang misst und nicht den Zustand — derselbe Satz wie am 4. September bei
 `srvpanel.target`.
 
+### Punkt 8b · Und der Empfänger erfährt, dass es vorbei ist
+
+**Unmittelbar nach Punkt 8 und vor irgendeinem weiteren Lauf**, denn die
+Warteschlange wird beim Zustellen geleert.
+
+```bash
+srvpanel tinker --execute='
+  foreach (App\Models\FindingResolution::query()->get() as $z) {
+      printf("offen: %s / %s / %s / %s\n", $z->check->value, $z->subject, $z->reason, $z->channel);
+  }
+'
+
+srvpanel notices
+# (über die Unit fährt `systemctl start srvpanel-diagnose.service` beides:
+#  erst die Messung, dann den Versand — zwei ExecStart-Zeilen einer Unit.)
+
+srvpanel tinker --execute='
+  printf("Warteschlange: %d\n", App\Models\FindingResolution::query()->count());
+'
+```
+
+**Erwartet:** **genau eine** offene Zeile, und zwar für den Kanal `webhook` —
+der Mailkanal entwarnt nicht, seine Zeile ist beim Lauf davor schon verbraucht
+worden. Der Lauf druckt `webhook: 1 Entwarnung(en) verschickt.`, beim Empfänger
+steht eine Meldung, deren Kopf mit `behoben:` **vor** dem Namen des Dienstes
+beginnt, und danach ist die Warteschlange leer.
+
+**Die Zeile für `mail` ist die Gegenprobe und nicht ein Rest.** Steht sie nach
+dem Lauf noch da, verbraucht sie niemand, und `finding_resolutions` wächst mit
+jedem behobenen Befund.
+
+> **Eine Warteschlange, aus der niemand nimmt, ist eine Tabelle, die wächst.**
+
+### Punkt 8c · Und eine Entwarnung ohne vorangegangene Warnung gibt es nicht
+
+```bash
+# Einen Befund erzeugen und ihn VOR der Haltezeit wieder verschwinden lassen.
+systemctl stop srvpanel-metrics.service
+systemctl start srvpanel-diagnose.service
+systemctl start srvpanel-metrics.service
+sleep 5
+systemctl start srvpanel-diagnose.service
+
+srvpanel tinker --execute='
+  printf("Warteschlange: %d\n", App\Models\FindingResolution::query()->count());
+'
+```
+
+**Erwartet:** `Warteschlange: 0`. Der Befund stand keine zwanzig Stunden, ist
+also nie gemeldet worden — und was nie hinausging, wird nicht zurückgenommen.
+
+> **Eine Entwarnung ohne vorangegangene Warnung ist eine Meldung über
+> nichts.**
+
 ### Punkt 9 · Ein Ziel, das abweist, bucht nichts
 
 ```bash
@@ -457,12 +511,51 @@ keine neue Buchung für diesen Kanal.
 
 ---
 
+### Punkt 11 · Der gewählte Empfänger überlebt das Hinterlegen
+
+**Der Punkt, den es ohne einen Befund vom 24. September 2026 nicht gäbe.**
+`notify.target.store` verwarf den Empfänger und legte für jede Wahl `generic`
+ab; wer Slack wählte, bekam die JSON-Form und von Slack ein `400`. Gemessen
+wird deshalb nicht das Formular, sondern die **Ablage**.
+
+```bash
+# Auf /settings/notices „Slack" wählen, eine Adresse eintragen, speichern.
+jq -r '.provider, .config' /etc/srvpanel/notify/webhook.json
+```
+
+**Erwartet:** `slack` und `{}`. Danach dasselbe mit **Telegram**, Adresse
+`https://api.telegram.org/bot<marke>/sendMessage` und einem Chat:
+
+**Erwartet:** `telegram` und `{"chat_id": "…"}` — und auf der Seite steht
+weiterhin nur der Rechnername, kein Chat und keine Marke.
+
+> **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
+> keine.**
+
+### Punkt 12 · Der Empfänger nimmt den Rumpf wirklich an
+
+**Für den Empfänger, den der Betreiber hat** — einer genügt. Auf
+`/settings/notices` den Knopf „Probezustellung" drücken und im Kanal, im
+Telefon oder im Postfach nachsehen.
+
+**Erwartet:** Die Meldung kommt an und trägt den Rechnernamen. Bei ntfy ist
+der Rumpf der Text selbst; bei Gotify stehen Titel und Nachricht getrennt.
+Danach **ein echter Befund** über denselben Weg (Punkt 6), damit nicht nur die
+Probezustellung gemessen ist:
+
+> **Ein Beleg für den Weg ist keiner für das Ziel.**
+
+---
+
 ## §5 · Was dieser Lauf ausdrücklich **nicht** prüft
 
 - **Ob der Zeitgeber über viele Nächte trägt.** Er feuert in diesem Lauf
   einmal von selbst (Punkt 4); alles andere wird angestossen.
-- **Ob Slack oder Discord unseren Rumpf annehmen.** Hergeleitet, nicht gemessen
-  — ausser jemand hat einen solchen Haken und fährt Punkt 9 damit.
+- **Ob Mattermost und Rocket.Chat unseren Rumpf annehmen.** Sie sagen in ihrer
+  Dokumentation zu, Slacks Eingangshaken zu nehmen, und stehen deshalb als
+  Hinweis neben dem Eintrag „Slack" — gemessen hat es niemand.
+- **Die Empfänger, die der Betreiber nicht hat.** Punkt 12 misst einen; über
+  die übrigen vier sagt dieser Lauf nichts.
 - **Den Fall „Prüfung nicht durchgelaufen".** `unreachable` ist
   `FindingState::Unknown` und wird bewusst nicht gemeldet; ob das für den
   Betreiber richtig ist, steht als Frage im Kopf von `Notices::due()`.
@@ -474,15 +567,20 @@ keine neue Buchung für diesen Kanal.
 
 ## §6 · Wann er durch ist
 
-**Erfüllt, wenn die Punkte 1 bis 8 und 10 erfüllt sind.**
+**Erfüllt, wenn die Punkte 1 bis 8c, 10, 11 und 12 erfüllt sind.**
 
 **Punkt 6 und Punkt 7 dürfen nicht ausfallen** — sie sind das Kriterium: eine
 Meldung über beide Kanäle, und beim nächsten Lauf keine.
 
+**Punkt 8b darf ebenfalls nicht ausfallen** — er ist das Kriterium des
+Ereignisses „behoben", und ohne ihn ist von aussen nicht zu unterscheiden, ob
+eine Entwarnung hinausging oder nur eine Zeile verschwand.
+
 **Punkt 5 darf ausfallen** (der Zeitgeber ist anderswo gemessen), **Punkt 3
-entfällt**, wenn in §1 Block 4 kein beurteilter Befund steht, und **Punkt 9
+entfällt**, wenn in §1 Block 4 kein beurteilter Befund steht, **Punkt 9
 darf auf den Webhook-Teil verkürzt werden**, wenn kein zweiter alter Zustand zur
-Hand ist.
+Hand ist, und **Punkt 12 darf auf die Probezustellung verkürzt werden**, wenn
+in der Zeit des Laufs kein Befund nachwächst.
 
 **Ein Punkt, der am Werkzeug scheitert und nicht am Gegenstand, ist nicht
 „nicht herstellbar"** — er wird nachgeholt.

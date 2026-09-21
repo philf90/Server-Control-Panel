@@ -34766,6 +34766,242 @@ griff_datei agent/src/Notify/Providers.php "Empfaenger ohne Form" &&
 pruefe "Empfaenger ohne Form" \
   WebhookTransportTest::test_each_receiver_gets_the_shape_it_accepts failed
 wiederherstellen
+echo "── NotifyTargetStoreTest: der Empfaenger geht in der Operation verloren ──"
+#
+# Genau das war am 24. September 2026 der Fall: provider reiste vom Formular
+# bis in die Operation und wurde verworfen. Wer Slack waehlte, bekam die
+# JSON-Form und von Slack ein 400.
+vorher_datei agent/src/Ops/NotifyTargetStore.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Ops/NotifyTargetStore.php')
+s = p.read_text()
+alt = "$args['provider'] ?? Providers::GENERIC,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'Providers::GENERIC,', 1))
+PY
+griff_datei agent/src/Ops/NotifyTargetStore.php "Empfaenger geht verloren" &&
+pruefe "Empfaenger geht verloren" \
+  NotifyTargetStoreTest::test_the_chosen_receiver_reaches_the_file failed
+wiederherstellen
+
+echo "── NotifyTargetStoreTest: die Angaben gehen in der Operation verloren ──"
+#
+# Dieselbe Naht, das andere Feld: Ohne den Chat weist der Agent Telegram ab —
+# und die Meldung erklaert eine Angabe, die das Formular mitgeschickt hat.
+vorher_datei agent/src/Ops/NotifyTargetStore.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Ops/NotifyTargetStore.php')
+s = p.read_text()
+alt = "$args['config'] ?? [],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '[],', 1))
+PY
+griff_datei agent/src/Ops/NotifyTargetStore.php "Angaben gehen verloren" &&
+pruefe "Angaben gehen verloren" \
+  NotifyTargetStoreTest::test_the_settings_reach_the_message failed
+wiederherstellen
+
+echo "── NotifyTargetStoreTest: die Antwort traegt die Angaben mit ──"
+#
+# Die Positivliste von describe() ist genau dagegen geschrieben: Der Chat
+# gehoert zur Adressierung wie die Adresse selbst.
+vorher_datei agent/src/Notify/Target.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Target.php')
+s = p.read_text()
+alt = "'signed' => is_string($secret) && $secret !== '',"
+neu = "'signed' => is_string($secret) && $secret !== '',\n            'config' => self::settings($data['config'] ?? null),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, neu, 1))
+PY
+griff_datei agent/src/Notify/Target.php "Antwort traegt die Angaben" &&
+pruefe "Antwort traegt die Angaben" \
+  NotifyTargetStoreTest::test_the_answer_carries_nothing_the_page_may_not_see failed
+wiederherstellen
+
+echo "── WebhookTransportTest: die Angabe reist nicht bis zum Rumpf ──"
+#
+# Abgelegt und nie gelesen: Telegram bekaeme einen leeren Chat und antwortete
+# mit 400 — und die Ablage sieht dabei richtig aus.
+vorher_datei agent/src/Notify/Delivery.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Delivery.php')
+s = p.read_text()
+alt = ", $event, $target['config']);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, ', $event);', 1))
+PY
+griff_datei agent/src/Notify/Delivery.php "Angabe reist nicht zum Rumpf" &&
+pruefe "Angabe reist nicht zum Rumpf" \
+  WebhookTransportTest::test_the_stored_setting_reaches_the_wire failed
+wiederherstellen
+
+echo "── WebhookTransportTest: ein leeres Pflichtfeld wird hinterlegt ──"
+#
+# Ein fehlender Chat fiele sonst erst in der Nacht auf, in der etwas zu melden
+# waere — und dann sieht der Betreiber einen stillen Server und keine Ursache.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "if ($wert === '') {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'if ($wert === null) {', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "leeres Pflichtfeld hinterlegt" &&
+pruefe "leeres Pflichtfeld hinterlegt" \
+  WebhookTransportTest::test_a_receiver_that_needs_a_field_does_not_get_stored_without_it failed
+wiederherstellen
+
+echo "── WebhookTransportTest: eine fremde Angabe wird abgelegt ──"
+#
+# Ein Feld, das die Ablage traegt und niemand liest, ist von aussen nicht von
+# einem zu unterscheiden, das es nicht gibt.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = 'if ($fremd !== []) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'if ($fremd !== [] && false) {', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "fremde Angabe abgelegt" &&
+pruefe "fremde Angabe abgelegt" \
+  WebhookTransportTest::test_a_setting_the_receiver_does_not_know_is_refused failed
+wiederherstellen
+
+echo "── WebhookTransportTest: ein Empfaenger ohne Felder nimmt Angaben an ──"
+#
+# Die andere Haelfte derselben Positivliste: Slack kennt keinen Chat, und eine
+# Ablage, die ihn trotzdem traegt, erklaert beim naechsten Umbau niemand.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = 'if ($roh !== []) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'if ($roh !== [] && false) {', 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Empfaenger ohne Felder nimmt an" &&
+pruefe "Empfaenger ohne Felder nimmt an" \
+  WebhookTransportTest::test_a_setting_the_receiver_does_not_know_is_refused failed
+wiederherstellen
+
+echo "── NoticeFieldTest: das Feld haengt an einem Namen im Quelltext ──"
+#
+# Eine Bedingung auf den Schluessel des Empfaengers ist die zweite Fassung von
+# Providers::FIELDS — und sie bleibt stehen, wenn dort ein zweiter dasselbe
+# Feld bekommt.
+vorher_datei resources/js/Pages/Settings/Notices.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Settings/Notices.vue')
+s = p.read_text()
+alt = 'v-if="felder.includes(\'chat_id\')"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'v-if="form.provider === \'telegram\'"', 1))
+PY
+griff_datei resources/js/Pages/Settings/Notices.vue "Feld haengt am Namen" &&
+pruefe "Feld haengt am Namen" \
+  NoticeFieldTest::test_a_field_is_shown_for_the_receiver_that_needs_it failed
+wiederherstellen
+
+echo "── NoticeFieldTest: ein Feld, das der Agent nicht kennt ──"
+#
+# So entsteht der tote Eintrag wirklich: Jemand benennt ein Feld im Agenten um
+# und laesst das alte auf der Seite stehen.
+vorher_datei agent/src/Notify/Providers.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('agent/src/Notify/Providers.php')
+s = p.read_text()
+alt = "self::TELEGRAM => ['chat_id'],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "self::TELEGRAM => ['chat'],", 1))
+PY
+griff_datei agent/src/Notify/Providers.php "Feld auf der Seite unbekannt" &&
+pruefe "Feld auf der Seite unbekannt" \
+  NoticeFieldTest::test_every_field_on_the_page_is_one_the_agent_asks_for failed
+wiederherstellen
+
+echo "── NoticeFieldTest: der Controller schickt jedem Empfaenger jedes Feld ──"
+#
+# Wer von Telegram auf Slack umstellt, leert das Feld nicht — und der Agent
+# wiese das ganze Hinterlegen ab.
+vorher_datei app/Http/Controllers/NoticeSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/NoticeSettingsController.php')
+s = p.read_text()
+alt = "foreach (Providers::FIELDS[$data['provider']] ?? [] as $feld) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'foreach (Providers::fieldKeys() as $feld) {', 1))
+PY
+griff_datei app/Http/Controllers/NoticeSettingsController.php "jedes Feld an jeden" &&
+pruefe "jedes Feld an jeden" \
+  NoticeFieldTest::test_a_receiver_without_fields_carries_none failed
+wiederherstellen
+
+echo "── NoticeFieldTest: die Pflicht am Feld faellt weg ──"
+#
+# Der Agent weist es ohnehin ab — aber als Ausnahme, und die landet als roter
+# Streifen oben statt als Satz am Feld.
+vorher_datei app/Http/Controllers/NoticeSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/NoticeSettingsController.php')
+s = p.read_text()
+alt = "$regeln[$feld] = ['required_if:provider,'.$anbieter, 'nullable', 'string', 'max:255'];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "$regeln[$feld] = ['nullable', 'string', 'max:255'];", 1))
+PY
+griff_datei app/Http/Controllers/NoticeSettingsController.php "Pflicht am Feld faellt weg" &&
+pruefe "Pflicht am Feld faellt weg" \
+  NoticeFieldTest::test_a_receiver_that_needs_a_field_is_refused_without_it failed
+wiederherstellen
+
+echo "── NoticeFieldTest: die Felder kommen nicht auf der Seite an ──"
+#
+# Sie stehen im Agenten und erreichen das Formular nie — von aussen nicht davon
+# zu unterscheiden, dass es sie nicht gibt.
+vorher_datei app/Http/Controllers/NoticeSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/NoticeSettingsController.php')
+s = p.read_text()
+alt = "'fields' => Providers::FIELDS[$key] ?? [],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "'fields' => [],", 1))
+PY
+griff_datei app/Http/Controllers/NoticeSettingsController.php "Felder kommen nicht an" &&
+pruefe "Felder kommen nicht an" \
+  NoticeFieldTest::test_the_fields_reach_the_page failed
+wiederherstellen
+
+echo "── NoticeFieldTest: der Chat steht im Protokoll ──"
+#
+# Ein Chat gehoert zur Adressierung wie die Adresse selbst, und die steht dort
+# schon nicht — festgehalten wird der Rechnername.
+vorher_datei app/Http/Controllers/NoticeSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/NoticeSettingsController.php')
+s = p.read_text()
+alt = "'config' => array_keys($config),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "'config' => $config,", 1))
+PY
+griff_datei app/Http/Controllers/NoticeSettingsController.php "Chat im Protokoll" &&
+pruefe "Chat im Protokoll" \
+  NoticeFieldTest::test_the_chat_is_not_written_into_the_log failed
+wiederherstellen
 
 
 echo

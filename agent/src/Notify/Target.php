@@ -81,11 +81,18 @@ final class Target
      * mittendrin abbricht, sonst eine halbe Datei hinterlässt: Die ist beim
      * nächsten Lesen kein Fehler, sondern eine Adresse, die fast stimmt.
      */
-    public function store(mixed $url, mixed $secret, mixed $provider = Providers::GENERIC): void
+    public function store(mixed $url, mixed $secret, mixed $provider = Providers::GENERIC, mixed $config = []): void
     {
         $address = self::address($url);
         $key = Providers::usable($provider);
         $signing = self::signingSecret($secret, $key);
+
+        /*
+         * **Geprüft wird hier und nicht beim Melden.** Ein fehlender Chat
+         * fiele sonst erst in der Nacht auf, in der etwas zu melden wäre —
+         * derselbe Grund, aus dem die Adresse hier geprüft wird.
+         */
+        $settings = Providers::configure($key, $config);
 
         if (! is_dir($this->directory) && ! @mkdir($this->directory, 0o700, true) && ! is_dir($this->directory)) {
             throw AgentException::execFailed('Das Verzeichnis für das Meldeziel ließ sich nicht anlegen.');
@@ -97,6 +104,7 @@ final class Target
             'url' => $address,
             'provider' => $key,
             'secret' => $signing,
+            'config' => $settings,
             'stored_at' => time(),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
@@ -121,7 +129,7 @@ final class Target
      * **Diese Antwort verlässt den Agenten nie.** Sie ist für {@see Delivery},
      * und für keine Operation, die etwas zurückgibt.
      *
-     * @return array{url: string, provider: string, secret: ?string}
+     * @return array{url: string, provider: string, secret: ?string, config: array<string, string>}
      */
     public function read(): array
     {
@@ -142,7 +150,39 @@ final class Target
             'url' => $url,
             'provider' => Providers::normalize($data['provider'] ?? null),
             'secret' => is_string($secret) && $secret !== '' ? $secret : null,
+            'config' => self::settings($data['config'] ?? null),
         ];
+    }
+
+    /**
+     * Die zusätzlichen Angaben aus der Ablage — als Zeichenketten.
+     *
+     * **Gelesen wird ohne {@see Providers::configure()}.** Die Prüfung gehört
+     * ans Hinterlegen; hier würde sie eine Datei, die seit einer Änderung der
+     * Felder nicht mehr passt, unlesbar machen statt unvollständig — und dann
+     * meldete dieser Server gar nichts mehr. Derselbe Grund, aus dem
+     * {@see Providers::normalize()} beim Lesen zurückfällt und beim Schreiben
+     * wirft.
+     *
+     * > **Ein Rückfall gilt für das Lesen und nicht für das Schreiben.**
+     *
+     * @return array<string, string>
+     */
+    private static function settings(mixed $config): array
+    {
+        if (! is_array($config)) {
+            return [];
+        }
+
+        $werte = [];
+
+        foreach ($config as $feld => $wert) {
+            if (is_string($feld) && (is_string($wert) || is_int($wert))) {
+                $werte[$feld] = (string) $wert;
+            }
+        }
+
+        return $werte;
     }
 
     /**
@@ -180,6 +220,14 @@ final class Target
             'provider' => Providers::normalize($data['provider'] ?? null),
             'stored_at' => is_int($stored) ? $stored : 0,
             'signed' => is_string($secret) && $secret !== '',
+
+            /*
+             * **`config` steht hier nicht**, und das ist die Positivliste bei
+             * der Arbeit: Der Chat einer Telegram-Ablage gehört zur Adressierung
+             * wie die Adresse selbst — wer ihn hat und die Marke des Bots, kann
+             * in denselben Chat schreiben. Die Seite braucht ihn nicht: Sie
+             * zeigt, **dass** ein Ziel steht, und nicht, wohin.
+             */
         ];
     }
 

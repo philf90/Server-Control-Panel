@@ -6934,6 +6934,67 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ModelPropertyTest passed
 
 echo
+echo "── ModelPropertyTest: eine Carbon-Eigenschaft ohne ihren Cast ──"
+#
+# Die Gegenrichtung zum Eingriff weiter oben, und die gefaehrlichere. Fehlt die
+# `@property`-Zeile zu einem Cast, sieht larastan eine Zeichenkette und macht
+# die CI rot — teuer, aber laut. Fehlt der Cast zu einer `@property`-Zeile,
+# glaubt larastan dem Block, die Pruefung ist gruen, und der Aufruf scheitert
+# erst dort, wo ihn jemand wirklich abschickt. Gemessen am 22. September 2026
+# auf cloudsrv24, in Punkt 6 des Abnahmelaufs B1: „Call to a member function
+# toIso8601String() on string".
+vorher_datei app/Models/FindingNotification.php
+python3 - <<'PY2'
+p = 'app/Models/FindingNotification.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        return ['notified_at' => 'datetime'];", "        return [];")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Models/FindingNotification.php "Carbon-Eigenschaft ohne Cast" &&
+pruefe "Carbon-Eigenschaft ohne Cast" \
+  ModelPropertyTest::test_every_carbon_property_is_actually_cast failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ModelPropertyTest passed
+
+echo
+echo "── ModelPropertyTest: die Spalte, die der Abnahmelauf gefunden hat ──"
+#
+# Namentlich, damit eine Umbenennung auffaellt und nicht bloss den Zaehler
+# senkt — derselbe Zuschnitt wie bei `disk_quota_enforced` weiter oben.
+vorher_datei app/Models/FindingNotification.php
+python3 - <<'PY2'
+p = 'app/Models/FindingNotification.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(" * @property Carbon $notified_at\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Models/FindingNotification.php "die gefundene Spalte steht nicht mehr im Block" &&
+pruefe "die gefundene Spalte steht nicht mehr im Block" \
+  ModelPropertyTest::test_the_column_that_the_acceptance_run_found_is_cast failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ModelPropertyTest passed
+
+echo
+echo "── ModelPropertyTest: der Ausdruck über die Carbon-Zeilen läuft ins Leere ──"
+#
+# Die zweite Untergrenze. Trifft der Ausdruck den Block nicht mehr, findet er
+# null Zeitpunkte, meldet keinen Befund und saehe ohne diese Zahl aus wie
+# erfuellt — dieselbe Falle wie eine Zeile weiter oben, nur an der anderen
+# Richtung.
+vorher_datei tests/Feature/ModelPropertyTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/ModelPropertyTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("@property(?:-read)?\\s+Carbon(?:\\|null)?", "@property(?:-read)?\\s+Zeitpunkt(?:\\|null)?")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/ModelPropertyTest.php "der Ausdruck trifft die Carbon-Zeilen nicht mehr" &&
+pruefe "der Ausdruck trifft die Carbon-Zeilen nicht mehr" \
+  ModelPropertyTest::test_every_carbon_property_is_actually_cast failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ModelPropertyTest passed
+
+echo
 echo "── FactoryDefaultTest: eine Spalte, die die Factory nicht baut ──"
 #
 # Genau der Fehler aus Lauf 463. `engine` traegt `default('mariadb')` in der

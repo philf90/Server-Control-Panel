@@ -156,4 +156,114 @@ final class ModelPropertyTest extends TestCase
         self::assertContains('disk_quota_enforced', $this->castColumns($source));
         self::assertTrue($this->declares($source, 'disk_quota_enforced'));
     }
+
+    /**
+     * Wieviele Zeitpunkte mindestens zusammenkommen müssen.
+     *
+     * Gemessen am 22. September 2026: 26 Carbon-Eigenschaften ausserhalb der
+     * Zeitstempel. Dieselbe Begründung wie bei {@see self::AT_LEAST} — die
+     * Zahl soll nicht festschreiben, sondern den Fall abfangen, dass der
+     * Ausdruck ins Leere läuft.
+     */
+    private const CARBON_AT_LEAST = 18;
+
+    /**
+     * Die Zeitpunkte, die ein Modell als `Carbon` führt.
+     *
+     * **`created_at`, `updated_at` und `deleted_at` stehen nicht darunter**:
+     * Die castet Eloquent von sich aus, und ein Modell, das sie zusätzlich in
+     * `casts()` nennt, schriebe eine Selbstverständlichkeit auf.
+     *
+     * @return list<string>
+     */
+    private function carbonProperties(string $source): array
+    {
+        preg_match_all(
+            '/^\s*\*\s*@property(?:-read)?\s+Carbon(?:\|null)?\s+\$(\w+)/m',
+            $source,
+            $treffer,
+        );
+
+        return array_values(array_diff($treffer[1], ['created_at', 'updated_at', 'deleted_at']));
+    }
+
+    /**
+     * Und die Gegenrichtung: Was der Block als `Carbon` führt, muss das Modell
+     * auch casten.
+     *
+     * **Der Anlass ist ein Abnahmelauf und keine rote CI** — und das ist der
+     * Unterschied zu dem Wächter darüber. Am 22. September 2026 stand in Punkt
+     * 6 von `docs/133` ein `$n->notified_at->toIso8601String()`; auf dem
+     * Server kam *„Call to a member function toIso8601String() on string"*
+     * zurück. {@see FindingNotification} führte `@property Carbon
+     * $notified_at` und castete die Spalte nicht.
+     *
+     * **Die Richtung entscheidet, wer es merkt.** Fehlt die `@property`-Zeile
+     * zu einem Cast, sieht larastan eine Zeichenkette und macht die CI rot —
+     * teuer, aber laut. Fehlt der Cast zu einer `@property`-Zeile, glaubt
+     * larastan dem Block, die Prüfung ist **grün**, und der Aufruf scheitert
+     * erst dort, wo jemand ihn wirklich abschickt.
+     *
+     * > **Eine Zusage, der die statische Prüfung glaubt, ohne dass etwas sie
+     * > hält, ist gefährlicher als eine fehlende: Sie macht nichts rot, sie
+     * > macht etwas grün.**
+     *
+     * **Was dieser Wächter nicht kann:** Er nimmt den Block als Massstab und
+     * nicht die Migration. Ein Modell, das eine Zeitspalte weder als
+     * `Carbon` führt noch castet, ist für ihn in Ordnung — dort ist es dann
+     * eine Zeichenkette, und beide Seiten sagen dasselbe. Das ist der
+     * gleiche Zuschnitt wie oben: eine Richtung, ganz, statt beider halb.
+     */
+    public function test_every_carbon_property_is_actually_cast(): void
+    {
+        $befunde = [];
+        $geprueft = 0;
+
+        foreach (glob($this->root().'/app/Models/*.php') ?: [] as $model) {
+            $source = (string) file_get_contents($model);
+            $casts = $this->castColumns($source);
+
+            foreach ($this->carbonProperties($source) as $column) {
+                $geprueft++;
+
+                if (in_array($column, $casts, true)) {
+                    continue;
+                }
+
+                $befunde[] = sprintf(
+                    '%s führt %s als Carbon, castet die Spalte aber nicht — larastan glaubt dem Block, '
+                    .'und zur Laufzeit steht dort eine Zeichenkette.',
+                    basename($model, '.php'),
+                    $column,
+                );
+            }
+        }
+
+        self::assertSame([], $befunde, implode("\n", $befunde));
+
+        self::assertGreaterThanOrEqual(
+            self::CARBON_AT_LEAST,
+            $geprueft,
+            sprintf(
+                'Nur %d Carbon-Eigenschaften gefunden. Entweder liest der Ausdruck den Block nicht mehr, '
+                .'oder die Modelle schreiben ihn anders — geprüft hat dieser Wächter dann nichts.',
+                $geprueft,
+            ),
+        );
+    }
+
+    /**
+     * Die Spalte, die diesen Wächter gebraucht hat.
+     *
+     * Namentlich und nicht bloss als Zähler, aus demselben Grund wie oben:
+     * Eine spätere Umbenennung soll auffallen und nicht einfach die Zahl
+     * senken.
+     */
+    public function test_the_column_that_the_acceptance_run_found_is_cast(): void
+    {
+        $source = (string) file_get_contents($this->root().'/app/Models/FindingNotification.php');
+
+        self::assertContains('notified_at', $this->carbonProperties($source));
+        self::assertContains('notified_at', $this->castColumns($source));
+    }
 }

@@ -722,6 +722,8 @@ srvpanel tinker --execute='
   }
 '
 
+ZEILEN=$(wc -l < "$LOG")
+
 srvpanel notices
 # (über die Unit fährt `systemctl start srvpanel-diagnose.service` beides:
 #  erst die Messung, dann den Versand — zwei ExecStart-Zeilen einer Unit.)
@@ -729,14 +731,28 @@ srvpanel notices
 srvpanel tinker --execute='
   printf("Warteschlange: %d\n", App\Models\FindingResolution::query()->count());
 '
+
+# Der eigentliche Beleg: Was der Sender meldet, ist nicht, was der Empfänger hat.
+printf 'Empfängerprotokoll: %s -> %s Zeile(n)\n' "$ZEILEN" "$(wc -l < "$LOG")"
+tail -1 "$LOG" | cut -c1-240
 ```
 
 **Erwartet:** **zwei** offene Zeilen für denselben Gegenstand — eine je Kanal,
 `mail` und `webhook`. {@see FindingLog::forgetMissing()} schreibt sie je
 Buchung, und der Befund hatte zwei. Dann druckt `srvpanel notices`
-`webhook: 1 Entwarnung(en) verschickt.`, beim Empfänger steht eine Meldung,
-deren Kopf mit `behoben:` **vor** dem Namen des Dienstes beginnt, und danach
-ist die Warteschlange **leer** — beide Zeilen.
+`webhook: 1 Entwarnung(en) verschickt.`, das Empfängerprotokoll wächst um
+**eine** Zeile, und danach ist die Warteschlange **leer** — beide Zeilen.
+
+**Die neue Zeile trägt `"kind":"resolved"` und den Namen des Dienstes**, nicht
+den Kopf `behoben:`. {@see Providers::body()} gibt dem eigenen Empfänger das
+Ereignis unverändert; der Kopf entsteht in {@see Providers::text()} und damit
+nur bei Slack, Discord, ntfy, Gotify und Telegram. Wer einen davon hat, liest
+ihn in Punkt 12 — hier stünde er nur, wenn jemand den Rumpf zweimal gebaut
+hätte.
+
+> **Was der Sender meldet, ist nicht, was der Empfänger hat.** `1
+> Entwarnung(en) verschickt` ist die Auskunft der absendenden Seite; die Zeile
+> im Protokoll ist die der anderen.
 
 **Die Zeile für `mail` verschwindet, ohne dass eine Mail hinausgeht, und das
 ist die eigentliche Messung.** Der Mailkanal entwarnt nicht; seine Zeilen

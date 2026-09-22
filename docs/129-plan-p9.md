@@ -565,9 +565,61 @@ gehören in den Abnahmelauf ihres Merkmals.
 1. **Wann `logrotate` läuft und wann der Nachtlauf laufen soll** — B2 hängt
    daran. Auf `cloudsrv24` stehen acht Timer unter `srvpanel.target`; wo der
    neunte hingehört, entscheidet die Zeit von `logrotate`.
+
+   **Halb gemessen** (siehe Punkt 2): Die Kurve hat die Rotation am
+   22. September beim Abtasten um `00:04:25` bemerkt, drei von sechs Dateien.
+   Der Abstand der Abtastungen ist 300 s, der Augenblick liegt also in
+   `(23:59:25, 00:04:25]` — **±5 Minuten und nicht genauer**. Der nächtliche
+   Diagnoselauf feuerte danach, um `00:49:35`; die Reihenfolge, die B2
+   braucht, stimmt an diesem einen Abend. *Warum nur drei der sechs Dateien
+   rotierten, ist nicht gemessen* — `notifempty` wäre eine Erklärung und
+   bleibt eine Vermutung, solange niemand die Konfiguration daneben legt.
+   **Eine Nacht ist eine Nacht**, und diese Zeile ersetzt nicht das Ablesen
+   der `logrotate`-Einheit.
+
 2. **In welchem Takt A7 die Kennzahlen prüft** (§4) — und was eine Platte auf
    `cloudsrv24` über einen Tag wirklich tut. Ohne diese Kurve ist jede
    Haltezeit geraten.
+
+   **Die Plattenhälfte ist gemessen**, am 21./22. September 2026 mit
+   `tests/plattenkurve-messen.sh 24 300`, 288 Abtastungen über 23,92 h,
+   Rohdaten in `/var/tmp/srvpanel-plattenkurve-20260921-011416.tsv`:
+
+   | | |
+   |---|---|
+   | Gegenprobe (10 MiB Prüfkörper) | `df` sah **10 485 760 B**, die Baumsumme **10 485 760 B** — beide aufs Byte |
+   | `/var/www/vhosts` gewachsen | **144 685 B**, hochgerechnet **145 174 B/Tag** (141,8 KiB) |
+   | davon offene Zugriffsprotokolle | **−286 B** |
+   | Dateisystem (`/dev/vda3`, ext4) belegt | **+24 850 432 B/Tag** (23,70 MiB) |
+   | Rotationen | 1 Ereignis, 3 von 6 Dateien |
+
+   **Entscheidung 4 kostet nichts.** 14 Tage Rohdateien sind bei diesem Takt
+   **1,94 MiB**, 30 Tage verdichtete Zahlen **4,15 MiB**. Die Haltezeiten
+   waren gesetzt und sind jetzt gemessen — sie bleiben, wie sie sind.
+
+   **Und die Platte füllt etwas anderes.** Der Protokollbaum wuchs um 0,14
+   MiB, das Dateisystem verlor 23,70 MiB freien Platz — **das 172-fache**.
+   *Wo diese 23,56 MiB liegen, ist nicht gemessen*; gemessen ist nur, dass sie
+   nicht unter `/var/www/vhosts` liegen. Wer Plattendruck sucht, sucht ihn
+   nicht bei den Zugriffsprotokollen.
+
+   > **Eine Zahl, die man aufhalten wollte, kann sich als die falsche Zahl
+   > herausstellen — und das ist ein Ergebnis und kein Fehlschlag.**
+
+   **Was diese Kurve nicht sagt, und es ist das Wichtigste daran:** Die sechs
+   Zugriffsprotokolle trugen zu Beginn **286 Bytes** zusammen und am Ende
+   **null**. Das ist ein Server ohne nennenswerten Web-Verkehr. Die 141,8
+   KiB/Tag sind der **Grundpegel eines leerlaufenden Panels**, nicht der Preis
+   des Betriebs; ein Server mit Besuchern ist eine zweite Messung und nicht
+   diese. Dazu zwei kleinere Einschränkungen: Der gemessene Tag lief über einen
+   Fassungswechsel (P0 verzeichnet `0.8.0-rc.1`, `0.9.0-rc.1` kam während der
+   Messung), und in seinen letzten drei Stunden standen
+   `srvpanel-metrics.service` und `srvpanel-dns.timer` still — Punkt 4 des
+   Abnahmelaufs B1 (`docs/133`).
+
+   **Offen bleibt die andere Hälfte**: in welchem Takt A7 die Kennzahlen
+   prüft. Die steht in der Diagnose und nicht auf der Platte, und sie hält
+   B1 weiterhin nicht auf.
 3. **Eine echte `access.log`** — Grösse, Zeilenzahl, die wirkliche Verteilung
    der Statuscodes. Gemessen ist ein gebauter Prüfkörper.
 4. **Der kalte Durchsatz der Platte** (B2, B3) — 1,45 Mio. Zeilen/s sind im

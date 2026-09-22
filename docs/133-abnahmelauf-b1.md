@@ -290,7 +290,8 @@ Meldeziels). Die Zeiten darunter sind daraus ausgerechnet:
 | **T0 + ~2 h** | 22. Sep, 00:15:22, von selbst | Punkt 5: der Zeitgeber feuert und **schweigt zu Recht** |
 | **T0 + 20 h** | 22. Sep, **abends** ab ~18:10 | Punkte 6–8c: der Lauf sendet, der nächste schweigt, der Dienst kommt zurück |
 | | gleich danach | Punkte 10–12: die Gegenrichtungen ohne Frist |
-| **T1 + 20 h** | einen Tag später | Punkt 9: das Ziel, das abweist — er braucht einen **zweiten** alten Zustand |
+| **T1** | am Abend des 22., nach Punkt 8c | Punkte 11–12 ohne Frist; danach den **zweiten** Zustand herstellen (Dienst anhalten, `srvpanel diagnose`) |
+| **T1 + 20 h** | einen Tag später | Punkte 10 und 9, in dieser Reihenfolge: ohne Ziel, dann mit einem, das abweist |
 | | zum Schluss | Punkt 13: die Maschine bleibt, wie sie war |
 
 **Zwei Zeilen haben sich dadurch verschoben, und beide sind §0 Punkt 2 im
@@ -843,14 +844,33 @@ Ablehnung des Agenten.
 
 ### Punkt 10 · Ohne Ziel und ohne Relay wird nichts gebucht
 
+**Auch dieser Punkt braucht einen fälligen Befund**, und das ist keine
+Formsache: {@see SendNotices::handle()} druckt die Zeile, die hier abgelesen
+wird, nur im Zweig `if ($bilanz['skipped'] > 0)`. Ohne fälligen Befund steht
+dort `webhook: 0 Nachricht(en) über 0 Befund(e).` — der Kanal sieht dann
+eingerichtet aus, und der Punkt hat nichts gemessen.
+
+> **Ein Zweig, der nur bei einer Zahl grösser null gedruckt wird, ist bei null
+> nicht widerlegt, sondern ungeprüft.**
+
+Er teilt sich die Frist deshalb mit Punkt 9 und läuft **vor** ihm: Beide
+lassen den Befund für den Webhook fällig stehen — einer, weil kein Ziel da
+ist, der andere, weil das Ziel abweist —, und keiner verbraucht dem anderen
+die Buchung. Die Buchung für `mail` fällt beim ersten der beiden an; das ist
+für beide Erwartungen richtig.
+
 ```bash
 # Ziel entfernen (auf /settings/notices, Knopf „Entfernen"), dann:
 systemctl start srvpanel-diagnose.service
 journalctl -u srvpanel-diagnose.service -n 15 --no-pager
+srvpanel tinker --execute='
+  foreach (App\Models\FindingNotification::query()->get()->groupBy("channel") as $k => $g)
+      printf("  %-10s %d\n", $k, $g->count());
+'
 ```
 
 **Erwartet:** `webhook: nicht eingerichtet — N Befund(e) bleiben fällig.` und
-keine neue Buchung für diesen Kanal.
+keine neue Buchung für diesen Kanal — `mail` wächst um `N`, `webhook` nicht.
 
 ---
 

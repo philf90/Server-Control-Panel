@@ -547,18 +547,39 @@ Warteschlange mit, und ein angehaltener `srvpanel-web` das Panel.
 Am nächsten Morgen, **ohne** etwas zu tun:
 
 ```bash
-systemctl show srvpanel-diagnose.timer -p LastTriggerUSec
-journalctl -u srvpanel-diagnose.service --since '-14h' --no-pager | grep -E 'Nachricht|nicht eingerichtet|Befund'
+systemctl show srvpanel-diagnose.timer -p LastTriggerUSec -p NextElapseUSecRealtime
+
+# `--since` auf den Zeitpunkt aus Punkt 4 und nicht relativ: Ein `-14h` misst
+# je nach Ablesestunde einen anderen Ausschnitt.
+journalctl -u srvpanel-diagnose.service --since '<T0, aufgerundet auf die volle Stunde>' \
+    --no-pager | grep -E 'Starting|Prüfung|Kaputt|Nachricht|Entwarnung|nicht eingerichtet'
+
 srvpanel tinker --execute='printf("Buchungen: %d\n", App\Models\FindingNotification::query()->count());'
+printf 'Empfängerprotokoll: %s Zeile(n)\n' "$(wc -l < "$LOG")"
 ```
 
 **Erwartet:** Der Zeitgeber hat gefeuert (`LastTriggerUSec` liegt in der
-Nacht), und die Zahl der Buchungen ist **dieselbe wie in Punkt 4**. Die Frist
-war noch nicht um.
+Nacht), der Dienst hat dabei **wirklich gemessen** (`N Prüfung(en) gefahren`
+mit einem Zeitstempel aus derselben Minute), beide Kanäle drucken `0
+Nachricht(en) über 0 Befund(e)` — und Buchungen wie Protokollzeilen stehen
+**unverändert wie in Punkt 4**. Die Frist war noch nicht um.
 
 > **Ein Zeitgeber, der feuert und nichts ändert, ist von einem, der nicht
 > gefeuert hat, nur an seinem Zeitstempel zu unterscheiden** — deshalb steht
 > `LastTriggerUSec` in derselben Ablesung und nicht daneben.
+
+**Und `LastTriggerUSec` steht daneben, weil `NextElapseUSecRealtime` es nicht
+tut.** Gemessen am 21./22. September: Abends nannte die Einheit
+`NextElapseUSecRealtime=00:15:22`, gefeuert hat sie um **00:49:35** — vierund­
+dreissig Minuten später. Beide Zeiten liegen in der Streuung, die
+`srvpanel-diagnose.timer` mitbringt (`OnCalendar=daily`,
+`RandomizedDelaySec=1h`); **warum die Vorhersage und der Schuss auseinander­
+fallen, ist nicht gemessen** und wird hier auch nicht behauptet. Für diesen
+Punkt genügt, was folgt: Wer den angekündigten Augenblick abwartet und dann
+nachsieht, hält ein Schweigen für einen Ausfall, das keiner ist.
+
+> **Eine angekündigte Zeit ist keine abgelesene.** Gemessen wird, wann etwas
+> geschehen ist, und nicht, wann es geschehen sollte.
 
 **Fällt dieser Punkt aus** — weil der Zeitgeber aus irgendeinem Grund nicht
 gefeuert hat —, ist das kein Ausfall des Kriteriums; er ist ein Zugewinn und

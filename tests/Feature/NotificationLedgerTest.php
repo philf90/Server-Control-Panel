@@ -411,7 +411,7 @@ final class NotificationLedgerTest extends TestCase
     /**
      * **Der Fall, für den es die Tabelle gibt.**
      *
-     * Bis zum 24. September 2026 war die Buchung eine Spalte `notified_at` an
+     * Bis zum 21. September 2026 war die Buchung eine Spalte `notified_at` an
      * `findings`. Mit zwei Kanälen trägt sie nicht mehr, und es gibt genau zwei
      * Regeln, die sie haben könnte — beide falsch:
      *

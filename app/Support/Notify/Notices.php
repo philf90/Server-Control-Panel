@@ -38,7 +38,7 @@ use Illuminate\Support\Collection;
  *
  * ## Je Kanal gebucht und nicht gemeinsam
  *
- * Bis zum 24. September 2026 war die Buchung eine Spalte `notified_at`. Mit
+ * Bis zum 21. September 2026 war die Buchung eine Spalte `notified_at`. Mit
  * dem zweiten Kanal trägt sie nicht mehr; die Begründung steht in der
  * Migration `…_create_finding_notifications_table` und kurz:
  *

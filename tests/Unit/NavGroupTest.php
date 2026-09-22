@@ -40,7 +40,7 @@ final class NavGroupTest extends TestCase
     /**
      * Die Gruppen, in die alles unter `/settings/…` gehört.
      *
-     * **Bis zum 24. September 2026 stand hier eine einzige.** Die Zusage war
+     * **Bis zum 21. September 2026 stand hier eine einzige.** Die Zusage war
      * aber nie „eine Gruppe", sondern *„was unter `/settings/…` liegt, steht
      * in einer Einstellungsgruppe — und dort steht nichts anderes"*: eine
      * Grenze, die aus der Route folgt und die ein Wächter deshalb halten kann.
@@ -237,7 +237,7 @@ final class NavGroupTest extends TestCase
         $verlauf = array_filter($eintraege, static fn (array $e): bool => $e['gruppe'] === 'Verlauf');
 
         /*
-         * **Sechs und drei seit dem 24. September 2026** — und die Teilung ist
+         * **Sechs und drei seit dem 21. September 2026** — und die Teilung ist
          * genau die, die der Satz darunter seit dem 16. September angekündigt
          * hat: Die Gruppe stand bei acht, „Benachrichtigungen" (B1) war der
          * neunte Punkt, und die Obergrenze hat die Entscheidung fällig

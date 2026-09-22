@@ -83,7 +83,7 @@ interface Channel
      * nicht — sonst stünde die Zuordnung an zwei Stellen.
      *
      * **Er nimmt Prüfung und Gegenstand und nicht den Befund.** Bis zum
-     * 24. September 2026 stand hier ein {@see Finding}; gebraucht hat keine
+     * 21. September 2026 stand hier ein {@see Finding}; gebraucht hat keine
      * Umsetzung mehr als diese beiden Angaben, und eine
      * {@see FindingResolution} trägt genau sie — der Befund dahinter ist ja
      * fort. Ein zweites `batchKeyOf(FindingResolution)` wäre die zweite Fassung

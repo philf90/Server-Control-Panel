@@ -220,7 +220,7 @@ final class WebAccessCount implements Op
 
             /*
              * **`legacy` geht mit, und zwar je Tag.** Es fiel hier bis zum
-             * 21. September 2026 unter den Tisch: Die Zusammenführung legte
+             * 20. September 2026 unter den Tisch: Die Zusammenführung legte
              * vier Schlüssel an und addierte vier, während {@see AccessLog}
              * fünf lieferte. Der Prüfstand blieb grün, weil er dieselbe
              * verkürzte Form erwartete.

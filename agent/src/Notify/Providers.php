@@ -374,7 +374,7 @@ final class Providers
      * ist genau die Angabe, die {@see Delivery} setzt und das Panel nicht
      * bestimmen darf.
      *
-     * **Drei Arten von Ereignis, und die dritte kam am 24. September 2026
+     * **Drei Arten von Ereignis, und die dritte kam am 21. September 2026
      * dazu:** `test` die Probezustellung, `findings` ein Befund,
      * `resolved` seine Entwarnung. Ein unbekanntes `kind` wird wie `findings`
      * gelesen — es trägt dieselben Zeilen, und ein Wurf an dieser Stelle
@@ -482,7 +482,7 @@ final class Providers
     /**
      * Die Kopfzeilen, die dieser Empfänger braucht.
      *
-     * **Sie standen bis zum 24. September 2026 fest in {@see Delivery}** — mit
+     * **Sie standen bis zum 21. September 2026 fest in {@see Delivery}** — mit
      * `Content-Type: application/json`, und das war richtig, solange jeder
      * Empfänger JSON wollte. ntfy nimmt den Text selbst; eine feste Kopfzeile
      * behauptete dort eine Form, die der Rumpf nicht hat.

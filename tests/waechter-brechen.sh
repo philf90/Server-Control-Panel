@@ -34829,7 +34829,7 @@ pruefe "Empfaenger ohne Form" \
 wiederherstellen
 echo "── NotifyTargetStoreTest: der Empfaenger geht in der Operation verloren ──"
 #
-# Genau das war am 24. September 2026 der Fall: provider reiste vom Formular
+# Genau das war am 21. September 2026 der Fall: provider reiste vom Formular
 # bis in die Operation und wurde verworfen. Wer Slack waehlte, bekam die
 # JSON-Form und von Slack ein 400.
 vorher_datei agent/src/Ops/NotifyTargetStore.php

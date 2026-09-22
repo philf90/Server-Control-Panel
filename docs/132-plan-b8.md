@@ -1,6 +1,6 @@
 # B8 — Ein Vorgang ohne Weiterleitung
 
-Geschrieben am **23. September 2026**, nach dem Blick an den Quelltext und nach
+Geschrieben am **21. September 2026**, nach dem Blick an den Quelltext und nach
 den vier Entscheidungen des Betreibers. Der Befund steht seit dem 31. August als
 `docs/92`; dieser Plan beantwortet dessen §4.
 

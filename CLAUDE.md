@@ -1373,7 +1373,7 @@ gibt), `TableStyleTest`, `ClassNameTest` (jeder Klassenname ist englisch, und
 jede Regel in app.css wird von einem Template erreicht) und `PaginationTest`
 (wer paginiert, lässt auch blättern) — dazu `RedirectTargetTest` (wer
 weiterleitet, nennt das Ziel; `back()` kennt es hier nicht — **und seit dem
-23. September 2026 ist der genannte Name eine Route, die es gibt**: gemessen
+21. September 2026 ist der genannte Name eine Route, die es gibt**: gemessen
 gegen `Route::getRoutes()` über jede Datei unter `app/` und nicht nur über die
 Controller, denn ein toter Name in einer Mittelschicht schlägt auf jeder Seite
 zu statt auf einer) und
@@ -5418,7 +5418,7 @@ liefert.
 
 ---
 
-## Drei Sätze aus B5 — 22. September 2026
+## Drei Sätze aus B5 — 21. September 2026
 
 **Der erste ist eine Fundstelle und keine Regel.** `Quota::TrafficGb` trägt
 seit P1 den Hinweistext *„Gemessen, nicht erzwungen. Die Überschreitung
@@ -5460,7 +5460,7 @@ Spalte überhaupt füllbar ist.
 
 ---
 
-## Drei Sätze aus B6 — 23. September 2026
+## Drei Sätze aus B6 — 21. September 2026
 
 **Der erste löst eine Spannung auf, die wie ein Widerspruch aussah.** Das
 Abnahmekriterium von B6 verlangt eine Farbe des Betreibers und hält zugleich an
@@ -5518,7 +5518,7 @@ Sie sagt, dass überhaupt weitergeleitet wird, und genau das war nie die Frage.
 
 ---
 
-## Drei Sätze aus B7 — 23. September 2026
+## Drei Sätze aus B7 — 21. September 2026
 
 **Der erste ist der teuerste, und er trifft jeden Kommentar dieses Repos.**
 `bootstrap/app.php` erklärt seit P7b, warum `ApplyTenancy` vor
@@ -5567,7 +5567,7 @@ Liste — und eine leere Liste hält jede Reihenfolge ein.
 
 ---
 
-## Drei Sätze aus B8 — 23. September 2026
+## Drei Sätze aus B8 — 21. September 2026
 
 **Der erste sagt, was ein Wächter meldet, wenn er einen Bezug nicht auflösen
 kann.** `PartialReloadTest` hat den neuen Streifen gemeldet: Zu
@@ -5615,7 +5615,7 @@ Methode geworden: Als leere Konstante ist sie für PHPStan `array{}`, und jeder
 
 ---
 
-## Drei Sätze aus B1 — 24. September 2026
+## Drei Sätze aus B1 — 21. September 2026
 
 **Der erste ist ein Geheimnis, das nicht wie eines aussieht.** Die Adresse eines
 Eingangshakens ist bei Slack, Discord und den meisten Anbietern das *ganze*
@@ -5666,7 +5666,7 @@ und dort steht nichts anderes" — und zwei Gruppen ändern daran nichts.
 
 ---
 
-## Eine Überschrift von 1541, die zwei Wächter nicht sehen konnten — 24. September 2026
+## Eine Überschrift von 1541, die zwei Wächter nicht sehen konnten — 21. September 2026
 
 Gefunden hat es **keine Prüfung, sondern eine Zahl, die nicht aufging**: Der
 Bruchlauf meldete 1541 Abschnitte, `grep -c '^echo "── '` über das Skript 1540.
@@ -5719,7 +5719,7 @@ grün, sonst wäre der neue Zweig eine Behauptung.
 
 ---
 
-## Eine Abfrage, die durch die Daten richtig war — 24. September 2026
+## Eine Abfrage, die durch die Daten richtig war — 21. September 2026
 
 Die Erweiterung von B1 auf die übrigen siebzehn Prüfungen brauchte die Adresse
 des Betreibers. Sie ist die seines Kontos — eine eigene Einstellung
@@ -5763,7 +5763,7 @@ Erweiterung antworteten zwei von zwei Umsetzungen `true`.
 
 ---
 
-## Zwei tote Anker und ein Eingriff, der meine eigene Arbeit zurücknahm — 24. September 2026
+## Zwei tote Anker und ein Eingriff, der meine eigene Arbeit zurücknahm — 21. September 2026
 
 **Beide Befunde kommen aus einem Lauf, und beide sind derselbe Satz aus
 verschiedenen Richtungen: Wer eine Datei ändert, hat jeden Eingriff berührt,

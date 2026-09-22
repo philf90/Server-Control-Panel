@@ -21,7 +21,7 @@ use SrvPanel\Agent\Runner;
  * den Empfänger**. Er reiste vom Formular über den Socket bis hierher und
  * wurde verworfen; {@see Target::store()} fiel auf seinen Vorgabewert zurück.
  * Wer Slack wählte, bekam die JSON-Form und von Slack ein `400`. Gemessen am
- * 24. September 2026: `provider: slack` hinein, `provider: generic` abgelegt.
+ * 21. September 2026: `provider: slack` hinein, `provider: generic` abgelegt.
  *
  * > **Eine Auskunft, die entsteht und die niemand weitergibt, ist so gut wie
  * > keine.**

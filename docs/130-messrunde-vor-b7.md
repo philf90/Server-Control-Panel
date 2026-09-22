@@ -248,7 +248,7 @@ sind alle achtzehn —, sondern **„gilt seine Regel für `api/` auch?"**
 
 | | |
 |---|---|
-| ~~`TenancySweepTest`~~ | **Berichtigt am 23. September 2026:** Sein Kopf sagt „jede Route, die es gibt", und gemeint ist damit der Bestand, den `tests/mandant-messen.js` misst — die `{subscription}`-Routen unter `files`, `sftp` und `cron`. Über `api/` sagt er nichts, und geweitet gehört er nicht. |
+| ~~`TenancySweepTest`~~ | **Berichtigt am 21. September 2026:** Sein Kopf sagt „jede Route, die es gibt", und gemeint ist damit der Bestand, den `tests/mandant-messen.js` misst — die `{subscription}`-Routen unter `files`, `sftp` und `cron`. Über `api/` sagt er nichts, und geweitet gehört er nicht. |
 | `PolicyReachTest` | führt zu jeder Fähigkeit ein Weg — die Gegenrichtung |
 | `AdminAbilityTest` | jede Adminfähigkeit gehört einer Rolle |
 | `AdminPayloadTest` | was eine Rolle nicht sehen darf, steht nicht in der Antwort |

@@ -773,6 +773,18 @@ sondern nur vorbereitet.
 # Einen Befund erzeugen und ihn VOR der Haltezeit wieder verschwinden lassen.
 systemctl stop srvpanel-metrics.service
 systemctl start srvpanel-diagnose.service
+
+# **Die Zwischenablesung, ohne die die Null am Ende nichts misst.** Wäre der
+# Befund gar nicht erst entstanden, bliebe die Warteschlange ebenfalls leer —
+# und das sähe aus wie die Regel, die hier gemeint ist.
+srvpanel tinker --execute='
+  $b = App\Models\Finding::withoutGlobalScopes()
+      ->where("check","unit.state")->where("subject","srvpanel-metrics.service")->first();
+  printf("Befund da: %s   Buchungen dafür: %d\n",
+      $b === null ? "NEIN" : "ja, seit ".$b->first_seen_at->toIso8601String(),
+      $b === null ? 0 : $b->notifications()->count());
+'
+
 systemctl start srvpanel-metrics.service
 sleep 5
 systemctl start srvpanel-diagnose.service
@@ -782,8 +794,18 @@ srvpanel tinker --execute='
 '
 ```
 
-**Erwartet:** `Warteschlange: 0`. Der Befund stand keine zwanzig Stunden, ist
-also nie gemeldet worden — und was nie hinausging, wird nicht zurückgenommen.
+**Erwartet:** in der Mitte `Befund da: ja, seit …` mit **`Buchungen dafür: 0`**,
+am Ende `Warteschlange: 0`. Der Befund stand keine zwanzig Stunden, ist also
+nie gemeldet worden — und was nie hinausging, wird nicht zurückgenommen.
+
+**Die Null am Ende bekommt ihre Bedeutung von zwei Seiten.** Von der
+Zwischenablesung, die zeigt, dass es überhaupt etwas zurückzunehmen gegeben
+hätte; und von Punkt 8b sechs Minuten vorher, wo derselbe Dienst, dasselbe
+Anhalten und dasselbe Starten **zwei** Zeilen erzeugt haben. Der einzige
+Unterschied zwischen den beiden Durchgängen ist die vorangegangene Meldung.
+
+> **Zwei Durchgänge, die sich in genau einer Sache unterscheiden, messen
+> diese eine Sache.**
 
 > **Eine Entwarnung ohne vorangegangene Warnung ist eine Meldung über
 > nichts.**

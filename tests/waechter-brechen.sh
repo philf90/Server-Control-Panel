@@ -21104,6 +21104,73 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" \
   MobileLayoutTest::test_a_quiet_note_beside_an_identifier_breaks_between_words passed
 echo
+echo "── MobileLayoutTest: die Aktionen des Bereichskopfs ohne ihre Reihe ──"
+#
+# Gemeldet vom Betreiber am Telefon, 23. September 2026. Section.vue gab den
+# Inhalt seines actions-Platzes unverpackt an .section-head weiter, und dessen
+# justify-content: space-between verteilt, was es bekommt. Gemessen mit dem
+# gebauten Stylesheet: Bei 1440px stand der erste von zwei Knoepfen bei x=629,
+# also mitten im Kopf und an nichts haengend; bei 390px brach der zweite um und
+# landete linksbuendig unter der Ueberschrift. Im Kommentar der Komponente
+# stand "nicht mehr als eines" — und vier Seiten gaben mehr.
+vorher_datei resources/js/Components/Section.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/Section.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""      <div v-if="$slots.actions" class="button-row">
+        <slot name="actions" />
+      </div>""", '      <slot name="actions" />')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Components/Section.vue "Aktionen ohne ihre Reihe" &&
+pruefe "Aktionen ohne ihre Reihe" \
+  MobileLayoutTest::test_the_actions_of_a_section_head_stand_in_one_row failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest passed
+
+echo
+echo "── MobileLayoutTest: der Bereichskopf stapelt wieder ──"
+#
+# Dritter Fall derselben richtigen Regel an einer neuen Stelle, nach der
+# Tabellenzeile und der Auswahlleiste. Ohne die Ausnahme zieht .button-row
+# unter 480px ihre Knoepfe auf volle Breite, und aus den Aktionen wird eine
+# Saeule neben einem Wort: Kopf 109px statt 95px bei 390px.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""  .section-head .button-row {
+    flex-direction: row;
+    align-items: center;
+  }""", '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "der Bereichskopf stapelt wieder" &&
+pruefe "der Bereichskopf stapelt wieder" \
+  MobileLayoutTest::test_a_section_head_does_not_stack_its_actions failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest passed
+
+echo
+echo "── MobileLayoutTest: die Gegenprobe zu den Aktionen greift daneben ──"
+#
+# Die Untergrenze. Findet der Ausdruck keine Seite mehr, die mehr als eine
+# Aktion gibt, bewachen die beiden Waechter darueber eine Regel, die nichts
+# beruehrt — und ihr Schweigen saehe aus wie Zustimmung. Gemessen: vier Seiten.
+vorher_datei tests/Feature/MobileLayoutTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/MobileLayoutTest.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'/<(?:button|Link|a)[\\s>]/su'", "'/<(?:knopf|Verweis)[\\s>]/su'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/MobileLayoutTest.php "die Gegenprobe greift daneben" &&
+pruefe "die Gegenprobe greift daneben" \
+  MobileLayoutTest::test_more_than_one_action_is_actually_passed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest passed
+
+echo
 echo "── UploadReplacementTest: der Agent sagt nicht mehr, ob er ersetzt hat ──"
 #
 # docs/88 Beobachtung 9: FilesUpload legt mit rename() ab, und das ueberschreibt

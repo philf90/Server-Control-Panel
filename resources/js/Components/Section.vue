@@ -62,10 +62,32 @@ withDefaults(defineProps<{
     <div class="section-head">
       <h2>{{ title }}</h2>
 
-      <!-- Rechts am Bereichskopf steht, was diesen Bereich betrifft: ein
-           Knopf, ein Verweis auf die volle Liste, eine Angabe zur Sortierung.
-           Nicht mehr als eines. -->
-      <slot name="actions" />
+      <!--
+        Rechts am Bereichskopf steht, was diesen Bereich betrifft: ein Knopf,
+        ein Verweis auf die volle Liste, eine Angabe zur Sortierung.
+
+        **Die Reihe steht hier und nicht auf den Seiten.** Bis zum 23. September
+        2026 sagte diese Stelle „nicht mehr als eines" und verliess sich darauf:
+        Der Platz gab seinen Inhalt unverpackt an `.section-head` weiter, und
+        dessen `justify-content: space-between` verteilt, was es bekommt. Vier
+        Seiten gaben mehr als eines, und gemessen auf `cloudsrv24` sah das so
+        aus (Meldeziele, zwei Knöpfe):
+
+            1440px   h2 x=0    „Probezustellung" x=629   „Entfernen" x=1326
+             390px   h2 x=0    „Probezustellung" x=226   „Entfernen" x=0, zweite Zeile
+
+        Der erste Knopf stand in der Mitte des Kopfes und hing an nichts; der
+        zweite brach um und landete linksbündig unter der Überschrift. Mit der
+        Reihe ist der Platz wieder **ein** Flexkind, und die Knöpfe stehen
+        beieinander — dieselbe Lösung, die `.button-row` für die Aktionsspalte
+        einer Tabelle schon trägt.
+
+        > **Eine Zusage, die eine Komponente von ihren Aufrufern verlangt,
+        > statt sie selbst zu halten, ist eine Bitte.**
+      -->
+      <div v-if="$slots.actions" class="button-row">
+        <slot name="actions" />
+      </div>
     </div>
 
     <p v-if="note" class="section-note">{{ note }}</p>

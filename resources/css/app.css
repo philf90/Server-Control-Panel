@@ -3859,6 +3859,40 @@ p:not([class]) {
   }
 
   /*
+   * **Der Bereichskopf stapelt nicht.**
+   *
+   * Dritter Fall derselben richtigen Regel an einer neuen Stelle, nach der
+   * Tabellenzeile und der Auswahlleiste. Eine Knopfreihe im Kopf eines
+   * Bereichs steht nicht *auf* der Seite, sondern *neben* einer Überschrift;
+   * gestapelt wird aus ihr eine Säule neben dem Wort, und der Kopf wächst,
+   * bevor die erste Zeile Inhalt kommt.
+   *
+   * Gemessen am 23. September 2026 bei 390px mit dem gebauten Stylesheet, am
+   * Kopf „Hinterlegt" der Meldeziele mit zwei Knöpfen:
+   *
+   *     gestapelt        Kopf 109px, Knöpfe 165px breit in zwei Zeilen
+   *     nebeneinander    Kopf  95px, Überschrift auf eigener Zeile
+   *
+   * Bei 320px dasselbe Bild und `scrollWidth - clientWidth` = 0: Die Reihe
+   * misst 165 + 10 + 114 = 289px und passt auch dort. Bricht sie doch einmal,
+   * bricht sie um — `flex-wrap: wrap` steht in der Grundregel und wird hier
+   * nicht zurückgenommen.
+   *
+   * Vierzehn Pixel sind wenig; der Grund ist die Form und nicht die Zahl. Die
+   * Reihe passt hier nicht auf die Zeile der Überschrift und bekommt deshalb
+   * eine eigene — das ist ein Umbruch und kein Stapeln, und er kostet einmal
+   * je Bereich statt einmal je Knopf.
+   */
+  .section-head .button-row {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .section-head .button-row .button {
+    width: auto;
+  }
+
+  /*
    * **Die Auswahlleiste stapelt nicht — sie bricht um.**
    *
    * Der Grund für das Stapeln steht oben: Drei gleich breite Knöpfe

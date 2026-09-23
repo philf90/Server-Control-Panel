@@ -2028,4 +2028,102 @@ final class MobileLayoutTest extends TestCase
 
         return $aus;
     }
+
+    /**
+     * Die Aktionen eines Bereichskopfs stehen in **einer** Reihe.
+     *
+     * **Der Anlass ist der Betreiber am Telefon, am 23. September 2026.**
+     * {@see Section} gab den Inhalt seines `actions`-Platzes unverpackt an
+     * `.section-head` weiter, und dessen `justify-content: space-between`
+     * verteilt, was es bekommt. Bei zwei Knöpfen sah das so aus — gemessen
+     * mit dem gebauten Stylesheet:
+     *
+     *     1440px   h2 x=0    „Probezustellung" x=629    „Entfernen" x=1326
+     *      390px   h2 x=0    „Probezustellung" x=226    „Entfernen" x=0, zweite Zeile
+     *
+     * Der erste Knopf stand in der Mitte des Kopfes und hing an nichts.
+     *
+     * **Die Komponente hat die Regel aufgeschrieben und nicht gehalten**: Im
+     * Kommentar stand „Nicht mehr als eines", und vier Seiten gaben mehr.
+     *
+     * > **Eine Zusage, die eine Komponente von ihren Aufrufern verlangt, statt
+     * > sie selbst zu halten, ist eine Bitte.**
+     *
+     * Geprüft wird die Hülle und nicht die Zahl der Knöpfe: Mit ihr ist der
+     * Platz **ein** Flexkind, und wieviele Aufrufer wieviel hineinlegen, ist
+     * dann gleichgültig.
+     */
+    public function test_the_actions_of_a_section_head_stand_in_one_row(): void
+    {
+        $quelle = (string) file_get_contents(
+            dirname(__DIR__, 2).'/resources/js/Components/Section.vue',
+        );
+
+        $vorlage = $this->template($quelle);
+
+        self::assertMatchesRegularExpression(
+            '/<div[^>]*class="[^"]*\bbutton-row\b[^"]*"[^>]*>\s*<slot name="actions"/su',
+            $vorlage,
+            'Der `actions`-Platz von Section.vue steht nicht in einer `.button-row`. Ohne die Hülle '.
+            'sind die Aktionen einzelne Flexkinder von `.section-head`, und `space-between` verteilt '.
+            'sie über die Breite statt sie nebeneinanderzustellen.',
+        );
+    }
+
+    /**
+     * Und sie stapelt nicht, wenn die Fläche schmal wird.
+     *
+     * Dritter Fall derselben richtigen Regel an einer neuen Stelle, nach der
+     * Tabellenzeile und der Auswahlleiste: `.button-row` stapelt unter 480px
+     * und zieht ihre Knöpfe auf volle Breite. Für eine Reihe, die **auf** der
+     * Seite steht, ist das richtig; eine, die **neben** einer Überschrift
+     * steht, wird dadurch zu einer Säule neben einem Wort.
+     *
+     * Gemessen bei 390px: gestapelt ein Kopf von 109px, nebeneinander einer
+     * von 95px mit der Überschrift auf eigener Zeile.
+     */
+    public function test_a_section_head_does_not_stack_its_actions(): void
+    {
+        $css = (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css');
+
+        self::assertMatchesRegularExpression(
+            '/\.section-head\s+\.button-row\s*\{[^}]*flex-direction:\s*row/su',
+            $css,
+            'Die Ausnahme für den Bereichskopf fehlt in app.css — unter 480px stapelt `.button-row` '.
+            'dann auch dort, und aus den Aktionen wird eine Säule neben der Überschrift.',
+        );
+    }
+
+    /**
+     * Die Gegenprobe: Gibt überhaupt jemand mehr als eine Aktion?
+     *
+     * Ohne diese Zahl bewachte der Test darüber eine Regel, die niemand
+     * benutzt — und eine Hülle um einen einzelnen Knopf sieht genauso aus wie
+     * eine um drei.
+     *
+     * Gemessen am 23. September 2026: vier Seiten geben mehr als eine.
+     */
+    public function test_more_than_one_action_is_actually_passed(): void
+    {
+        $mehrfach = [];
+
+        foreach ($this->files('resources/js', 'vue') as $datei) {
+            $vorlage = $this->template((string) file_get_contents($datei));
+
+            if (preg_match('/#actions"?>(.*?)<\/template>/su', $vorlage, $treffer) !== 1) {
+                continue;
+            }
+
+            if (preg_match_all('/<(?:button|Link|a)[\s>]/su', $treffer[1]) > 1) {
+                $mehrfach[] = $this->relative($datei);
+            }
+        }
+
+        self::assertGreaterThanOrEqual(
+            1,
+            count($mehrfach),
+            'Keine Seite gibt mehr als eine Aktion an einen Bereichskopf. Dann bewacht der Test '.
+            'darüber eine Regel, die nichts berührt.',
+        );
+    }
 }

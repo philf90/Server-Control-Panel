@@ -813,25 +813,56 @@ Unterschied zwischen den beiden Durchgängen ist die vorangegangene Meldung.
 
 ### Punkt 9 · Ein Ziel, das abweist, bucht nichts
 
-```bash
-# Den Empfänger auf 500 stellen:
-sed -i 's/http_response_code(204)/http_response_code(500)/' \
-  "$WURZEL/haken/index.php"
+**Der Zustand steht schon** — er ist derselbe, den Punkt 10 eben benutzt hat,
+und er wurde am Abend davor hergestellt (§3). Das Ziel ist nach Punkt 10
+entfernt und wird hier wieder hinterlegt: `/settings/notices`, eigener
+Empfänger, dieselbe Adresse, **neues** Geheimnis.
 
-systemctl stop srvpanel-metrics.service
-systemctl start srvpanel-diagnose.service      # Lauf A — stellt den Zustand her
-# … 20 Stunden später oder mit einem zweiten Zustand, der schon alt genug ist …
-systemctl start srvpanel-diagnose.service      # Lauf B — sendet
-journalctl -u srvpanel-diagnose.service -n 20 --no-pager
+```bash
+# Den Empfänger auf 500 stellen — mit Gegenprobe, dass die Ersetzung gegriffen hat.
+sed -i 's/http_response_code(204)/http_response_code(500)/' "$WURZEL/haken/index.php"
+grep -c 'http_response_code(500)' "$WURZEL/haken/index.php"
+
+ZEILEN=$(wc -l < "$LOG")
+systemctl start srvpanel-diagnose.service
+journalctl -u srvpanel-diagnose.service -n 15 --no-pager
 srvpanel tinker --execute='
   foreach (App\Models\FindingNotification::query()->get()->groupBy("channel") as $k => $g)
-      printf("%-10s %d\n", $k, $g->count());
+      printf("  %-10s %d\n", $k, $g->count());
 '
+printf 'Empfängerprotokoll: %s -> %s Zeile(n)\n' "$ZEILEN" "$(wc -l < "$LOG")"
 ```
 
 **Erwartet:** `webhook: N Nachricht(en) sind nicht angekommen. Sie bleiben
 fällig.` — und in `finding_notifications` stehen Zeilen für `mail` und
 **keine** für `webhook`. Das ist der Fall, für den es die Tabelle gibt.
+
+**Das Protokoll des Empfängers wächst trotzdem um eine Zeile**, und das ist
+kein Widerspruch: Der Prüfkörper aus §2 schreibt die Zeile, **bevor** er den
+Status setzt. Der Rumpf ist also angekommen; was fehlt, ist die Bestätigung.
+
+> **Zugestellt heisst bestätigt und nicht angekommen.** Ein Kanal, der die
+> zweite Frage mit der ersten beantwortete, buchte jede Meldung, die
+> irgendwohin abgeflossen ist.
+
+**Und die Gegenprobe gehört in denselben Griff**, sonst misst `nicht
+angekommen` womöglich den Kanal statt den Empfänger:
+
+```bash
+sed -i 's/http_response_code(500)/http_response_code(204)/' "$WURZEL/haken/index.php"
+ZEILEN=$(wc -l < "$LOG")
+systemctl start srvpanel-diagnose.service
+journalctl -u srvpanel-diagnose.service -n 10 --no-pager
+srvpanel tinker --execute='
+  foreach (App\Models\FindingNotification::query()->get()->groupBy("channel") as $k => $g)
+      printf("  %-10s %d\n", $k, $g->count());
+'
+printf 'Empfängerprotokoll: %s -> %s Zeile(n)\n' "$ZEILEN" "$(wc -l < "$LOG")"
+```
+
+**Erwartet:** `webhook: N Nachricht(en) über N Befund(e).`, und `webhook`
+wächst jetzt um `N`. Derselbe Befund, dasselbe Ziel, derselbe Weg — die
+einzige Änderung ist die Zahl, die der Empfänger zurückgibt.
 
 **Wer einen Slack- oder Discord-Haken hat, misst hier §0 Punkt 5 mit:**
 Empfänger wählen, Adresse eintragen, Probezustellung drücken — und im Kanal

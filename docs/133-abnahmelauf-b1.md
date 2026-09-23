@@ -965,12 +965,24 @@ sleep 5
 systemctl is-active srvpanel-metrics.service srvpanel-dns.timer
 systemctl list-timers srvpanel-dns.timer --no-pager
 
+ZEILEN=$(wc -l < "$LOG")
 srvpanel diagnose
+
 srvpanel tinker --execute='
   foreach (App\Models\Finding::withoutGlobalScopes()->orderBy("check")->get() as $b)
       printf("  %-16s %-28s %s\n", $b->check->value, $b->subject, $b->reason);
   printf("Buchungen: %d\n", App\Models\FindingNotification::query()->count());
+  foreach (App\Models\FindingResolution::query()->orderBy("subject")->get() as $z)
+      printf("  offen: %-28s %s\n", $z->subject, $z->channel);
 '
+
+# Und zustellen, sonst bleibt die Warteschlange stehen — die Maschine bliebe
+# dann gerade nicht, wie sie war.
+srvpanel notices
+srvpanel tinker --execute='
+  printf("Warteschlange: %d\n", App\Models\FindingResolution::query()->count());
+'
+printf 'Empfängerprotokoll: %s -> %s Zeile(n)\n' "$ZEILEN" "$(wc -l < "$LOG")"
 ```
 
 **Erwartet:** beide `active`, der Zeitgeber hat wieder einen `NEXT`-Termin, und
@@ -979,11 +991,21 @@ Bestand aus §1. Damit ist zugleich Punkt 8 ein zweites Mal gemessen, diesmal an
 `unit.schedule` statt an `unit.state`: Auch dieser Befund verschwindet, wenn
 sein Grund verschwindet.
 
-**Steht zu diesem Zeitpunkt noch ein Meldeziel**, erzeugt der Lauf eine zweite
-Entwarnung; wurde es in Punkt 10 entfernt, bleibt die Warteschlange für
-`webhook` stehen, bis wieder eines da ist. Beides ist richtig, und welches von
-beidem gilt, entscheidet die Reihenfolge, in der gefahren wurde — nicht der
-Zufall.
+**Zwei Gegenstände auf einmal — und das misst etwas, das Punkt 8b nicht
+konnte.** Dort verschwand **ein** Befund, und `webhook: 1 Entwarnung(en)` liess
+offen, wonach {@see Notices::clear()} bündelt. Hier verschwinden **zwei** mit
+je einer Buchung pro Kanal: vier offene Zeilen hinein, und heraus müssen
+**zwei** Entwarnungen gehen, eine je Gegenstand — dieselbe Bündelung wie in
+Punkt 6, nur für das andere Ereignis. Ginge **eine** hinaus, bündelte die
+Entwarnung nach dem falschen Schlüssel.
+
+> **Ein Prüfkörper aus einem Gegenstand kann eine Bündelung nicht widerlegen,
+> und was er nicht widerlegen kann, hat er nicht gemessen.**
+
+**Wurde das Meldeziel in Punkt 10 entfernt und nicht wieder hinterlegt**,
+bleibt die Warteschlange für `webhook` stehen, bis wieder eines da ist. Auch
+das ist richtig — aber dann ist dieser Punkt nicht gefahren, sondern
+aufgeschoben, und er gehört nachgeholt.
 
 > **Ein Abnahmelauf, der einen Zeitgeber angehalten lässt, hat den Server
 > schlechter zurückgegeben, als er ihn vorgefunden hat.**

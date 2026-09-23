@@ -1057,3 +1057,60 @@ abbricht, holt wenigstens diesen Punkt nach.
 
 **Ein Punkt, der am Werkzeug scheitert und nicht am Gegenstand, ist nicht
 „nicht herstellbar"** — er wird nachgeholt.
+
+---
+
+## §7 · Das Ergebnis — gefahren am 21. bis 23. September 2026
+
+**Gefahren auf `cloudsrv24` gegen `0.9.0-rc.1`**, von `2026-09-21 21:59 CEST`
+bis `2026-09-23 19:55 CEST`. Alle fünfzehn Punkte sind erfüllt. Was hier steht,
+sind die **abgelesenen** Zahlen; die Erwartungen stehen oben, und sie sind
+nicht nachträglich angepasst worden.
+
+| Punkt | gemessen |
+|---|---|
+| 1 · Meldeziel steht | `reachable: true`; `describe()` = `host cloudlab24.de, provider generic, stored_at 1790020751, signed true` — ohne Adresse, ohne Geheimnis, ohne `config`. `/etc/srvpanel/notify` `drwx------`, `webhook.json` `-rw------- root root`. 7 Protokolldateien mit 18 977 Zeilen durchsucht, Geheimnis **0×**; `notify.target.store` darin **4×**. |
+| 2 · `http` wird abgewiesen | Prüfmeldung am Feld, kein Vorgang, die Ablage von 21:59:11 unverändert. |
+| 3 · Bestand abgeräumt | `mail: 1 über 1`, `webhook: 1 über 1`; Buchungen **2**; Protokoll `1 → 2`; Signatur `t=1790021108,v1=dc0ba26f…` statt `-`. |
+| 4 · Zustand hergestellt, Lauf schweigt | beide Einheiten `inactive`; `mail: 0 über 0`, `webhook: 0 über 0`; Buchungen `2 → 2`; Protokoll `2 → 2`. Zwei neue Befunde, `unit.state / srvpanel-metrics.service / inactive` und `unit.schedule / srvpanel-dns.timer / no_next`, beide seit `2026-09-21T20:09:39Z`. |
+| 5 · Zeitgeber feuert und schweigt | `LastTriggerUSec = 2026-09-22 00:49:35 CEST`; `9 Prüfung(en) gefahren`, `Kaputt: 3`; beide Kanäle `0 über 0`; Buchungen **2**, Protokoll **2 Zeilen**. |
+| 6 · sendet, genau einmal | **`mail: 1 über 2`**, **`webhook: 2 über 2`**; Buchungen `2 → 6`; Protokoll `2 → 4`; zwei Rümpfe mit je eigenem `subject`; Signatur nachgerechnet und auf das Zeichen gleich. `tls.file / p6-b.invalid` trug weiterhin `2026-09-21 20:05:07`. |
+| 7 · keine zweite Meldung | beide Kanäle `0 über 0`; Buchungen `6 → 6`; Protokoll `4 → 4`. |
+| 8 · Befund verschwindet mitsamt Buchung | `Kaputt: 3 → 2`; `Befund noch da: nein`; Buchungen `6 → 4`. |
+| 8b · der Empfänger erfährt es | **zwei** offene Zeilen, je Kanal eine; `webhook: 1 Entwarnung(en) verschickt.`; Warteschlange **0**; Protokoll `4 → 5`; Rumpf `"kind":"resolved"`. |
+| 8c · keine Entwarnung ohne Warnung | `Befund da: ja, seit 2026-09-22T18:31:58Z`, `Buchungen dafür: 0`; Warteschlange **0**. |
+| 9 · ein Ziel, das abweist | `webhook: 1 Nachricht(en) sind nicht angekommen.`; `mail 3 / webhook 2`; Protokoll `6 → 7`; Unit `status=1/FAILURE`. Gegenprobe mit `204`: `webhook: 1 über 1`, `webhook 3`, Protokoll `7 → 8`, Unit grün. |
+| 10 · ohne Ziel wird nichts gebucht | `mail: 1 über 1`, **`webhook: nicht eingerichtet — 1 Befund(e) bleiben fällig.`**; `mail 3 / webhook 2`. |
+| 11 · der Empfänger überlebt | `slack` + `[]`, danach `telegram` + `{"chat_id":"-100123"}`; auf der Seite weiterhin nur der Rechnername. |
+| 12 · der Rumpf kommt an | Protokoll `5 → 6`; `"kind":"test"`, `"subject":""`. |
+| 13 · die Maschine bleibt, wie sie war | beide `active`, Zeitgeber mit `NEXT` in 5 min; `Kaputt: 1`; Buchungen `6 → 2`; **vier** offene Zeilen; **`webhook: 2 Entwarnung(en) verschickt.`**; Warteschlange **0**; Protokoll `8 → 10`. |
+
+**Alle drei Ereignisarten sind über die Leitung gegangen** — `findings`
+(Punkt 6), `resolved` (8b und 13), `test` (12) —, und beide Bündelungen sind
+gemessen statt nur nicht widerlegt: je Gegenstand beim Webhook, je Empfänger
+bei der Mail, und dasselbe noch einmal für die Entwarnung.
+
+### Was dieser Lauf **nicht** gemessen hat
+
+- **Den Betreff der Mail.** Punkt 6 erwartet ihn in der Mehrzahl und Punkt 3 in
+  der Einzahl; beide Briefe liegen im Postfach, **gelesen hat sie niemand**.
+  Gemessen ist, dass genau eine Mail je Lauf hinausging — nicht, wie ihre
+  Betreffzeile lautet.
+- **Die vier Empfänger, die der Betreiber nicht hat.** Punkt 11 belegt, dass
+  Slack und Telegram richtig **abgelegt** werden; ob sie den Rumpf annehmen,
+  sagt dieser Lauf nicht.
+- Alles Weitere steht in §5 und ist dort nicht kürzer geworden.
+
+### Drei Sätze, die der Lauf gekostet hat
+
+**Der erste `root` eines Server-Blocks ist nie der der Domain.** Sechs Blöcke,
+sechsmal `continue`, null Kandidaten — bei drei Domains mit gültigem
+Zertifikat. Die Prüf-`location` von ACME steht vor dem Inhaltsblock und bringt
+ihr eigenes `root` mit.
+
+**`NextElapseUSecRealtime` ist eine Ankündigung, `LastTriggerUSec` eine
+Messung.** Angesagt war `00:15:22`, gefeuert wurde um `00:49:35`.
+
+**Zugestellt heisst bestätigt und nicht angekommen.** Bei `500` wuchs das
+Protokoll des Empfängers um eine Zeile, und das Panel buchte trotzdem nichts —
+der Prüfkörper schreibt, bevor er den Status setzt.

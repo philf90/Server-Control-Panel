@@ -39,6 +39,39 @@ use ZipArchive;
  * > **Eine Prüfung, die teurer ist, ist deshalb nicht gründlicher — und welche
  * > Schäden sie findet, sagt erst der Prüfkörper, der sie herstellt.**
  *
+ * ### Diese Zeile hängt an libzip, und seit dem 23. September 2026 ist das
+ * ### gemessen
+ *
+ * Dieselbe Spalte, derselbe Prüfkörper, zwei Antworten:
+ *
+ * | Umgebung | `getFromIndex()` | `getStreamIndex()` |
+ * |---|---|---|
+ * | libzip 1.22.7, Container | 0 unlesbar | 0 unlesbar |
+ * | GitHub-Läufer, 23. September 2026 | **1 unlesbar** | nicht gemessen |
+ *
+ * Gemessen an **demselben Commit**, der zwei Tage vorher grün durchlief
+ * (`ci.yml` auf `main` @ `180ee276`: Lauf 1006 grün, Lauf 1008 rot). Geändert
+ * hat sich die Fassung der Bibliothek und nicht dieses Repo. Welche Fassung
+ * der Läufer führt, ist **nicht** gemessen — und dass die Tabelle oben mit
+ * `getStream()` begründet, der Prüfkörper aber `getFromIndex()` gemessen hat,
+ * ist der zweite Teil desselben Befundes: zwei Funktionen, eine Zeile.
+ *
+ * > **Eine Begründung, die eine Fremdbibliothek trägt, ist so haltbar wie
+ * > deren Fassung — und sie sagt nicht selbst, wann sie abgelaufen ist.**
+ *
+ * **Was davon unberührt bleibt:** der Speicher. Die strömende Fassung braucht
+ * ein Hundertfünfzigstel (unten gemessen), und das hängt an keiner Fassung von
+ * libzip. Auch wenn Lesen den Schaden inzwischen fände, wäre es die teurere
+ * der beiden Prüfungen und nicht die gründlichere.
+ *
+ * **Offen ist damit die erste Hälfte der Begründung**: ob der CRC-Vergleich auf
+ * heutigem libzip noch einen Schaden findet, den Lesen übersieht. Die Antwort
+ * braucht eine Messung auf dem Läufer — für beide Funktionen, denn gemessen ist
+ * dort bisher nur `getFromIndex()`.
+ * {@see BackupVerifyTest::test_reading_every_entry_finds_no_more_than_the_checksum()}
+ * sichert deshalb nur noch zu, was in beiden Welten gilt: Der Prüfling findet
+ * den Schaden, und das Lesen findet nie etwas, das der Prüfling übersieht.
+ *
  * ## Und warum sie strömt
  *
  * `getFromIndex()` lädt einen Eintrag **ganz** in den Speicher. Gemessen an

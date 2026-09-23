@@ -23,10 +23,11 @@ use ZipArchive;
  * > **Eine Prüfung, die teurer ist, ist deshalb nicht gründlicher — und welche
  * > Schäden sie findet, sagt erst der Prüfkörper, der sie herstellt.**
  *
- * Genau das steht hier als eigener Fall
- * ({@see self::test_reading_every_entry_would_not_have_found_it()}): die
- * Gegenprobe zur Bauart. Ohne sie belegte dieser Wächter, dass eine Prüfung
- * rechnet — nicht, dass sie die richtige ist.
+ * **Und genau deshalb hängt sie an einer Fassung.** Am 23. September 2026 gab
+ * derselbe Prüfkörper auf dem Läufer von GitHub Actions eine andere Antwort
+ * als im Container — dazu {@see self::test_reading_every_entry_finds_no_more_than_the_checksum()},
+ * die Gegenprobe zur Bauart. Ohne sie belegte dieser Wächter, dass eine
+ * Prüfung rechnet — nicht, dass sie die richtige ist.
  *
  * ## Warum die Einträge unkomprimiert abgelegt werden
  *
@@ -235,11 +236,47 @@ final class BackupVerifyTest extends TestCase
      * **Die Gegenprobe zur Bauart, und ohne sie belegt dieser Wächter nichts.**
      *
      * Derselbe Schaden, mit der naheliegenden Prüfung gemessen: jeden Eintrag
-     * lesen. Sie kommt **ohne Fehler durch** — und wer sie gebaut hätte, hätte
-     * eine teurere Prüfung, die genau den Schaden nicht sieht, vor dem eine
-     * Sicherung schützen soll.
+     * lesen.
+     *
+     * ## Was am 23. September 2026 umgefallen ist
+     *
+     * Bis dahin stand hier `assertSame(0, $unlesbar)` — die naheliegende
+     * Prüfung kommt ohne Fehler durch. Auf dem Läufer von GitHub Actions
+     * stimmt das nicht mehr:
+     *
+     * | Umgebung | `getFromIndex()` | `getStreamIndex()` |
+     * |---|---|---|
+     * | libzip 1.22.7, Container | 0 unlesbar | 0 unlesbar |
+     * | GitHub-Läufer, 23. September 2026 | **1 unlesbar** | nicht gemessen |
+     *
+     * Gemessen ist das gegen **denselben Commit**, der zwei Tage vorher grün
+     * durchlief (`ci.yml` auf `main` @ `180ee276`, Lauf 1006 grün, Lauf 1008
+     * rot). Geändert hat sich die libzip des Läufers und nicht dieses Repo.
+     * Welche Fassung der Läufer führt, ist **nicht** gemessen.
+     *
+     * > **Ein Wächter, dessen Zusicherung an einer Fremdbibliothek hängt, misst
+     * > deren Fassung und nicht die eigene Bauart.**
+     *
+     * ## Was er statt dessen zusichert
+     *
+     * Zwei Sätze, und beide gelten in jeder der beiden Welten:
+     *
+     * 1. **Der Prüfling findet den Schaden** — die Zusage, um die es geht.
+     * 2. **Die naheliegende Prüfung findet nie etwas anderes**, höchstens
+     *    weniger: Was sie meldet, meldet der Prüfling auch. Findet sie nichts,
+     *    gilt die Begründung im Kopf von {@see BackupVerify}; findet sie
+     *    denselben Eintrag, ist sie nur die teurere von zweien.
+     *
+     * Was sie **nicht** darf, ist einen Schaden melden, den der Prüfling nicht
+     * sieht — dann prüfte der Prüfling zu wenig. Genau das fängt Satz 2, und
+     * er fängt es in beiden Welten.
+     *
+     * **Was dieser Fall damit nicht mehr belegt:** dass der CRC-Vergleich einen
+     * Schaden findet, den Lesen übersieht. Das war bis zum 16. September 2026
+     * die halbe Begründung der Bauart; ob sie auf heutigem libzip noch trägt,
+     * ist eine offene Messung und steht im Kopf von {@see BackupVerify}.
      */
-    public function test_reading_every_entry_would_not_have_found_it(): void
+    public function test_reading_every_entry_finds_no_more_than_the_checksum(): void
     {
         $pfad = $this->archive();
         $this->flip($pfad, self::MARKE);
@@ -247,20 +284,31 @@ final class BackupVerifyTest extends TestCase
         $zip = new ZipArchive;
         $this->assertTrue($zip->open($pfad));
 
-        $unlesbar = 0;
+        $unlesbar = [];
 
         for ($i = 0; $i < $zip->numFiles; $i++) {
             if ($zip->getFromIndex($i) === false) {
-                $unlesbar++;
+                $unlesbar[] = (string) $zip->getNameIndex($i);
             }
         }
 
         $zip->close();
 
-        $this->assertSame(0, $unlesbar, 'Jeden Eintrag zu lesen findet ein gekipptes Byte — dann ist die Begründung im Kopf von BackupVerify falsch.');
+        // Satz 1: derselbe Prüfkörper durch den Prüfling — **ein** Befund.
+        $urteil = BackupVerify::verify($pfad, 'shop-x');
+        $this->assertSame([BackupVerify::CORRUPT], $this->reasons($urteil));
 
-        // Und derselbe Prüfkörper durch den Prüfling: **ein** Befund.
-        $this->assertSame([BackupVerify::CORRUPT], $this->reasons(BackupVerify::verify($pfad, 'shop-x')));
+        $detail = (string) $urteil['findings'][0]['detail'];
+
+        // Satz 2: und was das Lesen meldet, steht auch im Befund des Prüflings.
+        foreach ($unlesbar as $name) {
+            $this->assertStringContainsString($name, $detail, sprintf(
+                'Jeden Eintrag zu lesen meldet %s als unlesbar, der Befund des Prüflings nennt aber nur %s '
+                .'— dann findet die naheliegende Prüfung einen Schaden, den der Prüfling übersieht.',
+                $name,
+                $detail === '' ? '(nichts)' : $detail,
+            ));
+        }
     }
 
     public function test_an_entry_the_manifest_does_not_know_is_a_finding(): void

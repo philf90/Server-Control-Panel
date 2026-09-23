@@ -837,6 +837,17 @@ printf 'Empfängerprotokoll: %s -> %s Zeile(n)\n' "$ZEILEN" "$(wc -l < "$LOG")"
 fällig.` — und in `finding_notifications` stehen Zeilen für `mail` und
 **keine** für `webhook`. Das ist der Fall, für den es die Tabelle gibt.
 
+**Und die Unit wird rot** — `Job for srvpanel-diagnose.service failed`,
+`status=1/FAILURE`. Auch das gehört zum Befund und ist nicht daneben:
+{@see SendNotices::handle()} gibt `FAILURE` zurück, sobald ein Kanal
+**fehlgeschlagen** ist. Ein *nicht eingerichteter* Kanal ist ausdrücklich kein
+Fehlschlag (sonst wäre die Unit jede Nacht rot, siehe Punkt 10); ein
+eingerichteter, der nicht trägt, ist einer und soll auffallen.
+
+> **Ein Weg, der eingerichtet ist und nicht trägt, ist ein Ausfall. Einer, der
+> gar nicht eingerichtet ist, ist eine offene Aufgabe** — und die beiden
+> dürfen nicht dieselbe Farbe haben.
+
 **Das Protokoll des Empfängers wächst trotzdem um eine Zeile**, und das ist
 kein Widerspruch: Der Prüfkörper aus §2 schreibt die Zeile, **bevor** er den
 Status setzt. Der Rumpf ist also angekommen; was fehlt, ist die Bestätigung.

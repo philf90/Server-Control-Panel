@@ -58,12 +58,15 @@ darunter. Ihr Fehlen ist deshalb ein Unterschied und kein leerer Abschnitt.
 
 ---
 
+<!-- abschrift: die Überschrift nennt den Befund, und der Befund ist der falsche Name -->
 ## 2. Befund 1 — `systemctl is-active srvpanel` fragt nach einer Unit, die es nicht gibt
 
 `docs/87 §1` liess vor dem ersten Punkt dies notieren:
 
+<!-- abschrift: was docs/87 §1 notieren liess, samt des falschen Namens — genau das ist Befund 1 -->
     systemctl is-active srvpanel srvpanel-worker srvpanel-agentd
 
+<!-- abschrift: der Absatz belegt, dass es die Unit nicht gibt, und muss sie dafür nennen -->
 Die Antwort war `inactive`, `active`, `active` — und das erste `inactive` sieht
 aus wie ein abgeschalteter Dienst. **Es gibt keine `srvpanel.service`.**
 Ausgezählt über `packaging/systemd/` und `nfpm.yaml`: `srvpanel-agentd`,

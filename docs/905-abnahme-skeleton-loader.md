@@ -87,6 +87,7 @@ Bedingung her, für die es den Balken gibt.
 `srvpanel-agentd.service`; dieses Dokument nannte an drei Stellen
 `srvpanel-agent`, darunter **§6 — ein Ausschlusskriterium**.
 
+<!-- abschrift: zitiert die falsche Zeile, um ihren Schaden zu beschreiben -->
 Der Schaden wäre still gewesen: `systemctl stop srvpanel-agent` hält nichts an
 und gibt keinen Fehler, der auffällt. `/updates` hätte danach ganz normal
 geladen, ohne Platzhalter und ohne Streifen — und genau das ist die Anzeige,

@@ -35275,6 +35275,49 @@ pruefe "  … zurückgesetzt wieder grün" StorageLeftoverTest passed
 
 
 echo
+echo "── RunnerSignalTest: ein Ausgang des Wettlaufs prüft weniger ──"
+#
+# Bis zum 24. September 2026 zaehlte der heile Zweig eine Zusicherung, der
+# Fang-Zweig zwei — und die Summe der Suite schwankte mit dem Scheduler. Ein
+# Lauf saehe den Eingriff fast nie (39 von 40 nehmen den Fang-Zweig); der
+# Waechter liest deshalb den Bau.
+vorher_datei tests/Unit/RunnerSignalTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/RunnerSignalTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $this->assertStringStartsWith('systemd ', $ergebnis->stdout, 'Der Status blieb heil, aber die Ausgabe fehlt.');
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """""", 1))
+PY2
+griff_datei tests/Unit/RunnerSignalTest.php "Wettlauf: ein Zweig prüft weniger" &&
+pruefe "Wettlauf: ein Zweig prüft weniger" \
+  RunnerSignalTest::test_both_outcomes_of_the_race_count_the_same failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RunnerSignalTest passed
+
+echo
+echo "── RunnerSignalTest: die gezählte Zusicherung kommt zurück ──"
+#
+# Die Zeile, mit der die Schwankung begann. Hier bleiben beide Pruefungen
+# stehen, die Zahl stimmt also nicht mehr — gefunden wird die Zeile selbst.
+vorher_datei tests/Unit/RunnerSignalTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/RunnerSignalTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """            $this->assertSame(0, $ergebnis->code,"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            $this->addToAssertionCount(1);
+            $this->assertSame(0, $ergebnis->code,""", 1))
+PY2
+griff_datei tests/Unit/RunnerSignalTest.php "Wettlauf: gezählt statt geprüft" &&
+pruefe "Wettlauf: gezählt statt geprüft" \
+  RunnerSignalTest::test_both_outcomes_of_the_race_count_the_same failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RunnerSignalTest passed
+
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

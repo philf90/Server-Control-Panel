@@ -107,6 +107,15 @@ final class DumpSizeTest extends TestCase
         @mkdir(dirname($pfad), 0o700, true);
         file_put_contents($pfad, $inhalt);
 
+        // Weg damit, wenn der Test vorbei ist — auch wenn er scheitert. Bis zum
+        // 24. September 2026 blieb jede Probe liegen: drei je Lauf, 266 in fünf
+        // Tagen (siehe `TestCase::assertStorageAsFound()`).
+        $this->beforeApplicationDestroyed(static function () use ($pfad): void {
+            if (is_file($pfad)) {
+                unlink($pfad);
+            }
+        });
+
         return $pfad;
     }
 

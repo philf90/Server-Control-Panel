@@ -178,6 +178,14 @@ final class BrandReachTest extends TestCase
     {
         $this->gespeichert(['logo' => $this->png()]);
 
+        // Das Logo liegt unter storage/app/branding und überlebte bis zum
+        // 24. September 2026 jeden Lauf — mit festem Namen, deshalb fiel es in
+        // einer alten Arbeitskopie nie auf. Zurück über `Logo::forget()`, den
+        // Weg, den auch das Entfernen in den Einstellungen nimmt.
+        $this->beforeApplicationDestroyed(static function (): void {
+            app(Logo::class)->forget();
+        });
+
         $this->abmelden();
 
         $props = $this->get('/login')->viewData('page')['props'];

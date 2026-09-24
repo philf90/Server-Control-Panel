@@ -172,6 +172,14 @@ final class UploadLimitTest extends TestCase
         // Und die Datei liegt in der Übergabe, aus der der Agent sie holt.
         $source = $this->latestOperationSource();
 
+        // Abholen würde sie im Betrieb der Agent; hier läuft wegen
+        // `Queue::fake()` kein Vorgang, und bis zum 24. September 2026 blieb
+        // deshalb je Lauf eine Übergabe liegen. Zurück über `Staging::forget()`,
+        // das nur löscht, was aufgelöst in der Übergabe liegt.
+        $this->beforeApplicationDestroyed(static function () use ($source): void {
+            Staging::forget($source);
+        });
+
         $this->assertNotNull($source, 'Der Vorgang nennt keine Quelle.');
         $this->assertFileExists($source);
         $this->assertSame($inhalt, (string) file_get_contents($source));

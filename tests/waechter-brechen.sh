@@ -35175,6 +35175,106 @@ wiederherstellen
 
 
 echo
+echo "── DumpSizeTest: die Proben bleiben wieder liegen ──"
+#
+# Bis zum 24. September 2026 liess jeder Lauf drei Proben unter
+# storage/app/private zurueck. Der Waechter in Tests\TestCase muss den Test
+# durchfallen lassen, der sie hinterlaesst — nicht irgendeinen spaeteren. Die
+# Proben dieses Eingriffs bleiben liegen; mit Zufallsnamen stoeren sie keinen
+# spaeteren Test, denn verglichen wird mit dem Stand zu Beginn jedes Tests.
+vorher_datei tests/Feature/DumpSizeTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/DumpSizeTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $this->beforeApplicationDestroyed(static function () use ($pfad): void {
+            if (is_file($pfad)) {
+                unlink($pfad);
+            }
+        });
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """""", 1))
+PY2
+griff_datei tests/Feature/DumpSizeTest.php "Proben bleiben liegen" &&
+pruefe "Proben bleiben liegen" \
+  DumpSizeTest::test_a_matching_size_is_no_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DumpSizeTest passed
+
+echo
+echo "── UploadLimitTest: die Übergabe bleibt wieder liegen ──"
+#
+# Im Betrieb holt der Agent die Datei ab; im Test laeuft wegen Queue::fake()
+# kein Vorgang. Ohne den Rueckweg ueber Staging::forget() bleibt je Lauf eine
+# Uebergabe unter storage/app/private/imports.
+vorher_datei tests/Feature/UploadLimitTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/UploadLimitTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $this->beforeApplicationDestroyed(static function () use ($source): void {
+            Staging::forget($source);
+        });
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """""", 1))
+PY2
+griff_datei tests/Feature/UploadLimitTest.php "Übergabe bleibt liegen" &&
+pruefe "Übergabe bleibt liegen" \
+  UploadLimitTest::test_a_real_gzip_file_is_taken_over failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UploadLimitTest passed
+
+echo
+echo "── BrandReachTest: das Logo bleibt wieder liegen ──"
+#
+# Der Fall mit festem Namen: storage/app/branding/logo.png fiel in einer alten
+# Arbeitskopie nie auf, weil es dort schon lag. In einer frischen — und nach
+# den Aufraeumarbeiten in jeder — liegt es vor dem Test nicht.
+vorher_datei tests/Feature/BrandReachTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/BrandReachTest.php'
+s = open(p, encoding='utf-8').read()
+alt = """        $this->beforeApplicationDestroyed(static function (): void {
+            app(Logo::class)->forget();
+        });
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """""", 1))
+PY2
+griff_datei tests/Feature/BrandReachTest.php "Logo bleibt liegen" &&
+pruefe "Logo bleibt liegen" \
+  BrandReachTest::test_an_uploaded_logo_is_served_without_a_login failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BrandReachTest passed
+
+echo
+echo "── StorageLeftoverTest: der Wächter wird nicht mehr gerufen ──"
+#
+# Die Verdrahtung: Ohne den Aufruf in tearDown() bliebe jeder Vergleich
+# ungefragt, und alle drei Eingriffe darueber waeren gruen. Den Aufruf
+# selbst haelt nur der Test, der absichtlich etwas liegen laesst.
+vorher_datei tests/TestCase.php
+python3 - <<'PY2'
+p = 'tests/TestCase.php'
+s = open(p, encoding='utf-8').read()
+alt = """        parent::tearDown();
+
+        $this->assertStorageAsFound();
+    }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """        parent::tearDown();
+    }
+""", 1))
+PY2
+griff_datei tests/TestCase.php "Wächter wird nicht gerufen" &&
+pruefe "Wächter wird nicht gerufen" \
+  StorageLeftoverTest::test_a_file_left_behind_fails_the_test_that_left_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" StorageLeftoverTest passed
+
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

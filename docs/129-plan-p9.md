@@ -321,6 +321,23 @@ Daraus folgen drei Dinge für den Bau:
    Ende — gemessen. Das ist hier kein Schaden, sondern eine Zusage: Ein Lauf,
    den die Rotation überrascht, zählt seinen Tag fertig.
 
+**Nachgetragen am 24. September 2026: Gebaut ist es anders, und zweimal.**
+Punkt 2 trug nicht, weil die Rotation kein Zeitpunkt ist, sondern ein Fenster
+von einer Stunde (§10 Punkt 1). Der erste Bau las deshalb `access.log` **und**
+`.1` und gruppierte nach dem Tag in der Zeile. Auch das trug nur für eine
+Rotation um Punkt Mitternacht: Der Kopf eines Tages lag am Morgen danach in
+`access.log.2.gz`, und wer den Tag zweimal sah, überschrieb die vollständige
+Sicht mit der unvollständigen (`docs/134 §0` Punkt 2). **Seitdem liest der
+Nachtlauf drei Dateien und legt nur den Vortag ab** — der steht darin
+vollständig, vor wie nach der Rotation.
+
+Punkt 1 gilt damit weiter in der Sache: Der angefangene Tag zählt nicht, nur
+entscheidet das der Tag in der Zeile und nicht die Wahl der Datei. **Punkt 3
+gilt je Datei und nicht zwischen zweien.** Überrascht die Rotation einen Lauf
+zwischen dem Öffnen zweier Dateien, kann er eine zweimal oder eine halb gepackte
+lesen. Das ist hergeleitet und nicht gemessen; `docs/134` führt es unter dem,
+was die Behebung nicht abdeckt.
+
 ### Und eine tote Zeile in der Vorlage
 
 `WebLogrotate::template()` führt **`nocreate` und `create 0640 <user> adm`**.
@@ -513,7 +530,7 @@ nach dem Umbau anders — er wäre ab da ein Eingriff ohne Messung gewesen.
 | B1 | `MailTimeoutTest` | Der Mailweg hat eine Zeitgrenze, und sie ist gesetzt — gemessen am aufgelösten Wert und nicht an der Zeile in `config/mail.php`. |
 | B1 | `ChannelReachTest` | Jeder Kanal, den die Einstellungsseite anbietet, hat eine Umsetzung, und jede Umsetzung steht auf der Seite. |
 | B2 | `LogFormatTest` | Die Felder, die der Leser erwartet, sind genau die, die `SiteTemplate` schreibt — in **beide** Richtungen, damit ein neues Feld nicht stumm hinten anfällt. |
-| B2 | `RotationSeamTest` | Der Nachtlauf liest `access.log.1` und nicht `access.log` — gehalten am **gerufenen Pfad**, nicht an einer Zeichenkette in der Datei. |
+| B2 | `RotationSeamTest` | Der Nachtlauf liest `access.log.1` und nicht `access.log` — gehalten am **gerufenen Pfad**, nicht an einer Zeichenkette in der Datei. **Nicht unter diesem Namen gebaut, und seine Regel ist überholt** (§5, Nachtrag vom 24. September 2026): Welche drei Dateien gelesen werden, hält `AccessCountTest` an dem, was aus Dateien mit wörtlich genannten Namen gezählt wird, und dass ein Tag die Rotation überlebt, `TrafficRotationTest` über zwei Nächte bis in die Datenbank. |
 | B2 | `LogEraTest` | Eine Zeile im alten Format wird übersprungen und nicht falsch gezählt; eine im neuen wird gezählt. Beide Richtungen, mit einer gemessenen Zeile je Form als Prüfkörper. |
 | B3 | `DailyRunIdempotenceTest` | Zweimal derselbe Tag ergibt eine Zeile und nicht zwei — derselbe Satz wie bei `FindingLog`, an einer anderen Tabelle. |
 | B4 | `SeriesSourceTest` | `Tile.vue` bekommt fertige Stützstellen vom Server; kein Rechnen im Klienten. |
@@ -540,7 +557,7 @@ aus **einer** von 58 Seiten alle 58 zu machen.
 | | Erfüllt, wenn |
 |---|---|
 | **B1** | Ein herbeigeführter Zustand (Dienst gestoppt) erzeugt **eine** Meldung, die zweite Nacht erzeugt **keine**, und nach `systemctl start` meldet der Lauf nichts mehr. Über beide Kanäle, mit „zuletzt erfolgreich zugestellt" auf der Seite. |
-| **B2** | Für eine Domain mit echtem Verkehr steht am Morgen eine Tageszeile, deren Zahlen sich von Hand aus `access.log.1` nachrechnen lassen — `stat` davor und danach. |
+| **B2** | Für eine Domain mit echtem Verkehr steht am Morgen eine Tageszeile, deren Zahlen sich von Hand aus `access.log.1` nachrechnen lassen — `stat` davor und danach. **Berichtigt am 24. September** (`docs/134 §0` Punkt 1): nachgerechnet wird über **alle** Dateien der Domain, an einem Tag mit mindestens einer Zeile vor der Rotation. Aus `access.log.1` allein bestätigt die Nachrechnung den Fehler, den sie finden soll; der Wortlaut steht in `docs/134 §6`. |
 | **B3** | Nach dreissig Nächten stehen dreissig Zeilen je Abo und Kennzahl, und die einunddreissigste Nacht löscht die erste. |
 | **B4** | Fünf Kacheln auf der Abo-Seite und drei auf der Domainseite, mit Bild in beiden Themes und bei 390 px, dazu die Zahl daneben. |
 | **B5** | Ein Kunde, dessen Kontingent überschritten wird, bekommt genau eine Mail — und der Betreiber sieht, dass sie zugestellt wurde. |

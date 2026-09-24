@@ -1710,7 +1710,18 @@ Systembenutzer wird über `number` gefragt und **nicht** über seine Abschrift �
 die wiederholt sich bei jeder Wiederherstellung, weil Form A den Namen freigibt
 und die nächste Nummer vergibt; der Fall darüber belegt die Voraussetzung mit
 zwei `claim()` auf denselben Namen, gelesen wird ohne Kommentare, und die
-Dateiliste kommt aus dem Baum und nicht aus einer Liste im Test). Der Bruch selbst steht als
+Dateiliste kommt aus dem Baum und nicht aus einer Liste im Test) und
+`TrafficRotationTest` (ein Tag überlebt die Rotation in **jeder** Reihenfolge
+zweier Nächte — gezählt, aufgeteilt und abgelegt mit den echten Teilen bis in
+die Datenbank, nachgebaut ist allein das Umbenennen, und die Dateinamen stehen
+als Wörter und nicht als Konstanten des Lesers, weil ein Nachbau, der sie beim
+Leser borgt, einer falsch umbenannten Konstante mitfolgt; die Zeile vor der
+Rotation ist der Prüfkörper, ohne den auch die alte Fassung nichts verlor) und
+`TrafficReportSeamTest` (der Nachtlauf liest aus der Antwort von
+`web.access.count` nur, was die Operation schreibt — das Geschriebene kommt aus
+einem echten Aufruf von `execute()`, das Gelesene aus dem Quelltext ohne
+Kommentare, und zwei Untergrenzen halten fest, dass beide Seiten überhaupt
+etwas liefern). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -5371,6 +5382,40 @@ Kopf von {@see WebAccessCount}: Der Lauf liest `access.log` **und**
 `access.log.1` und ist damit von der Rotationszeit unabhängig — und sein
 Aufrufer muss je Tag überschreiben statt addieren, weil er regelmässig Tage
 bekommt, die er schon hat.
+
+**Nachgetragen am 24. September 2026: Das „unabhängig" stimmt nicht**
+(`docs/134 §0` Punkt 2). Es gilt für eine Rotation um Punkt Mitternacht. Dreht
+logrotate um 00:02, stehen die ersten zwei Minuten eines Tages in der Datei des
+Vortags und am nächsten Morgen in `access.log.2.gz`, die niemand liest; und wer
+den Tag zweimal sieht, überschreibt die vollständige Sicht mit der
+unvollständigen. Nachgebaut mit den echten Teilen in
+`tests/tageswechsel-nachbauen.sh`.
+
+> **Wer nach dem Tag in der Zeile gruppiert, muss jede Datei lesen, in der
+> dieser Tag stehen kann — und bei einer Rotation nach Mitternacht sind das
+> drei und nicht zwei.**
+
+**Behoben am selben Tag, in zwei Hälften, und jede ist nötig.** Der Lauf liest
+`access.log.2.gz` mit, und sein Aufrufer legt nur noch den **Vortag** ab — der
+steht in jeder Sicht der Nacht danach vollständig da, vor wie nach der Rotation.
+`TrafficRotationTest` fährt beides durch zwei Nächte in allen vier Reihenfolgen:
+Vorher hielt eine, ohne die gepackte Datei scheitern zwei, ohne die Vortagsregel
+zwei **andere**. Das Überschreiben aus dem Absatz darüber bleibt richtig; es
+trifft jetzt nur noch Sichten, die alle vollständig sind.
+
+> **Ein Lauf, der denselben Tag mehrfach sieht und überschreibt, behält die
+> letzte Sicht — und die letzte ist nicht die vollständigste.**
+
+**Und die Behebung hat einen stillen Weg mitgebracht, den erst das Nachmessen
+fand.** Gelesen wird die gepackte Datei über den Datenstrom `compress.zlib://`.
+Fehlt er — `/opt/srvpanel/bin/php` kann ein anderes PHP starten als
+`php8.4-cli` —, gibt `countFile()` für sie null Zeilen und null unlesbare,
+gemessen mit abgemeldetem Datenstrom. Der Kopf jedes Tages wäre wieder fort, und
+keine Zahl sagte es. `WebAccessCount::overRoot()` verweigert seitdem, bevor es
+liest; durch den echten Socket gemessen endet `srvpanel:traffic` dann mit rc=1.
+
+> **Ein Datenstrom, den es nicht gibt, macht aus einer Datei eine leere — und
+> eine leere Datei ist kein Fehler.**
 
 **Und `rotate 14` steht schon da.** `WebLogrotate` schreibt `daily`, `rotate
 14`, `delaycompress` und `create 0640 <benutzer> adm` nach `/etc/logrotate.d`,

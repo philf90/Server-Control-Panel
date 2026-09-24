@@ -32413,3 +32413,124 @@ steht deshalb hier auch nicht als Erklärung.
 neuen Wächter als `nobody` mit eigenem `TMPDIR` gefahren — 54 von 54, dieselben
 250 Zusicherungen wie als root. Der Unterschied ist eine Warnung über
 `.phpunit.result.cache`, die root gehört.
+
+### Der Abnahmelauf für B2 steht ausgeschrieben — und der Nachtlauf verliert den Kopf jedes Tages
+
+`docs/134` ist vor dem Fahren geschrieben. §0 nennt sieben Zeilen, die dabei
+umgefallen sind, und zwei davon betreffen nicht den Lauf, sondern den Prüfling.
+
+**Der Nachtlauf verliert, was ein Tag vor der Rotation schreibt.**
+`web.access.count` liest `access.log` und `access.log.1` und gilt damit als
+unabhängig davon, wann logrotate dreht — drei Kommentare sagen es. Das stimmt
+für eine Rotation um Punkt Mitternacht. `logrotate.timer` dreht irgendwann in
+der Stunde danach, und was ein Tag bis dahin schreibt, steht am nächsten Morgen
+in `access.log.2.gz`. Kommt der Lauf nach der Rotation, fehlt der Kopf; kommt er
+davor, sieht die nächste Nacht den Tag womöglich noch einmal und überschreibt die
+vollständige Sicht mit der unvollständigen. Auf `cloudsrv24` kommt der Lauf in
+mindestens 92 von 100 Nächten nach der Rotation.
+
+`tests/tageswechsel-nachbauen.sh` baut es mit den echten Teilen nach — Vorlage,
+logrotate, Zähler, Aufteilung —, und seine Gegenprobe ohne Zeile vor der Rotation
+sagt, warum es niemand gesehen hat: Ohne Kopf verliert der Lauf nichts.
+
+> **Ein Lauf, der denselben Tag mehrfach sieht und überschreibt, behält die
+> letzte Sicht — und die letzte ist nicht die vollständigste.**
+
+**Und das Kriterium hätte den Fehler bestätigt.** „Von Hand aus `access.log.1`
+nachrechnen" liest dieselbe Datei wie der Prüfling und fand im Nachbau genau die
+drei Anfragen, die abgelegt waren — von vier. Nachgerechnet wird jetzt über alle
+Dateien, an einem Tag mit mindestens einer Zeile vor der Rotation; `docs/129 §9`
+verweist darauf.
+
+> **Ein Kriterium, das an derselben Datei nachzählt wie der Prüfling, erbt
+> dessen Lücke — und bestätigt sie.**
+
+**Behoben ist davon nichts**, und das ist Absicht: Was daraus folgt — mehr
+Dateien lesen, nur den Vortag ablegen oder beides —, ist eine Frage an den Bau
+und nicht an den Abnahmelauf. Daneben steht in jedem Nachtlauf eine zweite Zeile
+„Laufender Tag" mit `(Zeitzone unbekannt)`: ein Leser, dem `bd5611bb` den
+Schreiber genommen hat.
+
+**Die Vorschrift ist im Container gefahren, wörtlich aus dem Dokument gezogen**,
+gegen das echte nginx mit einem Block aus `SiteTemplate::render()` und mit der
+echten Zählkette bis in eine Wegwerf-Datenbank. Zwei Griffe an systemd sind dabei
+gefallen, bevor sie auf dem Server standen: `--timestamp=unix` wirkt auf
+`systemctl show` nicht, und ein transienter Timer ist nach dem Feuern fort — mit
+ihm sein `LastTriggerUSec`.
+
+### B2 ist behoben — der Nachtlauf liest drei Dateien und legt nur den Vortag ab
+
+**Entschieden am 24. September 2026: zuerst beheben, dann den Abnahmelauf
+fahren.** Behoben ist der Fehler aus `docs/134 §0` Punkt 2 in zwei Hälften, und
+jede ist nötig:
+
+- **`web.access.count` liest `access.log.2.gz` mit**, gepackt über den
+  Datenstrom `compress.zlib://`, mit derselben Schleife und demselben
+  Zeilenleser. Gemessen gleich teuer wie ungepackt: 200 000 Zeilen in 0,255 s
+  gegen 0,252 s.
+- **`srvpanel:traffic` legt nur noch den Vortag ab.** `AccessCounts::split()`
+  kennt einen vierten Topf, `earlier`, und fragt ihn **vor** dem Format — sonst
+  stünde der Übergangstag eine Nacht später ein zweites Mal unter
+  „übersprungen", mit dem Rat, einen Block umzustellen, der längst umgestellt
+  ist.
+
+Mit drei Dateien steht der Vortag in jeder Sicht der Nacht danach vollständig
+da, vor wie nach der Rotation. Mit der Vortagsregel überschreibt keine spätere,
+unvollständige Sicht mehr eine frühere.
+
+**`TrafficRotationTest` hält beides zusammen**, weil keine Hälfte es allein
+kann: ein Tag mit einer Zeile vor der Rotation und drei danach, durch zwei
+Nächte in allen vier Reihenfolgen, mit den echten Teilen bis in die Datenbank.
+Vorher hielt eine der vier. Ohne die gepackte Datei scheitern zwei, ohne die
+Vortagsregel zwei **andere**. Der Nachbau mit dem echten logrotate
+(`tests/tageswechsel-nachbauen.sh`) gibt danach in allen drei Reihenfolgen
+`4 von 4`, und am Morgen des 23. stehen abgelegt und über alle Dateien
+nachgezählt dieselben 4 Anfragen und 26 000 Bytes. Gegen den Stand davor
+gefahren, gibt er die Tabelle aus `docs/134` Zeile für Zeile wieder.
+
+> **Ein Lauf, der denselben Tag mehrfach sieht und überschreibt, behält die
+> letzte Sicht — und die letzte ist nicht die vollständigste.**
+
+**Und die Behebung hat einen stillen Weg mitgebracht, den erst das Nachmessen
+fand.** Fehlt dem PHP des Agenten der Datenstrom, gibt die gepackte Datei null
+Zeilen und null unlesbare — gemessen mit abgemeldetem Datenstrom, daneben nur
+zwei Warnungen von PHP. In `php8.4-cli` ist zlib eingebaut, aber
+`/opt/srvpanel/bin/php` kann ein anderes PHP starten. `WebAccessCount::overRoot()`
+verweigert deshalb, bevor es liest. Über den echten Socket gemessen endet
+`srvpanel:traffic` dann mit „Zählung scheiterte" und rc=1 statt mit einer halben
+Zahl; derselbe Agent mit dem Datenstrom endet mit rc=0. `PackagedExtensionTest`
+führt zlib seitdem als eingebaut, mit der Messung dazu.
+
+> **Ein Datenstrom, den es nicht gibt, macht aus einer Datei eine leere — und
+> eine leere Datei ist kein Fehler.**
+
+**Die zweite Zeile „Laufender Tag" ist fort.** Sie las `$result['timezone']`,
+und das schreibt der Agent seit `bd5611bb` nicht mehr. `TrafficReportSeamTest`
+hält seitdem, dass der Nachtlauf nur liest, was die Operation schreibt: das
+Geschriebene aus einem echten Aufruf von `execute()`, das Gelesene aus dem
+Quelltext ohne Kommentare. Roh gelesen wäre er rot, weil der Absatz, der die
+Behebung erklärt, den alten Schlüssel wörtlich nennt.
+
+**Vier Stellen trugen die Zusage, die Reihenfolge von Zähllauf und Rotation sei
+gleichgültig** — `WebAccessCount`, `Site`, `CollectTraffic` und
+`packaging/systemd/srvpanel-traffic.timer`. Sie stehen jetzt als Geschichte da.
+Im Timer fiel dabei eine zweite Zeile: `Persistent=true` war mit „`access.log.1`
+liegt vierzehn Tage" begründet — vierzehn Tage liegen die gedrehten Dateien
+zusammen, `.1` ist die jüngste. Und `CollectTraffic` sagte in seinem Kopf noch
+„Er legt noch nichts ab", seit B3 falsch.
+
+**Elf neue Eingriffe im Bruchskript**, zwei Anker sind umgezogen. Einzeln
+gefahren beissen alle, und nach der Weigerung sind die 21 Eingriffe, deren
+Dateien oder Wächter sie berührt, noch einmal einzeln gelaufen: 21 von 21, jede
+Rücksetzung wieder grün.
+
+**`docs/134` fragt jetzt zuerst die installierte Fassung** (§1 Block 0b), am
+geladenen Code und nicht an seinem Text, gemessen gegen beide Stände. Die Punkte
+4 bis 6 nennen neben der Erwartung, was eine Fassung ohne die Behebung zeigt.
+
+**Was offen bleibt:** Keine Freigabe trägt die Behebung, und keiner ihrer Wege
+hat einen Server gesehen — das tut der Abnahmelauf, nach einem Tag des
+Betreibers. Nicht abgedeckt sind drei Fälle, alle hergeleitet und nicht
+gemessen: ein Tag, nach dem einen ganzen Tag lang kein Lauf kommt (eine Lücke,
+so entworfen), eine zweite Rotation am selben Tag und ein Lauf, der sich mit
+der Rotation überschneidet.

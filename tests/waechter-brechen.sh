@@ -4681,7 +4681,7 @@ vorher_datei agent/src/Ops/WebAccessCount.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/WebAccessCount.php'
 s = open(p, encoding='utf-8').read()
-alt = 'foreach ([Site::ACCESS_LOG, Site::ROTATED_ACCESS_LOG] as $name) {'
+alt = 'foreach ([Site::ACCESS_LOG, Site::ROTATED_ACCESS_LOG, Site::SECOND_ROTATED_ACCESS_LOG] as $name) {'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, 'foreach ([Site::ACCESS_LOG] as $name) {', 1))
 PY2
@@ -4877,13 +4877,16 @@ echo "── TrafficEraTest: der laufende Tag wird als falsch formatiert gemelde
 # Die Reihenfolge der beiden Gruende traegt mit: Ein laufender Tag mit alten
 # Zeilen ist "noch offen". Andersherum meldete der Lauf jede Nacht eine
 # Domain als falsch formatiert, deren heutiger Tag schlicht noch laeuft.
+#
+# Seit dem 24. September steht zwischen beiden Fragen die nach dem Vortag;
+# der Eingriff macht deshalb die Offen-Frage selbst vom Format abhaengig.
 vorher_datei app/Support/Web/AccessCounts.php
 python3 - <<'PY2'
 p = 'app/Support/Web/AccessCounts.php'
 s = open(p, encoding='utf-8').read()
-alt = "                if ($tag >= $today) {\n                    $offen[] = ['subscription' => $abonnement, 'domain' => $domain, 'day' => $tag];\n\n                    continue;\n                }\n\n                $alt = (int) ($werte['legacy'] ?? 0);\n\n                if ($alt > 0) {"
+alt = "                if ($tag >= $today) {\n                    $offen[] = ['subscription' => $abonnement, 'domain' => $domain, 'day' => $tag];\n\n                    continue;\n                }"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, "                $alt = (int) ($werte['legacy'] ?? 0);\n\n                if ($tag >= $today && $alt === 0) {\n                    $offen[] = ['subscription' => $abonnement, 'domain' => $domain, 'day' => $tag];\n\n                    continue;\n                }\n\n                if ($alt > 0) {", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                if ($tag >= $today && (int) ($werte['legacy'] ?? 0) === 0) {\n                    $offen[] = ['subscription' => $abonnement, 'domain' => $domain, 'day' => $tag];\n\n                    continue;\n                }", 1))
 PY2
 griff_datei app/Support/Web/AccessCounts.php "laufender Tag als Formatfehler" &&
 pruefe "laufender Tag als Formatfehler" \
@@ -35491,6 +35494,229 @@ pruefe "Marke ohne Grund" \
   UnitNameReachTest::test_every_exemption_carries_a_reason failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UnitNameReachTest passed
+
+
+echo
+echo "── AccessCountTest: die gepackte Datei fällt aus der Liste ──"
+#
+# Nach der Rotation steht der Kopf des gestrigen Tages in access.log.2.gz
+# (docs/134 §0 Punkt 2). Bis zum 24. September las der Zaehler sie nicht, und
+# jeder Tag, der nach der Rotation gezaehlt wurde, verlor seinen Anfang.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = 'foreach ([Site::ACCESS_LOG, Site::ROTATED_ACCESS_LOG, Site::SECOND_ROTATED_ACCESS_LOG] as $name) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'foreach ([Site::ACCESS_LOG, Site::ROTATED_ACCESS_LOG] as $name) {', 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "gepackte Datei fällt aus der Liste" &&
+pruefe "gepackte Datei fällt aus der Liste" \
+  AccessCountTest::test_the_second_rotated_file_is_read_packed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
+echo "── AccessCountTest: gepackt wird gelesen wie ungepackt ──"
+#
+# Ohne den Datenstrom von zlib gibt eine .gz mit drei Zeilen eine einzige Zeile
+# Unrat (gemessen am 24. September). Der Tag saehe aus wie einer mit weniger
+# Verkehr, und nur die Zahl unlesbarer Zeilen wuesste es.
+vorher_datei agent/src/Web/AccessLog.php
+python3 - <<'PY2'
+p = 'agent/src/Web/AccessLog.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $handle = fopen(str_ends_with($path, '.gz') ? 'compress.zlib://'.$path : $path, 'r');"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        $handle = fopen($path, 'r');", 1))
+PY2
+griff_datei agent/src/Web/AccessLog.php "gepackt wie ungepackt gelesen" &&
+pruefe "gepackt wie ungepackt gelesen" \
+  AccessCountTest::test_the_second_rotated_file_is_read_packed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
+echo "── TrafficRotationTest: nur die gepackte Datei fehlt ──"
+#
+# Die erste Haelfte der Behebung allein. Kommt der Zaehllauf in der ersten
+# Nacht nach der Rotation, fehlt dem Tag sein Kopf — in zwei der vier
+# Reihenfolgen zweier Naechte.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = 'foreach ([Site::ACCESS_LOG, Site::ROTATED_ACCESS_LOG, Site::SECOND_ROTATED_ACCESS_LOG] as $name) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'foreach ([Site::ACCESS_LOG, Site::ROTATED_ACCESS_LOG] as $name) {', 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "Tageswechsel ohne gepackte Datei" &&
+pruefe "Tageswechsel ohne gepackte Datei" \
+  TrafficRotationTest::test_a_day_is_recorded_whole_in_every_order failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficRotationTest passed
+
+echo
+echo "── TrafficEraTest: jeder fertige Tag wird wieder abgelegt ──"
+#
+# Aelter als der Vortag heisst: Der Kopf des Tages liegt schon ausserhalb der
+# drei gelesenen Dateien. Wer ihn trotzdem ablegt, ueberschreibt eine
+# vollstaendige Zahl mit einer halben.
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+alt = '                if ($tag < $gestern) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '                if (false && $tag < $gestern) {', 1))
+PY2
+griff_datei app/Support/Web/AccessCounts.php "jeder fertige Tag wieder abgelegt" &&
+pruefe "jeder fertige Tag wieder abgelegt" \
+  TrafficEraTest::test_only_yesterday_is_countable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficEraTest passed
+
+echo
+echo "── TrafficRotationTest: nur die Vortagsregel fehlt ──"
+#
+# Die zweite Haelfte der Behebung allein. Kommt der Zaehllauf in der zweiten
+# Nacht nach der Rotation, sieht er den Tag ohne Kopf und ueberschreibt ihn —
+# wieder in zwei der vier Reihenfolgen, und in anderen als oben.
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+alt = '                if ($tag < $gestern) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '                if (false && $tag < $gestern) {', 1))
+PY2
+griff_datei app/Support/Web/AccessCounts.php "Tageswechsel ohne Vortagsregel" &&
+pruefe "Tageswechsel ohne Vortagsregel" \
+  TrafficRotationTest::test_a_day_is_recorded_whole_in_every_order failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficRotationTest passed
+
+echo
+echo "── TrafficEraTest: der Vortag als Zeichenkette ──"
+#
+# "Tag minus eins" an der Zeichenkette gibt am ersten eines Monats den nullten.
+# Innerhalb eines Monats sieht die Rechnung richtig aus — der Fall ueber den
+# Monatswechsel gibt es genau dafuer.
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $gestern = (new DateTimeImmutable($today, new DateTimeZone('UTC')))->modify('-1 day')->format('Y-m-d');"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        $gestern = substr($today, 0, 8).sprintf('%02d', (int) substr($today, 8) - 1);", 1))
+PY2
+griff_datei app/Support/Web/AccessCounts.php "Vortag als Zeichenkette" &&
+pruefe "Vortag als Zeichenkette" \
+  TrafficEraTest::test_yesterday_crosses_a_month failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficEraTest passed
+
+echo
+echo "── TrafficEraTest: die Formatfrage kommt vor der Vortagsfrage ──"
+#
+# Der Uebergangstag liegt eine Nacht spaeter noch in .2.gz. Fragt der Lauf
+# zuerst nach dem Format, meldet er ihn ein zweites Mal als uebersprungen —
+# mit dem Rat, einen Block umzustellen, der laengst umgestellt ist.
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+alt = "                if ($tag < $gestern) {\n                    $frueher[] = ['subscription' => $abonnement, 'domain' => $domain, 'day' => $tag];\n\n                    continue;\n                }\n\n"
+anker = '                $zaehlbar[] = ['
+assert s.count(alt) == 1 and s.count(anker) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, '', 1)
+open(p, 'w', encoding='utf-8').write(s.replace(anker, alt + anker, 1))
+PY2
+griff_datei app/Support/Web/AccessCounts.php "Formatfrage vor der Vortagsfrage" &&
+pruefe "Formatfrage vor der Vortagsfrage" \
+  TrafficEraTest::test_an_earlier_day_with_legacy_lines_is_not_reported_as_skipped failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficEraTest passed
+
+echo
+echo "── TrafficReportSeamTest: der alte Leser ist zurück ──"
+#
+# Genau die Zeile, die jede Nacht "(Zeitzone unbekannt)" druckte: ein Leser,
+# dem bd5611bb den Schreiber genommen hat.
+vorher_datei app/Console/Commands/CollectTraffic.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/CollectTraffic.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $totals = is_array($result['totals'] ?? null) ? $result['totals'] : [];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt + "\n        $this->line('  Zone laut Agent: '.(is_string($result['timezone'] ?? null) ? $result['timezone'] : 'Zeitzone unbekannt'));"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Console/Commands/CollectTraffic.php "alter Leser zurück" &&
+pruefe "alter Leser zurück" \
+  TrafficReportSeamTest::test_the_nightly_run_reads_only_what_the_operation_writes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TrafficReportSeamTest passed
+
+echo
+echo "── PackagedExtensionTest: zlib ohne Messung ──"
+#
+# zlib benutzen der Dump, der Import eines Dumps und seit dem 24. September der
+# Zaehler der Zugriffsprotokolle. Es gibt kein Paket php8.4-zlib — die
+# Erweiterung ist eingebaut, und genau das muss als Messung dastehen.
+vorher_datei tests/Unit/PackagedExtensionTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/PackagedExtensionTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'zlib' => 'Eingebaut — in `/usr/lib/php/20240924` liegt keine `zlib.so`, und `php -i` meldet '.\n            '`ZLib Support => enabled`; gemessen am 24. September 2026 an `php8.4-cli` 8.4.19.',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei tests/Unit/PackagedExtensionTest.php "zlib ohne Messung" &&
+pruefe "zlib ohne Messung" \
+  PackagedExtensionTest::test_every_extension_the_code_uses_is_named_in_the_packaging failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PackagedExtensionTest passed
+
+echo
+echo "── AccessCountTest: ohne zlib wird halb gezählt ──"
+#
+# Die Weigerung faellt weg. Ohne den Datenstrom gilt die gepackte Datei dann
+# als leer, und jedem Tag fehlt still sein Kopf — derselbe Fehler, den die
+# Behebung vom 24. September schliesst, nur aus einem anderen Grund.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! in_array('compress.zlib', stream_get_wrappers(), true)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        if (false) {', 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "ohne zlib halb gezählt" &&
+pruefe "ohne zlib halb gezählt" \
+  AccessCountTest::test_without_zlib_nothing_is_counted_instead_of_half failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
+echo "── AccessCountTest: die Weigerung greift immer ──"
+#
+# Die Gegenprobe des Waechters. Eine Weigerung, die auch mit zlib greift,
+# zaehlte nie etwas — und ohne die erste Behauptung im Fall saehe sie aus wie
+# eine, die richtig greift.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! in_array('compress.zlib', stream_get_wrappers(), true)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        if (true) {', 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "Weigerung greift immer" &&
+pruefe "Weigerung greift immer" \
+  AccessCountTest::test_without_zlib_nothing_is_counted_instead_of_half failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
 
 
 echo

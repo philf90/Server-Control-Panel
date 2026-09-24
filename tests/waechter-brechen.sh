@@ -20612,6 +20612,48 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
 
 echo
+echo "── CountedNounTest: der Betreff der Betreibermail klebt die Zahl ans Wort ──"
+#
+# Bis zum 24. September 2026 hielt diese Zeile kein Waechter: Zwischen Zahl und
+# Hauptwort steht „neue", und die Muster der Klasse suchen eine Zahl direkt vor
+# dem Mehrzahlwort. Gebrochen wird die Form, die ein Aufraeumen am ehesten
+# erzeugt — die Zahl immer davor, auch vor einem einzigen Befund
+# („SrvPanel — 1 neue Befunde auf …").
+vorher_datei app/Mail/DiagnoseReport.php
+python3 - <<'PY2'
+p = 'app/Mail/DiagnoseReport.php'
+s = open(p, encoding='utf-8').read()
+alt = "$anzahl === 1 ? 'ein neuer Befund' : $anzahl.' neue Befunde',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$anzahl.' neue Befunde',", 1))
+PY2
+griff_datei app/Mail/DiagnoseReport.php "Betreff: die Zahl klebt am Wort" &&
+pruefe "Betreff: die Zahl klebt am Wort" \
+  CountedNounTest::test_the_subject_of_the_operator_mail_fits_its_count failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
+
+echo
+echo "── CountedNounTest: der Betreff der Betreibermail kennt nur die Einzahl ──"
+#
+# Die Gegenrichtung: „ein neuer Befund" auch ueber zwei Befunde. Faellt dieser
+# Eingriff nicht auf, prueft der Waechter nur den einen Fall — und bestuende
+# genau den Fehler, gegen den der andere steht.
+vorher_datei app/Mail/DiagnoseReport.php
+python3 - <<'PY2'
+p = 'app/Mail/DiagnoseReport.php'
+s = open(p, encoding='utf-8').read()
+alt = "$anzahl === 1 ? 'ein neuer Befund' : $anzahl.' neue Befunde',"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'ein neuer Befund',", 1))
+PY2
+griff_datei app/Mail/DiagnoseReport.php "Betreff: nur noch die Einzahl" &&
+pruefe "Betreff: nur noch die Einzahl" \
+  CountedNounTest::test_the_subject_of_the_operator_mail_fits_its_count failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CountedNounTest passed
+
+echo
 echo "── UnattendedStateTest: eine fehlende Zeile als „aus\" gelesen ──"
 #
 # apt.systemd.daily setzt AutoAptEnable=1 (# default is yes). Wer aus dem

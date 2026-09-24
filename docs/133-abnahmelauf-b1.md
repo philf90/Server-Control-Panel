@@ -1096,6 +1096,22 @@ bei der Mail, und dasselbe noch einmal für die Entwarnung.
   der Einzahl; beide Briefe liegen im Postfach, **gelesen hat sie niemand**.
   Gemessen ist, dass genau eine Mail je Lauf hinausging — nicht, wie ihre
   Betreffzeile lautet.
+
+  **Nachgetragen am 24. September 2026 — zur Hälfte.** Der Betreiber hat eine
+  Mail mit **einem** Befund aus dem Postfach vorgelegt. Es ist nicht die aus
+  Punkt 3, sondern eine spätere: Ihre Befundzeile trägt „steht seit 2026-09-22
+  20:35:34", und die Befunde bis einschliesslich Punkt 4 stammen vom Vortag.
+  Ihr Betreff lautet „SrvPanel — ein neuer Befund auf cloudsrv24.de", wie
+  `DiagnoseReport::envelope()` es vorsieht. Die **Mehrzahl** hat weiterhin
+  niemand im Postfach gelesen.
+
+  Gehalten werden beide Formen seitdem von
+  `CountedNounTest::test_the_subject_of_the_operator_mail_fits_its_count` —
+  ein Wächter über die Vorlage, **keine Ablesung am Server**. Bis dahin hielt
+  die Zeile nichts: Die Muster des Wächters suchen eine Zahl direkt vor dem
+  Mehrzahlwort, und im Betreff steht „neue" dazwischen. Gemessen am Eingriff
+  `sprintf('SrvPanel — %d neue Befunde auf %s', …)`: Die sieben vorhandenen
+  Prüfungen der Klasse bleiben grün, der neue Test fällt.
 - **Die vier Empfänger, die der Betreiber nicht hat.** Punkt 11 belegt, dass
   Slack und Telegram richtig **abgelegt** werden; ob sie den Rumpf annehmen,
   sagt dieser Lauf nicht.

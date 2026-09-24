@@ -1097,13 +1097,25 @@ bei der Mail, und dasselbe noch einmal für die Entwarnung.
   Gemessen ist, dass genau eine Mail je Lauf hinausging — nicht, wie ihre
   Betreffzeile lautet.
 
-  **Nachgetragen am 24. September 2026 — zur Hälfte.** Der Betreiber hat eine
-  Mail mit **einem** Befund aus dem Postfach vorgelegt. Es ist nicht die aus
-  Punkt 3, sondern eine spätere: Ihre Befundzeile trägt „steht seit 2026-09-22
-  20:35:34", und die Befunde bis einschliesslich Punkt 4 stammen vom Vortag.
-  Ihr Betreff lautet „SrvPanel — ein neuer Befund auf cloudsrv24.de", wie
-  `DiagnoseReport::envelope()` es vorsieht. Die **Mehrzahl** hat weiterhin
-  niemand im Postfach gelesen.
+  **Nachgetragen am 24. September 2026 — beide Formen gelesen.** Der Betreiber
+  hat zwei Mails aus dem Postfach vorgelegt, und beide Betreffzeilen stimmen
+  mit `DiagnoseReport::envelope()` überein:
+
+  - **Die Mehrzahl ist genau die Mail aus Punkt 6.** Eingegangen am Dienstag,
+    dem 22. September; darin die beiden Befunde aus Punkt 4,
+    `srvpanel-dns.timer` ohne nächsten Termin und `srvpanel-metrics.service`,
+    der nicht läuft, beide „steht seit 2026-09-21 22:09:39". Betreff:
+    „SrvPanel — 2 neue Befunde auf cloudsrv24.de". Eine zweite Mail mit
+    diesen beiden Zeilen kann es nicht geben — jede wird einmal verschickt.
+  - **Die Einzahl ist nicht die aus Punkt 3, sondern eine spätere.** Ihre
+    Befundzeile trägt „steht seit 2026-09-22 20:35:34", und die Befunde bis
+    einschliesslich Punkt 4 stammen vom Vortag. Betreff: „SrvPanel — ein
+    neuer Befund auf cloudsrv24.de".
+
+  **Die Mail zeigt Ortszeit, die Zeiten mit `Z` in §7 sind UTC.** Dieselben
+  beiden Befunde aus Punkt 4 stehen in §7 mit `2026-09-21T20:09:39Z` und in
+  der Mail mit `22:09:39` — zwei Stunden später, Sommerzeit. Wer eine solche
+  Zeit mit einer Mail vergleicht, rechnet sie dazu.
 
   Gehalten werden beide Formen seitdem von
   `CountedNounTest::test_the_subject_of_the_operator_mail_fits_its_count` —

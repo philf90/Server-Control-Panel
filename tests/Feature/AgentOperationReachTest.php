@@ -142,7 +142,7 @@ final class AgentOperationReachTest extends TestCase
          * Bestand, den er führte, und keinen Vorgang, den jemand ausgelöst hat.
          * Er läuft einmal in der Nacht über alle Abonnements und liest.
          *
-         * **Der Eintrag in {@see self::UNREACHED} ist am 21. September 2026
+         * **Der Eintrag in {@see self::UNREACHED} ist am 20. September 2026
          * wieder verschwunden**, und zwar nicht aus Ordnungsliebe: Er trug
          * seine Auflösungsbedingung — „mit dem Nachtlauf" —, und
          * `test_the_list_of_unreached_operations_does_not_outlive_them` hat

@@ -665,7 +665,7 @@ final class WebhookTransportTest extends TestCase
      *
      * **Das ist die zweite Hälfte der Naht.** Dass der Chat in der Datei
      * steht, sagt noch nicht, dass die Meldung ihn trägt — und genau
-     * dazwischen ist am 24. September 2026 der Empfänger verlorengegangen.
+     * dazwischen ist am 21. September 2026 der Empfänger verlorengegangen.
      *
      * > **Ein Wert, der abgelegt ist, wird zu einer Auskunft erst durch die
      * > Stelle, die ihn liest.**
@@ -822,7 +822,7 @@ final class WebhookTransportTest extends TestCase
     public function test_an_unknown_receiver_is_refused(): void
     {
         /*
-         * **Der Prüfkörper hiess bis zum 24. September 2026 `telegram`** — und
+         * **Der Prüfkörper hiess bis zum 21. September 2026 `telegram`** — und
          * an dem Tag kam Telegram dazu. Der Fall blieb grün, aber aus einem
          * anderen Grund: Er scheiterte an der fehlenden Angabe statt am
          * unbekannten Empfänger, und sein Eingriff biss nicht mehr.

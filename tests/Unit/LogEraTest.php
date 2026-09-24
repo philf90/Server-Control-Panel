@@ -133,7 +133,7 @@ final class LogEraTest extends TestCase
      * Domain sähen sonst gleich aus.
      *
      * **Der Tag steht trotzdem da, mit Nullen und seinem `legacy`.** Bis zum
-     * 21. September 2026 gab diese Datei `days => []` zurück — „diesen Tag
+     * 20. September 2026 gab diese Datei `days => []` zurück — „diesen Tag
      * gibt es nicht". Für den Nachtlauf aus `docs/129 §5` ist das die falsche
      * Auskunft: Er muss einen Tag, der alte Zeilen trägt, **überspringen** und
      * dafür wissen, dass es ihn gibt.

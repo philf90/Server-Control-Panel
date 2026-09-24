@@ -34,7 +34,7 @@ use Throwable;
  * > **Ein Kanal, der alles an alle trägt, hat keinen Empfänger, sondern eine
  * > Verteilerliste.**
  *
- * Bis zum 24. September 2026 trug dieser Kanal **nur** die
+ * Bis zum 21. September 2026 trug dieser Kanal **nur** die
  * Kontingentbefunde — B5 hatte keinen zweiten Empfänger, und die übrigen
  * Prüfungen hatten keinen Weg nach draussen. Mit B1 haben sie zwei.
  *

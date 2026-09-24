@@ -31,7 +31,7 @@ use Tests\TestCase;
  *
  * `NotificationLedgerTest` misst, dass **höchstens einmal** gemeldet wird, und
  * {@see NoticeAudienceTest}, **an wen**. Über das Ende eines Befundes sagte bis
- * zum 24. September 2026 keiner von beiden etwas — es gab es nicht:
+ * zum 21. September 2026 keiner von beiden etwas — es gab es nicht:
  * {@see FindingLog::forgetMissing()} löschte die Zeile, und mit ihr die
  * Erinnerung an die Zustellung.
  *

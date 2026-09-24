@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Die Erinnerung an die Zustellung, je Kanal (B5 und B1, `docs/129 §4` Punkt 1).
  *
- * **Hier stand bis zum 24. September 2026 eine Spalte `notified_at` an
+ * **Hier stand bis zum 21. September 2026 eine Spalte `notified_at` an
  * `findings`**, und `docs/129 §4` Punkt 1 bietet beide Formen an: *„Eine Spalte
  * `notified_at` an `findings` — oder, wenn mehrere Kanäle je Befund getrennt
  * buchen sollen, eine eigene kleine Tabelle."* Die Spalte war richtig, solange

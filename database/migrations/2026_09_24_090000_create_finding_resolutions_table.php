@@ -10,10 +10,20 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Dass ein gemeldeter Befund wieder verschwunden ist (B1).
  *
+ * **Der Dateiname nennt den 24., der Text den 21. — und das bleibt so.** Der
+ * Name ist ein Sortierschlüssel und kein Datum; er stand falsch da, als die
+ * Datei entstand, und sie ist auf `cloudsrv24` unter diesem Namen bereits
+ * angewandt. Ein Umbenennen machte daraus für jeden Server, der sie schon hat,
+ * eine *zweite*, neue Wanderung — und die fiele über die Tabelle, die es dann
+ * schon gibt.
+ *
+ * > **Ein Name, den eine fremde Maschine schon gespeichert hat, ist keine
+ * > Angabe mehr, sondern ein Schlüssel.**
+ *
  * ## Warum es diese Tabelle gibt
  *
  * `finding_notifications` sagt, dass gemeldet wurde. Dass etwas **behoben** ist,
- * sagte bis zum 24. September 2026 niemand: {@see FindingLog::forgetMissing()}
+ * sagte bis zum 21. September 2026 niemand: {@see FindingLog::forgetMissing()}
  * löscht die Zeile, und damit verschwindet auch die Erinnerung an die
  * Zustellung. Ein Empfänger, der Vorfälle verwaltet, behält den Vorfall dann
  * für immer offen.

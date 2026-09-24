@@ -53,7 +53,7 @@ final class OperationDetourTest extends TestCase
     /**
      * Wie viele Stellen mindestens einen Vorgang absetzen.
      *
-     * Gemessen am 23. September 2026: **19** ausserhalb von
+     * Gemessen am 21. September 2026: **19** ausserhalb von
      * {@see self::ALLOWED} haben weitergeleitet, und jede davon setzt einen
      * Vorgang ab. Die Untergrenze steht deutlich darunter — sie soll nicht die
      * Zahl festschreiben, sondern den Fall abfangen, dass der Ausdruck ins

@@ -40,6 +40,26 @@ final class FindingNotification extends Model
     protected $fillable = ['finding_id', 'channel', 'notified_at'];
 
     /**
+     * **Der Zeitpunkt ist einer und keine Zeichenkette.**
+     *
+     * Der `@property`-Block darüber sagt `Carbon`, seit es diese Klasse gibt;
+     * gecastet wurde die Spalte nicht, und larastan hat dem Block geglaubt.
+     * Aufgefallen ist es am 22. September 2026 im Abnahmelauf B1
+     * (`docs/133`, Punkt 6): `$n->notified_at->toIso8601String()` kam mit
+     * *„Call to a member function toIso8601String() on string"* zurück, bei
+     * grüner statischer Prüfung.
+     *
+     * {@see ModelPropertyTest::test_every_carbon_property_is_actually_cast()}
+     * hält die beiden ab jetzt zusammen.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return ['notified_at' => 'datetime'];
+    }
+
+    /**
      * Der Befund, der gemeldet wurde.
      *
      * @return BelongsTo<Finding, $this>

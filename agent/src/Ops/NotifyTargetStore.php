@@ -38,7 +38,7 @@ final class NotifyTargetStore implements Op
     public function execute(array $args, Context $context): array
     {
         /*
-         * **Alle vier Angaben, und das stand hier bis zum 24. September 2026
+         * **Alle vier Angaben, und das stand hier bis zum 21. September 2026
          * nicht so.** `provider` reiste vom Formular bis hierher und wurde
          * verworfen; {@see Target::store()} fiel auf seinen Vorgabewert zurück,
          * und wer Slack wählte, bekam die JSON-Form und von Slack ein `400`.

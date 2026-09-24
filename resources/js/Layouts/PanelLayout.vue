@@ -667,7 +667,7 @@ const navigation = computed<{ group: string | null; items: NavItem[] }[]>(() => 
     ] },
 
     /*
-     * **„Nach draussen" ist am 24. September 2026 aus „Einstellungen"
+     * **„Nach draussen" ist am 21. September 2026 aus „Einstellungen"
      * herausgelöst worden**, und den Anlass hat ein Wächter gegeben: Die
      * Gruppe trug acht Punkte, `NavGroupTest` setzt acht als Obergrenze, und
      * der Kommentar dort sagt seit dem 16. September wörtlich, der nächste

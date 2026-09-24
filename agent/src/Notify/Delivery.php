@@ -77,7 +77,7 @@ final class Delivery
 
         /*
          * **Welche Kopfzeilen mitgehen, entscheidet {@see Providers}.** Hier
-         * stand bis zum 24. September 2026 `Content-Type: application/json`
+         * stand bis zum 21. September 2026 `Content-Type: application/json`
          * fest — richtig, solange jeder Empfänger JSON wollte. ntfy nimmt den
          * Text selbst, und eine feste Kopfzeile behauptete dort eine Form, die
          * der Rumpf nicht hat.

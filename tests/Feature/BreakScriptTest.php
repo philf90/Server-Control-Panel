@@ -884,7 +884,7 @@ final class BreakScriptTest extends TestCase
             $headings++;
 
             /*
-             * **Je Form ihr eigenes Zeichen.** Bis zum 24. September 2026 las
+             * **Je Form ihr eigenes Zeichen.** Bis zum 21. September 2026 las
              * dieser Fall nur die doppelt zitierte Form; die andere war für
              * ihn nicht vorhanden, und ein fehlendes Schlusszeichen dort hätte
              * dasselbe angerichtet, ohne dass es jemand meldet.
@@ -1297,7 +1297,7 @@ final class BreakScriptTest extends TestCase
             /*
              * **Gesucht wird nach **beiden** Formen und nicht nach einer.**
              *
-             * Bis zum 24. September 2026 stand hier nur `echo "`. Eine
+             * Bis zum 21. September 2026 stand hier nur `echo "`. Eine
              * Überschrift in der anderen Form wurde damit nicht etwa gemeldet
              * — sie wurde **übergangen**, und der Eingriff darunter bekam die
              * Überschrift des Eingriffs davor zugeschrieben. Gefunden hat es
@@ -1348,7 +1348,7 @@ final class BreakScriptTest extends TestCase
         /*
          * **Die Zahl ist die Untergrenze und zugleich die Grenze dieses
          * Falls.** Gezählt werden Eingriffe und nicht Überschriften: Gemessen
-         * am 24. September 2026 trägt das Skript **1541** Abschnitte, und
+         * am 21. September 2026 trägt das Skript **1541** Abschnitte, und
          * **16** davon greifen ohne `vorher_datei` zu — sie setzen ihr `sed`
          * unmittelbar ab. Über deren Überschriften sagt dieser Fall nichts,
          * weil er von einem Griff aus nach oben liest und nicht von einer

@@ -11,11 +11,17 @@ Der Plan ist `docs/129 §5`. Gebaut sind das Format und der Nachtlauf
 (`srvpanel:traffic` am Timer `srvpanel-traffic.timer`), die Ablage dahinter ist
 `Daily::record()` aus B3.
 
-**Gegen die Fassung, die heute auf `cloudsrv24` liegt, fällt dieser Lauf
-voraussichtlich aus** — nicht am Server und nicht an der Vorschrift, sondern am
-Prüfling. §0 Punkt 2 sagt warum, mit einem Nachbau daneben, und §6, woran man es
-abliest. Ob der Lauf vorher gefahren wird, als Beleg, dass es auf dem Server so
-kommt, oder erst gegen eine Fassung mit Behebung, entscheidet der Betreiber.
+**Gegen die Fassung, die zuletzt auf `cloudsrv24` gemessen wurde, fällt dieser
+Lauf voraussichtlich aus** — nicht am Server und nicht an der Vorschrift, sondern
+am Prüfling. §0 Punkt 2 sagt warum, mit einem Nachbau daneben, und §6, woran man
+es abliest.
+
+**Entschieden am 24. September 2026: zuerst beheben.** Die Behebung ist am selben
+Tag gebaut (§0 Punkt 2, am Ende), und gefahren wird der Lauf gegen eine Fassung,
+die sie trägt. **Keine Freigabe tut das bisher** — die jüngste ist `v0.9.0-rc.1`
+(`docs/133`) —, also steht vor dem Lauf ein Tag des Betreibers. §1 Block 0 fragt
+die installierte Fassung, bevor irgendetwas anderes gemessen wird, und die Punkte
+4 bis 6 nennen neben der Erwartung, was eine Fassung ohne die Behebung zeigt.
 
 ---
 
@@ -23,7 +29,9 @@ kommt, oder erst gegen eine Fassung mit Behebung, entscheidet der Betreiber.
 
 **Sieben Zeilen. Zwei davon betreffen nicht den Lauf, sondern den Prüfling — und
 die erste der beiden hätte der Lauf, so wie das Kriterium lautet, bestätigt statt
-gefunden.**
+gefunden.** Beide sind am 24. September behoben. Sie stehen hier weiter in der
+Form, in der sie gefunden wurden, weil die Punkte 4 bis 6 an ihnen ablesen, ob die
+behobene Fassung läuft.
 
 **1 · Das Kriterium erbt die Lücke des Prüflings.** „Von Hand aus `access.log.1`
 nachrechnen" liest dieselbe Datei wie der Nachtlauf, und damit fehlt der
@@ -114,6 +122,51 @@ Vortag ablegen oder beides — das ist eine Frage an den Bau. Der Lauf ist so
 geschrieben, dass er beide Sichten auf den Tag herstellt, statt auf die Nacht zu
 warten, die sie zufällig liefert (Punkt 5).
 
+**Behoben am 24. September 2026, mit beidem.** Jede Hälfte allein lässt zwei
+Folgen von Nächten offen, und zwar verschiedene:
+
+- **`web.access.count` liest `access.log.2.gz` mit**, gepackt über den
+  Datenstrom `compress.zlib://`. Damit steht der Vortag in jeder Sicht der
+  folgenden Nacht vollständig da: vor der Rotation Kopf in `.1` und Rumpf in
+  `access.log`, danach Kopf in `.2.gz` und Rumpf in `.1`. Gemessen gleich teuer
+  wie ungepackt — 200 000 Zeilen in 0,255 s gegen 0,252 s.
+- **`srvpanel:traffic` legt nur noch den Vortag ab** (`AccessCounts::split()`).
+  Was älter ist, hatte seine Nacht; es steht in einem eigenen Topf und wird
+  nicht noch einmal geschrieben — die spätere Sicht wäre die unvollständigere.
+
+`TrafficRotationTest` fährt den Tag mit den echten Teilen durch zwei Nächte, in
+allen vier Reihenfolgen und bis in die Datenbank; die Nacht, in der sein Kopf
+entsteht, zählt nach der Rotation. Gemessen, je Fassung:
+
+| Fassung | scheitert in |
+|---|---|
+| beide Hälften zurückgenommen — so stand es vorher | *vor · vor*, *nach · vor*, *nach · nach* |
+| ohne die gepackte Datei | *nach · vor*, *nach · nach* |
+| ohne die Vortagsregel | *vor · nach*, *nach · nach* |
+| behoben | keiner |
+
+Die eine Folge, die vorher hielt — *vor · nach* —, ist dieselbe, die der Nachbau
+oben als *erst davor, dann danach* gefunden hat. **Der Nachbau mit dem echten
+logrotate** gibt nach der Behebung in allen drei Reihenfolgen `4 von 4`, und am
+Morgen des 23. stehen für den 22. abgelegt und über alle Dateien nachgezählt
+dieselben **4 Anfragen und 26 000 Bytes**; aus `access.log.1` allein wären es
+weiter 3 und 21 000. Gegen den Stand davor gefahren, gibt er die Tabelle oben
+Zeile für Zeile wieder.
+
+**Was die Behebung nicht abdeckt** — hergeleitet und nicht gemessen:
+
+- **Ein Tag, nach dem einen ganzen Tag lang kein Lauf kommt, bleibt ohne
+  Zeile.** Ein nachgeholter Lauf sieht ihn dann nicht mehr als Vortag. Das ist
+  entworfen: „Ein Tag ohne Zahlen ist ehrlicher als ein Tag mit halben"
+  (`docs/129 §5`).
+- **Eine zweite Rotation am selben Tag** — ein `logrotate -f` von Hand —
+  schiebt den Kopf eines Tages bis `.3.gz`, und die liest niemand.
+- **Ein Lauf, der sich mit der Rotation überschneidet.** logrotate benennt
+  nacheinander um und packt danach; wer dazwischen öffnet, kann eine Datei
+  zweimal oder eine halb gepackte lesen. Wie lange die Rotation auf dem Server
+  dauert, ist nicht gemessen; ob sich die beiden in einer Nacht dieses Laufs
+  überschnitten, sagt Punkt 2 (*überlappend*).
+
 **3 · Der Nachtlauf druckt eine Zeile zweimal, die zweite falsch.**
 `CollectTraffic` schreibt „Laufender Tag auf dem Server: …" zweimal
 hintereinander. Die zweite liest `$result['timezone']`, und das schickt der
@@ -125,7 +178,12 @@ unter der richtigen Zone ein `(Zeitzone unbekannt)`.
 > **Ein Feld, das gelesen und nicht mehr geschrieben wird, liest sich als
 > „unbekannt" — und die Zeile sieht aus wie eine Auskunft.**
 
-Punkt 6 erwartet sie deshalb und führt sie als Befund, nicht als Ausfall.
+**Behoben am 24. September 2026:** Die zweite Zeile ist fort, und
+`TrafficReportSeamTest` hält seitdem, dass der Nachtlauf aus der Antwort von
+`web.access.count` nur liest, was die Operation schreibt — was sie schreibt, kommt
+dabei aus einem echten Aufruf und nicht aus einer Liste im Test. Punkt 6 erwartet
+deshalb **eine** Zeile; steht die zweite noch da, läuft eine Fassung ohne die
+Behebung.
 
 **4 · „Echter Verkehr" gibt es auf `cloudsrv24` nicht.** Die sechs
 Zugriffsprotokolle trugen zu Beginn der Plattenkurve **286 Bytes** zusammen und
@@ -179,7 +237,9 @@ jemand aufgeschrieben hat.
 Domain einen ganzen Tag lang nichts, dreht logrotate sie nicht, `.1` bleibt
 stehen, und der Vortag kommt in der nächsten Nacht noch einmal am Zähllauf
 vorbei. Das ist hergeleitet und nicht gemessen; Punkt 7 sorgt dafür, dass es in
-diesem Lauf nicht vorkommt.
+diesem Lauf nicht vorkommt. **Mit der Behebung ist die weitere Nacht harmlos:**
+Für sie ist dieser Tag nicht mehr der Vortag, und er wird nicht noch einmal
+abgelegt.
 
 ---
 
@@ -197,6 +257,17 @@ printf 'Timer: %s, %s\n' "$(systemctl is-enabled srvpanel-traffic.timer)" "$(sys
 srvpanel tinker --execute='
   foreach (["domain_metrics", "subscription_metrics"] as $t)
       printf("%-22s %s\n", $t, Illuminate\Support\Facades\Schema::hasTable($t) ? "da" : "FEHLT");
+'
+
+# 0b · Trägt sie die Behebung aus §0 Punkt 2? Gefragt wird der geladene Code, nicht sein Text.
+/opt/srvpanel/bin/php -r 'require $argv[1];
+  printf("drei Dateien: %s   gepackt lesbar: %s\n",
+      defined("SrvPanel\\Agent\\Site::SECOND_ROTATED_ACCESS_LOG") ? "ja" : "NEIN",
+      in_array("compress.zlib", stream_get_wrappers(), true) ? "ja" : "NEIN");' /opt/srvpanel/current/agent/src/autoload.php
+srvpanel tinker --execute='
+  $t = App\Support\Web\AccessCounts::split(["domains" => [["subscription" => "a", "domain" => "b.test",
+      "days" => ["2026-09-22" => ["requests" => 1, "sent" => 1, "received" => 1, "errors" => 0, "legacy" => 0]]]]], "2026-09-24");
+  printf("der 22. am 24.: zählbar %d, älter %s\n", count($t["countable"]), isset($t["earlier"]) ? count($t["earlier"]) : "(kein Topf)");
 '
 
 # 1 · Die Erklärung des Formats steht vor ihrem Gebrauch, und nginx nimmt beides an
@@ -221,8 +292,9 @@ systemctl show logrotate.timer -p LastTriggerUSec -p NextElapseUSecRealtime
 
 **Erwartet:** eine Fassung; `OnCalendar=daily`, `Persistent=true`,
 `RandomizedDelaySec=1h`, der Timer `enabled` und `active`; beide Tabellen `da`.
-In Block 1 zwei Zeilen, **die Erklärung mit der kleineren Zeilennummer**, und
-`test is successful`. In Block 2 **zwei gleiche Zahlen** über null, in Block 3
+In Block 0b `drei Dateien: ja   gepackt lesbar: ja` und
+`der 22. am 24.: zählbar 0, älter 1`. In Block 1 zwei Zeilen, **die Erklärung
+mit der kleineren Zeilennummer**, und `test is successful`. In Block 2 **zwei gleiche Zahlen** über null, in Block 3
 kein `ALT`. In Block 4 `OnCalendar=daily` und `AccuracySec=1h`, die letzte
 Auslösung in der vergangenen Nacht.
 
@@ -230,6 +302,25 @@ Auslösung in der vergangenen Nacht.
 Dann gehört `srvpanel vhost --sites` davor, und zwar **am Tag X**, also vor der
 Mitternacht, mit der der gemessene Tag beginnt: `postinstall` fährt es nicht
 (`docs/129 §5`). Der Tag X wird damit zum Übergangstag, und Punkt 3 misst ihn.
+
+**Steht in Block 0b ein `NEIN` oder `(kein Topf)`, läuft eine Fassung ohne die
+Behebung, und der Lauf wird verschoben.** Gegen sie fielen die Punkte 4 und 5 am
+Prüfling aus, und das ist seit §0 Punkt 2 bekannt. Im Container gegen beide
+Stände gemessen: behoben `ja · ja` und `zählbar 0, älter 1`, der Stand davor
+(`46911fa8`) `NEIN · ja` und `zählbar 1, älter (kein Topf)`.
+
+**`gepackt lesbar` steht da, weil `/opt/srvpanel/bin/php` nicht zwingend
+`php8.4-cli` startet** — der Umschlag nimmt zuerst `/opt/srvpanel/php/bin/php`,
+wenn es das gibt. In `php8.4-cli` ist zlib eingebaut, auch mit `-n`. Die
+Gegenprobe ist deshalb im selben Prozess gefahren, mit abgemeldetem Datenstrom:
+Die Zeile sagt dann `NEIN`, und `AccessLog::countFile()` gibt für eine gepackte
+Datei null Zeilen und null unlesbare — daneben nur zwei Warnungen von PHP.
+
+**Seit dem 24. September verweigert die Zählung in diesem Fall, statt still
+halb zu zählen.** Über den echten Socket gemessen endet `srvpanel:traffic` dann
+mit `Zählung scheiterte: Dem PHP des Agenten fehlt zlib …` und rc=1; derselbe
+Agent mit dem Datenstrom zählt und endet mit rc=0. Ein `NEIN` hier wäre also
+auch in Punkt 6 zu sehen — hier steht es, bevor eine Nacht darauf wartet.
 
 > **Ein Befehl, der schweigt, sieht aus wie einer, der nichts gefunden hat.**
 > Ein `srvpanel tinker`, das gar nichts druckt, ist kein leeres Ergebnis, sondern
@@ -537,12 +628,19 @@ Ersatz vertreten, der `tinker` an eine Wegwerf-Datenbank reicht.
 
 | Block | gemessen |
 |---|---|
+| §1, Block 0b | behoben `ja · ja` und `zählbar 0, älter 1`, der Stand davor `NEIN · ja` und `zählbar 1, älter (kein Topf)` — mit `php` statt `/opt/srvpanel/bin/php` und `artisan tinker` statt `srvpanel tinker` |
 | §1, Blöcke 1–3 | Erklärung in Zeile 4, `include` in Zeile 9; `2` gegen `2`; `leer` |
 | §2, Schleife | `Angesehen: 1   in Frage: 1   gewählt: localhost` |
 | §2, Ladebeleg | Buch `249 + 1000`, Protokoll `1249`; Anfrage `93` gegen `93` |
 | Punkt 1 | dreimal `stimmt` — `1249`, `189`, `332` |
 | Punkt 4 | die echte Kette (`overRoot()` → `split()` → `record()`) in die Wegwerf-Datenbank: Zeile `20 · 21163 · 1872 · 3`, Nachzählung dieselben vier |
+| Punkt 6 | die Ausgabe von `srvpanel:traffic` gegen einen Agenten ohne Domains, über den echten Socket: eine Zeile „Laufender Tag", die Zeile der vier Töpfe, `rc=0` |
 | Punkt 7 | nach einem echten logrotate mit der Vorlage: `-rw-r----- www-data:adm`, `.1` ungepackt, die neue Anfrage `1`-mal in `access.log` |
+
+**Die Zeile zu Punkt 4 und der Absatz darunter sind vor der Behebung gemessen**,
+am selben Tag; nach ihr ist der Prüfstand mit dem Webserver nicht noch einmal
+aufgebaut worden. Die behobene Kette bis in die Datenbank fährt
+`TrafficRotationTest`, mit dem echten logrotate der Nachbau (§0 Punkt 2).
 
 **Und der zweite Weg aus §0 Punkt 2 mit dem echten Webserver:** zwei Rotationen
 am selben Kalendertag, nach jeder eine Sicht. Nach der ersten stehen Zeile und
@@ -551,8 +649,8 @@ in `access.log.2.gz` — und die Nachzählung weiter bei 21. Der Block aus Punkt
 stellt beides untereinander.
 
 **Nicht gefahren** ist, was systemd als PID 1 oder das echte `srvpanel` braucht:
-§1 Blöcke 0 und 4, der Zeitplan oben, das Journal in Punkt 2 und 6, das
-`systemctl start` in Punkt 5. Die Griffe an systemd darin sind einzeln gemessen
+§1 Block 0 bis auf 0b, Block 4, der Zeitplan oben, das Journal in Punkt 2 und 6,
+das `systemctl start` in Punkt 5. Die Griffe an systemd darin sind einzeln gemessen
 (§0 Punkt 6). Das `postrotate` lief als `nginx -s reopen`, weil es ohne systemd
 kein `systemctl kill` gibt; ob das `USR1` auf dem Server wirkt, misst Punkt 7.
 
@@ -695,26 +793,33 @@ Am Morgen von D+1, nach Punkt 2. **Das ist das Kriterium.**
   Verkehr und zählt mit.
 - **Die vier Zahlen der Tageszeile gleich den vier Zahlen der Nachzählung.**
 
-**Gegen die heutige Fassung** sagt §0 Punkt 2 das Ergebnis voraus: Kam der
-Zähllauf in Punkt 2 **nach** der Rotation, ist die Tageszeile die Nachzählung
-**ohne den Kopf** — um genau die Zeilen, die in `access.log.2.gz` stehen, und
-auf das Byte um deren Summe. Kam er davor, stimmt die Zeile, und Punkt 5a nimmt
-es ihr.
+**Mit der Behebung stimmt die Zeile, gleich ob der Zähllauf vor oder nach der
+Rotation kam**; Punkt 2 sagt, welche der beiden Sichten die Nacht geliefert hat.
+**Gegen eine Fassung ohne sie** — Block 0b sagt dann `NEIN` — sagt §0 Punkt 2
+das Ergebnis voraus: Kam der Zähllauf **nach** der Rotation, ist die Tageszeile
+die Nachzählung **ohne den Kopf** — um genau die Zeilen, die in
+`access.log.2.gz` stehen, und auf das Byte um deren Summe. Kam er davor, stimmt
+die Zeile, und Punkt 5a nimmt es ihr.
 
 ### Punkt 5 · Keine weitere Sicht ändert die Zeile
 
-**Drei Sichten, und zwei davon stellt der Lauf selbst her**, statt auf die Nacht
-zu warten, die sie zufällig liefert — in mindestens 92 von 100 Nächten wäre die
-zweite Nacht nach der Rotation und sähe den Tag gar nicht.
+**Drei weitere Sichten, und zwei davon stellt der Lauf selbst her**, statt auf
+die Nacht zu warten, die sie zufällig liefert. Die erste Nacht hatte eine der
+beiden Sichten, die es auf den Vortag gibt — vor oder nach der Rotation;
+5a und 5b stellen beide her, solange D noch der Vortag ist. 5c ist die zweite
+Nacht. Mit der Behebung ist D dort nicht mehr der Vortag und bleibt stehen;
+ohne sie sähe sie ihn in mindestens 92 von 100 Nächten gar nicht und sonst
+ohne Kopf.
 
 Gestartet wird **die Einheit** und nicht das Kommando: Sie läuft als
 `srvpanel`, mit derselben Umgebung und denselben Schranken wie in der Nacht.
 Ein Prüfkörper, der den Zustand auf einem anderen Weg herstellt als der
 Prüfling, stellt einen anderen Zustand her.
 
-**Der Start zählt jede Domain des Servers**, nicht nur diese. Gegen die heutige
-Fassung schreibt er den übrigen dieselbe Sicht, die ihnen die Nacht in den
-meisten Nächten ohnehin schreibt; gegen eine behobene die richtige.
+**Der Start zählt jede Domain des Servers**, nicht nur diese, und schreibt
+ihren Vortag noch einmal. Mit der Behebung ist das dieselbe vollständige Zahl,
+die die Nacht geschrieben hat; ohne sie die Sicht, die die meisten Nächte
+ohnehin schreiben.
 
 **5a · am Morgen von D+1, gleich nach Punkt 4** — die Sicht *nach* der Rotation:
 
@@ -726,9 +831,10 @@ systemctl show srvpanel-traffic.service -p Result -p ExecMainStatus
 ```
 
 **5b · am Abend von D+1, nach 22:00 und vor Mitternacht** — die Sicht *vor* der
-nächsten Rotation. `access.log` trägt dann den Tag D+1, `.1` den Rumpf von D; das
-ist Datei für Datei, was der Nachtlauf sähe, wenn er in der zweiten Nacht vor
-logrotate käme:
+nächsten Rotation. `access.log` trägt dann den Tag D+1, `.1` den Rumpf von D und
+`.2.gz` seinen Kopf. Mit der Behebung ist das die späteste Sicht, in der D noch
+der Vortag ist; ohne sie ist es Datei für Datei, was der Nachtlauf sähe, wenn er
+in der zweiten Nacht vor logrotate käme:
 
 ```bash
 . /root/b2-lauf.env
@@ -747,11 +853,13 @@ systemctl show srvpanel-traffic.service -p Result -p ExecMainStatus
 
 **Erwartet:** `Result=success`, und **alle drei Mal dieselben vier Zahlen wie
 die Nachzählung aus Punkt 4**. In 5c steht der Rumpf dann in `.2.gz` und der Kopf
-in `.3.gz`; die Summe ändert sich nicht.
+in `.3.gz`; die Summe ändert sich nicht. Mit der Behebung hat die zweite Nacht
+die Zeile gar nicht angefasst — `.3.gz` liest sie nicht, und D ist für sie kein
+Vortag mehr.
 
-**Gegen die heutige Fassung** schlägt 5a in jedem Fall an, in dem Punkt 4 noch
-stimmte: Die Sicht nach der Rotation liest die Datei mit dem Kopf nicht. Das ist
-der zweite Weg aus §0 Punkt 2, hergestellt statt abgewartet.
+**Gegen eine Fassung ohne die Behebung** schlagen 5a und 5b in jedem Fall an, in
+dem Punkt 4 noch stimmte: Beide Sichten lesen die Datei mit dem Kopf nicht. Das
+ist der zweite Weg aus §0 Punkt 2, hergestellt statt abgewartet.
 
 ### Punkt 6 · Was der Nachtlauf druckt
 
@@ -765,14 +873,21 @@ journalctl -u srvpanel-traffic.service --since "$M 00:00" --until "$M 01:30" -o 
 
 **Erwartet:**
 
-- `Laufender Tag auf dem Server: <D+1> (<Zone>).` mit der Zone des Servers —
-  **und darunter dieselbe Zeile mit `(Zeitzone unbekannt)`** (§0 Punkt 3). Sie
-  wird festgehalten, nicht als Ausfall gewertet.
+- **Genau eine** Zeile `Laufender Tag auf dem Server: <D+1> (<Zone>).` mit der
+  Zone des Servers, und **keine** mit `(Zeitzone unbekannt)`. Steht die zweite
+  da, läuft eine Fassung ohne die Behebung (§0 Punkt 3) — dann hätte schon
+  Block 0b `NEIN` gesagt.
 - `… Domain(s) gelesen, …`, darin `0 aus dem alten Zeitalter, 0 unlesbar`.
-- `… Tageswert(e) zählbar, 0 übersprungen …` — ein `übersprungen` für diese
-  Domain am D hiesse, ein Block schrieb dort noch das alte Format.
+- `… Tageswert(e) vom Vortag zählbar, 0 übersprungen (gemischtes Format), …
+  noch offen (laufender Tag), … älter und nicht erneut abgelegt.` Ein
+  `übersprungen` hiesse, ein Block schrieb am D noch das alte Format. Die Zahl
+  unter `älter` ist kein Befund: Es sind die Tage vor dem Vortag, die in den
+  drei gelesenen Dateien noch stehen.
 - `Abgelegt: …`, **keine** Zeile `ohne Zeile im Panel` und keine `blieben
   ungezählt`, am Ende `Fertig in … ms.`
+- **Keine** Zeile `Zählung scheiterte`. Die mit „fehlt zlib" darin hiesse, dass
+  das PHP des Agenten die gepackte Datei nicht lesen kann (Block 0b,
+  `gepackt lesbar`).
 
 ### Punkt 7 · Die Rotation legt die neue Datei richtig an, und nginx schreibt hinein
 
@@ -833,12 +948,20 @@ dreissig Tagen räumt ihn `Daily::forget()` ab.
   `$bytes_sent` dort zählt, ist nicht gemessen. Der Lastgeber spricht IPv4 über
   die Schleife.
 - **Eine ausgefallene Nacht.** `Persistent=true` holt einen verpassten Lauf nach
-  dem Einschalten nach. Der Kommentar daneben begründet das mit *„`access.log.1`
-  liegt vierzehn Tage"* — es liegt einen Tag. Vierzehn Tage liegen die gedrehten
-  Dateien zusammen, `.1` ist nur die jüngste. Gemessen ist der Fall nicht.
+  dem Einschalten nach. Der Kommentar daneben begründete das bis zum
+  24. September mit *„`access.log.1` liegt vierzehn Tage"* — es liegt einen Tag;
+  vierzehn Tage liegen die gedrehten Dateien zusammen. Berichtigt mit der
+  Behebung: Ein nachgeholter Lauf zählt den Vortag des Tages, an dem er läuft,
+  und bleibt der Server einen ganzen Tag aus, bekommt der verpasste Tag keine
+  Zahl (§0 Punkt 2). Gemessen ist der Fall nicht.
 - **Eine Datei, die sich nicht öffnen lässt.** `WebAccessCount` nennt die Grenze
-  selbst; herstellen kann sie hier niemand.
-- **Eine zweite Rotation am selben Tag**, etwa ein `logrotate -f` von Hand.
+  selbst. Eine Ursache davon — ein PHP ohne zlib — weist die Zählung seit dem
+  24. September ab, und Block 0b fragt sie vorher; die übrigen stellt hier
+  niemand her.
+- **Eine zweite Rotation am selben Tag**, etwa ein `logrotate -f` von Hand. Für
+  sie ist die Behebung nicht gebaut (§0 Punkt 2).
+- **Ein Lauf, der sich mit der Rotation überschneidet** (§0 Punkt 2). Herstellen
+  lässt er sich nicht; Punkt 2 hält nur fest, ob er vorkam.
 - **Was die Zahl grundsätzlich nicht zählt:** Anfragen an Punktdateien und an die
   ACME-Prüfadresse. Sie stehen in keinem Protokoll (§0 Punkt 5) und damit in
   keiner Tageszeile. Das ist entworfen und kein Mangel des Laufs — aber es gehört
@@ -862,13 +985,19 @@ Kriterium. **Punkt 4 zählt nur mit Kopf:** Trägt `access.log.2.gz` am Morgen v
 D+1 keine Zeile vom D, ist der Punkt nicht gemessen und wird mit dem nächsten Tag
 wiederholt, nicht abgehakt.
 
-**Punkt 2 darf nicht fehlen**, obwohl er kein Kriterium ist: Ohne ihn ist ein
-erfüllter Punkt 4 von den höchstens sieben Nächten in hundert nicht zu
-unterscheiden, in denen auch die heutige Fassung richtig zählt.
+**Punkt 2 darf nicht fehlen**, obwohl er kein Kriterium ist: Er sagt, welche der
+beiden Sichten die erste Nacht hatte und welche 5a und 5b dazulegen. Und ohne ihn
+wäre ein erfüllter Punkt 4 auch gegen eine Fassung ohne die Behebung möglich — in
+den höchstens sieben Nächten von hundert, in denen sie richtig zählt.
 
 **Punkt 3 darf ausfallen**, wenn es keinen Übergang gab und das Journal nicht
-mehr zurückreicht. **Die zweite Zeile aus Punkt 6** (`Zeitzone unbekannt`) wird
-festgehalten und nicht gewertet.
+mehr zurückreicht.
+
+**Block 0b darf kein `NEIN` und kein `(kein Topf)` zeigen.** Dann läuft der
+falsche Prüfling, und der Lauf wird verschoben, nicht gefahren. Dasselbe gilt
+für eine zweite Zeile `(Zeitzone unbekannt)` in Punkt 6: Sie stand bis zum
+24. September in jeder Nacht und wurde damals als Befund geführt; seitdem heisst
+sie, dass eine Fassung ohne die Behebung läuft.
 
 **Punkt 8 darf nicht ausfallen, und er ist keine Messung, sondern eine Schuld.**
 Der Lauf legt eine Datei in das Dokumentenverzeichnis eines Kunden und zwei

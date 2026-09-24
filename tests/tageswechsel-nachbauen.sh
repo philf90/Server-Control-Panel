@@ -4,11 +4,17 @@
 #
 #     bash tests/tageswechsel-nachbauen.sh
 #
-# **Der Anlass steht in `docs/134 §0`.** Der Nachtlauf von B2 liest je Domain
-# `access.log` und `access.log.1` und legt jeden fertigen Tag überschreibend
-# ab. Das trägt nur, wenn die Rotation genau um Mitternacht läuft: Dreht
+# **Der Anlass steht in `docs/134 §0`.** Der Nachtlauf von B2 las je Domain
+# `access.log` und `access.log.1` und legte jeden fertigen Tag überschreibend
+# ab. Das trug nur, wenn die Rotation genau um Mitternacht lief: Dreht
 # logrotate um 00:02, liegen die ersten zwei Minuten eines Tages am nächsten
 # Morgen schon in `access.log.2.gz`.
+#
+# **Seit dem 24. September 2026 misst er die Behebung** — drei Dateien, und
+# abgelegt wird nur der Vortag. Erwartet ist in allen drei Reihenfolgen
+# `4 von 4`, und am Morgen des 23. stehen „abgelegt" und „über alle Dateien"
+# gleich da; „aus access.log.1 allein" bleibt eine Anfrage darunter. Gegen den
+# Stand davor gefahren, gibt er die Tabelle in `docs/134 §0` Punkt 2 wieder.
 #
 # **Gebaut wird mit den echten Teilen und nicht mit einer zweiten Fassung.**
 # Die Konfiguration kommt aus `WebLogrotate::template()`, gedreht wird mit dem

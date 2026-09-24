@@ -188,7 +188,19 @@ final class AccessLog
             return ['days' => [], 'lines' => 0, 'parsed' => 0, 'legacy' => 0, 'unreadable' => 0];
         }
 
-        $handle = fopen($path, 'r');
+        /*
+         * **Gepackt wird über den Datenstrom von zlib gelesen und nicht über
+         * `gzopen()`**, damit Schleife und Zeilenleser dieselben bleiben wie für
+         * eine ungepackte Datei. zlib ist in `php8.4-cli` eingebaut; die Messung
+         * dazu steht in `PackagedExtensionTest`.
+         *
+         * Gemessen am 24. September 2026: Ohne den Datenstrom gelesen, gibt eine
+         * `.gz` mit drei Zeilen eine einzige Zeile Unrat. Und eine
+         * **abgeschnittene** `.gz` liefert ihre Zeilen bis zum Schnitt und dazu
+         * eine halbe — ohne Warnung. Die halbe zählt unter `unreadable`, und
+         * sonst sagt nichts etwas darüber.
+         */
+        $handle = fopen(str_ends_with($path, '.gz') ? 'compress.zlib://'.$path : $path, 'r');
 
         if ($handle === false) {
             return ['days' => [], 'lines' => 0, 'parsed' => 0, 'legacy' => 0, 'unreadable' => 0];

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support\Web;
 
+use DateTimeImmutable;
+use DateTimeZone;
+
 /**
  * Welche Tage aus `web.access.count` gezählt werden dürfen — und welche nicht.
  *
@@ -25,6 +28,17 @@ namespace App\Support\Web;
  * nur noch nicht fertig. Er steht als eigener Topf da, damit „noch nicht
  * vorbei" nicht wie „übersprungen" aussieht.
  *
+ * **Und seit dem 24. September 2026 auch kein Tag vor dem Vortag**
+ * (`docs/134 §0` Punkt 2). Der Agent liest drei Dateien, und darin steht
+ * neben dem Vortag auch Älteres — aber nicht mehr ganz: Mit jeder Rotation
+ * wandert der Kopf eines Tages eine Datei weiter, und nach der zweiten liegt
+ * er ausserhalb dessen, was gelesen wird. Ein solcher Tag hatte seine Nacht.
+ * Bis dahin wurde er wieder abgelegt, und die spätere, unvollständige Sicht
+ * überschrieb die frühere.
+ *
+ * > **Ein Lauf, der denselben Tag mehrfach sieht und überschreibt, behält die
+ * > letzte Sicht — und die letzte ist nicht die vollständigste.**
+ *
  * > **Drei Gründe, aus denen ein Tag keine Zahl bekommt, gehören in drei
  * > Töpfe. Ein gemeinsamer Topf ist eine Zahl ohne Begründung.**
  *
@@ -35,17 +49,19 @@ namespace App\Support\Web;
 final class AccessCounts
 {
     /**
-     * Die Meldung des Agenten, aufgeteilt in drei Töpfe.
+     * Die Meldung des Agenten, aufgeteilt in vier Töpfe.
      *
-     * `$today` ist der laufende Tag in der Zeitrechnung des Panels. Er wird
+     * `$today` ist der laufende Tag in der Zeitrechnung des Servers. Er wird
      * übergeben und nicht hier bestimmt: Eine Klasse, die selbst auf die Uhr
-     * sieht, lässt sich nur zur richtigen Tageszeit prüfen.
+     * sieht, lässt sich nur zur richtigen Tageszeit prüfen. Der Vortag folgt
+     * aus ihm und nicht aus einer zweiten Uhr.
      *
      * @param  array<string, mixed>  $result  was `web.access.count` zurückgab
      * @return array{
      *     countable: list<array{subscription:string, domain:string, day:string, requests:int, sent:int, received:int, errors:int}>,
      *     skipped: list<array{subscription:string, domain:string, day:string, legacy:int}>,
      *     open: list<array{subscription:string, domain:string, day:string}>,
+     *     earlier: list<array{subscription:string, domain:string, day:string}>,
      *     incomplete: int
      * }
      */
@@ -54,6 +70,14 @@ final class AccessCounts
         $zaehlbar = [];
         $uebersprungen = [];
         $offen = [];
+        $frueher = [];
+
+        /*
+         * **Als Datum gerechnet und nicht als Zeitpunkt.** Ein Tag ohne
+         * Uhrzeit in UTC kennt keine Zeitumstellung; ein „vor 24 Stunden" in
+         * der Zone des Servers träfe zweimal im Jahr den falschen Tag.
+         */
+        $gestern = (new DateTimeImmutable($today, new DateTimeZone('UTC')))->modify('-1 day')->format('Y-m-d');
 
         $domains = $result['domains'] ?? [];
 
@@ -74,7 +98,7 @@ final class AccessCounts
         $unvollstaendig = is_array($pending) ? count($pending) : 0;
 
         if (! is_array($domains)) {
-            return ['countable' => [], 'skipped' => [], 'open' => [], 'incomplete' => $unvollstaendig];
+            return ['countable' => [], 'skipped' => [], 'open' => [], 'earlier' => [], 'incomplete' => $unvollstaendig];
         }
 
         foreach ($domains as $eintrag) {
@@ -109,6 +133,19 @@ final class AccessCounts
                     continue;
                 }
 
+                /*
+                 * **Ein Tag vor dem Vortag hatte seine Nacht** — und auch er
+                 * steht vor der Formatfrage. Der Übergangstag liegt eine Nacht
+                 * später noch in `.2.gz`; ohne diese Reihenfolge stünde er ein
+                 * zweites Mal unter „übersprungen", mit dem Rat, einen Block
+                 * umzustellen, der längst umgestellt ist.
+                 */
+                if ($tag < $gestern) {
+                    $frueher[] = ['subscription' => $abonnement, 'domain' => $domain, 'day' => $tag];
+
+                    continue;
+                }
+
                 $alt = (int) ($werte['legacy'] ?? 0);
 
                 if ($alt > 0) {
@@ -134,6 +171,6 @@ final class AccessCounts
             }
         }
 
-        return ['countable' => $zaehlbar, 'skipped' => $uebersprungen, 'open' => $offen, 'incomplete' => $unvollstaendig];
+        return ['countable' => $zaehlbar, 'skipped' => $uebersprungen, 'open' => $offen, 'earlier' => $frueher, 'incomplete' => $unvollstaendig];
     }
 }

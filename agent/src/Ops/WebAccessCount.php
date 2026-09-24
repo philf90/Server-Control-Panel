@@ -24,28 +24,42 @@ use SrvPanel\Agent\Web\AccessLog;
  * eines. Das ist kein Notbehelf, sondern richtiger als eine übergebene Liste:
  * Gezählt wird, was wirklich dasteht, und nicht, was das Panel dort vermutet.
  *
- * **Gelesen werden zwei Dateien je Domain und nicht eine.** `access.log` und
- * `access.log.1`. Das ist die Antwort auf eine Messung vom 20. September 2026
- * auf `cloudsrv24`: `logrotate.timer` steht dort auf `OnCalendar=daily` mit
- * `AccuracySec=1h`. Die Rotation ist damit kein Zeitpunkt, sondern ein Fenster
- * von einer Stunde nach Mitternacht — und ein Nachtlauf, der in dieses Fenster
- * fällt, träfe die Datei mal vor und mal nach dem Umbenennen.
+ * **Gelesen werden drei Dateien je Domain**: `access.log`, `access.log.1` und
+ * das gepackte `access.log.2.gz`. Der Anlass ist eine Messung vom
+ * 20. September 2026 auf `cloudsrv24`: `logrotate.timer` steht dort auf
+ * `OnCalendar=daily` mit `AccuracySec=1h`. Die Rotation ist damit kein
+ * Zeitpunkt, sondern ein Fenster von einer Stunde nach Mitternacht — und ein
+ * Nachtlauf, der in dieses Fenster fällt, trifft die Datei mal vor und mal
+ * nach dem Umbenennen.
  *
  * > **Ein Lauf, der von einer Uhrzeit abhängt, die selbst ein Fenster ist,
  * > misst an manchen Tagen etwas anderes als an anderen.**
  *
- * Mit beiden Dateien ist die Reihenfolge gleichgültig: Vor der Rotation steht
- * der gestrige Tag vollständig in `access.log`, danach vollständig in `.1`.
- * Gruppiert wird ohnehin nach dem Tag **in der Zeile** ({@see AccessLog}), also
- * kommt in beiden Fällen dasselbe heraus. Die Folge für den Aufrufer steht in
- * seiner eigenen Pflicht: Er bekommt regelmässig auch Tage, die er schon hat,
- * und muss je Tag **überschreiben statt addieren**.
+ * **Bis zum 24. September 2026 waren es zwei Dateien**, und hier stand, damit
+ * sei die Reihenfolge gleichgültig: „Vor der Rotation steht der gestrige Tag
+ * vollständig in `access.log`, danach vollständig in `.1`." Das gilt nur für
+ * eine Rotation um Punkt Mitternacht. Was ein Tag bis zu seiner Rotation
+ * schreibt — sein **Kopf** —, steht in der Datei des Vortags, und nach der
+ * nächsten Rotation heisst sie `.2.gz`. Nach der Rotation gezählt, fehlte dem
+ * Tag sein Anfang; davor gezählt, überschrieb ihn die nächste Nacht mit der
+ * unvollständigen Sicht (`docs/134 §0` Punkt 2, nachgebaut in
+ * `tests/tageswechsel-nachbauen.sh`).
  *
- * **Was hier nicht gelesen wird, ist `.2.gz` und älter.** Das ist
- * Komprimiertes, und es ist bereits gezählt — es sei denn, der Nachtlauf ist
- * mehrere Tage ausgefallen. Dieser Fall ist eine Lücke und keine Panne: Er
- * gehört ins Panel, das seine Tage kennt, und nicht in eine Operation, die
- * jede Nacht denselben Weg geht.
+ * > **Wer nach dem Tag in der Zeile gruppiert, muss jede Datei lesen, in der
+ * > dieser Tag stehen kann.**
+ *
+ * **Mit drei Dateien steht der gestrige Tag vollständig da, vor wie nach der
+ * Rotation** — gruppiert wird nach dem Tag **in der Zeile** ({@see AccessLog}).
+ * Die andere Hälfte der Behebung gehört dem Aufrufer: Er legt nur den Vortag
+ * ab. Ältere Tage stehen hier auch drin, aber nicht mehr ganz — ihr Kopf ist
+ * eine Datei weiter gewandert —, und eine Sicht auf sie überschriebe eine
+ * vollständige Zahl mit einer halben.
+ *
+ * **Was hier nicht gelesen wird, ist `.3.gz` und älter.** Der Vortag steht nie
+ * darin, solange in einer Nacht nur einmal rotiert wird. Läuft der Zähllauf
+ * einen ganzen Tag lang nicht — auch nicht nachgeholt über `Persistent=true`
+ * —, bekommt dessen Vortag keine Zahl: eine Lücke und keine halbe Zahl, nach
+ * `docs/129 §5` („Ein Tag ohne Zahlen ist ehrlicher als ein Tag mit halben").
  *
  * **Was sie nicht unterscheiden kann.** Eine Datei, die dasteht und sich nicht
  * öffnen lässt, kommt bei {@see AccessLog::countFile()} als lauter Nullen
@@ -188,7 +202,7 @@ final class WebAccessCount implements Op
     }
 
     /**
-     * Eine Domain, aus ihren beiden Dateien zusammengezählt.
+     * Eine Domain, aus ihren drei Dateien zusammengezählt.
      *
      * @return array<string, mixed>
      */
@@ -203,7 +217,7 @@ final class WebAccessCount implements Op
         $unrat = 0;
         $dateien = 0;
 
-        foreach ([Site::ACCESS_LOG, Site::ROTATED_ACCESS_LOG] as $name) {
+        foreach ([Site::ACCESS_LOG, Site::ROTATED_ACCESS_LOG, Site::SECOND_ROTATED_ACCESS_LOG] as $name) {
             $pfad = $verzeichnis.'/'.$name;
 
             if (! is_file($pfad)) {

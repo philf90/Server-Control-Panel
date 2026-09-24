@@ -16,13 +16,22 @@ use Illuminate\Support\Carbon;
  * Was der Nachtlauf gezählt hat, in die verdichtete Tabelle (B3, `docs/129 §6`).
  *
  * **Überschreibend und nicht addierend**, und das ist keine Vorsichtsmassnahme,
- * sondern die Bedingung dafür, dass die Zahlen stimmen: `web.access.count`
- * liest `access.log` **und** `access.log.1`, weil `logrotate` in einem Fenster
- * läuft und nicht zu einer Uhrzeit. Derselbe Tag kommt deshalb an mehreren
- * Nächten vorbei.
+ * sondern die Bedingung dafür, dass die Zahlen stimmen: Derselbe Tag kann mehr
+ * als einmal vorbeikommen — ein Lauf von Hand, ein nachgeholter über
+ * `Persistent=true`.
  *
  * > **Ein Lauf, der denselben Tag mehrfach sieht, darf ihn nicht mehrfach
  * > zählen.**
+ *
+ * **Und Überschreiben ist nur richtig, wenn jede Sicht vollständig ist.** Bis
+ * zum 24. September 2026 kam ein Tag an **mehreren Nächten** vorbei, und die
+ * spätere Sicht war die unvollständigere: Sein Kopf lag da schon in einer
+ * Datei, die niemand las (`docs/134 §0` Punkt 2). Seitdem liest der Agent drei
+ * Dateien, und das Panel legt nur den Vortag ab (`AccessCounts::split()`);
+ * `TrafficRotationTest` misst es in allen vier Reihenfolgen zweier Nächte.
+ *
+ * > **Ein Lauf, der denselben Tag mehrfach sieht und überschreibt, behält die
+ * > letzte Sicht — und die letzte ist nicht die vollständigste.**
  *
  * Geschrieben wird mit `upsert()` über den eindeutigen Schlüssel der Tabelle.
  * Dass der trägt, hängt daran, dass keine seiner Spalten `NULL` sein kann — die

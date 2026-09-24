@@ -75,6 +75,9 @@ final class PackagedExtensionTest extends TestCase
         'bcmath' => ['bcadd', 'bcmul'],
         'ftp' => ['ftp_connect'],
         'ssh2' => ['ssh2_connect'],
+        // Der Datenstrom zählt mit: Der Zähler der Zugriffsprotokolle liest
+        // `access.log.2.gz` über `compress.zlib://` und ruft kein `gzopen()`.
+        'zlib' => ['gzopen', 'compress.zlib'],
     ];
 
     /**
@@ -89,6 +92,8 @@ final class PackagedExtensionTest extends TestCase
         'pcntl' => 'Eingebaut — es gibt keine `pcntl.so`. Nur in der CLI-SAPI, und benutzt wird '.
             'es allein dort (Agent und ein Artisan-Kommando).',
         'openssl' => 'Eingebaut — es gibt keine `openssl.so`.',
+        'zlib' => 'Eingebaut — in `/usr/lib/php/20240924` liegt keine `zlib.so`, und `php -i` meldet '.
+            '`ZLib Support => enabled`; gemessen am 24. September 2026 an `php8.4-cli` 8.4.19.',
     ];
 
     /** Jede benutzte Erweiterung steht in `nfpm.yaml` oder bringt PHP sie mit. */

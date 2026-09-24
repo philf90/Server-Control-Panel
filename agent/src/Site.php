@@ -57,12 +57,33 @@ final class Site
      * Und wie sie nach der Rotation heisst.
      *
      * `logrotate` benennt um und legt neu an; `delaycompress` sorgt dafür, dass
-     * genau die **erste** alte Datei noch unkomprimiert daliegt. Weiter zurück
-     * (`.2.gz`) liegt Komprimiertes, das ein Zähler nicht ohne Weiteres liest —
-     * und nicht muss: Diese beiden Dateien zusammen tragen immer den ganzen
-     * gestrigen Tag, gleichgültig, wann in der Nacht rotiert wurde.
+     * genau die **erste** alte Datei noch unkomprimiert daliegt.
+     *
+     * **Hier stand bis zum 24. September 2026, diese Datei und `access.log`
+     * trügen zusammen immer den ganzen gestrigen Tag, „gleichgültig, wann in
+     * der Nacht rotiert wurde".** Das gilt nur für eine Rotation um Punkt
+     * Mitternacht, und die gibt es nicht: `logrotate.timer` dreht irgendwann in
+     * der Stunde danach. Was ein Tag bis zu seiner Rotation schreibt, steht in
+     * der Datei des Vortags, und die heisst am nächsten Morgen
+     * {@see self::SECOND_ROTATED_ACCESS_LOG} (`docs/134 §0` Punkt 2).
      */
     public const ROTATED_ACCESS_LOG = self::ACCESS_LOG.'.1';
+
+    /**
+     * Und die zweite alte Datei — gepackt, denn `delaycompress` verschont nur
+     * die erste.
+     *
+     * **Sie trägt den Kopf des gestrigen Tages**, sobald in dieser Nacht schon
+     * rotiert wurde: seine Zeilen zwischen Mitternacht und der Rotation der
+     * Nacht davor. Ohne sie verliert jeder Tag, der nach der Rotation gezählt
+     * wird, seinen Anfang — auf `cloudsrv24` in mindestens 92 von 100 Nächten.
+     *
+     * Weiter zurück liegt nichts, was der Nachtlauf braucht. Abgelegt wird nur
+     * der Vortag (das entscheidet das Panel, in `AccessCounts`), und der steht in
+     * diesen drei Dateien vollständig, gleich ob vor oder nach der Rotation
+     * gezählt wird — solange in einer Nacht nur einmal rotiert wird.
+     */
+    public const SECOND_ROTATED_ACCESS_LOG = self::ACCESS_LOG.'.2.gz';
 
     /** Mehr Aliasse hat keine Domain, und `server_name` bliebe lesbar. */
     public const MAX_ALIASES = 20;

@@ -62,7 +62,68 @@ final class TrafficEraTest extends TestCase
 
         $this->assertSame([], $topf['skipped']);
         $this->assertSame([], $topf['open']);
+        $this->assertSame([], $topf['earlier']);
         $this->assertSame(0, $topf['incomplete']);
+    }
+
+    /**
+     * **Abgelegt wird nur der Vortag** (`docs/134 §0` Punkt 2).
+     *
+     * Der Agent liest drei Dateien, und darin steht neben dem Vortag auch
+     * Älteres — aber nicht mehr ganz: Mit jeder Rotation wandert der Kopf eines
+     * Tages eine Datei weiter. Bis zum 24. September 2026 wurde jeder fertige
+     * Tag wieder abgelegt, und die spätere, unvollständige Sicht überschrieb
+     * die frühere. Ein älterer Tag bekommt deshalb einen eigenen Topf und
+     * keine Zeile.
+     */
+    public function test_only_yesterday_is_countable(): void
+    {
+        $topf = AccessCounts::split($this->meldung([
+            '2026-09-19' => $this->tag(),
+            '2026-09-20' => $this->tag(),
+            self::HEUTE => $this->tag(),
+        ]), self::HEUTE);
+
+        $this->assertSame(['2026-09-20'], array_column($topf['countable'], 'day'));
+        $this->assertSame([[
+            'subscription' => 'p1001',
+            'domain' => 'beispiel.de',
+            'day' => '2026-09-19',
+        ]], $topf['earlier']);
+        $this->assertSame([self::HEUTE], array_column($topf['open'], 'day'));
+        $this->assertSame([], $topf['skipped']);
+    }
+
+    /**
+     * **Der Vortag ist ein Kalendertag und keine Rechnung über Sekunden.**
+     *
+     * Über einen Monatswechsel gerechnet, damit ein Vortag, der als Zeichenkette
+     * gebaut würde („Tag minus eins"), hier auffällt.
+     */
+    public function test_yesterday_crosses_a_month(): void
+    {
+        $topf = AccessCounts::split($this->meldung([
+            '2026-02-27' => $this->tag(),
+            '2026-02-28' => $this->tag(),
+        ]), '2026-03-01');
+
+        $this->assertSame(['2026-02-28'], array_column($topf['countable'], 'day'));
+        $this->assertSame(['2026-02-27'], array_column($topf['earlier'], 'day'));
+    }
+
+    /**
+     * **Ein älterer Tag mit alten Zeilen ist älter und nicht „übersprungen".**
+     *
+     * Der Übergangstag steht eine Nacht später noch in `.2.gz`. Käme die
+     * Formatfrage zuerst, meldete der Lauf ihn ein zweites Mal — mit dem Rat,
+     * einen Server-Block umzustellen, der längst umgestellt ist.
+     */
+    public function test_an_earlier_day_with_legacy_lines_is_not_reported_as_skipped(): void
+    {
+        $topf = AccessCounts::split($this->meldung(['2026-09-19' => $this->tag(legacy: 3)]), self::HEUTE);
+
+        $this->assertSame([], $topf['skipped']);
+        $this->assertSame(['2026-09-19'], array_column($topf['earlier'], 'day'));
     }
 
     /**
@@ -162,15 +223,19 @@ final class TrafficEraTest extends TestCase
 
         $topf = AccessCounts::split($meldung, self::HEUTE);
 
-        $this->assertCount(2, $topf['countable']);
+        // Seit dem 24. September gehört der 19. in den vierten Topf und nicht
+        // mehr unter „zählbar" — er ist älter als der Vortag.
+        $this->assertCount(1, $topf['countable']);
         $this->assertCount(1, $topf['skipped']);
         $this->assertCount(1, $topf['open']);
+        $this->assertCount(1, $topf['earlier']);
         $this->assertSame('eins.de', $topf['skipped'][0]['domain']);
-        $this->assertSame('zwei.de', $topf['countable'][1]['domain']);
+        $this->assertSame('zwei.de', $topf['countable'][0]['domain']);
+        $this->assertSame(['eins.de', '2026-09-19'], [$topf['earlier'][0]['domain'], $topf['earlier'][0]['day']]);
     }
 
     /**
-     * **Eine Meldung ohne Domains ergibt drei leere Töpfe und keine Ausnahme.**
+     * **Eine Meldung ohne Domains ergibt vier leere Töpfe und keine Ausnahme.**
      *
      * Der Nachtlauf läuft auf jedem Server, auch auf einem ohne ein einziges
      * Abonnement. Ein Absturz dort wäre eine rote Unit jede Nacht, für nichts.
@@ -183,6 +248,7 @@ final class TrafficEraTest extends TestCase
             $this->assertSame([], $topf['countable']);
             $this->assertSame([], $topf['skipped']);
             $this->assertSame([], $topf['open']);
+            $this->assertSame([], $topf['earlier']);
             $this->assertSame(0, $topf['incomplete']);
         }
     }
@@ -223,7 +289,7 @@ final class TrafficEraTest extends TestCase
      * **Was diese Aufteilung nicht sagt, und zwar ausdrücklich.**
      *
      * Eine Domain ohne eine einzige Zeile hat keinen Tag — sie taucht in
-     * keinem der drei Töpfe auf. „Gestern null Verkehr" und „gestern nicht
+     * keinem der vier Töpfe auf. „Gestern null Verkehr" und „gestern nicht
      * gezählt" sind damit hier nicht zu unterscheiden. Das ist richtig so, denn
      * der Agent sieht nur Zeilen; wer die Domains kennt, ist das Panel, und
      * die Lücke zu füllen ist B3 und nicht diese Klasse.
@@ -235,5 +301,6 @@ final class TrafficEraTest extends TestCase
         $this->assertSame([], $topf['countable']);
         $this->assertSame([], $topf['skipped']);
         $this->assertSame([], $topf['open']);
+        $this->assertSame([], $topf['earlier']);
     }
 }

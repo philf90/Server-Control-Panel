@@ -20,25 +20,35 @@ use SrvPanel\Agent\Client;
  * gibt. Was diesen Lauf startet, steht in
  * `packaging/systemd/srvpanel-traffic.timer` und ist von aussen sichtbar.
  *
- * **Wann er läuft, ist ihm gleichgültig — und das ist gemessen.** `docs/129`
- * verlangte ursprünglich einen Timer „hinter dem von `logrotate` und mit genug
- * Abstand davor". Nachgesehen am 20. September 2026 auf `cloudsrv24`:
- * `logrotate.timer` steht auf `OnCalendar=daily` mit `AccuracySec=1h`. Das ist
- * kein Zeitpunkt, sondern ein Fenster von einer Stunde nach Mitternacht.
+ * **Wann er läuft, ist ihm gleichgültig — seit dem 24. September 2026
+ * wirklich.** `docs/129` verlangte ursprünglich einen Timer „hinter dem von
+ * `logrotate` und mit genug Abstand davor". Nachgesehen am 20. September 2026
+ * auf `cloudsrv24`: `logrotate.timer` steht auf `OnCalendar=daily` mit
+ * `AccuracySec=1h`. Das ist kein Zeitpunkt, sondern ein Fenster von einer
+ * Stunde nach Mitternacht.
  *
  * > **Ein Abstand zu einem Zeitpunkt, den es nicht gibt, lässt sich nicht
  * > einhalten.**
  *
- * `web.access.count` liest deshalb `access.log` **und** `access.log.1`. Vor der
- * Rotation steht der gestrige Tag vollständig in der einen, danach vollständig
- * in der anderen; gruppiert wird nach dem Tag in der Zeile. Der Preis dafür
- * steht hier: Dieser Lauf bekommt regelmässig auch Tage, die er schon hat.
+ * Die erste Antwort darauf las `access.log` und `access.log.1` und hielt die
+ * Reihenfolge damit für gleichgültig. Das war sie nur für eine Rotation um
+ * Punkt Mitternacht: Was ein Tag bis zu seiner Rotation schreibt, steht am
+ * nächsten Morgen in `access.log.2.gz`, und ein Lauf, der denselben Tag in
+ * der Nacht danach noch einmal sah, überschrieb die vollständige Sicht mit
+ * der unvollständigen (`docs/134 §0` Punkt 2). Seitdem liest
+ * `web.access.count` drei Dateien, und dieser Lauf legt **nur den Vortag** ab
+ * ({@see AccessCounts::split()}) — der steht darin vollständig, gleich ob vor
+ * oder nach der Rotation gezählt wird.
  *
- * **Er legt noch nichts ab.** Die verdichtete Tabelle ist B3 (`docs/129 §6`);
- * bis dahin meldet dieser Lauf, was er gezählt hat, und sonst nichts. Das ist
- * der Zuschnitt aus `docs/129 §3` und keine Auslassung — wenn B3 kommt,
- * schreibt er je Tag **überschreibend** und nicht addierend, denn er sieht
- * denselben Tag mehrfach.
+ * **Abgelegt wird überschreibend** ({@see Daily::record()}): Derselbe Vortag
+ * kann mehr als einmal vorbeikommen — ein Lauf von Hand, ein nachgeholter über
+ * `Persistent=true` —, und jede dieser Sichten ist vollständig.
+ *
+ * **Hier stand bis dahin auch „Er legt noch nichts ab"**, geschrieben, bevor
+ * es B3 gab, und stehen geblieben, als der Lauf längst `Daily::record()` rief.
+ *
+ * > **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung — und
+ * > nichts prüft sie.**
  */
 final class CollectTraffic extends Command
 {
@@ -99,12 +109,6 @@ final class CollectTraffic extends Command
         $split = AccessCounts::split($result, $today);
 
         $this->line(sprintf(
-            '  Laufender Tag auf dem Server: %s (%s).',
-            $today,
-            is_string($result['timezone'] ?? null) ? $result['timezone'] : 'Zeitzone unbekannt',
-        ));
-
-        $this->line(sprintf(
             '  %d Domain(s) gelesen, %d Zeile(n), davon %d gedeutet, %d aus dem alten Zeitalter, %d unlesbar.',
             (int) ($totals['domains'] ?? 0),
             (int) ($totals['lines'] ?? 0),
@@ -113,11 +117,23 @@ final class CollectTraffic extends Command
             (int) ($totals['unreadable'] ?? 0),
         ));
 
+        /*
+         * **Die zweite Zeile „Laufender Tag", die hier bis zum 24. September
+         * 2026 stand, ist fort.** Sie las `$result['timezone']`, und das
+         * schickt der Agent nicht mehr, seit die Zone aus {@see ServerZone}
+         * kommt — jede Nacht stand darum `(Zeitzone unbekannt)` unter der
+         * richtigen Zeile. `TrafficReportSeamTest` hält seitdem, dass dieser
+         * Lauf nur liest, was die Operation schreibt.
+         *
+         * > **Ein Feld, das gelesen und nicht mehr geschrieben wird, liest sich
+         * > als „unbekannt" — und die Zeile sieht aus wie eine Auskunft.**
+         */
         $this->line(sprintf(
-            '  %d Tageswert(e) zählbar, %d übersprungen (gemischtes Format), %d noch offen (laufender Tag).',
+            '  %d Tageswert(e) vom Vortag zählbar, %d übersprungen (gemischtes Format), %d noch offen (laufender Tag), %d älter und nicht erneut abgelegt.',
             count($split['countable']),
             count($split['skipped']),
             count($split['open']),
+            count($split['earlier']),
         ));
 
         /*

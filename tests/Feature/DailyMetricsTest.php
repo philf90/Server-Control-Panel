@@ -21,10 +21,11 @@ use Tests\TestCase;
  * Die verdichtete Tabelle — B3, `docs/129 §6`.
  *
  * **Die tragende Zusage ist nicht, dass geschrieben wird, sondern dass
- * derselbe Tag nicht zweimal zählt.** `web.access.count` liest `access.log`
- * **und** `access.log.1`, weil `logrotate` in einem Fenster läuft und nicht zu
- * einer Uhrzeit (gemessen, `CLAUDE.md`). Derselbe Tag kommt deshalb an
- * mehreren Nächten vorbei, und ein Lauf, der addierte, verdoppelte ihn.
+ * derselbe Tag nicht zweimal zählt.** Derselbe Vortag kann mehr als einmal
+ * vorbeikommen — ein Lauf von Hand, ein nachgeholter —, und ein Lauf, der
+ * addierte, verdoppelte ihn. Dass jede dieser Sichten auch **vollständig** ist,
+ * hält `TrafficRotationTest`; bis zum 24. September 2026 war sie es nicht
+ * (`docs/134 §0` Punkt 2).
  *
  * > **Ein Lauf, der denselben Tag mehrfach sieht, darf ihn nicht mehrfach
  * > zählen.**

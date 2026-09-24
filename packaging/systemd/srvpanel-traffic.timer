@@ -11,18 +11,25 @@ PartOf=srvpanel.target
 # **Täglich**, denn ein Tag ist die Einheit, die gezählt wird.
 OnCalendar=daily
 
-# Ein Server, der über Nacht aus war, zählt nach dem Einschalten nach. Er
-# verliert dabei nichts: `access.log.1` liegt vierzehn Tage
-# (`WebLogrotate`: `rotate 14`), und gezählt wird nach dem Tag in der Zeile.
+# Ein Server, der über Nacht aus war, zählt nach dem Einschalten nach — den
+# Vortag des Tages, an dem er wieder läuft. Kommt er noch am selben Tag zurück,
+# geht nichts verloren; bleibt er bis zum übernächsten aus, bekommt der
+# verpasste Tag keine Zahl. Hier stand bis zum 24. September 2026,
+# `access.log.1` liege vierzehn Tage: Vierzehn Tage liegen die gedrehten
+# Dateien zusammen (`WebLogrotate`: `rotate 14`), `.1` ist nur die jüngste.
 Persistent=true
 
-# **Eine Stunde Streuung, und sie ist hier gefahrlos.**
+# **Eine Stunde Streuung, und sie ist hier gefahrlos — seit dem 24. September
+# 2026 wirklich.**
 #
 # Damit liegt dieser Lauf im selben Fenster wie `logrotate` — gemessen am
 # 20. September 2026 auf cloudsrv24: `OnCalendar=daily` mit `AccuracySec=1h`.
-# Das wäre ein Fehler, wenn der Lauf nur `access.log.1` läse; er liest beide
-# Dateien und gruppiert nach dem Tag **in der Zeile**, und dann ist es
-# gleichgültig, ob er vor oder nach dem Umbenennen ankommt.
+# Hier stand, mit zwei gelesenen Dateien sei es gleichgültig, ob er vor oder
+# nach dem Umbenennen ankomme. Das galt nur für eine Rotation um Punkt
+# Mitternacht: Der Kopf eines Tages lag danach in `access.log.2.gz`, und die
+# las niemand (docs/134 §0 Punkt 2). Seitdem liest der Lauf drei Dateien und
+# legt nur den Vortag ab — der steht darin vollständig, vor wie nach der
+# Rotation.
 #
 #   Ein Lauf, der von einer Uhrzeit abhängt, die selbst ein Fenster ist, misst
 #   an manchen Tagen etwas anderes als an anderen.

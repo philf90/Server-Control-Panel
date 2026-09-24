@@ -80,6 +80,23 @@ final class AccessCountTest extends TestCase
         file_put_contents($verzeichnis.'/'.$datei, implode("\n", $zeilen)."\n");
     }
 
+    /**
+     * Wie {@see self::log()}, nur gepackt — so, wie `compress` die zweite alte
+     * Datei ablegt.
+     *
+     * @param  list<string>  $zeilen
+     */
+    private function packed(string $abonnement, string $domain, string $datei, array $zeilen): void
+    {
+        $verzeichnis = Site::logsRootIn($this->rig, $abonnement).'/'.$domain;
+
+        if (! is_dir($verzeichnis)) {
+            mkdir($verzeichnis, 0o700, true);
+        }
+
+        file_put_contents($verzeichnis.'/'.$datei, gzencode(implode("\n", $zeilen)."\n"));
+    }
+
     /** @return array{domains: list<array<string, mixed>>, pending: list<array<string, string>>, totals: array<string, int>} */
     private function counted(?float $deadline = null): array
     {
@@ -141,6 +158,35 @@ final class AccessCountTest extends TestCase
 
         // Und der Tag davor bleibt ein eigener Tag — samt seinem 404.
         $this->assertSame(1, $domain['days']['2026-09-19']['requests']);
+        $this->assertSame(1, $domain['days']['2026-09-19']['errors']);
+    }
+
+    /**
+     * **Die dritte Datei, gepackt — und ihr Tag fällt mit den anderen zusammen.**
+     *
+     * Nach der Rotation steht der Kopf des gestrigen Tages in `access.log.2.gz`
+     * (`docs/134 §0` Punkt 2). Bis zum 24. September las der Zähler sie nicht,
+     * und jeder Tag, der nach der Rotation gezählt wurde, verlor seinen Anfang.
+     *
+     * **Der Name steht hier als Wort und nicht als Konstante.** Er ist der, den
+     * `compress` mit `delaycompress` schreibt; ein Prüfstand, der ihn aus
+     * `Site` nähme, folgte einer falsch umbenannten Konstante einfach mit.
+     *
+     * Und `unreadable` muss null sein: Ohne den Datenstrom von zlib gelesen,
+     * gibt die gepackte Datei Unrat statt Zeilen (gemessen), und der Tag sähe
+     * aus wie einer mit weniger Verkehr.
+     */
+    public function test_the_second_rotated_file_is_read_packed(): void
+    {
+        $this->log('p1001', 'beispiel.de', 'access.log.1', [self::NEW_ERA]);
+        $this->packed('p1001', 'beispiel.de', 'access.log.2.gz', [self::NEW_ERA, self::DAY_BEFORE]);
+
+        $domain = $this->counted()['domains'][0];
+
+        $this->assertSame(2, $domain['files']);
+        $this->assertSame(0, $domain['unreadable']);
+        $this->assertSame(2, $domain['days']['2026-09-20']['requests']);
+        $this->assertSame(1980, $domain['days']['2026-09-20']['sent']);
         $this->assertSame(1, $domain['days']['2026-09-19']['errors']);
     }
 

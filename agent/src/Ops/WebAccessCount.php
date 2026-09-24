@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent\Ops;
 
+use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Op;
@@ -72,6 +73,11 @@ use SrvPanel\Agent\Web\AccessLog;
  *
  * Wer den Fall herstellen kann, baut den Zähler und den Bruch dazu. Bis dahin
  * ist die Grenze hier benannt und nicht in einem Kopf.
+ *
+ * **Eine Ursache davon ist seit dem 24. September 2026 herstellbar, und sie
+ * bekommt keinen Zähler, sondern eine Weigerung:** ein PHP ohne den Datenstrom
+ * von zlib. Er trifft nicht eine Datei, sondern die gepackte jeder Domain, und
+ * gezählt würde überall halb ({@see self::overRoot()}).
  *
  * Nicht verändernd — sie liest.
  */
@@ -150,6 +156,30 @@ final class WebAccessCount implements Op
      */
     public static function overRoot(string $root, float $deadline, ?callable $progress = null): array
     {
+        /*
+         * **Ohne den Datenstrom von zlib wird gar nicht gezählt statt halb.**
+         * Fehlt er, lässt sich `access.log.2.gz` nicht öffnen, und
+         * {@see AccessLog::countFile()} gibt dafür lauter Nullen — wie für eine
+         * leere Datei. Jedem Vortag fehlte dann wieder sein Kopf, und keine
+         * Zahl sagte es. Gemessen am 24. September 2026 mit abgemeldetem
+         * Datenstrom: null Zeilen, null unlesbare, und daneben nur zwei
+         * Warnungen von PHP.
+         *
+         * In `php8.4-cli` ist zlib eingebaut (`PackagedExtensionTest`). Gefragt
+         * wird trotzdem, weil `/opt/srvpanel/bin/php` ein anderes PHP starten
+         * kann — und dann wird aus der stillen Lücke ein Fehlschlag des
+         * Nachtlaufs statt einer halben Zahl.
+         *
+         * > **Ein Datenstrom, den es nicht gibt, macht aus einer Datei eine
+         * > leere — und eine leere Datei ist kein Fehler.**
+         */
+        if (! in_array('compress.zlib', stream_get_wrappers(), true)) {
+            throw new AgentException(
+                AgentException::INTERNAL,
+                'Dem PHP des Agenten fehlt zlib: access.log.2.gz lässt sich nicht lesen, und jedem Tag fehlte sein Kopf. Gezählt wird deshalb nichts.',
+            );
+        }
+
         $abonnements = self::directories($root);
         $domains = [];
         $offen = [];

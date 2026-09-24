@@ -35678,6 +35678,46 @@ pruefe "zlib ohne Messung" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PackagedExtensionTest passed
 
+echo
+echo "── AccessCountTest: ohne zlib wird halb gezählt ──"
+#
+# Die Weigerung faellt weg. Ohne den Datenstrom gilt die gepackte Datei dann
+# als leer, und jedem Tag fehlt still sein Kopf — derselbe Fehler, den die
+# Behebung vom 24. September schliesst, nur aus einem anderen Grund.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! in_array('compress.zlib', stream_get_wrappers(), true)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        if (false) {', 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "ohne zlib halb gezählt" &&
+pruefe "ohne zlib halb gezählt" \
+  AccessCountTest::test_without_zlib_nothing_is_counted_instead_of_half failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
+echo
+echo "── AccessCountTest: die Weigerung greift immer ──"
+#
+# Die Gegenprobe des Waechters. Eine Weigerung, die auch mit zlib greift,
+# zaehlte nie etwas — und ohne die erste Behauptung im Fall saehe sie aus wie
+# eine, die richtig greift.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = "        if (! in_array('compress.zlib', stream_get_wrappers(), true)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        if (true) {', 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "Weigerung greift immer" &&
+pruefe "Weigerung greift immer" \
+  AccessCountTest::test_without_zlib_nothing_is_counted_instead_of_half failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
+
 
 echo
 if [ "$fehler" -eq 0 ]; then

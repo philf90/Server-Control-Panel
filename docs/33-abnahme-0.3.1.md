@@ -52,7 +52,7 @@ SESSION_LIFETIME=480
 ```
 
 Steht dort `strict` oder `120`, ist die Datei die alte. Dann entweder die zwei
-Zeilen von Hand ändern und `systemctl restart srvpanel-fpm.service` — oder den
+Zeilen von Hand ändern und `systemctl restart srvpanel-web.service` — oder den
 Lauf gleich auf einer frisch eingerichteten Maschine fahren. **Der Unterschied
 gehört ins Ergebnis**, denn er entscheidet, ob Abschnitt E überhaupt `rc.3`
 prüft.

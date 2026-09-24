@@ -69,6 +69,7 @@ und zitiert ihn dabei.
 
 *(am Bestand, nicht an diesem Lauf)*
 
+<!-- abschrift: zitiert die falsche Rückfall-Anweisung aus docs/35, samt des Namens, den es nicht gibt -->
 `docs/35 §10.5` — die Rückfall-Anweisung „Wenn etwas schiefgeht" — lautete
 `systemctl stop srvpanel-worker srvpanel`. Ein `srvpanel.service` gibt es
 nicht; paketiert ist `srvpanel.target`, und der Dienst der Oberfläche heisst

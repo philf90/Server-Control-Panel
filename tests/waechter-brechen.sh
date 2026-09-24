@@ -35316,6 +35316,182 @@ pruefe "Wettlauf: gezählt statt geprüft" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RunnerSignalTest passed
 
+echo
+echo "── UnitNameReachTest: der Fließtext startet wieder eine Unit, die es nie gab ──"
+#
+# Der Anlass fuer den Fliesstext: `docs/33` liess `systemctl restart
+# srvpanel-fpm.service` tippen. Unter packaging/systemd gab es diese Unit nie,
+# und der alte Waechter las nur Codebloecke — er war mit der Zeile gruen.
+vorher_datei docs/33-abnahme-0.3.1.md
+python3 - <<'PY2'
+p = 'docs/33-abnahme-0.3.1.md'
+s = open(p, encoding='utf-8').read()
+alt = '`systemctl restart srvpanel-web.service`'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '`systemctl restart srvpanel-fpm.service`', 1))
+PY2
+griff_datei docs/33-abnahme-0.3.1.md "Fließtext: srvpanel-fpm zurück" &&
+pruefe "Fließtext: srvpanel-fpm zurück" \
+  UnitNameReachTest::test_every_unit_named_in_prose_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitNameReachTest passed
+
+echo
+echo "── UnitNameReachTest: eine ausgeschriebene Unit im Satz, ohne systemctl davor ──"
+#
+# Die zweite Regel allein. In dieser Zeile steht kein `systemctl`; gefunden
+# wird der Name nur an seiner Endung. Faellt die Regel weg, bleibt der Satz
+# gruen, der den falschen Namen zum Abtippen hinstellt.
+vorher_datei docs/905-abnahme-skeleton-loader.md
+python3 - <<'PY2'
+p = 'docs/905-abnahme-skeleton-loader.md'
+s = open(p, encoding='utf-8').read()
+alt = '`srvpanel-agentd.service`; dieses Dokument'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '`srvpanel-agent.service`; dieses Dokument', 1))
+PY2
+griff_datei docs/905-abnahme-skeleton-loader.md "Fließtext: Endung ohne Unit" &&
+pruefe "Fließtext: Endung ohne Unit" \
+  UnitNameReachTest::test_every_unit_named_in_prose_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitNameReachTest passed
+
+echo
+echo "── UnitNameReachTest: ein eingerückter Block fragt wieder nach srvpanel ──"
+#
+# Die erste Regel allein, an einer Stelle, die ein Leser, der nur ```
+# kennt, nie sieht: In `docs/87 §1` stand es bis zum 28. August genau so
+# (`docs/88` Befund 1). Ohne Endung kennt nur die Regel hinter `systemctl`
+# diesen Namen.
+vorher_datei docs/87-nachlauf-rollenteilung.md
+python3 - <<'PY2'
+p = 'docs/87-nachlauf-rollenteilung.md'
+s = open(p, encoding='utf-8').read()
+alt = '\n    systemctl is-active srvpanel-web srvpanel-worker srvpanel-agentd\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '\n    systemctl is-active srvpanel srvpanel-worker srvpanel-agentd\n', 1))
+PY2
+griff_datei docs/87-nachlauf-rollenteilung.md "eingerückter Block: srvpanel" &&
+pruefe "eingerückter Block: srvpanel" \
+  UnitNameReachTest::test_every_unit_named_in_prose_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitNameReachTest passed
+
+echo
+echo "── UnitNameReachTest: die Marke reicht über ihren Absatz hinaus ──"
+#
+# Eine Marke nimmt genau den Block unter sich aus, bis zur Leerzeile. Der
+# Absatz hier folgt unmittelbar auf einen markierten; liefe die Marke weiter,
+# bliebe dieser falsche Name gruen.
+vorher_datei docs/88-protokoll-nachlauf-rollenteilung.md
+python3 - <<'PY2'
+p = 'docs/88-protokoll-nachlauf-rollenteilung.md'
+s = open(p, encoding='utf-8').read()
+alt = '\n`systemctl is-active` beantwortet eine Frage nach einer unbekannten Unit nicht\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '\n`systemctl is-active srvpanel-gibtsnicht` beantwortet eine Frage nach einer unbekannten Unit nicht\n', 1))
+PY2
+griff_datei docs/88-protokoll-nachlauf-rollenteilung.md "Marke über den Absatz hinaus" &&
+pruefe "Marke über den Absatz hinaus" \
+  UnitNameReachTest::test_every_unit_named_in_prose_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitNameReachTest passed
+
+echo
+echo "── UnitNameReachTest: der Ausdruck über systemctl greift ins Leere ──"
+#
+# Die Untergrenze der ersten Regel im Fliesstext. Trifft der Ausdruck nichts
+# mehr, gibt es auch nichts zu melden — gruen fuer jeden falschen Namen.
+vorher_datei tests/Unit/UnitNameReachTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/UnitNameReachTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "private const CALL = '/\\bsystemctl\\b([^\\n|;&]*)/';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "private const CALL = '/\\bsystemctl_gibtsnicht\\b([^\\n|;&]*)/';", 1))
+PY2
+griff_datei tests/Unit/UnitNameReachTest.php "systemctl-Ausdruck ohne Treffer" &&
+pruefe "systemctl-Ausdruck ohne Treffer" \
+  UnitNameReachTest::test_every_unit_named_in_prose_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitNameReachTest passed
+
+echo
+echo "── UnitNameReachTest: der Ausdruck über die Endungen greift ins Leere ──"
+#
+# Die Untergrenze der zweiten Regel. Eine Untergrenze ueber beide Regeln
+# zusammen hielte auch dann, wenn diese hier nichts mehr findet.
+vorher_datei tests/Unit/UnitNameReachTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/UnitNameReachTest.php'
+s = open(p, encoding='utf-8').read()
+alt = '(?:service|socket|device|mount|automount|swap|target|path|timer|slice|scope)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '(?:gibtsnicht)', 1))
+PY2
+griff_datei tests/Unit/UnitNameReachTest.php "Endungs-Ausdruck ohne Treffer" &&
+pruefe "Endungs-Ausdruck ohne Treffer" \
+  UnitNameReachTest::test_every_unit_named_in_prose_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitNameReachTest passed
+
+echo
+echo "── UnitNameReachTest: die Marke bleibt, nachdem der Satz berichtigt ist ──"
+#
+# Genau die Lage nach einer Behebung: Der Name stimmt, die Marke steht noch.
+# Sie deckte dann den naechsten falschen Namen in diesem Absatz.
+vorher_datei docs/33-abnahme-0.3.1.md
+python3 - <<'PY2'
+p = 'docs/33-abnahme-0.3.1.md'
+s = open(p, encoding='utf-8').read()
+alt = '\nSteht dort `strict` oder `120`, ist die Datei die alte. Dann entweder die zwei\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '\n<!-- abschrift: hier stand eine Unit, die es nie gab -->\nSteht dort `strict` oder `120`, ist die Datei die alte. Dann entweder die zwei\n', 1))
+PY2
+griff_datei docs/33-abnahme-0.3.1.md "Marke über berichtigtem Absatz" &&
+pruefe "Marke über berichtigtem Absatz" \
+  UnitNameReachTest::test_every_exemption_still_covers_a_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitNameReachTest passed
+
+echo
+echo "── UnitNameReachTest: eine Abschrift, deren Name inzwischen stimmt ──"
+#
+# Dieselbe Frage fuer eine Marke ueber einem Codeblock. Die Pruefung liest
+# beide Arten von Block; ohne diesen Eingriff waere nur die eine belegt.
+vorher_datei docs/906-protokoll-skeleton-loader.md
+python3 - <<'PY2'
+p = 'docs/906-protokoll-skeleton-loader.md'
+s = open(p, encoding='utf-8').read()
+alt = '\nsystemctl is-active srvpanel-agent srvpanel-worker\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '\nsystemctl is-active srvpanel-agentd srvpanel-worker\n', 1))
+PY2
+griff_datei docs/906-protokoll-skeleton-loader.md "Abschrift ohne Fund" &&
+pruefe "Abschrift ohne Fund" \
+  UnitNameReachTest::test_every_exemption_still_covers_a_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitNameReachTest passed
+
+echo
+echo "── UnitNameReachTest: eine Marke im Fließtext ohne Grund ──"
+#
+# Die Marken im Fliesstext gehen durch dieselbe Pruefung wie die ueber
+# Codebloecken. Bis hierhin hatte sie keinen Eingriff.
+vorher_datei docs/905-abnahme-skeleton-loader.md
+python3 - <<'PY2'
+p = 'docs/905-abnahme-skeleton-loader.md'
+s = open(p, encoding='utf-8').read()
+alt = '<!-- abschrift: zitiert die falsche Zeile, um ihren Schaden zu beschreiben -->'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<!-- abschrift: -->', 1))
+PY2
+griff_datei docs/905-abnahme-skeleton-loader.md "Marke ohne Grund" &&
+pruefe "Marke ohne Grund" \
+  UnitNameReachTest::test_every_exemption_carries_a_reason failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UnitNameReachTest passed
+
 
 echo
 if [ "$fehler" -eq 0 ]; then

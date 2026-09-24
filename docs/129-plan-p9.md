@@ -540,7 +540,7 @@ aus **einer** von 58 Seiten alle 58 zu machen.
 | | Erfüllt, wenn |
 |---|---|
 | **B1** | Ein herbeigeführter Zustand (Dienst gestoppt) erzeugt **eine** Meldung, die zweite Nacht erzeugt **keine**, und nach `systemctl start` meldet der Lauf nichts mehr. Über beide Kanäle, mit „zuletzt erfolgreich zugestellt" auf der Seite. |
-| **B2** | Für eine Domain mit echtem Verkehr steht am Morgen eine Tageszeile, deren Zahlen sich von Hand aus `access.log.1` nachrechnen lassen — `stat` davor und danach. |
+| **B2** | Für eine Domain mit echtem Verkehr steht am Morgen eine Tageszeile, deren Zahlen sich von Hand aus `access.log.1` nachrechnen lassen — `stat` davor und danach. **Berichtigt am 24. September** (`docs/134 §0` Punkt 1): nachgerechnet wird über **alle** Dateien der Domain, an einem Tag mit mindestens einer Zeile vor der Rotation. Aus `access.log.1` allein bestätigt die Nachrechnung den Fehler, den sie finden soll; der Wortlaut steht in `docs/134 §6`. |
 | **B3** | Nach dreissig Nächten stehen dreissig Zeilen je Abo und Kennzahl, und die einunddreissigste Nacht löscht die erste. |
 | **B4** | Fünf Kacheln auf der Abo-Seite und drei auf der Domainseite, mit Bild in beiden Themes und bei 390 px, dazu die Zahl daneben. |
 | **B5** | Ein Kunde, dessen Kontingent überschritten wird, bekommt genau eine Mail — und der Betreiber sieht, dass sie zugestellt wurde. |

@@ -5372,6 +5372,18 @@ Kopf von {@see WebAccessCount}: Der Lauf liest `access.log` **und**
 Aufrufer muss je Tag überschreiben statt addieren, weil er regelmässig Tage
 bekommt, die er schon hat.
 
+**Nachgetragen am 24. September 2026: Das „unabhängig" stimmt nicht**
+(`docs/134 §0` Punkt 2). Es gilt für eine Rotation um Punkt Mitternacht. Dreht
+logrotate um 00:02, stehen die ersten zwei Minuten eines Tages in der Datei des
+Vortags und am nächsten Morgen in `access.log.2.gz`, die niemand liest; und wer
+den Tag zweimal sieht, überschreibt die vollständige Sicht mit der
+unvollständigen. Nachgebaut mit den echten Teilen in
+`tests/tageswechsel-nachbauen.sh`; behoben ist es nicht.
+
+> **Wer nach dem Tag in der Zeile gruppiert, muss jede Datei lesen, in der
+> dieser Tag stehen kann — und bei einer Rotation nach Mitternacht sind das
+> drei und nicht zwei.**
+
 **Und `rotate 14` steht schon da.** `WebLogrotate` schreibt `daily`, `rotate
 14`, `delaycompress` und `create 0640 <benutzer> adm` nach `/etc/logrotate.d`,
 seit es die Operation gibt. Entscheidung 4 („roh 14 Tage") ist damit nicht

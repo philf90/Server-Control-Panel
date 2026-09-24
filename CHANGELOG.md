@@ -32413,3 +32413,47 @@ steht deshalb hier auch nicht als Erklärung.
 neuen Wächter als `nobody` mit eigenem `TMPDIR` gefahren — 54 von 54, dieselben
 250 Zusicherungen wie als root. Der Unterschied ist eine Warnung über
 `.phpunit.result.cache`, die root gehört.
+
+### Der Abnahmelauf für B2 steht ausgeschrieben — und der Nachtlauf verliert den Kopf jedes Tages
+
+`docs/134` ist vor dem Fahren geschrieben. §0 nennt sieben Zeilen, die dabei
+umgefallen sind, und zwei davon betreffen nicht den Lauf, sondern den Prüfling.
+
+**Der Nachtlauf verliert, was ein Tag vor der Rotation schreibt.**
+`web.access.count` liest `access.log` und `access.log.1` und gilt damit als
+unabhängig davon, wann logrotate dreht — drei Kommentare sagen es. Das stimmt
+für eine Rotation um Punkt Mitternacht. `logrotate.timer` dreht irgendwann in
+der Stunde danach, und was ein Tag bis dahin schreibt, steht am nächsten Morgen
+in `access.log.2.gz`. Kommt der Lauf nach der Rotation, fehlt der Kopf; kommt er
+davor, sieht die nächste Nacht den Tag womöglich noch einmal und überschreibt die
+vollständige Sicht mit der unvollständigen. Auf `cloudsrv24` kommt der Lauf in
+mindestens 92 von 100 Nächten nach der Rotation.
+
+`tests/tageswechsel-nachbauen.sh` baut es mit den echten Teilen nach — Vorlage,
+logrotate, Zähler, Aufteilung —, und seine Gegenprobe ohne Zeile vor der Rotation
+sagt, warum es niemand gesehen hat: Ohne Kopf verliert der Lauf nichts.
+
+> **Ein Lauf, der denselben Tag mehrfach sieht und überschreibt, behält die
+> letzte Sicht — und die letzte ist nicht die vollständigste.**
+
+**Und das Kriterium hätte den Fehler bestätigt.** „Von Hand aus `access.log.1`
+nachrechnen" liest dieselbe Datei wie der Prüfling und fand im Nachbau genau die
+drei Anfragen, die abgelegt waren — von vier. Nachgerechnet wird jetzt über alle
+Dateien, an einem Tag mit mindestens einer Zeile vor der Rotation; `docs/129 §9`
+verweist darauf.
+
+> **Ein Kriterium, das an derselben Datei nachzählt wie der Prüfling, erbt
+> dessen Lücke — und bestätigt sie.**
+
+**Behoben ist davon nichts**, und das ist Absicht: Was daraus folgt — mehr
+Dateien lesen, nur den Vortag ablegen oder beides —, ist eine Frage an den Bau
+und nicht an den Abnahmelauf. Daneben steht in jedem Nachtlauf eine zweite Zeile
+„Laufender Tag" mit `(Zeitzone unbekannt)`: ein Leser, dem `bd5611bb` den
+Schreiber genommen hat.
+
+**Die Vorschrift ist im Container gefahren, wörtlich aus dem Dokument gezogen**,
+gegen das echte nginx mit einem Block aus `SiteTemplate::render()` und mit der
+echten Zählkette bis in eine Wegwerf-Datenbank. Zwei Griffe an systemd sind dabei
+gefallen, bevor sie auf dem Server standen: `--timestamp=unix` wirkt auf
+`systemctl show` nicht, und ein transienter Timer ist nach dem Feuern fort — mit
+ihm sein `LastTriggerUSec`.

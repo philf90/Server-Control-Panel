@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Mail\DiagnoseReport;
 use FilesystemIterator;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
+use SrvPanel\Agent\Names;
 use Tests\Support\WithoutPhpComments;
 
 /**
@@ -585,6 +587,55 @@ final class CountedNounTest extends TestCase
         $this->assertSame(1, preg_match($muster, "sprintf('alle %d Tage', \$n)"));
         $this->assertSame(0, preg_match($muster, "sprintf('alle %d Tag', \$n)"));
         $this->assertSame(0, preg_match($muster, "sprintf('%d Zeichen', \$n)"));
+    }
+
+    /**
+     * Der Betreff der Betreibermail — die eine Zeile, die zählt und die die
+     * Muster oben nicht sehen.
+     *
+     * **Warum dieser Test abliest, statt zu suchen.** In
+     * `DiagnoseReport::envelope()` steht zwischen der Zahl und dem Hauptwort
+     * ein Beiwort: „2 neue Befunde". Die Muster oben suchen eine Zahl, an die
+     * das Mehrzahlwort **unmittelbar** anschliesst, und „Befunde" steht in
+     * keiner ihrer Listen. Ein `sprintf('%d neue Befunde', …)` ginge an allen
+     * vorbei — bis zum 24. September 2026 hielt diese Zeile deshalb nichts,
+     * und der Kommentar an ihr sagte es selbst.
+     *
+     * **Gebaut wird mit einem und mit zwei Befunden, und jeder Fall ist die
+     * Gegenprobe des anderen.** Klebt die Zahl wieder am Wort, fällt der
+     * erste; sagt der Betreff immer „ein neuer Befund", fällt der zweite. Mit
+     * nur einem der beiden bestünde der Test genau den Fehler, gegen den der
+     * andere steht.
+     *
+     * Der Rechnername kommt aus {@see Names::host()} und nicht aus einer
+     * Zeichenkette hier: Er ist nicht Gegenstand dieses Wächters, und im CI
+     * heisst der Rechner anders als auf `cloudsrv24`.
+     *
+     * > **Ein Wächter, der eine Fläche liest, sagt über die andere nichts** —
+     * > und eine Betreffzeile ist eine eigene Fläche.
+     */
+    public function test_the_subject_of_the_operator_mail_fits_its_count(): void
+    {
+        // Die Befundzeile aus der Mail, die der Betreiber am 24. September 2026
+        // aus dem Postfach vorgelegt hat.
+        $befund = [
+            'label' => 'Dienst: Der Dienst läuft nicht.',
+            'subject' => 'Unit srvpanel-metrics.service',
+            'detail' => 'ActiveState=inactive SubState=dead',
+            'since' => '2026-09-22 20:35:34',
+        ];
+
+        $this->assertSame(
+            'SrvPanel — ein neuer Befund auf '.Names::host(),
+            (new DiagnoseReport([$befund]))->envelope()->subject,
+            'Ein Befund heisst im Betreff „ein neuer Befund" — nicht „1 neue Befunde".',
+        );
+
+        $this->assertSame(
+            'SrvPanel — 2 neue Befunde auf '.Names::host(),
+            (new DiagnoseReport([$befund, $befund]))->envelope()->subject,
+            'Zwei Befunde heissen im Betreff „2 neue Befunde" — die Einzahl gilt nur für einen.',
+        );
     }
 
     /**

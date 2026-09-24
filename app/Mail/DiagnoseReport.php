@@ -48,8 +48,15 @@ final class DiagnoseReport extends Mailable
         /*
          * **Die Entscheidung über das Wort gehört an den Wert.** „1 Befunde"
          * ist der Fehler, gegen den `CountedNounTest` auf den Seiten dieses
-         * Panels geschrieben ist; er gilt in einer Betreffzeile genauso, und
-         * dort hält ihn kein Wächter.
+         * Panels geschrieben ist; er gilt in einer Betreffzeile genauso.
+         *
+         * Hier stand bis zum 24. September 2026 „dort hält ihn kein Wächter",
+         * und das stimmte: Die Muster dort suchen eine Zahl direkt vor dem
+         * Mehrzahlwort, und in dieser Zeile steht „neue" dazwischen. Seitdem
+         * baut `CountedNounTest::test_the_subject_of_the_operator_mail_fits_its_count`
+         * diese Mail mit einem und mit zwei Befunden und liest den Betreff ab —
+         * wer die Zeile zu `sprintf('%d neue Befunde', …)` vereinfacht, sieht
+         * dort Rot und nicht erst im Postfach „1 neue Befunde".
          */
         $anzahl = count($this->findings);
 

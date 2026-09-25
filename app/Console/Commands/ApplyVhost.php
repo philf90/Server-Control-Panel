@@ -6,7 +6,9 @@ namespace App\Console\Commands;
 
 use App\Enums\DomainStatus;
 use App\Enums\DomainType;
+use App\Enums\SubscriptionStatus;
 use App\Models\Domain;
+use App\Models\Subscription;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Web\WebLifecycle;
 use Illuminate\Console\Command;
@@ -35,17 +37,23 @@ use SrvPanel\Agent\Client;
  * niemand nachzieht. Deshalb ruft das postinstall-Skript dieses Kommando nach
  * jedem Umschalten — was in der Vorlage steht, steht danach auch auf der
  * Platte.
+ *
+ * **Seit dem 25. September 2026 gilt das auch für die Rotationsdateien der
+ * Abonnements** — dieselbe Kopie, nur eine Datei weiter. Die Einzelheiten
+ * stehen bei {@see self::rotations()}.
  */
 final class ApplyVhost extends Command
 {
     protected $signature = 'srvpanel:vhost
         {--sites : Auch die Server-Blöcke der Kundendomains neu schreiben}';
 
-    protected $description = 'Schreibt den Server-Block der Oberfläche neu — mit --sites auch die der Kundendomains';
+    protected $description = 'Schreibt den Server-Block der Oberfläche und die Rotationsdateien neu — mit --sites auch die Server-Blöcke der Kundendomains';
 
     public function handle(Client $agent, Tenancy $tenancy, WebLifecycle $web): int
     {
         $panel = $this->panelBlock($agent);
+
+        $this->rotations($tenancy, $web);
 
         // **Auch dann, wenn der Block der Oberfläche gescheitert ist.** Wer
         // beides verlangt hat, verliert sonst das zweite wegen des ersten —
@@ -80,6 +88,58 @@ final class ApplyVhost extends Command
         ));
 
         return true;
+    }
+
+    /**
+     * Die Rotationsdatei jedes Abonnements — bei jedem Lauf und nicht erst mit
+     * `--sites`.
+     *
+     * **Bis hierher schrieb sie allein `subscription.provision`**, und der Kopf
+     * der Datei sagt seit P3: „Änderungen von Hand werden beim nächsten Lauf
+     * überschrieben." Einen nächsten Lauf gab es nicht. Auf `cloudsrv24` stand
+     * am 25. September die Datei vom 14. August — mit dem `USR1`, an dem jede
+     * Nacht die Wiederöffnung scheiterte (Befund 7 des B2-Laufs).
+     *
+     * > **Eine Datei, die ankündigt, beim nächsten Lauf überschrieben zu werden,
+     * > braucht einen nächsten Lauf.**
+     *
+     * **Warum ohne Option:** `--sites` ist ausdrücklich, weil ein neu
+     * geschriebener Server-Block für jede Domain ohne Zertifikat eines bestellt.
+     * Eine Rotationsdatei bestellt nichts und startet nichts; sie wird
+     * überschrieben, und das nächste logrotate liest sie. Weil das
+     * postinstall-Skript dieses Kommando nach jedem Update ruft, steht danach
+     * die Vorlage auf der Platte.
+     *
+     * **Gesperrte Abonnements gehören dazu** — ihre Domains antworten mit 503,
+     * und nginx schreibt das weiter in ihre Protokolle. Eines, das noch
+     * angelegt wird, nicht: Das schreibt seine Datei am Ende von
+     * `subscription.provision` selbst.
+     */
+    private function rotations(Tenancy $tenancy, WebLifecycle $web): void
+    {
+        $subscriptions = $tenancy->withoutRestriction(fn (): array => Subscription::query()
+            ->whereIn('status', [SubscriptionStatus::Active->value, SubscriptionStatus::Suspended->value])
+            ->orderBy('id')
+            ->get()
+            ->all());
+
+        if (! is_array($subscriptions) || $subscriptions === []) {
+            $this->line('  Keine Abonnements, keine Rotationsdateien.');
+
+            return;
+        }
+
+        foreach ($subscriptions as $subscription) {
+            if (! $subscription instanceof Subscription) {
+                continue;
+            }
+
+            $tenancy->withoutRestriction(function () use ($web, $subscription): void {
+                $web->applyRotation($subscription);
+            });
+        }
+
+        $this->info(sprintf('  %d Rotationsdateien der Abonnements eingereiht.', count($subscriptions)));
     }
 
     /**

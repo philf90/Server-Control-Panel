@@ -11718,13 +11718,23 @@ p = 'agent/src/Ops/WebSiteApply.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace("""        $entstanden = ! is_dir($site->logDir());
 
-        Filesystem::directory($site->logDir(), $site->user, 'adm', 0o2750);
+        Filesystem::directory(
+            $site->logDir(),
+            $site->user,
+            SubscriptionProvision::LOG_GROUP,
+            SubscriptionProvision::LOG_MODE,
+        );
 
         if ($entstanden) {
             $created[] = $site->logDir();
         }""",
               """        if (! is_dir($site->logDir())) {
-            Filesystem::directory($site->logDir(), $site->user, 'adm', 0o2750);
+            Filesystem::directory(
+                $site->logDir(),
+                $site->user,
+                SubscriptionProvision::LOG_GROUP,
+                SubscriptionProvision::LOG_MODE,
+            );
             $created[] = $site->logDir();
         }""")
 open(p, 'w', encoding='utf-8').write(s)
@@ -35718,6 +35728,237 @@ pruefe "Weigerung greift immer" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AccessCountTest passed
 
+
+echo
+echo "── LogRotationTest: TREE legt logs/ mit eigenen Rechten an ──"
+#
+# Der Waechter misst die Rechte der Protokollverzeichnisse an LOG_GROUP und
+# LOG_MODE. Stuende in TREE wieder ein eigener Wert, sagte er "kein Arbeiter
+# kommt hinein" ueber Rechte, die keiner mehr setzt.
+vorher_datei agent/src/Ops/SubscriptionProvision.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SubscriptionProvision.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'logs' => ['%u', self::LOG_GROUP, self::LOG_MODE],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        'logs' => ['%u', 'adm', 0o2751],", 1))
+PY2
+griff_datei agent/src/Ops/SubscriptionProvision.php "TREE mit eigenen Rechten" &&
+pruefe "TREE mit eigenen Rechten" \
+  LogRotationTest::test_the_log_directories_of_a_subscription_come_from_one_place failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogRotationTest passed
+
+echo
+echo "── LogRotationTest: WebSiteApply legt logs/<domain> mit eigenen Rechten an ──"
+#
+# Der zweite Weg zu denselben Verzeichnissen. Bis zum 25. September 2026 stand
+# dort der Wert noch einmal, und eine Aenderung an einer der beiden Stellen
+# waere die Haelfte gewesen.
+vorher_datei agent/src/Ops/WebSiteApply.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebSiteApply.php'
+s = open(p, encoding='utf-8').read()
+alt = "            SubscriptionProvision::LOG_MODE,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            0o2751,\n", 1))
+PY2
+griff_datei agent/src/Ops/WebSiteApply.php "WebSiteApply mit eigenen Rechten" &&
+pruefe "WebSiteApply mit eigenen Rechten" \
+  LogRotationTest::test_the_log_directories_of_a_subscription_come_from_one_place failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogRotationTest passed
+
+echo
+echo "── LogRotationTest: die Protokollverzeichnisse lassen www-data hinein ──"
+#
+# Das haette Befund 7 auch behoben und eine Grenze verschoben. Entschieden war
+# das Neuladen; wer die Verzeichnisse doch oeffnet, soll es nicht nebenbei tun.
+vorher_datei agent/src/Ops/SubscriptionProvision.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SubscriptionProvision.php'
+s = open(p, encoding='utf-8').read()
+alt = "    public const LOG_MODE = 0o2750;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "    public const LOG_MODE = 0o2751;", 1))
+PY2
+griff_datei agent/src/Ops/SubscriptionProvision.php "Verzeichnisse offen" &&
+pruefe "Verzeichnisse offen" \
+  LogRotationTest::test_the_workers_stay_out_of_a_subscriptions_logs failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogRotationTest passed
+
+echo
+echo "── LogRotationTest: die Vorlage schickt wieder USR1 ──"
+#
+# Befund 7 selbst: Die Arbeiter oeffnen beim USR1 ueber den Pfad, kommen nicht
+# in logs/ und schreiben in die umbenannte Datei weiter.
+vorher_datei agent/src/Ops/WebLogrotate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebLogrotate.php'
+s = open(p, encoding='utf-8').read()
+alt = "                {$reload}\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                /usr/bin/systemctl kill --signal=USR1 nginx.service\n", 1))
+PY2
+griff_datei agent/src/Ops/WebLogrotate.php "Vorlage mit USR1" &&
+pruefe "Vorlage mit USR1" \
+  LogRotationTest::test_a_subscription_rotation_reloads_nginx failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogRotationTest passed
+
+echo
+echo "── LogRotationTest: reload statt try-reload-or-restart ──"
+#
+# Gemessen gegen systemd 255: reload endet bei angehaltenem nginx mit rc=1, und
+# logrotate meldete in jeder solchen Nacht einen Fehler. Der Fall ueber die
+# Vorlage bleibt dabei gruen — sie liest dieselbe Konstante.
+vorher_datei agent/src/Ops/WebLogrotate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebLogrotate.php'
+s = open(p, encoding='utf-8').read()
+alt = "    public const RELOAD = '/usr/bin/systemctl try-reload-or-restart nginx.service';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "    public const RELOAD = '/usr/bin/systemctl reload nginx.service';", 1))
+PY2
+griff_datei agent/src/Ops/WebLogrotate.php "reload statt try-reload" &&
+pruefe "reload statt try-reload" \
+  LogRotationTest::test_the_reload_leaves_a_stopped_nginx_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogRotationTest passed
+
+echo
+echo "── LogRotationTest: die Rotation des Panels ohne postrotate ──"
+#
+# Der Stand vor dem 25. September 2026: Neu geoeffnet wurde nur als
+# Nebenwirkung der Rotation eines Abonnements, und das scheiterte fuer
+# panel-access.log genauso mit (13).
+vorher_datei packaging/etc/logrotate
+python3 - <<'PY2'
+p = 'packaging/etc/logrotate'
+s = open(p, encoding='utf-8').read()
+alt = "    sharedscripts\n    postrotate\n        /usr/bin/systemctl try-reload-or-restart nginx.service\n    endscript\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei packaging/etc/logrotate "Panel ohne postrotate" &&
+pruefe "Panel ohne postrotate" \
+  LogRotationTest::test_the_panel_rotation_reloads_nginx_too failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogRotationTest passed
+
+echo
+echo "── LogRotationTest: php-fpm schreibt wieder nach /var/log/srvpanel ──"
+#
+# Befund 1: php-fpm legt die Datei mit 0600 root:root an, logrotate dreht als
+# srvpanel und kommt ab der zweiten Rotation nicht mehr weiter.
+vorher_datei packaging/etc/fpm.conf
+python3 - <<'PY2'
+p = 'packaging/etc/fpm.conf'
+s = open(p, encoding='utf-8').read()
+alt = "error_log = syslog\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "error_log = /var/log/srvpanel/fpm.log\n", 1))
+PY2
+griff_datei packaging/etc/fpm.conf "fpm.log wieder als Datei" &&
+pruefe "fpm.log wieder als Datei" \
+  LogRotationTest::test_the_fpm_master_logs_to_the_journal failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogRotationTest passed
+
+echo
+echo "── LogRotationTest: die Reparatur folgt mit chown einem Verweis ──"
+#
+# postinstall.sh laeuft als root in einem Verzeichnis, das srvpanel gehoert.
+# Ohne -h aendert chown das Ziel eines Verweises, den der Dienst dort legt.
+vorher_datei packaging/scripts/postinstall.sh
+python3 - <<'PY2'
+p = 'packaging/scripts/postinstall.sh'
+s = open(p, encoding='utf-8').read()
+alt = "        -exec chown -h srvpanel:srvpanel {} +\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        -exec chown srvpanel:srvpanel {} +\n", 1))
+PY2
+griff_datei packaging/scripts/postinstall.sh "chown folgt Verweis" &&
+pruefe "chown folgt Verweis" \
+  LogRotationTest::test_the_repair_follows_no_link failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogRotationTest passed
+
+echo
+echo "── LogRotationTest: die Reparatur sucht mehr als Dateien ──"
+#
+# Ohne -type f fuehrt find chown ueberhaupt erst zu einem Verweis hin.
+vorher_datei packaging/scripts/postinstall.sh
+python3 - <<'PY2'
+p = 'packaging/scripts/postinstall.sh'
+s = open(p, encoding='utf-8').read()
+alt = "    find /var/log/srvpanel -maxdepth 1 -type f -user root -name 'fpm.log*' \\\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "    find /var/log/srvpanel -maxdepth 1 -user root -name 'fpm.log*' \\\n", 1))
+PY2
+griff_datei packaging/scripts/postinstall.sh "find ohne -type f" &&
+pruefe "find ohne -type f" \
+  LogRotationTest::test_the_repair_follows_no_link failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LogRotationTest passed
+
+echo
+echo "── ApplyVhostTest: srvpanel vhost schreibt keine Rotationsdateien ──"
+#
+# Befund 3 des B2-Laufs: Die Datei schrieb allein das Anlegen, und keine
+# Aenderung der Vorlage erreichte ein Abonnement, das es schon gab.
+vorher_datei app/Console/Commands/ApplyVhost.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/ApplyVhost.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $this->rotations($tenancy, $web);\n\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Console/Commands/ApplyVhost.php "keine Rotationsdateien" &&
+pruefe "keine Rotationsdateien" \
+  ApplyVhostTest::test_every_live_subscription_gets_its_rotation_written_again failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ApplyVhostTest passed
+
+echo
+echo "── ApplyVhostTest: gesperrte Abonnements fallen heraus ──"
+#
+# Ihre Domains antworten mit 503, und nginx schreibt das weiter in ihre
+# Protokolle — eine Datei von vorher bliebe dort stehen.
+vorher_datei app/Console/Commands/ApplyVhost.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/ApplyVhost.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ->whereIn('status', [SubscriptionStatus::Active->value, SubscriptionStatus::Suspended->value])\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            ->whereIn('status', [SubscriptionStatus::Active->value])\n", 1))
+PY2
+griff_datei app/Console/Commands/ApplyVhost.php "ohne gesperrte" &&
+pruefe "ohne gesperrte" \
+  ApplyVhostTest::test_every_live_subscription_gets_its_rotation_written_again failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ApplyVhostTest passed
+
+echo
+echo "── ApplyVhostTest: auch ein Abonnement, das noch angelegt wird ──"
+#
+# Die Gegenrichtung. Es schreibt seine Datei am Ende von subscription.provision
+# selbst — ein Auftrag davor gaelte einem Verzeichnis, das es noch nicht gibt.
+vorher_datei app/Console/Commands/ApplyVhost.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/ApplyVhost.php'
+s = open(p, encoding='utf-8').read()
+alt = "            ->whereIn('status', [SubscriptionStatus::Active->value, SubscriptionStatus::Suspended->value])\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Console/Commands/ApplyVhost.php "auch in Anlage" &&
+pruefe "auch in Anlage" \
+  ApplyVhostTest::test_every_live_subscription_gets_its_rotation_written_again failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ApplyVhostTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

@@ -33,10 +33,57 @@ use SrvPanel\Agent\Op;
  *
  * > **Zwei Anweisungen, die einander widersprechen, sind keine Vorsicht — eine
  * > von beiden ist tot, und man sieht ihr nicht an, welche.**
+ *
+ * **Nach der Rotation wird nginx neu geladen und nicht bloss angestossen.**
+ * Hier stand `systemctl kill --signal=USR1 nginx.service`, und das hat auf
+ * `cloudsrv24` in keiner gemessenen Nacht gewirkt (Befund 7 des B2-Laufs,
+ * `docs/134`). Beim `USR1` öffnet der Master die Dateien neu und danach jeder
+ * Arbeiter **selbst, über den Pfad** — als `www-data`. Die Verzeichnisse
+ * `logs/` und `logs/<domain>` tragen aber `<benutzer>:adm 02750`
+ * ({@see SubscriptionProvision::LOG_MODE}), und `www-data` ist weder Eigentümer
+ * noch in `adm`. Jeder Arbeiter meldete `(13: Permission denied)`, behielt die
+ * umbenannte Datei und schrieb bis zum nächsten Neustart in `access.log.1`;
+ * das neue `access.log` blieb leer, und `notifempty` drehte es nie wieder.
+ *
+ * Beim Neuladen öffnet der Master die Dateien als root, und die neuen Arbeiter
+ * erben sie. Nachgebaut am 25. September 2026 mit nginx 1.24.0 und systemd 255
+ * gegen diese Vorlage, die Zeile wörtlich ausgeführt
+ * (`tests/wiederoeffnen-nachbauen.sh`): Mit `USR1` landet die Anfrage nach der
+ * Rotation in `access.log.1`, mit dem Neuladen in `access.log` — und mit
+ * `0755` statt `02750` trägt auch `USR1`. Die Ursache ist das Verzeichnis.
+ *
+ * **Der Preis ist ein Neuladen je Abonnement und Nacht**, und nur, wenn etwas
+ * gedreht wurde: `sharedscripts` führt den Abschnitt einmal je Datei aus und
+ * gar nicht, wenn `notifempty` alles übersprungen hat. Die Verzeichnisse für
+ * `www-data` zu öffnen hätte die Ursache behoben und dafür eine Grenze
+ * verschoben; entschieden hat der Betreiber am 25. September das Neuladen.
+ *
+ * **Und die neue Datei bleibt, wie `create` sie anlegt** — `<benutzer>:adm
+ * 0640`. Beim `USR1` hatte der Master sie auf `www-data` umgeschrieben; wer
+ * nach der Behebung `ls -l` liest, sieht den Benutzer des Abonnements.
  */
 final class WebLogrotate implements Op
 {
     public const DIRECTORY = '/etc/logrotate.d';
+
+    /**
+     * Was nach der Rotation läuft.
+     *
+     * **`try-reload-or-restart` und nicht `reload`**, gemessen an einer
+     * angehaltenen Unit (systemd 255): `reload` endet dort mit rc=1 — „is not
+     * active, cannot reload" —, und logrotate meldete in jeder Nacht, in der
+     * nginx steht, einen Fehler. `try-reload-or-restart` tut dann nichts, gibt
+     * 0 und startet nichts, genau wie die `USR1`-Zeile davor. Bei laufender
+     * Unit lädt es neu: `SIGHUP` an denselben Master. Neu gestartet würde nur
+     * eine Unit ohne `ExecReload`, und die von nginx hat eine.
+     *
+     * **Eine Konstante und kein Wortlaut in der Vorlage**, weil zwei Nachbauten
+     * sie ersetzen müssen — die Zeile ruft systemd, und im Container ist es
+     * nicht PID 1. Ein `sed` über einen abgeschriebenen Wortlaut meldet Erfolg,
+     * auch wenn er nichts mehr trifft; die Nachbauten lesen die Zeile deshalb
+     * hier und prüfen, dass sie genau einmal ersetzt ist.
+     */
+    public const RELOAD = '/usr/bin/systemctl try-reload-or-restart nginx.service';
 
     public static function name(): string
     {
@@ -70,6 +117,7 @@ final class WebLogrotate implements Op
     public static function template(string $subscription, string $user): string
     {
         $root = SubscriptionProvision::VHOSTS.'/'.$subscription;
+        $reload = self::RELOAD;
 
         return <<<CONF
         # Von srvpanel-agentd erzeugt. Änderungen von Hand werden beim nächsten
@@ -91,8 +139,11 @@ final class WebLogrotate implements Op
 
             create 0640 {$user} adm
 
+            # Neu laden und nicht USR1: Die Arbeiter von nginx laufen als
+            # www-data und kommen nicht in diese Verzeichnisse. Beim Neuladen
+            # öffnet der Master die Dateien, und die neuen Arbeiter erben sie.
             postrotate
-                /usr/bin/systemctl kill --signal=USR1 nginx.service
+                {$reload}
             endscript
         }
 

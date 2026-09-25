@@ -46,6 +46,18 @@ Gemessen danach: `systemctl is-system-running` meldet **`running`**, ein eigener
 (`apt-daily`, `fstrim`, `e2scrub_all`). Gesprochen wird mit ihm über
 `nsenter -t <pid> -m -p -- systemctl …`.
 
+**Nachgetragen am 25. September 2026: Dieses Rezept leert das `/tmp` des
+Containers.** Beim Hochfahren läuft `systemd-tmpfiles-setup` mit `--remove
+--boot`, und `D /tmp 1777 root root 30d` aus `/usr/lib/tmpfiles.d` leert das
+Verzeichnis — die Mount-Namespace teilt sich das Dateisystem mit dem Container.
+Gemessen mit einer Markierung: mit dem Rezept fort, mit `mount -t tmpfs tmpfs
+/tmp` vor dem `exec` erhalten. Gekostet hat es zweimal das Scratchpad einer
+Sitzung, samt den Notizen eines laufenden Abnahmelaufs. Die Zeile gehört ins
+Rezept; `tests/wiederoeffnen-nachbauen.sh` fährt es so.
+
+> **Ein Init in eigener Namespace fährt beim Hochfahren auch sein Aufräumen —
+> und aufgeräumt wird das Dateisystem, das er sich mit dem Container teilt.**
+
 **Drei Handgriffe, die Zeit gekostet haben.** Der Manager schreibt sein Log in
 **seine eigene** Namespace — draussen bleiben 107 Byte SELinux-Meldung stehen und
 es sieht aus, als sei er gestorben; nachgesehen wird mit `ps`, nicht im Log. Die

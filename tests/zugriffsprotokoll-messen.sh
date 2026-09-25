@@ -247,10 +247,22 @@ fi
 # Z6 — Die Rotation.
 #
 # Gemessen an der echten Vorlage aus WebLogrotate::template(). Ersetzt wird
-# nur der postrotate-Aufruf: `systemctl kill` braucht systemd als PID 1, das
-# dieser Container nicht hat. Verglichen wird die **Inode** — eine Grösse von
-# 0 entstünde auch bei copytruncate, und die beiden Formen unterscheiden sich
-# genau darin, was ein offener Lesegriff danach sieht.
+# nur der postrotate-Aufruf: Er ruft systemd, und das ist in diesem Container
+# nicht PID 1. An seine Stelle tritt das Signal, das `ExecReload` der
+# nginx-Unit schickt — `nginx -s reload`, also SIGHUP. Die Zeile kommt aus
+# `WebLogrotate::RELOAD` und wird genau einmal ersetzt: Bis zum 25. September
+# 2026 stand hier ihr Wortlaut, und ein `sed`, der nichts mehr trifft, meldet
+# Erfolg. Verglichen wird die **Inode** — eine Grösse von 0 entstünde auch bei
+# copytruncate, und die beiden Formen unterscheiden sich genau darin, was ein
+# offener Lesegriff danach sieht.
+#
+# **Z6 misst das Umbenennen und nicht das Weiterschreiben.** Das nginx dieses
+# Prüfstands schreibt nach $R/logs; gedreht wird eine Kopie, in die niemand
+# schreibt, und die Verzeichnisrechte des Servers (<benutzer>:adm 02750) stehen
+# nicht nach. Genau dort lag Befund 7 des B2-Laufs (docs/134): Die Arbeiter von
+# nginx kamen nach der Rotation nicht in das Verzeichnis und schrieben in die
+# umbenannte Datei weiter. Ob nginx nach der Rotation in die neue Datei
+# schreibt, misst tests/wiederoeffnen-nachbauen.sh.
 # ---------------------------------------------------------------------------
 titel "Z6 — Die Rotation"
 D="$R/vhosts/p1001/logs/messrunde.example"
@@ -259,8 +271,13 @@ REPO="$REPO" php -r '
 require getenv("REPO")."/agent/src/autoload.php";
 echo SrvPanel\Agent\Ops\WebLogrotate::template("p1001", "root");
 ' > "$R/logrotate-roh.conf"
+RELOAD=$(REPO="$REPO" php -r 'require getenv("REPO")."/agent/src/autoload.php"; echo SrvPanel\Agent\Ops\WebLogrotate::RELOAD;')
+if [ "$(grep -cF "$RELOAD" "$R/logrotate-roh.conf")" != 1 ]; then
+    echo "Die Zeile nach der Rotation steht nicht genau einmal in der Vorlage — Z6 misst nichts." >&2
+    exit 3
+fi
 sed -e "s|/var/www/vhosts/p1001|$R/vhosts/p1001|g" \
-    -e "s|/usr/bin/systemctl kill --signal=USR1 nginx.service|kill -USR1 \$(cat $R/nginx.pid)|" \
+    -e "s|$RELOAD|kill -HUP \$(cat $R/nginx.pid)|" \
     "$R/logrotate-roh.conf" > "$R/logrotate.conf"
 wert "Vorlage sagt" "$(grep -cE '^\s+(daily|rotate|compress|delaycompress|nocreate|create)' "$R/logrotate-roh.conf") Anweisungen zur Aufbewahrung"
 grep -E '^\s+(daily|rotate [0-9]+|compress|delaycompress|nocreate|create )' "$R/logrotate-roh.conf" | sed 's/^\s*/    /'
@@ -277,7 +294,11 @@ else
 fi
 wert "access.log.1 hat Inode"      "$(stat -c '%i' "$D/access.log.1" 2>/dev/null || echo '-')"
 wert "access.log danach"           "$(stat -c '%A %U:%G, %s B' "$D/access.log")"
-satz "nocreate steht in der Vorlage, create darunter — gemessen gewinnt create."
+if grep -qE '^\s+nocreate' "$R/logrotate-roh.conf"; then
+    satz "nocreate steht in der Vorlage, create darunter — gemessen gewinnt create."
+else
+    satz "nocreate steht nicht mehr in der Vorlage (entfernt am 20. September 2026, docs/128 M4)."
+fi
 
 # Zweiter Lauf: trägt delaycompress?
 printf '127.0.0.1 - - [21/Sep/2026:03:00:00 +0000] "GET /tag2 HTTP/1.1" 200 42 "-" "curl"\n' >> "$D/access.log"

@@ -205,7 +205,12 @@ final class WebSiteApply implements Op
 
         $entstanden = ! is_dir($site->logDir());
 
-        Filesystem::directory($site->logDir(), $site->user, 'adm', 0o2750);
+        Filesystem::directory(
+            $site->logDir(),
+            $site->user,
+            SubscriptionProvision::LOG_GROUP,
+            SubscriptionProvision::LOG_MODE,
+        );
 
         if ($entstanden) {
             $created[] = $site->logDir();

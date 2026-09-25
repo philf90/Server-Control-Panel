@@ -32602,7 +32602,10 @@ nächsten Lauf überschrieben", und einen nächsten Lauf gab es nicht.
 `panel-error.log` liegen in `/var/log/srvpanel` (`0750 srvpanel:srvpanel`), und
 `packaging/etc/logrotate` hatte gar keinen postrotate-Abschnitt — neu geöffnet
 wurde nur als Nebenwirkung der Rotation eines Abonnements, mit demselben
-`USR1`. Jetzt steht dort dieselbe Zeile, mit `sharedscripts`. Die Skripte
+`USR1`. Auf `cloudsrv24` ist es an den Zeiten abzulesen: `panel-access.log.1` bekam
+seine letzte Zeile am 25. September um 08:20, vor dem Neuladen um 08:41, und
+beide Dateien gehören `www-data` — umgeschrieben vom Master beim `USR1`. Jetzt
+steht dort dieselbe Zeile, mit `sharedscripts`. Die Skripte
 laufen als root, auch unter `su`: gemessen mit logrotate 3.21.0, das die euid
 vor jedem Skript auf 0 zurückstellt.
 
@@ -32616,6 +32619,13 @@ sich nichts mehr** — keine Rotation, kein Packen, rc=1 in jeder Nacht, und
 > **Eine Datei, die logrotate nicht lesen kann, wird nicht übersprungen — ab da
 > steht ihre ganze Rotation still.**
 
+**Auf `cloudsrv24` steht genau dieser Zustand, und zwar seit August** (gelesen
+am 25. September, nur lesend): `fpm.log.1` ist `-rw------- root root`, zuletzt
+geändert am 22. August; eine `fpm.log.2.gz` gibt es nicht, und `fpm.log` trägt
+25 173 Bytes, zuletzt geschrieben beim Neustart durch das Update am
+24. September. Es ist die einzige Datei mit `0600 root` im Verzeichnis —
+`update.log.1` gehört zwar root, ist aber `0644` und dreht.
+
 Der Master von php-fpm schreibt deshalb ins Journal (`error_log = syslog`,
 `syslog.ident = srvpanel-web`), gemessen unter der Sandbox von
 `srvpanel-web.service`, `PrivateDevices` eingeschlossen: die Zeilen mit
@@ -32628,7 +32638,9 @@ Verzeichnisses dort legt, bleibt samt seinem Ziel unberührt.
 
 **Beide Paketdateien sind Konfigurationsdateien** (`config|noreplace`): dpkg
 ersetzt sie beim Update nur, wenn niemand sie auf dem Server geändert hat. Wer
-es getan hat, behält den alten Stand — und für das Panel beide Befunde.
+es getan hat, behält den alten Stand — und für das Panel beide Befunde. Auf
+`cloudsrv24` gab `dpkg --verify srvpanel` keine Zeile aus; gelesen als: beide
+unverändert. Eine Gegenprobe dazu gibt es nicht.
 
 **Und ein Befund am Prüfmittel, der zweimal Arbeit gekostet hat.** Das Rezept
 für einen systemd in eigener Namespace (`docs/89 §1`, CLAUDE.md) leert das

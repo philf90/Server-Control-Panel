@@ -119,6 +119,19 @@ set_permissions() {
     install -d -o srvpanel -g srvpanel -m 0750 /var/lib/srvpanel/metrics
     install -d -o srvpanel -g srvpanel -m 0700 /var/lib/srvpanel/tmp
     install -d -o srvpanel -g srvpanel -m 0750 /var/log/srvpanel
+
+    # **Die Reste des alten Protokolls von php-fpm.** Bis 0.9.0-rc.2 schrieb
+    # der Master nach /var/log/srvpanel/fpm.log, und php-fpm legt die Datei mit
+    # 0600 root:root an. logrotate dreht dieses Verzeichnis als srvpanel und
+    # konnte sie nach der ersten Rotation nicht packen — und hielt danach die
+    # ganze Rotation dieser Datei an, jede Nacht mit rc=1 (gemessen am
+    # 25. September 2026). Seitdem schreibt der Master ins Journal; was liegt,
+    # bekommt srvpanel, damit logrotate es zu Ende drehen kann. `-type f` und
+    # `chown -h`: Ein Verweis, den der Eigentümer des Verzeichnisses dort legt,
+    # bleibt unberührt, und sein Ziel auch — gemessen.
+    find /var/log/srvpanel -maxdepth 1 -type f -user root -name 'fpm.log*' \
+        -exec chown -h srvpanel:srvpanel {} +
+
     install -d -o root -g root -m 0755 /etc/srvpanel/tls
 
     # Die Prüfdateien für HTTP-01. Sie liegen seit 0.7.1 unter /var/spool und
@@ -342,6 +355,13 @@ restart_services
 # **Ein Fehlschlag bricht das Update nicht ab.** Der alte Block bleibt liegen
 # und liefert weiter aus; ein Update wegen einer Konfigurationsdatei
 # zurückzunehmen, wäre die teurere Antwort. Die Meldung steht dafür deutlich da.
+#
+# **Seit dem 25. September 2026 reiht derselbe Aufruf auch die Rotationsdateien
+# der Abonnements ein.** Vorher schrieb sie allein das Anlegen eines
+# Abonnements, und keine Änderung der Vorlage erreichte eines, das es schon gab
+# — auf cloudsrv24 stand das USR1, an dem jede Nacht die Wiederöffnung von nginx
+# scheiterte (Befund 7 des B2-Laufs, docs/134). Sie bestellen nichts und starten
+# nichts; deshalb laufen sie ohne `--sites` mit.
 if ! /usr/local/bin/srvpanel vhost --no-interaction; then
     echo "SrvPanel: Der Server-Block der Oberfläche liess sich nicht neu schreiben." >&2
     echo "SrvPanel: Es gilt der bisherige. Nachholen mit: sudo srvpanel vhost" >&2

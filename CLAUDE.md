@@ -1721,7 +1721,12 @@ Rotation ist der Prüfkörper, ohne den auch die alte Fassung nichts verlor) und
 `web.access.count` nur, was die Operation schreibt — das Geschriebene kommt aus
 einem echten Aufruf von `execute()`, das Gelesene aus dem Quelltext ohne
 Kommentare, und zwei Untergrenzen halten fest, dass beide Seiten überhaupt
-etwas liefern). Der Bruch selbst steht als
+etwas liefern) und `LogRotationTest` (nach der Rotation schreibt nginx in die
+neue Datei, und logrotate kommt durch — gehalten an den Nähten zwischen den
+Rechten der Protokollverzeichnisse, den beiden Rotationsdateien und
+`fpm.conf`; gefragt wird, ob ein Arbeiter hineinkommt, und nicht, welche Rechte
+dastehen, und ob die Zeile wirkt, misst `tests/wiederoeffnen-nachbauen.sh`
+gegen echtes nginx unter echtem systemd). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -5865,6 +5870,63 @@ committen, dann den Lauf starten, und bis zur Bilanz nichts anfassen, was in
 
 ---
 
+## Nach der Rotation schrieb nginx in die alte Datei — 25. September 2026
+
+Befund 7 des B2-Laufs (`docs/134`), gemessen auf `cloudsrv24` und im Container
+nachgebaut: Das `USR1` aus dem postrotate-Abschnitt hat in keiner gemessenen
+Nacht gewirkt. Beim `USR1` öffnet der Master neu **und danach jeder Arbeiter
+selbst, über den Pfad** — als `www-data`, und die Protokollverzeichnisse tragen
+`<benutzer>:adm 02750`. Die Arbeiter meldeten `(13: Permission denied)` und
+schrieben in die umbenannte Datei weiter; das neue `access.log` blieb leer, und
+`notifempty` drehte es nie wieder.
+
+> **Beim `USR1` öffnet jeder Arbeiter selbst — und braucht dafür den Weg zur
+> Datei, den nur der Master hat.**
+
+**Behoben mit einem Neuladen, entschieden vom Betreiber** —
+`WebLogrotate::RELOAD`, `try-reload-or-restart` und nicht `reload`, weil
+`reload` an einer angehaltenen Unit mit rc=1 endet (gemessen). Die Rotation des
+Panels selbst hatte denselben Fehler und gar keinen postrotate-Abschnitt; sie
+lädt jetzt auch neu.
+
+**Gesehen hat es vorher niemand, und der Grund steht im Prüfmittel.** Die
+Messrunde vor P9 (`docs/128` Z6) hat mit der echten Vorlage und dem echten
+logrotate gedreht — eine Kopie, in die niemand schrieb, in einem Verzeichnis
+ohne die Rechte des Servers.
+
+> **Eine Messung der Rotation, bei der niemand in die gedrehte Datei schreibt,
+> misst das Umbenennen und nicht die Rotation.**
+
+`tests/wiederoeffnen-nachbauen.sh` misst das Weiterschreiben: nginx unter einem
+systemd als PID 1, die Zeile wörtlich, mit dem alten `USR1` und offenen Rechten
+als Gegenproben.
+
+**Befund 1 lag an derselben Stelle, einen Schritt weiter.** php-fpm legte sein
+Protokoll mit `0600 root:root` in ein Verzeichnis, das logrotate als `srvpanel`
+dreht. Gemessen über sechs Nächte: keine Rotation, kein Packen, rc=1 in jeder.
+
+> **Eine Datei, die logrotate nicht lesen kann, wird nicht übersprungen — ab da
+> steht ihre ganze Rotation still.**
+
+Der Master schreibt seitdem ins Journal, und was auf einem Server feststeckt,
+gibt das postinstall-Skript an `srvpanel` ab — mit `find -type f` und
+`chown -h`, weil es als root in einem Verzeichnis arbeitet, das der Dienst
+beschreiben kann.
+
+**Befund 3 war die Frage, wie eine Behebung überhaupt ankommt.** Die
+Rotationsdatei eines Abonnements schrieb allein `subscription.provision`; seitdem
+schreibt `srvpanel vhost` sie bei jedem Update neu, ohne `--sites`, weil sie
+nichts bestellt.
+
+> **Eine Datei, die ankündigt, beim nächsten Lauf überschrieben zu werden,
+> braucht einen nächsten Lauf.**
+
+**Keine Freigabe trägt das bisher, und kein Server hat es gesehen.** Was auf
+`cloudsrv24` danach zu messen ist, steht am Ende des Eintrags in
+`CHANGELOG.md`.
+
+---
+
 ## Befehle
 
 ```bash
@@ -6322,8 +6384,9 @@ Testen berücksichtigen:
   **systemd 255** samt `systemctl`, `systemd-run`, `busctl` und `dbus-daemon`,
   und unter `/lib/systemd/system` liegen 273 Units. In einer eigenen PID- und
   Mount-Namespace läuft der Systemmanager als PID 1 — `unshare -m -p -f
-  --mount-proc bash -c 'mount -t cgroup2 none /sys/fs/cgroup; exec
-  /usr/lib/systemd/systemd --system --unit=basic.target'` —, meldet
+  --mount-proc bash -c 'mount -t tmpfs tmpfs /tmp; mount -t cgroup2 none
+  /sys/fs/cgroup; exec /usr/lib/systemd/systemd --system --unit=basic.target'`
+  —, meldet
   `is-system-running: running` und fährt echte Timer mit echten Terminen.
   Gesprochen wird mit ihm über `nsenter -t <pid> -m -p -- systemctl …`.
   Gemessen am 30. August 2026 für A2 (`docs/89 §1`); der Benutzer-Manager
@@ -6339,6 +6402,21 @@ Testen berücksichtigen:
 
   > **Ein Prüfkörper, der zufällig eine Zusage des Systems ist, richtet mehr an
   > als eine Datei zuviel.**
+
+  **Das tmpfs über `/tmp` gehört seit dem 25. September 2026 ins Rezept, und
+  es ist bezahlt.** Beim Hochfahren läuft `systemd-tmpfiles-setup` mit
+  `--remove --boot`, und `D /tmp` aus `/usr/lib/tmpfiles.d` leert das
+  Verzeichnis — die Mount-Namespace teilt sich das Dateisystem mit dem
+  Container. Zweimal war dabei das Scratchpad der Sitzung fort, samt den
+  Notizen eines laufenden Abnahmelaufs; gemessen mit einer Markierung, mit und
+  ohne tmpfs. `docs/89 §1` trägt das Rezept von damals und den Nachtrag.
+
+  > **Ein Init in eigener Namespace fährt beim Hochfahren auch sein Aufräumen —
+  > und aufgeräumt wird das Dateisystem, das er sich mit dem Container teilt.**
+
+  Und gesucht wird er mit `pgrep -f '^/usr/lib/systemd/systemd --system'` und
+  nicht ohne den Anker: Das Muster steht sonst auch auf der Kommandozeile der
+  eigenen Shell, und `nsenter` bekommt deren Nummer.
 
 - **Den Agenten gibt es hier auch — er muss nur gestartet werden.** Hier stand
   „kein Agent", und das war eine Aussage über den *laufenden* Dienst, nicht über

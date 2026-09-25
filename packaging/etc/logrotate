@@ -1,3 +1,17 @@
+# Die Protokolle des Panels selbst.
+#
+# **Nach der Rotation wird nginx neu geladen** — für panel-access.log und
+# panel-error.log. /var/log/srvpanel ist 0750 srvpanel:srvpanel, und die
+# Arbeiter von nginx laufen als www-data: Beim USR1 öffnen sie die Dateien
+# selbst über den Pfad und kommen nicht hinein. Bis zum 25. September 2026 stand
+# hier gar nichts, und neu geöffnet wurde nur als Nebenwirkung der Rotation
+# eines Abonnements — mit demselben USR1, an dem es scheiterte (Befund 7 des
+# B2-Laufs, docs/134). Die Zeile ist dieselbe wie WebLogrotate::RELOAD, und
+# LogRotationTest hält die beiden aneinander.
+#
+# Die Skripte laufen als root, auch unter `su` — gemessen mit logrotate 3.21.0.
+# `sharedscripts`: einmal je Nacht und nicht je Datei, und gar nicht, wenn
+# nichts gedreht wurde.
 /var/log/srvpanel/*.log /var/lib/srvpanel/storage/logs/*.log {
     daily
     rotate 30
@@ -7,4 +21,8 @@
     notifempty
     create 0640 srvpanel srvpanel
     su srvpanel srvpanel
+    sharedscripts
+    postrotate
+        /usr/bin/systemctl try-reload-or-restart nginx.service
+    endscript
 }

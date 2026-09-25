@@ -68,11 +68,25 @@ trap 'rm -rf "$R" /var/tmp/srvpanel-tageswechsel-zaehlen.php' EXIT
 
 # Die Konfiguration aus der Vorlage — mit dem Prüfstand als Wurzel und ohne den
 # Wink an nginx, den es hier nicht gibt.
+#
+# **Die Zeile dafür kommt aus `WebLogrotate::RELOAD` und nicht aus diesem
+# Skript.** Bis zum 25. September 2026 stand hier ihr Wortlaut in einem `sed`.
+# Ein `sed`, das nichts mehr trifft, meldet Erfolg — nach der Umstellung auf das
+# Neuladen hätte der Nachbau systemd gerufen. Ersetzt wird deshalb genau einmal,
+# oder er bricht ab.
 vorlage() {
-    php -r 'require $argv[1]; echo SrvPanel\Agent\Ops\WebLogrotate::template($argv[2], "root");' \
-        "$REPO/vendor/autoload.php" "$ABO" \
-        | sed -e "s#/var/www/vhosts/$ABO#$R/vhosts/$ABO#g" \
-              -e 's#/usr/bin/systemctl kill --signal=USR1 nginx.service#true#'
+    php -r '
+        require $argv[1];
+        $zeile = SrvPanel\Agent\Ops\WebLogrotate::RELOAD;
+        $conf = SrvPanel\Agent\Ops\WebLogrotate::template($argv[2], "root");
+        $treffer = substr_count($conf, $zeile);
+        if ($treffer !== 1) {
+            fwrite(STDERR, "Die Zeile nach der Rotation steht {$treffer}-mal in der Vorlage statt einmal — Nachbau abgebrochen.\n");
+            exit(3);
+        }
+        $conf = str_replace($zeile, "true", $conf);
+        echo str_replace("/var/www/vhosts/".$argv[2], $argv[3]."/vhosts/".$argv[2], $conf);' \
+        "$REPO/vendor/autoload.php" "$ABO" "$R"
 }
 
 # Eine Zeile im Format srvpanel; die Byte-Zahl ist ihre laufende Nummer mal 1000.
@@ -90,7 +104,8 @@ zaehlen()  { php /var/tmp/srvpanel-tageswechsel-zaehlen.php "$REPO/vendor/autolo
 durchlauf() {
     rm -rf "$R" && mkdir -p "$R/vhosts/$ABO/logs/$DOM"
     LOG="$R/vhosts/$ABO/logs/$DOM"
-    vorlage > "$R/rotate.conf" && chmod 644 "$R/rotate.conf"
+    vorlage > "$R/rotate.conf" || exit 3
+    chmod 644 "$R/rotate.conf"
     : > "$R/wahr.tsv"
     n=0
 

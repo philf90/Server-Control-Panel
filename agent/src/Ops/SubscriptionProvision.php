@@ -101,6 +101,22 @@ final class SubscriptionProvision implements Op
     public const DOCUMENT_ROOT_MODE = 0o2750;
 
     /**
+     * Die Gruppe der Protokollverzeichnisse — `logs/` und `logs/<domain>`.
+     *
+     * Sie steht hier und in {@see WebSiteApply} nicht noch einmal, aus
+     * demselben Grund wie {@see self::DOCUMENT_ROOT_GROUP}. **Und an ihr hängt
+     * eine dritte Datei:** Solange `www-data` weder Eigentümer noch in dieser
+     * Gruppe ist und das Weltbit fehlt, kommt kein Arbeiter von nginx in das
+     * Verzeichnis — und die Rotation muss nginx neu laden, statt ihm nur
+     * `USR1` zu schicken ({@see WebLogrotate}). `LogRotationTest` hält die drei
+     * aneinander.
+     */
+    public const LOG_GROUP = 'adm';
+
+    /** Und ihre Rechte — setgid aus demselben Grund wie oben. */
+    public const LOG_MODE = 0o2750;
+
+    /**
      * Das Verzeichnisschema aus §4.5.
      *
      * `%u` ist der Systembenutzer des Abonnements, `%g` seine Gruppe.
@@ -117,7 +133,7 @@ final class SubscriptionProvision implements Op
         // Dieselbe Überlegung für die Protokolle: Sie gehören `adm`, damit ein
         // Betreiber sie lesen kann, ohne root zu sein. Ohne setgid trüge jede
         // Datei, die nginx dort anlegt, die Gruppe ihres Erzeugers.
-        'logs' => ['%u', 'adm', 0o2750],
+        'logs' => ['%u', self::LOG_GROUP, self::LOG_MODE],
 
         // Hier ändert das Bit nichts — Eigentümer und Gruppe sind dieselben —,
         // und es steht trotzdem da: Eine Regel, die für „alle Verzeichnisse des

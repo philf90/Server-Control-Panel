@@ -32534,3 +32534,148 @@ Betreibers. Nicht abgedeckt sind drei Fälle, alle hergeleitet und nicht
 gemessen: ein Tag, nach dem einen ganzen Tag lang kein Lauf kommt (eine Lücke,
 so entworfen), eine zweite Rotation am selben Tag und ein Lauf, der sich mit
 der Rotation überschneidet.
+
+### Nach der Rotation schreibt nginx in die neue Datei — und logrotate kommt wieder durch
+
+**Befund 7 des B2-Laufs, gemessen am 25. September 2026 auf `cloudsrv24`:**
+nginx öffnete nach der Rotation nie neu. Die sechs Arbeiter (`www-data`)
+hielten `access.log.1`, nur der Master (root) die neue Datei, und im
+Fehlerprotokoll stand um 00:00:01 für die Protokolle beider Abonnements und
+für die beiden der Oberfläche `open() … failed (13: Permission denied)`. Das
+`USR1` aus dem postrotate-Abschnitt lässt jeden Arbeiter die Dateien **selbst,
+über den Pfad** öffnen, und die Protokollverzeichnisse tragen
+`<benutzer>:adm 02750` — `www-data` ist weder Eigentümer noch in `adm`. Die
+Rotation vom 22. hatte genauso nicht gewirkt: Die Datei vom 22. bekam ihre
+erste Zeile nach dem Neustart durch das Update am 24. um 22:32. Das neue
+`access.log` blieb leer, und `notifempty` drehte es nie wieder.
+
+> **Beim `USR1` öffnet jeder Arbeiter selbst — und braucht dafür den Weg zur
+> Datei, den nur der Master hat.**
+
+**Behoben, entschieden vom Betreiber am selben Morgen: neu laden statt
+`USR1`.** Der Abschnitt ruft jetzt `/usr/bin/systemctl try-reload-or-restart
+nginx.service` (`WebLogrotate::RELOAD`); beim Neuladen öffnet der Master die
+Dateien als root, und die neuen Arbeiter erben sie. **`try-` und nicht
+`reload`**, gemessen gegen systemd 255 an einer angehaltenen Unit: `reload`
+rc=1 („is not active, cannot reload"), `try-reload-or-restart` rc=0 und die
+Unit bleibt aus — wie die `USR1`-Zeile davor. Der Preis ist ein Neuladen je
+Abonnement und Nacht, und nur, wenn etwas gedreht wurde. Die Verzeichnisse für
+`www-data` zu öffnen hätte die Ursache auch behoben und dafür eine Grenze
+verschoben. **Sichtbar wird eine Nebenwirkung:** Die neue Datei bleibt, wie
+`create` sie anlegt, `<benutzer>:adm 0640`; beim `USR1` hatte der Master sie
+auf `www-data` umgeschrieben.
+
+**Nachgebaut mit der Zeile wörtlich** (`tests/wiederoeffnen-nachbauen.sh`): ein
+systemd als PID 1 in eigener Namespace fährt die nginx-Unit aus dem Paket, nur
+Konfiguration und pid-Datei per Drop-in ersetzt, und logrotate läuft darin mit
+der echten Vorlage. Wohin die Anfrage nach der Rotation geht:
+
+| postrotate | Rechte | Datei | Datei.1 |
+|---|---|---|---|
+| die Vorlage | 2750 | **1** | 0 |
+| Gegenprobe: `USR1` | 2750 | 0 | **1** |
+| Gegenprobe: `USR1` | 755 | **1** | 0 |
+| die Paketdatei des Panels | 750 | **1** | 0 |
+| Gegenprobe: ohne postrotate | 750 | 0 | **1** |
+
+Die dritte Zeile legt die Ursache auf das Verzeichnis und nicht auf das Signal.
+
+**Die Messrunde vor P9 hat das nicht gesehen** (`docs/128` Z6): Ihr nginx
+schrieb nach `$R/logs`, gedreht wurde eine Kopie, in die niemand schrieb, und
+die Rechte des Servers standen nicht nach. Der Kopf von Z6 sagt das jetzt.
+
+> **Eine Messung der Rotation, bei der niemand in die gedrehte Datei schreibt,
+> misst das Umbenennen und nicht die Rotation.**
+
+**Befund 3: Die neue Zeile erreicht den Bestand.** Die Rotationsdatei schrieb
+bis hierher allein `subscription.provision` — auf `cloudsrv24` stand die Datei
+vom 14. August, mit `nocreate` und mit dem `USR1`. Jetzt reiht `srvpanel vhost`
+für jedes aktive oder gesperrte Abonnement `web.logrotate.apply` ein, und das
+postinstall-Skript ruft es nach jedem Update. Ohne `--sites`, weil eine
+Rotationsdatei nichts bestellt; der Kopf der Datei verspricht seit P3 „beim
+nächsten Lauf überschrieben", und einen nächsten Lauf gab es nicht.
+
+> **Eine Datei, die ankündigt, beim nächsten Lauf überschrieben zu werden,
+> braucht einen nächsten Lauf.**
+
+**Das Panel selbst hatte denselben Fehler.** `panel-access.log` und
+`panel-error.log` liegen in `/var/log/srvpanel` (`0750 srvpanel:srvpanel`), und
+`packaging/etc/logrotate` hatte gar keinen postrotate-Abschnitt — neu geöffnet
+wurde nur als Nebenwirkung der Rotation eines Abonnements, mit demselben
+`USR1`. Auf `cloudsrv24` ist es an den Zeiten abzulesen: `panel-access.log.1` bekam
+seine letzte Zeile am 25. September um 08:20, vor dem Neuladen um 08:41, und
+beide Dateien gehören `www-data` — umgeschrieben vom Master beim `USR1`. Jetzt
+steht dort dieselbe Zeile, mit `sharedscripts`. Die Skripte
+laufen als root, auch unter `su`: gemessen mit logrotate 3.21.0, das die euid
+vor jedem Skript auf 0 zurückstellt.
+
+**Befund 1: logrotate scheiterte jede Nacht an `fpm.log.1`.** php-fpm legt sein
+Protokoll mit `0600 root:root` an (gemessen mit 8.3.6), und `/var/log/srvpanel`
+dreht logrotate als `srvpanel`. Über sechs Nächte im Container gemessen: Nach
+der ersten Rotation liess sich die Datei nicht packen, und danach **bewegte
+sich nichts mehr** — keine Rotation, kein Packen, rc=1 in jeder Nacht, und
+`fpm.log` wuchs.
+
+> **Eine Datei, die logrotate nicht lesen kann, wird nicht übersprungen — ab da
+> steht ihre ganze Rotation still.**
+
+**Auf `cloudsrv24` steht genau dieser Zustand, und zwar seit August** (gelesen
+am 25. September, nur lesend): `fpm.log.1` ist `-rw------- root root`, zuletzt
+geändert am 22. August; eine `fpm.log.2.gz` gibt es nicht, und `fpm.log` trägt
+25 173 Bytes, zuletzt geschrieben beim Neustart durch das Update am
+24. September. Es ist die einzige Datei mit `0600 root` im Verzeichnis —
+`update.log.1` gehört zwar root, ist aber `0644` und dreht.
+
+Der Master von php-fpm schreibt deshalb ins Journal (`error_log = syslog`,
+`syslog.ident = srvpanel-web`), gemessen unter der Sandbox von
+`srvpanel-web.service`, `PrivateDevices` eingeschlossen: die Zeilen mit
+`_TRANSPORT=syslog` im Journal der Unit, keine Datei. Auf der Protokollseite
+stehen sie unter „Journal: Weboberfläche". **Was auf einem Server schon
+feststeckt**, gibt das postinstall-Skript an `srvpanel` ab — mit `find -type f`
+und `chown -h`, gemessen in beide Richtungen: Die Rotation läuft danach wieder
+(rc=0, `.1` wird zu `.2.gz`), und ein Verweis, den der Eigentümer des
+Verzeichnisses dort legt, bleibt samt seinem Ziel unberührt.
+
+**Beide Paketdateien sind Konfigurationsdateien** (`config|noreplace`): dpkg
+ersetzt sie beim Update nur, wenn niemand sie auf dem Server geändert hat. Wer
+es getan hat, behält den alten Stand — und für das Panel beide Befunde. Auf
+`cloudsrv24` gab `dpkg --verify srvpanel` keine Zeile aus; gelesen als: beide
+unverändert. Eine Gegenprobe dazu gibt es nicht.
+
+**Und ein Befund am Prüfmittel, der zweimal Arbeit gekostet hat.** Das Rezept
+für einen systemd in eigener Namespace (`docs/89 §1`, CLAUDE.md) leert das
+`/tmp` des Containers: Beim Hochfahren läuft `systemd-tmpfiles-setup` mit
+`--remove --boot`, und `D /tmp` leert das Verzeichnis. Gemessen mit einer
+Markierung, mit und ohne `mount -t tmpfs tmpfs /tmp` vor dem `exec`. Weg waren
+zweimal das Scratchpad der Sitzung, samt den Notizen des laufenden
+Abnahmelaufs.
+
+> **Ein Init in eigener Namespace fährt beim Hochfahren auch sein Aufräumen —
+> und aufgeräumt wird das Dateisystem, das er sich mit dem Container teilt.**
+
+**Die beiden Nachbauten lesen die Zeile aus `WebLogrotate::RELOAD`** statt ihres
+Wortlauts und brechen ab, wenn sie nicht genau einmal ersetzt ist. Gegen den
+alten Wortlaut gefahren endet `tests/tageswechsel-nachbauen.sh` mit rc=3, statt
+systemd zu rufen; ein `sed`, das nichts trifft, hätte Erfolg gemeldet.
+
+**Wächter:** `LogRotationTest` hält die Nähte in sieben Fällen — die Rechte an
+einer Stelle, die Arbeiter bleiben draussen, die Rotation eines Abonnements
+lädt neu, das Neuladen lässt ein angehaltenes nginx in Ruhe, die Rotation des
+Panels lädt neu, der Master schreibt ins Journal, die Reparatur folgt keinem
+Verweis. `ApplyVhostTest` hält den neuen Weg in den Bestand, in beide
+Richtungen des Zustands.
+
+**Zwölf neue Eingriffe im Bruchskript**, und ein Anker ist umgezogen
+(`InheritedGroupTest`, weil `WebSiteApply` die Rechte jetzt aus den Konstanten
+liest) — gemeldet hat ihn `BreakScriptTest`, bevor ein Lauf ihn als stumm
+geführt hätte. Einzeln gefahren mit allen Eingriffen, deren Datei oder Wächter
+die Änderung berührt: 170 Blöcke, 408 Prüfungen, alle beissen, jede
+Rücksetzung wieder grün.
+
+**Was offen bleibt:** Keine Freigabe trägt die Behebung, und kein Server hat
+sie gesehen. Auf `cloudsrv24` gehört dazu nach dem Update: die
+Rotationsdateien unter `/etc/logrotate.d/srvpanel-*` tragen die neue Zeile, und
+in der Nacht danach steht eine Anfrage nach der Rotation in `access.log` und
+nicht in `access.log.1`. Nicht untersucht sind die übrigen Schreiber in
+`/var/log/srvpanel` und `storage/logs`, die eine Datei offen halten könnten,
+und wie sich viele Neuladen in einer Nacht verhalten — gemessen ist eines.

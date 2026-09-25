@@ -529,12 +529,7 @@ final class WebLifecycle implements AfterOperation
              * Ohne diese Zeilen war `web.logrotate.apply` in P3 gebaut und von
              * nichts aufgerufen — gefunden hat das `AgentOperationReachTest`.
              */
-            $this->dispatchForSubscription(
-                $subscription,
-                'web.logrotate.apply',
-                'Protokollrotation für '.$subscription->name,
-                $operation->account_id,
-            );
+            $this->applyRotation($subscription, $operation->account_id);
 
             $main = $this->ensureMainDomain($subscription);
 
@@ -615,6 +610,26 @@ final class WebLifecycle implements AfterOperation
             sprintf('PHP-Pool %s für %s wird entfernt', $version, $subscription->name),
             $operation->account_id,
             ['php_version' => $version],
+        );
+    }
+
+    /**
+     * Die Rotationsdatei eines Abonnements schreiben — beim Anlegen und bei
+     * jedem `srvpanel vhost`.
+     *
+     * **Bis zum 25. September 2026 gab es nur den ersten der beiden Wege**, und
+     * keine Änderung der Vorlage erreichte ein Abonnement, das es schon gab.
+     * Auf `cloudsrv24` trug die Datei eines Abonnements vom 14. August noch
+     * `nocreate`, das seit dem 20. September nicht mehr in der Vorlage steht —
+     * und das `USR1`, an dem jede Nacht die Wiederöffnung scheiterte.
+     */
+    public function applyRotation(Subscription $subscription, ?int $accountId = null): void
+    {
+        $this->dispatchForSubscription(
+            $subscription,
+            'web.logrotate.apply',
+            'Protokollrotation für '.$subscription->name,
+            $accountId,
         );
     }
 

@@ -1,10 +1,10 @@
 {{-- Reiner Text. Zeilen unter 78 Zeichen, damit kein Klient umbricht, wo er will. --}}
 Guten Tag,
 
-für Ihr Abonnement {{ $subscription }} ist ein Kontingent überschritten:
+für Ihr Abonnement {!! $subscription !!} ist ein Kontingent überschritten:
 
 @foreach ($overruns as $overrun)
-- {{ $overrun['label'] }}: {{ $overrun['detail'] }}
+- {!! $overrun['label'] !!}: {!! $overrun['detail'] !!}
 @endforeach
 
 Diese Kontingente werden gemessen und nicht erzwungen — es wird nichts

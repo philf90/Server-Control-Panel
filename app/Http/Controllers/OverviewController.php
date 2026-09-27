@@ -63,7 +63,8 @@ final class OverviewController extends Controller
          *
          * Der Unterschied ist gemessen in Aufrufen an den Agenten: eine volle
          * Seite kostet `system.info`, `pg.server.info` und je Dienst ein
-         * `service.status` — mindestens fünf. Ein Nachladen der Kacheln kostet
+         * `service.status` — mindestens fünf, und seit dem 27. September 2026
+         * `system.filesystems` dazu. Ein Nachladen der Kacheln kostet
          * **einen**, und den nur, weil die Schwelle der Load die Kernzahl
          * braucht.
          *
@@ -79,9 +80,9 @@ final class OverviewController extends Controller
         // Ein Aufruf, nicht drei: `system.info` liefert alles auf einmal, und
         // jeder weitere wäre ein Verbindungsaufbau zum Agenten für Werte, die
         // schon dastehen. Der Verschluss merkt sich die Antwort, damit aus den
-        // vier Lesern nicht vier Aufrufe werden.
+        // drei Lesern nicht drei Aufrufe werden.
         $system = function () use ($agent, &$info): array {
-            return $info ??= $this->systemInfo($agent);
+            return $info ??= $this->ask($agent, 'system.info');
         };
 
         return Inertia::render('Overview', [
@@ -89,7 +90,7 @@ final class OverviewController extends Controller
             'hosting' => fn (): array => $this->hosting(),
             'tiles' => fn (): array => $this->tiles($store, $this->cores($system())),
             'services' => fn (): array => $this->services($agent),
-            'filesystems' => fn (): array => $this->filesystems($system()),
+            'filesystems' => fn (): array => $this->filesystems($this->ask($agent, 'system.filesystems')),
             'processes' => fn (): array => $this->processes($system()),
 
             /*
@@ -265,14 +266,14 @@ final class OverviewController extends Controller
     }
 
     /**
-     * `system.info` einmal holen — oder die Begründung, warum nicht.
+     * Eine lesende Operation einmal fragen — oder die Begründung, warum nicht.
      *
      * @return array{ok:bool,data:array<string,mixed>,error:string}
      */
-    private function systemInfo(Client $agent): array
+    private function ask(Client $agent, string $operation): array
     {
         try {
-            return ['ok' => true, 'data' => $agent->call('system.info'), 'error' => ''];
+            return ['ok' => true, 'data' => $agent->call($operation), 'error' => ''];
         } catch (AgentException $error) {
             // Die Übersicht bleibt bedienbar, wenn der Agent schweigt — sie
             // sagt dann, dass er schweigt. Eine weiße Seite mit Stacktrace
@@ -451,6 +452,22 @@ final class OverviewController extends Controller
     }
 
     /**
+     * Die Dateisysteme — aus `system.filesystems` und nicht aus `system.info`.
+     *
+     * **Wegen der Inodes.** `system.info` fragt der Kennzahlensammler alle zehn
+     * Sekunden, und dort gilt „kein Programmaufruf"; die Inodes kosten einen
+     * (`stat -f`, `docs/136 §3` M6). Beobachtet im Abnahmelauf vom
+     * 27. September 2026 (`docs/137 §7`): Eine Platte mit 100 % vergebenen
+     * Inodes und 58,4 MiB frei stand auf dieser Seite als „2.2 %" und
+     * ungefärbt da — während die Prüfung meldete, ihre Inodes seien fast
+     * aufgebraucht.
+     *
+     * **Eine Zeile nur, wenn es etwas zu sagen gibt**, entschieden vom
+     * Betreiber: Unter der Warnschwelle bleibt die Zelle der Balken allein. Die
+     * Schwellen sind die der Prüfung, wie beim Balken selbst; einen Rückweg
+     * hat die Anzeige nicht — sie zeigt den Augenblick, die Prüfung führt das
+     * Gedächtnis.
+     *
      * @param  array{ok:bool,data:array<string,mixed>,error:string}  $result
      * @return list<array<string,mixed>>
      */
@@ -479,10 +496,37 @@ final class OverviewController extends Controller
                 // Balken färbt ab derselben Zahl, ab der gemeldet wird. Bis zum
                 // 27. September 2026 stand hier eine eigene 85.
                 'tight' => (float) ($row['percent'] ?? 0) >= DiskSpace::WARN_PERCENT,
+                ...$this->inodes($row['inodes'] ?? null),
             ];
         }
 
         return $out;
+    }
+
+    /**
+     * Der Anteil der vergebenen Inodes und die Farbe, die er trägt.
+     *
+     * `null` heisst „nicht gemessen" und nicht „0 %": vfat führt keine
+     * Inodes, btrfs vergibt sie nach Bedarf, und ein gescheitertes `stat -f`
+     * lässt sie offen (`SystemFilesystems::inodes()`).
+     *
+     * @return array{inodes_percent: float|null, inodes_rank: 'warn'|'critical'|null}
+     */
+    private function inodes(mixed $inodes): array
+    {
+        $anteil = is_array($inodes) && (is_int($inodes['percent'] ?? null) || is_float($inodes['percent'] ?? null))
+            ? (float) $inodes['percent']
+            : null;
+
+        return [
+            'inodes_percent' => $anteil,
+            'inodes_rank' => match (true) {
+                $anteil === null => null,
+                $anteil >= DiskSpace::FAIL_PERCENT => 'critical',
+                $anteil >= DiskSpace::WARN_PERCENT => 'warn',
+                default => null,
+            },
+        ];
     }
 
     /**

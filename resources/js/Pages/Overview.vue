@@ -11,6 +11,7 @@ import FormErrors from '../Components/FormErrors.vue'
 import RebootButton from '../Components/RebootButton.vue'
 import Tile, { type TileData } from '../Components/Tile.vue'
 import PanelLayout from '../Layouts/PanelLayout.vue'
+import { formatPercent } from '../percent'
 
 interface Service {
   unit: string
@@ -27,6 +28,13 @@ interface Filesystem {
   free: string
   percent: number
   tight: boolean
+
+  /* Der Anteil der vergebenen Inodes — `null` heisst „nicht gemessen" (vfat,
+     btrfs, ein gescheitertes `stat -f`) und nicht „0 %". */
+  inodes_percent: number | null
+
+  /* Die Farbe des Befunds, ab den Schwellen der Prüfung — `null` darunter. */
+  inodes_rank: 'warn' | 'critical' | null
 }
 
 interface Process {
@@ -615,7 +623,7 @@ const headline = props.server.reachable
       <Section
         v-if="props.hosting.storage.length > 0"
         title="Am nächsten an der Speichergrenze"
-        weit
+        wide
       >
         <div class="scrolls">
           <table class="stacks">
@@ -704,13 +712,33 @@ const headline = props.server.reachable
                 <td data-column="Art" class="quiet">{{ filesystem.type }}</td>
                 <td data-column="Größe" class="right">{{ filesystem.total }}</td>
                 <td data-column="Frei" class="right">{{ filesystem.free }}</td>
-                <td data-column="Belegt">
+                <!--
+                  `multiline`, sobald die Inodes eine Zeile bekommen: Unter
+                  720px ist eine Zelle eine Flexzeile mit Beschriftung links
+                  und Wert rechts, und ein zweiter Wert daneben drückte den
+                  Balken zusammen.
+                -->
+                <td data-column="Belegt" :class="{ multiline: filesystem.inodes_rank !== null }">
                   <!--
                     Der Balken statt nur der Zahl: „87 %" liest man, einen
                     vollen Balken sieht man. Die Schwelle, ab der er warnt,
                     kommt vom Server — sie ist eine Aussage über den Betrieb.
                   -->
                   <Bar :percent="filesystem.percent" :tight="filesystem.tight" />
+
+                  <!--
+                    **Die Inodes nur, wenn es etwas zu sagen gibt** (`docs/137
+                    §7`): Eine Platte mit allen Inodes vergeben zeigte hier
+                    „2.2 %" und ungefärbt, während jede neue Datei darauf mit
+                    „No space left on device" scheiterte. Unter der Warnschwelle
+                    bliebe eine zweite Zahl in jeder Zeile Rauschen.
+                  -->
+                  <Badge
+                    v-if="filesystem.inodes_rank !== null && filesystem.inodes_percent !== null"
+                    :kind="filesystem.inodes_rank"
+                  >
+                    Inodes: {{ formatPercent(filesystem.inodes_percent) }} % vergeben
+                  </Badge>
                 </td>
               </tr>
               <tr v-if="filesystems.length === 0">

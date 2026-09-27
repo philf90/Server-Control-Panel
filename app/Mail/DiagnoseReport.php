@@ -12,8 +12,11 @@ use Illuminate\Queue\SerializesModels;
 use SrvPanel\Agent\Names;
 
 /**
- * Die Meldung an den **Betreiber** über das, was der Nachtlauf gefunden hat
- * (B1, `docs/129 §4`).
+ * Die Meldung an den **Betreiber** über das, was die Bestandsdiagnose gefunden
+ * hat (B1, `docs/129 §4`) — aus dem Nachtlauf oder aus der Messung der
+ * Dateisysteme alle fünf Minuten (`docs/136`). Die Vorlage sagt deshalb nicht
+ * „nächtlich": Bis zum 27. September 2026 tat sie es, und die Mail über eine
+ * volle Platte kam am Abend (`docs/137 §7`, Befund 1).
  *
  * **Warum eine zweite Vorlage und nicht {@see QuotaWarning} mit anderem Text.**
  * Die beiden haben nicht denselben Empfänger und nicht denselben Gegenstand:

@@ -8,6 +8,7 @@ import FileTree from '../../Components/FileTree.vue'
 import PermissionEditor from '../../Components/PermissionEditor.vue'
 import { counted } from '../../Composables/useCounted'
 import { formatBytes } from '../../bytes'
+import { formatPercent } from '../../percent'
 import { useConfirmation } from '../../Composables/useConfirmation'
 import { bringIntoView } from '../../scroll'
 
@@ -813,7 +814,7 @@ function pick(target: string): void {
         Der Fortschritt kommt von Inertia und nicht von einer eigenen Zählung:
         Eine zweite Fassung derselben Zahl wäre die, die stehenbleibt.
       -->
-      <span v-if="upload.progress" class="quiet">{{ upload.progress.percentage }} %</span>
+      <span v-if="upload.progress" class="quiet">{{ formatPercent(upload.progress.percentage ?? 0) }} %</span>
     </form>
 
     <!--

@@ -396,6 +396,19 @@ pruefe() {
   # Gelesen wird jetzt, was PHPUnit wirklich schreibt. Vier Faelle, und jeder
   # bedeutet etwas anderes: `kein Test` faengt einen vertippten Filter, der
   # sonst als Biss durchginge, und `unlesbar` faellt auf, statt still zu sein.
+  #
+  # **Die uebersetzten Blade-Vorlagen gehen vor jeder Messung weg.** Gefunden
+  # am 27. September 2026: Ein Eingriff in `mail/diagnose.blade.php` biss in
+  # der CI nicht und hier in vier von zwanzig Laeufen auch nicht. Blade
+  # schreibt eine Uebersetzung, deren Inhalt gleich geblieben ist, nicht neu,
+  # sondern stellt ihre Zeit auf die der Vorlage plus eine Sekunde
+  # (`BladeCompiler::compile()`). Aendert der naechste Eingriff dieselbe
+  # Vorlage noch in dieser Sekunde, ist sie aelter als ihre Uebersetzung —
+  # und der Waechter misst die Fassung von vorher.
+  #
+  # > **Ein Eingriff, den ein Zwischenspeicher des Prueflings nicht sieht,
+  # > misst nicht — und ob er ihn sieht, entscheidet die Uhr.**
+  rm -f storage/framework/views/*.php
   roh=$(./vendor/bin/phpunit --filter "$filter" --do-not-cache-result 2>&1)
 
   case "$roh" in
@@ -36419,6 +36432,484 @@ pruefe "ein Takt" \
   DiskCadenceTest::test_the_hold_lies_between_two_and_three_runs failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiskCadenceTest passed
+
+echo
+echo "── PercentFormatTest: der Balken schreibt den Anteil roh ──"
+#
+# Der Befund aus dem Abnahmelauf vom 27. September: 25.9 % neben 722,3 MiB.
+vorher_datei resources/js/Components/Bar.vue
+python3 - <<'PY2'
+p = "resources/js/Components/Bar.vue"
+s = open(p, encoding='utf-8').read()
+alt = '<span class="bar-value">{{ shown }} %</span>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<span class="bar-value">{{ percent }} %</span>', 1))
+PY2
+griff_datei resources/js/Components/Bar.vue "Balken roh" &&
+pruefe "Balken roh" \
+  PercentFormatTest::test_every_shown_share_comes_from_the_one_place failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PercentFormatTest passed
+
+echo
+echo "── PercentFormatTest: die Liste der Abonnements schreibt den Anteil roh ──"
+#
+# Die zweite Stelle desselben Fehlers, gefunden beim Beheben der ersten.
+vorher_datei resources/js/Pages/Subscriptions/Index.vue
+python3 - <<'PY2'
+p = "resources/js/Pages/Subscriptions/Index.vue"
+s = open(p, encoding='utf-8').read()
+alt = '${wert} MB · ${formatPercent(row.percent)} %'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '${wert} MB · ${row.percent} %', 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Index.vue "Liste roh" &&
+pruefe "Liste roh" \
+  PercentFormatTest::test_every_shown_share_comes_from_the_one_place failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PercentFormatTest passed
+
+echo
+echo "── PercentFormatTest: die Vorlesesoftware liest den Anteil roh ──"
+#
+# Prozent statt des Zeichens: dieselbe Regel, eine zweite Schreibweise.
+vorher_datei resources/js/Components/Bar.vue
+python3 - <<'PY2'
+p = "resources/js/Components/Bar.vue"
+s = open(p, encoding='utf-8').read()
+alt = ':aria-label="`${shown} Prozent belegt`"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, ':aria-label="`${percent} Prozent belegt`"', 1))
+PY2
+griff_datei resources/js/Components/Bar.vue "Beschriftung roh" &&
+pruefe "Beschriftung roh" \
+  PercentFormatTest::test_every_shown_share_comes_from_the_one_place failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PercentFormatTest passed
+
+echo
+echo "── PercentFormatTest: der Name kommt nicht aus der einen Stelle ──"
+#
+# Die Einbettung nennt shown, und shown rechnet selbst.
+vorher_datei resources/js/Components/Bar.vue
+python3 - <<'PY2'
+p = "resources/js/Components/Bar.vue"
+s = open(p, encoding='utf-8').read()
+alt = 'const shown = computed(() => formatPercent(props.percent))'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'const shown = computed(() => String(props.percent))', 1))
+PY2
+griff_datei resources/js/Components/Bar.vue "Name ohne die Stelle" &&
+pruefe "Name ohne die Stelle" \
+  PercentFormatTest::test_every_shown_share_comes_from_the_one_place failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PercentFormatTest passed
+
+echo
+echo "── PercentFormatTest: die eine Stelle schreibt einen Punkt ──"
+#
+# Alle Anteile gehen durch formatPercent, und dort steht en-US.
+vorher_datei resources/js/percent.ts
+python3 - <<'PY2'
+p = "resources/js/percent.ts"
+s = open(p, encoding='utf-8').read()
+alt = "return percent.toLocaleString('de-DE', { maximumFractionDigits: 1 })"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "return percent.toLocaleString('en-US', { maximumFractionDigits: 1 })", 1))
+PY2
+griff_datei resources/js/percent.ts "Punkt an der Stelle" &&
+pruefe "Punkt an der Stelle" \
+  PercentFormatTest::test_the_one_place_writes_a_german_comma failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PercentFormatTest passed
+
+echo
+echo "── PercentFormatTest: der Leser liest über zwei Klammern hinweg ──"
+#
+# Aus {{ a }} und {{ b }} % wuerde ein Ausdruck, der ueber beide reicht.
+vorher_datei tests/Unit/PercentFormatTest.php
+python3 - <<'PY2'
+p = "tests/Unit/PercentFormatTest.php"
+s = open(p, encoding='utf-8').read()
+alt = r"preg_match_all('/\{\{((?:(?!\}\}).)*?)\}\}\s*(?:%|Prozent\b)/s'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, r"preg_match_all('/\{\{(.*?)\}\}\s*(?:%|Prozent\b)/s'", 1))
+PY2
+griff_datei tests/Unit/PercentFormatTest.php "ueber zwei Klammern" &&
+pruefe "ueber zwei Klammern" \
+  PercentFormatTest::test_a_length_a_derived_name_and_a_neighbour_are_told_apart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PercentFormatTest passed
+
+echo
+echo "── PercentFormatTest: eine Länge für CSS gilt als Anzeige ──"
+#
+# Ohne das Leerzeichen als Grenze meldete er jede Breite einer Fuellung.
+vorher_datei tests/Unit/PercentFormatTest.php
+python3 - <<'PY2'
+p = "tests/Unit/PercentFormatTest.php"
+s = open(p, encoding='utf-8').read()
+alt = r"preg_match_all('/\$\{((?:[^{}]|\{[^{}]*\})*)\}\s+(?:%|Prozent\b)/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, r"preg_match_all('/\$\{((?:[^{}]|\{[^{}]*\})*)\}\s*(?:%|Prozent\b)/'", 1))
+PY2
+griff_datei tests/Unit/PercentFormatTest.php "Laenge als Anzeige" &&
+pruefe "Laenge als Anzeige" \
+  PercentFormatTest::test_a_length_a_derived_name_and_a_neighbour_are_told_apart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PercentFormatTest passed
+
+echo
+echo "── PropReachTest: der Balken der Abonnementseite heisst wieder breit ──"
+#
+# Der Fund vom 27. September: Vue legt den Namen wortlos als Attribut ab.
+# Die Stelle steht zweimal da, gebrochen wird die erste.
+vorher_datei resources/js/Pages/Subscriptions/Show.vue
+python3 - <<'PY2'
+p = "resources/js/Pages/Subscriptions/Show.vue"
+s = open(p, encoding='utf-8').read()
+alt = '            wide\n          />'
+assert s.count(alt) == 2, 'Zielstelle nicht wie erwartet zweimal da — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '            breit\n          />', 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Show.vue "wieder breit" &&
+pruefe "wieder breit" \
+  PropReachTest::test_every_attribute_on_an_own_component_is_a_declared_prop failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PropReachTest passed
+
+echo
+echo "── PropReachTest: der Bereich der Übersicht heisst wieder weit ──"
+#
+# Derselbe Rest an Section, zwei Seiten weiter.
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = "resources/js/Pages/Overview.vue"
+s = open(p, encoding='utf-8').read()
+alt = '        title="Am nächsten an der Speichergrenze"\n        wide\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        title="Am nächsten an der Speichergrenze"\n        weit\n', 1))
+PY2
+griff_datei resources/js/Pages/Overview.vue "wieder weit" &&
+pruefe "wieder weit" \
+  PropReachTest::test_every_attribute_on_an_own_component_is_a_declared_prop failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PropReachTest passed
+
+echo
+echo "── PropReachTest: der Leser hört am ersten spitzen Klammerzeichen auf ──"
+#
+# Ohne Anfuehrungszeichen endet die Marke am >= in :tight, und breit dahinter
+# faellt aus der Messung.
+vorher_datei tests/Unit/PropReachTest.php
+python3 - <<'PY2'
+p = "tests/Unit/PropReachTest.php"
+s = open(p, encoding='utf-8').read()
+alt = """            if ($c === '"' || $c === "'") {
+                $quote = $c;
+
+                continue;
+            }
+
+            if ($c === '>') {"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """            if ($c === '>') {""", 1))
+PY2
+griff_datei tests/Unit/PropReachTest.php "Leser ohne Anfuehrungszeichen" &&
+pruefe "Leser ohne Anfuehrungszeichen" \
+  PropReachTest::test_the_reader_sees_the_case_that_started_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PropReachTest passed
+
+echo
+echo "── PropReachTest: defineModel deklariert nichts ──"
+#
+# Der erste Lauf kannte es nicht und meldete jedes v-model an CodeField.
+vorher_datei tests/Unit/PropReachTest.php
+python3 - <<'PY2'
+p = "tests/Unit/PropReachTest.php"
+s = open(p, encoding='utf-8').read()
+alt = '        return [...$treffer[1], ...$modell];'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '        return $treffer[1];', 1))
+PY2
+griff_datei tests/Unit/PropReachTest.php "ohne defineModel" &&
+pruefe "ohne defineModel" \
+  PropReachTest::test_the_props_come_from_the_top_level_of_the_type failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PropReachTest passed
+
+echo
+echo "── PropReachTest: eine Komponente ohne defineProps verliert ihr Modell ──"
+#
+# Der fruehe Rueckweg des Lesers. Der erste Pruefkoerper lief nur ueber ihn,
+# und der Bruch am Ende der Methode blieb deshalb gruen.
+vorher_datei tests/Unit/PropReachTest.php
+python3 - <<'PY2'
+p = "tests/Unit/PropReachTest.php"
+s = open(p, encoding='utf-8').read()
+alt = '            return $modell;\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '            return [];\n', 1))
+PY2
+griff_datei tests/Unit/PropReachTest.php "Modell ohne defineProps" &&
+pruefe "Modell ohne defineProps" \
+  PropReachTest::test_the_props_come_from_the_top_level_of_the_type failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PropReachTest passed
+
+echo
+echo "── PropReachTest: der Leser nimmt die zweite Ebene mit ──"
+#
+# can: { update: boolean } hat eine Eigenschaft und nicht zwei.
+vorher_datei tests/Unit/PropReachTest.php
+python3 - <<'PY2'
+p = "tests/Unit/PropReachTest.php"
+s = open(p, encoding='utf-8').read()
+alt = "            $oben .= $tiefe === 1 && ! in_array($c, ['{', '(', '[', '<'], true) ? $c : ' ';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            $oben .= $c;", 1))
+PY2
+griff_datei tests/Unit/PropReachTest.php "zweite Ebene" &&
+pruefe "zweite Ebene" \
+  PropReachTest::test_the_props_come_from_the_top_level_of_the_type failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PropReachTest passed
+
+echo
+echo "── PropReachTest: keine Einbindung gefunden ──"
+#
+# Ohne Einbindungen gibt es keine Komponenten, und die leere Liste waere ein
+# Freispruch — die Untergrenzen muessen anschlagen.
+vorher_datei tests/Unit/PropReachTest.php
+python3 - <<'PY2'
+p = "tests/Unit/PropReachTest.php"
+s = open(p, encoding='utf-8').read()
+alt = r'''preg_match_all("/^import\\s+([A-Z]\\w*)\\s+from\\s+'([^']+\\.vue)'/m"'''
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, r'''preg_match_all("/^importiere\\s+([A-Z]\\w*)\\s+from\\s+'([^']+\\.vue)'/m"''', 1))
+PY2
+griff_datei tests/Unit/PropReachTest.php "keine Einbindung" &&
+pruefe "keine Einbindung" \
+  PropReachTest::test_every_attribute_on_an_own_component_is_a_declared_prop failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PropReachTest passed
+
+echo
+echo "── DiskCadenceTest: die Übersicht fragt wieder system.info ──"
+#
+# Dort gibt es keine Inodes; der Fall ueber die Rechnung bliebe gruen.
+vorher_datei app/Http/Controllers/OverviewController.php
+python3 - <<'PY2'
+p = "app/Http/Controllers/OverviewController.php"
+s = open(p, encoding='utf-8').read()
+alt = "'filesystems' => fn (): array => $this->filesystems($this->ask($agent, 'system.filesystems')),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'filesystems' => fn (): array => $this->filesystems($system()),", 1))
+PY2
+griff_datei app/Http/Controllers/OverviewController.php "wieder system.info" &&
+pruefe "wieder system.info" \
+  DiskCadenceTest::test_the_overview_reads_the_inodes_the_agent_writes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCadenceTest passed
+
+echo
+echo "── DiskCadenceTest: die Inodes werden nie kritisch ──"
+#
+# Ohne die Stoerungsschwelle traegt eine volle Platte die Farbe der Warnung.
+vorher_datei app/Http/Controllers/OverviewController.php
+python3 - <<'PY2'
+p = "app/Http/Controllers/OverviewController.php"
+s = open(p, encoding='utf-8').read()
+alt = "                $anteil >= DiskSpace::FAIL_PERCENT => 'critical',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/OverviewController.php "nie kritisch" &&
+pruefe "nie kritisch" \
+  DiskCadenceTest::test_the_overview_names_the_inodes_from_the_thresholds_of_the_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCadenceTest passed
+
+echo
+echo "── DiskCadenceTest: nicht gemessen wird zu null Prozent ──"
+#
+# vfat fuehrt keine Inodes — eine Null waere eine Zahl, die niemand gemessen hat.
+vorher_datei app/Http/Controllers/OverviewController.php
+python3 - <<'PY2'
+p = "app/Http/Controllers/OverviewController.php"
+s = open(p, encoding='utf-8').read()
+alt = "            ? (float) $inodes['percent']\n            : null;\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            ? (float) $inodes['percent']\n            : 0.0;\n", 1))
+PY2
+griff_datei app/Http/Controllers/OverviewController.php "null Prozent" &&
+pruefe "null Prozent" \
+  DiskCadenceTest::test_the_overview_names_the_inodes_from_the_thresholds_of_the_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCadenceTest passed
+
+echo
+echo "── DiskCadenceTest: die Mail zählt vier Läufe ──"
+#
+# Die zweite Fassung von Zeitgeber und Haltezeit, als Wort in einem Satz.
+vorher_datei resources/views/mail/diagnose.blade.php
+python3 - <<'PY2'
+p = "resources/views/mail/diagnose.blade.php"
+s = open(p, encoding='utf-8').read()
+alt = 'drei Läufe im Abstand von fünf Minuten'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'vier Läufe im Abstand von fünf Minuten', 1))
+PY2
+griff_datei resources/views/mail/diagnose.blade.php "vier Laeufe" &&
+pruefe "vier Laeufe" \
+  DiskCadenceTest::test_the_mail_counts_the_runs_the_timers_drive failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCadenceTest passed
+
+echo
+echo "── DiskCadenceTest: die Mail zählt drei Nächte ──"
+#
+# Dieselbe Frage fuer den Nachtlauf.
+vorher_datei resources/views/mail/diagnose.blade.php
+python3 - <<'PY2'
+p = "resources/views/mail/diagnose.blade.php"
+s = open(p, encoding='utf-8').read()
+alt = 'zwei Nächte bei den nächtlichen Prüfungen'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'drei Nächte bei den nächtlichen Prüfungen', 1))
+PY2
+griff_datei resources/views/mail/diagnose.blade.php "drei Naechte" &&
+pruefe "drei Naechte" \
+  DiskCadenceTest::test_the_mail_counts_the_runs_the_timers_drive failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCadenceTest passed
+
+echo
+echo "── OperatorMailTest: die Mail nennt wieder die Nacht als Absender ──"
+#
+# Befund 1: die Mail ueber eine volle Platte kam am Abend.
+vorher_datei resources/views/mail/diagnose.blade.php
+python3 - <<'PY2'
+p = "resources/views/mail/diagnose.blade.php"
+s = open(p, encoding='utf-8').read()
+alt = 'die Bestandsdiagnose auf {!! $host !!} meldet Folgendes:'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'die nächtliche Bestandsdiagnose auf {!! $host !!} meldet Folgendes:', 1))
+PY2
+griff_datei resources/views/mail/diagnose.blade.php "wieder die Nacht" &&
+pruefe "wieder die Nacht" \
+  OperatorMailTest::test_the_sentence_naming_the_sender_names_no_time_of_day failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperatorMailTest passed
+
+echo
+echo "── OperatorMailTest: die Mail schickt auf eine Seite, die es nicht gibt ──"
+#
+# Befund 3: die Seite heisst im Menue Diagnose.
+vorher_datei resources/views/mail/diagnose.blade.php
+python3 - <<'PY2'
+p = "resources/views/mail/diagnose.blade.php"
+s = open(p, encoding='utf-8').read()
+alt = 'der Seite „Diagnose" im Panel.'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'der Seite „Bestand" im Panel.', 1))
+PY2
+griff_datei resources/views/mail/diagnose.blade.php "Seite Bestand" &&
+pruefe "Seite Bestand" \
+  OperatorMailTest::test_the_mail_names_the_page_as_the_menu_does failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperatorMailTest passed
+
+echo
+echo "── PlainTextMailTest: die Betreibermail maskiert wieder ──"
+#
+# Befund 2: &quot; statt eines Anfuehrungszeichens, im Postfach.
+vorher_datei resources/views/mail/diagnose.blade.php
+python3 - <<'PY2'
+p = "resources/views/mail/diagnose.blade.php"
+s = open(p, encoding='utf-8').read()
+alt = "  {!! $finding['detail'] !!}\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "  {{ $finding['detail'] }}\n", 1))
+PY2
+griff_datei resources/views/mail/diagnose.blade.php "Betreibermail maskiert" &&
+pruefe "Betreibermail maskiert" \
+  PlainTextMailTest::test_no_text_view_escapes_what_it_prints failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PlainTextMailTest passed
+
+echo
+echo "── PlainTextMailTest: die Unterschrift maskiert wieder ──"
+#
+# Sie steht nur im @include — der Leser muss ihm folgen.
+vorher_datei resources/views/mail/signature.blade.php
+python3 - <<'PY2'
+p = "resources/views/mail/signature.blade.php"
+s = open(p, encoding='utf-8').read()
+alt = '{!! $brand->name !!}\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '{{ $brand->name }}\n', 1))
+PY2
+griff_datei resources/views/mail/signature.blade.php "Unterschrift maskiert" &&
+pruefe "Unterschrift maskiert" \
+  PlainTextMailTest::test_no_text_view_escapes_what_it_prints failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PlainTextMailTest passed
+
+echo
+echo "── PlainTextMailTest: die Betreibermail maskiert, gemessen an der Wirkung ──"
+#
+# Der Satz aus dem Abnahmelauf traegt das Anfuehrungszeichen im Befund selbst.
+vorher_datei resources/views/mail/diagnose.blade.php
+python3 - <<'PY2'
+p = "resources/views/mail/diagnose.blade.php"
+s = open(p, encoding='utf-8').read()
+alt = "- {!! $finding['label'] !!}\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "- {{ $finding['label'] }}\n", 1))
+PY2
+griff_datei resources/views/mail/diagnose.blade.php "Wirkung maskiert" &&
+pruefe "Wirkung maskiert" \
+  PlainTextMailTest::test_a_value_arrives_as_it_was_written failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PlainTextMailTest passed
+
+echo
+echo "── PlainTextMailTest: die Betreibermail wird HTML ──"
+#
+# Dann staende der Markenname ungefiltert in einem HTML-Dokument.
+vorher_datei app/Mail/DiagnoseReport.php
+python3 - <<'PY2'
+p = "app/Mail/DiagnoseReport.php"
+s = open(p, encoding='utf-8').read()
+alt = "return new Content(text: 'mail.diagnose', with: ["
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "return new Content(view: 'mail.diagnose', with: [", 1))
+PY2
+griff_datei app/Mail/DiagnoseReport.php "Mail als HTML" &&
+pruefe "Mail als HTML" \
+  PlainTextMailTest::test_every_mail_is_plain_text failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PlainTextMailTest passed
+
+echo
+echo "── PlainTextMailTest: der Leser folgt keinem @include ──"
+#
+# Die Unterschrift fiele aus der Messung, und ihre Untergrenze muss anschlagen.
+vorher_datei tests/Feature/PlainTextMailTest.php
+python3 - <<'PY2'
+p = "tests/Feature/PlainTextMailTest.php"
+s = open(p, encoding='utf-8').read()
+alt = r'''preg_match_all("/@include\\s*\\(\\s*'([\\w.\\-]+)'/", $gelesen[$name], $einbindungen);'''
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, r'''preg_match_all("/@einbinden\\s*\\(\\s*'([\\w.\\-]+)'/", $gelesen[$name], $einbindungen);''', 1))
+PY2
+griff_datei tests/Feature/PlainTextMailTest.php "ohne include" &&
+pruefe "ohne include" \
+  PlainTextMailTest::test_no_text_view_escapes_what_it_prints failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PlainTextMailTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

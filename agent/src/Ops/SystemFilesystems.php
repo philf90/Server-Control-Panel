@@ -12,14 +12,16 @@ use SrvPanel\Agent\Op;
 /**
  * Wie voll die Platten sind — Platz und Inodes (`docs/136`).
  *
- * Gefragt von der Prüfung „Platte voll" alle fünf Minuten. **`system.info`
- * bleibt dafür unberührt**: Der Kennzahlensammler fragt es alle zehn Sekunden,
- * und dort gilt „kein Programmaufruf". Die Inodes kosten einen — 1,9 ms für drei
- * Pfade (`docs/136 §3` M6) —, und den zahlt nur, wer sie braucht.
+ * Gefragt von der Prüfung „Platte voll" alle fünf Minuten — und seit dem
+ * 27. September 2026 von der Übersicht für ihre Tabelle der Dateisysteme, weil
+ * sie die Inodes zeigt (`docs/137 §7`). **`system.info` bleibt dafür
+ * unberührt**: Der Kennzahlensammler fragt es alle zehn Sekunden, und dort gilt
+ * „kein Programmaufruf". Die Inodes kosten einen — 1,9 ms für drei Pfade
+ * (`docs/136 §3` M6) —, und den zahlt nur, wer sie braucht.
  *
  * **Die Auswahl der Platten ist dieselbe wie in der Übersicht**, weil beide
- * {@see Disks} fragen. Eine Platte, die die Prüfung meldet und die Übersicht
- * nicht zeigt, gäbe es sonst irgendwann.
+ * diese Operation fragen und sie {@see Disks}. Eine Platte, die die Prüfung
+ * meldet und die Übersicht nicht zeigt, gäbe es sonst irgendwann.
  */
 final class SystemFilesystems implements Op
 {

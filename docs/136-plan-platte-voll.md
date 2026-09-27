@@ -276,8 +276,9 @@ der Rückweg nur zwischen den Schwellen etwas entscheidet (`docs/137 §0`).
 ## §8 · Was offen bleibt
 
 - **RAM und Load** — zurückgestellt (§1).
-- **Ob `cloudsrv24` heute drei Zeilen für eine Platte zeigt** (M4). Ein Blick auf
-  die Übersicht beantwortet es.
+- ~~**Ob `cloudsrv24` heute drei Zeilen für eine Platte zeigt** (M4).~~
+  **Beantwortet am 27. September 2026** (`docs/137 §7`): Unter `0.9.0-rc.3`
+  stand die Wurzel auf der Übersicht dreimal da, unter `0.9.0-rc.4` einmal.
 - **Der Mailweg bei voller Platte** — ungemessen, hängt am Relay.
 - **Eine Vorhersage** („in drei Tagen voll") — nicht gebaut; sie bräuchte eine
   Kurve der Belegung, und der Ringpuffer führt keine.

@@ -192,6 +192,12 @@ final class SystemInfo implements Op
      * stand sie hier und unterschied nach dem Einhängepunkt — unter der Sandbox
      * dieser Unit waren das drei Zeilen für eine Platte (`docs/136 §3` M4).
      *
+     * **Im Panel liest diese Liste seit dem 27. September 2026 niemand.** Die
+     * Übersicht fragt `system.filesystems`, weil sie die Inodes zeigt
+     * (`docs/137 §7`). Entfernt ist sie nicht: Das wäre ein Umbau der
+     * Operation, die der Kennzahlensammler alle zehn Sekunden fragt, und
+     * gehört nicht zu dem Schritt, der das Lesen umgestellt hat.
+     *
      * @return list<array{mount:string,device:string,type:string,total:int,free:int,used:int,percent:float}>
      */
     private function filesystems(): array

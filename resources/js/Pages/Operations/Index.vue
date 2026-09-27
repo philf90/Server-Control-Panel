@@ -6,6 +6,7 @@ import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Pager from '../../Components/Pager.vue'
 import { useConfirmation } from '../../Composables/useConfirmation'
+import { formatPercent } from '../../percent'
 
 const { ask } = useConfirmation()
 
@@ -106,7 +107,7 @@ function start(task: TaskEntry): void {
       <Section
         v-if="props.tasks.length > 0"
         title="Auslösen"
-        voll
+        full
         note="Jede Aufgabe schickt eine typisierte Operation an den Agenten. Was etwas
                     ändert, fragt vorher zurück."
       >
@@ -188,7 +189,7 @@ function start(task: TaskEntry): void {
                 </td>
                 <td data-column="Zustand">
                   <Badge :kind="rang(row.status)" :running="row.open">
-                    {{ row.status_label }}<template v-if="row.open"> · {{ row.progress }} %</template>
+                    {{ row.status_label }}<template v-if="row.open"> · {{ formatPercent(row.progress) }} %</template>
                   </Badge>
                 </td>
                 <td data-column="Ausgelöst von" class="quiet">{{ row.account ?? '—' }}</td>

@@ -507,7 +507,7 @@ function remove(): void {
             :percent="props.usage.percent"
             :tight="props.usage.percent >= 90 && props.usage.percent <= 100"
             :over="props.usage.percent > 100"
-            breit
+            wide
           />
 
           <p class="section-note">Gemessen am {{ props.usage.measured_at ?? '—' }}</p>
@@ -548,7 +548,7 @@ function remove(): void {
             :percent="props.database_usage.percent"
             :tight="props.database_usage.percent >= 90 && props.database_usage.percent <= 100"
             :over="props.database_usage.percent > 100"
-            breit
+            wide
           />
         </template>
 

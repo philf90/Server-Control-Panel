@@ -1,26 +1,5 @@
 Package: srvpanel-php-source
 Architecture: all
-Version: 0.7.4~rc.17
-Priority: optional
-Section: admin
-Maintainer: philf90 <philipp@netzhost24.de>
-Installed-Size: 2
-Depends: curl, ca-certificates, gnupg
-Filename: pool/main/s/srvpanel-php-source/srvpanel-php-source_0.7.4~rc.17_all.deb
-Size: 3768
-MD5sum: b1f5182fffae604ca0915f9ec3816744
-SHA1: 085e350ad9fd5ff452826e4df26e1bdf4cfdb05a
-SHA256: 26c2109ee1b3ccab0183450e21b0eab928f4a3919938e72832399300d9b4a3ae
-SHA512: 49aa94f2085c412a80d6ec9ae7e819e59338c106afee17a6e9916b75713b151d6b9db0fefcc07ef8980f8c7c6d4d9f7bcef8164d99c5225d4d0bfd8630f90ae7
-Homepage: https://repo.cloudsrv24.de/
-Description: Richtet die PHP-8.4-Quelle für SrvPanel ein.
- Debian 12, Ubuntu 22.04 und 24.04 liefern kein PHP 8.4; dieses Paket trägt
- deb.sury.org bzw. das PPA von Ondřej Surý als Quelle ein. Vor srvpanel
- einspielen — apt löst Abhängigkeiten auf, bevor Paketskripte laufen.
-License: AGPL-3.0-only
-
-Package: srvpanel-php-source
-Architecture: all
 Version: 0.8.0~rc.1
 Priority: optional
 Section: admin
@@ -103,27 +82,25 @@ Description: Richtet die PHP-8.4-Quelle für SrvPanel ein.
  einspielen — apt löst Abhängigkeiten auf, bevor Paketskripte laufen.
 License: AGPL-3.0-only
 
-Package: srvpanel
-Architecture: arm64
-Version: 0.7.4~rc.17
+Package: srvpanel-php-source
+Architecture: all
+Version: 0.9.0~rc.4
 Priority: optional
 Section: admin
 Maintainer: philf90 <philipp@netzhost24.de>
-Bugs: https://github.com/philf90/Server-Control-Panel/issues
-Installed-Size: 32162
-Depends: nginx, curl, php8.4-cli, php8.4-fpm, php8.4-mysql, php8.4-mbstring, php8.4-xml, php8.4-curl, php8.4-zip, mariadb-server, quota, ca-certificates
-Recommends: fail2ban
-Suggests: postgresql
-Filename: pool/main/s/srvpanel/srvpanel_0.7.4~rc.17_arm64.deb
-Size: 6803944
-MD5sum: f55204eef342ea889d134d2c290526d2
-SHA1: e802efd4372602d4d6e16211b2bc590e0c62e761
-SHA256: 5cb0da3fbab0131a366f7096dbd39b6bf5ee15ac5eedccdf54e119fc644327ba
-SHA512: 4700a64307f181e38b4ac6b9c49249ae956f4c90d5dceaa191947df55ee310c585eecd46a61e2176812fc31ad1187a3523c49a7aad0a44407736f784996bda30
+Installed-Size: 2
+Depends: curl, ca-certificates, gnupg
+Filename: pool/main/s/srvpanel-php-source/srvpanel-php-source_0.9.0~rc.4_all.deb
+Size: 3768
+MD5sum: a7dd9d0186d2fa2d2a050a225625a944
+SHA1: 19dbdda15eca0ca51cd7065ae5769be59479b559
+SHA256: 9bd8802f3c05e1675af1572d151601fb175bfc1dc96240f1555b0b1d9f64e84c
+SHA512: e89b7d83b5e61e71458d935f33c6a98fbfb48cb6d7793d871ef3c2213a5e6ae80873eee48b2995257129de9b619a0a1e85c250b0b6614583996f7077375b4cea
 Homepage: https://repo.cloudsrv24.de/
-Description: SrvPanel — Hosting-Panel für einen einzelnen Linux-Server.
- Kunden, Abonnements, Domains, PHP, Datenbanken, DNS, Dateien und Sicherungen
- über eine Oberfläche, mit einem Systembenutzer je Abonnement.
+Description: Richtet die PHP-8.4-Quelle für SrvPanel ein.
+ Debian 12, Ubuntu 22.04 und 24.04 liefern kein PHP 8.4; dieses Paket trägt
+ deb.sury.org bzw. das PPA von Ondřej Surý als Quelle ein. Vor srvpanel
+ einspielen — apt löst Abhängigkeiten auf, bevor Paketskripte laufen.
 License: AGPL-3.0-only
 
 Package: srvpanel
@@ -212,6 +189,29 @@ MD5sum: 18f6485c9177e315fb2165385566b757
 SHA1: 16311a95a5c912e1aec4b6cd478e3aed9b3130b3
 SHA256: 344ccd4904995b7c25681d278840d32b3a9ef2f6539dcee57e8600b8945c43e2
 SHA512: 6d366de74c2f29d6d115e2df8421c93fa03ecd1ed780fd7ce09c4d74d719a7a8e66915addd3b11cd8570cc4d4ca419caade7475f800f819c91adfdeb90c34e3e
+Homepage: https://repo.cloudsrv24.de/
+Description: SrvPanel — Hosting-Panel für einen einzelnen Linux-Server.
+ Kunden, Abonnements, Domains, PHP, Datenbanken, DNS, Dateien und Sicherungen
+ über eine Oberfläche, mit einem Systembenutzer je Abonnement.
+License: AGPL-3.0-only
+
+Package: srvpanel
+Architecture: arm64
+Version: 0.9.0~rc.4
+Priority: optional
+Section: admin
+Maintainer: philf90 <philipp@netzhost24.de>
+Bugs: https://github.com/philf90/Server-Control-Panel/issues
+Installed-Size: 32574
+Depends: nginx, curl, php8.4-cli, php8.4-fpm, php8.4-mysql, php8.4-mbstring, php8.4-xml, php8.4-curl, php8.4-zip, mariadb-server, quota, ca-certificates
+Recommends: fail2ban
+Suggests: postgresql
+Filename: pool/main/s/srvpanel/srvpanel_0.9.0~rc.4_arm64.deb
+Size: 6926418
+MD5sum: f4b39f077e9f15d3fea5ed9de740ac39
+SHA1: 5d4d60a770d2a48dce9b6df4b9ff84fe2bf07694
+SHA256: 1ae4a4ba5454eb841b316b902c83c37c923d453e5380f4262c75d5ce9ff13151
+SHA512: 114ba0552763ee9a2aac184b9f18dd89bcfee97d9ce310a39816c881d37983d7a749dd21ff87cd35fe8be18d0a8dca9cc16b4fcb79d95627c3677350ff5042c2
 Homepage: https://repo.cloudsrv24.de/
 Description: SrvPanel — Hosting-Panel für einen einzelnen Linux-Server.
  Kunden, Abonnements, Domains, PHP, Datenbanken, DNS, Dateien und Sicherungen

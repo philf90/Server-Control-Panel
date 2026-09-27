@@ -17,9 +17,16 @@
  * **Die Breite ist eine Eigenschaft des Inhalts, nicht der Seite.** Ein
  * Bereich mit einer Beschreibungsliste braucht einen Grundriss, einer mit
  * einer fünfspaltigen Tabelle anderthalb, und einer, der die Zeile für sich
- * haben muss, die ganze. Deshalb `weit` und `voll` hier und nicht als
+ * haben muss, die ganze. Deshalb `wide` und `full` hier und nicht als
  * Rasterangabe auf der Seite: Wer die Tabelle um eine Spalte erweitert, ändert
  * die Breite an derselben Stelle mit.
+ *
+ * **Die beiden hiessen einmal `weit` und `voll`**, und zwei Aufrufer schrieben
+ * die alten Namen bis zum 27. September 2026 weiter hin. Vue legt einen Namen,
+ * den die Komponente nicht kennt, wortlos als Attribut ab; beide Bereiche
+ * trugen deshalb die Klasse nicht, die ihr Aufrufer bestellt hatte.
+ * `PropReachTest` hält seitdem, dass jedes Attribut an einer eigenen
+ * Komponente eine Eigenschaft ist, die sie deklariert.
  */
 withDefaults(defineProps<{
   title: string

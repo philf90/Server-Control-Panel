@@ -17,7 +17,7 @@
 --}}
 
 --
-{{ $brand->name }}
+{!! $brand->name !!}
 @if ($brand->footer)
-{{ $brand->footer }}
+{!! $brand->footer !!}
 @endif

@@ -34,6 +34,8 @@
 import { Link, router } from '@inertiajs/vue3'
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 
+import { formatPercent } from '../percent'
+
 interface RunningOperation {
   id: number
   label: string
@@ -123,7 +125,7 @@ function aktualisieren(): void {
       <b class="rank">Vorgang {{ vorgang.id }}</b>
       {{ vorgang.label }} — {{ wort(vorgang.status) }}<template
         v-if="vorgang.running && vorgang.progress > 0"
-      > · {{ vorgang.progress }} %</template>
+      > · {{ formatPercent(vorgang.progress) }} %</template>
     </span>
 
     <!--

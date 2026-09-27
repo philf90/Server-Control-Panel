@@ -14,6 +14,7 @@ import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import { useOperationStream } from '../../Composables/useOperationStream'
 import { useConfirmation } from '../../Composables/useConfirmation'
+import { formatPercent } from '../../percent'
 
 const { ask } = useConfirmation()
 
@@ -269,7 +270,7 @@ watch(output, () => {
         </table>
 
         <div class="progress"><i :style="{ width: `${progress}%` }" /></div>
-        <p class="section-note">Fortschritt {{ progress }} %</p>
+        <p class="section-note">Fortschritt {{ formatPercent(progress) }} %</p>
       </Section>
 
       <Section title="Argumente" note="Was das Panel dem Agenten geschickt hat — typisiert und nicht als Kommandozeile.">

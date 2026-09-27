@@ -17,6 +17,10 @@
  * Dateisystem „eng" ist, ist eine Aussage über den Betrieb und keine über die
  * Darstellung — der Server kennt sie, diese Komponente nicht.
  */
+import { computed } from 'vue'
+
+import { formatPercent } from '../percent'
+
 const props = withDefaults(defineProps<{
   /** Der Anteil in Prozent. Darf über 100 liegen. */
   percent: number
@@ -35,7 +39,17 @@ const props = withDefaults(defineProps<{
   wide: false,
 })
 
-const filled = `${Math.max(0, Math.min(100, props.percent))}%`
+/*
+ * **Breite und Zahl kommen aus demselben Wert, und beide als `computed`.**
+ * Hier stand bis zum 27. September 2026 eine Konstante, die beim Einrichten
+ * einmal gelesen wurde: Bekam dieselbe Instanz später einen anderen Anteil,
+ * zog die Zahl daneben mit und die Füllung nicht.
+ *
+ * **Die Zahl mit deutschem Komma** (`docs/137 §7`) — sonst stand „25.9 %"
+ * neben „722,3 MiB". Gerechnet wird in `percent.ts` und nicht hier.
+ */
+const filled = computed(() => `${Math.max(0, Math.min(100, props.percent))}%`)
+const shown = computed(() => formatPercent(props.percent))
 </script>
 
 <template>
@@ -52,11 +66,11 @@ const filled = `${Math.max(0, Math.min(100, props.percent))}%`
       class="bar"
       :class="{ tight, over, wide }"
       role="img"
-      :aria-label="`${percent} Prozent belegt`"
+      :aria-label="`${shown} Prozent belegt`"
     >
       <i :style="{ width: filled }" />
     </div>
 
-    <span class="bar-value">{{ percent }} %</span>
+    <span class="bar-value">{{ shown }} %</span>
   </div>
 </template>

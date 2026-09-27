@@ -14,9 +14,11 @@ Stand: **P0 bis P8 abgenommen** — P7b am 9. September 2026, **P8 (die
 Sicherungen) am 18. September 2026**; der Abschnitt dazu steht weiter unten.
 Aus P9 (`docs/129`) sind **B1** am 23. September (`docs/133 §7`) und **B2** am
 27. September 2026 (`docs/134 §7`) abgenommen. **„Platte voll"** — die Schwelle
-aus A7, die in B1 fehlte — ist am 27. September gebaut und nicht abgenommen
-(`docs/136`); der Abnahmelauf steht als **`docs/137`**, ausgeschrieben vor dem
-Fahren.
+aus A7, die in B1 fehlte — ist am 27. September gebaut (`docs/136`) und am
+selben Tag auf `cloudsrv24` gefahren: **alle Punkte aus `docs/137` erfüllt**, das
+Protokoll ist dessen **§7**. Die drei Befunde an der Mail des Betreibers sind
+danach behoben und haben keinen Server gesehen; die Abnahme spricht der
+Betreiber aus.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -1737,8 +1739,17 @@ neben seinem Gegenstück) und `DiskReaderTest` (ein Gerät, eine Zeile — unter
 `PrivateTmp` stand die Wurzel dreimal da) und `DiskNoticeTest` (die Haltezeit
 hängt am Schlüssel, und der beschränkte Meldelauf lässt Befunde und Entwarnungen
 der Nacht stehen) und `DiskCadenceTest` (die Haltezeit hängt am Takt des
-Zeitgebers, die Unit meldet genau, was ihr Lauf schreibt, und die Übersicht
-färbt ab derselben Schwelle). Der Bruch selbst steht als
+Zeitgebers, die Unit meldet genau, was ihr Lauf schreibt, die Übersicht
+färbt ab derselben Schwelle, und die Mail nennt die Läufe, die die Zeitgeber
+fahren) und `PropReachTest` (jedes Attribut an einer eigenen Komponente ist eine
+Eigenschaft, die sie deklariert — die Eigenschaften kommen aus ihrem
+`defineProps` und `defineModel` und nicht aus einer Liste, und die Marke wird mit
+einem Leser gelesen, der Anführungszeichen zählt) und `PercentFormatTest` (jeder
+Anteil vor einem „%" kommt aus `percent.ts`, ohne Ausnahme für ganze Zahlen) und
+`PlainTextMailTest` (keine Mail ist HTML, und keine Textvorlage maskiert —
+samt `@include` und gemessen an der Wirkung) und `OperatorMailTest` (die Mail an
+den Betreiber nennt keinen Absender, den sie nicht hat, und die Seite so, wie das
+Menü sie nennt). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -6098,6 +6109,62 @@ Stufen gefahren, weil er nur zwischen den Schwellen etwas entscheidet. Und ein
 Handgriff zum Abräumen: **Ohne die Datei sagt `losetup -j` rc=0 und druckt
 nichts** — gezählt wird deshalb vor dem Löschen, sonst ist die Null keine
 Messung.
+
+---
+
+## Der Abnahmelauf von „Platte voll" — 27. September 2026
+
+Gefahren auf `cloudsrv24` gegen `0.9.0-rc.4`, **alle Punkte aus `docs/137`
+erfüllt**; das Protokoll ist `docs/137 §7`. Die Haltezeit ist dreimal gemessen
+und liegt dreimal im Band, das aus der Unit gerechnet ist (583, 617 und 625 s
+gegen 569–631).
+
+**Drei Befunde am Prüfling, alle in der Mail an den Betreiber, und keiner an der
+Prüfung.** Sie meldete richtig; falsch war, was die Mail über sich sagte — einen
+nächtlichen Absender um 17:45, eine HTML-Maskierung in reinem Text und eine
+Seite „Bestand", die im Menü „Diagnose" heisst.
+
+> **Wer einem Weg einen zweiten Absender gibt, liest nach, was der Weg über
+> seinen Absender sagt.** `docs/136` hat den Lauf alle fünf Minuten gewollt an
+> denselben Meldeweg gehängt; der Weg hat es getragen, der Text darin nicht.
+
+> **Eine Maskierung, die für ein Format richtig ist, ist im anderen ein Fehler —
+> und sie fällt erst auf, wenn ein Wert das Zeichen trägt.** Blades `{{ }}` ruft
+> `htmlspecialchars()`; in einer Textmail stand `&quot;` im Postfach. Sichtbar
+> erst in Punkt 5, weil vorher kein Satz eines der fünf Zeichen trug.
+
+Befund 3 stand auf drei Fotos, jedes zu einer anderen Frage angesehen, und ist
+erst beim Lesen der Vorlage aufgefallen — der Satz über das Bild, das man auf
+eine Frage hin ansieht, zum wievielten Mal.
+
+**Beim Beheben fielen vier Attribute heraus, die keine Eigenschaft sind:**
+`breit`, `weit`, `voll` — die deutschen Namen von `wide` und `full`, stehen
+geblieben bei der Umstellung auf englische Bezeichner. Vue legt einen Namen, den
+eine Komponente nicht kennt, wortlos als Attribut an ihr Wurzelelement.
+
+> **Eine Umbenennung, die der Übersetzer nicht prüft, lässt ihre alten Namen an
+> jedem Aufrufer stehen — und dort sehen sie aus wie eine Angabe.**
+
+`vue-tsc` kann es (`checkUnknownProps`), gemessen: acht Meldungen, vier davon
+diese, vier ein `rel`, `aria-current` oder `type` an Inertias `Link`, das dort
+an das `<a>` gehört. Gebaut ist deshalb `PropReachTest` über die **eigenen**
+Komponenten; seine Gegenprobe gegen den alten Stand nennt dieselben vier Zeilen
+wie `vue-tsc`.
+
+**Und ein Wert, den `<script setup>` beim Einrichten liest, zieht nicht mit.**
+Die Füllung des Balkens war eine Konstante aus `props.percent`; gemessen an
+derselben Instanz stand danach Zahl 82,4 neben Füllung 25,9. `computed` hält
+beides an einem Wert.
+
+**Eine Aufnahme der echten Seite braucht eine Anmeldung, und die Konten der
+lokalen Datenbank liest man in dieser Umgebung nicht** — das Auslesen ist als
+Umgang mit persönlichen Daten gesperrt. Der Weg, der trägt: ein Vite-Aufsatz im
+Scratchpad, der die **echten** Komponenten einbindet und den Block der Seite
+wörtlich aus ihrer `.vue` schneidet, gebaut gegen das echte `app.css`, mit
+Zeilen, die der echte Controller über Reflection erzeugt; darin
+`tests/bilder-messen.js` als Skript eingespielt. Der Rahmen aus `PanelLayout`
+(`<style scoped>`) ist dabei nachgebaut und nicht geladen — gemessen wird die
+Zelle, nicht die Leiste.
 
 ---
 

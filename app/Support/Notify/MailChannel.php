@@ -134,8 +134,8 @@ final class MailChannel implements Channel
     }
 
     /**
-     * An den Betreiber: **eine** Nachricht über alles, was die Nacht gefunden
-     * hat.
+     * An den Betreiber: **eine** Nachricht über alles, was fällig ist — aus
+     * der Nacht oder aus der Messung der Dateisysteme alle fünf Minuten.
      *
      * @param  non-empty-list<Finding>  $findings
      */

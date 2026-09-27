@@ -32858,3 +32858,60 @@ Auf dem Server fragt der Lauf dasselbe in der Namespace des Agenten.
 **Und ein Handgriff zum Abräumen:** Ohne die Datei sagt `losetup -j` rc=0 und
 druckt nichts. Gezählt wird deshalb vor dem Löschen, eingehängt `1`, ausgehängt
 `0` — `mount -o loop` gibt sein Gerät beim Aushängen selbst frei.
+
+### Der Abnahmelauf für „Platte voll" ist gefahren — und die Mail an den Betreiber sagte dreimal etwas Falsches über sich
+
+**Gefahren auf `cloudsrv24` am 27. September 2026 gegen `0.9.0-rc.4`**
+(`docs/137 §7`). Alle Punkte sind erfüllt, die beiden, die nicht ausfallen
+durften, darunter. Gemeldet wurde jedes Mal beim dritten Lauf — 583, 617 und
+625 Sekunden nach dem ersten, alle drei im Band, das aus der Unit gerechnet ist
+—, über Mail und Webhook, und entwarnt im ersten Lauf danach, über den Webhook
+allein. Die Wurzel ist nie gefüllt worden.
+
+**Die drei Befunde stehen alle in derselben Mail, und die Prüfung hatte keinen.**
+Gemeldet hat sie richtig; falsch war, was die Mail über sich sagte:
+
+- **Sie nannte einen Absender, den sie nicht hatte.** „Die nächtliche
+  Bestandsdiagnose" und „zwei Läufe … in derselben Nacht" — in einer Mail, die
+  um 17:45 aus der Messung alle fünf Minuten kam. Die Vorlage stammt aus B1;
+  seit „Platte voll" trägt derselbe Weg einen zweiten Absender. Sie nennt jetzt
+  keinen Zeitpunkt mehr und beide Regeln: zwei Nächte, drei Läufe im Abstand von
+  fünf Minuten. `OperatorMailTest` hält den Satz über den Absender,
+  `DiskCadenceTest` die Zahlen gegen Zeitgeber und Haltezeit.
+- **Sie maskierte für HTML.** „No space left on device&quot;" — die vier
+  Textvorlagen gaben jeden Wert über die maskierende Ausgabe von Blade aus, und
+  in reinem Text steht die Maskierung wörtlich im Postfach. Getroffen hat es
+  jeden Wert mit einem der fünf Zeichen, auch Markennamen und Kundennamen.
+  `PlainTextMailTest` hält die Vorlagen samt `@include`, misst die Wirkung an
+  allen drei Mails und besteht darauf, dass keine Mail HTML ist — sonst stünde
+  der Markenname ungefiltert in einem HTML-Dokument.
+- **Sie schickte auf die Seite „Bestand"**, die im Menü „Diagnose" heisst. Er
+  stand auf drei Fotos und ist erst beim Lesen der Vorlage aufgefallen.
+  `OperatorMailTest` liest den Namen aus dem Menü.
+
+**Der Anteil steht mit deutschem Komma da.** Die Übersicht schrieb „25.9 %"
+neben „722,3 MiB", die Liste der Abonnements dasselbe roh. `percent.ts` ist die
+eine Stelle, und `PercentFormatTest` verlangt sie für jede Einbettung vor einem
+„%" oder „Prozent" — auch für den ganzzahligen Fortschritt eines Vorgangs, weil
+eine Liste der sicheren Ausdrücke die Stelle wäre, die veraltet.
+
+**Die Übersicht nennt die Inodes, sobald es etwas zu sagen gibt.** Eine Platte
+mit allen Inodes vergeben stand dort mit „2.2 %" und ungefärbt, während jede
+neue Datei darauf scheiterte. Entschieden hat der Betreiber: eine Zeile unter
+dem Balken ab 85 %, in der Farbe des Befunds. Die Tabelle kommt dafür aus
+`system.filesystems` statt aus `system.info`; `DiskCadenceTest` misst beide
+Schwellen von beiden Seiten und die Naht vom Agenten bis zur Zeile.
+
+**Und beim Beheben fielen vier Attribute heraus, die keine Eigenschaft sind** —
+`breit` zweimal am Balken der Abonnementseite, `weit` und `voll` an zwei
+Bereichen: die deutschen Namen von `wide` und `full`. Vue legt einen Namen, den
+eine Komponente nicht kennt, wortlos als Attribut ab; im Nachbau blieb der
+Balken 150 px breit statt 553. `PropReachTest` hält, dass jedes Attribut an einer eigenen
+Komponente eine Eigenschaft ist, die sie deklariert. Dazu zog die Füllung des
+Balkens nicht mit, wenn dieselbe Instanz einen neuen Anteil bekam — gemessen
+an derselben Instanz: Zahl 82,4, Füllung 25,9.
+
+> **Wer einem Weg einen zweiten Absender gibt, liest nach, was der Weg über
+> seinen Absender sagt.**
+
+**Keine der Behebungen hat einen Server gesehen.**

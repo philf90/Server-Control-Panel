@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/vue3'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Pager from '../../Components/Pager.vue'
+import { formatPercent } from '../../percent'
 
 interface Row {
   id: number
@@ -54,7 +55,7 @@ function verbrauch(row: Row): string {
 
   const wert = row.used_mb.toLocaleString('de-DE')
 
-  return row.percent === null ? `${wert} MB` : `${wert} MB · ${row.percent} %`
+  return row.percent === null ? `${wert} MB` : `${wert} MB · ${formatPercent(row.percent)} %`
 }
 </script>
 

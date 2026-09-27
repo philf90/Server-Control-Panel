@@ -644,3 +644,121 @@ Protokoll, und der Lauf geht weiter.
 **Das Protokoll wird als §7 an dieses Dokument angehängt**, wie bei `docs/134`:
 je Punkt die gemessenen Zeilen, die Zeitpunkte der drei Läufe aus Punkt 2 und
 ihr Abstand, und was davon abwich.
+
+---
+
+## §7 · Das Ergebnis — gefahren am 27. September 2026
+
+**Gefahren auf `cloudsrv24` gegen `0.9.0-rc.4`, von `12:17` bis `20:25 CEST`,
+mit einer Pause von `12:31` bis `17:32` zwischen Punkt 1 und Punkt 2.** Alle
+Punkte sind erfüllt — 1, 2, 3, 4a bis 4c, 5 samt dem Rückweg, 6 und 7 —, die
+beiden, die nicht ausfallen durften (2 und 5), darunter, und keiner ist als
+„nicht herstellbar" ausgefallen. Die Wurzel ist nie gefüllt worden:
+`/dev/vda3 503G 9,5G 473G 2% /` vor dem Einhängen und nach dem Abräumen.
+
+Was hier steht, sind die **abgelesenen** Zahlen; die Erwartungen oben sind nicht
+nachträglich angepasst worden.
+
+### Abweichungen von der Vorschrift
+
+- **Die Werkzeuge aus §2 lagen in einer Datei** (`/root/sp-abnahme.sh`, 72
+  Zeilen, acht Funktionen) und nicht in der Sitzung: Gefahren wurde vom Telefon
+  aus, und über die Wartezeiten hinweg hätte eine Sitzung sie verloren. `T` und
+  der Zählerstand des Empfängers standen daneben in zwei Dateien.
+- **Dreimal ist zu früh abgelesen worden** (vor Punkt 2, 3 und 4b), jedes Mal
+  harmlos, weil das Ablesen nur liest, und jedes Mal eine Runde. Ab 4b wartete
+  der Block selbst auf die verlangte Zahl von Läufen nach `T`.
+
+### Die Punkte
+
+| Punkt | gemessen |
+|---|---|
+| §1 · Vorbedingungen | `0.9.0~rc.4` installiert um 12:17:57, und in **derselben Sekunde** `Starting srvpanel-disk.service` im Journal — §0 Punkt 3 auf dem Server belegt. `OnCalendar=*:0/5`, `RandomizedDelaySec=30`, `AccuracySec=1s`. Relay eingetragen, Ziel signiert, zwei Betreiberkonten mit Adresse, keine Befunde zu `disk.space`, Warteschlange leer. |
+| §2 · Empfänger und Platte | Probe `204`, Empfängerprotokoll 10 → 11. Die Einhängung **nach** dem Start des Agenten ist für ihn sichtbar (M7 auf dem Server bestätigt). Hilfe und Agent: `2.2 %` Platz, `1.1 %` Inodes. |
+| 1 · jede Platte einmal | roh drei Einhängungen von `vda3` (`/`, `/tmp`, `/var/tmp` unter `PrivateTmp`), gelesen **eine**; dazu `/boot`, `/boot/efi` und die Wegwerf-Platte. Die Gegenprobe steht in der Zeit: Das Bild der Übersicht unter `rc.3` zeigte `vda3` dreimal. |
+| 2 · über 85 % | Läufe um 17:35:28, 17:40:05, 17:45:06; gemeldet **beim dritten**: `mail 1 über 1`, `webhook 1 über 1`. Abstand erster bis dritter Lauf **583 s** (Band 569–631). Der vierte Lauf meldet nichts. Webhook `findings`, `space_tight`, `state: warn`, `since` gleich dem ersten Lauf; Mail „ein neuer Befund", „steht seit 17:35:28". |
+| 3 · über 95 % | Läufe um 18:20:01, 18:25:25, 18:30:17; gemeldet beim dritten, **nur** `space_full` (`state: fail`). Abstand **617 s**. `space_tight` steht mit unverändertem „seit" (15:35:28 UTC) und dem neuen Wert 96,0 % daneben. |
+| 4a · 88 % | Im ersten Lauf nach dem Umstellen auf 88 %, sechs Sekunden danach: `1 Entwarnung(en) verschickt` über den Webhook, `resolved` für `space_full`, ohne `state`, `detail` und `since`. Keine Mail — der Betreiber hat bestätigt, dass nach 18:30 keine kam. |
+| 4b · 82 % | Kein Befund geht, keine Entwarnung: `space_tight` steht mit 82,0 % und unverändertem „seit". |
+| 4c · 78 % | `Keine Befunde an den Dateisystemen.`, genau **eine** Entwarnung (`space_tight`); der zweite Lauf danach schickt keine zweite. |
+| 5 · Inodes voll | 1013 Dateien, die nächste `No space left on device`; `df` sagt `60M 40K 59M 1%`. Läufe um 19:35:08, 19:40:16, 19:45:28; gemeldet beim dritten, `mail 1 über 2`, `webhook 1 über 2` — **eine** Nachricht über zwei Befunde, `inodes_full` vor `inodes_tight`. Abstand **625 s**. Keine Zeile zum Platz. Mail „2 neue Befunde". |
+| 5 · Rückweg | Im ersten Lauf nach dem Löschen **eine** Entwarnung für beide Befunde; `at` ist die Messzeit (20:10:01), nicht die Sendezeit (20:10:02). |
+| 6 · Seite und Termin | `NEXT` 20:20:08, `LAST` 20:15:10, das Journal nennt 20:15:10. Die Diagnoseseite sagt „Dateisysteme zuletzt nachgesehen: 2026-09-27 20:20:09", das Journal des nächsten Laufs dieselbe Sekunde; daneben stehen die Nacht (00:00:15) und die Sicherungen (00:58:01) — drei Zeitpunkte, drei Läufe. |
+| 7 · die Maschine | Loop-Geräte eingehängt 1 → ausgehängt 0, Einhängepunkt und Bild entfernt; der nächste Lauf `Keine Befunde an den Dateisystemen.`, Empfänger unverändert, der Agent sieht die Platte nicht mehr. Die Übersicht zeigt `/`, `/boot`, `/boot/efi`. Keine Mail nach 19:45. |
+
+**Die Haltezeit ist dreimal gemessen und liegt dreimal im Band** — 583, 617 und
+625 Sekunden zwischen dem ersten und dem meldenden Lauf. Das Band aus §3 ist
+aus der Unit gerechnet; die drei Zahlen sind die erste Messung, die es auf einem
+Server bestätigt.
+
+**Damit ist `docs/136 §8` M4 beantwortet**: Unter `rc.3` stand die Wurzel auf
+der Übersicht dreimal da, unter `rc.4` einmal — die Sandbox der Agenten-Unit
+machte aus einer Platte drei, auf dem Server wie im Nachbau.
+
+### Die Befunde
+
+**Drei am Prüfling, alle drei in der Mail an den Betreiber, und keiner an der
+Prüfung selbst.** Gemeldet hat sie richtig, zur richtigen Zeit und über den
+richtigen Kanal; falsch war, was die Mail über sich sagte.
+
+| | wo | was | Stand |
+|---|---|---|---|
+| 1 | Prüfling | Die Mail sagte „die nächtliche Bestandsdiagnose … meldet" und „Gemeldet wird, was zwei Läufe hintereinander dasteht — ein Zustand, der sich in derselben Nacht wieder einrenkt …". Sie kam um 17:45 aus der Messung alle fünf Minuten, gemeldet hatte der **dritte** Lauf. Die Vorlage stammt aus B1, als es nur die Nacht gab; seit `docs/136` schickt sie einen zweiten Absender. Vorhergesagt aus der Vorlage vor dem Foto, am Postfach belegt. | behoben nach dem Lauf; `OperatorMailTest`, `DiskCadenceTest` |
+| 2 | Prüfling | „… mit „No space left on device&quot;, auch bei freiem Platz." — die vier Textvorlagen gaben jeden Wert über die maskierende Ausgabe von Blade aus, und in einer Textmail steht die Maskierung wörtlich. Sichtbar erst in Punkt 5, weil vorher kein Satz eines der fünf Zeichen trug. | behoben nach dem Lauf; `PlainTextMailTest` |
+| 3 | Prüfling | „auf der Seite „Bestand" im Panel" — die Seite heisst im Menü „Diagnose". Er stand auf allen drei Fotos und ist erst beim Lesen der Vorlage nach dem Lauf aufgefallen. | behoben nach dem Lauf; `OperatorMailTest` |
+| 4 | Beobachtung | Die Übersicht schrieb „25.9 %" neben „722,3 MiB": Der Balken gab die Zahl roh aus. Beim Beheben fand sich dieselbe rohe Ausgabe in der Liste der Abonnements. | behoben nach dem Lauf; `PercentFormatTest` |
+| 5 | Beobachtung | Die Übersicht zeigte keine Inodes: Die Platte, die keine Datei mehr annahm, stand dort mit „2.2 %" und ungefärbt, während die Prüfung meldete, ihre Inodes seien fast aufgebraucht. | entschieden vom Betreiber: eine Zeile unter dem Balken ab 85 %, in der Farbe des Befunds; gebaut nach dem Lauf |
+| 6 | Beobachtung | Bei 82 % färbt die Übersicht den Balken nicht mehr, während die Ablage die Warnung hält — die Übersicht zeigt den Augenblick gegen 85, die Prüfung den Befund mit Rückweg. | so gebaut, wie in 4b angesagt |
+| 7 | Prüfmittel | Das Abbild blieb bei 4,2M, erwartet hatte ich stillschweigend rund 60M. `fallocate` belegt Blöcke, ohne sie zu schreiben; im Container nachgemessen, die Gegenprobe mit `dd` ergibt 61M. Der Lauf misst trotzdem richtig, weil das Panel die Belegung liest und nicht die geschriebenen Bytes. | — |
+| 8 | Beobachtung | Eine leere ext4-Platte zeigt 2,2 % belegt und `df` 40K: Die Reserve für verzögerte Zuteilung zieht `statfs` vom verfügbaren Platz ab — gemessen 327 Blöcke, gleich `reserved_clusters`. | — |
+| 9 | Prüfmittel | Dreimal zu früh abgelesen (siehe oben). | Ablesen wartet ab 4b selbst |
+
+**Befund 3 ist der teuerste der drei, und er kostet nichts, was eine Zahl
+zeigt.** Die Mail stand auf drei Fotos, jedes zu einer Frage angesehen — ob der
+Betreff zur Zahl passt, ob der Befund darin steht, ob die Zeit stimmt. Den Namen
+der Seite hat keines davon gefragt.
+
+> **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+> verdeckt alles, was daneben steht.**
+
+**Und Befund 1 ist eine Vorlage, die einen zweiten Absender bekommen hat, ohne
+es zu erfahren.** `docs/136` hat den Lauf alle fünf Minuten an denselben
+Meldeweg gehängt — gewollt, weil zwei Wege zwei Fassungen wären. Der Weg hat es
+getragen, der Text darin nicht.
+
+> **Wer einem Weg einen zweiten Absender gibt, liest nach, was der Weg über
+> seinen Absender sagt.**
+
+### Beim Beheben gefunden
+
+- **Vier Attribute, die keine Eigenschaft sind.** Die Abonnementseite gab ihren
+  Balken `breit`, die Übersicht einem Bereich `weit`, die Vorgangsseite einem
+  `voll` — die deutschen Namen von `wide` und `full`. Vue legt einen Namen, den
+  eine Komponente nicht kennt, wortlos als Attribut ab; gemessen in Chromium:
+  mit `breit` 150 px, mit `wide` 553 px. `PropReachTest` hält es.
+- **Die Füllung des Balkens zog nicht mit.** Sie war eine Konstante, beim
+  Einrichten einmal gelesen; gemessen an derselben Instanz: Zahl `82.4 %`,
+  Füllung `25.9%`. Jetzt kommen beide aus demselben `computed`.
+- **Eine Karte mit einer zweizeiligen Zelle ist bei 390 px höher als die
+  anderen** — jede ihrer Zeilen 44 px statt 31, gemessen im Nachbau der
+  Übersicht. Die Regel `tr:has(td.multiline) > td` ist für die Tabelle
+  geschrieben und greift auch in der gestapelten Karte; Pläne, Datenbanken,
+  PHP und Meldeziele haben dieselbe Eigenschaft schon. Nicht geändert.
+
+### Was dieser Lauf nicht gemessen hat
+
+- **Die Behebungen.** Alle drei Befunde und beide Beobachtungen sind nach dem
+  Lauf gebaut und haben keinen Server gesehen — die Mail in ihrer neuen Fassung
+  nicht und die Zeile für die Inodes nicht.
+- Alles aus §5; es ist nicht kürzer geworden.
+
+### Was benannt offen bleibt
+
+- **`system.info` liefert die Dateisysteme weiter, und im Panel liest sie
+  niemand mehr**: Die Übersicht fragt seit der Zeile für die Inodes
+  `system.filesystems`.
+- **Die Zeilen eines Befundes in der Mail** sind so lang wie ihr Satz — die
+  Vorlage verspricht Zeilen unter 78 Zeichen und hält es nur für ihren eigenen
+  Text.
+- **Die Höhe der zweizeiligen Karten** bei 390 px (oben).
+- Der Rest des Prüfstands, `tls.file / expired / p6-b.invalid`.

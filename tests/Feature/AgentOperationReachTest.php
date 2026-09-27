@@ -118,7 +118,7 @@ final class AgentOperationReachTest extends TestCase
          * Grund.
          */
         'web.maintenance.set' => 'Schaltet die Flagdatei des Wartungsmodus. App\\Support\\Web\\MaintenanceMode ruft unmittelbar auf — der Betreiber soll die Meldung an seinem Schalter lesen.',
-        'system.filesystems' => 'Liest Platz und Inodes je Dateisystem und ändert nichts (docs/136). Kein Bestand im Panel und kein Vorgang: Der Aufruf steht in App\\Support\\Diagnose\\Checks\\DiskSpace und läuft alle fünf Minuten; ein Vorgang je Lauf wären zweihundertachtundachtzig Zeilen am Tag für eine Messung, die niemand ausgelöst hat.',
+        'system.filesystems' => 'Liest Platz und Inodes je Dateisystem und ändert nichts (docs/136). Kein Bestand im Panel und kein Vorgang: Der Aufruf steht in App\\Support\\Diagnose\\Checks\\DiskSpace und läuft alle fünf Minuten — ein Vorgang je Lauf wären zweihundertachtundachtzig Zeilen am Tag für eine Messung, die niemand ausgelöst hat —, und die Übersicht fragt ihn für ihre Tabelle der Dateisysteme.',
         'web.maintenance.state' => 'Sieht nach, ob die Flagdatei liegt, und schaltet nichts. Kein Bestand im Panel und kein Vorgang: Der Aufruf steht in App\\Support\\Diagnose\\Checks\\MaintenanceFlag und läuft einmal pro Nacht, damit ein Auseinanderlaufen von Ablage und Datei ein Befund wird statt eine stille Lüge auf jeder Seite.',
 
         /*

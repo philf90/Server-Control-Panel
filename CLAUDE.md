@@ -6156,6 +6156,19 @@ Die Füllung des Balkens war eine Konstante aus `props.percent`; gemessen an
 derselben Instanz stand danach Zahl 82,4 neben Füllung 25,9. `computed` hält
 beides an einem Wert.
 
+**Und der Bruchlauf der CI hat einen Eingriff gefunden, der an der Uhr hing.**
+Blade schreibt eine Übersetzung, deren Inhalt gleich geblieben ist, nicht neu,
+sondern stellt ihre Zeit auf die der Vorlage **plus eine Sekunde**
+(`BladeCompiler::compile()`). Zwei Eingriffe hintereinander an derselben
+Vorlage, der zweite in der Sekunde nach dem Lauf „zurückgesetzt": Die Vorlage
+war älter als ihre Übersetzung, und der Wächter las die Fassung von vorher — in
+der CI einmal, hier in vier von zwanzig Läufen. `pruefe` räumt die übersetzten
+Vorlagen seitdem vor jeder Messung ab.
+
+> **Ein Eingriff, den ein Zwischenspeicher des Prüflings nicht sieht, misst
+> nicht — und ob er ihn sieht, entscheidet die Uhr.** Ein voller Lauf, der
+> hier grün war, belegt das nicht: Er hat die Sekunde nicht getroffen.
+
 **Eine Aufnahme der echten Seite braucht eine Anmeldung, und die Konten der
 lokalen Datenbank liest man in dieser Umgebung nicht** — das Auslesen ist als
 Umgang mit persönlichen Daten gesperrt. Der Weg, der trägt: ein Vite-Aufsatz im

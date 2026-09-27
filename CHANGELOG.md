@@ -32915,3 +32915,18 @@ an derselben Instanz: Zahl 82,4, Füllung 25,9.
 > seinen Absender sagt.**
 
 **Keine der Behebungen hat einen Server gesehen.**
+
+**Und der Bruchlauf der CI hat einen Eingriff gefunden, der nicht biss — an
+der Uhr und nicht am Wächter.** „Seite Bestand" blieb in der CI grün, hier in
+vier von zwanzig Läufen auch. Blade schreibt eine Übersetzung, deren Inhalt
+gleich geblieben ist, nicht neu, sondern stellt ihre Zeit auf die der Vorlage
+plus eine Sekunde (`BladeCompiler::compile()`). Änderte der nächste Eingriff
+dieselbe Vorlage in dieser Sekunde, war sie älter als ihre Übersetzung, und
+der Wächter las die Fassung von vorher — deterministisch nachgestellt: ohne
+Abräumen `OK`, mit Abräumen `FAILURES!`. `pruefe` räumt die übersetzten
+Vorlagen seitdem vor jeder Messung ab, und
+`BreakScriptTest::test_every_measurement_starts_without_compiled_views` hält
+es.
+
+> **Ein Eingriff, den ein Zwischenspeicher des Prüflings nicht sieht, misst
+> nicht — und ob er ihn sieht, entscheidet die Uhr.**

@@ -660,6 +660,52 @@ final class BreakScriptTest extends TestCase
         ]));
     }
 
+    /**
+     * Jede Messung beginnt ohne übersetzte Blade-Vorlagen.
+     *
+     * **Gefunden am 27. September 2026, an PR 275.** Der Eingriff „Seite
+     * Bestand" in `mail/diagnose.blade.php` biss in der CI nicht; hier biss er
+     * in sechzehn von zwanzig Läufen. Die Ursache steht in
+     * `BladeCompiler::compile()`: Ist der Inhalt einer Übersetzung gleich
+     * geblieben, schreibt Blade sie nicht neu, sondern stellt ihre Zeit auf die
+     * der Vorlage **plus eine Sekunde**. Der Lauf „zurückgesetzt" davor
+     * übersetzte dieselbe Vorlage zweimal; änderte der nächste Eingriff sie in
+     * derselben Sekunde, war sie älter als ihre Übersetzung, und der Wächter
+     * las die Fassung von vorher. Deterministisch nachgestellt: dieselbe
+     * Sekunde ohne Abräumen `OK`, mit Abräumen `FAILURES!`.
+     *
+     * > **Ein Eingriff, den ein Zwischenspeicher des Prüflings nicht sieht,
+     * > misst nicht — und ob er ihn sieht, entscheidet die Uhr.**
+     *
+     * **Der Bruch dazu** steht nicht im Skript — er änderte das Skript selbst.
+     * Von Hand, und so:
+     *
+     *     sed -i '/^  rm -f storage\/framework\/views\/\*\.php$/d' tests/waechter-brechen.sh
+     *     ./vendor/bin/phpunit --filter BreakScriptTest   # muss rot sein
+     *     cp <sicherung> tests/waechter-brechen.sh
+     */
+    public function test_every_measurement_starts_without_compiled_views(): void
+    {
+        $skript = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');
+
+        $this->assertSame(1, preg_match('/^pruefe\(\) \{\n(.*?)\n\}\n/sm', $skript, $treffer), implode(' ', [
+            'Die Funktion pruefe ist in tests/waechter-brechen.sh nicht gefunden worden —',
+            'dann prüft dieser Fall nichts.',
+        ]));
+
+        $rumpf = $treffer[1];
+        $abraeumen = preg_match('/^\s*rm -f storage\/framework\/views\/\*\.php\s*$/m', $rumpf, $zeile, PREG_OFFSET_CAPTURE);
+        $messen = strpos($rumpf, './vendor/bin/phpunit');
+
+        $this->assertIsInt($messen, 'pruefe ruft PHPUnit nicht mehr auf — dann prüft dieser Fall nichts.');
+        $this->assertSame(1, $abraeumen, implode(' ', [
+            'pruefe räumt die übersetzten Blade-Vorlagen nicht mehr ab.',
+            'Ein Eingriff in derselben Sekunde wie die letzte Übersetzung ist dann für Blade unsichtbar,',
+            'und der Wächter misst die Fassung von vorher.',
+        ]));
+        $this->assertLessThan($messen, $zeile[0][1], 'Das Abräumen steht hinter dem Testaufruf — dann misst der Aufruf noch die alte Übersetzung.');
+    }
+
     public function test_every_embedded_block_is_valid_python(): void
     {
         $script = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');

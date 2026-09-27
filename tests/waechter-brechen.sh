@@ -396,6 +396,19 @@ pruefe() {
   # Gelesen wird jetzt, was PHPUnit wirklich schreibt. Vier Faelle, und jeder
   # bedeutet etwas anderes: `kein Test` faengt einen vertippten Filter, der
   # sonst als Biss durchginge, und `unlesbar` faellt auf, statt still zu sein.
+  #
+  # **Die uebersetzten Blade-Vorlagen gehen vor jeder Messung weg.** Gefunden
+  # am 27. September 2026: Ein Eingriff in `mail/diagnose.blade.php` biss in
+  # der CI nicht und hier in vier von zwanzig Laeufen auch nicht. Blade
+  # schreibt eine Uebersetzung, deren Inhalt gleich geblieben ist, nicht neu,
+  # sondern stellt ihre Zeit auf die der Vorlage plus eine Sekunde
+  # (`BladeCompiler::compile()`). Aendert der naechste Eingriff dieselbe
+  # Vorlage noch in dieser Sekunde, ist sie aelter als ihre Uebersetzung —
+  # und der Waechter misst die Fassung von vorher.
+  #
+  # > **Ein Eingriff, den ein Zwischenspeicher des Prueflings nicht sieht,
+  # > misst nicht — und ob er ihn sieht, entscheidet die Uhr.**
+  rm -f storage/framework/views/*.php
   roh=$(./vendor/bin/phpunit --filter "$filter" --do-not-cache-result 2>&1)
 
   case "$roh" in

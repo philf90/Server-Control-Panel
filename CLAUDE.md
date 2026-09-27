@@ -5949,9 +5949,10 @@ falsch war die Erwartung, und derselbe Schluss stand im Kopf von
 > **Eine Summe, die nicht sinkt, belegt keinen Zufluss — sie kann auch
 > stillstehen.**
 
-**Zwölf Befunde, drei am Prüfling** — alle drei vor B2 da, alle ausserhalb des
-Zählwegs und alle in `0.9.0-rc.3` behoben (die Befunde 1, 3 und 7 im Abschnitt
-darüber). **Der grösste kam aus einer Ablesung, die keine Vorschrift verlangt
+**Dreizehn Befunde, vier am Prüfling** — alle vier vor B2 da und alle
+ausserhalb des Zählwegs. Drei sind in `0.9.0-rc.3` behoben (die Befunde 1, 3
+und 7 im Abschnitt darüber); der vierte ist das Leserecht des Kunden, weiter
+unten. **Der grösste kam aus einer Ablesung, die keine Vorschrift verlangt
 hat:** Am Morgen des gemessenen Tages standen in `access.log.1` mehr Zeilen von
 diesem Tag, als der Lastgeber geschickt hatte.
 
@@ -5963,8 +5964,14 @@ diesem Tag, als der Lastgeber geschickt hatte.
 nginx-Paket läuft im selben Lauf alphabetisch vor `srvpanel*` und schickt ein
 `USR1`: Jede Nacht stehen deshalb 84 `[emerg]`-Zeilen mit Fehler 13 im
 Protokoll von nginx, alle von Arbeitern, die das Neuladen danach ersetzt, und
-die gedrehte Datei gehört danach `www-data`. Folgenlos, aber laut — und beides
-war vor der jeweiligen Nacht aus einem Nachbau vorhergesagt.
+die gedrehte Datei gehört danach `www-data`. Beides war vor der jeweiligen Nacht
+aus einem Nachbau vorhergesagt. **Für Schreiben und Zählen folgenlos, für den
+Kunden nicht:** Er kann seine gedrehten Protokolle nicht mehr lesen — gemessen
+am 27. September, `access.log.1` endet für `p1136` mit `Permission denied`.
+Im Protokoll stand zuerst „folgenlos" ohne diesen Nachsatz.
+
+> **„Folgenlos" gilt immer für jemanden — wer nicht dazuschreibt, für wen, hat
+> die anderen nicht gefragt.**
 
 > **Wer seine Rotation misst, misst die der Nachbarn mit — logrotate fährt sie
 > im selben Lauf, in der Reihenfolge der Dateinamen.**
@@ -5976,7 +5983,8 @@ Nachgemessen vor der ersten Nacht — das Neuladen trägt auch dort.
 > **Ein Nachbau, der das Werkzeug direkt ruft, misst ohne die Sandbox der
 > Einheit, unter der es auf dem Server läuft.**
 
-**Was benannt offen bleibt** (`docs/134 §7`): die 84 Zeilen je Nacht, und warum
+**Was benannt offen bleibt** (`docs/134 §7`): die 84 Zeilen je Nacht, ob der
+Kunde seine gedrehten Protokolle lesen können soll (Befund 13), und warum
 `systemctl show logrotate.service` nach einer scheiternden Nacht
 `Result=success` sagte.
 

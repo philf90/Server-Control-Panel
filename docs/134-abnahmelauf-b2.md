@@ -1159,19 +1159,33 @@ Auf dem Server sind es jede Nacht 84 Zeilen, je 14 von sechs Arbeitern. Das
 passt zu sechs Domains mit je zwei Protokollen und den beiden des Panels;
 einzeln nachgesehen ist es nicht. Und die Datei, die am Morgen des 26. als
 `access.log` `p1136:adm` gehörte, gehörte am Morgen des 27. als `access.log.1`
-`www-data:adm`. **Folgenlos:** Umgeschrieben wird die Datei, die gleich danach
-gedreht wird, und die Arbeiter, die scheitern, halten dabei noch die richtige.
-**Aber laut** — jede Nacht, als `[emerg]` im Fehlerprotokoll von nginx.
+`www-data:adm`. **Für das Schreiben und das Zählen folgenlos:** Umgeschrieben
+wird die Datei, die gleich danach gedreht wird, und die Arbeiter, die scheitern,
+halten dabei noch die richtige. **Aber laut** — jede Nacht, als `[emerg]` im
+Fehlerprotokoll von nginx.
+
+**Und nicht folgenlos für den Kunden** — nachgemessen am 27. September, nach
+diesem Protokoll (Befund 13). `p1136` gehört allein seiner eigenen Gruppe; als
+`p1136` geöffnet, ist `access.log` (`p1136:adm`) lesbar, und `access.log.1`
+(`www-data:adm 0640`) endet mit `Permission denied`. Jeder Prozess, der als der
+Kunde läuft — der Dateimanager, eine SFTP-Sitzung —, kommt damit an die
+gedrehten Protokolle nicht heran; gemessen ist das Leserecht, nicht diese beiden
+Wege selbst. Vor `0.9.0-rc.3` traf es auch das laufende:
+Dort schrieb das `USR1` der eigenen Rotation die neue Datei um.
+
+> **„Folgenlos" gilt immer für jemanden — wer nicht dazuschreibt, für wen, hat
+> die anderen nicht gefragt.**
 
 > **Wer seine Rotation misst, misst die der Nachbarn mit — logrotate fährt sie
 > im selben Lauf, in der Reihenfolge der Dateinamen.**
 
 ### Die Befunde
 
-**Zwölf: drei am Prüfling, vier an der Vorschrift, vier am Prüfmittel oder an
-einer eigenen Erwartung, eine Beobachtung.** Die drei am Prüfling waren vor B2
-da, liegen ausserhalb des Zählwegs, und alle drei sind in `0.9.0-rc.3` behoben
-und in diesem Lauf auf dem Server gesehen.
+**Dreizehn: vier am Prüfling, vier an der Vorschrift, vier am Prüfmittel oder an
+einer eigenen Erwartung, eine Beobachtung.** Die vier am Prüfling waren vor B2
+da und liegen ausserhalb des Zählwegs. Drei davon sind in `0.9.0-rc.3` behoben
+und in diesem Lauf auf dem Server gesehen; der vierte, Befund 13, ist nach dem
+Lauf gemessen und offen.
 
 | | wo | was | Stand |
 |---|---|---|---|
@@ -1187,6 +1201,7 @@ und in diesem Lauf auf dem Server gesehen.
 | 10 | Prüfmittel | Ein systemd in eigener Namespace leerte beim Hochfahren das `/tmp` des Containers; zweimal war das Scratchpad fort, samt den Notizen dieses Laufs. | Rezept berichtigt, `docs/89 §1` |
 | 11 | Erwartung | „`fpm.log` bleibt nach dem Update bei 25 173 Bytes" — gelesen 25 269: Der alte Master schreibt beim Anhalten noch 96 Bytes unter der alten Konfiguration. | — |
 | 12 | Prüfmittel | Die Nachbauten fuhren logrotate direkt und nicht unter `logrotate.service`; ob das Neuladen unter deren Sandbox trägt, war offen. | vor der ersten Nacht nachgemessen: trägt |
+| 13 | Prüfling | Der Kunde kann seine gedrehten Protokolle nicht lesen: Das `USR1` der Paket-Rotation lässt den Master die Datei auf `www-data` umschreiben, bevor unsere Rotation sie umbenennt, und `create 0640 <benutzer> adm` gilt nur für die neue. | gemessen am 27.; offen — ob der Kunde sie lesen können soll, ist eine Produktfrage |
 
 **Der grösste Befund kam aus einer Ablesung, die keine Vorschrift verlangt
 hat.** Am Morgen von D um 07:28 standen in `access.log.1` 3970 Zeilen vom 25.,
@@ -1221,9 +1236,13 @@ Und zwei Sätze über das eigene Messen, beide an einem Nachbau bezahlt:
 ### Was benannt offen bleibt
 
 - **84 `[emerg]`-Zeilen in jeder Nacht** aus dem `USR1` der Paket-Rotation von
-  nginx, samt dem Umschreiben der gedrehten Datei auf `www-data`. Folgenlos,
-  weil danach neu geladen wird. Die Verzeichnisse für `www-data` zu öffnen hat
-  der Betreiber am 25. September verworfen; andere Wege sind nicht untersucht.
+  nginx. Für Schreiben und Zählen folgenlos, weil danach neu geladen wird. Die
+  Verzeichnisse für `www-data` zu öffnen hat der Betreiber am 25. September
+  verworfen, und das `USR1` durch ein Neuladen zu ersetzen hiesse, die
+  Konfigurationsdatei eines fremden Pakets zu ändern.
+- **Befund 13** — dasselbe `USR1` schreibt die gedrehte Datei auf `www-data`
+  um, und der Kunde kann seine älteren Protokolle nicht lesen. Ob er es können
+  soll, entscheidet der Betreiber.
 - **Befund 2** — warum `systemctl show` nach einer scheiternden Nacht
   `Result=success` sagt.
 - **Die übrigen Schreiber** in `/var/log/srvpanel` und `storage/logs`, die eine

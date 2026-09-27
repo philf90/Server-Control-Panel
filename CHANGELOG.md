@@ -32711,5 +32711,8 @@ Betreiber hat den Punkt als erfüllt gewertet.
 selben Lauf vor unserer und schickt ein `USR1`. Jede Nacht stehen deshalb 84
 `[emerg]`-Zeilen mit Fehler 13 im Protokoll von nginx, alle von Arbeitern, die
 das Neuladen gleich danach ersetzt, und die gedrehte Datei gehört danach
-`www-data`. Folgenlos und vor der jeweiligen Nacht aus einem Nachbau unter der
-echten `logrotate.service` vorhergesagt — aber laut.
+`www-data`. Beides war vor der jeweiligen Nacht aus einem Nachbau unter der
+echten `logrotate.service` vorhergesagt. Für Schreiben und Zählen ist es
+folgenlos — **für den Kunden nicht**: Er kann seine gedrehten Protokolle nicht
+mehr lesen, gemessen am 27. September (`access.log.1` endet für `p1136` mit
+`Permission denied`, `access.log` ist lesbar). Ob er es können soll, ist offen.

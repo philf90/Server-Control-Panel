@@ -34535,7 +34535,7 @@ import pathlib
 p = pathlib.Path('app/Support/Notify/Notices.php')
 s = p.read_text()
 block = """        if ($channel instanceof ResolvingChannel) {
-            $this->clear($channel, $bilanz);
+            $this->clear($channel, $bilanz, $only);
         }
 
 """
@@ -34558,7 +34558,7 @@ import pathlib
 p = pathlib.Path('app/Support/Notify/Notices.php')
 s = p.read_text()
 block = """        if ($channel instanceof ResolvingChannel) {
-            $this->clear($channel, $bilanz);
+            $this->clear($channel, $bilanz, $only);
         }
 
 """

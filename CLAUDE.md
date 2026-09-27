@@ -6062,10 +6062,24 @@ Sicherungen: alle fünf Minuten, gemeldet beim dritten Lauf, beschränkt auf
 > eine Prüfung in zwei Läufen steht, erst nach dem Vergleich mit dem
 > Verzeichnis, und der schlug in genau diesem Fall zuerst an.
 
-**Wer eine Datei umbaut, gleicht die Anker des Bruchskripts ab** — maschinell:
-jedes `alt` eines Eingriffs in eine geänderte Datei gegen ihren neuen Inhalt.
-Zwei von 64 hatten ihren Anker verloren; gefunden hat es der Abgleich und nicht
-die Erinnerung, obwohl der Satz dazu seit dem 21. September hier steht.
+**Wer eine Datei umbaut, gleicht die Anker des Bruchskripts ab — indem er die
+Eingriffe fährt, und nicht, indem er ihre Zeichenketten sucht.** Der erste
+Abgleich las jedes `alt = …` eines Eingriffs in eine geänderte Datei und fand
+zwei tote Anker. Zwei weitere standen in der anderen Schreibweise — `block` und
+`ziel`, ein Ausschnitt, der verschoben wird — und sind so in einen Commit
+gegangen: `clear()` hatte einen dritten Parameter bekommen. Gefunden hat sie der
+Einzellauf der betroffenen Eingriffe, vor dem vollen Lauf.
+
+> **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die Gewohnheit und
+> nicht die Regel.** Diesmal an meinem eigenen Werkzeug, eine Stunde nachdem
+> hier stand, es habe gefunden, was zu finden war.
+
+Der Abgleich fährt seitdem jeden Python-Eingriff **trocken**: die Heredocs aus
+dem Skript gelesen, ausgeführt mit einem `open` und einem `Path.write_text`, die
+beim Schreiben nur mitschreiben, und gemeldet wird, was abbricht, nichts schreibt
+oder schreibt, ohne etwas zu ändern. 1726 Eingriffe in Sekunden, gegen den
+kaputten Stand genau diese zwei. Die 39 Abschnitte ohne Python — dreissig davon
+mit `sed -i` — sieht er nicht; für sie bleibt der volle Lauf.
 
 ---
 

@@ -5,6 +5,29 @@ des Betreibers, Weg 1 zu prüfen. Der Anlass ist **Befund 13 aus `docs/134 §7`*
 Der Kunde kann sein laufendes Zugriffsprotokoll lesen, seine gedrehten
 (`access.log.1`, `.2.gz` …) aber nicht.
 
+**Entschieden am selben Tag: nicht gebaut.** Die Regel des Betreibers lautet
+*„Macht es Sinn und gibt es einen spürbaren Mehrwert für einen Nutzer im Panel?
+Wenn das nicht erfüllt ist, wird es nicht gebaut."* Sie ist nicht erfüllt:
+
+- **Die Protokollansicht des Panels ist nicht betroffen.** Sie zeigt die
+  laufende `access.log` und `error.log` (bis 500 Zeilen) und liest über den
+  Agenten als root; der Eigentümer der Datei spielt dort keine Rolle, und
+  gedrehte Dateien zeigt sie gar nicht.
+- **„Wie viel Verkehr hatte ich?" beantwortet das Panel schon**, mit den
+  Tageszahlen aus B2 und B3 über dreissig Tage.
+- **Weg 1 hilft nur ausserhalb der Ansichten des Panels** — wer die gedrehten
+  Rohdateien über SFTP oder den Dateimanager holen will. Das ist ein Nischenfall.
+- **Dagegen steht der Preis:** eine nächtliche root-Schleife in Verzeichnissen,
+  in die der Kunde schreiben darf — gemessen sicher, aber genau die Sorte Code,
+  die bei jeder späteren Änderung an der Vorlage Wächter und Aufmerksamkeit
+  kostet. Die dash-Falle aus §3 hat das schon am ersten Entwurf gezeigt.
+
+**Der Plan bleibt stehen, weil seine Messungen gelten.** Wer die Frage wieder
+aufnimmt, fängt hier an und nicht bei null. Kommt sie von echten Kunden als
+„was war gestern auf meiner Seite?", gehört die Antwort in die Protokollansicht:
+Die liest ohnehin als root und könnte `access.log.1` als „gestern" anbieten, ohne
+einen Eigentümer anzufassen.
+
 ## §1 · Der Befund, noch einmal gemessen
 
 Auf `cloudsrv24` am 27. September, als der Kunde `p1136`:

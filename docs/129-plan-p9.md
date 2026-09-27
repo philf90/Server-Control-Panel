@@ -211,6 +211,15 @@ Protokoll.
 > **Die Auslöserliste von A7 ist seit P7b gewachsen, und `docs/20 §9` weiss
 > nichts davon.** Wer A7 baut, liest `docs/80` und nicht die Planzeile.
 
+**Nachgetragen am 27. September 2026: Die erste Zeile war nicht gebaut, und
+ihre Quelle stimmt nicht.** Für Platte, RAM und Load gab es keinen Schlüssel,
+keinen Zeitgeber und kein Kommando; B1 ist an einem angehaltenen Dienst
+abgenommen und fragt nicht danach. Und der Ringpuffer unter
+`app/Support/Metrics/` führt keine Belegung — die kommt aus `system.info` des
+Agenten. Entschieden hat der Betreiber am selben Tag: **„Platte voll" wird
+gebaut** (Plan und Messrunde: `docs/136`), **RAM und Load sind
+zurückgestellt**, weil es für keine der beiden eine gemessene Kurve gibt.
+
 ---
 
 ## §5 · B2 — Das Zugriffsprotokoll
@@ -637,6 +646,10 @@ gehören in den Abnahmelauf ihres Merkmals.
    **Offen bleibt die andere Hälfte**: in welchem Takt A7 die Kennzahlen
    prüft. Die steht in der Diagnose und nicht auf der Platte, und sie hält
    B1 weiterhin nicht auf.
+
+   **Für die Platte entschieden am 27. September 2026:** alle fünf Minuten in
+   einer eigenen Unit, gemeldet nach zehn Minuten (`docs/136 §4`). Für RAM und
+   Load bleibt die Frage offen, weil beide zurückgestellt sind.
 3. **Eine echte `access.log`** — Grösse, Zeilenzahl, die wirkliche Verteilung
    der Statuscodes. Gemessen ist ein gebauter Prüfkörper.
 4. **Der kalte Durchsatz der Platte** (B2, B3) — 1,45 Mio. Zeilen/s sind im

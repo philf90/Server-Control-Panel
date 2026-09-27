@@ -5983,10 +5983,57 @@ Nachgemessen vor der ersten Nacht — das Neuladen trägt auch dort.
 > **Ein Nachbau, der das Werkzeug direkt ruft, misst ohne die Sandbox der
 > Einheit, unter der es auf dem Server läuft.**
 
-**Was benannt offen bleibt** (`docs/134 §7`): die 84 Zeilen je Nacht, ob der
-Kunde seine gedrehten Protokolle lesen können soll (Befund 13), und warum
+**Was benannt offen bleibt** (`docs/134 §7`): die 84 Zeilen je Nacht und warum
 `systemctl show logrotate.service` nach einer scheiternden Nacht
-`Result=success` sagte.
+`Result=success` sagte. **Befund 13 ist am selben Abend entschieden: Er bleibt,
+wie er ist** (`docs/135`). Die Protokollansicht des Panels liest als root und ist
+nicht betroffen; geholfen wäre nur, wer die gedrehten Rohdateien über SFTP holt,
+und das wiegt eine nächtliche root-Schleife in Kundenverzeichnissen nicht auf.
+
+---
+
+## Die Messrunde vor „Platte voll" — 27. September 2026
+
+A7 führte in `docs/129 §4` drei Schwellen als Auslöser von B1 — Platte, RAM,
+Load —, und **gebaut war keine**. Der Betreiber hat entschieden: Platte ja, RAM
+und Load zurückgestellt. Plan und Messungen stehen in **`docs/136`**, die
+Messvorschrift ist `tests/platte-voll-messen.sh`.
+
+**Der teuerste Befund betrifft nicht das Panel, sondern seine Datenbank.**
+MariaDB 10.11.14 auf einer Platte, auf der kein Nicht-root mehr schreiben kann:
+Eine Zeile geht noch durch, InnoDB hat vorbelegten Platz. Die erste Anweisung,
+die eine Tabelle wachsen lässt, scheitert mit „The table is full" — und das
+Zurückrollen braucht selbst Platz: `[FATAL] InnoDB: Error (Out of disk space) in
+rollback`, Signal 6, der Server ist fort. Zweimal reproduziert, dazu die
+Gegenprobe mit Platz.
+
+> **Eine volle Platte ist kein Zustand, in dem man weitermacht, bis jemand
+> aufräumt. Sie ist ein Absturz, der auf eine Anweisung wartet.**
+
+> **Ein Alarm, der erst bei voller Platte anschlägt, kann ihn nicht mehr
+> ablegen.** Die Befunde stehen in derselben Datenbank.
+
+**Voll an Inodes ist eine zweite Art, voll zu sein, und in Prozent
+unsichtbar:** Die 118. Datei auf einer Platte mit 128 Inodes scheitert mit „No
+space left on device", während der Agent 7,5 % zeigt.
+
+**Und die Sandbox der Agenten-Unit macht aus einer Platte drei.** Unter
+`PrivateTmp=yes` stehen `/tmp` und `/var/tmp` als eigene Einhängungen derselben
+Wurzel in `/proc/mounts`, und `SystemInfo::filesystems()` unterscheidet nach dem
+Einhängepunkt. Gemessen in einer Unit unter echtem systemd; direkt gerufen sieht
+der Leser nur `/`.
+
+> **Ein Nachbau, der das Werkzeug direkt ruft, misst ohne die Sandbox der
+> Einheit, unter der es auf dem Server läuft.** Zum zweiten Mal nach B2, und
+> diesmal mit einem Befund am Bestand.
+
+**Eine Shell-Falle, die das Prüfmittel gekostet hat:** `:` ist in dash ein
+Spezial-Builtin. Scheitert seine Umleitung — `: > datei`, wenn sich die Datei
+nicht anlegen lässt —, beendet sich nicht der Befehl, sondern die ganze Shell,
+und alles danach läuft nie. Eine Unterschale fängt es: `( : > datei ) 2>/dev/null`.
+
+> **In dash beendet eine gescheiterte Umleitung an einem Spezial-Builtin die
+> Shell — und die Zeile, die das Ergebnis drucken sollte, kommt nie.**
 
 ---
 
@@ -7392,6 +7439,12 @@ Testen berücksichtigen:
 - Der `CHANGELOG.md` ist kein Protokoll der Commits, sondern der Ort, an dem
   steht, *warum* etwas so ist — und was vorher falsch war. `ChangelogTest`
   prüft ihn.
+- **Gebaut wird, was einem Nutzer im Panel spürbar hilft** — die Regel des
+  Betreibers vom 27. September 2026: *„Macht es Sinn und gibt es einen
+  spürbaren Mehrwert für einen Nutzer im Panel? Wenn das nicht erfüllt ist, wird
+  es nicht gebaut."* Sie steht vor jedem Plan und nicht danach. Angewandt zuerst
+  auf Befund 13 aus B2 (nicht gebaut, `docs/135`) und auf die Schwellen von A7
+  (Platte ja, RAM und Load zurückgestellt, `docs/136`).
 
 Eine Ausbaustufe gilt erst als fertig, wenn ihr Abnahmekriterium **nachweisbar**
 erfüllt ist (Plan §8 und §9) — gemessen auf einem echten Server, nicht

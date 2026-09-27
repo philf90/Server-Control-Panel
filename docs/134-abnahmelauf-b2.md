@@ -1185,7 +1185,8 @@ Dort schrieb das `USR1` der eigenen Rotation die neue Datei um.
 einer eigenen Erwartung, eine Beobachtung.** Die vier am Prüfling waren vor B2
 da und liegen ausserhalb des Zählwegs. Drei davon sind in `0.9.0-rc.3` behoben
 und in diesem Lauf auf dem Server gesehen; der vierte, Befund 13, ist nach dem
-Lauf gemessen und offen.
+Lauf gemessen und am selben Tag entschieden: Er bleibt, wie er ist
+(`docs/135`).
 
 | | wo | was | Stand |
 |---|---|---|---|
@@ -1201,7 +1202,7 @@ Lauf gemessen und offen.
 | 10 | Prüfmittel | Ein systemd in eigener Namespace leerte beim Hochfahren das `/tmp` des Containers; zweimal war das Scratchpad fort, samt den Notizen dieses Laufs. | Rezept berichtigt, `docs/89 §1` |
 | 11 | Erwartung | „`fpm.log` bleibt nach dem Update bei 25 173 Bytes" — gelesen 25 269: Der alte Master schreibt beim Anhalten noch 96 Bytes unter der alten Konfiguration. | — |
 | 12 | Prüfmittel | Die Nachbauten fuhren logrotate direkt und nicht unter `logrotate.service`; ob das Neuladen unter deren Sandbox trägt, war offen. | vor der ersten Nacht nachgemessen: trägt |
-| 13 | Prüfling | Der Kunde kann seine gedrehten Protokolle nicht lesen: Das `USR1` der Paket-Rotation lässt den Master die Datei auf `www-data` umschreiben, bevor unsere Rotation sie umbenennt, und `create 0640 <benutzer> adm` gilt nur für die neue. | gemessen am 27.; offen — ob der Kunde sie lesen können soll, ist eine Produktfrage |
+| 13 | Prüfling | Der Kunde kann seine gedrehten Protokolle nicht lesen: Das `USR1` der Paket-Rotation lässt den Master die Datei auf `www-data` umschreiben, bevor unsere Rotation sie umbenennt, und `create 0640 <benutzer> adm` gilt nur für die neue. | gemessen am 27.; am selben Tag entschieden: bleibt so, nach der Regel des Betreibers (`docs/135`) |
 
 **Der grösste Befund kam aus einer Ablesung, die keine Vorschrift verlangt
 hat.** Am Morgen von D um 07:28 standen in `access.log.1` 3970 Zeilen vom 25.,
@@ -1240,9 +1241,6 @@ Und zwei Sätze über das eigene Messen, beide an einem Nachbau bezahlt:
   Verzeichnisse für `www-data` zu öffnen hat der Betreiber am 25. September
   verworfen, und das `USR1` durch ein Neuladen zu ersetzen hiesse, die
   Konfigurationsdatei eines fremden Pakets zu ändern.
-- **Befund 13** — dasselbe `USR1` schreibt die gedrehte Datei auf `www-data`
-  um, und der Kunde kann seine älteren Protokolle nicht lesen. Ob er es können
-  soll, entscheidet der Betreiber.
 - **Befund 2** — warum `systemctl show` nach einer scheiternden Nacht
   `Result=success` sagt.
 - **Die übrigen Schreiber** in `/var/log/srvpanel` und `storage/logs`, die eine
@@ -1252,3 +1250,10 @@ Und zwei Sätze über das eigene Messen, beide an einem Nachbau bezahlt:
   eine Anfrage bekommt; ein Befund sind sie nicht.
 - **`/root/b2-buch.tsv` und `/root/b2-lauf.env`** liegen noch auf dem Server.
   Punkt 8 liess sie liegen, bis dieses Protokoll steht — jetzt dürfen sie weg.
+
+**Befund 13 stand hier bis zum Abend des 27. September als offen.** Entschieden
+hat der Betreiber nach seiner Regel, dass gebaut wird, was einem Nutzer im Panel
+spürbar hilft: Die Protokollansicht liest als root und ist nicht betroffen, und
+für die gedrehten Rohdateien über SFTP wäre der Preis eine nächtliche
+root-Schleife in Kundenverzeichnissen. Plan, Messungen und Begründung stehen in
+`docs/135`.

@@ -32716,3 +32716,45 @@ echten `logrotate.service` vorhergesagt. Für Schreiben und Zählen ist es
 folgenlos — **für den Kunden nicht**: Er kann seine gedrehten Protokolle nicht
 mehr lesen, gemessen am 27. September (`access.log.1` endet für `p1136` mit
 `Permission denied`, `access.log` ist lesbar). Ob er es können soll, ist offen.
+
+### Die Messrunde vor „Platte voll" — und MariaDB stürzt bei voller Platte ab
+
+**Von den drei Schwellen, die `docs/129 §4` für B1 aufzählt — Platte, RAM,
+Load —, war keine gebaut.** Es gab keinen Schlüssel, keinen Zeitgeber und kein
+Kommando, und die genannte Quelle stimmte nicht: Der Ringpuffer unter
+`app/Support/Metrics/` führt keine Belegung, die kommt aus `system.info` des
+Agenten. Entschieden hat der Betreiber am 27. September nach seiner Regel, dass
+gebaut wird, was einem Nutzer im Panel spürbar hilft: **„Platte voll" wird
+gebaut, RAM und Load sind zurückgestellt** — für beide gibt es keine gemessene
+Kurve. Plan und Messungen: `docs/136`, die Messvorschrift ist
+`tests/platte-voll-messen.sh`.
+
+**Der teuerste Befund betrifft die Datenbank und nicht das Panel.** MariaDB
+10.11.14, dieselbe Fassung wie auf `cloudsrv24`, auf einer Platte, auf der kein
+Nicht-root mehr schreiben kann: Eine Zeile geht noch durch. Die erste Anweisung,
+die eine Tabelle wachsen lässt, scheitert mit „The table is full", das
+Zurückrollen braucht selbst Platz, und der Server beendet sich mit Signal 6.
+Zweimal reproduziert, nach 5 716 und 5 881 ms; mit Platz läuft dieselbe
+Anweisung in 219 ms durch. Damit muss die Meldung kommen, **bevor** die Platte
+voll ist — die Befunde stehen in derselben Datenbank.
+
+> **Ein Alarm, der erst bei voller Platte anschlägt, kann ihn nicht mehr
+> ablegen.**
+
+**Drei weitere Messungen haben den Entwurf bestimmt.** `disk_free_space()`
+liefert den Platz ohne die Reserve von root; die Zahl des Agenten zählt die
+Reserve deshalb als belegt und erreicht 100 % genau dann, wenn kein Kunde mehr
+schreiben kann. Volle Inodes lassen jede neue Datei mit „No space left on device"
+scheitern, während die Belegung 7,5 % zeigt. Und unter `PrivateTmp=yes`, wie in
+der Unit des Agenten, führt `SystemInfo::filesystems()` `/tmp` und `/var/tmp`
+als eigene Platten neben `/` — eine volle Platte ergäbe drei Befunde.
+
+**Entschieden am selben Tag:** Warnung ab 85 % — dieselbe Zahl, ab der die
+Übersicht heute färbt —, Störung ab 95 %, zurück erst 5 Punkte darunter; geprüft
+alle fünf Minuten in einer eigenen Unit, gemeldet nach zehn; Inodes mit denselben
+Schwellen.
+
+**Und Befund 13 aus B2 ist entschieden: nicht gebaut** (`docs/135`). Die
+Protokollansicht des Panels liest als root und ist nicht betroffen; geholfen wäre
+nur, wer die gedrehten Rohdateien über SFTP holt. Die Regel des Betreibers steht
+seitdem in `CLAUDE.md` unter „Ablauf".

@@ -160,10 +160,20 @@ final class PropReachTest extends TestCase
             $this->eigenschaften($this->withoutMarkupComments($quelle)),
         );
 
-        // `defineModel` nennt seine Eigenschaft nicht — `CodeField` benutzt es.
+        /*
+         * `defineModel` nennt seine Eigenschaft nicht — und `CodeField` hat es
+         * **neben** einem `defineProps`. Der erste Prüfkörper hier trug nur
+         * das `defineModel`; er lief über den frühen Rückweg des Lesers, und
+         * der Bruch, der die Modelle am Ende fallen liess, blieb grün. Beide
+         * Formen stehen deshalb da.
+         */
         $this->assertSame(
-            ['modelValue', 'open'],
-            $this->eigenschaften("const value = defineModel<string>({ required: true })\nconst open = defineModel<boolean>('open')\n"),
+            ['label', 'modelValue', 'open'],
+            $this->eigenschaften("const props = defineProps<{ label: string }>()\nconst value = defineModel<string>({ required: true })\nconst open = defineModel<boolean>('open')\n"),
+        );
+        $this->assertSame(
+            ['modelValue'],
+            $this->eigenschaften("const value = defineModel<string>({ required: true })\n"),
         );
     }
 

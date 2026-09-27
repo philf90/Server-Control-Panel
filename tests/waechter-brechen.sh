@@ -36627,6 +36627,25 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PropReachTest passed
 
 echo
+echo "── PropReachTest: eine Komponente ohne defineProps verliert ihr Modell ──"
+#
+# Der fruehe Rueckweg des Lesers. Der erste Pruefkoerper lief nur ueber ihn,
+# und der Bruch am Ende der Methode blieb deshalb gruen.
+vorher_datei tests/Unit/PropReachTest.php
+python3 - <<'PY2'
+p = "tests/Unit/PropReachTest.php"
+s = open(p, encoding='utf-8').read()
+alt = '            return $modell;\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '            return [];\n', 1))
+PY2
+griff_datei tests/Unit/PropReachTest.php "Modell ohne defineProps" &&
+pruefe "Modell ohne defineProps" \
+  PropReachTest::test_the_props_come_from_the_top_level_of_the_type failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PropReachTest passed
+
+echo
 echo "── PropReachTest: der Leser nimmt die zweite Ebene mit ──"
 #
 # can: { update: boolean } hat eine Eigenschaft und nicht zwei.

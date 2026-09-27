@@ -78,6 +78,11 @@ final class DiagnoseController extends Controller
                 (new SettingsRunLog($settings, Settings::DIAGNOSE_BACKUPS))->lastRunAt(),
             ),
 
+            // Und der dritte Lauf: „Platte voll" alle fünf Minuten (`docs/136`).
+            'disks_ran_at' => fn (): ?string => Clock::displayText(
+                (new SettingsRunLog($settings, Settings::DIAGNOSE_DISK))->lastRunAt(),
+            ),
+
             // Ob der Betrachter den Wortlaut überhaupt bekommt. Die Seite sagt
             // es dem Administrator, statt eine leere Spalte zu zeigen: Eine
             // Lücke ohne Erklärung liest sich wie ein Fehler.

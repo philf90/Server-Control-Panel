@@ -1,0 +1,38 @@
+[Unit]
+Description=SrvPanel — die Dateisysteme im Fünfminutentakt nachsehen
+Documentation=https://repo.cloudsrv24.de/
+
+# Gehört zu `srvpanel.target`: Ein `stop` oder `restart` des Ziels nimmt
+# diese Unit mit. Ohne diese Zeile wäre das Ziel ein Griff, der nur
+# anschaltet — und das ist ein halber Griff.
+PartOf=srvpanel.target
+
+[Timer]
+# **Alle fünf Minuten, entschieden vom Betreiber am 27. September 2026**
+# (`docs/136 §4`). Bei voller Platte stürzt MariaDB beim nächsten Wachsen einer
+# Tabelle ab (`docs/136 §3` M5), und eine nächtliche Sicherung kann die Platte
+# in Minuten bis auf 512 MiB füllen. Gemeldet wird, was drei Läufe
+# hintereinander dasteht — beim dritten, zehn Minuten nach dem ersten.
+OnBootSec=3min
+
+# Ein Kalender und nicht nur ein monotoner Sockel — derselbe Grund wie in
+# `srvpanel-cron.timer`: Ein Sockel, der an der letzten Aktivierung hängt, kann
+# die Kette verlieren und dann `active` bleiben, ohne je wieder einen Termin zu
+# haben.
+OnCalendar=*:0/5
+Persistent=true
+
+# Dreissig Sekunden Streuung, wie bei den Cronjobs: Auf zwanzig gleichzeitig
+# eingerichteten Servern fragen sonst alle in derselben Sekunde.
+RandomizedDelaySec=30
+
+# **Auf die Sekunde und nicht auf die Minute** — das gibt der Haltezeit ihren
+# Spielraum. Ohne diese Zeile legt systemd den Termin in ein Fenster von einer
+# Minute (gemessen: `AccuracyUSec=1min`); zusammen mit der Streuung käme der
+# zweite Lauf bis zu 390 Sekunden nach dem ersten und der dritte schon nach 510.
+# Mit ihr sind es 331 und 569. `Notices::DISK_HOLD_MINUTES` liegt dazwischen,
+# und `DiskCadenceTest` rechnet es aus dieser Datei nach.
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

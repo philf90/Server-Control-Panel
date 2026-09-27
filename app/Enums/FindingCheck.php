@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Enums;
 
 use App\Models\Finding;
+use App\Support\Diagnose\Checks\DiskSpace;
 use App\Support\Diagnose\FindingLog;
 use App\Support\Plans\Quota;
 use SrvPanel\Agent\Catalog;
@@ -163,6 +164,16 @@ enum FindingCheck: string
      */
     case BackupFile = 'backup.file';
 
+    /**
+     * Wie voll ein Dateisystem ist — Platz und Inodes (`docs/136`).
+     *
+     * **Auch dieser Schlüssel wird in einem eigenen Lauf geschrieben**
+     * (`Catalog::DISK_CHECKS`), und zwar alle fünf Minuten: Bei voller Platte
+     * stürzt MariaDB beim nächsten Wachsen einer Tabelle ab (`docs/136 §3` M5),
+     * und ein Nachtlauf erführe davon bis zu einen Tag zu spät.
+     */
+    case DiskSpace = 'disk.space';
+
     /** Der Grund, der überall „die Prüfung lief nicht" heisst. */
     public const UNREACHABLE = 'unreachable';
 
@@ -187,6 +198,7 @@ enum FindingCheck: string
             self::MaintenanceWindow => 'Wartungsmodus',
             self::MaintenanceFlag => 'Schalter des Wartungsmodus',
             self::BackupFile => 'Sicherung',
+            self::DiskSpace => 'Belegung eines Dateisystems',
         };
     }
 
@@ -212,6 +224,7 @@ enum FindingCheck: string
             self::MaintenanceWindow => 'Server',
             self::MaintenanceFlag => 'Datei',
             self::BackupFile => 'Sicherung',
+            self::DiskSpace => 'Einhängepunkt',
         };
     }
 
@@ -661,6 +674,55 @@ enum FindingCheck: string
                 'empty_directory' => [
                     'state' => FindingState::Warn,
                     'text' => 'Hier liegt ein leeres Verzeichnis für ein Abonnement, das es nicht mehr gibt — und keine Sicherung, zu der es gehörte.',
+                ],
+
+                ...$unreachable,
+            ],
+
+            /*
+             * **Warnung und Störung sind zwei Gründe und nicht einer** (`docs/136
+             * §4`). Jeder hat seine Schwelle und seinen Rückweg; wird aus einer
+             * Warnung eine Störung, bleibt die Warnung stehen. Andersherum
+             * hiesse der Aufstieg „Warnung behoben" — genau in dem Augenblick,
+             * in dem es schlimmer wird.
+             *
+             * **Die Zahlen stehen einmal da**, in {@see DiskSpace}; die Sätze
+             * lesen sie, statt sie ein zweites Mal hinzuschreiben. Sie nennen
+             * beide Grenzen, weil ein Befund bis zum Rückweg stehen bleibt: Bei
+             * 82 % ist „ab 85 %" ohne den zweiten Halbsatz eine falsche Auskunft.
+             */
+            self::DiskSpace => [
+                'space_tight' => [
+                    'state' => FindingState::Warn,
+                    'text' => sprintf(
+                        'Das Dateisystem wird eng: gewarnt ab %d %%, entwarnt unter %d %%.',
+                        DiskSpace::WARN_PERCENT,
+                        DiskSpace::WARN_PERCENT - DiskSpace::RELEASE_POINTS,
+                    ),
+                ],
+                'space_full' => [
+                    'state' => FindingState::Fail,
+                    'text' => sprintf(
+                        'Das Dateisystem ist fast voll (ab %d %%, entwarnt unter %d %%). Läuft es ganz voll, stürzt MariaDB beim nächsten Wachsen einer Tabelle ab.',
+                        DiskSpace::FAIL_PERCENT,
+                        DiskSpace::FAIL_PERCENT - DiskSpace::RELEASE_POINTS,
+                    ),
+                ],
+                'inodes_tight' => [
+                    'state' => FindingState::Warn,
+                    'text' => sprintf(
+                        'Die Inodes werden knapp: gewarnt ab %d %%, entwarnt unter %d %%.',
+                        DiskSpace::WARN_PERCENT,
+                        DiskSpace::WARN_PERCENT - DiskSpace::RELEASE_POINTS,
+                    ),
+                ],
+                'inodes_full' => [
+                    'state' => FindingState::Fail,
+                    'text' => sprintf(
+                        'Die Inodes sind fast aufgebraucht (ab %d %%, entwarnt unter %d %%). Sind sie es ganz, scheitert jede neue Datei mit „No space left on device", auch bei freiem Platz.',
+                        DiskSpace::FAIL_PERCENT,
+                        DiskSpace::FAIL_PERCENT - DiskSpace::RELEASE_POINTS,
+                    ),
                 ],
 
                 ...$unreachable,

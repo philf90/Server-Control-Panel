@@ -12,6 +12,10 @@ Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
 
 Stand: **P0 bis P8 abgenommen** — P7b am 9. September 2026, **P8 (die
 Sicherungen) am 18. September 2026**; der Abschnitt dazu steht weiter unten.
+Aus P9 (`docs/129`) sind **B1** am 23. September (`docs/133 §7`) und **B2** am
+27. September 2026 (`docs/134 §7`) abgenommen. **„Platte voll"** — die Schwelle
+aus A7, die in B1 fehlte — ist am 27. September gebaut und nicht abgenommen
+(`docs/136`).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -1726,7 +1730,14 @@ neue Datei, und logrotate kommt durch — gehalten an den Nähten zwischen den
 Rechten der Protokollverzeichnisse, den beiden Rotationsdateien und
 `fpm.conf`; gefragt wird, ob ein Arbeiter hineinkommt, und nicht, welche Rechte
 dastehen, und ob die Zeile wirkt, misst `tests/wiederoeffnen-nachbauen.sh`
-gegen echtes nginx unter echtem systemd). Der Bruch selbst steht als
+gegen echtes nginx unter echtem systemd) und `DiskVerdictTest` (Warnung und
+Störung sind zwei Befunde mit je eigenem Rückweg, an der Wirkung und jeder Fall
+neben seinem Gegenstück) und `DiskReaderTest` (ein Gerät, eine Zeile — unter
+`PrivateTmp` stand die Wurzel dreimal da) und `DiskNoticeTest` (die Haltezeit
+hängt am Schlüssel, und der beschränkte Meldelauf lässt Befunde und Entwarnungen
+der Nacht stehen) und `DiskCadenceTest` (die Haltezeit hängt am Takt des
+Zeitgebers, die Unit meldet genau, was ihr Lauf schreibt, und die Übersicht
+färbt ab derselben Schwelle). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -5921,9 +5932,154 @@ nichts bestellt.
 > **Eine Datei, die ankündigt, beim nächsten Lauf überschrieben zu werden,
 > braucht einen nächsten Lauf.**
 
-**Keine Freigabe trägt das bisher, und kein Server hat es gesehen.** Was auf
-`cloudsrv24` danach zu messen ist, steht am Ende des Eintrags in
-`CHANGELOG.md`.
+**Gesehen am 26. und 27. September 2026 gegen `0.9.0-rc.3`** (`docs/134 §7`):
+logrotate kommt wieder durch, `fpm.log.2.gz` entpackt die Datei vom 22. August,
+und nach jeder Rotation schreibt nginx in die neue Datei. Hier stand bis dahin,
+dass keine Freigabe es trägt und kein Server es gesehen hat.
+
+---
+
+## B2 ist abgenommen — 27. September 2026
+
+Auf `cloudsrv24` gegen `0.9.0-rc.2` und ab dem 25. September gegen
+`0.9.0-rc.3`, gefahren vom 24. bis 27. September: die Punkte 1, 2, 4, 5a bis
+5c, 6, 7 und 8 erfüllt, Punkt 3 gemessen und ohne Gegenprobe. Der Plan ist
+`docs/129 §5`, der Lauf und sein Protokoll sind **`docs/134`** (§7). Die
+Tageszeile gleicht der Nachzählung über alle Dateien auf die Zahl, und sie
+blieb in drei weiteren Sichten und einer zweiten Nacht dieselbe.
+
+**Punkt 6 hat der Betreiber gewertet.** Erwartet waren null Zeilen im alten
+Format, gelesen acht — sechs vom 15. August und zwei vom 5. September, in den
+Dateien einer Domain ohne Verkehr. Eine leere Datei dreht logrotate nicht, also
+bleiben ihre alten Dateien im Lesebereich. Kein Server-Block schreibt noch alt;
+falsch war die Erwartung, und derselbe Schluss stand im Kopf von
+`WebAccessCount::totals()`.
+
+> **Eine Summe, die nicht sinkt, belegt keinen Zufluss — sie kann auch
+> stillstehen.**
+
+**Dreizehn Befunde, vier am Prüfling** — alle vier vor B2 da und alle
+ausserhalb des Zählwegs. Drei sind in `0.9.0-rc.3` behoben (die Befunde 1, 3
+und 7 im Abschnitt darüber); der vierte ist das Leserecht des Kunden, weiter
+unten. **Der grösste kam aus einer Ablesung, die keine Vorschrift verlangt
+hat:** Am Morgen des gemessenen Tages standen in `access.log.1` mehr Zeilen von
+diesem Tag, als der Lastgeber geschickt hatte.
+
+> **Eine Nachschau, die keine Vorschrift verlangt, findet, was die Vorschrift
+> erst einen Tag später gefunden hätte — und dann als Ausfall statt als
+> Befund.**
+
+**Und die Rotation der Nachbarn misst man mit.** Die Rotation aus dem
+nginx-Paket läuft im selben Lauf alphabetisch vor `srvpanel*` und schickt ein
+`USR1`: Jede Nacht stehen deshalb 84 `[emerg]`-Zeilen mit Fehler 13 im
+Protokoll von nginx, alle von Arbeitern, die das Neuladen danach ersetzt, und
+die gedrehte Datei gehört danach `www-data`. Beides war vor der jeweiligen Nacht
+aus einem Nachbau vorhergesagt. **Für Schreiben und Zählen folgenlos, für den
+Kunden nicht:** Er kann seine gedrehten Protokolle nicht mehr lesen — gemessen
+am 27. September, `access.log.1` endet für `p1136` mit `Permission denied`.
+Im Protokoll stand zuerst „folgenlos" ohne diesen Nachsatz.
+
+> **„Folgenlos" gilt immer für jemanden — wer nicht dazuschreibt, für wen, hat
+> die anderen nicht gefragt.**
+
+> **Wer seine Rotation misst, misst die der Nachbarn mit — logrotate fährt sie
+> im selben Lauf, in der Reihenfolge der Dateinamen.**
+
+**Der Nachbau dazu lief zuerst am falschen Ort:** logrotate direkt gerufen und
+nicht unter `logrotate.service`, deren Sandbox auf dem Server gilt.
+Nachgemessen vor der ersten Nacht — das Neuladen trägt auch dort.
+
+> **Ein Nachbau, der das Werkzeug direkt ruft, misst ohne die Sandbox der
+> Einheit, unter der es auf dem Server läuft.**
+
+**Was benannt offen bleibt** (`docs/134 §7`): die 84 Zeilen je Nacht und warum
+`systemctl show logrotate.service` nach einer scheiternden Nacht
+`Result=success` sagte. **Befund 13 ist am selben Abend entschieden: Er bleibt,
+wie er ist** (`docs/135`). Die Protokollansicht des Panels liest als root und ist
+nicht betroffen; geholfen wäre nur, wer die gedrehten Rohdateien über SFTP holt,
+und das wiegt eine nächtliche root-Schleife in Kundenverzeichnissen nicht auf.
+
+---
+
+## Die Messrunde vor „Platte voll" — 27. September 2026
+
+A7 führte in `docs/129 §4` drei Schwellen als Auslöser von B1 — Platte, RAM,
+Load —, und **gebaut war keine**. Der Betreiber hat entschieden: Platte ja, RAM
+und Load zurückgestellt. Plan und Messungen stehen in **`docs/136`**, die
+Messvorschrift ist `tests/platte-voll-messen.sh`.
+
+**Der teuerste Befund betrifft nicht das Panel, sondern seine Datenbank.**
+MariaDB 10.11.14 auf einer Platte, auf der kein Nicht-root mehr schreiben kann:
+Eine Zeile geht noch durch, InnoDB hat vorbelegten Platz. Die erste Anweisung,
+die eine Tabelle wachsen lässt, scheitert mit „The table is full" — und das
+Zurückrollen braucht selbst Platz: `[FATAL] InnoDB: Error (Out of disk space) in
+rollback`, Signal 6, der Server ist fort. Zweimal reproduziert, dazu die
+Gegenprobe mit Platz.
+
+> **Eine volle Platte ist kein Zustand, in dem man weitermacht, bis jemand
+> aufräumt. Sie ist ein Absturz, der auf eine Anweisung wartet.**
+
+> **Ein Alarm, der erst bei voller Platte anschlägt, kann ihn nicht mehr
+> ablegen.** Die Befunde stehen in derselben Datenbank.
+
+**Voll an Inodes ist eine zweite Art, voll zu sein, und in Prozent
+unsichtbar:** Die 118. Datei auf einer Platte mit 128 Inodes scheitert mit „No
+space left on device", während der Agent 7,5 % zeigt.
+
+**Und die Sandbox der Agenten-Unit macht aus einer Platte drei.** Unter
+`PrivateTmp=yes` stehen `/tmp` und `/var/tmp` als eigene Einhängungen derselben
+Wurzel in `/proc/mounts`, und `SystemInfo::filesystems()` unterscheidet nach dem
+Einhängepunkt. Gemessen in einer Unit unter echtem systemd; direkt gerufen sieht
+der Leser nur `/`.
+
+> **Ein Nachbau, der das Werkzeug direkt ruft, misst ohne die Sandbox der
+> Einheit, unter der es auf dem Server läuft.** Zum zweiten Mal nach B2, und
+> diesmal mit einem Befund am Bestand.
+
+**Eine Shell-Falle, die das Prüfmittel gekostet hat:** `:` ist in dash ein
+Spezial-Builtin. Scheitert seine Umleitung — `: > datei`, wenn sich die Datei
+nicht anlegen lässt —, beendet sich nicht der Befehl, sondern die ganze Shell,
+und alles danach läuft nie. Eine Unterschale fängt es: `( : > datei ) 2>/dev/null`.
+
+> **In dash beendet eine gescheiterte Umleitung an einem Spezial-Builtin die
+> Shell — und die Zeile, die das Ergebnis drucken sollte, kommt nie.**
+
+**Gebaut am selben Tag** (`docs/136 §9`), als dritter Lauf neben Nacht und
+Sicherungen: alle fünf Minuten, gemeldet beim dritten Lauf, beschränkt auf
+`disk.space`. Drei Funde aus dem Bau gelten über ihn hinaus.
+
+> **Eine Haltezeit, die genau auf einen Takt fällt, zählt die Läufe nicht,
+> sondern würfelt sie.** Entschieden war „nach zehn Minuten", also beim dritten
+> Lauf; gebaut war zuerst eine Haltezeit von genau zehn. Der dritte Lauf streut
+> aber um den Termin — dreissig Sekunden Streuung, und ohne `AccuracySec` ein
+> Fenster von einer Minute (gemessen, `AccuracyUSec=1min`) —, und die Meldung
+> wäre mal beim dritten, mal beim vierten gekommen. Die Antwort stand schon im
+> Repo: `HOLD_HOURS` ist zwanzig und nicht vierundzwanzig. Jetzt sind es acht
+> Minuten und `AccuracySec=1s`, nachgerechnet aus der Unit.
+
+> **Eine Prüfung hinter einer anderen, die im selben Fall zuerst anschlägt, ist
+> keine — sie ist ein Kommentar mit Assertion.** `DiagnoseRunTest` fragte, ob
+> eine Prüfung in zwei Läufen steht, erst nach dem Vergleich mit dem
+> Verzeichnis, und der schlug in genau diesem Fall zuerst an.
+
+**Wer eine Datei umbaut, gleicht die Anker des Bruchskripts ab — indem er die
+Eingriffe fährt, und nicht, indem er ihre Zeichenketten sucht.** Der erste
+Abgleich las jedes `alt = …` eines Eingriffs in eine geänderte Datei und fand
+zwei tote Anker. Zwei weitere standen in der anderen Schreibweise — `block` und
+`ziel`, ein Ausschnitt, der verschoben wird — und sind so in einen Commit
+gegangen: `clear()` hatte einen dritten Parameter bekommen. Gefunden hat sie der
+Einzellauf der betroffenen Eingriffe, vor dem vollen Lauf.
+
+> **Ein Ausdruck, der die gewohnte Schreibweise kennt, prüft die Gewohnheit und
+> nicht die Regel.** Diesmal an meinem eigenen Werkzeug, eine Stunde nachdem
+> hier stand, es habe gefunden, was zu finden war.
+
+Der Abgleich fährt seitdem jeden Python-Eingriff **trocken**: die Heredocs aus
+dem Skript gelesen, ausgeführt mit einem `open` und einem `Path.write_text`, die
+beim Schreiben nur mitschreiben, und gemeldet wird, was abbricht, nichts schreibt
+oder schreibt, ohne etwas zu ändern. 1726 Eingriffe in Sekunden, gegen den
+kaputten Stand genau diese zwei. Die 39 Abschnitte ohne Python — dreissig davon
+mit `sed -i` — sieht er nicht; für sie bleibt der volle Lauf.
 
 ---
 
@@ -7329,6 +7485,12 @@ Testen berücksichtigen:
 - Der `CHANGELOG.md` ist kein Protokoll der Commits, sondern der Ort, an dem
   steht, *warum* etwas so ist — und was vorher falsch war. `ChangelogTest`
   prüft ihn.
+- **Gebaut wird, was einem Nutzer im Panel spürbar hilft** — die Regel des
+  Betreibers vom 27. September 2026: *„Macht es Sinn und gibt es einen
+  spürbaren Mehrwert für einen Nutzer im Panel? Wenn das nicht erfüllt ist, wird
+  es nicht gebaut."* Sie steht vor jedem Plan und nicht danach. Angewandt zuerst
+  auf Befund 13 aus B2 (nicht gebaut, `docs/135`) und auf die Schwellen von A7
+  (Platte ja, RAM und Load zurückgestellt, `docs/136`).
 
 Eine Ausbaustufe gilt erst als fertig, wenn ihr Abnahmekriterium **nachweisbar**
 erfüllt ist (Plan §8 und §9) — gemessen auf einem echten Server, nicht

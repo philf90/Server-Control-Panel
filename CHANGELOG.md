@@ -32679,3 +32679,148 @@ in der Nacht danach steht eine Anfrage nach der Rotation in `access.log` und
 nicht in `access.log.1`. Nicht untersucht sind die übrigen Schreiber in
 `/var/log/srvpanel` und `storage/logs`, die eine Datei offen halten könnten,
 und wie sich viele Neuladen in einer Nacht verhalten — gemessen ist eines.
+
+### B2 ist abgenommen — und die Behebungen der Befunde 1, 3 und 7 haben einen Server gesehen
+
+**Gefahren auf `cloudsrv24` vom 24. bis 27. September 2026**, gegen
+`0.9.0-rc.2` und ab dem 25. gegen `0.9.0-rc.3` (`docs/134 §7`). Die Tageszeile
+für `cloudlab24.de` gleicht der Nachzählung über alle Dateien — 9777 Anfragen,
+5 861 139 Bytes gesendet, 2 452 328 empfangen, 7490 Fehler — und blieb in drei
+weiteren Sichten und einer zweiten Nacht dieselbe.
+
+**Was im Eintrag darüber offen stand, ist gesehen.** In beiden Nächten unter
+`0.9.0-rc.3` kam logrotate ohne eine Fehlerzeile durch, `fpm.log.2.gz` entpackt
+die 32 555 Bytes vom 22. August, und `fpm.log` bleibt leer. nginx wurde jede
+Nacht zweimal neu geladen, und danach hielten der Master und alle sechs
+Arbeiter die neuen Dateien. Die Anfrage nach der Rotation steht in `access.log`
+und nicht in `access.log.1`, und die neue Datei gehört `p1136:adm`, wie
+`create` sie anlegt.
+
+**Berichtigt: ein Kommentar in `WebAccessCount`.** Über den Summen stand, an
+dem Tag, an dem die alten Zeilen nicht mehr sinken, wisse der Betreiber, dass
+noch ein Server-Block das alte Format schreibt. Gemessen standen acht alte
+Zeilen vom August und vom 5. September in zwei Nächten unverändert da — in den
+Dateien einer Domain ohne Verkehr, die logrotate wegen `notifempty` nie dreht —,
+und kein Block schrieb alt. Dieselbe Erwartung stand in Punkt 6 des Laufs; der
+Betreiber hat den Punkt als erfüllt gewertet.
+
+> **Eine Summe, die nicht sinkt, belegt keinen Zufluss — sie kann auch
+> stillstehen.**
+
+**Neu gesehen und benannt offen:** Die Rotation aus dem nginx-Paket läuft im
+selben Lauf vor unserer und schickt ein `USR1`. Jede Nacht stehen deshalb 84
+`[emerg]`-Zeilen mit Fehler 13 im Protokoll von nginx, alle von Arbeitern, die
+das Neuladen gleich danach ersetzt, und die gedrehte Datei gehört danach
+`www-data`. Beides war vor der jeweiligen Nacht aus einem Nachbau unter der
+echten `logrotate.service` vorhergesagt. Für Schreiben und Zählen ist es
+folgenlos — **für den Kunden nicht**: Er kann seine gedrehten Protokolle nicht
+mehr lesen, gemessen am 27. September (`access.log.1` endet für `p1136` mit
+`Permission denied`, `access.log` ist lesbar). Ob er es können soll, ist offen.
+
+### Die Messrunde vor „Platte voll" — und MariaDB stürzt bei voller Platte ab
+
+**Von den drei Schwellen, die `docs/129 §4` für B1 aufzählt — Platte, RAM,
+Load —, war keine gebaut.** Es gab keinen Schlüssel, keinen Zeitgeber und kein
+Kommando, und die genannte Quelle stimmte nicht: Der Ringpuffer unter
+`app/Support/Metrics/` führt keine Belegung, die kommt aus `system.info` des
+Agenten. Entschieden hat der Betreiber am 27. September nach seiner Regel, dass
+gebaut wird, was einem Nutzer im Panel spürbar hilft: **„Platte voll" wird
+gebaut, RAM und Load sind zurückgestellt** — für beide gibt es keine gemessene
+Kurve. Plan und Messungen: `docs/136`, die Messvorschrift ist
+`tests/platte-voll-messen.sh`.
+
+**Der teuerste Befund betrifft die Datenbank und nicht das Panel.** MariaDB
+10.11.14, dieselbe Fassung wie auf `cloudsrv24`, auf einer Platte, auf der kein
+Nicht-root mehr schreiben kann: Eine Zeile geht noch durch. Die erste Anweisung,
+die eine Tabelle wachsen lässt, scheitert mit „The table is full", das
+Zurückrollen braucht selbst Platz, und der Server beendet sich mit Signal 6.
+Zweimal reproduziert, nach 5 716 und 5 881 ms; mit Platz läuft dieselbe
+Anweisung in 219 ms durch. Damit muss die Meldung kommen, **bevor** die Platte
+voll ist — die Befunde stehen in derselben Datenbank.
+
+> **Ein Alarm, der erst bei voller Platte anschlägt, kann ihn nicht mehr
+> ablegen.**
+
+**Drei weitere Messungen haben den Entwurf bestimmt.** `disk_free_space()`
+liefert den Platz ohne die Reserve von root; die Zahl des Agenten zählt die
+Reserve deshalb als belegt und erreicht 100 % genau dann, wenn kein Kunde mehr
+schreiben kann. Volle Inodes lassen jede neue Datei mit „No space left on device"
+scheitern, während die Belegung 7,5 % zeigt. Und unter `PrivateTmp=yes`, wie in
+der Unit des Agenten, führt `SystemInfo::filesystems()` `/tmp` und `/var/tmp`
+als eigene Platten neben `/` — eine volle Platte ergäbe drei Befunde.
+
+**Entschieden am selben Tag:** Warnung ab 85 % — dieselbe Zahl, ab der die
+Übersicht heute färbt —, Störung ab 95 %, zurück erst 5 Punkte darunter; geprüft
+alle fünf Minuten in einer eigenen Unit, gemeldet nach zehn; Inodes mit denselben
+Schwellen.
+
+**Und Befund 13 aus B2 ist entschieden: nicht gebaut** (`docs/135`). Die
+Protokollansicht des Panels liest als root und ist nicht betroffen; geholfen wäre
+nur, wer die gedrehten Rohdateien über SFTP holt. Die Regel des Betreibers steht
+seitdem in `CLAUDE.md` unter „Ablauf".
+
+### „Platte voll" ist gebaut — alle fünf Minuten, Platz und Inodes
+
+**Der dritte Lauf neben Nacht und Sicherungen** (`docs/136 §5`).
+`srvpanel-disk.service` fragt alle fünf Minuten den Agenten nach Platz und Inodes
+je Dateisystem und meldet danach, beschränkt auf `disk.space`. Warnung ab 85 %,
+Störung ab 95 %, zurück erst fünf Punkte darunter, gemeldet beim dritten Lauf —
+die Entscheidungen des Betreibers vom 27. September. Die Diagnoseseite nennt den
+Zeitpunkt des Laufs als dritten neben Nacht und Sicherungen.
+
+**Warnung und Störung sind zwei Befunde.** Wird aus einer Warnung eine Störung,
+bleibt die Warnung stehen; andersherum hiesse der Aufstieg „Warnung behoben",
+genau wenn es schlimmer wird. Und der Rückweg steht an den eigenen Befunden vom
+vorigen Lauf:
+
+> **Eine Haltezeit ohne Rückweg macht aus einer Platte, die an der Grenze
+> pendelt, eine, die nie meldet.**
+
+**Die Haltezeit hängt jetzt am Schlüssel.** `Notices::HOLD_HOURS` bleibt für
+alles, was die Nacht misst; `disk.space` hat acht Minuten. **Acht und nicht
+zehn**, obwohl „nach zehn Minuten" entschieden war: Der dritte Lauf kommt nicht
+auf die Sekunde zehn Minuten nach dem ersten — der Zeitgeber streut, und ohne
+`AccuracySec` legt systemd jeden Termin in ein Fenster von einer Minute
+(gemessen). Genau auf zwei Takten hätte mal der dritte, mal der vierte Lauf
+gemeldet; `HOLD_HOURS` steht aus demselben Grund auf zwanzig Stunden und nicht
+auf vierundzwanzig. Der Zeitgeber trägt jetzt `AccuracySec=1s`, und
+`DiskCadenceTest` rechnet aus der Unit nach, dass die Haltezeit zwischen dem
+Abstand zweier und dreier Läufe liegt.
+
+> **Eine Haltezeit, die genau auf einen Takt fällt, zählt die Läufe nicht,
+> sondern würfelt sie.**
+
+Und
+`srvpanel:notices` lässt sich mit `--check` auf Schlüssel beschränken — die
+Unit „Platte voll" meldet sonst alle fünf Minuten auch die Befunde der Nacht,
+bevor die zweite Nacht sie bestätigt hat. Ein unbekannter Schlüssel bricht ab,
+statt still über alles zu melden.
+
+**Ein Befund am Bestand, der dabei behoben ist: Die Übersicht zeigte eine Platte
+unter `PrivateTmp` dreimal.** `SystemInfo::filesystems()` unterschied nach dem
+Einhängepunkt, und die Sandbox der Agenten-Unit hängt `/tmp` und `/var/tmp` als
+eigene Einhängungen der Wurzel ein. Der Leser steht jetzt einmal da, in
+`SrvPanel\Agent\Disks`, unterscheidet nach dem Gerät und löst die Einhängepunkte
+vollständig auf — bis hierher nur `\040`. Die Schwelle, ab der die Übersicht
+einen Balken färbt, liest sie aus der Prüfung; bis hierher stand dort eine eigene
+85.
+
+**`/usr/bin/stat` steht auf der Positivliste des Agenten**, allein für `stat -f`:
+PHP kennt keine Inodes. `system.info` ruft es nicht — der Kennzahlensammler fragt
+es alle zehn Sekunden.
+
+**Und `DiagnoseRunTest` hat eine Prüfung zurückbekommen, die nie zu Wort kam.**
+Ob eine Prüfung in zwei Läufen steht, fragte er erst nach dem Vergleich mit dem
+Verzeichnis — und der schlug in genau diesem Fall zuerst an, weil `every()` die
+Prüfung doppelt führt. Die Frage steht jetzt vorn, paarweise über alle drei
+Läufe. Gehalten wird der Bau von `DiskVerdictTest`, `DiskReaderTest`,
+`DiskNoticeTest` und `DiskCadenceTest`, gebrochen in 25 Eingriffen. **Abgenommen
+ist nichts**: Der Lauf auf `cloudsrv24` steht in `docs/136 §7`.
+
+**Zwei ältere Eingriffe hatten beim Bau ihren Anker verloren** — `clear()` bekam
+einen dritten Parameter — und sind so in einen Commit gegangen. Der Abgleich der
+Anker hatte nur die Schreibweise `alt = …` gelesen; diese beiden verschieben
+einen Ausschnitt `block` vor ein `ziel`. Gefunden hat sie der Einzellauf vor dem
+vollen. Abgeglichen wird seitdem, indem jeder Python-Eingriff trocken fährt, mit
+abgefangenem Schreiben: 1726 in Sekunden, gegen den kaputten Stand genau diese
+zwei.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\FindingCheck;
 use App\Support\Notify\Notices;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
@@ -29,7 +30,8 @@ use Illuminate\Support\Carbon;
  */
 final class SendNotices extends Command
 {
-    protected $signature = 'srvpanel:notices';
+    protected $signature = 'srvpanel:notices
+        {--check=* : Nur Befunde dieser Schlüssel, z. B. disk.space — ohne Angabe alle}';
 
     protected $description = 'Verschickt die fälligen Meldungen über die eingerichteten Kanäle';
 
@@ -38,7 +40,28 @@ final class SendNotices extends Command
         $jetzt = Carbon::now();
         $fehlschlaege = 0;
 
-        foreach ($notices->send($jetzt) as $kanal => $bilanz) {
+        /*
+         * **Ein unbekannter Schlüssel bricht ab und meldet nicht über alles.**
+         * Die Unit „Platte voll" ruft diesen Befehl mit `--check=disk.space`
+         * (`docs/136 §5`). Ein Tippfehler dort, still übergangen, hiesse: Sie
+         * meldete alle fünf Minuten auch die Befunde der Nacht — nach zwanzig
+         * Stunden und ohne die Bestätigung der zweiten Nacht.
+         */
+        $nur = [];
+
+        foreach ((array) $this->option('check') as $wert) {
+            $schluessel = FindingCheck::tryFrom((string) $wert);
+
+            if ($schluessel === null) {
+                $this->error(sprintf('Einen Schlüssel „%s" gibt es nicht; gemeldet wird nichts.', (string) $wert));
+
+                return self::FAILURE;
+            }
+
+            $nur[] = $schluessel;
+        }
+
+        foreach ($notices->send($jetzt, $nur) as $kanal => $bilanz) {
             $fehlschlaege += $bilanz['failed'];
 
             if ($bilanz['skipped'] > 0) {

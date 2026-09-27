@@ -121,6 +121,15 @@ final class Settings
     public const DIAGNOSE_BACKUPS = 'diagnose.backups';
 
     /**
+     * Und für den dritten Lauf, „Platte voll" im Fünfminutentakt (`docs/136`).
+     *
+     * Aus demselben Grund ein eigener Schlüssel: Teilte er sich einen mit der
+     * Nacht, stünde auf der Diagnoseseite „vor drei Minuten gemessen" über
+     * Befunden, die die Nacht vor zwanzig Stunden geschrieben hat.
+     */
+    public const DIAGNOSE_DISK = 'diagnose.disk';
+
+    /**
      * Die Schlüssel, unter denen ein Lauf seinen Zeitpunkt ablegen darf.
      *
      * Eine Positivliste, damit ein Tippfehler nicht wortlos einen dritten
@@ -128,7 +137,7 @@ final class Settings
      *
      * @var list<string>
      */
-    public const RUN_KEYS = [self::DIAGNOSE, self::DIAGNOSE_BACKUPS];
+    public const RUN_KEYS = [self::DIAGNOSE, self::DIAGNOSE_BACKUPS, self::DIAGNOSE_DISK];
 
     /**
      * Der Wartungsmodus: ob er an ist, und bis wann er voraussichtlich läuft.

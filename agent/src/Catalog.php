@@ -97,6 +97,8 @@ final class Catalog
         'srvpanel-backup-verify.timer',
         'srvpanel-backups.service',
         'srvpanel-backups.timer',
+        'srvpanel-disk.service',
+        'srvpanel-disk.timer',
     ];
 
     /**

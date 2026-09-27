@@ -266,6 +266,13 @@ Wurzel:**
 gefüllt. Ob der Agent eine Einhängung sieht, die nach seinem Start entstanden
 ist, wird vor dem Lauf gemessen und nicht angenommen.
 
+**Der Lauf ist `docs/137`**, ausgeschrieben am 27. September vor dem Fahren. Die
+Frage nach der Einhängung ist dort im Container vorgemessen — M7 in
+`tests/platte-voll-messen.sh`: sichtbar unter der Sandbox des Agenten, nicht
+sichtbar mit `MountFlags=private` — und wird auf dem Server in der Namespace
+des Agenten nachgesehen. Punkt 4 fährt er in drei Stufen (88, 82, 78 %), weil
+der Rückweg nur zwischen den Schwellen etwas entscheidet (`docs/137 §0`).
+
 ## §8 · Was offen bleibt
 
 - **RAM und Load** — zurückgestellt (§1).

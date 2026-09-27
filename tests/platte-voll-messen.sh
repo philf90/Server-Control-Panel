@@ -4,7 +4,8 @@
 #     bash tests/platte-voll-messen.sh
 #
 # Die Messrunde vor „Platte voll" (docs/136 §3), gefahren am 27. September
-# 2026. Sechs Messungen, jede mit ihrer Gegenprobe:
+# 2026. Sieben Messungen, jede mit ihrer Gegenprobe — M7 ist am selben Tag für
+# den Abnahmelauf dazugekommen (docs/137 §0):
 #
 #   M1 · Was `disk_free_space()` liefert — den Platz ohne die Reserve von root
 #        (`f_bavail`) oder mit ihr (`f_bfree`). Gegenprobe: dieselbe Platte
@@ -19,6 +20,9 @@
 #   M5 · MariaDB auf einer vollen Platte: eine Zeile, dann eine Anweisung, die
 #        den Tablespace wachsen lässt. Gegenprobe: dieselbe Anweisung mit Platz.
 #   M6 · Was die Griffe kosten: `disk_*_space()` gegen `stat -f`.
+#   M7 · Eine Einhängung nach dem Start der Agenten-Unit: Sieht eine Unit mit
+#        der Sandbox aus `srvpanel-agentd.service` sie? Gegenprobe: dieselbe
+#        Unit mit `MountFlags=private`.
 #
 # **Gemessen wird am echten Leser** — `SystemInfo::filesystems()` über
 # Reflection — und nicht an einem Nachbau seiner Formel. Ein Nachbau, der die
@@ -256,3 +260,50 @@ printf("    stat -f über drei Pfade je Aufruf     %.3f ms\n", (hrtime(true) - $
 echo "  Und die Form, wenn ein Pfad fehlt:"
 LC_ALL=C /usr/bin/stat -f -c '%c %d %n' / /gibt/es/nicht 2>&1 | sed 's/^/    /'
 echo "    rc=${PIPESTATUS[0]}"
+echo
+
+echo "M7 · Eine Einhängung nach dem Start der Agenten-Unit"
+# **`docs/136 §7` verlangt die Messung vor dem Abnahmelauf**, und der Grund ist
+# die Sandbox: Der Agent läuft in einer eigenen Mount-Namespace, entstanden bei
+# seinem Start. Eine Wegwerf-Platte, die der Lauf danach einhängt, kommt dort
+# nur an, wenn systemd die Namespace als Empfänger der Einhängungen des
+# Rechners anlegt. Die Sandbox wird aus der Unit gelesen und nicht
+# abgeschrieben — sonst misst M7 die Abschrift.
+#
+# **Die Gegenprobe ist dieselbe Unit mit `MountFlags=private`.** Ohne sie
+# stünde neben „sieht sie" kein Zustand, in dem dieselbe Frage „fehlt" sagt.
+#
+# Eingehängt wird **in** der Namespace dieses systemd: `unshare -m` hat sie
+# privat angelegt, und was draussen eingehängt wird, kommt drinnen nie an.
+if [ "$EIGENES" != 1 ]; then
+    echo "  Kein eigenes systemd (siehe M4) — M7 fällt aus."
+else
+    SANDBOX=$(sed -n '/^\[Service\]/,/^\[/p' "$REPO/packaging/systemd/srvpanel-agentd.service" \
+        | grep -E '^(ReadOnlyPaths|PrivateTmp|Protect[A-Za-z]+|Restrict[A-Za-z]+|LockPersonality|MemoryDenyWriteExecute|SystemCallArchitectures)=')
+    zeile "Sandbox der Unit" "$(printf '%s\n' "$SANDBOX" | grep -c .) Zeilen, darunter $(printf '%s\n' "$SANDBOX" | grep -m1 PrivateTmp)"
+    for u in agent privat; do
+        {
+            printf '[Service]\nType=simple\nExecStart=/bin/sleep infinity\n%s\n' "$SANDBOX"
+            [ "$u" = privat ] && printf 'MountFlags=private\n'
+        } | innen sh -c "cat > /run/systemd/system/m7-$u.service"
+    done
+    innen systemctl daemon-reload
+    innen systemctl start m7-agent.service m7-privat.service
+
+    # Erst die Units, dann die Platte — das ist die Reihenfolge des Laufs.
+    truncate -s 64M "$P/m7.img"
+    mkfs.ext4 -q -F -m 0 "$P/m7.img"
+    innen mkdir -p /mnt/m7
+    innen mount -o loop "$P/m7.img" /mnt/m7
+    zeile "auf dem Rechner" "$(innen findmnt -rn -o TARGET,SOURCE,FSTYPE /mnt/m7)"
+    for u in agent privat; do
+        PID=$(innen systemctl show -p MainPID --value "m7-$u.service")
+        zeile "m7-$u sieht" "$(innen nsenter -t "$PID" -m -- findmnt -rn -o TARGET,SOURCE /mnt/m7 || echo fehlt)"
+    done
+    PID=$(innen systemctl show -p MainPID --value m7-agent.service)
+    zeile "Leser in m7-agent" "$(innen nsenter -t "$PID" -m -- php -r "$LESER" "$AUTOLOAD" | awk '$1 == "/mnt/m7" { print $4 " %"; f = 1 } END { if (!f) print "fehlt" }')"
+    echo "  Und ausgehängt auf dem Rechner:"
+    innen umount /mnt/m7
+    zeile "m7-agent sieht" "$(innen nsenter -t "$PID" -m -- findmnt -rn -o TARGET /mnt/m7 || echo fehlt)"
+    innen systemctl stop m7-agent.service m7-privat.service
+fi

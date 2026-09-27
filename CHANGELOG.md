@@ -32824,3 +32824,37 @@ einen Ausschnitt `block` vor ein `ziel`. Gefunden hat sie der Einzellauf vor dem
 vollen. Abgeglichen wird seitdem, indem jeder Python-Eingriff trocken fährt, mit
 abgefangenem Schreiben: 1726 in Sekunden, gegen den kaputten Stand genau diese
 zwei.
+
+### Der Abnahmelauf für „Platte voll" steht — und der Zeitgeber läuft nach dem Update sofort
+
+**`docs/137` ist der Lauf für `cloudsrv24`**, ausgeschrieben vor dem Fahren: an
+einer Wegwerf-Platte im Loop, nie an der Wurzel, gelesen aus dem Journal der
+Unit, aus der Ablage und beim eigenen Empfänger des Webhooks aus B1. Er dauert
+gut anderthalb Stunden, fast alles davon Warten auf den Zeitgeber, und von Hand
+angestossen wird nichts — ein Lauf von Hand zählte mit und verschöbe, welcher
+der dritte ist.
+
+**Eine Erwartung ist dabei umgefallen, die schon in der Freigabenotiz stand.**
+Nach dem Update wartet `srvpanel-disk.timer` nicht auf den nächsten
+Fünf-Minuten-Termin: Sein `OnBootSec=3min` ist auf einem laufenden Server längst
+verstrichen, und beim Einschalten löst er sofort aus — gemessen unter systemd 255
+nach 0,12 s, ein Timer ohne `OnBootSec` daneben wartet. Eine Platte, die beim
+Update schon über 85 % steht, meldet sich deshalb nach acht bis gut dreizehn
+Minuten und nicht nach zehn bis sechzehn.
+
+**Das Kriterium ist an zwei Stellen geschärft.** „Die Entwarnung für beide"
+meint beide Befunde und geht über **einen** Kanal — die Mail entwarnt nicht
+(`docs/133` Punkt 8b). Und der Rückweg wird in drei Stufen gefahren, 88, 82 und
+78 %: Von ganz oben nach ganz unten ginge die Messung auch ohne Rückweg durch.
+
+**`tests/platte-voll-messen.sh` hat eine siebte Messung.** `docs/136 §7` verlangt
+vor dem Lauf die Frage, ob der Agent eine Einhängung sieht, die nach seinem
+Start entsteht — er läuft in einer eigenen Mount-Namespace. M7 misst es an einer
+Unit mit der Sandbox aus `srvpanel-agentd.service`, gelesen aus der Unit: Sie
+sieht die Platte, und der echte Leser liest sie; dieselbe Unit mit
+`MountFlags=private` sieht sie nicht; ausgehängt ist sie in der Unit auch fort.
+Auf dem Server fragt der Lauf dasselbe in der Namespace des Agenten.
+
+**Und ein Handgriff zum Abräumen:** Ohne die Datei sagt `losetup -j` rc=0 und
+druckt nichts. Gezählt wird deshalb vor dem Löschen, eingehängt `1`, ausgehängt
+`0` — `mount -o loop` gibt sein Gerät beim Aushängen selbst frei.

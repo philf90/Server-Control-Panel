@@ -15,7 +15,8 @@ Sicherungen) am 18. September 2026**; der Abschnitt dazu steht weiter unten.
 Aus P9 (`docs/129`) sind **B1** am 23. September (`docs/133 §7`) und **B2** am
 27. September 2026 (`docs/134 §7`) abgenommen. **„Platte voll"** — die Schwelle
 aus A7, die in B1 fehlte — ist am 27. September gebaut und nicht abgenommen
-(`docs/136`).
+(`docs/136`); der Abnahmelauf steht als **`docs/137`**, ausgeschrieben vor dem
+Fahren.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -6080,6 +6081,23 @@ beim Schreiben nur mitschreiben, und gemeldet wird, was abbricht, nichts schreib
 oder schreibt, ohne etwas zu ändern. 1726 Eingriffe in Sekunden, gegen den
 kaputten Stand genau diese zwei. Die 39 Abschnitte ohne Python — dreissig davon
 mit `sed -i` — sieht er nicht; für sie bleibt der volle Lauf.
+
+**Der Abnahmelauf ist `docs/137`**, und beim Ausschreiben ist eine Erwartung
+umgefallen, die schon in der Freigabenotiz stand: Nach dem Update wartet
+`srvpanel-disk.timer` nicht auf den nächsten Fünf-Minuten-Termin, er läuft
+sofort. Sein `OnBootSec=3min` ist auf einem laufenden Server längst verstrichen,
+und gemessen unter systemd 255 löst er beim Einschalten nach 0,12 s aus;
+derselbe Timer ohne `OnBootSec` wartet.
+
+> **Ein Zeitgeber, dessen Termin beim Einschalten schon verstrichen ist, holt
+> ihn nach — und „der nächste Termin" ist dann jetzt.**
+
+Zwei weitere Sätze stehen in `docs/137 §0`: Die Entwarnung „für beide" geht über
+**einen** Kanal, weil die Mail nicht entwarnt, und der Rückweg wird in drei
+Stufen gefahren, weil er nur zwischen den Schwellen etwas entscheidet. Und ein
+Handgriff zum Abräumen: **Ohne die Datei sagt `losetup -j` rc=0 und druckt
+nichts** — gezählt wird deshalb vor dem Löschen, sonst ist die Null keine
+Messung.
 
 ---
 

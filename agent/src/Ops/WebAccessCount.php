@@ -304,9 +304,20 @@ final class WebAccessCount implements Op
      *
      * **Sie stehen da, damit ein Nachtlauf eine Zeile protokollieren kann, die
      * etwas sagt.** „6 Domains gezählt" ist keine Auskunft; „6 Domains, 7
-     * Zeilen, davon 6 aus dem alten Zeitalter" ist eine — und an dem Tag, an
-     * dem `legacy` nicht mehr sinkt, weiss der Betreiber, dass irgendwo noch
-     * ein Server-Block das alte Format schreibt.
+     * Zeilen, davon 6 aus dem alten Zeitalter" ist eine.
+     *
+     * **Dass `legacy` nicht sinkt, heisst nicht, dass noch ein Server-Block
+     * das alte Format schreibt** — bis zum 27. September 2026 stand hier das
+     * Gegenteil. Gezählt wird, was in den gelesenen Dateien steht, und eine
+     * Domain ohne Verkehr dreht logrotate nicht (`notifempty`): Ihre alten
+     * Dateien bleiben im Lesebereich, so alt sie sind. Auf cloudsrv24 standen
+     * so acht Zeilen vom August und vom 5. September in zwei Nächten
+     * unverändert da, und kein Block schrieb alt (`docs/134 §7`, Befund 8).
+     * Ob ein Block am Vortag noch alt geschrieben hat, sagt `srvpanel:traffic`
+     * mit seiner Zeile „übersprungen" über genau diesen Tag.
+     *
+     * > **Eine Summe, die nicht sinkt, belegt keinen Zufluss — sie kann auch
+     * > stillstehen.**
      *
      * **Und `pending` steht mit darin, nicht nur daneben.** Baut ein Nachtlauf
      * seine Zeile aus dieser Summe allein, meldete er sonst „6 Domains" —

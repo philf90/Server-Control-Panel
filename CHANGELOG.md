@@ -32679,3 +32679,37 @@ in der Nacht danach steht eine Anfrage nach der Rotation in `access.log` und
 nicht in `access.log.1`. Nicht untersucht sind die übrigen Schreiber in
 `/var/log/srvpanel` und `storage/logs`, die eine Datei offen halten könnten,
 und wie sich viele Neuladen in einer Nacht verhalten — gemessen ist eines.
+
+### B2 ist abgenommen — und die Behebungen der Befunde 1, 3 und 7 haben einen Server gesehen
+
+**Gefahren auf `cloudsrv24` vom 24. bis 27. September 2026**, gegen
+`0.9.0-rc.2` und ab dem 25. gegen `0.9.0-rc.3` (`docs/134 §7`). Die Tageszeile
+für `cloudlab24.de` gleicht der Nachzählung über alle Dateien — 9777 Anfragen,
+5 861 139 Bytes gesendet, 2 452 328 empfangen, 7490 Fehler — und blieb in drei
+weiteren Sichten und einer zweiten Nacht dieselbe.
+
+**Was im Eintrag darüber offen stand, ist gesehen.** In beiden Nächten unter
+`0.9.0-rc.3` kam logrotate ohne eine Fehlerzeile durch, `fpm.log.2.gz` entpackt
+die 32 555 Bytes vom 22. August, und `fpm.log` bleibt leer. nginx wurde jede
+Nacht zweimal neu geladen, und danach hielten der Master und alle sechs
+Arbeiter die neuen Dateien. Die Anfrage nach der Rotation steht in `access.log`
+und nicht in `access.log.1`, und die neue Datei gehört `p1136:adm`, wie
+`create` sie anlegt.
+
+**Berichtigt: ein Kommentar in `WebAccessCount`.** Über den Summen stand, an
+dem Tag, an dem die alten Zeilen nicht mehr sinken, wisse der Betreiber, dass
+noch ein Server-Block das alte Format schreibt. Gemessen standen acht alte
+Zeilen vom August und vom 5. September in zwei Nächten unverändert da — in den
+Dateien einer Domain ohne Verkehr, die logrotate wegen `notifempty` nie dreht —,
+und kein Block schrieb alt. Dieselbe Erwartung stand in Punkt 6 des Laufs; der
+Betreiber hat den Punkt als erfüllt gewertet.
+
+> **Eine Summe, die nicht sinkt, belegt keinen Zufluss — sie kann auch
+> stillstehen.**
+
+**Neu gesehen und benannt offen:** Die Rotation aus dem nginx-Paket läuft im
+selben Lauf vor unserer und schickt ein `USR1`. Jede Nacht stehen deshalb 84
+`[emerg]`-Zeilen mit Fehler 13 im Protokoll von nginx, alle von Arbeitern, die
+das Neuladen gleich danach ersetzt, und die gedrehte Datei gehört danach
+`www-data`. Folgenlos und vor der jeweiligen Nacht aus einem Nachbau unter der
+echten `logrotate.service` vorhergesagt — aber laut.

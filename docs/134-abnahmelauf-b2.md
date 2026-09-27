@@ -1008,3 +1008,228 @@ herstellbar"** — er wird nachgeholt.
 
 **Das Ergebnis kommt als §7 dazu**, mit den abgelesenen Zahlen und ohne die
 Erwartungen darüber nachträglich anzupassen.
+
+---
+
+## §7 · Das Ergebnis — gefahren vom 24. bis 27. September 2026
+
+**Gefahren auf `cloudsrv24` an `cloudlab24.de` (Abonnement `p6-b.invalid`), von
+`2026-09-24 22:32 CEST` bis `2026-09-27 06:47 CEST`.** Die Punkte 1, 2, 4, 5,
+6, 7 und 8 sind erfüllt; Punkt 3 ist gemessen und trägt nicht. **B2 ist am
+27. September 2026 abgenommen** — mit einer Wertung des Betreibers zu Punkt 6,
+die unten steht. Was hier steht, sind die **abgelesenen** Zahlen; die
+Erwartungen oben sind nicht nachträglich angepasst worden.
+
+### Zwei Fassungen und fünf Abweichungen
+
+Gemessen wurde gegen `0.9.0-rc.2` (`6fce8f81`, am Abend von X installiert, trägt
+die Behebung aus §0 Punkt 2) und ab dem 25. September gegen `0.9.0-rc.3`
+(`97e77218`). Was anders lief als vorgeschrieben, steht hier mit seinem Grund:
+
+1. **`b2-mitternacht` lief im Takt 0,1 statt 1** (Befund 5). Die Rotation lag in
+   der ersten Sekunde nach Mitternacht; im Sekundentakt hätte der Kopf nur in
+   rund 60 von 100 Nächten eine Zeile getragen.
+2. **Am 25. September um 08:41:03 hat der Betreiber nginx von Hand neu geladen**
+   (Befund 7) — es stellte her, was das `USR1` der Nacht hätte herstellen sollen.
+   Der Kopf von D reicht deshalb von 00:00 bis 08:39:39 und nicht bis 00:00:01.
+3. **`0.9.0-rc.3` ist mitten im Lauf installiert worden**, am 25. September um
+   11:07:26, entschieden vom Betreiber. **Der Zählweg ist zwischen den beiden
+   Fassungen derselbe:** `git diff v0.9.0-rc.2 v0.9.0-rc.3` über
+   `WebAccessCount`, `agent/src/Web/`, `Site`, `AccessCounts`, `CollectTraffic`,
+   `app/Support/Metrics/` und die beiden Einheiten von `srvpanel-traffic` ist
+   leer; derselbe Befehl über `WebLogrotate` zeigt 52 Zeilen hinzu und eine weg.
+   **Punkt 7 misst damit das Neuladen und nicht das `USR1`, das er nennt** — und
+   seine Erwartung `<benutzer>:adm` trifft erst damit zu. Unter dem `USR1` hatte
+   der Master die neue Datei auf `www-data` umgeschrieben.
+4. **Punkt 6 lief vor 5a.** 5a schreibt ins Journal derselben Einheit, und vor
+   01:30 gefahren stünde seine Zeile im Fenster von Punkt 6.
+5. **Für 5b steht im Bild keine Uhrzeit.** „Gegen 22:16 am 26. September" ist
+   aus dem Eingang der Ablesung erschlossen.
+
+### Die Punkte
+
+| Punkt | gemessen |
+|---|---|
+| §1 · Vorbedingungen | alle Blöcke wie erwartet: `drei Dateien: ja   gepackt lesbar: ja` und `der 22. am 24.: zählbar 0, älter 1`; die Erklärung in Zeile 4 vor dem `include` in Zeile 9; zehn `access_log` ohne `off`, alle zehn im Format; kein `ALT`, fünfmal `leer`; logrotate `daily`, `AccuracySec=1h`, `Persistent=true`, zuletzt `2026-09-24 00:00:00 CEST`. |
+| §2 · Domain und Werkzeuge | `Angesehen: 6   in Frage: 3   gewählt: cloudlab24.de`; die vier Werkzeuge 1521, 850, 958 und 1014 Bytes gross, wie im Container. Ladebeleg: Buch `200 294 1000 97`, Protokoll `… 1294 97`. Die Rotationsdatei des Abonnements stammte vom 14. August und trug noch `nocreate` (Befund 3). |
+| §3 · Zeitplan | Versatz 0 s, Lastgeber bis `2026-09-25 00:05:00 CEST`. `b2-mitternacht` lief von 23:59:30 bis 00:05:00, `b2-mittag` von 12:00:00 bis 12:05:01; im Buch 226 Zeilen vom 24. und 2311 vom 25. |
+| 1 · Leitung und Zeile | dreimal `stimmt`: `200` mit Rumpf 1000, gesendet `1294/1294`, empfangen `96/96`; `304` mit Rumpf **0**, gesendet `234/234`, empfangen `127/127`; `405` mit Rumpf 166, gesendet `377/377`, empfangen `99/99`. |
+| 2 · erste Nacht | logrotate `Starting` und `Finished` um 00:00:01, `srvpanel-traffic` um 00:25:51; `access.log` geboren am 26. um 00:00:01.436, `.1` am 25. um 00:00:01.508 — **nach**. |
+| 2 · zweite Nacht | logrotate von 00:00:00 bis 00:00:01, `srvpanel-traffic` von 00:16:10 bis 00:16:11; `access.log` geboren am 27. um 00:00:01.439, `.1` am 26. um 00:00:01.436 — **nach**. |
+| 3 · übersprungene Tage | das Journal nennt `p6-b.invalid` am `2026-09-05`: Zeilen **0**, am Tag danach **0**. |
+| 4 · das Kriterium | Klammer davor und danach Zeile für Zeile gleich. Vom 25.: `access.log` 0, `.1` **5210**, `.2.gz` **4567**, alle übrigen 0; nachgezählt `requests 9777  traffic_sent_bytes 5861139  traffic_received_bytes 2452328  errors 7490  (altes Format: 0)`. Buch: 2311 nummerierte Zeilen, davon 231 Fehler; gesendet `2778607` gegen `2778607`, empfangen `224860` gegen `224860`; `Status anders 0`, `ohne Buchzeile 0`, `doppelt 0`, `im Buch und in keiner Datei 0 von 2537`. Tageszeile: vier Zeilen, **dieselben vier Zahlen**. |
+| 5a · nach der Rotation | `Result=success`, `ExecMainStatus=0`; dieselben vier Zahlen. |
+| 5b · vor der nächsten | `Result=success`, `ExecMainStatus=0`; dieselben vier Zahlen. |
+| 5c · die zweite Nacht | Klammer gleich; vom 25.: `.2.gz` **5210**, `.3.gz` **4567**, alle übrigen 0; nachgezählt und abgelegt dieselben vier Zahlen. |
+| 6 · der Nachtlauf | genau eine Zeile `Laufender Tag auf dem Server: 2026-09-26 (Europe/Berlin).`; `6 Domain(s) gelesen, 10742 Zeile(n), davon 10734 gedeutet, 8 aus dem alten Zeitalter, 0 unlesbar.`; `3 Tageswert(e) vom Vortag zählbar, 0 übersprungen (gemischtes Format), 1 noch offen (laufender Tag), 5 älter und nicht erneut abgelegt.`; `Abgelegt: 12 Zeile(n) je Domain, 4 je Abonnement.`; `Fertig in 23 ms.`; kein `scheiterte`, kein `ohne Zeile im Panel`, kein `blieben ungezählt`. |
+| 7 · neue Datei, Probe | `access.log` `-rw-r----- p1136:adm`, geboren am 26. um 00:00:01.436; `.1` ungepackt, ab `.2.gz` gepackt; die Probe **1**-mal in `access.log`. |
+| 8 · die Maschine | `0 timers listed.` und zweimal `No such file or directory`. |
+
+**Der Kopf dieses Tages ist ungewöhnlich lang, und er ist trotzdem ein Kopf.**
+4567 Zeilen stehen in der Datei, die bis zum Neuladen um 08:41 beschrieben
+wurde — nicht nur die erste Sekunde. Der Punkt verlangt eine; die Kette, die
+er misst, ist dieselbe.
+
+### Punkt 6 und die Wertung des Betreibers
+
+**Punkt 6 hat eine Erwartung nicht erfüllt, und sie war falsch.** Erwartet waren
+`0 aus dem alten Zeitalter`, gelesen sind **8**. Ein Zusatz zum Block, der jede
+Datei im Lesebereich nach Zeilen im alten Format absucht, legt sie ohne Rest
+aus: **2** vom 5. September in `p6-b.invalid/access.log.1` und **6** vom
+15. August in `p6-b.invalid/access.log.2.gz` — zusammen die 8 der Nacht, denn
+der Zähllauf kam nach der Rotation und las dieselben Dateien. Dieselbe Zahl
+stand schon in der Nacht zum 25.
+
+**`p6-b.invalid` hat keinen Verkehr.** Eine leere Datei dreht logrotate nicht
+(`notifempty`, §0 Punkt 7), also rücken ihre alten Dateien nie aus dem
+Lesebereich — die beiden stehen dort seit Wochen und bleiben, bis die Domain
+eine Anfrage bekommt. **Keine der acht Zeilen stammt aus der Zeit nach der
+Umstellung**, und das ist, was die Erwartung meinte: dass kein Server-Block mehr
+das alte Format schreibt.
+
+**Gewertet als erfüllt, entschieden vom Betreiber am 27. September.** Falsch war
+die Vorschrift und nicht der Prüfling (Befund 8). Den Schluss, den sie gezogen
+hat, zog auch der Kopf der Summen in `WebAccessCount`: Wenn die alten Zeilen
+nicht sinken, schreibe irgendwo noch ein Block das alte Format. Hier sanken sie
+in zwei Nächten nicht, und keiner tut es. Der Kommentar ist am selben Tag
+berichtigt.
+
+> **Eine Summe, die nicht sinkt, belegt keinen Zufluss — sie kann auch
+> stillstehen.**
+
+### Punkt 3 trägt nicht
+
+Die Null für den 5. September stimmt, aber ihre Gegenprobe gibt es nicht: Am
+6. September steht in den Dateien von `p6-b.invalid` keine einzige Zeile, und
+ohne vier Zeilen am Tag danach hiesse die Null auch „diese Domain wird gar nicht
+abgelegt" (Befund 9). **Die Meldung selbst stammt aus einem Lauf vor
+`0.9.0-rc.2`:** Bis `ae03f58f` galt jeder vergangene Tag mit alten Zeilen als
+übersprungen, auch einer, der nur alte trägt, und die Meldung riet zu
+`Behebung: srvpanel:vhost --sites` für einen Block, der längst umgestellt war.
+Seitdem steht ein Tag vor dem Vortag unter „älter" und wird nicht mehr gefragt.
+Nach §6 hängt die Abnahme nicht an Punkt 3; die Regel halten `TrafficEraTest`
+und `LogEraTest`.
+
+### Die beiden Nächte unter `0.9.0-rc.3`
+
+**Die Behebungen der Befunde 1 und 7 haben in diesen Nächten zum ersten Mal
+einen Server gesehen**, abgelesen mit einem Zusatzblock am Ende jedes Morgens:
+
+| | Nacht zum 26. | Nacht zum 27. |
+|---|---|---|
+| logrotate | `Finished` um 00:00:01, keine Fehlerzeile | `Finished` um 00:00:01, keine Fehlerzeile |
+| nginx neu geladen | zweimal um 00:00:01 | zweimal um 00:00:01 |
+| Master und sechs Arbeiter halten | die neue `access.log` und die neue `panel-access.log`, keiner eine `.1` | dasselbe |
+| `access.log` · `.1` | `p1136:adm` · `www-data:adm` | `p1136:adm` · **`www-data:adm`** |
+| `panel-access.log` · `.1` | `srvpanel:srvpanel` · `www-data:srvpanel` | `srvpanel:srvpanel` · **`www-data:srvpanel`** |
+| `fpm.log` | 0 B und neu; `.1` 25 269 B; `.2.gz` 3056 B, entpackt 32 555 B | 0 B, nicht gedreht, weil leer |
+| Fehler 13 | 84 Zeilen, je 14 von sechs Arbeitern, alle fort | 84 Zeilen, je 14 von sechs Arbeitern, alle fort |
+
+Zweimal neu geladen heisst: einmal für die Protokolle des Panels und einmal für
+`p6-b.invalid`. Die beiden übrigen Abonnements hatten nichts zu drehen —
+erschlossen aus `sharedscripts` und `notifempty`, nicht einzeln nachgesehen.
+
+**logrotate kommt wieder durch, zum ersten Mal seit August** (Befund 1).
+`fpm.log.2.gz` entpackt genau die 32 555 Bytes vom 22. August, `fpm.log.1` trägt
+die 25 269 vom Neustart am 25., und die neue `fpm.log` bleibt leer, weil php-fpm
+ins Journal schreibt — in der zweiten Nacht dreht sie deshalb gar nicht.
+
+**Und nginx schreibt nach der Rotation in die neue Datei** (Befund 7). Die neue
+`access.log` trug am ersten Morgen 723 720 Bytes, die `.1` wurde zuletzt um
+23:54:31 beschrieben, vor der Rotation, und die Probe aus Punkt 7 steht in der
+neuen. Dasselbe gilt für das Fehlerprotokoll der Domain und für
+`panel-access.log`.
+
+**Die Fehlerzeilen waren vorhergesagt — nicht ihre Zahl, aber dass sie kommen
+und von Arbeitern, die danach fort sind —, und die Eigentümer der zweiten Nacht
+ebenso.** Die Rotation aus dem nginx-Paket (`/etc/logrotate.d/nginx`) läuft im
+selben Lauf und alphabetisch vor `srvpanel*`, und ihr `postrotate` schickt dem
+Master ein `USR1`. Der öffnet die Dateien neu und schreibt sie dabei auf
+`www-data` um; die Arbeiter scheitern mit 13 an den Verzeichnissen — und erst
+danach benennt unsere Rotation die Dateien um und ersetzt das Neuladen die
+Arbeiter. Nachgebaut vor jeder der beiden Nächte, mit logrotate unter der echten
+`logrotate.service`:
+
+| Rotation im Nachbau | Fehler 13 | die gedrehte Datei |
+|---|---|---|
+| mit der nginx-Strophe des Pakets davor | 2 je alter Arbeiter, alle nach dem Neuladen fort | auf `www-data` umgeschrieben |
+| Gegenprobe: ohne sie | 0 | behält ihren Eigentümer |
+
+Auf dem Server sind es jede Nacht 84 Zeilen, je 14 von sechs Arbeitern. Das
+passt zu sechs Domains mit je zwei Protokollen und den beiden des Panels;
+einzeln nachgesehen ist es nicht. Und die Datei, die am Morgen des 26. als
+`access.log` `p1136:adm` gehörte, gehörte am Morgen des 27. als `access.log.1`
+`www-data:adm`. **Folgenlos:** Umgeschrieben wird die Datei, die gleich danach
+gedreht wird, und die Arbeiter, die scheitern, halten dabei noch die richtige.
+**Aber laut** — jede Nacht, als `[emerg]` im Fehlerprotokoll von nginx.
+
+> **Wer seine Rotation misst, misst die der Nachbarn mit — logrotate fährt sie
+> im selben Lauf, in der Reihenfolge der Dateinamen.**
+
+### Die Befunde
+
+**Zwölf: drei am Prüfling, vier an der Vorschrift, vier am Prüfmittel oder an
+einer eigenen Erwartung, eine Beobachtung.** Die drei am Prüfling waren vor B2
+da, liegen ausserhalb des Zählwegs, und alle drei sind in `0.9.0-rc.3` behoben
+und in diesem Lauf auf dem Server gesehen.
+
+| | wo | was | Stand |
+|---|---|---|---|
+| 1 | Prüfling | logrotate scheiterte jede Nacht an `fpm.log.1`: php-fpm legte die Datei `0600 root:root` an, gedreht wird als `srvpanel`. Seit dem 22. August ist diese Datei nicht mehr gedreht worden. | behoben in `rc.3`, gesehen am 26. und 27. |
+| 2 | Beobachtung | `systemctl show logrotate.service` sagte nach einer scheiternden Nacht `Result=success` und ein leeres `ExecMainStartTimestamp`; das Scheitern stand nur im Journal. | nicht untersucht |
+| 3 | Prüfling | Die Rotationsdatei eines Abonnements schrieb allein `subscription.provision`; auf dem Server lag die vom 14. August, mit `nocreate` und dem `USR1`. | behoben in `rc.3` (`srvpanel vhost`); nach dem Update alle drei neu |
+| 4 | Vorschrift | §1 Block 4 fragt den Timer und nicht den Dienst — ein Timer, der pünktlich feuert, sagt über die Rotation nichts. | gefunden, weil vor §2 das Journal gelesen wurde |
+| 5 | Vorschrift | §3 rechnet mit einer Rotation Minuten nach Mitternacht; gemessen lag sie zwischen 00:00:00.6 und 00:00:01.5. | Takt 0,1 (Abweichung 1) |
+| 6 | Prüfmittel | Ein `grep` nach `error` über die Ausgabe von `logrotate -d` traf den Dateinamen `error.log`. | — |
+| 7 | Prüfling | nginx öffnete nach der Rotation nie neu: Beim `USR1` öffnet jeder Arbeiter selbst, als `www-data`, und die Verzeichnisse tragen `<benutzer>:adm 02750`. Gemessen seit mindestens dem 22. September. | Eingriff am 25.; behoben in `rc.3`, gesehen am 26. und 27. |
+| 8 | Vorschrift | Punkt 6 erwartet 0 alte Zeilen, die eine Domain ohne Verkehr nicht liefern kann; denselben Schluss zog der Kommentar über den Summen in `WebAccessCount`. | Kommentar berichtigt am 27. |
+| 9 | Vorschrift | Die Gegenprobe von Punkt 3 setzt einen Folgetag mit Zeilen voraus. | Punkt 3 trägt nicht |
+| 10 | Prüfmittel | Ein systemd in eigener Namespace leerte beim Hochfahren das `/tmp` des Containers; zweimal war das Scratchpad fort, samt den Notizen dieses Laufs. | Rezept berichtigt, `docs/89 §1` |
+| 11 | Erwartung | „`fpm.log` bleibt nach dem Update bei 25 173 Bytes" — gelesen 25 269: Der alte Master schreibt beim Anhalten noch 96 Bytes unter der alten Konfiguration. | — |
+| 12 | Prüfmittel | Die Nachbauten fuhren logrotate direkt und nicht unter `logrotate.service`; ob das Neuladen unter deren Sandbox trägt, war offen. | vor der ersten Nacht nachgemessen: trägt |
+
+**Der grösste Befund kam aus einer Ablesung, die keine Vorschrift verlangt
+hat.** Am Morgen von D um 07:28 standen in `access.log.1` 3970 Zeilen vom 25.,
+mehr als der Lastgeber an diesem Tag überhaupt geschickt hatte — nginx schrieb
+in die umbenannte Datei. Ohne diesen Blick hätte Punkt 4 am
+nächsten Morgen in `.2.gz` keine Zeile vom D gefunden und den Tag als nicht
+gemessen verschoben, und die Ursache wäre einen Tag später und ohne Spur
+aufgefallen.
+
+> **Eine Nachschau, die keine Vorschrift verlangt, findet, was die Vorschrift
+> erst einen Tag später gefunden hätte — und dann als Ausfall statt als
+> Befund.**
+
+Und zwei Sätze über das eigene Messen, beide an einem Nachbau bezahlt:
+
+> **Ein Nachbau, der das Werkzeug direkt ruft, misst ohne die Sandbox der
+> Einheit, unter der es auf dem Server läuft.**
+
+> **Ein Neustart ist ein Anhalten unter der alten Konfiguration und ein Start
+> unter der neuen** — wer das Protokoll danach liest, liest den Abschied des
+> alten Prozesses mit.
+
+### Was dieser Lauf nicht gemessen hat
+
+- **Die übrigen fünf Domains.** Nachgezählt ist `cloudlab24.de`; die Summen der
+  Nacht über sechs Domains sind gelesen und nicht nachgerechnet.
+- **Die Ursache von Befund 2.**
+- **Welche vierzehn Dateien je Arbeiter scheitern** — gezählt ist je Prozess,
+  nicht je Datei.
+- Alles aus §5; es ist nicht kürzer geworden.
+
+### Was benannt offen bleibt
+
+- **84 `[emerg]`-Zeilen in jeder Nacht** aus dem `USR1` der Paket-Rotation von
+  nginx, samt dem Umschreiben der gedrehten Datei auf `www-data`. Folgenlos,
+  weil danach neu geladen wird. Die Verzeichnisse für `www-data` zu öffnen hat
+  der Betreiber am 25. September verworfen; andere Wege sind nicht untersucht.
+- **Befund 2** — warum `systemctl show` nach einer scheiternden Nacht
+  `Result=success` sagt.
+- **Die übrigen Schreiber** in `/var/log/srvpanel` und `storage/logs`, die eine
+  Datei offen halten könnten, und viele Neuladen in einer Nacht — gemessen sind
+  zwei.
+- **Die alten Zeilen von `p6-b.invalid`** bleiben im Lesebereich, bis die Domain
+  eine Anfrage bekommt; ein Befund sind sie nicht.
+- **`/root/b2-buch.tsv` und `/root/b2-lauf.env`** liegen noch auf dem Server.
+  Punkt 8 liess sie liegen, bis dieses Protokoll steht — jetzt dürfen sie weg.

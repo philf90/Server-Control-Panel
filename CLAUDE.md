@@ -12,6 +12,8 @@ Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
 
 Stand: **P0 bis P8 abgenommen** — P7b am 9. September 2026, **P8 (die
 Sicherungen) am 18. September 2026**; der Abschnitt dazu steht weiter unten.
+Aus P9 (`docs/129`) sind **B1** am 23. September (`docs/133 §7`) und **B2** am
+27. September 2026 (`docs/134 §7`) abgenommen.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -5921,9 +5923,62 @@ nichts bestellt.
 > **Eine Datei, die ankündigt, beim nächsten Lauf überschrieben zu werden,
 > braucht einen nächsten Lauf.**
 
-**Keine Freigabe trägt das bisher, und kein Server hat es gesehen.** Was auf
-`cloudsrv24` danach zu messen ist, steht am Ende des Eintrags in
-`CHANGELOG.md`.
+**Gesehen am 26. und 27. September 2026 gegen `0.9.0-rc.3`** (`docs/134 §7`):
+logrotate kommt wieder durch, `fpm.log.2.gz` entpackt die Datei vom 22. August,
+und nach jeder Rotation schreibt nginx in die neue Datei. Hier stand bis dahin,
+dass keine Freigabe es trägt und kein Server es gesehen hat.
+
+---
+
+## B2 ist abgenommen — 27. September 2026
+
+Auf `cloudsrv24` gegen `0.9.0-rc.2` und ab dem 25. September gegen
+`0.9.0-rc.3`, gefahren vom 24. bis 27. September: die Punkte 1, 2, 4, 5a bis
+5c, 6, 7 und 8 erfüllt, Punkt 3 gemessen und ohne Gegenprobe. Der Plan ist
+`docs/129 §5`, der Lauf und sein Protokoll sind **`docs/134`** (§7). Die
+Tageszeile gleicht der Nachzählung über alle Dateien auf die Zahl, und sie
+blieb in drei weiteren Sichten und einer zweiten Nacht dieselbe.
+
+**Punkt 6 hat der Betreiber gewertet.** Erwartet waren null Zeilen im alten
+Format, gelesen acht — sechs vom 15. August und zwei vom 5. September, in den
+Dateien einer Domain ohne Verkehr. Eine leere Datei dreht logrotate nicht, also
+bleiben ihre alten Dateien im Lesebereich. Kein Server-Block schreibt noch alt;
+falsch war die Erwartung, und derselbe Schluss stand im Kopf von
+`WebAccessCount::totals()`.
+
+> **Eine Summe, die nicht sinkt, belegt keinen Zufluss — sie kann auch
+> stillstehen.**
+
+**Zwölf Befunde, drei am Prüfling** — alle drei vor B2 da, alle ausserhalb des
+Zählwegs und alle in `0.9.0-rc.3` behoben (die Befunde 1, 3 und 7 im Abschnitt
+darüber). **Der grösste kam aus einer Ablesung, die keine Vorschrift verlangt
+hat:** Am Morgen des gemessenen Tages standen in `access.log.1` mehr Zeilen von
+diesem Tag, als der Lastgeber geschickt hatte.
+
+> **Eine Nachschau, die keine Vorschrift verlangt, findet, was die Vorschrift
+> erst einen Tag später gefunden hätte — und dann als Ausfall statt als
+> Befund.**
+
+**Und die Rotation der Nachbarn misst man mit.** Die Rotation aus dem
+nginx-Paket läuft im selben Lauf alphabetisch vor `srvpanel*` und schickt ein
+`USR1`: Jede Nacht stehen deshalb 84 `[emerg]`-Zeilen mit Fehler 13 im
+Protokoll von nginx, alle von Arbeitern, die das Neuladen danach ersetzt, und
+die gedrehte Datei gehört danach `www-data`. Folgenlos, aber laut — und beides
+war vor der jeweiligen Nacht aus einem Nachbau vorhergesagt.
+
+> **Wer seine Rotation misst, misst die der Nachbarn mit — logrotate fährt sie
+> im selben Lauf, in der Reihenfolge der Dateinamen.**
+
+**Der Nachbau dazu lief zuerst am falschen Ort:** logrotate direkt gerufen und
+nicht unter `logrotate.service`, deren Sandbox auf dem Server gilt.
+Nachgemessen vor der ersten Nacht — das Neuladen trägt auch dort.
+
+> **Ein Nachbau, der das Werkzeug direkt ruft, misst ohne die Sandbox der
+> Einheit, unter der es auf dem Server läuft.**
+
+**Was benannt offen bleibt** (`docs/134 §7`): die 84 Zeilen je Nacht, und warum
+`systemctl show logrotate.service` nach einer scheiternden Nacht
+`Result=success` sagte.
 
 ---
 

@@ -13,6 +13,7 @@ use App\Models\Customer;
 use App\Models\Database;
 use App\Models\Domain;
 use App\Models\Subscription;
+use App\Support\Diagnose\Checks\DiskSpace;
 use App\Support\Metrics\Points;
 use App\Support\Metrics\Store;
 use App\Support\Settings\Settings;
@@ -471,10 +472,13 @@ final class OverviewController extends Controller
                 'total' => $this->bytes((int) ($row['total'] ?? 0)),
                 'free' => $this->bytes((int) ($row['free'] ?? 0)),
                 'percent' => (float) ($row['percent'] ?? 0),
-                // Die Schwelle steht hier und nicht in der Vorlage: Wann ein
+                // Die Schwelle steht nicht in der Vorlage: Wann ein
                 // Dateisystem eng wird, ist eine Aussage über den Betrieb und
-                // keine über die Darstellung.
-                'tight' => (float) ($row['percent'] ?? 0) >= 85.0,
+                // keine über die Darstellung. **Und sie steht nicht hier**,
+                // sondern bei der Prüfung „Platte voll" (`docs/136`) — der
+                // Balken färbt ab derselben Zahl, ab der gemeldet wird. Bis zum
+                // 27. September 2026 stand hier eine eigene 85.
+                'tight' => (float) ($row['percent'] ?? 0) >= DiskSpace::WARN_PERCENT,
             ];
         }
 

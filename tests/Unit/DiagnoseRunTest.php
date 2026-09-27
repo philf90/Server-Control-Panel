@@ -165,6 +165,32 @@ final class DiagnoseRunTest extends TestCase
             $dateien[] = 'App\\Support\\Diagnose\\Checks\\'.basename($pfad, '.php');
         }
 
+        // **Zuerst** die Überschneidung, und das ist die Reihenfolge, auf die es
+        // ankommt: Eine Prüfung in zwei Läufen steht in `every()` doppelt, und
+        // der Vergleich mit dem Verzeichnis darunter schlüge dann zuerst an —
+        // mit einer Meldung, die den Grund nicht nennt. Bis zum 27. September
+        // 2026 stand diese Prüfung hinter ihm und kam nie zu Wort.
+        //
+        // Die Listen sind paarweise überschneidungsfrei: Eine Prüfung, die
+        // in zwei Läufen steht, schriebe ihre Schlüssel in beiden — der zweite
+        // `replace()` löschte die Befunde des ersten. **Paarweise und nicht nur
+        // die ersten beiden**: Seit „Platte voll" (`docs/136`) gibt es einen
+        // dritten Lauf, und eine Prüfung in Nacht und Fünfminutentakt sähe ein
+        // Vergleich von `CHECKS` mit `BACKUP_CHECKS` nicht.
+        $laeufe = ['CHECKS' => Catalog::CHECKS, 'BACKUP_CHECKS' => Catalog::BACKUP_CHECKS, 'DISK_CHECKS' => Catalog::DISK_CHECKS];
+
+        foreach ($laeufe as $a => $erste) {
+            foreach ($laeufe as $b => $zweite) {
+                if ($a < $b) {
+                    $this->assertSame(
+                        [],
+                        array_values(array_intersect($erste, $zweite)),
+                        sprintf('Eine Prüfung steht in %s und %s — der zweite replace() löschte die Befunde des ersten.', $a, $b),
+                    );
+                }
+            }
+        }
+
         // **`every()` und nicht `CHECKS`.** Seit P8 Schritt 6 gibt es zwei
         // Läufe: den der Bestandsdiagnose und den, der die Sicherungen prüft
         // (`docs/117 §13`). Gegen `CHECKS` allein gemessen wäre diese Zusage
@@ -181,14 +207,6 @@ final class DiagnoseRunTest extends TestCase
 
         $this->assertSame($dateien, $katalog, 'Der Katalog und das Verzeichnis laufen auseinander.');
 
-        // Und beide Listen sind überschneidungsfrei: Eine Prüfung, die in
-        // beiden Läufen steht, schriebe ihre Schlüssel zweimal je Nacht — der
-        // zweite `replace()` löschte die Befunde des ersten.
-        $this->assertSame(
-            [],
-            array_intersect(Catalog::CHECKS, Catalog::BACKUP_CHECKS),
-            'Eine Prüfung steht in beiden Läufen — der zweite replace() löschte die Befunde des ersten.',
-        );
         $this->assertGreaterThanOrEqual(6, count($katalog), 'Zu wenige Prüfungen — der Ausdruck misst nichts.');
 
         foreach ($dateien as $klasse) {

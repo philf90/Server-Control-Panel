@@ -102,6 +102,7 @@ use SrvPanel\Agent\Ops\SubscriptionSuspend;
 use SrvPanel\Agent\Ops\SubscriptionUsage;
 use SrvPanel\Agent\Ops\SystemCron;
 use SrvPanel\Agent\Ops\SystemDiagnose;
+use SrvPanel\Agent\Ops\SystemFilesystems;
 use SrvPanel\Agent\Ops\SystemInfo;
 use SrvPanel\Agent\Ops\SystemLogsList;
 use SrvPanel\Agent\Ops\SystemLogsTail;
@@ -234,6 +235,10 @@ final class Registry
         // P7b A6 — die Zeitpläne des Systems: `/etc/crontab`, `/etc/cron.d`
         // und die `cron.*`-Verzeichnisse. Liest und ändert nichts.
         $this->register(new SystemCron);
+
+        // P9, „Platte voll" (`docs/136`) — Platz und Inodes je Platte, für
+        // die Prüfung im Fünfminutentakt. Liest und ändert nichts.
+        $this->register(new SystemFilesystems);
 
         $this->register(new WebLogrotate);
         $this->register(new WebAccessCount);

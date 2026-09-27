@@ -76,6 +76,20 @@ final class Runner
         // wortlos (`docs/81 §2.3t` M2), und eine zweite Fassung dieser Regeln
         // wäre die, die veraltet.
         'run-parts' => '/usr/bin/run-parts',
+
+        /*
+         * **Dazugekommen am 27. September 2026 für „Platte voll"**, rein
+         * lesend und nur als `stat -f`: Es liefert die Inodes einer Platte, und
+         * PHP hat dafür keine Funktion. Volle Inodes lassen jede neue Datei mit
+         * „No space left on device" scheitern, während die Belegung 7,5 % zeigt
+         * (`docs/136 §3` M3).
+         *
+         * `stat` gehört zu coreutils und liegt auf jedem Debian und Ubuntu
+         * unter diesem Pfad (gemessen mit `dpkg -S`). `df` sagte dasselbe mit
+         * einer Kopfzeile zum Zerlegen; `stat -f -c` druckt genau die zwei
+         * Zahlen und den Pfad.
+         */
+        'stat' => '/usr/bin/stat',
         'ss' => '/usr/bin/ss',
         'nft' => '/usr/sbin/nft',
         'iptables-legacy' => '/usr/sbin/iptables-legacy',

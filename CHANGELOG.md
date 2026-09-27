@@ -32758,3 +32758,48 @@ Schwellen.
 Protokollansicht des Panels liest als root und ist nicht betroffen; geholfen wäre
 nur, wer die gedrehten Rohdateien über SFTP holt. Die Regel des Betreibers steht
 seitdem in `CLAUDE.md` unter „Ablauf".
+
+### „Platte voll" ist gebaut — alle fünf Minuten, Platz und Inodes
+
+**Der dritte Lauf neben Nacht und Sicherungen** (`docs/136 §5`).
+`srvpanel-disk.service` fragt alle fünf Minuten den Agenten nach Platz und Inodes
+je Dateisystem und meldet danach, beschränkt auf `disk.space`. Warnung ab 85 %,
+Störung ab 95 %, zurück erst fünf Punkte darunter, gemeldet nach zehn Minuten —
+die Entscheidungen des Betreibers vom 27. September. Die Diagnoseseite nennt den
+Zeitpunkt des Laufs als dritten neben Nacht und Sicherungen.
+
+**Warnung und Störung sind zwei Befunde.** Wird aus einer Warnung eine Störung,
+bleibt die Warnung stehen; andersherum hiesse der Aufstieg „Warnung behoben",
+genau wenn es schlimmer wird. Und der Rückweg steht an den eigenen Befunden vom
+vorigen Lauf:
+
+> **Eine Haltezeit ohne Rückweg macht aus einer Platte, die an der Grenze
+> pendelt, eine, die nie meldet.**
+
+**Die Haltezeit hängt jetzt am Schlüssel.** `Notices::HOLD_HOURS` bleibt für
+alles, was die Nacht misst; `disk.space` hat zehn Minuten. Und
+`srvpanel:notices` lässt sich mit `--check` auf Schlüssel beschränken — die
+Unit „Platte voll" meldet sonst alle fünf Minuten auch die Befunde der Nacht,
+bevor die zweite Nacht sie bestätigt hat. Ein unbekannter Schlüssel bricht ab,
+statt still über alles zu melden.
+
+**Ein Befund am Bestand, der dabei behoben ist: Die Übersicht zeigte eine Platte
+unter `PrivateTmp` dreimal.** `SystemInfo::filesystems()` unterschied nach dem
+Einhängepunkt, und die Sandbox der Agenten-Unit hängt `/tmp` und `/var/tmp` als
+eigene Einhängungen der Wurzel ein. Der Leser steht jetzt einmal da, in
+`SrvPanel\Agent\Disks`, unterscheidet nach dem Gerät und löst die Einhängepunkte
+vollständig auf — bis hierher nur `\040`. Die Schwelle, ab der die Übersicht
+einen Balken färbt, liest sie aus der Prüfung; bis hierher stand dort eine eigene
+85.
+
+**`/usr/bin/stat` steht auf der Positivliste des Agenten**, allein für `stat -f`:
+PHP kennt keine Inodes. `system.info` ruft es nicht — der Kennzahlensammler fragt
+es alle zehn Sekunden.
+
+**Und `DiagnoseRunTest` hat eine Prüfung zurückbekommen, die nie zu Wort kam.**
+Ob eine Prüfung in zwei Läufen steht, fragte er erst nach dem Vergleich mit dem
+Verzeichnis — und der schlug in genau diesem Fall zuerst an, weil `every()` die
+Prüfung doppelt führt. Die Frage steht jetzt vorn, paarweise über alle drei
+Läufe. Gehalten wird der Bau von `DiskVerdictTest`, `DiskReaderTest`,
+`DiskNoticeTest` und `DiskCadenceTest`, gebrochen in 22 Eingriffen. **Abgenommen
+ist nichts**: Der Lauf auf `cloudsrv24` steht in `docs/136 §7`.

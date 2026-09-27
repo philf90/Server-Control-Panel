@@ -41,6 +41,11 @@ const props = defineProps<{
    * Laufs falsch.
    */
   backups_ran_at: string | null
+  /**
+   * Wann die **Dateisysteme** zuletzt nachgesehen wurden — der dritte Lauf,
+   * alle fünf Minuten (`docs/136`).
+   */
+  disks_ran_at: string | null
   verbatim: boolean
 }>()
 
@@ -58,12 +63,13 @@ const hinsehen = computed(() => props.findings.filter((f) => f.state === 'warn')
 const gemessen = computed(() => props.ran_at !== null)
 
 /**
- * Die Notiz am Bereich — **zwei Läufe, zwei Zeitpunkte**.
+ * Die Notiz am Bereich — **drei Läufe, drei Zeitpunkte**.
  *
  * Seit P8 Schritt 6 schreibt nicht ein Nachtlauf in diese Liste, sondern zwei:
  * die Bestandsdiagnose und die Prüfung der Sicherungen, jede in einer eigenen
- * Unit (`docs/117 §13`). Stünde hier nur einer, wäre er für die Befunde des
- * anderen falsch.
+ * Unit (`docs/117 §13`). Seit „Platte voll" (`docs/136`) kommt ein dritter dazu,
+ * alle fünf Minuten. Stünde hier nur einer, wäre er für die Befunde der anderen
+ * falsch.
  *
  * > **Zwei Läufe, die sich einen Zeitstempel teilen, sagen beide die Wahrheit
  * > über den letzten von beiden und über keinen etwas Verlässliches.**
@@ -78,7 +84,11 @@ const notiz = computed<string | undefined>(() => {
     ? 'Die Sicherungen sind noch nicht geprüft worden.'
     : `Sicherungen zuletzt geprüft: ${props.backups_ran_at}.`
 
-  return `Zuletzt gemessen: ${props.ran_at}. ${sicherungen} `
+  const dateisysteme = props.disks_ran_at === null
+    ? 'Die Dateisysteme sind noch nicht nachgesehen worden.'
+    : `Dateisysteme zuletzt nachgesehen: ${props.disks_ran_at}.`
+
+  return `Zuletzt gemessen: ${props.ran_at}. ${sicherungen} ${dateisysteme} `
     + 'Ein Befund verschwindet von selbst, sobald der nächste Lauf ihn nicht mehr findet.'
 })
 </script>

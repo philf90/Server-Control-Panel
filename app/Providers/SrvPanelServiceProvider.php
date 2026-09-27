@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Console\Commands\VerifyBackups;
+use App\Console\Commands\WatchDisks;
 use App\Enums\AccountType;
 use App\Models\Account;
 use App\Support\Authorization\AdminAbility;
@@ -123,6 +124,16 @@ final class SrvPanelServiceProvider extends ServiceProvider
                 array_map(static fn (string $check): DiagnoseCheck => $app->make($check), DiagnoseCatalog::BACKUP_CHECKS),
                 $app->make(FindingLog::class),
                 new SettingsRunLog($app->make(Settings::class), Settings::DIAGNOSE_BACKUPS),
+            ));
+
+        // Und der dritte — „Platte voll" alle fünf Minuten (`docs/136`), mit
+        // seinem eigenen Zeitpunkt aus demselben Grund wie der zweite.
+        $this->app->when(WatchDisks::class)
+            ->needs(DiagnoseRun::class)
+            ->give(static fn ($app): DiagnoseRun => new DiagnoseRun(
+                array_map(static fn (string $check): DiagnoseCheck => $app->make($check), DiagnoseCatalog::DISK_CHECKS),
+                $app->make(FindingLog::class),
+                new SettingsRunLog($app->make(Settings::class), Settings::DIAGNOSE_DISK),
             ));
 
         $this->app->singleton(Store::class, static fn (): Store => new Store(

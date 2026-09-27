@@ -12,6 +12,7 @@ use App\Models\FindingResolution;
 use App\Support\Diagnose\FindingLog;
 use App\Support\Settings\Settings;
 use App\Support\Time\Clock;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -85,6 +86,18 @@ final class Notices
      */
     public const HOLD_HOURS = 20;
 
+    /**
+     * Die Haltezeit für „Platte voll" — zehn Minuten (`docs/136 §4`).
+     *
+     * **Entschieden vom Betreiber am 27. September 2026, und sie hängt am Takt
+     * wie die zwanzig Stunden oben.** Die Prüfung läuft alle fünf Minuten in
+     * einer eigenen Unit; zehn Minuten heisst, dass gemeldet wird, was drei Läufe
+     * hintereinander dasteht. Zwanzig Stunden wären hier sinnlos: Bei voller
+     * Platte stürzt MariaDB beim nächsten Wachsen einer Tabelle ab
+     * (`docs/136 §3` M5).
+     */
+    public const DISK_HOLD_MINUTES = 10;
+
     public function __construct(
         private readonly Settings $settings,
         private readonly Channels $channels,
@@ -99,25 +112,49 @@ final class Notices
      *
      * > **Eine Zahl, die eine Aufteilung zusammenfasst, sagt nicht, welche.**
      *
+     * **`$only` beschränkt den Lauf auf Schlüssel**, leer heisst alle. Die Unit
+     * „Platte voll" meldet alle fünf Minuten und nur `disk.space` (`docs/136
+     * §5`). Meldete sie alles, ginge ein Befund der Nacht nach zwanzig Stunden
+     * hinaus, **bevor** die zweite Nacht ihn bestätigt hat — die Zusage „zwei
+     * Nächte hintereinander" aus B1 wäre fort, ohne dass jemand sie angefasst
+     * hat.
+     *
+     * @param  list<FindingCheck>  $only
      * @return array<string, array{sent: int, resolved: int, findings: int, without_recipient: int, failed: int, skipped: int}>
      */
-    public function send(Carbon $now): array
+    public function send(Carbon $now, array $only = []): array
     {
         $bilanz = [];
 
         foreach ($this->channels->all() as $channel) {
-            $bilanz[$channel->key()] = $this->over($channel, $now);
+            $bilanz[$channel->key()] = $this->over($channel, $now, $only);
         }
 
         return $bilanz;
     }
 
     /**
+     * Wie lange ein Befund dieses Schlüssels stehen muss, bevor er gemeldet wird.
+     *
+     * **Je Schlüssel und nicht je Lauf**, weil ein Befund seinen Schlüssel
+     * trägt und nicht die Unit, die ihn geschrieben hat. Jeder Schlüssel hat
+     * genau einen Schreiber (`DiagnoseRunTest`), und damit genau einen Takt.
+     */
+    public static function holdMinutes(FindingCheck $check): int
+    {
+        return match ($check) {
+            FindingCheck::DiskSpace => self::DISK_HOLD_MINUTES,
+            default => self::HOLD_HOURS * 60,
+        };
+    }
+
+    /**
      * Ein Kanal, ein Durchgang.
      *
+     * @param  list<FindingCheck>  $only
      * @return array{sent: int, resolved: int, findings: int, without_recipient: int, failed: int, skipped: int}
      */
-    private function over(Channel $channel, Carbon $now): array
+    private function over(Channel $channel, Carbon $now, array $only): array
     {
         $bilanz = ['sent' => 0, 'resolved' => 0, 'findings' => 0, 'without_recipient' => 0, 'failed' => 0, 'skipped' => 0];
 
@@ -134,10 +171,10 @@ final class Notices
              * entwarnt wird, entscheidet die Art des Empfängers und nicht sein
              * Zustand.
              */
-            FindingResolution::query()->where('channel', $channel->key())->delete();
+            $this->resolutions($channel, $only)->delete();
         }
 
-        $faellig = $this->due($channel, $now);
+        $faellig = $this->due($channel, $now, $only);
 
         if (! $channel->usable()) {
             /*
@@ -153,7 +190,7 @@ final class Notices
         }
 
         if ($channel instanceof ResolvingChannel) {
-            $this->clear($channel, $bilanz);
+            $this->clear($channel, $bilanz, $only);
         }
 
         foreach ($faellig->groupBy(static fn (Finding $f): string => $channel->batchKey($f->check, $f->subject)) as $findings) {
@@ -205,11 +242,11 @@ final class Notices
      * > keiner.**
      *
      * @param  array{sent: int, resolved: int, findings: int, without_recipient: int, failed: int, skipped: int}  $bilanz
+     * @param  list<FindingCheck>  $only
      */
-    private function clear(ResolvingChannel $channel, array &$bilanz): void
+    private function clear(ResolvingChannel $channel, array &$bilanz, array $only): void
     {
-        $offen = FindingResolution::query()
-            ->where('channel', $channel->key())
+        $offen = $this->resolutions($channel, $only)
             ->orderBy('check')
             ->orderBy('subject')
             ->orderBy('reason')
@@ -255,21 +292,50 @@ final class Notices
      * > **Was ein Test nicht halten kann, gehört als Frage aufgeschrieben und
      * > nicht als Zusage.**
      *
+     * **Die Haltezeit hängt am Schlüssel** ({@see self::holdMinutes()}). Die
+     * Abfrage nimmt die kürzeste, damit nichts Fälliges fehlt; entschieden wird
+     * je Befund danach. **Und die kürzeste kommt aus `holdMinutes()` selbst** —
+     * aus zwei Konstanten gerechnet, filterte die Abfrage einen neuen Schlüssel
+     * mit noch kürzerer Haltezeit still heraus.
+     *
+     * @param  list<FindingCheck>  $only
      * @return Collection<int, Finding>
      */
-    private function due(Channel $channel, Carbon $now): Collection
+    private function due(Channel $channel, Carbon $now, array $only): Collection
     {
-        $schwelle = $now->copy()->subHours(self::HOLD_HOURS);
+        $kuerzeste = $now->copy()->subMinutes(min(array_map(self::holdMinutes(...), FindingCheck::cases())));
 
         return Finding::query()
             ->whereDoesntHave('notifications', static fn ($q) => $q->where('channel', $channel->key()))
-            ->where('first_seen_at', '<=', $schwelle)
+            ->when($only !== [], static fn ($q) => $q->whereIn('check', array_map(static fn (FindingCheck $c): string => $c->value, $only)))
+            ->where('first_seen_at', '<=', $kuerzeste)
             ->orderBy('check')
             ->orderBy('subject')
             ->orderBy('reason')
             ->get()
+            ->filter(static fn (Finding $f): bool => $f->first_seen_at->lte($now->copy()->subMinutes(self::holdMinutes($f->check))))
             ->filter(static fn (Finding $f): bool => $f->state() !== FindingState::Unknown)
             ->values();
+    }
+
+    /**
+     * Die offenen Entwarnungen eines Kanals — auf Schlüssel beschränkt, wenn
+     * der Lauf es ist.
+     *
+     * **Beschränkt wird auch hier und nicht nur bei den Meldungen.** Ein Lauf,
+     * der nur `disk.space` meldet, fasst die Entwarnungen der übrigen Schlüssel
+     * nicht an. Sonst hinge es am Zufall zweier Zeitgeber, welcher Lauf eine
+     * Entwarnung der Nacht verschickt — und die Bilanz der Unit „Platte voll"
+     * zählte Entwarnungen über Dienste und Zertifikate.
+     *
+     * @param  list<FindingCheck>  $only
+     * @return Builder<FindingResolution>
+     */
+    private function resolutions(Channel $channel, array $only): Builder
+    {
+        return FindingResolution::query()
+            ->where('channel', $channel->key())
+            ->when($only !== [], static fn ($q) => $q->whereIn('check', array_map(static fn (FindingCheck $c): string => $c->value, $only)));
     }
 
     /** Wann zuletzt etwas über diesen Kanal angekommen ist — für die Einstellungsseite. */

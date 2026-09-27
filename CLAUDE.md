@@ -13,7 +13,9 @@ Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
 Stand: **P0 bis P8 abgenommen** — P7b am 9. September 2026, **P8 (die
 Sicherungen) am 18. September 2026**; der Abschnitt dazu steht weiter unten.
 Aus P9 (`docs/129`) sind **B1** am 23. September (`docs/133 §7`) und **B2** am
-27. September 2026 (`docs/134 §7`) abgenommen.
+27. September 2026 (`docs/134 §7`) abgenommen. **„Platte voll"** — die Schwelle
+aus A7, die in B1 fehlte — ist am 27. September gebaut und nicht abgenommen
+(`docs/136`).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -1728,7 +1730,14 @@ neue Datei, und logrotate kommt durch — gehalten an den Nähten zwischen den
 Rechten der Protokollverzeichnisse, den beiden Rotationsdateien und
 `fpm.conf`; gefragt wird, ob ein Arbeiter hineinkommt, und nicht, welche Rechte
 dastehen, und ob die Zeile wirkt, misst `tests/wiederoeffnen-nachbauen.sh`
-gegen echtes nginx unter echtem systemd). Der Bruch selbst steht als
+gegen echtes nginx unter echtem systemd) und `DiskVerdictTest` (Warnung und
+Störung sind zwei Befunde mit je eigenem Rückweg, an der Wirkung und jeder Fall
+neben seinem Gegenstück) und `DiskReaderTest` (ein Gerät, eine Zeile — unter
+`PrivateTmp` stand die Wurzel dreimal da) und `DiskNoticeTest` (die Haltezeit
+hängt am Schlüssel, und der beschränkte Meldelauf lässt Befunde und Entwarnungen
+der Nacht stehen) und `DiskCadenceTest` (die Haltezeit hängt am Takt des
+Zeitgebers, die Unit meldet genau, was ihr Lauf schreibt, und die Übersicht
+färbt ab derselben Schwelle). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -6034,6 +6043,20 @@ und alles danach läuft nie. Eine Unterschale fängt es: `( : > datei ) 2>/dev/n
 
 > **In dash beendet eine gescheiterte Umleitung an einem Spezial-Builtin die
 > Shell — und die Zeile, die das Ergebnis drucken sollte, kommt nie.**
+
+**Gebaut am selben Tag** (`docs/136 §9`), als dritter Lauf neben Nacht und
+Sicherungen: alle fünf Minuten, gemeldet nach zehn, beschränkt auf `disk.space`.
+Zwei Funde aus dem Bau gelten über ihn hinaus.
+
+> **Eine Prüfung hinter einer anderen, die im selben Fall zuerst anschlägt, ist
+> keine — sie ist ein Kommentar mit Assertion.** `DiagnoseRunTest` fragte, ob
+> eine Prüfung in zwei Läufen steht, erst nach dem Vergleich mit dem
+> Verzeichnis, und der schlug in genau diesem Fall zuerst an.
+
+**Wer eine Datei umbaut, gleicht die Anker des Bruchskripts ab** — maschinell:
+jedes `alt` eines Eingriffs in eine geänderte Datei gegen ihren neuen Inhalt.
+Zwei von 64 hatten ihren Anker verloren; gefunden hat es der Abgleich und nicht
+die Erinnerung, obwohl der Satz dazu seit dem 21. September hier steht.
 
 ---
 

@@ -274,3 +274,36 @@ ist, wird vor dem Lauf gemessen und nicht angenommen.
 - **Eine absolute Untergrenze.** Auf einer Platte von 10 GB lässt 95 % noch
   500 MiB frei — weniger, als eine Sicherung vor dem Schreiben verlangt. Die
   Warnung bei 85 % kommt dort trotzdem vorher.
+
+## §9 · Gebaut am 27. September 2026 — und was dabei anders war
+
+Gebaut ist §5 vollständig, mit den Zahlen aus §4. Die Wächter aus §6 heissen
+`DiskVerdictTest`, `DiskReaderTest`, `DiskNoticeTest` und `DiskCadenceTest`;
+`DiagnoseWiringTest` hält den dritten Lauf an der Wirkung. Jede Regel hat ihren
+Bruch in `tests/waechter-brechen.sh`. **Abgenommen ist nichts** — das ist §7, auf
+`cloudsrv24` gegen die nächste Freigabe.
+
+**Vier Dinge liefen anders als geplant.**
+
+- **Die Prüfung auf Überschneidung der Läufe kam nie zu Wort.**
+  `DiagnoseRunTest` verglich zuerst den Katalog mit dem Verzeichnis und danach,
+  ob eine Prüfung in zwei Läufen steht. Eine Prüfung in zwei Läufen steht in
+  `every()` aber doppelt — der Vergleich schlug an, bevor die Frage gestellt
+  war, mit einer Meldung, die den Grund nicht nennt. Sie steht jetzt vorn und
+  fragt paarweise über alle drei Läufe; vorher kannte sie zwei.
+
+  > **Eine Prüfung hinter einer anderen, die im selben Fall zuerst anschlägt,
+  > ist keine — sie ist ein Kommentar mit Assertion.**
+
+- **Die Vorfilterung der Meldungen war eine zweite Fassung der Haltezeit.** Der
+  erste Wurf rechnete die kürzeste Haltezeit aus zwei Konstanten; ein neuer
+  Schlüssel mit noch kürzerer wäre still herausgefiltert worden. Sie kommt jetzt
+  aus `Notices::holdMinutes()` über alle Schlüssel.
+- **Zwei Eingriffe des Bruchskripts hatten ihren Anker verloren**, beide in
+  `Notices`: die Haltezeit in `due()` und das Verbrauchen der Entwarnungen.
+  Gefunden hat es keine Erinnerung, sondern ein Abgleich jedes Ankers gegen die
+  geänderten Dateien — 64 geprüft, zwei ohne Treffer.
+- **„Platte" ist in der Oberfläche verbraucht** (`docs/19 §3`); `WordChoiceTest`
+  meldete eine Variable in einer Vorlagenzeichenkette. Die Oberfläche sagt
+  „Dateisystem" — dieses Dokument bleibt beim Wort, unter dem der Betreiber die
+  Frage gestellt hat.

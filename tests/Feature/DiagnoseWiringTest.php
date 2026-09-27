@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Console\Commands\Diagnose;
 use App\Console\Commands\VerifyBackups;
+use App\Console\Commands\WatchDisks;
 use App\Enums\FindingCheck;
 use App\Models\Finding;
 use App\Support\Diagnose\Catalog;
@@ -149,6 +150,41 @@ final class DiagnoseWiringTest extends TestCase
             0,
             Finding::query()->where('check', '!=', FindingCheck::BackupFile->value)->count(),
             'Der Lauf der Sicherungen hat Befunde einer anderen Prüfung geschrieben.',
+        );
+    }
+
+    /**
+     * Und der **dritte** Lauf — „Platte voll" alle fünf Minuten (`docs/136`).
+     *
+     * Dieselbe Frage wie beim zweiten, mit derselben Gegenprobe: Griffe die
+     * kontextuelle Bindung nicht, schriebe `srvpanel:disk` die Schlüssel der
+     * Nacht und ihren Zeitpunkt — und auf der Diagnoseseite stünde „vor drei
+     * Minuten gemessen" über Befunden von gestern.
+     *
+     * **Die Zahl der Befunde wird hier nicht gezählt.** Im Prüfstand läuft kein
+     * Agent, und der Lauf schreibt `unreachable` für `/`; läuft einer, schreibt
+     * er vielleicht nichts. Gezählt wird, was in beiden Fällen gilt: kein
+     * fremder Schlüssel.
+     */
+    public function test_the_disk_run_writes_its_own_key_and_its_own_timestamp(): void
+    {
+        $settings = $this->app->make(Settings::class);
+
+        $this->assertInstanceOf(WatchDisks::class, $this->app->make(WatchDisks::class));
+        $this->assertNull($settings->diagnoseRunAt(Settings::DIAGNOSE_DISK), 'Vorbedingung: noch kein Lauf.');
+
+        $this->artisan('srvpanel:disk')->assertExitCode(0);
+
+        $this->assertNotNull($settings->diagnoseRunAt(Settings::DIAGNOSE_DISK),
+            'Der Lauf „Platte voll" hat seinen Zeitpunkt nicht festgehalten.');
+        $this->assertNull($settings->diagnoseRunAt(Settings::DIAGNOSE),
+            'Der Lauf „Platte voll" hat den Zeitstempel der Bestandsdiagnose überschrieben.');
+        $this->assertNull($settings->diagnoseRunAt(Settings::DIAGNOSE_BACKUPS),
+            'Der Lauf „Platte voll" hat den Zeitstempel der Sicherungen überschrieben.');
+        $this->assertSame(
+            0,
+            Finding::query()->where('check', '!=', FindingCheck::DiskSpace->value)->count(),
+            'Der Lauf „Platte voll" hat Befunde einer anderen Prüfung geschrieben.',
         );
     }
 

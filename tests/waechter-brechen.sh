@@ -28834,9 +28834,10 @@ vorher_datei app/Enums/FindingCheck.php
 python3 - <<'PY2'
 p = 'app/Enums/FindingCheck.php'
 s = open(p, encoding='utf-8').read()
-# `$unreachable` steht EINMAL da und wird in elf Faelle gespreizt. Ein Eintrag
-# NACH der Spreizung gewinnt in genau diesem einen Fall — und damit traegt der
-# Name `unreachable` zwei Zustaende: laut hier, ruhig in den zehn anderen.
+# `$unreachable` steht EINMAL da und wird in zwoelf Faelle gespreizt (seit
+# docs/136; vorher elf). Ein Eintrag NACH der Spreizung gewinnt in genau diesem
+# einen Fall — und damit traegt der Name `unreachable` zwei Zustaende: laut
+# hier, ruhig in den elf anderen.
 alt = '                ...$unreachable,\n            ],'
 assert s.count(alt) >= 1, 'Zielstelle nicht gefunden — der Bruch waere blind'
 neu = ("                ...$unreachable,\n"
@@ -33003,9 +33004,11 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/Notices.php')
 s = p.read_text()
-alt = '$schwelle = $now->copy()->subHours(self::HOLD_HOURS);'
+# Seit docs/136 haengt die Haltezeit am Schluessel: gebrochen wird die der
+# Nacht, und die Vorfilterung folgt ihr, weil sie aus holdMinutes() rechnet.
+alt = '            default => self::HOLD_HOURS * 60,'
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, '$schwelle = $now->copy()->addHours(1);', 1))
+p.write_text(s.replace(alt, '            default => 0,', 1))
 PY
 griff_datei app/Support/Notify/Notices.php "Haltezeit uebergangen" &&
 pruefe "Haltezeit uebergangen" \
@@ -34576,7 +34579,7 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/Notices.php')
 s = p.read_text()
-alt = "FindingResolution::query()->where('channel', $channel->key())->delete();"
+alt = "$this->resolutions($channel, $only)->delete();"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 p.write_text(s.replace(alt, '$channel->key();', 1))
 PY
@@ -35959,6 +35962,407 @@ pruefe "auch in Anlage" \
   ApplyVhostTest::test_every_live_subscription_gets_its_rotation_written_again failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ApplyVhostTest passed
+
+echo
+echo "── DiskVerdictTest: der Rückweg ist fort ──"
+#
+# Ohne ihn verschwaende ein Befund bei 84,9 %, und eine Platte an der Grenze
+# meldete nie (docs/136 §4).
+vorher_datei app/Support/Diagnose/Checks/DiskSpace.php
+python3 - <<'PY2'
+p = "app/Support/Diagnose/Checks/DiskSpace.php"
+s = open(p, encoding='utf-8').read()
+alt = "            if ($prozent >= $schwelle || ($standVorher && $prozent >= $schwelle - self::RELEASE_POINTS)) {\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            if ($prozent >= $schwelle) {\n", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/DiskSpace.php "ohne Rueckweg" &&
+pruefe "ohne Rueckweg" \
+  DiskVerdictTest::test_a_warning_stays_until_it_falls_below_its_release failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskVerdictTest passed
+
+echo
+echo "── DiskVerdictTest: der Rückweg gilt auch ohne Befund von vorher ──"
+#
+# Dann haette er die Schwelle bloss verschoben.
+vorher_datei app/Support/Diagnose/Checks/DiskSpace.php
+python3 - <<'PY2'
+p = "app/Support/Diagnose/Checks/DiskSpace.php"
+s = open(p, encoding='utf-8').read()
+alt = "            if ($prozent >= $schwelle || ($standVorher && $prozent >= $schwelle - self::RELEASE_POINTS)) {\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            if ($prozent >= $schwelle || (true && $prozent >= $schwelle - self::RELEASE_POINTS)) {\n", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/DiskSpace.php "Rueckweg ohne Vorlauf" &&
+pruefe "Rueckweg ohne Vorlauf" \
+  DiskVerdictTest::test_without_a_previous_warning_the_release_band_is_silent failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskVerdictTest passed
+
+echo
+echo "── DiskVerdictTest: der Aufstieg nimmt die Warnung mit ──"
+#
+# Warnung und Stoerung sind zwei Befunde; wer nur die letzte Stufe behaelt,
+# meldet beim Aufstieg eine Entwarnung.
+vorher_datei app/Support/Diagnose/Checks/DiskSpace.php
+python3 - <<'PY2'
+p = "app/Support/Diagnose/Checks/DiskSpace.php"
+s = open(p, encoding='utf-8').read()
+alt = "                $gruende[] = $grund;\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                $gruende = [$grund];\n", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/DiskSpace.php "nur eine Stufe" &&
+pruefe "nur eine Stufe" \
+  DiskVerdictTest::test_at_the_failure_both_stand failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskVerdictTest passed
+
+echo
+echo "── DiskVerdictTest: der Rückweg gehört der Prüfung statt dem Einhängepunkt ──"
+#
+# Alle Befunde von vorher auf die Wurzel gerechnet.
+vorher_datei app/Support/Diagnose/Checks/DiskSpace.php
+python3 - <<'PY2'
+p = "app/Support/Diagnose/Checks/DiskSpace.php"
+s = open(p, encoding='utf-8').read()
+alt = "            $stand[$befund['subject'].\"\\0\".$befund['reason']] = true;\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            $stand['/'.\"\\0\".$befund['reason']] = true;\n", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/DiskSpace.php "Rueckweg ohne Ort" &&
+pruefe "Rueckweg ohne Ort" \
+  DiskVerdictTest::test_the_release_belongs_to_its_mount failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskVerdictTest passed
+
+echo
+echo "── DiskVerdictTest: Inodes werden nicht beurteilt ──"
+#
+# Dann bliebe unsichtbar, was M3 gemessen hat.
+vorher_datei app/Support/Diagnose/Checks/DiskSpace.php
+python3 - <<'PY2'
+p = "app/Support/Diagnose/Checks/DiskSpace.php"
+s = open(p, encoding='utf-8').read()
+alt = "            if (is_array($inodes) && $vergeben !== null) {\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            if (false) {\n", 1))
+PY2
+griff_datei app/Support/Diagnose/Checks/DiskSpace.php "ohne Inodes" &&
+pruefe "ohne Inodes" \
+  DiskVerdictTest::test_inodes_are_judged_with_the_same_numbers failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskVerdictTest passed
+
+echo
+echo "── DiskReaderTest: je Einhängepunkt statt je Gerät ──"
+#
+# Der Stand vor dem 27. September: unter PrivateTmp drei Zeilen fuer eine Platte.
+vorher_datei agent/src/Disks.php
+python3 - <<'PY2'
+p = "agent/src/Disks.php"
+s = open(p, encoding='utf-8').read()
+alt = "            $zeilen[$kandidat['device']] ??= [\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            $zeilen[$kandidat['mount']] ??= [\n", 1))
+PY2
+griff_datei agent/src/Disks.php "je Einhaengepunkt" &&
+pruefe "je Einhaengepunkt" \
+  DiskReaderTest::test_one_device_is_one_row_and_the_shortest_mount_stays failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskReaderTest passed
+
+echo
+echo "── DiskReaderTest: der erste statt der kürzeste bleibt ──"
+#
+# Nach der Reihenfolge in /proc/mounts statt nach der Laenge.
+vorher_datei agent/src/Disks.php
+python3 - <<'PY2'
+p = "agent/src/Disks.php"
+s = open(p, encoding='utf-8').read()
+alt = "        usort($kandidaten, static fn (array $a, array $b): int => [strlen($a['mount']), $a['position']] <=> [strlen($b['mount']), $b['position']]);\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        usort($kandidaten, static fn (array $a, array $b): int => $a['position'] <=> $b['position']);\n", 1))
+PY2
+griff_datei agent/src/Disks.php "der erste bleibt" &&
+pruefe "der erste bleibt" \
+  DiskReaderTest::test_one_device_is_one_row_and_the_shortest_mount_stays failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskReaderTest passed
+
+echo
+echo "── DiskReaderTest: nur das Leerzeichen wird aufgelöst ──"
+#
+# Die Fassung, die bis zum 27. September in SystemInfo stand.
+vorher_datei agent/src/Disks.php
+python3 - <<'PY2'
+p = "agent/src/Disks.php"
+s = open(p, encoding='utf-8').read()
+alt = "                'mount' => stripcslashes($spalten[1]),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                'mount' => str_replace('\\\\040', ' ', $spalten[1]),\n", 1))
+PY2
+griff_datei agent/src/Disks.php "nur 040" &&
+pruefe "nur 040" \
+  DiskReaderTest::test_the_mount_point_is_unmasked failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskReaderTest passed
+
+echo
+echo "── DiskReaderTest: die Inodes hängen am Rückgabewert ──"
+#
+# Ein fehlender Pfad naehme dann alle Platten mit.
+vorher_datei agent/src/Disks.php
+python3 - <<'PY2'
+p = "agent/src/Disks.php"
+s = open(p, encoding='utf-8').read()
+alt = "        $inodes = [];\n\n        foreach (explode(\"\\n\", $stat->stdout) as $zeile) {\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        $inodes = [];\n\n        if ($stat->code !== 0) {\n            return [];\n        }\n\n        foreach (explode(\"\\n\", $stat->stdout) as $zeile) {\n", 1))
+PY2
+griff_datei agent/src/Disks.php "am Rueckgabewert" &&
+pruefe "am Rueckgabewert" \
+  DiskReaderTest::test_the_inodes_are_read_from_the_output_and_not_from_the_code failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskReaderTest passed
+
+echo
+echo "── DiskReaderTest: btrfs bekommt 0 % ──"
+#
+# Eine Platte ohne Inodezahl bekaeme eine Zeile mit 0 % — eine Behauptung ueber
+# etwas, das es dort nicht gibt.
+vorher_datei agent/src/Disks.php
+python3 - <<'PY2'
+p = "agent/src/Disks.php"
+s = open(p, encoding='utf-8').read()
+alt = "            if ($total <= 0 || $free > $total) {\n                continue;\n            }\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            if ($free > $total) {\n                continue;\n            }\n\n            if ($total <= 0) {\n                $inodes[$treffer[3]] = ['total' => 0, 'free' => 0, 'percent' => 0.0];\n\n                continue;\n            }\n", 1))
+PY2
+griff_datei agent/src/Disks.php "btrfs mit 0 Prozent" &&
+pruefe "btrfs mit 0 Prozent" \
+  DiskReaderTest::test_a_disk_without_an_inode_count_has_no_row failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskReaderTest passed
+
+echo
+echo "── DiskReaderTest: ohne Einhängungen eine leere Liste ──"
+#
+# Aus nicht gemessen wuerde keine Platte — und die Pruefung meldete Entwarnung.
+vorher_datei agent/src/Ops/SystemFilesystems.php
+python3 - <<'PY2'
+p = "agent/src/Ops/SystemFilesystems.php"
+s = open(p, encoding='utf-8').read()
+alt = "            throw new AgentException(AgentException::NOT_FOUND, 'Die Liste der Einhängungen ist nicht lesbar.');\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            return ['filesystems' => []];\n", 1))
+PY2
+griff_datei agent/src/Ops/SystemFilesystems.php "leere Liste" &&
+pruefe "leere Liste" \
+  DiskReaderTest::test_without_mounts_the_check_does_not_answer_empty failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskReaderTest passed
+
+echo
+echo "── DiskReaderTest: stat steht nicht auf der Positivliste ──"
+#
+# Dann fehlen die Inodes — und die Operation antwortet trotzdem mit dem Platz.
+vorher_datei agent/src/Runner.php
+python3 - <<'PY2'
+p = "agent/src/Runner.php"
+s = open(p, encoding='utf-8').read()
+alt = "        'stat' => '/usr/bin/stat',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei agent/src/Runner.php "ohne stat" &&
+pruefe "ohne stat" \
+  DiskReaderTest::test_the_check_sees_the_same_rows_with_inodes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskReaderTest passed
+
+echo
+echo "── DiskNoticeTest: die Platte wartet zwanzig Stunden ──"
+#
+# Die Haltezeit der Nacht fuer einen Befund, der in Minuten zum Absturz fuehrt.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY2'
+p = "app/Support/Notify/Notices.php"
+s = open(p, encoding='utf-8').read()
+alt = "            FindingCheck::DiskSpace => self::DISK_HOLD_MINUTES,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            FindingCheck::DiskSpace => self::HOLD_HOURS * 60,\n", 1))
+PY2
+griff_datei app/Support/Notify/Notices.php "zwanzig Stunden" &&
+pruefe "zwanzig Stunden" \
+  DiskNoticeTest::test_a_full_disk_is_reported_after_ten_minutes_and_not_before failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskNoticeTest passed
+
+echo
+echo "── DiskNoticeTest: der beschränkte Lauf meldet die Nacht mit ──"
+#
+# Ein Befund der Nacht ginge nach zwanzig Stunden hinaus, bevor die zweite
+# Nacht ihn bestaetigt hat.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY2'
+p = "app/Support/Notify/Notices.php"
+s = open(p, encoding='utf-8').read()
+alt = "            ->whereDoesntHave('notifications', static fn ($q) => $q->where('channel', $channel->key()))\n            ->when($only !== [], static fn ($q) => $q->whereIn('check', array_map(static fn (FindingCheck $c): string => $c->value, $only)))\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            ->whereDoesntHave('notifications', static fn ($q) => $q->where('channel', $channel->key()))\n", 1))
+PY2
+griff_datei app/Support/Notify/Notices.php "Meldungen unbeschraenkt" &&
+pruefe "Meldungen unbeschraenkt" \
+  DiskNoticeTest::test_the_disk_run_leaves_a_finding_of_the_night_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskNoticeTest passed
+
+echo
+echo "── DiskNoticeTest: der beschränkte Lauf verbraucht die Entwarnungen der Nacht ──"
+#
+# Die Beschraenkung bei den Meldungen allein haelt die Entwarnungen nicht.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY2'
+p = "app/Support/Notify/Notices.php"
+s = open(p, encoding='utf-8').read()
+alt = "            ->where('channel', $channel->key())\n            ->when($only !== [], static fn ($q) => $q->whereIn('check', array_map(static fn (FindingCheck $c): string => $c->value, $only)));\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            ->where('channel', $channel->key());\n", 1))
+PY2
+griff_datei app/Support/Notify/Notices.php "Entwarnungen unbeschraenkt" &&
+pruefe "Entwarnungen unbeschraenkt" \
+  DiskNoticeTest::test_the_disk_run_leaves_the_resolutions_of_the_night_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskNoticeTest passed
+
+echo
+echo "── DiskNoticeTest: ein unbekannter Schlüssel wird übergangen ──"
+#
+# Ein Tippfehler in der Unit hiesse: melden ueber alles, alle fuenf Minuten.
+vorher_datei app/Console/Commands/SendNotices.php
+python3 - <<'PY2'
+p = "app/Console/Commands/SendNotices.php"
+s = open(p, encoding='utf-8').read()
+alt = "                return self::FAILURE;\n            }\n\n            $nur[] = $schluessel;\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                continue;\n            }\n\n            $nur[] = $schluessel;\n", 1))
+PY2
+griff_datei app/Console/Commands/SendNotices.php "Tippfehler uebergangen" &&
+pruefe "Tippfehler uebergangen" \
+  DiskNoticeTest::test_an_unknown_key_sends_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskNoticeTest passed
+
+echo
+echo "── DiskCadenceTest: die Unit meldet ohne Beschränkung ──"
+#
+# Die zweite Zeile der Unit ohne --check.
+vorher_datei packaging/systemd/srvpanel-disk.service
+python3 - <<'PY2'
+p = "packaging/systemd/srvpanel-disk.service"
+s = open(p, encoding='utf-8').read()
+alt = "ExecStart=/opt/srvpanel/bin/php artisan srvpanel:notices --check=disk.space\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "ExecStart=/opt/srvpanel/bin/php artisan srvpanel:notices\n", 1))
+PY2
+griff_datei packaging/systemd/srvpanel-disk.service "Unit unbeschraenkt" &&
+pruefe "Unit unbeschraenkt" \
+  DiskCadenceTest::test_the_unit_reports_exactly_what_it_measures failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCadenceTest passed
+
+echo
+echo "── DiskCadenceTest: der Zeitgeber feuert jede Viertelstunde ──"
+#
+# Dann erfuellt ein einziger Lauf die zehn Minuten.
+vorher_datei packaging/systemd/srvpanel-disk.timer
+python3 - <<'PY2'
+p = "packaging/systemd/srvpanel-disk.timer"
+s = open(p, encoding='utf-8').read()
+alt = "OnCalendar=*:0/5\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "OnCalendar=*:0/15\n", 1))
+PY2
+griff_datei packaging/systemd/srvpanel-disk.timer "Viertelstunde" &&
+pruefe "Viertelstunde" \
+  DiskCadenceTest::test_the_hold_spans_three_runs failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCadenceTest passed
+
+echo
+echo "── DiskCadenceTest: die Übersicht färbt ab einer eigenen Zahl ──"
+#
+# Die zweite Fassung der Warnschwelle, die bis zum 27. September dort stand.
+vorher_datei app/Http/Controllers/OverviewController.php
+python3 - <<'PY2'
+p = "app/Http/Controllers/OverviewController.php"
+s = open(p, encoding='utf-8').read()
+alt = "                'tight' => (float) ($row['percent'] ?? 0) >= DiskSpace::WARN_PERCENT,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                'tight' => (float) ($row['percent'] ?? 0) >= 90.0,\n", 1))
+PY2
+griff_datei app/Http/Controllers/OverviewController.php "eigene Zahl" &&
+pruefe "eigene Zahl" \
+  DiskCadenceTest::test_the_overview_colours_from_the_warning_of_the_check failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCadenceTest passed
+
+echo
+echo "── DiagnoseRunTest: der dritte Lauf fehlt im Katalog ──"
+#
+# every() ohne DISK_CHECKS — die Pruefung gaebe es, und kein Waechter saehe sie.
+vorher_datei app/Support/Diagnose/Catalog.php
+python3 - <<'PY2'
+p = "app/Support/Diagnose/Catalog.php"
+s = open(p, encoding='utf-8').read()
+alt = "        return [...self::CHECKS, ...self::BACKUP_CHECKS, ...self::DISK_CHECKS];\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return [...self::CHECKS, ...self::BACKUP_CHECKS];\n", 1))
+PY2
+griff_datei app/Support/Diagnose/Catalog.php "ohne dritten Lauf" &&
+pruefe "ohne dritten Lauf" \
+  DiagnoseRunTest::test_the_catalogue_names_every_check_that_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "── DiagnoseRunTest: die Platte läuft auch nachts ──"
+#
+# Eine Pruefung in zwei Laeufen: der zweite replace() loeschte die Befunde des
+# ersten.
+vorher_datei app/Support/Diagnose/Catalog.php
+python3 - <<'PY2'
+p = "app/Support/Diagnose/Catalog.php"
+s = open(p, encoding='utf-8').read()
+alt = "        MaintenanceFlag::class,\n    ];\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        MaintenanceFlag::class,\n        DiskSpace::class,\n    ];\n", 1))
+PY2
+griff_datei app/Support/Diagnose/Catalog.php "in zwei Laeufen" &&
+pruefe "in zwei Laeufen" \
+  DiagnoseRunTest::test_the_catalogue_names_every_check_that_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "── DiagnoseWiringTest: der Plattenlauf schreibt den Zeitpunkt der Nacht ──"
+#
+# Die kontextuelle Bindung mit dem falschen Schluessel.
+vorher_datei app/Providers/SrvPanelServiceProvider.php
+python3 - <<'PY2'
+p = "app/Providers/SrvPanelServiceProvider.php"
+s = open(p, encoding='utf-8').read()
+alt = "                new SettingsRunLog($app->make(Settings::class), Settings::DIAGNOSE_DISK),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                new SettingsRunLog($app->make(Settings::class), Settings::DIAGNOSE),\n", 1))
+PY2
+griff_datei app/Providers/SrvPanelServiceProvider.php "Zeitpunkt der Nacht" &&
+pruefe "Zeitpunkt der Nacht" \
+  DiagnoseWiringTest::test_the_disk_run_writes_its_own_key_and_its_own_timestamp failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseWiringTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

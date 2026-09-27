@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Disks;
 use SrvPanel\Agent\Op;
 
 /**
@@ -183,68 +184,21 @@ final class SystemInfo implements Op
     }
 
     /**
-     * Belegung der eingehängten Dateisysteme.
+     * Belegung der eingehängten Dateisysteme — je Gerät eine Zeile.
      *
-     * Gefiltert auf das, worauf Daten liegen: Was aus `/proc`, `/sys`, `tmpfs`
-     * und Ähnlichem kommt, ist kein Datenträger, sondern eine Sicht des
-     * Kernels. Eine Warnung „98 % voll" über ein `devtmpfs` wäre ein Fehlalarm,
-     * den man sich nach dem zweiten Mal abgewöhnt — und dann übersieht man den
-     * echten.
+     * Ausgewählt und gerechnet wird in {@see Disks}, und nur dort: Dieselbe
+     * Frage stellt die Prüfung „Platte voll" über `system.filesystems`, und
+     * zwei Fassungen der Auswahl liefen auseinander. Bis zum 27. September 2026
+     * stand sie hier und unterschied nach dem Einhängepunkt — unter der Sandbox
+     * dieser Unit waren das drei Zeilen für eine Platte (`docs/136 §3` M4).
      *
      * @return list<array{mount:string,device:string,type:string,total:int,free:int,used:int,percent:float}>
      */
     private function filesystems(): array
     {
-        $raw = @file_get_contents($this->procRoot.'/mounts');
+        $lines = @file($this->procRoot.'/mounts', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
-        if ($raw === false) {
-            return [];
-        }
-
-        $interesting = ['ext2', 'ext3', 'ext4', 'xfs', 'btrfs', 'zfs', 'f2fs', 'jfs', 'reiserfs', 'vfat'];
-        $rows = [];
-        $seen = [];
-
-        foreach (explode("\n", $raw) as $line) {
-            $columns = preg_split('/\s+/', trim($line)) ?: [];
-
-            if (count($columns) < 3) {
-                continue;
-            }
-
-            [$device, $mount, $type] = $columns;
-
-            if (! in_array($type, $interesting, true) || isset($seen[$mount])) {
-                continue;
-            }
-
-            // Der Kernel maskiert Leerzeichen im Einhängepunkt als \040.
-            $mount = str_replace('\\040', ' ', $mount);
-
-            $total = @disk_total_space($mount);
-            $free = @disk_free_space($mount);
-
-            if ($total === false || $free === false || $total <= 0) {
-                continue;
-            }
-
-            $seen[$mount] = true;
-            $used = $total - $free;
-
-            $rows[] = [
-                'mount' => $mount,
-                'device' => $device,
-                'type' => $type,
-                'total' => (int) $total,
-                'free' => (int) $free,
-                'used' => (int) $used,
-                'percent' => round($used / $total * 100, 1),
-            ];
-        }
-
-        usort($rows, static fn (array $a, array $b): int => strcmp($a['mount'], $b['mount']));
-
-        return $rows;
+        return $lines === false ? [] : Disks::usage($lines);
     }
 
     /**

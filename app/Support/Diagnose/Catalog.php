@@ -8,6 +8,7 @@ use App\Enums\FindingCheck;
 use App\Support\Diagnose\Checks\Agent;
 use App\Support\Diagnose\Checks\Backups;
 use App\Support\Diagnose\Checks\Certificates;
+use App\Support\Diagnose\Checks\DiskSpace;
 use App\Support\Diagnose\Checks\MaintenanceFlag;
 use App\Support\Diagnose\Checks\MaintenanceWindow;
 use App\Support\Diagnose\Checks\ManagedBlocks;
@@ -87,6 +88,22 @@ final class Catalog
     ];
 
     /**
+     * Die Prüfungen, die alle fünf Minuten laufen — „Platte voll" (`docs/136`).
+     *
+     * **Der dritte Lauf, aus dem umgekehrten Grund des zweiten.** Die Sicherungen
+     * stehen für sich, weil sie teuer sind; diese Prüfung steht für sich, weil
+     * sie **dringend** ist: Bei voller Platte stürzt MariaDB beim nächsten
+     * Wachsen einer Tabelle ab (`docs/136 §3` M5), und ein Nachtlauf erführe
+     * davon bis zu einen Tag zu spät. Sie kostet einen Aufruf des Agenten und
+     * ein `stat -f`.
+     *
+     * @var list<class-string<Check>>
+     */
+    public const DISK_CHECKS = [
+        DiskSpace::class,
+    ];
+
+    /**
      * Jede Prüfung, die irgendein Lauf fährt.
      *
      * **Über diese Liste gehen die Wächter und nicht über eine der beiden
@@ -103,7 +120,7 @@ final class Catalog
      */
     public static function every(): array
     {
-        return [...self::CHECKS, ...self::BACKUP_CHECKS];
+        return [...self::CHECKS, ...self::BACKUP_CHECKS, ...self::DISK_CHECKS];
     }
 
     /**

@@ -1,0 +1,58 @@
+[Unit]
+Description=SrvPanel — nachsehen, wie voll die Dateisysteme sind
+Documentation=https://repo.cloudsrv24.de/
+After=srvpanel-agentd.service
+Requires=srvpanel-agentd.service
+
+[Service]
+# Type=oneshot und kein Restart: Der Timer startet den nächsten Lauf.
+Type=oneshot
+User=srvpanel
+Group=srvpanel
+WorkingDirectory=/opt/srvpanel/current
+ExecStart=/opt/srvpanel/bin/php artisan srvpanel:disk
+
+# **Zweite Zeile derselben Unit, wie bei der Diagnose — und beschränkt.**
+#
+# Gemeldet wird gleich nach dem Messen, und nur `disk.space` (`docs/136 §5`).
+# Ohne die Beschränkung meldete diese Unit alle fünf Minuten auch die Befunde
+# der Nacht: nach zwanzig Stunden und ohne die Bestätigung der zweiten Nacht,
+# auf die sich B1 verlässt. Ein unbekannter Schlüssel bricht das Kommando ab,
+# statt still über alles zu melden.
+#
+# Kein `-` davor: Ein gescheiterter Versand soll die Unit rot färben. Ein
+# fehlendes Relay ist kein Fehlschlag, das entscheidet das Kommando selbst.
+ExecStart=/opt/srvpanel/bin/php artisan srvpanel:notices --check=disk.space
+
+# **Fünf Minuten Takt, also zwei Minuten Frist.**
+#
+# Ein `Type=oneshot` **ohne** eigene Angabe läuft ohne Frist (`docs/74`,
+# Befund 4), und ein hängender Lauf nimmt alle folgenden mit. Die Messung
+# kostet einen Aufruf des Agenten und ein `stat -f` (1,9 ms, `docs/136 §3` M6);
+# teuer ist allein der Versand, und der hat seine eigene Zeitgrenze.
+#
+#   Ein Deckel gegen das Hängenbleiben muss nicht knapp sein — er muss endlich
+#   sein.
+#
+# Er liegt unter dem Takt des Timers. `OneshotDeadlineTest` rechnet beides nach.
+TimeoutStartSec=120
+
+# Dieser Lauf fragt den Agenten, schreibt in die Datenbank und verschickt
+# Meldungen. Mehr braucht er nicht — und mehr bekommt er nicht.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/srvpanel /var/log/srvpanel
+
+MemoryMax=192M
+TasksMax=32

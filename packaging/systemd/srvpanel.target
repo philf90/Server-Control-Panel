@@ -51,6 +51,7 @@ Wants=srvpanel-diagnose.timer
 Wants=srvpanel-backup-verify.timer
 Wants=srvpanel-backups.timer
 Wants=srvpanel-traffic.timer
+Wants=srvpanel-disk.timer
 
 After=srvpanel-agentd.service
 

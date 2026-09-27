@@ -38,7 +38,7 @@ use SrvPanel\Agent\Client;
  *
  * Ohne ihn verschwände ein Befund, sobald die Platte einmal unter die Schwelle
  * fällt, und `first_seen_at` begänne beim nächsten Überschreiten neu. Eine
- * Platte, die um 85 % pendelt, stünde dann nie zehn Minuten am Stück da — und
+ * Platte, die um 85 % pendelt, stünde dann nie drei Läufe am Stück da — und
  * meldete gar nicht, obwohl sie dauernd an der Grenze steht.
  *
  * > **Eine Haltezeit ohne Rückweg macht aus einer Platte, die an der Grenze

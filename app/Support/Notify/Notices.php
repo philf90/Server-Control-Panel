@@ -87,16 +87,28 @@ final class Notices
     public const HOLD_HOURS = 20;
 
     /**
-     * Die Haltezeit für „Platte voll" — zehn Minuten (`docs/136 §4`).
+     * Die Haltezeit für „Platte voll" — gemeldet beim dritten Lauf (`docs/136 §4`).
      *
-     * **Entschieden vom Betreiber am 27. September 2026, und sie hängt am Takt
-     * wie die zwanzig Stunden oben.** Die Prüfung läuft alle fünf Minuten in
-     * einer eigenen Unit; zehn Minuten heisst, dass gemeldet wird, was drei Läufe
-     * hintereinander dasteht. Zwanzig Stunden wären hier sinnlos: Bei voller
-     * Platte stürzt MariaDB beim nächsten Wachsen einer Tabelle ab
-     * (`docs/136 §3` M5).
+     * **Entschieden hat der Betreiber am 27. September 2026: alle fünf Minuten
+     * prüfen, nach zehn melden — drei Läufe hintereinander.** Zwanzig Stunden
+     * wären hier sinnlos: Bei voller Platte stürzt MariaDB beim nächsten Wachsen
+     * einer Tabelle ab (`docs/136 §3` M5).
+     *
+     * **Acht und nicht zehn, aus demselben Grund wie zwanzig und nicht
+     * vierundzwanzig oben.** Der dritte Lauf kommt zehn Minuten nach dem ersten
+     * — aber nicht auf die Sekunde: Der Zeitgeber streut um bis zu dreissig
+     * Sekunden je Lauf, und systemd legt einen Termin ohne `AccuracySec` in ein
+     * Fenster von einer Minute (gemessen: `AccuracyUSec=1min`). Eine Haltezeit
+     * von genau zehn Minuten traf den dritten Lauf deshalb nur manchmal, und die
+     * Meldung rutschte unvorhersehbar auf den vierten. Mit `AccuracySec=1s` liegt
+     * der zweite Lauf 269 bis 331 Sekunden nach dem ersten und der dritte 569 bis
+     * 631; acht Minuten liegen sicher dazwischen. `DiskCadenceTest` rechnet es aus
+     * der Unit nach.
+     *
+     * > **Eine Haltezeit, die genau auf einen Takt fällt, zählt die Läufe nicht,
+     * > sondern würfelt sie.**
      */
-    public const DISK_HOLD_MINUTES = 10;
+    public const DISK_HOLD_MINUTES = 8;
 
     public function __construct(
         private readonly Settings $settings,

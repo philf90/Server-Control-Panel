@@ -6045,8 +6045,17 @@ und alles danach läuft nie. Eine Unterschale fängt es: `( : > datei ) 2>/dev/n
 > Shell — und die Zeile, die das Ergebnis drucken sollte, kommt nie.**
 
 **Gebaut am selben Tag** (`docs/136 §9`), als dritter Lauf neben Nacht und
-Sicherungen: alle fünf Minuten, gemeldet nach zehn, beschränkt auf `disk.space`.
-Zwei Funde aus dem Bau gelten über ihn hinaus.
+Sicherungen: alle fünf Minuten, gemeldet beim dritten Lauf, beschränkt auf
+`disk.space`. Drei Funde aus dem Bau gelten über ihn hinaus.
+
+> **Eine Haltezeit, die genau auf einen Takt fällt, zählt die Läufe nicht,
+> sondern würfelt sie.** Entschieden war „nach zehn Minuten", also beim dritten
+> Lauf; gebaut war zuerst eine Haltezeit von genau zehn. Der dritte Lauf streut
+> aber um den Termin — dreissig Sekunden Streuung, und ohne `AccuracySec` ein
+> Fenster von einer Minute (gemessen, `AccuracyUSec=1min`) —, und die Meldung
+> wäre mal beim dritten, mal beim vierten gekommen. Die Antwort stand schon im
+> Repo: `HOLD_HOURS` ist zwanzig und nicht vierundzwanzig. Jetzt sind es acht
+> Minuten und `AccuracySec=1s`, nachgerechnet aus der Unit.
 
 > **Eine Prüfung hinter einer anderen, die im selben Fall zuerst anschlägt, ist
 > keine — sie ist ein Kommentar mit Assertion.** `DiagnoseRunTest` fragte, ob

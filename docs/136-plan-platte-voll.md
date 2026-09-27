@@ -165,13 +165,13 @@ Relay; ein lokales Postfix braucht selbst Platz.
 | Schwellen | **Warnung ab 85 %, Störung ab 95 %.** 85 % ist die Grenze, ab der die Übersicht heute färbt — eine Zahl für beides. |
 | Rückweg | **5 Punkte darunter** — eine Warnung geht erst unter 80 % weg, eine Störung unter 90 %. |
 | Takt | **alle 5 Minuten**, in einer eigenen Unit |
-| Haltezeit | **10 Minuten** — gemeldet wird, was drei Läufe hintereinander dasteht |
+| Haltezeit | **nach 10 Minuten** — gemeldet wird, was drei Läufe hintereinander dasteht; gebaut als Haltezeit von acht Minuten, damit genau der dritte meldet (§9) |
 | Inodes | **ja, mit denselben Schwellen** |
 
 **Der Rückweg ist keine Kosmetik.** Ohne ihn verschwindet ein Befund, sobald die
 Platte einmal unter 85 % fällt, und `first_seen_at` beginnt beim nächsten
-Überschreiten neu. Eine Platte, die um die Schwelle pendelt, stünde dann nie zehn
-Minuten am Stück da — und meldete gar nicht, obwohl sie dauernd an der Grenze
+Überschreiten neu. Eine Platte, die um die Schwelle pendelt, stünde dann nie drei
+Läufe am Stück da — und meldete gar nicht, obwohl sie dauernd an der Grenze
 steht.
 
 > **Eine Haltezeit ohne Rückweg macht aus einer Platte, die an der Grenze
@@ -214,7 +214,7 @@ höchstens die Reserve auseinander; darüber sind sie sich nahe.
   Kommando, eigener kontextueller Bindung und eigenem Zeitpunkt für „zuletzt
   gemessen" — dasselbe Muster wie `BACKUP_CHECKS` (`docs/117 §13`).
 - **Die Haltezeit hängt am Schlüssel.** `HOLD_HOURS` bleibt für alles, was die
-  Nacht misst; `disk.space` bekommt seine zehn Minuten.
+  Nacht misst; `disk.space` meldet beim dritten Lauf (§9).
 - **Der Meldelauf lässt sich auf Schlüssel beschränken.** Die neue Unit ruft ihn
   nur für `disk.space`. Riefe sie ihn für alles, ginge ein Befund der Nacht nach
   zwanzig Stunden hinaus, bevor die zweite Nacht ihn bestätigt hat — die
@@ -235,8 +235,9 @@ höchstens die Reserve auseinander; darüber sind sie sich nahe.
   Inodezahl (btrfs meldet 0) auch nicht.
 - **Ein Gerät, eine Zeile** — am Leser, mit zwei Einhängepunkten auf demselben
   Gerät.
-- **Die Haltezeit je Schlüssel:** ein Befund `disk.space` ist nach zehn Minuten
-  fällig; ein Befund der Nacht wird vom beschränkten Meldelauf **nicht**
+- **Die Haltezeit je Schlüssel:** ein Befund `disk.space` meldet beim dritten
+  Lauf und nicht beim zweiten, auch wenn der dritte eine halbe Minute zu früh
+  kommt; ein Befund der Nacht wird vom beschränkten Meldelauf **nicht**
   angefasst, auch nach zwanzig Stunden nicht.
 - **Eine Warnschwelle:** Übersicht und Prüfung lesen dieselbe.
 - **Die bestehenden Wächter decken den Rest:** jeder Schlüssel mit genau einem
@@ -250,8 +251,10 @@ höchstens die Reserve auseinander; darüber sind sie sich nahe.
 Wurzel:**
 
 1. Die Übersicht zeigt jede Platte einmal.
-2. Die Wegwerf-Platte über 85 % — nach höchstens fünfzehn Minuten **eine**
-   Meldung an den Betreiber, über beide Kanäle.
+2. Die Wegwerf-Platte über 85 % — beim dritten Lauf, der sie so sieht,
+   **eine** Meldung an den Betreiber, über beide Kanäle. Gerechnet sind das
+   höchstens gut sechzehn Minuten nach dem Überschreiten: bis zu 331 Sekunden
+   bis zum ersten Lauf, bis zu 631 bis zum dritten.
 3. Über 95 % — eine zweite, als Störung; die Warnung bleibt stehen.
 4. Unter 80 % — die Entwarnung für beide, und der nächste Lauf meldet nichts.
 5. Inodes: dieselbe Platte ohne freie Inodes ergibt „Inodes voll", während der
@@ -283,7 +286,7 @@ Gebaut ist §5 vollständig, mit den Zahlen aus §4. Die Wächter aus §6 heisse
 Bruch in `tests/waechter-brechen.sh`. **Abgenommen ist nichts** — das ist §7, auf
 `cloudsrv24` gegen die nächste Freigabe.
 
-**Vier Dinge liefen anders als geplant.**
+**Fünf Dinge liefen anders als geplant.**
 
 - **Die Prüfung auf Überschneidung der Läufe kam nie zu Wort.**
   `DiagnoseRunTest` verglich zuerst den Katalog mit dem Verzeichnis und danach,
@@ -303,6 +306,22 @@ Bruch in `tests/waechter-brechen.sh`. **Abgenommen ist nichts** — das ist §7,
   `Notices`: die Haltezeit in `due()` und das Verbrauchen der Entwarnungen.
   Gefunden hat es keine Erinnerung, sondern ein Abgleich jedes Ankers gegen die
   geänderten Dateien — 64 geprüft, zwei ohne Treffer.
+- **Die Haltezeit lag genau auf zwei Takten — und damit auf einem Würfel.**
+  Der erste Wurf setzte zehn Minuten, die Zahl der Entscheidung. Der dritte
+  Lauf kommt aber nicht auf die Sekunde zehn Minuten nach dem ersten: Der
+  Zeitgeber streut um bis zu dreissig Sekunden, und ohne `AccuracySec` legt
+  systemd jeden Termin in ein Fenster von einer Minute (gemessen:
+  `AccuracyUSec=1min`). Die Meldung wäre mal beim dritten, mal beim vierten
+  Lauf gekommen. Dieselbe Frage hatte `HOLD_HOURS` längst beantwortet —
+  zwanzig Stunden und nicht vierundzwanzig, weil die Nächte 23 bis 25 Stunden
+  auseinanderliegen. Gebaut ist jetzt `AccuracySec=1s` und eine Haltezeit von
+  acht Minuten; der zweite Lauf kommt höchstens 331 Sekunden nach dem ersten,
+  der dritte frühestens nach 569. `DiskCadenceTest` rechnet beides aus der
+  Unit, und gemeldet wird, wie entschieden, beim dritten.
+
+  > **Eine Haltezeit, die genau auf einen Takt fällt, zählt die Läufe nicht,
+  > sondern würfelt sie.**
+
 - **„Platte" ist in der Oberfläche verbraucht** (`docs/19 §3`); `WordChoiceTest`
   meldete eine Variable in einer Vorlagenzeichenkette. Die Oberfläche sagt
   „Dateisystem" — dieses Dokument bleibt beim Wort, unter dem der Betreiber die

@@ -32764,7 +32764,7 @@ seitdem in `CLAUDE.md` unter „Ablauf".
 **Der dritte Lauf neben Nacht und Sicherungen** (`docs/136 §5`).
 `srvpanel-disk.service` fragt alle fünf Minuten den Agenten nach Platz und Inodes
 je Dateisystem und meldet danach, beschränkt auf `disk.space`. Warnung ab 85 %,
-Störung ab 95 %, zurück erst fünf Punkte darunter, gemeldet nach zehn Minuten —
+Störung ab 95 %, zurück erst fünf Punkte darunter, gemeldet beim dritten Lauf —
 die Entscheidungen des Betreibers vom 27. September. Die Diagnoseseite nennt den
 Zeitpunkt des Laufs als dritten neben Nacht und Sicherungen.
 
@@ -32777,7 +32777,20 @@ vorigen Lauf:
 > pendelt, eine, die nie meldet.**
 
 **Die Haltezeit hängt jetzt am Schlüssel.** `Notices::HOLD_HOURS` bleibt für
-alles, was die Nacht misst; `disk.space` hat zehn Minuten. Und
+alles, was die Nacht misst; `disk.space` hat acht Minuten. **Acht und nicht
+zehn**, obwohl „nach zehn Minuten" entschieden war: Der dritte Lauf kommt nicht
+auf die Sekunde zehn Minuten nach dem ersten — der Zeitgeber streut, und ohne
+`AccuracySec` legt systemd jeden Termin in ein Fenster von einer Minute
+(gemessen). Genau auf zwei Takten hätte mal der dritte, mal der vierte Lauf
+gemeldet; `HOLD_HOURS` steht aus demselben Grund auf zwanzig Stunden und nicht
+auf vierundzwanzig. Der Zeitgeber trägt jetzt `AccuracySec=1s`, und
+`DiskCadenceTest` rechnet aus der Unit nach, dass die Haltezeit zwischen dem
+Abstand zweier und dreier Läufe liegt.
+
+> **Eine Haltezeit, die genau auf einen Takt fällt, zählt die Läufe nicht,
+> sondern würfelt sie.**
+
+Und
 `srvpanel:notices` lässt sich mit `--check` auf Schlüssel beschränken — die
 Unit „Platte voll" meldet sonst alle fünf Minuten auch die Befunde der Nacht,
 bevor die zweite Nacht sie bestätigt hat. Ein unbekannter Schlüssel bricht ab,
@@ -32801,5 +32814,5 @@ Ob eine Prüfung in zwei Läufen steht, fragte er erst nach dem Vergleich mit de
 Verzeichnis — und der schlug in genau diesem Fall zuerst an, weil `every()` die
 Prüfung doppelt führt. Die Frage steht jetzt vorn, paarweise über alle drei
 Läufe. Gehalten wird der Bau von `DiskVerdictTest`, `DiskReaderTest`,
-`DiskNoticeTest` und `DiskCadenceTest`, gebrochen in 22 Eingriffen. **Abgenommen
+`DiskNoticeTest` und `DiskCadenceTest`, gebrochen in 25 Eingriffen. **Abgenommen
 ist nichts**: Der Lauf auf `cloudsrv24` steht in `docs/136 §7`.

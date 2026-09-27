@@ -87,19 +87,29 @@ final class DiskNoticeTest extends TestCase
             'Die Nacht behält ihre zwanzig Stunden.');
     }
 
-    /** Drei Läufe: nach fünf Minuten noch nicht, nach zehn genau einmal. */
-    public function test_a_full_disk_is_reported_after_ten_minutes_and_not_before(): void
+    /**
+     * **Gemeldet beim dritten Lauf — auch wenn er eine halbe Minute zu früh kommt.**
+     *
+     * Der Zeitgeber streut um bis zu dreissig Sekunden je Lauf. Die Läufe hier
+     * stehen deshalb an den ungünstigsten Stellen: der zweite so spät wie
+     * möglich (er darf noch nicht melden), der dritte so früh wie möglich (er
+     * muss). Mit einer Haltezeit genau auf zwei Takten, dem ersten Wurf, meldete
+     * erst der vierte.
+     */
+    public function test_a_full_disk_is_reported_at_the_third_run_and_not_before(): void
     {
         $erste = Carbon::parse('2026-09-27 01:35:00');
         $this->lauf(FindingCheck::DiskSpace, '/', 'space_full', $erste);
 
-        $zweite = $erste->copy()->addMinutes(5);
+        $zweite = $erste->copy()->addSeconds(5 * 60 + 31);
         $this->lauf(FindingCheck::DiskSpace, '/', 'space_full', $zweite);
-        self::assertSame(0, $this->notices()->send($zweite, [FindingCheck::DiskSpace])['mail']['sent']);
+        self::assertSame(0, $this->notices()->send($zweite, [FindingCheck::DiskSpace])['mail']['sent'],
+            'Der zweite Lauf meldet nicht — sonst reichten zwei.');
 
-        $dritte = $erste->copy()->addMinutes(Notices::DISK_HOLD_MINUTES);
+        $dritte = $erste->copy()->addSeconds(10 * 60 - 31);
         $this->lauf(FindingCheck::DiskSpace, '/', 'space_full', $dritte);
-        self::assertSame(1, $this->notices()->send($dritte, [FindingCheck::DiskSpace])['mail']['sent']);
+        self::assertSame(1, $this->notices()->send($dritte, [FindingCheck::DiskSpace])['mail']['sent'],
+            'Der dritte Lauf meldet, auch wenn er ein wenig früher kommt als zehn Minuten nach dem ersten.');
 
         Mail::assertSent(DiagnoseReport::class, static fn (DiagnoseReport $m): bool => $m->hasTo('betreiber@example.org'));
     }

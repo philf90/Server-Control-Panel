@@ -36196,7 +36196,7 @@ open(p, 'w', encoding='utf-8').write(s.replace(alt, "            FindingCheck::D
 PY2
 griff_datei app/Support/Notify/Notices.php "zwanzig Stunden" &&
 pruefe "zwanzig Stunden" \
-  DiskNoticeTest::test_a_full_disk_is_reported_after_ten_minutes_and_not_before failed
+  DiskNoticeTest::test_a_full_disk_is_reported_at_the_third_run_and_not_before failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiskNoticeTest passed
 
@@ -36287,7 +36287,7 @@ open(p, 'w', encoding='utf-8').write(s.replace(alt, "OnCalendar=*:0/15\n", 1))
 PY2
 griff_datei packaging/systemd/srvpanel-disk.timer "Viertelstunde" &&
 pruefe "Viertelstunde" \
-  DiskCadenceTest::test_the_hold_spans_three_runs failed
+  DiskCadenceTest::test_the_hold_lies_between_two_and_three_runs failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiskCadenceTest passed
 
@@ -36363,6 +36363,62 @@ pruefe "Zeitpunkt der Nacht" \
   DiagnoseWiringTest::test_the_disk_run_writes_its_own_key_and_its_own_timestamp failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseWiringTest passed
+
+echo
+echo "── DiskCadenceTest: die Haltezeit fällt genau auf zwei Takte ──"
+#
+# Der erste Wurf: zehn Minuten. Der dritte Lauf streut um den Termin, und
+# dann meldet manchmal erst der vierte.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY2'
+p = "app/Support/Notify/Notices.php"
+s = open(p, encoding='utf-8').read()
+alt = "    public const DISK_HOLD_MINUTES = 8;\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "    public const DISK_HOLD_MINUTES = 10;\n", 1))
+PY2
+griff_datei app/Support/Notify/Notices.php "zwei Takte" &&
+pruefe "zwei Takte" \
+  DiskCadenceTest::test_the_hold_lies_between_two_and_three_runs failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCadenceTest passed
+
+echo
+echo "── DiskNoticeTest: die Haltezeit fällt genau auf zwei Takte ──"
+#
+# Derselbe Eingriff, gemessen an der Wirkung: ein dritter Lauf eine halbe
+# Minute vor dem Termin meldet dann nicht.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY2'
+p = "app/Support/Notify/Notices.php"
+s = open(p, encoding='utf-8').read()
+alt = "    public const DISK_HOLD_MINUTES = 8;\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "    public const DISK_HOLD_MINUTES = 10;\n", 1))
+PY2
+griff_datei app/Support/Notify/Notices.php "dritter Lauf zu frueh" &&
+pruefe "dritter Lauf zu frueh" \
+  DiskNoticeTest::test_a_full_disk_is_reported_at_the_third_run_and_not_before failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskNoticeTest passed
+
+echo
+echo "── DiskCadenceTest: schon der zweite Lauf meldet ──"
+#
+# Eine Haltezeit von einem Takt — dann reichen zwei Laeufe.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY2'
+p = "app/Support/Notify/Notices.php"
+s = open(p, encoding='utf-8').read()
+alt = "    public const DISK_HOLD_MINUTES = 8;\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "    public const DISK_HOLD_MINUTES = 5;\n", 1))
+PY2
+griff_datei app/Support/Notify/Notices.php "ein Takt" &&
+pruefe "ein Takt" \
+  DiskCadenceTest::test_the_hold_lies_between_two_and_three_runs failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiskCadenceTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

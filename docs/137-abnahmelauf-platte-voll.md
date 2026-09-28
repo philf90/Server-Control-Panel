@@ -767,7 +767,8 @@ getragen, der Text darin nicht.
   Vorlage verspricht Zeilen unter 78 Zeichen und hält es nur für ihren eigenen
   Text.
 - ~~**Die Höhe der zweizeiligen Karten** bei 390 px (oben).~~ Behoben am
-  28. September, ohne einen Server gesehen zu haben.
+  28. September und am selben Tag gegen `0.9.0-rc.6` auf `cloudsrv24`
+  nachgesehen (unten).
 - Der Rest des Prüfstands, `tls.file / expired / p6-b.invalid`.
 
 ### Die Abnahme — 28. September 2026
@@ -789,3 +790,42 @@ auf `cloudsrv24` ist das die Datenbank des Panels.
 an der Mail, die Anteile mit Komma, die Zeile für die Inodes und die Höhe der
 zweizeiligen Karten. Keine davon betrifft die Prüfung; sie kommen mit der
 nächsten Freigabe.
+
+**Nachgetragen am selben Tag:** Sie sind mit `0.9.0-rc.5` und `0.9.0-rc.6`
+ausgeliefert und auf `cloudsrv24` installiert. Gesehen hat davon bisher allein
+die Höhe der Karten (unten).
+
+### Nachgesehen gegen `0.9.0-rc.6` — 28. September 2026
+
+**Die Karten neben einer mehrzeiligen Zelle haben einen Server gesehen.**
+Gemessen hat der Betreiber in seinem Browser mit der Gerätesimulation, je Lage
+frisch geladen, mit einer Konsolenzeile, die vorher gegen den Nachbau der
+Übersicht und der Planseite gefahren war. Die Seitenleiste nennt `0.9.0-rc.6`,
+und in allen vier Lagen trägt das ausgelieferte Stylesheet
+`tr:where(:has(td.multiline)) > td` und nicht mehr die Regel mit Gewicht.
+
+| Seite | Breite | `td` | gemessen |
+|---|---|---|---|
+| `/operations`, 50 Karten | 390 px | `flex` | jede Zelle `5px/5px`, einzeilige 31 px hoch, jede Karte 257 px |
+| `/plans`, 2 Karten | 390 px | `flex` | jede beschriftete Zelle `5px/5px`, die Knopfzelle `10px/5px` und 59 px hoch; Karten 321,3 und 316,8 px |
+| `/plans` | 1440 px | `table-cell` | jede Zelle `9.5px/9.5px`, Zeilen 68 und 63 px |
+| `/operations` | 1440 px | `table-cell` | jede Zelle `9.5px/9.5px`, Zeilen 58,3 px |
+
+**Die Gegenprobe steht in der Breite und nicht in der Zeit.** Unter rc.6 lässt
+sich der alte Stand nicht mehr herstellen; die Messung bei 1440 px zeigt, dass
+die Regel in der Tabelle weiter wirkt und dass die Zeile den Zustand misst,
+über den sie berichtet. Gerechnet und nicht gemessen: Eine Karte der Vorgänge
+hat sechs Zellen, unter rc.5 wären es je 13 px mehr gewesen, 335 statt 257 px.
+
+**Die Knopfzelle stimmt aufs Pixel mit dem Nachbau überein**, 59 px bei
+`10px/5px`. Die Höhen der Karten lassen sich nicht vergleichen, weil die echten
+Zeilen andere Inhalte tragen als die nachgebauten.
+
+**Nicht gemessen:** `bilderMessen()` ist nicht gefahren; der Überlauf ist nur
+im Container gemessen. Auf dem Bild von `/plans` bei 390 px steht der Knopf
+„Bearbeiten" eingerückt — die Beobachtung aus `CHANGELOG.md`, nicht angefasst.
+
+**Weiterhin ohne Server:** die Mail an den Betreiber in ihrer neuen Fassung
+und die Zeile für die Inodes. Die eine braucht einen Befund, die andere eine
+Platte mit mehr als 85 % vergebenen Inodes. Die Anteile mit Komma stehen seit
+`0.9.0-rc.5` auf der Übersicht und sind in diesem Nachlauf nicht abgelesen.

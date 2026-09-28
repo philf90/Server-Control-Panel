@@ -32992,3 +32992,17 @@ wer heute nur die Ausrichtung umstellte, bekäme 6 px Abstand statt 9,5.
 **Beim Messen aufgefallen und nicht angefasst:** Die Knopfzelle einer Karte
 steht 14 px eingerückt. Das leere `::before` einer Zelle ohne Beschriftung
 nimmt die Lücke der Flexzeile mit — gemessen 14 px, mit `content: none` 0.
+
+### Die Karten haben einen Server gesehen — `0.9.0-rc.6` auf `cloudsrv24`
+
+**Nachgesehen am 28. September 2026** im Browser des Betreibers, je Lage frisch
+geladen, mit einer Konsolenzeile, die vorher gegen den Nachbau gefahren war
+(`docs/137 §7`). Auf `/operations` und `/plans` bei 390 px hat jede
+beschriftete Zelle einer Karte `5px/5px` und die Knopfzelle `10px/5px`; eine
+Karte der Vorgänge ist 257 px hoch. Bei 1440 px hat jede Zelle derselben Zeilen
+`9.5px/9.5px` — die Regel wirkt in der Tabelle weiter, und das ausgelieferte
+Stylesheet trägt `tr:where(:has(td.multiline)) > td`.
+
+`bilderMessen()` ist dabei nicht gefahren. Die Mail an den Betreiber und die
+Zeile für die Inodes sind mit `0.9.0-rc.5` ausgeliefert und auf dem Server
+noch nicht gesehen.

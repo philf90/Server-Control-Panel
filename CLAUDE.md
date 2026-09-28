@@ -12,13 +12,14 @@ Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
 
 Stand: **P0 bis P8 abgenommen** — P7b am 9. September 2026, **P8 (die
 Sicherungen) am 18. September 2026**; der Abschnitt dazu steht weiter unten.
-Aus P9 (`docs/129`) sind **B1** am 23. September (`docs/133 §7`) und **B2** am
-27. September 2026 (`docs/134 §7`) abgenommen. **„Platte voll"** — die Schwelle
-aus A7, die in B1 fehlte — ist am 27. September gebaut (`docs/136`) und am
-selben Tag auf `cloudsrv24` gefahren: **alle Punkte aus `docs/137` erfüllt**, das
-Protokoll ist dessen **§7**. Die drei Befunde an der Mail des Betreibers sind
-danach behoben und haben keinen Server gesehen; die Abnahme spricht der
-Betreiber aus.
+Aus P9 (`docs/129`) sind **B1** am 23. September (`docs/133 §7`), **B2** am
+27. September (`docs/134 §7`) und **„Platte voll"** am 28. September 2026
+abgenommen — die Schwelle aus A7, die in B1 fehlte, gebaut am 27. September
+(`docs/136`) und am selben Tag auf `cloudsrv24` gefahren: **alle Punkte aus
+`docs/137` erfüllt**, das Protokoll ist dessen **§7**. Eine ganz volle Platte
+ist bewusst nicht hergestellt worden, entschieden vom Betreiber: Der Lauf bei
+95 % hat Befund, Meldung und Rückweg belegt. Die drei Befunde an der Mail des
+Betreibers sind danach behoben und haben keinen Server gesehen.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -6112,12 +6113,21 @@ Messung.
 
 ---
 
-## Der Abnahmelauf von „Platte voll" — 27. September 2026
+## „Platte voll" ist abgenommen — 28. September 2026
 
-Gefahren auf `cloudsrv24` gegen `0.9.0-rc.4`, **alle Punkte aus `docs/137`
-erfüllt**; das Protokoll ist `docs/137 §7`. Die Haltezeit ist dreimal gemessen
-und liegt dreimal im Band, das aus der Unit gerechnet ist (583, 617 und 625 s
-gegen 569–631).
+Gefahren am 27. September auf `cloudsrv24` gegen `0.9.0-rc.4`, **alle Punkte
+aus `docs/137` erfüllt**; das Protokoll ist `docs/137 §7`. Die Haltezeit ist
+dreimal gemessen und liegt dreimal im Band, das aus der Unit gerechnet ist
+(583, 617 und 625 s gegen 569–631). **Abgenommen am 28. September**,
+ausgesprochen vom Betreiber auf Grund dieses Laufs.
+
+**Eine ganz volle Platte ist bewusst nicht hergestellt worden** — die
+Entscheidung des Betreibers, nicht ein Ausfall: Der Lauf bei 95 % war
+erfolgreich. Gemessen ist der Weg dorthin samt Rückweg und der eine Zustand,
+in dem auf einer Platte wirklich nichts mehr geht, alle Inodes vergeben bei
+freiem Platz. Was eine Platte ohne freien Block anrichtet, steht in
+`docs/136 §3` M5: MariaDB stürzt ab, und auf `cloudsrv24` ist das die Datenbank
+des Panels.
 
 **Drei Befunde am Prüfling, alle in der Mail an den Betreiber, und keiner an der
 Prüfung.** Sie meldete richtig; falsch war, was die Mail über sich sagte — einen
@@ -6178,6 +6188,56 @@ Zeilen, die der echte Controller über Reflection erzeugt; darin
 `tests/bilder-messen.js` als Skript eingespielt. Der Rahmen aus `PanelLayout`
 (`<style scoped>`) ist dabei nachgebaut und nicht geladen — gemessen wird die
 Zelle, nicht die Leiste.
+
+---
+
+## Karten neben einer mehrzeiligen Zelle — 28. September 2026
+
+Gefunden beim Beheben nach dem Lauf von „Platte voll" (`docs/137 §7`): Bei
+390 px war eine Karte mit einer zweizeiligen Zelle höher als die anderen, und
+zwar nicht um die zweite Zeile, sondern um 13 px je Zelle. Die Regel
+`tr:has(td.multiline) > td` ist für die Tabelle geschrieben und schlug mit dem
+Gewicht von `:has()` die Karte. Betroffen war jede `stacks`-Tabelle mit einer
+solchen Zelle, am stärksten der Verlauf der Vorgänge: 65 px je Karte, bei 50
+Karten je Seite rund 3250 px (gerechnet, nicht gemessen).
+
+> **Eine Regel, die für eine Form geschrieben ist, gilt in jeder, die sie
+> erreicht — und ob die andere sich wehren kann, entscheidet ihr Gewicht.**
+
+**Behoben, indem die Regel leichter wurde, und nicht mit einer Gegenregel** —
+und das ist die Lehre. Die Gegenregel war der erste Entwurf, mit ihr waren die
+Zahlen gemessen, die zur Entscheidung führten, und sie nahm der Knopfzelle
+oben 5 px. Wer einen Wert ein zweites Mal hinschreibt, um eine Regel zu
+schlagen, schlägt alles, was darunter liegt, auch das, was er nicht meint.
+
+> **Wer eine Regel mit einer stärkeren überstimmt, überstimmt auch jede, die
+> er nicht gesehen hat. Wer ihr das Gewicht nimmt, lässt jede andere Form, wie
+> sie ist.**
+
+**Die zweite Fassung hat ein bestehender Wächter abgewiesen, zu Unrecht und
+mit Gewinn.** `:where(tr:has(td.multiline)) > td` hielt `StandaloneClassTest`
+für eine freistehende Regel an `.multiline`: Er liest die erste Verbindung
+eines Selektors, und die begann mit `:where(` statt mit einem Element. Die
+Fassung, die ihm genügt, `tr:where(:has(td.multiline)) > td`, wiegt 0,0,2 und
+gewinnt in der Tabelle gegen `td` durch Gewicht; die erste gewann nur durch
+ihre Stelle in `app.css`. Seine Lesart bleibt benannt offen: Eine Klasse in
+einem `:where()` oder `:is()` am Anfang eines Selektors zählt für ihn als
+freistehend.
+
+**Und das Modell im Wächter rechnete die Kaskade nur halb nach.**
+`narrowRules()` stellt die Regeln ausserhalb jeder Mediaabfrage vor die Blöcke
+— in `app.css` steht die Zeilenregel dahinter —, und `specificity()` zählte ein
+`:where()` als Klasse. Zwei Regeln mit gleichem Gewicht entscheidet im
+Browser die spätere — hier die Zeilenregel —, im Test die aus dem Block.
+`MobileLayoutTest` verlangt deshalb, dass die Karte durch Gewicht gewinnt, und
+wertet `:where()` mit null.
+
+> **Ein Wächter, der die Kaskade nachrechnet, rechnet auch die Reihenfolge
+> nach — oder verlangt, dass sie nicht entscheidet.**
+
+Beim Messen aufgefallen und nicht angefasst: Die Knopfzelle einer Karte steht
+14 px eingerückt, weil das leere `::before` einer Zelle ohne Beschriftung die
+Lücke der Flexzeile mitnimmt (gemessen 14 px, mit `content: none` 0).
 
 ---
 

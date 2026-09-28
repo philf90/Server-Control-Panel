@@ -489,12 +489,14 @@ final class TableStyleTest extends TestCase
                 }
 
                 /*
-                 * **Und sie gibt den Abstand zurück, den sie wegnimmt.** `td`
-                 * setzt kein senkrechtes Polster; der Abstand zur Linie darüber
-                 * kam allein daraus, dass eine Zeile hohe Zelle in
-                 * `--row-height` mittig sass. Wer nur die Ausrichtung umstellt,
-                 * lässt die erste Zeile an der Trennlinie kleben — so gemeldet,
-                 * eine Fassung nach der Ausrichtung.
+                 * **Und sie gibt den Abstand zurück, den sie wegnimmt.** Als
+                 * die Regel entstand, setzte `td` kein senkrechtes Polster;
+                 * der Abstand zur Linie darüber kam allein daraus, dass eine
+                 * Zeile hohe Zelle in `--row-height` mittig sass. Wer nur die
+                 * Ausrichtung umstellte, liess die erste Zeile an der
+                 * Trennlinie kleben — so gemeldet, eine Fassung nach der
+                 * Ausrichtung. Seit `td` 6 px trägt, rückt sie nur noch näher
+                 * heran: 6 statt 9,5 px bei 40 px Zeilenhöhe.
                  */
                 if (preg_match('/padding-top:\\s*calc/', $rule[2]) === 1) {
                     $polster = true;
@@ -514,9 +516,10 @@ final class TableStyleTest extends TestCase
 
         $this->assertTrue($polster,
             'Die Regel richtet oben aus, ohne den Abstand zu ersetzen, den die mittige Lage gegeben '
-            .'hat. `td` hat kein senkrechtes Polster — die erste Zeile klebt dann an der Trennlinie '
-            .'darüber. Gerechnet aus --row-height und der Zeilenhöhe, damit es in jeder Dichtestufe '
-            .'stimmt und nicht nur in der, in der jemand nachgesehen hat.');
+            .'hat — die erste Zeile rückt dann näher an die Trennlinie darüber als in jeder Zeile '
+            .'ohne Stapel (6 statt 9,5 px bei 40 px Zeilenhöhe). Gerechnet aus --row-height und der '
+            .'Zeilenhöhe, damit es in jeder Dichtestufe stimmt und nicht nur in der, in der jemand '
+            .'nachgesehen hat.');
 
         $this->assertTrue($abstand,
             'Zwei Knopfreihen übereinander bekommen keinen Abstand — sie kleben aneinander. '

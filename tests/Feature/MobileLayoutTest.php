@@ -979,6 +979,105 @@ final class MobileLayoutTest extends TestCase
     }
 
     /**
+     * Eine Karte behält ihr Polster neben einer mehrzeiligen Zelle.
+     *
+     * **Die Regel der breiten Tabelle hat unter 720 px die Karte geschlagen.**
+     * `tr:has(td.multiline) > td` richtet eine Zeile mit einer gestapelten
+     * Zelle oben aus und gibt jeder Zelle darin oben und unten
+     * (Zeilenhöhe − eine Textzeile) ÷ 2. In der Tabelle ist das richtig. Die
+     * Regel galt aber auf jeder Breite, und mit dem Gewicht von `:has()`
+     * (0,1,3) schlug sie `.stacks td` (0,1,1): Jede Zelle einer Karte, in
+     * deren Zeile eine mehrzeilige steht, bekam 11,5 px statt 5 px und wurde
+     * 44 statt 31 px hoch — auch die, die mit dem zweiten Wert nichts zu tun
+     * haben.
+     *
+     * **Gefragt wird die Wirkung und nicht der Handgriff.** Eine Zelle neben
+     * einer mehrzeiligen bekommt dasselbe Polster wie dieselbe Zelle in einer
+     * Karte ohne — für die beschriftete Zelle und für die Knopfzelle am
+     * Zeilenende, die oben 10 px trägt. Die zweite ist keine Zugabe: Eine
+     * Gegenregel, die unter 720 px die 5 px für jede Zelle einer solchen Zeile
+     * noch einmal hinschreibt, hält die beschriftete Zelle und nimmt der
+     * Knopfzelle oben 5 px weg. So war die Behebung zuerst entworfen.
+     *
+     * **Und die Karte muss durch Gewicht gewinnen, nicht durch ihre Stelle.**
+     * `narrowRules()` stellt die Regeln ausserhalb jeder Mediaabfrage vor die
+     * Blöcke; in `app.css` steht die Regel der breiten Tabelle aber hinter dem
+     * Block der Karte, und bei gleichem Gewicht gewinnt im Browser die
+     * spätere. Ein Sieg, den nur die Reihenfolge dieses Tests trägt, ist
+     * keiner.
+     */
+    public function test_a_card_keeps_its_padding_beside_a_multiline_cell(): void
+    {
+        $cells = [
+            'eine beschriftete Zelle' => ['td'],
+            'die Knopfzelle am Zeilenende' => ['td', 'td:not([data-column])'],
+        ];
+
+        $multiline = 0;
+
+        foreach ($cells as $which => $leaf) {
+            $alone = $this->blockPadding(fn (string $selector): bool => $this->selectsCardCell($selector, $leaf, false));
+            $beside = $this->blockPadding(fn (string $selector): bool => $this->selectsCardCell($selector, $leaf, true));
+
+            foreach (['top' => 'oben', 'bottom' => 'unten'] as $side => $where) {
+                [, $expected] = $alone[$side];
+                [$selector, $value, $weight] = $beside[$side];
+
+                $this->assertNotNull(
+                    $expected,
+                    sprintf('Für %s setzt keine Regel ein Polster %s — dann vergleicht dieser Test nichts.', $which, $where),
+                );
+
+                $this->assertSame(
+                    $expected,
+                    $value,
+                    sprintf(
+                        'Unter 720 px bekommt %s %s „%s" statt „%s", sobald in ihrer Zeile eine mehrzeilige '.
+                        'Zelle steht — gesetzt von „%s". Die Karte wird höher, als ihr Inhalt verlangt, und '.
+                        'Karten derselben Liste stehen verschieden dicht.',
+                        $which,
+                        $where,
+                        (string) $value,
+                        $expected,
+                        (string) $selector,
+                    ),
+                );
+
+                foreach ($beside['candidates'] as [$candidateSide, $candidate, $candidateValue, $candidateWeight]) {
+                    if ($candidateSide !== $side || ! str_contains($candidate, ':has(td.multiline)')) {
+                        continue;
+                    }
+
+                    $multiline++;
+
+                    if ($candidateValue === $value) {
+                        continue;
+                    }
+
+                    $this->assertTrue(
+                        $weight > $candidateWeight,
+                        sprintf(
+                            '„%s" gewinnt gegen „%s" nur durch die Reihenfolge dieses Tests. In app.css steht '.
+                            'die Regel der breiten Tabelle hinter dem Block der Karte, und bei gleichem Gewicht '.
+                            'gewinnt im Browser die spätere.',
+                            (string) $selector,
+                            $candidate,
+                        ),
+                    );
+                }
+            }
+        }
+
+        $this->assertGreaterThanOrEqual(
+            1,
+            $multiline,
+            'Keine Regel an einer Zeile mit mehrzeiliger Zelle erreicht eine Karte. Steht die Regel der '.
+            'breiten Tabelle in einer Form, die dieser Test nicht liest, vergleicht er zwei gleiche Mengen '.
+            'und ist grün, während die Karte wächst.',
+        );
+    }
+
+    /**
      * Die stärkste Regel für eine Eigenschaft auf schmaler Fläche.
      *
      * Gewicht vor Reihenfolge — dieselbe Rechnung, die der Browser anstellt.
@@ -1047,6 +1146,154 @@ final class MobileLayoutTest extends TestCase
         }
 
         return $count;
+    }
+
+    /**
+     * Das senkrechte Polster, das auf schmaler Fläche an einer Zelle ankommt.
+     *
+     * **`winner()` kann das nicht, aus zwei Gründen.** Es sucht genau einen
+     * Eigenschaftsnamen, und Polster kommt auf drei Wegen — `padding`,
+     * `padding-block` und die Einzelseiten. Und es nimmt die erste Angabe
+     * eines Blocks; `tr:has(td.multiline) > td` schreibt zuerst einen
+     * Rückfall und danach die Angabe, die ihn ersetzt, und im Browser gilt die
+     * letzte.
+     *
+     * Neben dem Sieger je Seite kommen alle Kandidaten zurück, jeder mit
+     * seinem Gewicht ohne die Reihenfolge: Ob einer durch Gewicht verliert
+     * oder nur durch seine Stelle, ist eine Frage, die der Aufrufer stellt.
+     *
+     * @param  callable(string): bool  $reaches
+     * @return array{top: array{?string, ?string, list<int>}, bottom: array{?string, ?string, list<int>}, candidates: list<array{string, string, string, list<int>}>}
+     */
+    private function blockPadding(callable $reaches): array
+    {
+        $result = ['top' => [null, null, []], 'bottom' => [null, null, []], 'candidates' => []];
+        $best = ['top' => [-1, -1, -1, -1], 'bottom' => [-1, -1, -1, -1]];
+        $order = 0;
+
+        foreach ($this->narrowRules() as [$rule, $declarations]) {
+            $order++;
+            $sides = $this->paddingSides($declarations);
+
+            if ($sides === []) {
+                continue;
+            }
+
+            foreach (explode(',', $rule) as $single) {
+                $single = trim($single);
+
+                if (! $reaches($single)) {
+                    continue;
+                }
+
+                $specificity = $this->specificity($single);
+
+                foreach ($sides as $side => $value) {
+                    $result['candidates'][] = [$side, $single, $value, $specificity];
+                    $weight = [...$specificity, $order];
+
+                    if ($weight > $best[$side]) {
+                        $best[$side] = $weight;
+                        $result[$side] = [$single, $value, $specificity];
+                    }
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Was ein Block oben und unten polstert — je Seite die letzte Angabe.
+     *
+     * @return array{top?: string, bottom?: string}
+     */
+    private function paddingSides(string $declarations): array
+    {
+        $sides = [];
+
+        foreach (explode(';', $declarations) as $declaration) {
+            if (! str_contains($declaration, ':')) {
+                continue;
+            }
+
+            [$property, $value] = array_map(trim(...), explode(':', $declaration, 2));
+
+            if (! str_starts_with($property, 'padding')) {
+                continue;
+            }
+
+            $this->assertStringNotContainsString(
+                '!important',
+                $value,
+                sprintf('„%s: %s" — dieser Test versteht `!important` nicht und rechnete an ihm vorbei.', $property, $value),
+            );
+
+            $values = $this->cssValues($value);
+
+            if ($values === []) {
+                continue;
+            }
+
+            switch ($property) {
+                case 'padding':
+                    $sides['top'] = $values[0];
+                    $sides['bottom'] = $values[2] ?? $values[0];
+                    break;
+                case 'padding-block':
+                    $sides['top'] = $values[0];
+                    $sides['bottom'] = $values[1] ?? $values[0];
+                    break;
+                case 'padding-top':
+                case 'padding-block-start':
+                    $sides['top'] = $value;
+                    break;
+                case 'padding-bottom':
+                case 'padding-block-end':
+                    $sides['bottom'] = $value;
+                    break;
+            }
+        }
+
+        return $sides;
+    }
+
+    /**
+     * Die Werte einer Kurzschreibweise, getrennt an Leerzeichen ausserhalb von
+     * Klammern — sonst wird aus `calc((a - b) / 2)` vier Werte statt einem.
+     *
+     * @return list<string>
+     */
+    private function cssValues(string $value): array
+    {
+        $values = [];
+        $current = '';
+        $depth = 0;
+
+        foreach (str_split(trim($value)) as $char) {
+            if ($char === '(') {
+                $depth++;
+            } elseif ($char === ')') {
+                $depth--;
+            }
+
+            if ($depth === 0 && ctype_space($char)) {
+                if ($current !== '') {
+                    $values[] = $current;
+                    $current = '';
+                }
+
+                continue;
+            }
+
+            $current .= $char;
+        }
+
+        if ($current !== '') {
+            $values[] = $current;
+        }
+
+        return $values;
     }
 
     /**
@@ -1137,6 +1384,27 @@ final class MobileLayoutTest extends TestCase
             ['td', '.stacks td'],
             ['table', '.stacks', 'div', '.scrolls', 'tbody', 'tr'],
             ['.ident', '.multiline', '.pairs', 'thead'],
+        );
+    }
+
+    /**
+     * Trifft er eine Zelle einer Karte — in einer Zeile mit mehrzeiliger Zelle
+     * oder in einer ohne?
+     *
+     * Dieselbe Zelle, zwei Zeilen: Was an einer Zeile mit `td.multiline`
+     * hängt, gehört zur einen und ist für die andere fremd.
+     *
+     * @param  list<string>  $leaf
+     */
+    private function selectsCardCell(string $selector, array $leaf, bool $besideMultiline): bool
+    {
+        $row = ['tr:has(td.multiline)', 'tr:where(:has(td.multiline))', ':where(tr:has(td.multiline))'];
+
+        return $this->reaches(
+            $selector,
+            $leaf,
+            ['table', 'table.stacks', '.stacks', 'div', '.scrolls', 'tbody', 'tr', ...($besideMultiline ? $row : [])],
+            ['.pairs', 'table.pairs', '.rows', 'table.rows', 'thead', ...($besideMultiline ? [] : $row)],
         );
     }
 
@@ -1346,15 +1614,53 @@ final class MobileLayoutTest extends TestCase
     /**
      * Das Gewicht eines Selektors — Kennungen, Klassen, Elemente.
      *
+     * **`:where()` wiegt nichts, samt allem, was in ihm steht.** Genau dafür
+     * gibt es die Pseudoklasse, und `app.css` benutzt sie so: Die Regel der
+     * breiten Tabelle soll jeder Form weichen, die ihr eigenes Polster hat.
+     * Hier zählte sie als eine Klasse, und die Regel der Tabelle wog im Test
+     * 0,1,2 — mehr als die Karte, gegen die sie im Browser mit 0,0,2 verliert.
+     * Herausgenommen wird sie nur mit ihrer schliessenden Klammer: Ein Stück
+     * wie `:where(a` aus einer an Kommas zerlegten Liste behält sein
+     * bisheriges Gewicht.
+     *
      * @return list<int>
      */
     private function specificity(string $selector): array
     {
+        $selector = $this->withoutWhere($selector);
+
         preg_match_all('/#[\w-]+/', $selector, $ids);
         preg_match_all('/\.[\w-]+|\[[^\]]+\]|:[\w-]+\([^)]*\)|:(?!:)[\w-]+/', $selector, $classes);
         preg_match_all('/(?:^|[\s>+~])([a-z][\w-]*)/i', $selector, $elements);
 
         return [count($ids[0]), count($classes[0]), count($elements[1])];
+    }
+
+    /** Der Selektor ohne jedes vollständige `:where(…)`. */
+    private function withoutWhere(string $selector): string
+    {
+        while (($start = strpos($selector, ':where(')) !== false) {
+            $depth = 0;
+            $end = null;
+
+            for ($i = $start + strlen(':where'); $i < strlen($selector); $i++) {
+                if ($selector[$i] === '(') {
+                    $depth++;
+                } elseif ($selector[$i] === ')' && --$depth === 0) {
+                    $end = $i;
+
+                    break;
+                }
+            }
+
+            if ($end === null) {
+                return $selector;
+            }
+
+            $selector = substr($selector, 0, $start).substr($selector, $end + 1);
+        }
+
+        return $selector;
     }
 
     /**

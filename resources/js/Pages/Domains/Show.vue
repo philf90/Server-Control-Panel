@@ -367,28 +367,29 @@ const dnsAdressenWeichenAb = computed(() => {
       nicht mit. Die Beizeile der Kachel ist dafür zu kurz; der Satz steht
       deshalb unter der Reihe.
 
-      Die Reihe steht nur da, wenn es mehr als einen Tag zu zeigen gibt: Eine
-      Kurve aus einem Punkt ist keine.
+      **Die Reihe steht immer da, auch am ersten Tag**, wie auf der
+      Abonnementseite und aus demselben Grund (`docs/139 §6` Frage 2). Hier
+      stand bis zum 28. September 2026, sie stehe nur mit mehr als einem Tag
+      da. Die Bedingung darunter fragte aber `props.history.length > 0`, und
+      `History` gibt immer drei Kacheln zurück.
     -->
-    <template v-if="props.history.length > 0">
-      <div class="tiles">
-        <Tile
-          v-for="tile in props.history"
-          :key="tile.key"
-          :label="tile.label"
-          :value="tile.value"
-          :unit="tile.unit"
-          :subline="tile.subline"
-          :series="tile.series"
-          :second="tile.second"
-        />
-      </div>
+    <div class="tiles">
+      <Tile
+        v-for="tile in props.history"
+        :key="tile.key"
+        :label="tile.label"
+        :value="tile.value"
+        :unit="tile.unit"
+        :subline="tile.subline"
+        :series="tile.series"
+        :second="tile.second"
+      />
+    </div>
 
-      <p class="quiet">
-        Gezählt wird, was der Webserver protokolliert. Die Zahl des Providers
-        liegt höher — er zählt TCP, TLS und Wiederholungen mit.
-      </p>
-    </template>
+    <p class="quiet">
+      Gezählt wird, was der Webserver protokolliert. Die Zahl des Providers
+      liegt höher — er zählt TCP, TLS und Wiederholungen mit.
+    </p>
 
     <div class="sections">
       <Section title="Stammdaten">

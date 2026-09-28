@@ -289,7 +289,25 @@ class Subscription extends Model
     {
         $databases = $this->databases()->whereNotNull('size_bytes');
 
-        return $databases->exists() ? intdiv((int) $databases->sum('size_bytes'), 1024 * 1024) : null;
+        return $databases->exists() ? self::wholeMegabytes((int) $databases->sum('size_bytes')) : null;
+    }
+
+    /**
+     * Byte als ganze Megabyte, abgerundet — die eine Rechnung für die Zahl im
+     * Bereich „Datenbanken" und für die Kachel darüber.
+     *
+     * **Bis zum 28. September 2026 rechneten die beiden verschieden.** Die
+     * Kachel teilte, der Bereich rundet ab, und dieselbe Messung stand zur
+     * selben Minute oben als 3,5 MB und unten als 3 MB (`docs/139 §0`
+     * Punkt 1). Eine Stelle für beide Leser ist die Antwort; eine zweite
+     * Fassung derselben Rundung wäre die, die veraltet.
+     *
+     * > **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine doppelte
+     * > Auskunft, sondern eine widersprüchliche.**
+     */
+    public static function wholeMegabytes(int $bytes): int
+    {
+        return intdiv($bytes, 1024 * 1024);
     }
 
     /**

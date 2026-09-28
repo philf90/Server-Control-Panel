@@ -169,6 +169,31 @@ final class Points
     }
 
     /**
+     * Eine ganze Zahl — mit Tausenderpunkt und ohne Komma.
+     *
+     * **Für eine Anzahl und für einen Stand in ganzen Megabyte.** Die Kacheln
+     * der Abonnement- und der Domainseite schrieben solche Werte bis zum
+     * 28. September 2026 mit {@see self::plainFormatter()}, und dessen Regel
+     * ist für Raten gebaut: Aus fünf Anfragen wurde „5,0", aus einem ruhigen
+     * Tag „0,00", aus drei Megabyte „3,0 MB" (`docs/139 §0` Punkt 1). Eine
+     * Anfrage wird nicht geteilt, und der Platz ist in ganzen MB gemessen —
+     * die Stellen gab es nicht.
+     *
+     * > **Ein Format, das für eine Rate reicht, reicht nicht für eine
+     * > Anzahl.**
+     *
+     * `number_format()` rundet kaufmännisch. Für die Datenbanken ist das die
+     * falsche Rundung, und ihre Werte kommen deshalb schon ganz hier an
+     * (`History::level()`).
+     *
+     * @return callable(float): string
+     */
+    public static function wholeFormatter(string $unit): callable
+    {
+        return static fn (float $value): string => number_format($value, 0, ',', '.').$unit;
+    }
+
+    /**
      * Byte in der Grössenordnung der Reihe.
      *
      * **Warum nicht einfach die rohe Zahl.** Sie stand hier bis August 2026,

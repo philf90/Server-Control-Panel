@@ -374,12 +374,18 @@ function remove(): void {
       Zahlen, die es gibt. Der Unterschied steht im Kopf von
       `App\Support\Metrics\History` und nicht nur in dieser Zeile.
 
-      **Die Reihe steht nur da, wenn es etwas zu zeigen gibt.** Ein
-      Abonnement, das seit gestern besteht, hat höchstens einen Tag — und eine
-      Kurve aus einem Punkt ist keine. Eine Kachelreihe aus fünf Strichen „noch
-      nichts gemessen" wäre eine Überschrift ohne Inhalt.
+      **Die Reihe steht immer da, auch am ersten Tag.** Eine Kachel ohne Kurve
+      sagt „noch keine Messwerte" und steht genau so hoch wie eine mit Kurve
+      (gemessen, `docs/139 §2a`). Ein Kunde erfährt so am ersten Tag, was
+      kommt, und die Seite springt am zweiten nicht um eine Reihe nach unten.
+      Entschieden am 28. September 2026 (`docs/139 §6` Frage 2).
+
+      Hier stand bis dahin das Gegenteil, über einem `v-if` auf
+      `props.history.length > 0`. `History` gibt aber immer fünf Kacheln
+      zurück; die Bedingung war nie falsch, und der Kommentar beschrieb eine
+      Seite, die es nicht gab.
     -->
-    <div v-if="props.history.length > 0" class="tiles">
+    <div class="tiles">
       <Tile
         v-for="tile in props.history"
         :key="tile.key"

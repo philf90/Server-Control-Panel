@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Support\Cron\ServerZone;
 use App\Support\Databases\Usage as DatabaseUsage;
+use App\Support\Metrics\Daily;
 use App\Support\Settings\Settings;
 use App\Support\Subscriptions\Usage;
 use Illuminate\Console\Command;
@@ -30,6 +32,14 @@ use SrvPanel\Agent\AgentException;
  * Quota-Datei; das sind zwei Quellen, aber derselbe Anlass. Zwei Zeitgeber im
  * Viertelstundentakt wären zwei Dinge, die jemand überwachen muss, für eine
  * Messung, die dieselbe Frage beantwortet (`docs/36 §9`).
+ *
+ * **Und seit dem 28. September 2026 schreibt es auch den Verlauf.** Zwei der
+ * fünf Kacheln auf der Abonnementseite — Speicherplatz und Datenbanken — lasen
+ * Kennzahlen aus der verdichteten Tabelle, die kein Lauf ablegte: Gemessen
+ * wurde hier, gespeichert nur der gegenwärtige Wert (`docs/138 §0` Punkt 1).
+ * Entschieden hat der Betreiber, dass dieser Lauf sie schreibt und kein neuer
+ * — gemessen wird ohnehin hier, und ein zweiter Zeitgeber wäre ein drittes Ding
+ * zum Überwachen für dieselbe Messung.
  */
 final class MeasureUsage extends Command
 {
@@ -44,7 +54,7 @@ final class MeasureUsage extends Command
      */
     private Settings $settings;
 
-    public function handle(Usage $usage, DatabaseUsage $databases, Settings $settings): int
+    public function handle(Usage $usage, DatabaseUsage $databases, Settings $settings, Daily $daily): int
     {
         $this->settings = $settings;
 
@@ -57,7 +67,55 @@ final class MeasureUsage extends Command
         $quota = $this->measureDisk($usage);
         $schemas = $this->measureDatabases($databases);
 
+        /*
+         * **Der Verlauf kommt nach beiden Messungen, und auch dann, wenn eine
+         * ausfiel.** {@see Daily::levels()} legt nur ab, was an diesem Tag
+         * gemessen wurde; eine ausgefallene Messung hinterlässt dort die
+         * letzte gelungene des Tages oder gar nichts, aber nie die von
+         * gestern. Davor gerufen, schriebe er die Werte der vorigen
+         * Viertelstunde.
+         */
+        $this->recordLevels($daily);
+
         return $quota && $schemas ? self::SUCCESS : self::FAILURE;
+    }
+
+    /**
+     * Platz und Datenbanken des laufenden Tages in die verdichtete Tabelle.
+     *
+     * **Welcher Tag läuft, fragt {@see ServerZone} und nicht dieses Panel** —
+     * derselbe Griff wie im Nachtlauf, aus demselben Grund: `config/app.php`
+     * steht auf UTC, und die Tage der Tabelle sind Kalendertage des Servers.
+     * Eine Messung um 01:30 Ortszeit auf einem Server in `+0200` gehörte nach
+     * `now()` noch zum Vortag und überschriebe dessen letzte Messung.
+     *
+     * **Ohne lesbare Zone wird nichts abgelegt, und das ist kein
+     * Fehlschlag.** Ein Rückfall auf UTC wäre genau der Notnagel, gegen den
+     * {@see ServerZone::current()} ein `null` zurückgibt. Rot wird der Lauf
+     * trotzdem nicht: Die Messung selbst ist gelungen, und der Nachtlauf, der
+     * aus demselben Grund nichts ablegen kann, scheitert daran laut — zwei rote
+     * Units für eine Ursache wären eine zu viel.
+     */
+    private function recordLevels(Daily $daily): void
+    {
+        $zone = ServerZone::current();
+
+        if ($zone === null) {
+            $this->warn('Die Zeitzone des Servers ist nicht lesbar — Platz und Datenbanken bekommen heute keine Zeile im Verlauf.');
+
+            return;
+        }
+
+        $heute = now()->setTimezone($zone)->toDateString();
+        $geschrieben = $daily->levels($heute, $zone);
+
+        $this->line(sprintf(
+            'Verlauf für %s (%s): %d Abonnement(s) mit Platz, %d mit Datenbanken.',
+            $heute,
+            $zone->getName(),
+            $geschrieben['disk'],
+            $geschrieben['databases'],
+        ));
     }
 
     /** Der belegte Speicher über die Dateisystem-Quota. */

@@ -18,7 +18,8 @@ use Illuminate\Support\Carbon;
 /**
  * Die Verläufe für die Abonnement- und die Domainseite (B4, `docs/129 §6`).
  *
- * Was {@see Daily} Nacht für Nacht ablegt, wird hier zu Kacheln — derselben
+ * Was {@see Daily} ablegt — den Verkehr Nacht für Nacht, Platz und
+ * Datenbanken alle fünfzehn Minuten —, wird hier zu Kacheln — derselben
  * Kachel wie auf der Übersichtsseite, mit derselben Geometrie aus
  * {@see Points} und einer anderen Zeitachse: dort 24 Stunden aus dem
  * Ringpuffer, hier dreissig Tage aus der Tabelle.
@@ -75,13 +76,16 @@ final class History
      *
      * **Ohne Uhr, und das ist Absicht.** Das Fenster liegt an den Tagen, die
      * **dastehen**, und nicht an „heute": Welcher Tag gerade läuft, ist eine
-     * Frage an die Zone des Servers, die hier niemand stellen muss — die
-     * Tabelle enthält ohnehin nur abgeschlossene Tage, weil
-     * {@see AccessCounts::split()} den laufenden als offen
-     * aussortiert. Eine zweite Stelle, die nach der Serverzone fragt, wäre die
-     * zweite Fassung von {@see ServerZone} — und genau die
-     * hat dieses Panel ein Jahr lang eine falsche Uhrzeit anzeigen lassen
-     * (`docs/108`).
+     * Frage an die Zone des Servers, die hier niemand stellen muss. Welche
+     * Tage eine Kennzahl hat, entscheiden ihre Schreiber — der Verkehr endet
+     * am Vortag, weil {@see AccessCounts::split()} den laufenden als offen
+     * aussortiert, Platz und Datenbanken tragen den laufenden seit dem
+     * 28. September 2026 mit ({@see Daily::levels()}). Hier stand bis dahin,
+     * die Tabelle enthalte ohnehin nur abgeschlossene Tage; das Fenster zählt
+     * deshalb seitdem je Kennzahl ({@see self::read()}). Eine zweite Stelle,
+     * die nach der Serverzone fragt, wäre die zweite Fassung von
+     * {@see ServerZone} — und genau die hat dieses Panel ein Jahr lang eine
+     * falsche Uhrzeit anzeigen lassen (`docs/108`).
      *
      * @return list<array<string,mixed>>
      */
@@ -137,13 +141,25 @@ final class History
      * > **Eine Grenze, die nur ein anderer Lauf herstellt, ist keine Zusage
      * > dieser Seite.**
      *
+     * **Die dreissig Tage zählen je Kennzahl und nicht über alle.** Bis zum
+     * 28. September 2026 wurde das Fenster über die Tage **aller** Kennzahlen
+     * gelegt — richtig, solange sie alle am Vortag endeten. Seitdem legt
+     * {@see Daily::levels()} Platz und Datenbanken für den **laufenden** Tag
+     * ab, und ein gemeinsames Fenster endete damit heute: Die Kacheln des
+     * Verkehrs, die heute noch keine Zahl haben, verlören ihren ältesten Tag
+     * und zeigten neunundzwanzig. Je Kennzahl gezählt, zeigt jede Kachel die
+     * letzten dreissig Tage, die sie hat — der Verkehr bis gestern, der Platz
+     * bis heute. Die Achse entsteht ohnehin je Kachel ({@see self::axis()}).
+     *
+     * > **Ein Fenster über mehrere Reihen richtet sich nach der, die am
+     * > weitesten reicht — und schneidet den anderen ab, was vorn fehlt.**
+     *
      * @param  Builder<SubscriptionMetric>|Builder<DomainMetric>  $query
      * @return array<string, array<string, float>>
      */
     private function read(Builder $query): array
     {
         $alle = [];
-        $tage = [];
 
         foreach ($query->orderBy('day')->get() as $row) {
             /*
@@ -155,17 +171,13 @@ final class History
             $tag = $row->day->toDateString();
 
             $alle[$row->metric->value][$tag] = (float) $row->value;
-            $tage[$tag] = true;
         }
-
-        $tage = array_keys($tage);
-        sort($tage);
-        $behalten = array_flip(array_slice($tage, -self::DAYS));
 
         $out = [];
 
         foreach ($alle as $metric => $werte) {
-            $out[$metric] = array_intersect_key($werte, $behalten);
+            ksort($werte);
+            $out[$metric] = array_slice($werte, -self::DAYS, null, true);
         }
 
         return $out;

@@ -129,9 +129,11 @@ final class CollectTraffic extends Command
          * > als „unbekannt" — und die Zeile sieht aus wie eine Auskunft.**
          */
         $this->line(sprintf(
-            '  %d Tageswert(e) vom Vortag zählbar, %d übersprungen (gemischtes Format), %d noch offen (laufender Tag), %d älter und nicht erneut abgelegt.',
+            '  %d Tageswert(e) vom Vortag zählbar, %d ruhig (eine Null), %d übersprungen (gemischtes Format), %d nicht ganz gelesen, %d noch offen (laufender Tag), %d älter und nicht erneut abgelegt.',
             count($split['countable']),
+            count($split['quiet']),
             count($split['skipped']),
+            count($split['unread']),
             count($split['open']),
             count($split['earlier']),
         ));
@@ -150,6 +152,25 @@ final class CollectTraffic extends Command
                 $eintrag['domain'],
                 $eintrag['day'],
                 $eintrag['legacy'],
+            ));
+        }
+
+        /*
+         * **Und was nicht ganz gelesen ist, genauso.** Sein Vortag bekommt
+         * keine Null, und ohne diese Zeile sähe die Lücke in der Kurve aus wie
+         * eine ausgefallene Nacht. Eine unlesbare Zeile in einer ruhigen
+         * Domain steht dabei jede Nacht wieder da: Eine leere Datei dreht
+         * logrotate nicht, und die alten bleiben im Lesebereich
+         * (`docs/134 §7`, Befund 8). Die Meldung wiederholt sich, bis jemand
+         * die Datei ansieht — und genau dafür steht sie da.
+         */
+        foreach ($split['unread'] as $eintrag) {
+            $this->warn(sprintf(
+                '  nicht ganz gelesen: %s / %s — %s; der %s bekommt keine Null.',
+                $eintrag['subscription'],
+                $eintrag['domain'],
+                $eintrag['files'] === 0 ? 'keine Protokolldatei' : sprintf('%d unlesbare Zeile(n)', $eintrag['unreadable']),
+                $eintrag['day'],
             ));
         }
 
@@ -176,7 +197,17 @@ final class CollectTraffic extends Command
          * genau auf ihn fällt — ein Fehler, der nur einmal im Monat sichtbar
          * wäre und dann wie ein verlorener Tag aussähe.
          */
-        $geschrieben = $daily->record($split['countable']);
+        /*
+         * **Die ruhigen Domains gehen mit, und die Lücken auch.** Eine ruhige
+         * bekommt ihre Null; eine übersprungene oder nicht ganz gelesene legt
+         * nichts ab und sorgt nur dafür, dass ihr Abonnement an diesem Tag
+         * keine Null bekommt, die „nichts gewesen" sagt ({@see Daily::record()}).
+         */
+        $geschrieben = $daily->record(
+            $split['countable'],
+            $split['quiet'],
+            array_merge($split['skipped'], $split['unread']),
+        );
 
         $this->line(sprintf(
             '  Abgelegt: %d Zeile(n) je Domain, %d je Abonnement.',

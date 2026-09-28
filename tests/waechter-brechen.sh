@@ -5074,9 +5074,9 @@ vorher_datei app/Support/Metrics/Daily.php
 python3 - <<'PY2'
 p = 'app/Support/Metrics/Daily.php'
 s = open(p, encoding='utf-8').read()
-alt = 'return $this->tenancy->withoutRestriction(function () use ($countable): array {'
+alt = 'return $this->tenancy->withoutRestriction(function () use ($countable, $quiet, $gaps): array {'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, 'return (function () use ($countable): array {', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'return (function () use ($countable, $quiet, $gaps): array {', 1))
 PY2
 griff_datei app/Support/Metrics/Daily.php "Klammer bleibt zu" &&
 pruefe "Klammer bleibt zu" \
@@ -5113,9 +5113,9 @@ vorher_datei app/Support/Metrics/Daily.php
 python3 - <<'PY2'
 p = 'app/Support/Metrics/Daily.php'
 s = open(p, encoding='utf-8').read()
-alt = "                $domain = $domains->first(\n                    fn (Domain $d): bool => $d->name === $eintrag['domain']\n                        && $d->subscription_id === $subscriptionId,\n                );"
+alt = "        return $domains->first(\n            fn (Domain $d): bool => $d->name === $eintrag['domain']\n                && $d->subscription_id === $subscriptionId,\n        );"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, "                $domain = $domains->first(\n                    fn (Domain $d): bool => $d->name === $eintrag['domain'],\n                );", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return $domains->first(\n            fn (Domain $d): bool => $d->name === $eintrag['domain'],\n        );", 1))
 PY2
 griff_datei app/Support/Metrics/Daily.php "Domain nur am Namen" &&
 pruefe "Domain nur am Namen" \
@@ -5171,9 +5171,9 @@ vorher_datei app/Console/Commands/CollectTraffic.php
 python3 - <<'PY2'
 p = 'app/Console/Commands/CollectTraffic.php'
 s = open(p, encoding='utf-8').read()
-alt = "$geschrieben = $daily->record($split['countable']);"
+alt = "$geschrieben = $daily->record("
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, "$abgeraeumtZuerst = $daily->forget($today);\n        $geschrieben = $daily->record($split['countable']);", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$abgeraeumtZuerst = $daily->forget($today);\n        $geschrieben = $daily->record(", 1))
 PY2
 griff_datei app/Console/Commands/CollectTraffic.php "abgeraeumt vor dem Ablegen" &&
 pruefe "abgeraeumt vor dem Ablegen" \
@@ -32697,9 +32697,9 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Metrics/History.php')
 s = p.read_text()
-alt = 'array_slice($tage, -self::DAYS)'
+alt = 'array_slice($werte, -self::DAYS, null, true)'
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, 'array_slice($tage, 0, self::DAYS)', 1))
+p.write_text(s.replace(alt, 'array_slice($werte, 0, self::DAYS, true)', 1))
 PY
 griff_datei app/Support/Metrics/History.php "abgeschnitten wird vorn" &&
 pruefe "abgeschnitten wird vorn" \
@@ -36995,6 +36995,519 @@ pruefe "Zeilenregel ungelesen" \
   MobileLayoutTest::test_a_card_keeps_its_padding_beside_a_multiline_cell failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest passed
+
+echo
+echo "── QuietDayTest: eine unlesbare Zeile gibt trotzdem eine Null ──"
+#
+# Eine unlesbare Zeile traegt keinen Tag, und es kann der Vortag gewesen sein.
+# Wer sie uebergeht, macht aus "nicht gelesen" ein "nichts gewesen" — eine Null,
+# die aussieht wie eine Messung (docs/138 §6 Frage 2).
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+alt = "if ($dateien > 0 && $unrat === 0) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "if ($dateien > 0) {", 1))
+PY2
+griff_datei app/Support/Web/AccessCounts.php "unlesbare Zeile gibt eine Null" &&
+pruefe "unlesbare Zeile gibt eine Null" \
+  QuietDayTest::test_an_unreadable_line_leaves_yesterday_without_a_number failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuietDayTest passed
+
+echo
+echo "── QuietDayTest: eine Domain ohne Datei bekommt eine Null ──"
+#
+# Ohne eine einzige Datei gibt es kein Protokoll, das "nichts" sagen koennte.
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+alt = "if ($dateien > 0 && $unrat === 0) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "if ($unrat === 0) {", 1))
+PY2
+griff_datei app/Support/Web/AccessCounts.php "Domain ohne Datei gibt eine Null" &&
+pruefe "Domain ohne Datei gibt eine Null" \
+  QuietDayTest::test_a_domain_without_a_file_has_no_log_to_say_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuietDayTest passed
+
+echo
+echo "── QuietDayTest: der Vortag wird erst nach seinem Inhalt gefragt ──"
+#
+# Ein Vortag, dessen Werte sich nicht lesen lassen, hatte trotzdem Zeilen. Wer
+# erst den Inhalt prueft und dann fragt, ob der Tag vorkommt, haelt ihn fuer
+# ruhig.
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+flagge = "                if ($tag === $gestern) {\n                    $vortag = true;\n                }\n\n"
+inhalt = "                if (! is_array($werte)) {\n                    continue;\n                }\n"
+assert s.count(flagge) == 1 and s.count(inhalt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(flagge, '', 1)
+s = s.replace(inhalt, inhalt + "\n                $vortag = $vortag || $tag === $gestern;\n", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Web/AccessCounts.php "Vortag erst nach dem Inhalt" &&
+pruefe "Vortag erst nach dem Inhalt" \
+  QuietDayTest::test_a_yesterday_whose_values_cannot_be_read_is_not_quiet failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuietDayTest passed
+
+echo
+echo "── QuietDayTest: die Null landet am falschen Tag ──"
+#
+# Ruhig ist der Vortag, und nur er. Eine Null fuer den laufenden Tag ueberschriebe
+# morgen nichts — sie staende als Zahl eines Tages da, der noch gar nicht vorbei ist.
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+alt = "$ruhig[] = ['subscription' => $abonnement, 'domain' => $domain, 'day' => $gestern];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$ruhig[] = ['subscription' => $abonnement, 'domain' => $domain, 'day' => $today];", 1))
+PY2
+griff_datei app/Support/Web/AccessCounts.php "Null am falschen Tag" &&
+pruefe "Null am falschen Tag" \
+  QuietDayTest::test_a_domain_read_whole_without_a_line_yesterday_is_quiet failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuietDayTest passed
+
+echo
+echo "── QuietDayTest: ein gezaehlter Vortag bekommt zusaetzlich eine Null ──"
+#
+# Hatte der Vortag Zeilen, ist er gezaehlt. Eine Null daneben ueberschriebe seine
+# Zahl im selben Lauf — je nach Reihenfolge der beiden Toepfe.
+vorher_datei app/Support/Web/AccessCounts.php
+python3 - <<'PY2'
+p = 'app/Support/Web/AccessCounts.php'
+s = open(p, encoding='utf-8').read()
+alt = "            if ($vortag) {\n                continue;\n            }\n\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Web/AccessCounts.php "gezaehlter Vortag zusaetzlich ruhig" &&
+pruefe "gezaehlter Vortag zusaetzlich ruhig" \
+  QuietDayTest::test_a_counted_yesterday_is_not_quiet failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuietDayTest passed
+
+echo
+echo "── QuietDayTest: der Agent nennt die Zahl seiner Dateien anders ──"
+#
+# Die Naht zum Agenten. Liest das Panel ein Feld, das der Agent nicht mehr
+# schreibt, wird aus jeder Null eine Luecke — still, und nur ein Fall ueber
+# echte Dateien sieht es.
+vorher_datei agent/src/Ops/WebAccessCount.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebAccessCount.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'files' => $dateien,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'dateien' => $dateien,\n", 1))
+PY2
+griff_datei agent/src/Ops/WebAccessCount.php "Agent nennt seine Dateien anders" &&
+pruefe "Agent nennt seine Dateien anders" \
+  QuietDayTest::test_the_agent_reports_what_makes_a_domain_quiet failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuietDayTest passed
+
+echo
+echo "── QuietDayTest: der Nachtlauf gibt die ruhigen Tage nicht weiter ──"
+#
+# Die Regel steht in AccessCounts und wird dort geprueft. Ob srvpanel:traffic
+# die ruhigen Tage auch an Daily::record() gibt, sagt dort niemand.
+vorher_datei app/Console/Commands/CollectTraffic.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/CollectTraffic.php'
+s = open(p, encoding='utf-8').read()
+alt = "            $split['countable'],\n            $split['quiet'],\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            $split['countable'],\n            [],\n", 1))
+PY2
+griff_datei app/Console/Commands/CollectTraffic.php "ruhige Tage nicht weitergegeben" &&
+pruefe "ruhige Tage nicht weitergegeben" \
+  QuietDayTest::test_the_nightly_run_hands_over_the_quiet_days_and_the_gaps failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuietDayTest passed
+
+echo
+echo "── QuietDayTest: der Nachtlauf verschweigt die nicht ganz gelesenen ──"
+#
+# Ohne sie bekaeme ein Abonnement seine Null auch neben einer Domain, die an dem
+# Tag gelesen und nicht gezaehlt wurde.
+vorher_datei app/Console/Commands/CollectTraffic.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/CollectTraffic.php'
+s = open(p, encoding='utf-8').read()
+alt = "            array_merge($split['skipped'], $split['unread']),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            $split['skipped'],\n", 1))
+PY2
+griff_datei app/Console/Commands/CollectTraffic.php "nicht ganz gelesene verschwiegen" &&
+pruefe "nicht ganz gelesene verschwiegen" \
+  QuietDayTest::test_the_nightly_run_hands_over_the_quiet_days_and_the_gaps failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuietDayTest passed
+
+echo
+echo "── DailyMetricsTest: die Null eines Abonnements neben einer Luecke ──"
+#
+# Seine Summe ueber ruhige Domains ist null; war daneben eine uebersprungen oder
+# nicht ganz gelesen, sagt diese Null "nichts gewesen" ueber einen Tag, an dem
+# etwas gewesen sein kann.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "                if (! isset($gezaehlt[$tag]) && isset($luecke[$tag])) {\n                    continue;\n                }\n\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "Abonnement-Null neben einer Luecke" &&
+pruefe "Abonnement-Null neben einer Luecke" \
+  DailyMetricsTest::test_a_quiet_domain_beside_a_gap_keeps_its_zero_and_the_subscription_gets_none failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: eine Luecke nimmt dem Abonnement seine Summe ──"
+#
+# Die naheliegende Verschaerfung, und sie waere teuer: Eine einzige kaputte
+# Datei in einer ruhigen Domain bleibt im Lesebereich, weil logrotate eine
+# leere Datei nicht dreht — und das Abonnement verloere jeden weiteren Tag.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "if (! isset($gezaehlt[$tag]) && isset($luecke[$tag])) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "if (isset($luecke[$tag])) {", 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "Luecke nimmt die Summe" &&
+pruefe "Luecke nimmt die Summe" \
+  DailyMetricsTest::test_a_counted_domain_beside_a_gap_keeps_the_subscription_sum failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: eine Luecke gehoert dem Abonnement nach seinem Namen ──"
+#
+# Eine Luecke in einem Verzeichnis, das das Panel nicht kennt, gehoert niemandem.
+# Nach dem Namen des Abonnements zugeordnet, nimmt ein Rest eines Rueckbaus dem
+# lebenden Abonnement jede Null.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = ("                $domain = self::resolve($eintrag, $subscriptions, $domains);\n\n"
+       "                if ($domain !== null) {\n"
+       "                    $luecke[$domain->subscription_id.'|'.$eintrag['day']] = true;\n"
+       "                }\n")
+neu = ("                $kennung = $subscriptions[$eintrag['subscription']] ?? null;\n\n"
+       "                if ($kennung !== null) {\n"
+       "                    $luecke[$kennung.'|'.$eintrag['day']] = true;\n"
+       "                }\n")
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "Luecke nach dem Namen" &&
+pruefe "Luecke nach dem Namen" \
+  DailyMetricsTest::test_a_gap_in_a_directory_the_panel_does_not_know_blocks_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: eine Null vor der Anlage der Domain ──"
+#
+# Eine Domain, die nach dem Tag angelegt wurde, hat ein Protokoll ohne ihn —
+# ruhig sieht das aus, gewesen ist es nicht.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "if ($ruhig && ! self::existedBefore($domain, $eintrag['day'])) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "if (false) {", 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "Null vor der Anlage" &&
+pruefe "Null vor der Anlage" \
+  DailyMetricsTest::test_a_domain_younger_than_the_day_gets_no_zero failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: der Anlagetag bekommt seine Null ──"
+#
+# Gefragt wird in UTC, und der Vorbehalt faellt in die sichere Richtung. Mit
+# kleiner-gleich bekaeme eine Domain, die in Berlin schon am Folgetag entstand,
+# eine Null fuer den Tag davor.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "$domain->created_at->toDateString() < $day;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$domain->created_at->toDateString() <= $day;", 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "Anlagetag bekommt eine Null" &&
+pruefe "Anlagetag bekommt eine Null" \
+  DailyMetricsTest::test_a_domain_younger_than_the_day_gets_no_zero failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: die ruhigen Tage fallen im Schreiber weg ──"
+#
+# Der Nachtlauf gibt sie weiter, und der Schreiber legt sie nicht ab — die Luecke
+# aus docs/138 §0 Punkt 2 waere wieder da, und der Nachtlauf meldete sie als
+# "ruhig".
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "foreach ($quiet as $eintrag) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "foreach ([] as $eintrag) {", 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "ruhige Tage fallen weg" &&
+pruefe "ruhige Tage fallen weg" \
+  DailyMetricsTest::test_a_quiet_domain_gets_four_zeros_and_its_subscription_too failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyMetricsTest: ein ruhiges Verzeichnis ohne Zeile wird uebergangen ──"
+#
+# Ein Rest eines Rueckbaus ohne Verkehr ist genauso ein Rest wie einer mit.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "                if ($domain === null) {\n                    $unknown[] = ["
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                if ($domain === null) {\n                    if ($ruhig) {\n                        continue;\n                    }\n\n                    $unknown[] = [", 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "ruhiges Unbekanntes uebergangen" &&
+pruefe "ruhiges Unbekanntes uebergangen" \
+  DailyMetricsTest::test_a_quiet_directory_without_a_row_is_named failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyMetricsTest passed
+
+echo
+echo "── DailyWriterTest: srvpanel:usage schreibt den Verlauf nicht ──"
+#
+# Genau der Befund aus docs/138 §0 Punkt 1: gemessen alle fuenfzehn Minuten,
+# abgelegt nur der gegenwaertige Wert, und zwei Kacheln jeder Abonnementseite
+# stehen leer.
+vorher_datei app/Console/Commands/MeasureUsage.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/MeasureUsage.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $this->recordLevels($daily);\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Console/Commands/MeasureUsage.php "Verlauf nicht geschrieben" &&
+pruefe "Verlauf nicht geschrieben" \
+  DailyWriterTest::test_the_measurement_run_writes_the_levels_after_measuring failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyWriterTest passed
+
+echo
+echo "── DailyWriterTest: der Verlauf kommt vor der Messung ──"
+#
+# Davor gerufen, schriebe er die Werte der vorigen Viertelstunde — und am Abend
+# stuende nicht die letzte Messung des Tages da, sondern die vorletzte.
+vorher_datei app/Console/Commands/MeasureUsage.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/MeasureUsage.php'
+s = open(p, encoding='utf-8').read()
+verlauf = "        $this->recordLevels($daily);\n"
+platz = "        $quota = $this->measureDisk($usage);\n"
+assert s.count(verlauf) == 1 and s.count(platz) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(verlauf, '', 1)
+s = s.replace(platz, verlauf + platz, 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/MeasureUsage.php "Verlauf vor der Messung" &&
+pruefe "Verlauf vor der Messung" \
+  DailyWriterTest::test_the_measurement_run_writes_the_levels_after_measuring failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyWriterTest passed
+
+echo
+echo "── DailyWriterTest: der Tag des Verlaufs wird in UTC gerechnet ──"
+#
+# config/app.php steht auf UTC. Eine Messung um 01:30 Ortszeit auf einem Server
+# in +0200 gehoerte nach now() noch zum Vortag und ueberschriebe dessen letzte
+# Messung.
+vorher_datei app/Console/Commands/MeasureUsage.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/MeasureUsage.php'
+s = open(p, encoding='utf-8').read()
+alt = "$heute = now()->setTimezone($zone)->toDateString();"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$heute = now()->toDateString();", 1))
+PY2
+griff_datei app/Console/Commands/MeasureUsage.php "Verlaufstag in UTC" &&
+pruefe "Verlaufstag in UTC" \
+  DailyWriterTest::test_the_measurement_run_writes_the_levels_after_measuring failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyWriterTest passed
+
+echo
+echo "── DailyWriterTest: ohne lesbare Zone faellt der Verlauf auf UTC zurueck ──"
+#
+# Genau der Notnagel, gegen den ServerZone::current() ein null zurueckgibt. Ein
+# Rueckfall, der immer etwas liefert, macht aus "unbekannt" eine falsche Auskunft.
+vorher_datei app/Console/Commands/MeasureUsage.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/MeasureUsage.php'
+s = open(p, encoding='utf-8').read()
+anfang = s.find("        if ($zone === null) {\n")
+ende = s.find("        }\n", anfang) + len("        }\n")
+assert s.count("        if ($zone === null) {\n") == 1 and anfang > 0 and ende > anfang, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s[:anfang] + "        $zone ??= new \\DateTimeZone('UTC');\n" + s[ende:]
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/MeasureUsage.php "Verlauf faellt auf UTC zurueck" &&
+pruefe "Verlauf faellt auf UTC zurueck" \
+  DailyWriterTest::test_the_measurement_run_writes_the_levels_after_measuring failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyWriterTest passed
+
+echo
+echo "── DailyWriterTest: die Messung wird nach dem UTC-Datum einem Tag zugeordnet ──"
+#
+# 23:30 UTC ist in Berlin schon der naechste Tag. Nach UTC zugeordnet, stuende
+# die Messung am Vortag und ueberschriebe dessen letzte.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "$zeitpunkt->copy()->setTimezone($zone)->toDateString() === $day"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$zeitpunkt->toDateString() === $day", 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "Messung nach UTC-Datum" &&
+pruefe "Messung nach UTC-Datum" \
+  DailyWriterTest::test_a_measurement_belongs_to_the_day_of_the_server failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyWriterTest passed
+
+echo
+echo "── DailyWriterTest: der Wert von gestern wird als heutiger abgelegt ──"
+#
+# Faellt die Messung aus, bleibt der Tag ohne Zeile. Wer nur fragt, ob je
+# gemessen wurde, legt die Messung von gestern als heutige ab.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "$zeitpunkt->copy()->setTimezone($zone)->toDateString() === $day"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$zeitpunkt->copy()->setTimezone($zone)->toDateString() <= $day", 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "Wert von gestern als heutiger" &&
+pruefe "Wert von gestern als heutiger" \
+  DailyWriterTest::test_a_value_from_yesterday_is_not_written_for_today failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyWriterTest passed
+
+echo
+echo "── DailyWriterTest: eine frische und eine alte Datenbank ergeben eine Summe ──"
+#
+# Eine Summe aus einem frischen und einem alten Wert waere eine Zahl, die es nie
+# gab.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "if ($eigene->every(fn (Database $d): bool =>"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "if ($eigene->isEmpty() || $eigene->contains(fn (Database $d): bool =>", 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "frisch und alt ergeben eine Summe" &&
+pruefe "frisch und alt ergeben eine Summe" \
+  DailyWriterTest::test_the_databases_count_only_when_every_one_was_measured_that_day failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyWriterTest passed
+
+echo
+echo "── DailyWriterTest: die naechste Messung desselben Tages legt eine zweite Zeile an ──"
+#
+# Der laufende Tag wird ueberschrieben. Ohne upsert scheitert die zweite Messung
+# des Tages am eindeutigen Schluessel — alle fuenfzehn Minuten.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "SubscriptionMetric::query()->upsert($rows, ['subscription_id', 'day', 'metric'], ['value']);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "SubscriptionMetric::query()->insert($rows);", 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "zweite Zeile statt ueberschrieben" &&
+pruefe "zweite Zeile statt ueberschrieben" \
+  DailyWriterTest::test_the_running_day_is_overwritten_by_the_next_measurement failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyWriterTest passed
+
+echo
+echo "── DailyWriterTest: eine Kennzahl der Seite hat keinen Schreiber ──"
+#
+# Die Naht selbst: Der Leser liest database_bytes, und niemand legt es ab. Das
+# ist der Zustand, in dem B3 ausgeliefert wurde.
+vorher_datei app/Support/Metrics/Daily.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/Daily.php'
+s = open(p, encoding='utf-8').read()
+alt = "if ($eigene->every(fn (Database $d): bool => $d->size_bytes !== null && $amTag($d->size_measured_at))) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "if (false) {", 1))
+PY2
+griff_datei app/Support/Metrics/Daily.php "Kennzahl ohne Schreiber" &&
+pruefe "Kennzahl ohne Schreiber" \
+  DailyWriterTest::test_every_metric_the_page_reads_has_a_writer failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyWriterTest passed
+
+echo
+echo "── DailyHistoryTest: das Fenster ueber alle Kennzahlen gelegt ──"
+#
+# Seit Platz und Datenbanken den laufenden Tag tragen, endet ein gemeinsames
+# Fenster heute — und die Kacheln des Verkehrs verloeren ihren aeltesten Tag.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/History.php'
+s = open(p, encoding='utf-8').read()
+alt = ("        foreach ($alle as $metric => $werte) {\n"
+       "            ksort($werte);\n"
+       "            $out[$metric] = array_slice($werte, -self::DAYS, null, true);\n"
+       "        }\n")
+neu = ("        $tage = [];\n\n"
+       "        foreach ($alle as $werte) {\n"
+       "            foreach (array_keys($werte) as $tag) {\n"
+       "                $tage[$tag] = true;\n"
+       "            }\n"
+       "        }\n\n"
+       "        $tage = array_keys($tage);\n"
+       "        sort($tage);\n"
+       "        $behalten = array_flip(array_slice($tage, -self::DAYS));\n\n"
+       "        foreach ($alle as $metric => $werte) {\n"
+       "            $out[$metric] = array_intersect_key($werte, $behalten);\n"
+       "        }\n")
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Support/Metrics/History.php "Fenster ueber alle Kennzahlen" &&
+pruefe "Fenster ueber alle Kennzahlen" \
+  DailyHistoryTest::test_a_level_that_carries_today_takes_no_day_from_the_traffic failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

@@ -33006,3 +33006,130 @@ Stylesheet trägt `tr:where(:has(td.multiline)) > td`.
 `bilderMessen()` ist dabei nicht gefahren. Die Mail an den Betreiber und die
 Zeile für die Inodes sind mit `0.9.0-rc.5` ausgeliefert und auf dem Server
 noch nicht gesehen.
+
+### Der Abnahmelauf für B3 steht ausgeschrieben — und zwei Kacheln jeder Abonnementseite bleiben leer
+
+**`docs/138` ist vor dem Fahren geschrieben, in zwei Teilen, weil das Kriterium
+an der Uhr hängt.** Teil 1 ist heute fahrbar: Er liest den Bestand, bestimmt den
+ersten Tag der Tabelle und rechnet daraus die beiden Nächte, an denen Teil 2
+misst. Teil 2 ist derselbe Block an Nacht 30 und an Nacht 31. §0 nennt vier
+Zeilen, die beim Ausschreiben umgefallen sind, und zwei davon betreffen den
+Prüfling.
+
+**Platz und Datenbanken schreibt niemand.** `DailyMetric::ofASubscription()`
+nennt sechs Kennzahlen, `Daily::record()` legt vier davon ab — die, die
+`web.access.count` liefert. Für die Kacheln „Speicherplatz" und „Datenbanken"
+liest `History` die beiden anderen. Gemessen werden sie durchaus: `srvpanel:usage`
+läuft alle fünfzehn Minuten, legt aber nur den gegenwärtigen Wert ab. Im
+Container nachgebaut, geschrieben über den echten `Daily::record()`: nach sechs
+Tagen 40 Zeilen je Tabelle, keine davon `disk_mb` oder `database_bytes`, und die
+Kacheln stehen auf „—", während daneben 1000 MB gemessen sind.
+
+Gesehen hat es kein Wächter, weil jeder seine Seite hält. `DailyMetricsTest`
+prüft den Schreiber an den vier Kennzahlen, die er schreibt, und
+`DailyHistoryTest` legt die Zeilen für den Leser von Hand an.
+
+> **Zwei Prüfungen, die je eine Seite einer Naht mit einem selbst geschriebenen
+> Wert füttern, prüfen die Naht nicht** — und hier fehlt nicht der richtige
+> Wert, sondern der Schreiber.
+
+**Ein Tag ohne Anfrage bekommt keine Zeile.** Die Tage kommen aus den Zeilen der
+Protokolle, und eine Domain, auf die an einem Tag niemand zugreift, liefert für
+ihn nichts. „Dreissig Zeilen je Abo und Kennzahl" gilt damit nur für
+Abonnements mit Verkehr an jedem Tag. Die Kurve reiht nach dem Index und nicht
+nach dem Datum; der ruhige Tag verschwindet, und seine Nachbarn rücken
+zusammen.
+
+> **Ein Tag ohne Anfrage ist kein Tag ohne Zahl — die Zahl ist null, und wer
+> sie nicht ablegt, lässt die Kurve behaupten, es habe ihn nicht gegeben.**
+
+**Behoben ist davon nichts, und das ist Absicht.** Wer die beiden Kennzahlen
+schreibt und ob ein ruhiger Tag eine Null bekommt, sind zwei Fragen an den
+Betreiber (`docs/138 §6`), beide unter der Regel vom 27. September. Nach dem
+Wortlaut ist das Kriterium für zwei der sechs Kennzahlen heute nicht erfüllbar;
+die Abnahme spricht der Betreiber aus.
+
+**Die Rechnung des Kriteriums stimmt**, gegen MariaDB 10.11.14 gefahren:
+`Daily::forget()` räumt an Nacht 30 nichts ab und an Nacht 31 genau die Zeilen
+des ersten Tags, 8 und 8. Die Blöcke 2 bis 5 sind im Container gefahren, jeder
+mit einer Gegenprobe in beide Richtungen, und stehen Byte für Byte so im
+Dokument, wie sie gemessen wurden.
+
+**Und die erste Gegenprobe hat selbst nichts gemessen.** Sie fragte
+`information_schema.STATISTICS` nach `Key_name`; die Spalte heisst dort
+`INDEX_NAME`, `Key_name` gibt es nur in der Ausgabe von `SHOW INDEX`. Das
+`ALTER` ging ins Leere, die Einfügungen dahinter liefen nicht, und der Block
+zeigte denselben Stand wie vorher. Jede Gegenprobe druckt seitdem
+`Eingriff steht: N Zeilen` neben ihr Ergebnis.
+
+> **Eine Gegenprobe, deren Eingriff scheitert, zeigt denselben Stand wie die
+> Messung davor — und liest sich wie ein Beleg dafür, dass die Messung
+> unempfindlich ist.**
+
+**Eine Zeile in `docs/133 §5` war falsch.** Sie sagte, die Kundenmail sei seit
+B5 abgenommen. B5 ist am 21. September gebaut und seit `0.9.0-rc.1`
+ausgeliefert, einen Abnahmelauf dafür gab es nie. Aufgefallen ist es bei der
+Frage, welches Merkmal aus P9 als nächstes abzunehmen ist; die Zeile ist
+berichtigt und sagt, was dort vorher stand.
+
+### B3 ist behoben — Platz und Datenbanken im Verlauf, und ein ruhiger Tag bekommt eine Null
+
+Der Betreiber hat beide Fragen aus `docs/138 §6` wie vorgeschlagen entschieden,
+und beide sind gebaut (`docs/138 §5`).
+
+**`srvpanel:usage` schreibt jetzt den Verlauf von Platz und Datenbanken**, nach
+jeder Messung und für den **laufenden** Tag, überschreibend
+(`Daily::levels()`). Über der Kachel „Speicherplatz" zeigt die Seite den
+gegenwärtigen Wert; eine Kachel darunter, die den von gestern nennt, zeigte
+dieselbe Grösse in zwei Fassungen. Ein Tag bekommt nur, was an ihm gemessen
+wurde, gefragt am Zeitpunkt der Messung in der Zone des Servers. Die Datenbanken
+eines Abonnements zählen nur, wenn **jede** an dem Tag gemessen wurde, und ein
+Abonnement ohne Datenbank bekommt eine Null. Ohne lesbare Zone legt der Lauf
+nichts ab und sagt es, statt auf UTC zurückzufallen.
+
+> **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine falsche
+> Auskunft.**
+
+**Ein ruhiger Vortag bekommt vier Nullen** — wenn der Agent die Domain ganz
+gelesen hat. `AccessCounts::split()` kennt dafür zwei neue Töpfe: „ruhig" für
+eine Domain mit mindestens einer Datei, ohne unlesbare Zeile und ohne Zeile am
+Vortag, „nicht ganz gelesen" für den Rest, und den nennt der Nachtlauf mit
+Namen. Keine Null gibt es für einen Tag, an dem die Domain noch nicht bestand.
+Das Abonnement bekommt seine Null nur, wenn keine seiner Domains an dem Tag eine
+Lücke hatte; eine Summe mit Zählbarem bleibt wie bisher stehen. Wer sie wegen
+einer Lücke fallen liesse, verlöre bei einer einzigen kaputten Datei in einer
+ruhigen Domain jeden weiteren Tag des ganzen Abonnements.
+
+> **Eine Null, die aus „nicht gelesen" entsteht, ist schlimmer als keine — sie
+> sieht aus wie eine Messung.**
+
+**Die Lücke war angekündigt.** `TrafficEraTest` hielt seit B2 fest, dass eine
+Domain ohne Zeile keinen Tag bekommt, und schob die Lücke an B3. Gefüllt hat
+sie dort niemand.
+
+**Die Kacheln zählen ihre dreissig Tage jetzt je Kennzahl.** Ein Stand trägt den
+laufenden Tag mit, der Verkehr endet am Vortag. Ein gemeinsames Fenster über
+alle Kennzahlen endete damit heute, und die Kacheln des Verkehrs hätten ihren
+ältesten Tag verloren. Abgeräumt wird weiter für alle nach derselben Grenze —
+ein Stand führt deshalb dreissig abgeschlossene Tage und den laufenden, und die
+Vorhersage aus Block 5 von `docs/138` hält.
+
+> **Ein Fenster über mehrere Reihen richtet sich nach der, die am weitesten
+> reicht — und schneidet den anderen ab, was vorn fehlt.**
+
+**Die Wächter:** `DailyWriterTest` hält die Naht, die keiner hielt — jede
+Kennzahl, die die Seite liest, hat einen Schreiber, gemessen durch die echten
+Messklassen bis in die Kachel —, dazu den Tag des Servers, den laufenden Tag
+und die Verdrahtung in `MeasureUsage`. `QuietDayTest` hält die Null samt der
+Naht zum Agenten über echte Dateien, `DailyMetricsTest` und `DailyHistoryTest`
+bekommen die Fälle zum Abonnement und zum Fenster. 25 neue Eingriffe beissen
+einzeln, und von den bestehenden der berührten Dateien meldete einer „nichts
+geändert": Sein Anker stand im umgebauten Fenster. Er ist nachgezogen und beisst
+wieder.
+
+**Nachgemessen mit den echten Kommandos** gegen MariaDB 10.11.14 und einen
+echten Agenten (`docs/138 §5a`): `srvpanel:traffic` meldete „1 zählbar, 3 ruhig,
+1 nicht ganz gelesen" und legte 8 Zeilen je Tabelle ab, `srvpanel:usage` ohne
+Quota keinen Platz und für die gemessene Datenbank 507 904 B, und das Abräumen
+nahm mit den Ständen genau die Zeilen, die Block 5 unmittelbar davor gezählt
+hatte.

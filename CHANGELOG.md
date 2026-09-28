@@ -33071,3 +33071,65 @@ B5 abgenommen. B5 ist am 21. September gebaut und seit `0.9.0-rc.1`
 ausgeliefert, einen Abnahmelauf dafür gab es nie. Aufgefallen ist es bei der
 Frage, welches Merkmal aus P9 als nächstes abzunehmen ist; die Zeile ist
 berichtigt und sagt, was dort vorher stand.
+
+### B3 ist behoben — Platz und Datenbanken im Verlauf, und ein ruhiger Tag bekommt eine Null
+
+Der Betreiber hat beide Fragen aus `docs/138 §6` wie vorgeschlagen entschieden,
+und beide sind gebaut (`docs/138 §5`).
+
+**`srvpanel:usage` schreibt jetzt den Verlauf von Platz und Datenbanken**, nach
+jeder Messung und für den **laufenden** Tag, überschreibend
+(`Daily::levels()`). Über der Kachel „Speicherplatz" zeigt die Seite den
+gegenwärtigen Wert; eine Kachel darunter, die den von gestern nennt, zeigte
+dieselbe Grösse in zwei Fassungen. Ein Tag bekommt nur, was an ihm gemessen
+wurde, gefragt am Zeitpunkt der Messung in der Zone des Servers. Die Datenbanken
+eines Abonnements zählen nur, wenn **jede** an dem Tag gemessen wurde, und ein
+Abonnement ohne Datenbank bekommt eine Null. Ohne lesbare Zone legt der Lauf
+nichts ab und sagt es, statt auf UTC zurückzufallen.
+
+> **Ein Rückfall, der immer etwas liefert, macht aus „unbekannt" eine falsche
+> Auskunft.**
+
+**Ein ruhiger Vortag bekommt vier Nullen** — wenn der Agent die Domain ganz
+gelesen hat. `AccessCounts::split()` kennt dafür zwei neue Töpfe: „ruhig" für
+eine Domain mit mindestens einer Datei, ohne unlesbare Zeile und ohne Zeile am
+Vortag, „nicht ganz gelesen" für den Rest, und den nennt der Nachtlauf mit
+Namen. Keine Null gibt es für einen Tag, an dem die Domain noch nicht bestand.
+Das Abonnement bekommt seine Null nur, wenn keine seiner Domains an dem Tag eine
+Lücke hatte; eine Summe mit Zählbarem bleibt wie bisher stehen. Wer sie wegen
+einer Lücke fallen liesse, verlöre bei einer einzigen kaputten Datei in einer
+ruhigen Domain jeden weiteren Tag des ganzen Abonnements.
+
+> **Eine Null, die aus „nicht gelesen" entsteht, ist schlimmer als keine — sie
+> sieht aus wie eine Messung.**
+
+**Die Lücke war angekündigt.** `TrafficEraTest` hielt seit B2 fest, dass eine
+Domain ohne Zeile keinen Tag bekommt, und schob die Lücke an B3. Gefüllt hat
+sie dort niemand.
+
+**Die Kacheln zählen ihre dreissig Tage jetzt je Kennzahl.** Ein Stand trägt den
+laufenden Tag mit, der Verkehr endet am Vortag. Ein gemeinsames Fenster über
+alle Kennzahlen endete damit heute, und die Kacheln des Verkehrs hätten ihren
+ältesten Tag verloren. Abgeräumt wird weiter für alle nach derselben Grenze —
+ein Stand führt deshalb dreissig abgeschlossene Tage und den laufenden, und die
+Vorhersage aus Block 5 von `docs/138` hält.
+
+> **Ein Fenster über mehrere Reihen richtet sich nach der, die am weitesten
+> reicht — und schneidet den anderen ab, was vorn fehlt.**
+
+**Die Wächter:** `DailyWriterTest` hält die Naht, die keiner hielt — jede
+Kennzahl, die die Seite liest, hat einen Schreiber, gemessen durch die echten
+Messklassen bis in die Kachel —, dazu den Tag des Servers, den laufenden Tag
+und die Verdrahtung in `MeasureUsage`. `QuietDayTest` hält die Null samt der
+Naht zum Agenten über echte Dateien, `DailyMetricsTest` und `DailyHistoryTest`
+bekommen die Fälle zum Abonnement und zum Fenster. 25 neue Eingriffe beissen
+einzeln, und von den bestehenden der berührten Dateien meldete einer „nichts
+geändert": Sein Anker stand im umgebauten Fenster. Er ist nachgezogen und beisst
+wieder.
+
+**Nachgemessen mit den echten Kommandos** gegen MariaDB 10.11.14 und einen
+echten Agenten (`docs/138 §5a`): `srvpanel:traffic` meldete „1 zählbar, 3 ruhig,
+1 nicht ganz gelesen" und legte 8 Zeilen je Tabelle ab, `srvpanel:usage` ohne
+Quota keinen Platz und für die gemessene Datenbank 507 904 B, und das Abräumen
+nahm mit den Ständen genau die Zeilen, die Block 5 unmittelbar davor gezählt
+hatte.

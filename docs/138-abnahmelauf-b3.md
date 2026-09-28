@@ -23,6 +23,11 @@ gefahren wurde** (§0 Punkt 1): Zwei der sechs Kennzahlen eines Abonnements
 schreibt kein Lauf. Teil 1 misst, ob das auf dem Server genauso steht; für
 diese beiden kann Teil 2 erst nach einer Behebung etwas zeigen (§5).
 
+**Behoben ist er am selben Tag**, zusammen mit §0 Punkt 2, nachdem der
+Betreiber beide Fragen aus §6 wie vorgeschlagen entschieden hatte. Solange auf
+`cloudsrv24` eine Fassung ohne die Behebung läuft, gilt Teil 1, wie er dasteht;
+was sich mit ihr an den Erwartungen ändert, steht bei jedem Block und in §5.
+
 ---
 
 ## §0 · Was beim Ausschreiben umgefallen ist
@@ -59,7 +64,7 @@ zwischen der Messung und der Tabelle hält keiner.
 Damit ist das Kriterium für zwei der sechs Kennzahlen **nicht erfüllbar**, und
 die Abonnementseite zeigt zwei ihrer fünf Kacheln leer. Das ist ein Befund an B3
 und an B4 zugleich; behoben wird er nicht in diesem Lauf, sondern nach einer
-Entscheidung (§6 Frage 1).
+Entscheidung (§6 Frage 1). **Entschieden und gebaut am selben Tag** (§5).
 
 **2 · Ein Tag ohne Anfrage bekommt keine Zeile.** Die Tage kommen aus den
 Zeilen der Protokolle: `AccessLog::countFile()` legt einen Tag an, wenn eine
@@ -79,7 +84,8 @@ Nacht beschreibt, nur ohne dass eine ausgefallen wäre.
 
 Entschieden ist die Frage nirgends. `docs/129 §5` sagt „Ein Tag ohne Zahlen ist
 ehrlicher als ein Tag mit halben" — über den Tag mit gemischtem Format, nicht
-über den stillen. Sie steht in §6 Frage 2.
+über den stillen. Sie steht in §6 Frage 2 und ist am selben Tag entschieden und
+gebaut (§5).
 
 **3 · Die Rechnung des Kriteriums stimmt — gerechnet am Quelltext und im
 Container gemessen.** `Daily::forget($today)` räumt ab, was vor `$today − 30`
@@ -171,6 +177,9 @@ printf("Erster Tag: %s   Nacht 30: %s   Nacht 31: %s   heute (%s): %s\n", $d0 ??
   **`disk_mb` und `database_bytes` mit `KEINE ZEILE`** — das ist §0 Punkt 1 auf
   dem Server. **Stehen dort Zeilen, ist der Befund widerlegt**, und etwas, das
   der Quelltext nicht zeigt, schreibt sie; dann wird angehalten und nachgesehen.
+  Das gilt für eine Fassung ohne die Behebung aus §5. **Mit ihr stehen dort
+  Zeilen**, und `erster` ist der Tag, an dem sie eingespielt wurde — nicht
+  früher: Nachgetragen wird nichts.
 - In `domain_metrics` dieselben vier mit Zeilen.
 - `eindeutig über (subscription_id,day,metric)` beziehungsweise
   `(domain_id,day,metric)`, beide Male `doppelt: 0`.
@@ -211,7 +220,10 @@ app(App\Support\Tenancy\Tenancy::class)->withoutRestriction(function () use ($so
 **Erwartet** je Abonnement:
 
 - `disk_mb 0  database_bytes 0` und bei den Kacheln `disk —` und `databases —`
-  — der Befund aus §0 Punkt 1, so wie ihn ein Kunde sieht.
+  — der Befund aus §0 Punkt 1, so wie ihn ein Kunde sieht. **Mit der Behebung**
+  stehen dort Zeilen ab dem Tag der Freigabe, und die Kacheln zeigen einen Wert
+  erst ab dem **zweiten** Tag: Ein einzelner Tag ist keine Kurve, und die Kachel
+  sagt dann „—" (`DailyHistoryTest::test_a_single_day_is_not_a_curve`).
 - Daneben `jetzt gemessen: Platz … MB` mit einem Zeitpunkt vor weniger als
   einer Viertelstunde (UTC). **Das ist die Gegenprobe zum Befund:** Die Zahl
   gibt es, nur die Tabelle bekommt sie nicht — „nicht gemessen" und „nicht
@@ -221,7 +233,15 @@ app(App\Support\Tenancy\Tenancy::class)->withoutRestriction(function () use ($so
 - `ohne Zeile: K von N Tagen` ist die Messung von §0 Punkt 2. Eine Erwartung je
   Abonnement gibt es nicht; `K = 0` heisst, dass an jedem Tag mindestens eine
   Anfrage kam. **Die Abonnements mit `K = 0` sind die, an denen Teil 2 die
-  dreissig Zeilen messen kann** — sie werden im Protokoll festgehalten.
+  dreissig Zeilen messen kann** — sie werden im Protokoll festgehalten. Mit der
+  Behebung bekommt ein ruhiger Tag eine Null, aber erst ab der Freigabe; die
+  Tage davor bleiben ohne Zeile, bis sie aus den dreissig fallen. Ohne Zeile
+  bleibt auch danach, wer nicht ganz gelesen ist — der Nachtlauf nennt ihn —,
+  und eine Domain für einen Tag, an dem es sie noch nicht gab.
+- `jetzt gemessen: … Datenbanken … B` summiert, was an den Datenbanken steht,
+  auch einen Wert, der nie gemessen wurde; dann zählt er als 0. Ob jede
+  Datenbank am Tag gemessen wurde, sagt die Zeile `database_bytes`: Sie fehlt,
+  wenn eine nicht gemessen wurde.
 
 ```bash
 # 4 · Derselbe Vortag noch einmal — die Zeilen bleiben, was sie sind
@@ -250,6 +270,11 @@ fahrbar:
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' "https://<domain>/?b3=1"
 ```
+
+**Mit der Behebung legt der Lauf auch an einem ruhigen Tag ab** — vier Nullen je
+ganz gelesener Domain, und der Block ist jeden Tag fahrbar. `Abgelegt: 0` heisst
+dann, dass keine Domain ganz gelesen war; der Lauf nennt jede unter „nicht ganz
+gelesen".
 
 ### §1a · Was im Container gemessen ist
 
@@ -334,9 +359,17 @@ wieder 30 Zeilen je Kennzahl.
 > am Abend davor feststanden.
 
 **Für `disk_mb` und `database_bytes` sagt Teil 2 nichts**, solange §0 Punkt 1
-steht. Nach einer Behebung beginnt ihre Uhr mit ihrer ersten Zeile, und Nacht 30
-und 31 werden aus **deren** erstem Tag gerechnet — Block 2 druckt ihn je
-Kennzahl in der Spalte `erster`.
+steht. Mit der Behebung aus §5 beginnt ihre Uhr mit ihrer ersten Zeile, und
+Nacht 30 und 31 werden aus **deren** erstem Tag gerechnet — Block 2 druckt ihn
+je Kennzahl in der Spalte `erster`.
+
+**Und ein Stand zählt einen Tag mehr.** `srvpanel:usage` legt den **laufenden**
+Tag ab, der Nachtlauf den Vortag, und abgeräumt wird für beide nach derselben
+Grenze. An Nacht 30 ihrer Uhr stehen deshalb einunddreissig Zeilen je
+Abonnement — dreissig abgeschlossene Tage und der laufende —, und Nacht 31
+nimmt den ersten. Die Kachel zeigt davon die letzten dreissig. Die Vorhersage
+aus Block 5 hält dabei: Er zählt alle Zeilen des ersten Tags, und dieselbe
+Grenze nimmt sie alle (gemessen, §5).
 
 ---
 
@@ -376,27 +409,84 @@ Server. **Block 4 darf ausfallen**, wenn gestern keine Anfrage kam
 
 **Punkt 2 darf nicht ausfallen** — er ist die einunddreissigste Nacht, die das
 Kriterium verlangt. Punkt 3 fällt aus, wenn kein Abonnement an jedem Tag Verkehr
-hatte; dann entscheidet §6 Frage 2, ob er überhaupt messbar wird.
+hatte; dann entscheidet §6 Frage 2, ob er überhaupt messbar wird. **Entschieden
+ist sie** (§5): Mit der Behebung bekommt ein ruhiger Tag eine Null, und Punkt 3
+wird für jedes Abonnement messbar, dessen Domains ganz gelesen sind —
+dreissig Tage nach der Freigabe, weil die Tage davor ohne Zeile bleiben.
 
 **Nach dem Wortlaut des Kriteriums ist B3 erst abgenommen, wenn dasselbe auch
-für `disk_mb` und `database_bytes` gilt** — nach einer Behebung von §0 Punkt 1
-und mit deren eigener Uhr (§2). Ein Kriterium „je Abo und Kennzahl", das an vier
+für `disk_mb` und `database_bytes` gilt** — mit der Behebung aus §5 und mit
+deren eigener Uhr (§2), bei der ein Stand neben den dreissig abgeschlossenen
+Tagen den laufenden trägt. Ein Kriterium „je Abo und Kennzahl", das an vier
 von sechs Kennzahlen erfüllt ist, ist nicht erfüllt; die Abnahme spricht der
 Betreiber aus.
 
 ---
 
-## §5 · Was eine Behebung von §0 Punkt 1 für diesen Lauf heisst
+## §5 · Die Behebung und was sie für diesen Lauf heisst
 
-Teil 1 bleibt gültig; er misst den Stand vor der Behebung. **Teil 2 für die
-vier Kennzahlen des Verkehrs läuft ungestört weiter**, denn ihre Zeilen schreibt
-ein anderer Lauf. Für `disk_mb` und `database_bytes` beginnt mit der Freigabe,
-die die Behebung trägt, eine eigene Uhr: dreissig Nächte ab ihrer ersten Zeile,
-gemessen mit denselben Blöcken.
+**Gebaut am 28. September 2026**, nach der Entscheidung zu beiden Fragen aus
+§6. Die Begründungen stehen im CHANGELOG unter „B3 ist behoben".
+
+- **Platz und Datenbanken** legt `srvpanel:usage` nach jeder Messung für den
+  **laufenden** Tag ab, überschreibend (`Daily::levels()`). Ein Tag bekommt
+  nur, was an ihm gemessen wurde; die Datenbanken nur, wenn **jede** des
+  Abonnements an dem Tag gemessen wurde; ein Abonnement ohne Datenbank eine
+  Null. Ohne lesbare Zone legt der Lauf nichts ab und sagt es.
+- **Ein ruhiger Vortag** bekommt vier Nullen, wenn der Agent die Domain ganz
+  gelesen hat — mindestens eine Datei, keine unlesbare Zeile — und es sie vor
+  dem Tag schon gab. Wer nicht ganz gelesen ist, nennt der Nachtlauf unter
+  „nicht ganz gelesen". Das Abonnement bekommt seine Null nur, wenn keine
+  seiner Domains an dem Tag eine Lücke hatte; eine Summe mit Zählbarem bleibt
+  wie bisher stehen.
+- **Die Kacheln** zählen die dreissig Tage je Kennzahl: der Verkehr die dreissig
+  bis gestern, der Platz die dreissig bis heute. Ein gemeinsames Fenster endete
+  heute und nähme dem Verkehr seinen ältesten Tag.
+
+**Teil 1 bleibt gültig** und misst den Stand der installierten Fassung — gegen
+`0.9.0-rc.6` den Befund, gegen eine Fassung mit der Behebung die Zeilen ab
+ihrem ersten Tag; bei jedem Block steht, was sich dann ändert. **Teil 2 für die
+vier Kennzahlen des Verkehrs läuft ungestört weiter**: Die Nullen sind Zeilen
+wie andere, und die Vorhersage aus Block 5 hält. Für `disk_mb` und
+`database_bytes` beginnt mit der Freigabe eine eigene Uhr (§2), gemessen mit
+denselben Blöcken.
+
+### §5a · Nachgemessen mit den echten Kommandos
+
+Im Container, am 28. September 2026 (Zone `Etc/UTC`), gegen MariaDB 10.11.14:
+ein echter Agent auf eigenem Socket, fünf Protokollverzeichnisse unter
+`/var/www/vhosts` und `srvpanel:traffic` und `srvpanel:usage`, wie der Timer sie
+ruft. `alpha` hat drei Zeilen am Vortag und eine Datenbank in MariaDB, `beta`
+nur eine Zeile vom 20. September und keine Datenbank, `gamma` eine unlesbare
+Zeile und eine PostgreSQL-Datenbank, die hier niemand messen kann, `delta` ein
+leeres Protokoll und eine Domain von heute, `omega` ein Verzeichnis, das das
+Panel nicht kennt.
+
+| Lauf | gezeigt |
+|---|---|
+| `srvpanel:traffic` | `1 Tageswert(e) vom Vortag zählbar, 3 ruhig (eine Null), 0 übersprungen (gemischtes Format), 1 nicht ganz gelesen, 1 noch offen (laufender Tag), 2 älter und nicht erneut abgelegt.` — `nicht ganz gelesen: gamma.test / gamma.test — 1 unlesbare Zeile(n)` — `Abgelegt: 8 Zeile(n) je Domain, 8 je Abonnement.` — `ohne Zeile im Panel: omega.test / omega.test` |
+| die Tabelle danach | `alpha` 3 Anfragen, 2400 B hinaus, 270 herein; `beta` vier Nullen; `gamma` und `delta` nichts |
+| derselbe Lauf noch einmal | 8 und 8 Zeilen, Prüfsummen vorher und nachher gleich |
+| `srvpanel:usage` | `Messung scheiterte: repquota ist auf diesem System nicht installiert.`, PostgreSQL nicht erreichbar, `Verlauf für 2026-09-28 (Etc/UTC): 0 Abonnement(s) mit Platz, 3 mit Datenbanken.` — `alpha` 507 904 B, `beta` und `delta` 0, `gamma` keine Zeile |
+| dasselbe nach einer gelungenen Messung früher am Tag | `4 Abonnement(s) mit Platz` — der gescheiterte Lauf lässt die letzte gelungene des Tages stehen |
+| die Messung von `alpha` auf gestern gesetzt | `3 Abonnement(s) mit Platz`, `alpha` ohne Zeile |
+| Zeilen auf `heute − 31` gelegt, dazu ein Stand auf `heute − 30` | Block 5 zählte 6 und 4, der Nachtlauf meldete `Älter als 30 Tag(e) entfernt: 4 je Domain, 6 je Abonnement.`, der Stand auf der Grenze blieb |
+
+Die Blöcke 2 und 3 unverändert auf diesem Bestand: Die Stände beginnen am
+28., der Verkehr am 27., und jede Kachel steht auf „—" — beide haben einen Tag.
 
 ---
 
 ## §6 · Zwei Fragen an den Betreiber — vor Teil 2
+
+**Beide entschieden am 28. September 2026, wie vorgeschlagen, und gebaut**
+(§5). Beim Bauen kamen zwei Regeln dazu, die keine neue Frage waren, sondern
+aus der Antwort folgen: Eine Null gibt es nur für einen Tag, an dem es die
+Domain schon gab. Und das Abonnement bekommt seine Null nur ohne Lücke; eine
+Summe mit Zählbarem bleibt stehen, auch neben einer Lücke. Sonst nähme eine
+einzige kaputte Datei in einer ruhigen Domain — logrotate dreht eine leere
+Datei nicht, sie bliebe im Lesebereich — dem ganzen Abonnement jeden weiteren
+Tag.
 
 Beide betreffen, was ein Kunde auf seiner Abonnementseite sieht, und stehen
 damit unter der Regel vom 27. September: *Macht es Sinn und gibt es einen

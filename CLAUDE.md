@@ -22,7 +22,8 @@ ist bewusst nicht hergestellt worden, entschieden vom Betreiber: Der Lauf bei
 Betreibers sind danach behoben und mit `0.9.0-rc.5` ausgeliefert; auf dem Server
 gesehen hat sie noch niemand. **B3 bis B8 sind gebaut und nicht abgenommen**;
 der Lauf für B3 ist `docs/138`, ausgeschrieben am 28. September, und er hat vor
-dem Fahren einen Befund am Prüfling gebracht (Abschnitt weiter unten).
+dem Fahren einen Befund am Prüfling gebracht (Abschnitt weiter unten) — behoben
+am selben Tag und noch in keiner Freigabe.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -6314,6 +6315,66 @@ welches Merkmal als nächstes abzunehmen ist.
 
 > **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung — und
 > nichts prüft sie.** Diese ist nicht veraltet, sie war vom ersten Tag an falsch.
+
+### Behoben am selben Tag
+
+Der Betreiber hat beide Fragen aus `docs/138 §6` wie vorgeschlagen entschieden,
+und beide sind gebaut (`docs/138 §5`). `srvpanel:usage` legt Platz und
+Datenbanken für den **laufenden** Tag ab, der Nachtlauf gibt einem ruhigen
+Vortag vier Nullen, wenn die Domain ganz gelesen ist. `DailyWriterTest` hält die
+Naht, die keiner hielt: Jede Kennzahl, die die Seite liest, hat einen Schreiber.
+
+**Ein Stand und ein Fluss haben verschiedene Tage, und das trägt den Entwurf.**
+Verkehr ist erst am Ende des Tages eine Zahl, belegter Platz ab der Messung.
+Der Stand trägt deshalb den laufenden Tag mit — und genau das hätte die Kacheln
+des Verkehrs einen Tag gekostet: `History` legte das Fenster von dreissig Tagen
+über die Tage **aller** Kennzahlen, und das endete jetzt heute.
+
+> **Ein Fenster über mehrere Reihen richtet sich nach der, die am weitesten
+> reicht — und schneidet den anderen ab, was vorn fehlt.**
+
+Gezählt wird seitdem je Kennzahl. Gefunden hat es das Nachrechnen vor dem Bau
+und kein Wächter; `DailyHistoryTest` hält es jetzt.
+
+**Die Lücke war angekündigt.** `TrafficEraTest` hielt seit B2 fest, dass eine
+Domain ohne Zeile keine Zahl bekommt, und schrieb dazu: *„die Lücke zu füllen
+ist B3 und nicht diese Klasse."* B3 hat sie nie gefüllt, und nichts hat es
+gemeldet.
+
+> **Eine Zeile, die eine Aufgabe an eine andere Stufe weiterreicht, ist erledigt
+> erst, wenn die andere Stufe sie übernommen hat — und nichts meldet, dass sie
+> es nicht getan hat.**
+
+**Die Null eines Abonnements hat eine eigene Regel, und die naheliegende
+schärfere ist die falsche.** Eine Null steht nur da, wo keine seiner Domains an
+dem Tag eine Lücke hatte. Eine Summe mit Zählbarem bleibt dagegen stehen, auch
+neben einer Lücke: Eine kaputte Datei in einer ruhigen Domain dreht logrotate
+nie wieder, sie bliebe im Lesebereich, und eine Regel, die die Summe bei jeder
+Lücke fallen lässt, nähme dem ganzen Abonnement jeden weiteren Tag. Beide
+Richtungen haben einen Eingriff, der beisst.
+
+**Und die Naht zum Kommando hält ein Wächter am Quelltext** — beide Kommandos
+brauchen einen Agenten, und `SrvPanel\Agent\Client` ist `final`. Deshalb sind
+sie einmal wirklich gefahren worden, mit einem echten Agenten auf eigenem
+Socket, fünf Protokollverzeichnissen und MariaDB 10.11.14 (`docs/138 §5a`):
+Jede Zeile der Ausgabe stand so da, wie sie vorher ausgerechnet war.
+
+> **Ein Wächter über den Quelltext sagt, dass die Teile zusammenpassen, nicht
+> dass sie zusammen etwas tun.**
+
+**Zwei Handgriffe am Bruchskript, beide an diesem Tag bezahlt.** Eine Kopie des
+Skripts ausserhalb des Repos, um nur einige Eingriffe zu fahren, wechselt in
+das Verzeichnis über sich und misst dort nichts; die Vorprüfung meldet es mit
+rc=2, bevor ein Eingriff läuft. Wer eine Auswahl fährt, setzt das Verzeichnis in
+der Kopie fest. Und unter den achtzig gefahrenen Eingriffen der berührten
+Dateien war einer, dessen Anker im umgebauten Code stand — `assert` brach ab,
+und er meldete sich als „Eingriff hat nichts geändert". Gefunden hat ihn, dass
+die **bestehenden** Eingriffe der berührten Dateien mitgefahren sind und nicht
+nur die neuen.
+
+**Und eine Kleinigkeit an Pint:** Ein `{@see \Voll\Qualifiziert}` wird zu einem
+`use`, und steht der Name danach nur noch als Wort im Fliesstext, bleibt das
+`use` stehen — Pint hält das Wort für eine Verwendung.
 
 ---
 

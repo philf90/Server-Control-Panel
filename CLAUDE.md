@@ -19,7 +19,8 @@ abgenommen — die Schwelle aus A7, die in B1 fehlte, gebaut am 27. September
 `docs/137` erfüllt**, das Protokoll ist dessen **§7**. Eine ganz volle Platte
 ist bewusst nicht hergestellt worden, entschieden vom Betreiber: Der Lauf bei
 95 % hat Befund, Meldung und Rückweg belegt. Die drei Befunde an der Mail des
-Betreibers sind danach behoben und haben keinen Server gesehen.
+Betreibers sind danach behoben und mit `0.9.0-rc.5` ausgeliefert; auf dem Server
+gesehen hat sie noch niemand.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -6234,6 +6235,14 @@ wertet `:where()` mit null.
 
 > **Ein Wächter, der die Kaskade nachrechnet, rechnet auch die Reihenfolge
 > nach — oder verlangt, dass sie nicht entscheidet.**
+
+**Auf `cloudsrv24` nachgesehen am selben Tag, gegen `0.9.0-rc.6`**
+(`docs/137 §7`): Auf `/operations` und `/plans` bei 390 px hat jede
+beschriftete Zelle `5px/5px` und die Knopfzelle `10px/5px`, bei 1440 px jede
+Zelle `9.5px/9.5px`. Das ausgelieferte Stylesheet trägt die neue Regel. Die
+Gegenprobe steht in der Breite und nicht in der Zeit, denn unter rc.6 lässt
+sich der alte Stand nicht mehr herstellen. Die Knopfzelle traf den Nachbau aufs
+Pixel: 59 px auf dem Server wie im Container.
 
 Beim Messen aufgefallen und nicht angefasst: Die Knopfzelle einer Karte steht
 14 px eingerückt, weil das leere `::before` einer Zelle ohne Beschriftung die

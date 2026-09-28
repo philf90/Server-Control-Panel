@@ -33006,3 +33006,68 @@ Stylesheet trägt `tr:where(:has(td.multiline)) > td`.
 `bilderMessen()` ist dabei nicht gefahren. Die Mail an den Betreiber und die
 Zeile für die Inodes sind mit `0.9.0-rc.5` ausgeliefert und auf dem Server
 noch nicht gesehen.
+
+### Der Abnahmelauf für B3 steht ausgeschrieben — und zwei Kacheln jeder Abonnementseite bleiben leer
+
+**`docs/138` ist vor dem Fahren geschrieben, in zwei Teilen, weil das Kriterium
+an der Uhr hängt.** Teil 1 ist heute fahrbar: Er liest den Bestand, bestimmt den
+ersten Tag der Tabelle und rechnet daraus die beiden Nächte, an denen Teil 2
+misst. Teil 2 ist derselbe Block an Nacht 30 und an Nacht 31. §0 nennt vier
+Zeilen, die beim Ausschreiben umgefallen sind, und zwei davon betreffen den
+Prüfling.
+
+**Platz und Datenbanken schreibt niemand.** `DailyMetric::ofASubscription()`
+nennt sechs Kennzahlen, `Daily::record()` legt vier davon ab — die, die
+`web.access.count` liefert. Für die Kacheln „Speicherplatz" und „Datenbanken"
+liest `History` die beiden anderen. Gemessen werden sie durchaus: `srvpanel:usage`
+läuft alle fünfzehn Minuten, legt aber nur den gegenwärtigen Wert ab. Im
+Container nachgebaut, geschrieben über den echten `Daily::record()`: nach sechs
+Tagen 40 Zeilen je Tabelle, keine davon `disk_mb` oder `database_bytes`, und die
+Kacheln stehen auf „—", während daneben 1000 MB gemessen sind.
+
+Gesehen hat es kein Wächter, weil jeder seine Seite hält. `DailyMetricsTest`
+prüft den Schreiber an den vier Kennzahlen, die er schreibt, und
+`DailyHistoryTest` legt die Zeilen für den Leser von Hand an.
+
+> **Zwei Prüfungen, die je eine Seite einer Naht mit einem selbst geschriebenen
+> Wert füttern, prüfen die Naht nicht** — und hier fehlt nicht der richtige
+> Wert, sondern der Schreiber.
+
+**Ein Tag ohne Anfrage bekommt keine Zeile.** Die Tage kommen aus den Zeilen der
+Protokolle, und eine Domain, auf die an einem Tag niemand zugreift, liefert für
+ihn nichts. „Dreissig Zeilen je Abo und Kennzahl" gilt damit nur für
+Abonnements mit Verkehr an jedem Tag. Die Kurve reiht nach dem Index und nicht
+nach dem Datum; der ruhige Tag verschwindet, und seine Nachbarn rücken
+zusammen.
+
+> **Ein Tag ohne Anfrage ist kein Tag ohne Zahl — die Zahl ist null, und wer
+> sie nicht ablegt, lässt die Kurve behaupten, es habe ihn nicht gegeben.**
+
+**Behoben ist davon nichts, und das ist Absicht.** Wer die beiden Kennzahlen
+schreibt und ob ein ruhiger Tag eine Null bekommt, sind zwei Fragen an den
+Betreiber (`docs/138 §6`), beide unter der Regel vom 27. September. Nach dem
+Wortlaut ist das Kriterium für zwei der sechs Kennzahlen heute nicht erfüllbar;
+die Abnahme spricht der Betreiber aus.
+
+**Die Rechnung des Kriteriums stimmt**, gegen MariaDB 10.11.14 gefahren:
+`Daily::forget()` räumt an Nacht 30 nichts ab und an Nacht 31 genau die Zeilen
+des ersten Tags, 8 und 8. Die Blöcke 2 bis 5 sind im Container gefahren, jeder
+mit einer Gegenprobe in beide Richtungen, und stehen Byte für Byte so im
+Dokument, wie sie gemessen wurden.
+
+**Und die erste Gegenprobe hat selbst nichts gemessen.** Sie fragte
+`information_schema.STATISTICS` nach `Key_name`; die Spalte heisst dort
+`INDEX_NAME`, `Key_name` gibt es nur in der Ausgabe von `SHOW INDEX`. Das
+`ALTER` ging ins Leere, die Einfügungen dahinter liefen nicht, und der Block
+zeigte denselben Stand wie vorher. Jede Gegenprobe druckt seitdem
+`Eingriff steht: N Zeilen` neben ihr Ergebnis.
+
+> **Eine Gegenprobe, deren Eingriff scheitert, zeigt denselben Stand wie die
+> Messung davor — und liest sich wie ein Beleg dafür, dass die Messung
+> unempfindlich ist.**
+
+**Eine Zeile in `docs/133 §5` war falsch.** Sie sagte, die Kundenmail sei seit
+B5 abgenommen. B5 ist am 21. September gebaut und seit `0.9.0-rc.1`
+ausgeliefert, einen Abnahmelauf dafür gab es nie. Aufgefallen ist es bei der
+Frage, welches Merkmal aus P9 als nächstes abzunehmen ist; die Zeile ist
+berichtigt und sagt, was dort vorher stand.

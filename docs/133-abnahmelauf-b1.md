@@ -1028,8 +1028,15 @@ aufgeschoben, und er gehört nachgeholt.
 - **Den Fall „Prüfung nicht durchgelaufen".** `unreachable` ist
   `FindingState::Unknown` und wird bewusst nicht gemeldet; ob das für den
   Betreiber richtig ist, steht als Frage im Kopf von `Notices::due()`.
-- **Die Kundenmail.** Sie ist seit B5 abgenommen; dieser Lauf misst den
-  Betreiberweg und den Webhook.
+- **Die Kundenmail.** Sie gehört zu B5, und B5 ist gebaut und nicht
+  abgenommen; ein Lauf dafür steht aus. Dieser Lauf misst den Betreiberweg und
+  den Webhook.
+
+  **Berichtigt am 28. September 2026.** Hier stand „Sie ist seit B5
+  abgenommen". B5 ist am 21. September gebaut und seit `0.9.0-rc.1`
+  ausgeliefert, einen Abnahmelauf dafür gab es nie. Aufgefallen ist es beim
+  Ausschreiben von `docs/138`, als die Frage war, welches Merkmal aus P9 als
+  nächstes abzunehmen ist.
 - **Den Inhalt des Betreiberbriefs bei 390 px.** Es ist reiner Text.
 
 ---

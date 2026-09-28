@@ -20,7 +20,9 @@ abgenommen — die Schwelle aus A7, die in B1 fehlte, gebaut am 27. September
 ist bewusst nicht hergestellt worden, entschieden vom Betreiber: Der Lauf bei
 95 % hat Befund, Meldung und Rückweg belegt. Die drei Befunde an der Mail des
 Betreibers sind danach behoben und mit `0.9.0-rc.5` ausgeliefert; auf dem Server
-gesehen hat sie noch niemand.
+gesehen hat sie noch niemand. **B3 bis B8 sind gebaut und nicht abgenommen**;
+der Lauf für B3 ist `docs/138`, ausgeschrieben am 28. September, und er hat vor
+dem Fahren einen Befund am Prüfling gebracht (Abschnitt weiter unten).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -6247,6 +6249,71 @@ Pixel: 59 px auf dem Server wie im Container.
 Beim Messen aufgefallen und nicht angefasst: Die Knopfzelle einer Karte steht
 14 px eingerückt, weil das leere `::before` einer Zelle ohne Beschriftung die
 Lücke der Flexzeile mitnimmt (gemessen 14 px, mit `content: none` 0).
+
+---
+
+## Der Abnahmelauf für B3 — zwei Kacheln, die niemand füllt — 28. September 2026
+
+**`docs/138` ist ausgeschrieben, vor dem Fahren und in zwei Teilen**, weil das
+Kriterium an der Uhr hängt: Teil 1 liest heute den Bestand und rechnet aus dem
+ersten Tag der Tabelle die beiden Nächte, Teil 2 misst an Nacht 30 und Nacht 31.
+Auf dem Server ist noch nichts davon gefahren.
+
+**Der Befund kam beim Ausschreiben, und es ist eine Naht ohne Schreiber.**
+`History` liest für die Kacheln „Speicherplatz" und „Datenbanken" die
+Kennzahlen `disk_mb` und `database_bytes`. `Daily::record()` schreibt nur die
+vier des Verkehrs, und `srvpanel:usage` misst Platz und Datenbanken alle
+fünfzehn Minuten, legt sie aber als gegenwärtigen Wert ab und nicht in die
+Tabelle. Im Container stehen damit zwei von fünf Kacheln jeder Abonnementseite
+leer, neben einem gemessenen Wert; ob es auf dem Server genauso aussieht, misst
+Teil 1.
+
+`DailyMetricsTest` hält den Schreiber an den vier Kennzahlen, die er schreibt,
+und `DailyHistoryTest` legt die Zeilen für den Leser von Hand an. Jeder hält
+seine Seite.
+
+> **Zwei Prüfungen, die je eine Seite einer Naht mit einem selbst geschriebenen
+> Wert füttern, prüfen die Naht nicht.** Der Satz steht seit `docs/102` hier,
+> dort über einen falschen Wert. Hier fehlt der Schreiber, und das ist die
+> stillere Fassung: Ein falscher Wert fällt irgendwann auf, eine leere Kachel
+> sieht aus wie ein Abonnement, das noch keine Nacht hatte.
+
+**Und ein Tag ohne Anfrage bekommt keine Zeile.** Die Tage kommen aus den Zeilen
+der Protokolle, und die Kurve reiht nach dem Index: Der ruhige Tag verschwindet,
+und seine Nachbarn rücken zusammen.
+
+> **Ein Tag ohne Anfrage ist kein Tag ohne Zahl — die Zahl ist null, und wer
+> sie nicht ablegt, lässt die Kurve behaupten, es habe ihn nicht gegeben.**
+
+**Behoben ist davon nichts.** Wer die beiden Kennzahlen schreibt und ob ein
+ruhiger Tag eine Null bekommt, sind Fragen an den Betreiber (`docs/138 §6`).
+Nach dem Wortlaut ist das Kriterium „je Abo und Kennzahl" für zwei der sechs
+heute nicht erfüllbar.
+
+**Die erste Gegenprobe hat selbst nichts gemessen.** Sie fragte
+`information_schema.STATISTICS` nach `Key_name`; dort heisst die Spalte
+`INDEX_NAME`, und `Key_name` gibt es nur in der Ausgabe von `SHOW INDEX`. Das
+`ALTER` ging ins Leere, die Einfügungen dahinter liefen nicht, und der Block
+zeigte denselben Stand wie vor dem Eingriff. Aufgefallen ist es an genau dieser
+Gleichheit.
+
+> **Eine Gegenprobe, deren Eingriff scheitert, zeigt denselben Stand wie die
+> Messung davor — und liest sich wie ein Beleg dafür, dass die Messung
+> unempfindlich ist.**
+
+Das ist der Satz aus Befund C (`Eingriff steht: 0`) an einer Datenbank statt an
+einer Datei, und die Abhilfe ist dieselbe: Jede Gegenprobe druckt seitdem, dass
+ihr Eingriff steht, neben ihr Ergebnis.
+
+**Und eine Zeile behauptete eine Abnahme, die es nie gab.** `docs/133 §5` sagte
+seit dem 21. September, die Kundenmail sei „seit B5 abgenommen". B5 ist gebaut
+und ausgeliefert und hat keinen Lauf gehabt. Die Zeile stand im Abschnitt über
+das, was ein Lauf **nicht** prüft, als Begründung dafür — und eine Begründung,
+warum etwas nicht gemessen wird, liest niemand nach. Gefunden hat sie die Frage,
+welches Merkmal als nächstes abzunehmen ist.
+
+> **Eine Zeile, die einen Zustand behauptet, veraltet ohne Vorwarnung — und
+> nichts prüft sie.** Diese ist nicht veraltet, sie war vom ersten Tag an falsch.
 
 ---
 

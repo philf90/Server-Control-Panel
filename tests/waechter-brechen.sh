@@ -8528,8 +8528,9 @@ vorher_datei resources/css/app.css
 python3 - <<'PY2'
 p = 'resources/css/app.css'
 s = open(p, encoding='utf-8').read()
-s = s.replace("tr:has(td.multiline) > td {", "tr.gibt-es-nicht > td {")
-open(p, 'w', encoding='utf-8').write(s)
+alt = "tr:where(:has(td.multiline)) > td {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "tr:where(.gibt-es-nicht) > td {", 1))
 PY2
 griff_datei resources/css/app.css "gestapelte Zelle ohne Ausrichtung" &&
 pruefe "gestapelte Zelle ohne Ausrichtung" \
@@ -8540,10 +8541,11 @@ pruefe "  … zurückgesetzt wieder grün" TableStyleTest passed
 echo
 echo "── TableStyleTest: oben ausgerichtet, aber ohne Polster ──"
 #
-# `td` setzt kein senkrechtes Polster; der Abstand zur Linie darüber kam allein
-# daraus, dass eine Zeile hohe Zelle mittig sass. Wer nur die Ausrichtung
-# umstellt, lässt die erste Zeile an der Trennlinie kleben — genau so gemeldet,
-# eine Fassung nach der Ausrichtung.
+# Als die Regel entstand, setzte `td` kein senkrechtes Polster; der Abstand zur
+# Linie darüber kam allein daraus, dass eine Zeile hohe Zelle mittig sass. Wer
+# nur die Ausrichtung umstellte, liess die erste Zeile an der Trennlinie kleben
+# — genau so gemeldet, eine Fassung nach der Ausrichtung. Seit `td` 6 px trägt,
+# rückt sie nur noch näher heran: 6 statt 9,5 px bei 40 px Zeilenhöhe.
 vorher_datei resources/css/app.css
 python3 - <<'PY2'
 p = 'resources/css/app.css'
@@ -36910,6 +36912,89 @@ pruefe "ohne include" \
   PlainTextMailTest::test_no_text_view_escapes_what_it_prints failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PlainTextMailTest passed
+
+echo
+echo "── MobileLayoutTest: die Zeilenregel der Tabelle wiegt wieder ──"
+#
+# Der Zustand bis zum 28. September 2026: Mit dem Gewicht von `:has()` (0,1,3)
+# schlug die Regel der breiten Tabelle `.stacks td` (0,1,1), und jede Zelle
+# einer Karte mit einer mehrzeiligen Zelle bekam 11,5 px statt 5 px.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = "tr:where(:has(td.multiline)) > td {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "tr:has(td.multiline) > td {", 1))
+PY2
+griff_datei resources/css/app.css "Zeilenregel mit Gewicht" &&
+pruefe "Zeilenregel mit Gewicht" \
+  MobileLayoutTest::test_a_card_keeps_its_padding_beside_a_multiline_cell failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest passed
+
+echo
+echo "── MobileLayoutTest: eine Gegenregel, die die Knopfzelle vergisst ──"
+#
+# Der erste Entwurf der Behebung: unter 720 px die 5 px für jede Zelle einer
+# Zeile mit mehrzeiliger Zelle noch einmal hinschreiben. Die beschriftete Zelle
+# stimmt damit, und die Knopfzelle verliert oben 5 px — gemessen auf der
+# Planseite, 5 statt 10.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = "  .stacks td[colspan] {\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "  .stacks tr:has(td.multiline) > td {\n    padding-top: 5px;\n    padding-bottom: 5px;\n  }\n\n"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu + alt, 1))
+PY2
+griff_datei resources/css/app.css "Gegenregel ohne Knopfzelle" &&
+pruefe "Gegenregel ohne Knopfzelle" \
+  MobileLayoutTest::test_a_card_keeps_its_padding_beside_a_multiline_cell failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest passed
+
+echo
+echo "── MobileLayoutTest: :where() wiegt im Test wie eine Klasse ──"
+#
+# Dann wiegt die Regel der breiten Tabelle im Test 0,1,2 und schlägt die Karte,
+# gegen die sie im Browser mit 0,0,2 verliert — der Wächter meldete einen
+# Befund, den es nicht gibt, und ein Modell, das in diese Richtung falsch
+# rechnet, rechnet beim nächsten Selektor in die andere.
+vorher_datei tests/Feature/MobileLayoutTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/MobileLayoutTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $selector = $this->withoutWhere($selector);\n\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
+PY2
+griff_datei tests/Feature/MobileLayoutTest.php "where als Klasse" &&
+pruefe "where als Klasse" \
+  MobileLayoutTest::test_a_card_keeps_its_padding_beside_a_multiline_cell failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest passed
+
+echo
+echo "── MobileLayoutTest: die Zeilenregel in einer Form, die der Test nicht liest ──"
+#
+# `> *` statt `> td`: Im Browser ist der Befund dann wieder da — die Regel wiegt
+# 0,1,2 und schlägt `.stacks td` —, und die Gleichheit bleibt grün, weil sie auf
+# beiden Seiten dieselben Regeln sieht. Anschlagen muss die Untergrenze.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = "tr:where(:has(td.multiline)) > td {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "tr:has(td.multiline) > * {", 1))
+PY2
+griff_datei resources/css/app.css "Zeilenregel ungelesen" &&
+pruefe "Zeilenregel ungelesen" \
+  MobileLayoutTest::test_a_card_keeps_its_padding_beside_a_multiline_cell failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

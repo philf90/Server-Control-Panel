@@ -3192,18 +3192,46 @@ td > .button-row + .button-row {
  * auf der Zeile wäre eine zweite Fassung derselben Aussage — sie müsste jedes
  * Mal mitgesetzt werden, wenn eine Zelle stapelt, und beim nächsten Mal fehlte
  * sie. `:has()` liest, was tatsächlich in der Zeile steht.
+ *
+ * **Und sie wiegt kaum mehr als `td`, weil sie für die Tabelle gilt und nicht
+ * für die Karte.** Unter 720 px ist eine gestapelte Zeile eine Karte, und ihre
+ * Zellen tragen ihr eigenes Polster — 5 px an `.stacks td`, oben 10 px an der
+ * Knopfzelle. Mit dem Gewicht von `:has()` (0,1,3) schlug diese Regel
+ * `.stacks td` (0,1,1): Jede Zelle einer Karte, in deren Zeile eine
+ * mehrzeilige steht, bekam oben und unten 11,5 px und wurde 44 statt 31 px
+ * hoch — auch jede, die mit dem zweiten Wert nichts zu tun hat. Gemessen am
+ * 28. September 2026 bei 390 px gegen das gebaute Stylesheet: eine Karte der
+ * Übersicht 338,8 px, eine des Verlaufs 294,8, eine der Pläne 360,3.
+ *
+ * `:where()` nimmt dem `:has()` sein Gewicht, und die Regel wiegt 0,0,2: mehr
+ * als `td`, gegen das sie in der Tabelle gewinnen muss, und weniger als jede
+ * Form, die ihr eigenes Polster setzt — die Karte, ihre Knopfzelle, die Zeile
+ * einer `pairs`-Tabelle. **Das `tr` steht vor der Klammer und nicht in ihr.**
+ * Als `:where(tr:has(td.multiline))` wöge sie 0,0,1 und gewänne gegen `td`
+ * nur, weil sie in dieser Datei danach steht.
+ *
+ * > **Eine Regel, die für eine Form geschrieben ist, gilt in jeder, die sie
+ * > erreicht — und ob die andere sich wehren kann, entscheidet ihr Gewicht.**
+ *
+ * Eine Gegenregel unter 720 px war der erste Entwurf und ist gemessen der
+ * schlechtere: Sie schreibt die 5 px ein zweites Mal hin und schlägt dabei
+ * auch die Knopfzelle — „Bearbeiten" auf der Planseite bekam oben 5 px statt
+ * der 10 jeder anderen Karte. `MobileLayoutTest` hält die Wirkung für beide
+ * Zellen.
  */
-tr:has(td.multiline) > td {
+tr:where(:has(td.multiline)) > td {
   vertical-align: top;
 
   /*
    * **Und sie bekommt den Abstand zurück, den die Mitte ihr gegeben hat.**
    *
-   * `td` setzt kein senkrechtes Polster (`padding: 0 14px 0 0`); der Abstand
-   * zur Linie darüber entstand ausschliesslich daraus, dass eine Zeile hohe
-   * Zelle in `--row-height` mittig sass. Wer nur `vertical-align` umstellt,
-   * nimmt ihn weg — und die erste Zeile klebt an der Trennlinie. Genau so
-   * gemeldet, eine Fassung später.
+   * Als diese Regel entstand, setzte `td` kein senkrechtes Polster
+   * (`padding: 0 14px 0 0`); der Abstand zur Linie darüber entstand
+   * ausschliesslich daraus, dass eine Zeile hohe Zelle in `--row-height`
+   * mittig sass. Wer nur `vertical-align` umstellte, nahm ihn weg — und die
+   * erste Zeile klebte an der Trennlinie. Genau so gemeldet, eine Fassung
+   * später. Seit `td` oben und unten 6 px trägt, nähme derselbe Handgriff
+   * weniger weg, aber nicht nichts: 6 statt 9,5 px bei 40 px Zeilenhöhe.
    *
    * Gerechnet und nicht geraten: Der Wert ist der Versatz, den eine mittig
    * gesetzte einzelne Zeile ohnehin hat. Gemessen im Chromium gegen das
@@ -3215,7 +3243,7 @@ tr:has(td.multiline) > td {
    *
    * Die erste Angabe ist der Rückfall für Browser ohne `lh`: Sie verstehen die
    * zweite nicht und behalten die erste. Ohne sie fiele `padding-top` dort auf
-   * 0 zurück — also genau auf den Fehler, den diese Regel behebt.
+   * die 6 px von `td` zurück — also auf den Fehler, den diese Regel behebt.
    */
   padding-top: 10px;
   padding-top: calc((var(--row-height) - 1lh) / 2);

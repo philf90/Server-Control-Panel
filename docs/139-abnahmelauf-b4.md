@@ -14,16 +14,18 @@ und der Domainseite". Zwei der fünf Kacheln, „Speicherplatz" und
 `srvpanel:usage` hat dort am selben Abend zum ersten Mal abgelegt
 (`docs/138 §7`, Block 0).
 
-**Fahrbar ist der Lauf ab dem 29. September, 01:00 Uhr.** Eine Kachel zeigt
-eine Kurve erst ab dem zweiten Tag
+**Fahrbar ist der Lauf ab dem 29. September, 01:00 Uhr, gegen
+`0.9.0-rc.8`.** Eine Kachel zeigt eine Kurve erst ab dem zweiten Tag
 (`DailyHistoryTest::test_a_single_day_is_not_a_curve`). Platz und Datenbanken
 haben ihren zweiten Tag mit der ersten Messung nach Mitternacht, und der
-Nachtlauf unter `rc.7` legt dann die Nullen des 28. ab. Der Zeitgeber des
-Nachtlaufs streut bis 01:00.
+Nachtlauf legt dann die Nullen des 28. ab. Der Zeitgeber des Nachtlaufs streut
+bis 01:00.
 
 **Beim Ausschreiben sind zwei Befunde am Prüfling herausgefallen** (§0 Punkte 1
-und 2). Keiner hält den Lauf auf, beide ändern, was er zeigt. §6 fragt, ob sie
-vor dem Lauf behoben werden.
+und 2). Keiner hält den Lauf auf, beide ändern, was er zeigt. §6 hat gefragt,
+ob sie vor dem Lauf behoben werden. **Der Betreiber hat am selben Tag beide wie
+vorgeschlagen entschieden**, und behoben sind sie für `0.9.0-rc.8` (§6). Gegen
+diese Freigabe wird der Lauf gefahren.
 
 Neu ist dazu ein Messmittel: **`tests/kacheln-messen.js`** liest die
 Kachelreihe einer Seite und die Ablesung an ihren Kurven, so wie
@@ -79,9 +81,14 @@ dasselbe; bei 3,5 MB nicht.
 > **Ein Format, das für eine Rate reicht, reicht nicht für eine Anzahl.** Die
 > Schwester des Satzes aus B4 über Rate und Menge.
 
-**Sichtbar wird es auf `cloudsrv24` ab dem 29. September.** Seit `rc.7`
+**Sichtbar würde es auf `cloudsrv24` ab dem 29. September.** Seit `rc.7`
 bekommt ein ruhiger Tag eine Null, und am 29. haben die drei ruhigen Domains
-zwei davon. Damit steht auf ihren Seiten `Zugriffe 0,00`.
+zwei davon. Unter `rc.7` stünde damit auf ihren Seiten `Zugriffe 0,00`.
+
+**Behoben am 28. September für `0.9.0-rc.8`** (§6 Frage 1). Nachgemessen am
+selben Bestand (§2a): `Zugriffe 5` und `0`, `Speicherplatz 3 MB` über `3 MB`,
+`Datenbanken 3 MB` über `3 MB`, und jede leere Kachel zeigt `—` ohne Einheit.
+Die Fehlerquote steht weiter mit `0,00 %` da.
 
 **Die Fehlerquote gehört nicht dazu, und das ist nachgelesen.** Sie ist eine
 Rate, und dort sind die Stellen gewollt: `DailyHistoryTest` hält `5,0 %` und
@@ -110,7 +117,9 @@ verschiedene Seiten beschreiben, und kein Wächter hält eine von beiden.
 > **Ein `v-if` über eine Liste, die nie leer ist, ist keine Bedingung — und
 > der Kommentar darüber beschreibt eine Seite, die es nicht gibt.**
 
-Welche der beiden richtig ist, ist eine Frage (§6 Frage 2).
+Welche der beiden richtig ist, war eine Frage (§6 Frage 2). **Entschieden am
+28. September: Die Reihe bleibt.** Das `v-if` ist auf beiden Seiten fort, und
+die Kommentare beschreiben die Seite, die es gibt.
 
 **3 · „Dazu die Zahl daneben" heisst zweierlei, und der Lauf misst beides.** In
 diesem Repo steht neben einem Bild seit `docs/46` die Zahl des Überlaufs, und
@@ -150,8 +159,9 @@ journalctl -u srvpanel-traffic.service --since today --no-pager | grep -E 'Laufe
 journalctl -u srvpanel-usage.service --since today --no-pager | grep -E 'Verlauf für' | tail -1
 ```
 
-**Erwartet:** `0.9.0-rc.7` oder die Freigabe, die die Behebung aus §6 Frage 1
-trägt. Die letzte Auslösung des Nachtlaufs liegt heute zwischen 00:00 und
+**Erwartet:** `0.9.0-rc.8`, die Freigabe mit der Behebung aus §6. Unter
+`rc.7` stünden die Zahlen in der Form aus §0 Punkt 1, und die Bilderrunde
+hielte sie fest. Die letzte Auslösung des Nachtlaufs liegt heute zwischen 00:00 und
 01:00. Im Journal stehen die vier Zeilen des Laufs, darin `ruhig (eine Null)`
 und `Abgelegt:`. Dazu steht eine Zeile `Verlauf für <heute>` von
 `srvpanel:usage`. **Fehlt die Zeile von heute**, haben Platz und Datenbanken nur
@@ -210,9 +220,10 @@ app(App\Support\Tenancy\Tenancy::class)->withoutRestriction(function () use ($h,
   Abonnement, dessen Domains ruhig waren, hat zwei Punkte, 27.09. und 28.09.,
   beide null, sofern es davor keine Zeile hatte. Das dritte hat keine Zeile
   des Verkehrs (`docs/138 §7`) und damit dort `—` und 0 Punkte.
-- **Solange §0 Punkt 1 nicht behoben ist**, stehen die Zahlen in der Form aus
-  der Tabelle dort: `Zugriffe 0,00` an einem ruhigen Tag, und bei den
-  Datenbanken eine Nachkommastelle, wo darunter eine ganze Zahl steht.
+- **Mit `rc.8`** stehen die Zugriffe ganz da, an einem ruhigen Tag `0`.
+  Speicherplatz und Datenbanken stehen in ganzen MB und gleichen der Zahl in
+  der Klammer dahinter (`darunter auf der Seite`). Eine Kachel ohne Punkte
+  zeigt `—` ohne Einheit. Die Fehlerquote behält ihre Stellen.
 
 ### §2a · Was im Container gemessen ist
 
@@ -232,9 +243,17 @@ Die Seite ist ein Vite-Aufsatz im Scratchpad. Er bindet die **echte**
 diesen Bestand zurückgibt. Die Reihe steht so da wie in den beiden Seiten;
 nachgebaut ist nur der Rahmen um sie.
 
+**Nachgemessen am Abend des 28. September gegen die Behebung aus §6**, am
+selben Bestand und mit denselben Läufen. Die Tabelle zeigt den behobenen
+Stand; was vorher dastand, zeigt §0 Punkt 1. In allen zwanzig Lagen blieb jede
+Höhe aufs Pixel dieselbe, verändert haben sich nur die Werte. Nebenbei steht
+beim Verkehr eines ruhigen Tages `0,0 kB`: Die Grössenordnung richtet sich nach
+dem höchsten Wert der Reihe. Das gehört zur Verkehrskachel und nicht zu §6 und
+bleibt.
+
 | Messung | Lage | gezeigt |
 |---|---|---|
-| Block 2 | wie gebaut | alpha: `Speicherplatz 1.250 MB 2 Punkte, 27.09. bis 28.09.`, `Traffic 76,8 MB 30 Punkte, 29.08. bis 27.09. (eingehend 3,1 MB)`, `Zugriffe 2.389`, `Fehlerquote 3,9 %`, `Datenbanken 3,5 MB`, darunter `Datenbanken 3 MB`; shop.alpha: `Zugriffe 5,0`, `Fehlerquote 20 %`; beta: `Speicherplatz 3,0 MB` bei `Platz 3 MB` darunter, `Zugriffe 0,00`, `Fehlerquote 0,00 %`, `Datenbanken 0,00 MB`; gamma: jede Kachel `—` mit 0 Punkten |
+| Block 2 | wie gebaut | alpha: `Speicherplatz 1.250 MB 2 Punkte, 27.09. bis 28.09.`, `Traffic 76,8 MB 30 Punkte, 29.08. bis 27.09. (eingehend 3,1 MB)`, `Zugriffe 2.389`, `Fehlerquote 3,9 %`, `Datenbanken 3 MB`, darunter `Datenbanken 3 MB`; shop.alpha: `Zugriffe 5`, `Fehlerquote 20 %`; beta: `Speicherplatz 3 MB` bei `Platz 3 MB` darunter, `Zugriffe 0`, `Fehlerquote 0,00 %`, `Datenbanken 0 MB`; gamma: jede Kachel `—` ohne Einheit und mit 0 Punkten |
 | `kachelnMessen()` | fünf Seiten × vier Lagen | `reihe=flex`, fünf beziehungsweise drei Kacheln; jede Zeile wie Block 2; bei 1440 px jede Kachel 196 px und die Reihe 198 px; bei 390 px 172, 193, 173, 173, 173 px und die Reihe 886 px, auf der Domainseite 540 px |
 | dasselbe, leere Kacheln | gamma | jede Kachel `leer`, **dieselben Höhen** wie die Kacheln mit Kurve an derselben Stelle |
 | `bilderMessen()` | dieselben zwanzig Lagen | jede `dokument=0 gegenprobe=200 (soll 200) schiebt=0 rollt=0 versteckt=0` |
@@ -242,7 +261,7 @@ nachgebaut ist nur der Rahmen um sie.
 | Gegenprobe Stylesheet | alle Stylesheets entfernt | `reihe=block`, jede Kachel 503 px |
 | Gegenprobe Kurve | das `.trend` einer Kachel entfernt | diese Kachel `UNKLAR` mit 0 Punkten |
 | Gegenprobe Reihe | die Klasse `.tiles` entfernt | `keine Kachelreihe` |
-| `ablesungMessen()` | alpha bei 1440 und 390 px | `Speicherplatz 27.09. · 1.234 MB … 28.09. · 1.250 MB`, `Traffic 29.08. · ausgehend 50,7 MB … 27.09. · ausgehend 76,8 MB`, `Zugriffe 29.08. · 1.311 … 27.09. · 2.389`; danach jede Unterzeile im Ruhezustand |
+| `ablesungMessen()` | alpha bei 1440 und 390 px | `Speicherplatz 27.09. · 1.234 MB … 28.09. · 1.250 MB`, `Traffic 29.08. · ausgehend 50,7 MB … 27.09. · ausgehend 76,8 MB`, `Zugriffe 29.08. · 1.311 … 27.09. · 2.389`, `Datenbanken 27.09. · 3 MB … 28.09. · 3 MB`; danach jede Unterzeile im Ruhezustand |
 | dasselbe, leer | gamma | jede Kachel `keine Kurve` |
 | Sperre | zweites `kachelnMessen()` ohne Neuladen | wirft: `Schon gemessen. Seite neu laden …` |
 | Sperre | `kachelnMessen()` nach `ablesungMessen()`, danach ein zweites `ablesungMessen()` | beide werfen |
@@ -283,6 +302,10 @@ derselben Einheit und dieselbe Zahl von Punkten wie Block 2, in derselben
 Reihenfolge. Eine Kachel mit 0 Punkten heisst `leer`, eine mit zwei oder mehr
 `Kurve`, und **keine** heisst `UNKLAR`. `warnt` steht nur, wo ein Kontingent
 überschritten ist; auf `cloudsrv24` wird das keines sein.
+
+**Und Speicherplatz und Datenbanken zeigen dieselbe Zahl wie der Bereich
+darunter**, die Block 2 in der Klammer druckt. Das ist die Behebung aus §6
+Frage 1 auf dem Server.
 
 ### Punkt 2 — Jede Domainseite trägt drei Kacheln und den Satz darunter
 
@@ -350,9 +373,9 @@ des dritten Abonnements, bei 390 und bei 1440 px `kachelnMessen()`.
 **Erwartet:** Die leeren Kacheln heissen `leer` und tragen `noch keine
 Messwerte` im Bild. Bei 1440 px sind sie so hoch wie ihre Nachbarn. Bei 390 px
 ist jede so hoch wie die Kachel mit Kurve an derselben Stelle auf einer anderen
-Seite, auf ein Pixel genau (§2a: 172, 193, 173, 173, 173 px). **Die Reihe
-selbst steht da**, auch wenn alle Kacheln leer sind; das ist §0 Punkt 2, und ob
-es so bleibt, entscheidet §6 Frage 2.
+Seite, auf ein Pixel genau (§2a: 172, 193, 173, 173, 173 px). Ihr Wert ist `—`
+ohne Einheit. **Die Reihe selbst steht da**, auch wenn alle Kacheln leer sind;
+so ist es entschieden (§6 Frage 2).
 
 ---
 
@@ -389,10 +412,9 @@ der am Werkzeug scheitert, ist nicht „nicht herstellbar" (`docs/108`).
 `tests/bilder-messen.js` braucht eine Browserkonsole; vom Telefon aus wird der
 Punkt nachgeholt und nicht weicher gelesen.
 
-**Stehen die Befunde aus §0 Punkt 1 dann noch da, ist Punkt 1 trotzdem
-erfüllt** — die Seite zeigt, was der Server rechnet —, und der Befund bleibt
-offen. Abgenommen wird B4 dann nicht vor der Entscheidung zu §6 Frage 1; die
-Abnahme spricht der Betreiber aus.
+**Gefahren wird gegen `rc.8`.** Steht eine Zahl dann noch in der Form aus §0
+Punkt 1, ist Punkt 1 nicht erfüllt: Die Behebung ist nicht angekommen, und das
+ist ein Befund an ihr. Die Abnahme spricht der Betreiber aus.
 
 > **Ein Kriterium, das man beim letzten Punkt weicher liest als beim ersten,
 > ist keines mehr — es ist eine Zusammenfassung.**
@@ -404,6 +426,9 @@ Abnahme spricht der Betreiber aus.
 Beide betreffen, was ein Kunde auf seiner Seite sieht, und stehen damit unter
 der Regel vom 27. September: *Macht es Sinn und gibt es einen spürbaren
 Mehrwert für einen Nutzer im Panel?*
+
+**Entschieden am 28. September 2026: beide wie vorgeschlagen.** Gebaut ist es
+am selben Abend für `0.9.0-rc.8` (§6a).
 
 **Frage 1 · Die Zahlen vor dem Lauf richten?** Der Vorschlag: **ja**, als
 `0.9.0-rc.8` vor dem Lauf. Sonst dokumentiert die Bilderrunde Zahlen, von denen
@@ -434,6 +459,27 @@ den nächsten. Ausblenden hiesse, auf zwei Seiten eine zweite Bedingung zu
 bauen, die fragt, ob irgendeine Kachel eine Kurve hat. Gewonnen wäre ein
 leerer Tag weniger an einem neuen Abonnement. Nach der Regel vom 27. September
 wird das nicht gebaut.
+
+### §6a · Gebaut am 28. September 2026
+
+- **Eine Anzahl und ein Stand in ganzen MB** laufen durch
+  `Points::wholeFormatter()`. Die Fehlerquote behält `plainFormatter()`.
+- **Die Datenbanken runden an einer Stelle:** `Subscription::wholeMegabytes()`
+  rechnet für `databaseUsedMb()` und für die Kachel. Abgerundet wird vor der
+  Kurve.
+- **Eine leere Kachel trägt keine Einheit.** Gefragt wird dieselbe Bedingung
+  wie dort, wo der Strich entsteht. Die Übersichtsseite ruft das nicht.
+- **Beide Seiten zeigen die Reihe ohne Bedingung.** Auf der Domainseite ist
+  dafür der Rahmen gefallen: Ein `<template>` ohne Direktive übersetzt Vue zu
+  einem echten `template`-Element, und dessen Inhalt zeigt der Browser nicht
+  an (gemessen am Übersetzer).
+
+Gehalten wird das von sechs neuen Fällen in `DailyHistoryTest`. Der wichtigste
+liest beide Zahlen aus der Antwort der echten Route, an 3,75 MiB: abgerundet 3,
+gerundet 4, geteilt `3,8`. Im Bruchskript stehen dreizehn neue Eingriffe, und
+zwei alte zielen jetzt auf die neue Stelle. Die Auswahl aller Eingriffe in die
+berührten Dateien, 42 Abschnitte mit 111 Prüfungen, beisst vollständig. Dass
+die Vorlage keine Bedingung trägt, hält kein Wächter.
 
 ---
 

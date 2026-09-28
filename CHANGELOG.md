@@ -33233,3 +33233,76 @@ der Messung läuft.
 > gefahren — man denkt an das Gebaute und nicht an das Berührte.** Gefahren
 > waren die Wächter über Dokumente; die neue Datei lag in einem Verzeichnis,
 > das ein anderer einsammelt.
+
+### B4 ist behoben — Kacheln ohne erfundene Stellen, und die Reihe steht so da, wie ihr Kommentar sagt
+
+**Entschieden am 28. September 2026, wie `docs/139 §6` es vorgeschlagen hat,
+und gebaut für `0.9.0-rc.8`.** Der Lauf für B4 wird gegen diese Freigabe
+gefahren. Sonst hielte seine Bilderrunde Zahlen fest, von denen feststeht,
+dass sie falsch dastehen.
+
+**Frage 1, die Zahlen.** Eine Anzahl steht ganz da: `5` statt `5,0`, `0` statt
+`0,00`, `2.389`. Speicherplatz und Datenbanken stehen in ganzen MB wie im
+Bereich darunter, `3 MB` statt `3,0 MB`. Neu ist dafür
+`Points::wholeFormatter()`. Die Regel von `plainFormatter()` bleibt bei den
+Raten, und die Fehlerquote und die Übersichtsseite sind deshalb unverändert.
+
+**Die Datenbanken runden jetzt an einer Stelle.** `Subscription::wholeMegabytes()`
+rechnet für `databaseUsedMb()` und für die Kachel darüber. Bis dahin teilte die
+Kachel, und dieselbe Messung stand oben als `3,5 MB` und unten als `3 MB`.
+
+> **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine doppelte Auskunft,
+> sondern eine widersprüchliche.**
+
+**Abgerundet wird vor der Kurve und nicht erst an der Zahl.** Sonst stiege die
+Kurve zwischen zwei Tagen, die beide `3 MB` heissen: ein Ausschlag, den keine
+Zahl benennt. Das ist der Fall, den `Points::plainFormatter()` von der
+CPU-Kachel erzählt, in die andere Richtung behoben. Dort bekam die Zahl ihre
+Stellen, hier verliert die Kurve die ihren.
+
+**Und ein leerer Wert trägt keine Einheit**: `—` statt `— MB`, `— B` und `— %`.
+Gefragt wird dieselbe Bedingung wie in `Points::latest()`, das den Strich
+schreibt.
+
+**Frage 2, die Reihe.** Sie bleibt auch ohne Messwerte stehen. Das `v-if` über
+`props.history.length` ist auf beiden Seiten fort, und die Kommentare
+beschreiben die Seite, die es gibt. Auf der Domainseite musste der Rahmen mit:
+Die Bedingung stand an einem `<template>`, das Reihe und Satz zusammenhielt.
+Ohne Direktive übersetzt Vue ein `<template>` zu einem echten
+`template`-Element, und dessen Inhalt zeigt der Browser nicht an. Gemessen am
+Übersetzer: `_createElementVNode("template", …)` ohne Direktive, kein Element
+mit `v-if`.
+
+> **Wer die Bedingung von einem `<template>` streicht, streicht den Rahmen mit —
+> ohne Direktive ist er ein Element, dessen Inhalt niemand sieht.**
+
+**Der Wächter misst jetzt an einem Wert, an dem die Rechnungen
+auseinandergehen.** `DailyHistoryTest` hat sechs neue Fälle. Der wichtigste
+liest beide Zahlen aus der Antwort der echten Route, an 3,75 MiB: abgerundet
+3, gerundet 4, geteilt `3,8`. Der alte prüfte an einem Gigabyte, und dort
+ergeben Teilen und Abrunden dasselbe.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+Gehalten ist dabei die Hälfte am Server: `History` liefert auch ohne eine
+einzige Zeile fünf beziehungsweise drei Kacheln. Dass die Vorlage keine
+Bedingung trägt, hält kein Wächter.
+
+**Ein Satz in einem der neuen Eingriffe war falsch, gefunden vor dem Commit.**
+Er begründete 3,75 MiB damit, dass 3,5 Runden und Abrunden nicht trenne. PHP
+rundet die Hälfte auf, `round(3.5)` ist 4 (gemessen); erst unterhalb der Hälfte
+sehen beide gleich aus, bei 3,25 MiB zum Beispiel.
+
+**Die Brüche beissen alle, und zwei alte Eingriffe hatten ihren Anker
+verloren.** Der Trockenlauf über alle 1781 Python-Eingriffe fand genau die
+beiden, die auf die geänderten Zeilen zielten: einen in `History`, einen in
+`databaseUsedMb()`. Beide zielen jetzt auf die neue Stelle, und dreizehn neue
+sind dazugekommen. Die Auswahl aller Eingriffe in die berührten Dateien, 42
+Abschnitte mit 111 Prüfungen, beisst vollständig.
+
+**Im Container nachgemessen**, am Bestand aus `docs/139 §2a`: Die Kacheln
+zeigen `Zugriffe 5` und `0`, `Speicherplatz 3 MB` und `Datenbanken 3 MB` über
+denselben Zahlen im Bereich darunter, und jede leere Kachel `—` ohne Einheit.
+In allen zwanzig Lagen blieb jede Höhe aufs Pixel dieselbe; verändert haben
+sich nur die Werte.

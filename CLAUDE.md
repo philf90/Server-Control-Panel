@@ -25,8 +25,9 @@ der Lauf für B3 ist `docs/138`, ausgeschrieben am 28. September, und er hat vor
 dem Fahren einen Befund am Prüfling gebracht (Abschnitt weiter unten) — behoben
 am selben Tag, ausgeliefert mit `0.9.0-rc.7` und am Abend auf `cloudsrv24`
 gesehen; von Teil 1 sind Block 0 und Block 4 gefahren (`docs/138 §7`). Der Lauf
-für B4 ist `docs/139`, fahrbar ab dem 29. September; beim Ausschreiben fielen
-zwei Befunde heraus, die als Fragen an den Betreiber vor ihm stehen.
+für B4 ist `docs/139`. Beim Ausschreiben fielen zwei Befunde heraus; der
+Betreiber hat sie am selben Tag entschieden, und behoben sind sie für
+`0.9.0-rc.8`, gegen die der Lauf gefahren wird (`docs/139 §6`).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -6450,6 +6451,25 @@ Einen Schaden verhindert die Sperre bei der Messung selbst nicht, denn ein
 zweites `kachelnMessen()` liest nur. Sie belegt, dass jede Lage frisch geladen
 war. Nach der Ablesung wirft auch die Messung, weil der Zeiger dann über jede
 Kurve gestrichen hat.
+
+**Beide Befunde sind am selben Abend behoben**, entschieden vom Betreiber wie
+vorgeschlagen (`docs/139 §6`). Eine Anzahl steht ganz da, Speicherplatz und
+Datenbanken in ganzen MB wie im Bereich darunter, und ein leerer Wert trägt
+keine Einheit. Die Datenbanken runden dabei an **einer** Stelle,
+`Subscription::wholeMegabytes()`, für den Bereich und für die Kachel; abgerundet
+wird vor der Kurve. Fehlerquote und Übersicht bleiben, wie sie sind.
+
+Der neue Wächter misst durch die echte Route an 3,75 MiB, wo Abrunden (3),
+Runden (4) und Teilen (`3,8`) auseinandergehen. Der alte prüfte an einem
+Gigabyte, dem einen Wert, an dem sie gleich aussehen.
+
+Die Reihe bleibt auch ohne Messwerte stehen, das `v-if` darüber ist fort. Auf
+der Domainseite stand es an einem `<template>`, und das musste mit: Ohne
+Direktive übersetzt Vue es zu einem echten `template`-Element, dessen Inhalt
+der Browser nicht anzeigt (gemessen am Übersetzer).
+
+> **Wer die Bedingung von einem `<template>` streicht, streicht den Rahmen mit
+> — ohne Direktive ist er ein Element, dessen Inhalt niemand sieht.**
 
 ---
 

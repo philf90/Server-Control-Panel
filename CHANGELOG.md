@@ -32930,3 +32930,65 @@ es.
 
 > **Ein Eingriff, den ein Zwischenspeicher des Prüflings nicht sieht, misst
 > nicht — und ob er ihn sieht, entscheidet die Uhr.**
+
+### „Platte voll" ist abgenommen — und Karten neben einer mehrzeiligen Zelle behalten ihr Polster
+
+**„Platte voll" ist am 28. September 2026 abgenommen**, ausgesprochen vom
+Betreiber auf Grund des Laufs vom 27. (`docs/137 §7`). Eine ganz volle Platte
+ist dabei bewusst nicht hergestellt worden, entschieden vom Betreiber: Der Lauf
+bei 95 % war erfolgreich. Gemessen sind die Warnung über 85 %, die Störung über
+95 %, der Rückweg in drei Stufen und der Zustand, in dem auf einer Platte
+wirklich nichts mehr geht — alle Inodes vergeben bei freiem Platz. Was eine
+Platte ohne freien Block anrichtet, steht in `docs/136 §3` M5: MariaDB stürzt
+beim nächsten Wachsen einer Tabelle ab. Die Behebungen nach dem Lauf haben
+weiterhin keinen Server gesehen.
+
+**Karten neben einer mehrzeiligen Zelle behalten ihr Polster.** Die Regel
+`tr:has(td.multiline) > td` ist für die breite Tabelle geschrieben: Eine Zeile
+mit einer gestapelten Zelle steht oben, und jede Zelle bekommt den Abstand
+zurück, den die Mitte ihr gab. Sie galt aber auf jeder Breite und schlug mit
+dem Gewicht von `:has()` (0,1,3) die Karte (`.stacks td`, 0,1,1). Unter 720 px
+bekam jede Zelle einer solchen Karte 11,5 px statt 5 px und wurde 44 statt
+31 px hoch, auch jede, die mit dem zweiten Wert nichts zu tun hat. Gemessen bei
+390 px gegen das gebaute Stylesheet, vorher und nachher: eine Karte der
+Übersicht 338,8 → 260,8 px, eine des Verlaufs 294,8 → 229,8, eine der Pläne
+360,3 → 288,8. Bei 1440 px sind alle drei Seiten Zahl für Zahl gleich
+geblieben, `dokument` 0 und Gegenprobe 200 in beiden Themes.
+
+Gebaut ist `tr:where(:has(td.multiline)) > td`: Die Regel wiegt 0,0,2 — mehr
+als `td`, gegen das sie in der Tabelle gewinnen muss, und weniger als jede
+Form mit eigenem Polster. Zwei Fassungen standen davor, und beide sind an
+einer Messung gefallen:
+
+- **Die Gegenregel unter 720 px** war der erste Entwurf; mit ihr sind die
+  Zahlen gemessen, die zur Entscheidung geführt haben. Sie schreibt die 5 px
+  ein zweites Mal hin und schlägt dabei auch `.stacks td:not([data-column])` —
+  „Bearbeiten" auf der Planseite bekam oben 5 px statt der 10 jeder anderen
+  Karte.
+- **`:where(tr:has(td.multiline)) > td`** hat `StandaloneClassTest`
+  abgewiesen: Er liest die erste Verbindung eines Selektors, sie begann mit
+  `:where(`, und für ihn ist das eine Verbindung ohne Element — `.multiline`
+  galt als freistehend, und seine Sperrklinke meldete den Eintrag in
+  `CONTEXT_BOUND` als überflüssig. Er irrte sich; die Fassung, die ihm genügt,
+  ist trotzdem die bessere: Mit 0,0,1 hätte die Regel gegen `td` nur gewonnen,
+  weil sie in `app.css` danach steht.
+
+> **Eine Regel, die für eine Form geschrieben ist, gilt in jeder, die sie
+> erreicht — und ob die andere sich wehren kann, entscheidet ihr Gewicht.**
+
+`MobileLayoutTest::test_a_card_keeps_its_padding_beside_a_multiline_cell` hält
+die Wirkung für die beschriftete Zelle und für die Knopfzelle — und dass die
+Karte durch Gewicht gewinnt und nicht durch die Reihenfolge des Tests:
+`narrowRules()` stellt die Regeln ausserhalb jeder Mediaabfrage nach vorn, im
+Browser steht die Zeilenregel dahinter. Dafür wertet `specificity()` ein
+`:where()` jetzt mit null; bis dahin zählte es als Klasse. Vier Eingriffe,
+jeder einzeln gebissen.
+
+**Und ein Satz stand an drei Stellen falsch**, in `app.css`, in
+`TableStyleTest` und im Bruchskript: „`td` setzt kein senkrechtes Polster".
+Er stimmte, als die Zeilenregel entstand; seit `docs/64` trägt `td` 6 px, und
+wer heute nur die Ausrichtung umstellte, bekäme 6 px Abstand statt 9,5.
+
+**Beim Messen aufgefallen und nicht angefasst:** Die Knopfzelle einer Karte
+steht 14 px eingerückt. Das leere `::before` einer Zelle ohne Beschriftung
+nimmt die Lücke der Flexzeile mit — gemessen 14 px, mit `content: none` 0.

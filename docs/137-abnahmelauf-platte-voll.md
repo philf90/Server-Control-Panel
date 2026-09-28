@@ -742,14 +742,20 @@ getragen, der Text darin nicht.
 - **Eine Karte mit einer zweizeiligen Zelle ist bei 390 px höher als die
   anderen** — jede ihrer Zeilen 44 px statt 31, gemessen im Nachbau der
   Übersicht. Die Regel `tr:has(td.multiline) > td` ist für die Tabelle
-  geschrieben und greift auch in der gestapelten Karte; Pläne, Datenbanken,
-  PHP und Meldeziele haben dieselbe Eigenschaft schon. Nicht geändert.
+  geschrieben und greift auch in der gestapelten Karte. Hier stand, Pläne,
+  Datenbanken, PHP und Meldeziele hätten dieselbe Eigenschaft; dazu kommen die
+  Vorgänge, die Diagnose, die Konten, die offenen Sitzungen eines Kontos und die
+  Sicherungen eines Abonnements. **Behoben am 28. September**
+  (`CHANGELOG.md`): Die Regel heisst jetzt `tr:where(:has(td.multiline)) > td`
+  und weicht der Karte. Gemessen bei 390 px: eine Karte der Übersicht
+  338,8 → 260,8 px, eine der Vorgänge 294,8 → 229,8; bei 1440 px ist nichts
+  verschoben.
 
 ### Was dieser Lauf nicht gemessen hat
 
 - **Die Behebungen.** Alle drei Befunde und beide Beobachtungen sind nach dem
   Lauf gebaut und haben keinen Server gesehen — die Mail in ihrer neuen Fassung
-  nicht und die Zeile für die Inodes nicht.
+  nicht, die Zeile für die Inodes nicht und die Höhe der Karten auch nicht.
 - Alles aus §5; es ist nicht kürzer geworden.
 
 ### Was benannt offen bleibt
@@ -760,5 +766,26 @@ getragen, der Text darin nicht.
 - **Die Zeilen eines Befundes in der Mail** sind so lang wie ihr Satz — die
   Vorlage verspricht Zeilen unter 78 Zeichen und hält es nur für ihren eigenen
   Text.
-- **Die Höhe der zweizeiligen Karten** bei 390 px (oben).
+- ~~**Die Höhe der zweizeiligen Karten** bei 390 px (oben).~~ Behoben am
+  28. September, ohne einen Server gesehen zu haben.
 - Der Rest des Prüfstands, `tls.file / expired / p6-b.invalid`.
+
+### Die Abnahme — 28. September 2026
+
+**„Platte voll" ist abgenommen**, ausgesprochen vom Betreiber am
+28. September 2026 auf Grund dieses Laufs.
+
+**Eine ganz volle Platte ist dabei bewusst nicht hergestellt worden, und das
+ist eine Entscheidung des Betreibers und kein Ausfall:** „Die Simulation einer
+Partition mit 95% ist bereits gelaufen und war erfolgreich." Gemessen ist der
+Weg dorthin — die Warnung über 85 % (Punkt 2), die Störung über 95 %
+(Punkt 3), jede Stufe des Rückwegs (Punkt 4) — und der eine Zustand, in dem
+auf einer Platte wirklich nichts mehr geht: alle Inodes vergeben bei freiem
+Platz (Punkt 5). Was eine Platte ohne freien Block anrichtet, steht in
+`docs/136 §3` M5: MariaDB stürzt beim nächsten Wachsen einer Tabelle ab, und
+auf `cloudsrv24` ist das die Datenbank des Panels.
+
+**Die Behebungen nach dem Lauf haben keinen Server gesehen** — die drei Befunde
+an der Mail, die Anteile mit Komma, die Zeile für die Inodes und die Höhe der
+zweizeiligen Karten. Keine davon betrifft die Prüfung; sie kommen mit der
+nächsten Freigabe.

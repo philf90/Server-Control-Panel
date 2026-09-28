@@ -273,6 +273,11 @@ sichtbar mit `MountFlags=private` — und wird auf dem Server in der Namespace
 des Agenten nachgesehen. Punkt 4 fährt er in drei Stufen (88, 82, 78 %), weil
 der Rückweg nur zwischen den Schwellen etwas entscheidet (`docs/137 §0`).
 
+**Abgenommen am 28. September 2026**, ausgesprochen vom Betreiber auf Grund
+des Laufs vom 27. (`docs/137 §7`): alle Punkte erfüllt, die Wurzel nie gefüllt.
+Eine ganz volle Platte ist bewusst nicht hergestellt worden — was sie
+anrichtet, steht hier in §3 als M5.
+
 ## §8 · Was offen bleibt
 
 - **RAM und Load** — zurückgestellt (§1).

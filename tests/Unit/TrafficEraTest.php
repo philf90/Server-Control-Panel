@@ -235,10 +235,11 @@ final class TrafficEraTest extends TestCase
     }
 
     /**
-     * **Eine Meldung ohne Domains ergibt vier leere Töpfe und keine Ausnahme.**
+     * **Eine Meldung ohne Domains ergibt leere Töpfe und keine Ausnahme.**
      *
      * Der Nachtlauf läuft auf jedem Server, auch auf einem ohne ein einziges
      * Abonnement. Ein Absturz dort wäre eine rote Unit jede Nacht, für nichts.
+     * Hier stand „vier leere Töpfe"; seit dem 28. September 2026 sind es sechs.
      */
     public function test_a_report_without_domains_is_empty_and_not_an_error(): void
     {
@@ -246,7 +247,9 @@ final class TrafficEraTest extends TestCase
             $topf = AccessCounts::split($meldung, self::HEUTE);
 
             $this->assertSame([], $topf['countable']);
+            $this->assertSame([], $topf['quiet']);
             $this->assertSame([], $topf['skipped']);
+            $this->assertSame([], $topf['unread']);
             $this->assertSame([], $topf['open']);
             $this->assertSame([], $topf['earlier']);
             $this->assertSame(0, $topf['incomplete']);
@@ -286,21 +289,34 @@ final class TrafficEraTest extends TestCase
     }
 
     /**
-     * **Was diese Aufteilung nicht sagt, und zwar ausdrücklich.**
+     * **Eine Domain ohne Zeile, von der die Meldung nicht sagt, dass sie ganz
+     * gelesen ist, bekommt keine Zahl.**
      *
-     * Eine Domain ohne eine einzige Zeile hat keinen Tag — sie taucht in
-     * keinem der vier Töpfe auf. „Gestern null Verkehr" und „gestern nicht
-     * gezählt" sind damit hier nicht zu unterscheiden. Das ist richtig so, denn
-     * der Agent sieht nur Zeilen; wer die Domains kennt, ist das Panel, und
-     * die Lücke zu füllen ist B3 und nicht diese Klasse.
+     * Hier stand bis zum 28. September 2026: „Gestern null Verkehr" und
+     * „gestern nicht gezählt" seien in dieser Klasse nicht zu unterscheiden,
+     * und die Lücke zu füllen sei B3 und nicht diese Klasse. B3 hat sie nie
+     * gefüllt, und unterscheiden lassen sie sich doch: Der Agent meldet je
+     * Domain, wie viele Dateien er gelesen hat und wie viele Zeilen unlesbar
+     * waren. Die Null für den ruhigen Tag hält `QuietDayTest`
+     * (`docs/138 §6` Frage 2).
+     *
+     * > **Eine Zeile, die eine Aufgabe an eine andere Stufe weiterreicht,
+     * > ist erledigt erst, wenn die andere Stufe sie übernommen hat — und
+     * > nichts meldet, dass sie es nicht getan hat.**
+     *
+     * Dieser Fall hält die andere Richtung: Die Meldung hier trägt keines der
+     * beiden Felder, und dann ist die Domain nicht ganz gelesen — keine Zahl
+     * und keine Null.
      */
     public function test_a_domain_without_lines_produces_no_row_at_all(): void
     {
         $topf = AccessCounts::split($this->meldung([]), self::HEUTE);
 
         $this->assertSame([], $topf['countable']);
+        $this->assertSame([], $topf['quiet']);
         $this->assertSame([], $topf['skipped']);
         $this->assertSame([], $topf['open']);
         $this->assertSame([], $topf['earlier']);
+        $this->assertCount(1, $topf['unread']);
     }
 }

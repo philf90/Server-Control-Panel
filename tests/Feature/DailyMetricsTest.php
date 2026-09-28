@@ -39,18 +39,45 @@ final class DailyMetricsTest extends TestCase
         return new Daily(app(Tenancy::class));
     }
 
-    /** @return array{Subscription, Domain} */
-    private function abonnement(string $name = 'beispiel.de', string $domain = 'beispiel.de'): array
+    /**
+     * Ein Abonnement mit einer Domain.
+     *
+     * `$angelegt` setzt den Zeitpunkt, zu dem es die Domain gibt. Eine Null
+     * bekommt nur eine Domain, die es vor dem Tag schon gab — ohne diese
+     * Angabe entstünde sie im Prüfstand „jetzt", und jede Null für einen Tag
+     * davor fiele weg.
+     *
+     * @return array{Subscription, Domain}
+     */
+    private function abonnement(string $name = 'beispiel.de', string $domain = 'beispiel.de', ?string $angelegt = null): array
     {
-        return app(Tenancy::class)->withoutRestriction(function () use ($name, $domain): array {
+        return app(Tenancy::class)->withoutRestriction(function () use ($name, $domain, $angelegt): array {
             $subscription = Subscription::factory()->create(['name' => $name]);
-            $eintrag = Domain::factory()->create([
+            $eintrag = Domain::factory()->create(array_filter([
                 'subscription_id' => $subscription->id,
                 'name' => $domain,
-            ]);
+                'created_at' => $angelegt,
+            ], fn ($wert): bool => $wert !== null));
 
             return [$subscription, $eintrag];
         });
+    }
+
+    /** @return list<array{subscription:string, domain:string, day:string}> */
+    private function ruhig(string $subscription, string $domain, string $day): array
+    {
+        return [['subscription' => $subscription, 'domain' => $domain, 'day' => $day]];
+    }
+
+    /** @return array<string, int> */
+    private function werte(string $table, string $spalte, int $kennung, string $day): array
+    {
+        return DB::table($table)
+            ->where($spalte, $kennung)
+            ->whereDate('day', $day)
+            ->pluck('value', 'metric')
+            ->map(fn ($wert): int => (int) $wert)
+            ->all();
     }
 
     /** @return list<array<string, mixed>> */
@@ -324,5 +351,157 @@ final class DailyMetricsTest extends TestCase
         $this->expectException(UniqueConstraintViolationException::class);
 
         DB::table('domain_metrics')->insert($zeile);
+    }
+
+    /**
+     * **Ein ruhiger Tag bekommt vier Nullen — die Domain und ihr Abonnement.**
+     *
+     * `docs/138 §0` Punkt 2, entschieden am 28. September 2026: Bis dahin bekam
+     * ein Tag ohne Anfrage keine Zeile, und die Kurve rückte seine Nachbarn
+     * zusammen.
+     */
+    public function test_a_quiet_domain_gets_four_zeros_and_its_subscription_too(): void
+    {
+        [$subscription, $domain] = $this->abonnement(angelegt: '2026-09-01 10:00:00');
+
+        $ergebnis = $this->daily()->record([], $this->ruhig('beispiel.de', 'beispiel.de', '2026-09-20'));
+
+        $this->assertSame(4, $ergebnis['domains']);
+        $this->assertSame(4, $ergebnis['subscriptions']);
+
+        $nullen = array_fill_keys(array_map(fn (DailyMetric $m): string => $m->value, DailyMetric::ofADomain()), 0);
+        ksort($nullen);
+
+        foreach ([['domain_metrics', 'domain_id', $domain->id], ['subscription_metrics', 'subscription_id', $subscription->id]] as [$tabelle, $spalte, $kennung]) {
+            $werte = $this->werte($tabelle, $spalte, (int) $kennung, '2026-09-20');
+            ksort($werte);
+
+            $this->assertSame($nullen, $werte, "{$tabelle}: ein ruhiger Tag sind vier Nullen und keine fehlende Zeile.");
+        }
+    }
+
+    /** Neben einer gezählten Domain ändert eine ruhige an der Summe nichts. */
+    public function test_a_quiet_domain_beside_a_counted_one_adds_nothing(): void
+    {
+        [$subscription] = $this->abonnement('abo.de', 'eins.de', '2026-09-01 10:00:00');
+
+        app(Tenancy::class)->withoutRestriction(fn () => Domain::factory()->create([
+            'subscription_id' => $subscription->id,
+            'name' => 'zwei.de',
+            'created_at' => '2026-09-01 10:00:00',
+        ]));
+
+        $this->daily()->record(
+            $this->zeile('abo.de', 'eins.de', '2026-09-20', requests: 10, sent: 100),
+            $this->ruhig('abo.de', 'zwei.de', '2026-09-20'),
+        );
+
+        $werte = $this->werte('subscription_metrics', 'subscription_id', (int) $subscription->id, '2026-09-20');
+
+        $this->assertSame(10, $werte[DailyMetric::Requests->value] ?? -1);
+        $this->assertSame(100, $werte[DailyMetric::TrafficSentBytes->value] ?? -1);
+    }
+
+    /**
+     * **Die Null eines Abonnements nur, wo keine seiner Domains eine Lücke
+     * hatte.** Die ruhige Domain bekommt ihre Null; das Abonnement nicht, denn
+     * neben ihr stand eine, die an dem Tag gelesen und nicht gezählt wurde —
+     * seine Null sagte „nichts gewesen" über einen Tag, an dem etwas gewesen
+     * sein kann.
+     */
+    public function test_a_quiet_domain_beside_a_gap_keeps_its_zero_and_the_subscription_gets_none(): void
+    {
+        [$subscription, $ruhig] = $this->abonnement('abo.de', 'ruhig.de', '2026-09-01 10:00:00');
+
+        app(Tenancy::class)->withoutRestriction(fn () => Domain::factory()->create([
+            'subscription_id' => $subscription->id,
+            'name' => 'alt.de',
+            'created_at' => '2026-09-01 10:00:00',
+        ]));
+
+        $ergebnis = $this->daily()->record(
+            [],
+            $this->ruhig('abo.de', 'ruhig.de', '2026-09-20'),
+            $this->ruhig('abo.de', 'alt.de', '2026-09-20'),
+        );
+
+        $this->assertSame(4, $ergebnis['domains'], 'Die ruhige Domain bekommt ihre Null trotzdem.');
+        $this->assertSame(0, $ergebnis['subscriptions']);
+        $this->assertCount(4, $this->werte('domain_metrics', 'domain_id', (int) $ruhig->id, '2026-09-20'));
+        $this->assertSame([], $this->werte('subscription_metrics', 'subscription_id', (int) $subscription->id, '2026-09-20'));
+    }
+
+    /**
+     * **Und eine Summe mit Zählbarem bleibt neben einer Lücke stehen.** Wer
+     * sie wegen der Lücke fallen liesse, verlöre bei einer einzigen kaputten
+     * Datei in einer ruhigen Domain — die logrotate nie wieder dreht — jeden
+     * weiteren Tag des ganzen Abonnements.
+     */
+    public function test_a_counted_domain_beside_a_gap_keeps_the_subscription_sum(): void
+    {
+        [$subscription] = $this->abonnement('abo.de', 'eins.de', '2026-09-01 10:00:00');
+
+        app(Tenancy::class)->withoutRestriction(fn () => Domain::factory()->create([
+            'subscription_id' => $subscription->id,
+            'name' => 'alt.de',
+            'created_at' => '2026-09-01 10:00:00',
+        ]));
+
+        $ergebnis = $this->daily()->record(
+            $this->zeile('abo.de', 'eins.de', '2026-09-20', requests: 7),
+            [],
+            $this->ruhig('abo.de', 'alt.de', '2026-09-20'),
+        );
+
+        $this->assertSame(4, $ergebnis['subscriptions']);
+        $this->assertSame(7, $this->werte('subscription_metrics', 'subscription_id', (int) $subscription->id, '2026-09-20')[DailyMetric::Requests->value] ?? -1);
+    }
+
+    /** Eine Lücke in einem Verzeichnis, das das Panel nicht kennt, gehört niemandem. */
+    public function test_a_gap_in_a_directory_the_panel_does_not_know_blocks_nothing(): void
+    {
+        [$subscription] = $this->abonnement(angelegt: '2026-09-01 10:00:00');
+
+        $ergebnis = $this->daily()->record(
+            [],
+            $this->ruhig('beispiel.de', 'beispiel.de', '2026-09-20'),
+            $this->ruhig('beispiel.de', 'rest-eines-rueckbaus.de', '2026-09-20'),
+        );
+
+        $this->assertSame(4, $ergebnis['subscriptions']);
+        $this->assertCount(4, $this->werte('subscription_metrics', 'subscription_id', (int) $subscription->id, '2026-09-20'));
+    }
+
+    /**
+     * **Eine Null nur für einen Tag, an dem es die Domain schon gab** — in
+     * beide Richtungen. Angelegt am Tag selbst (UTC) bekommt sie für ihn keine,
+     * angelegt am Tag davor schon. Eine Null vor der Anlage wäre der Anfang
+     * einer Kurve vor dem Anfang der Domain.
+     */
+    public function test_a_domain_younger_than_the_day_gets_no_zero(): void
+    {
+        [, $jung] = $this->abonnement('jung.de', 'jung.de', '2026-09-20 21:30:00');
+        [, $alt] = $this->abonnement('alt.de', 'alt.de', '2026-09-19 23:59:00');
+
+        $this->daily()->record([], array_merge(
+            $this->ruhig('jung.de', 'jung.de', '2026-09-20'),
+            $this->ruhig('alt.de', 'alt.de', '2026-09-20'),
+        ));
+
+        $this->assertSame([], $this->werte('domain_metrics', 'domain_id', (int) $jung->id, '2026-09-20'),
+            'Angelegt am Tag selbst: keine Null für ihn — auf einem Server in +0200 war das schon der Folgetag.');
+        $this->assertCount(4, $this->werte('domain_metrics', 'domain_id', (int) $alt->id, '2026-09-20'),
+            'Angelegt am Tag davor: die Null gehört ihr.');
+    }
+
+    /** Ein ruhiges Verzeichnis ohne Zeile im Panel wird genannt wie ein gezähltes. */
+    public function test_a_quiet_directory_without_a_row_is_named(): void
+    {
+        $this->abonnement(angelegt: '2026-09-01 10:00:00');
+
+        $ergebnis = $this->daily()->record([], $this->ruhig('fort.de', 'fort.de', '2026-09-20'));
+
+        $this->assertSame([['subscription' => 'fort.de', 'domain' => 'fort.de']], $ergebnis['unknown']);
+        $this->assertSame(0, $ergebnis['domains']);
     }
 }

@@ -438,6 +438,58 @@ final class DailyHistoryTest extends TestCase
     }
 
     /**
+     * **Ein Stand, der den laufenden Tag trägt, nimmt dem Verkehr keinen Tag.**
+     *
+     * Seit dem 28. September 2026 legt `srvpanel:usage` Platz und Datenbanken
+     * für den laufenden Tag ab; der Verkehr endet am Vortag. Ein Fenster über
+     * die Tage **aller** Kennzahlen endete damit heute, und die Kacheln des
+     * Verkehrs zeigten neunundzwanzig. Gezählt wird je Kennzahl: dreissig
+     * Tage Verkehr bis gestern, dreissig Tage Platz bis heute.
+     *
+     * Die Zeilen stehen so da, wie `Daily::forget()` sie lässt — der älteste
+     * Tag `heute − 30` für beide.
+     */
+    public function test_a_level_that_carries_today_takes_no_day_from_the_traffic(): void
+    {
+        [$subscription] = $this->angemeldetesAbonnement();
+
+        app(Tenancy::class)->withoutRestriction(function () use ($subscription): void {
+            for ($i = 0; $i <= 30; $i++) {
+                $tag = Carbon::parse('2026-09-28')->subDays($i)->toDateString();
+
+                SubscriptionMetric::query()->create([
+                    'subscription_id' => $subscription->id,
+                    'day' => $tag,
+                    'metric' => DailyMetric::DiskMb->value,
+                    'value' => 500 + $i,
+                ]);
+
+                if ($i === 0) {
+                    continue;
+                }
+
+                SubscriptionMetric::query()->create([
+                    'subscription_id' => $subscription->id,
+                    'day' => $tag,
+                    'metric' => DailyMetric::Requests->value,
+                    'value' => 100 + $i,
+                ]);
+            }
+        });
+
+        $kacheln = $this->history()->forSubscription($subscription);
+        $zugriffe = $this->kachel($kacheln, 'requests')['series']['points'];
+        $platz = $this->kachel($kacheln, 'disk')['series']['points'];
+
+        self::assertCount(History::DAYS, $zugriffe, 'Der Verkehr hat dreissig Tage bis gestern — und zeigt sie alle.');
+        self::assertSame('29.08.', $zugriffe[0]['t'], 'Der älteste Tag des Verkehrs ist heute − 30 und bleibt stehen.');
+        self::assertSame('27.09.', $zugriffe[count($zugriffe) - 1]['t']);
+
+        self::assertCount(History::DAYS, $platz);
+        self::assertSame('28.09.', $platz[count($platz) - 1]['t'], 'Der Platz reicht bis heute.');
+    }
+
+    /**
      * Eine Abfrage je Seite und nicht eine je Kachel.
      *
      * Gemessen (`docs/128` M4): 150 Punkte kosten als eine Abfrage 0,0006 s,

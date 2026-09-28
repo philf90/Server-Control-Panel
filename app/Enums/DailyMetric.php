@@ -56,6 +56,11 @@ enum DailyMetric: string
      * Er steht seit P1 als **gegenwärtiger** Wert an `subscriptions`; hier
      * bekommt er einen Verlauf. `disk_used_mb` ist die Quelle, und die Einheit
      * wandert mit dem Namen mit.
+     *
+     * **Geschrieben wird er erst seit dem 28. September 2026**, von
+     * `srvpanel:usage` über `Daily::levels()`, für den **laufenden** Tag. Hier
+     * stand der Satz „hier bekommt er einen Verlauf" eine Woche lang, ohne dass
+     * ein Lauf ihn einlöste (`docs/138 §0` Punkt 1).
      */
     case DiskMb = 'disk_mb';
 
@@ -63,8 +68,9 @@ enum DailyMetric: string
      * Die Summe über die Datenbanken des Abonnements.
      *
      * Quelle ist `databases.size_bytes`, gemessen von `srvpanel:usage`. Auch
-     * das ist heute ein gegenwärtiger Wert je Datenbank und bekommt hier seinen
-     * Verlauf.
+     * das ist ein gegenwärtiger Wert je Datenbank und bekommt hier seinen
+     * Verlauf — geschrieben seit dem 28. September 2026 wie der Platz, und nur
+     * für einen Tag, an dem **jede** Datenbank des Abonnements gemessen wurde.
      */
     case DatabaseBytes = 'database_bytes';
 

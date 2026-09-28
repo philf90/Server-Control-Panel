@@ -69,7 +69,9 @@ return new class extends Migration
              * Er kommt aus der Zeile des Zugriffsprotokolls, und die schreibt
              * nginx in der Ortszeit der Maschine. Eine Umrechnung hier wäre die
              * zweite Fassung der Frage, die `App\Support\Cron\ServerZone`
-             * beantwortet.
+             * beantwortet. Platz und Datenbanken, die seit dem 28. September
+             * 2026 `srvpanel:usage` ablegt, tragen den Tag aus genau dieser
+             * Klasse — dieselbe Zeitrechnung, eine andere Quelle.
              */
             $table->date('day');
 

@@ -8,9 +8,11 @@ Ausgeschrieben am 28. September 2026, **vor** dem Fahren. Das Kriterium steht in
 
 Gebaut ist B3 seit dem 21. September und ausgeliefert seit `v0.9.0-rc.1`; der
 Plan ist `docs/129 §6`, die Begründungen stehen im CHANGELOG unter „B3 — die
-verdichtete Tabelle". Gefahren wird gegen die installierte Fassung, auf
-`cloudsrv24` ist das `0.9.0-rc.6`. §1 Block 1 fragt sie, bevor irgendetwas
-anderes gemessen wird.
+verdichtete Tabelle". Gefahren wird gegen die installierte Fassung; §1 Block 1
+fragt sie, bevor irgendetwas anderes gemessen wird. Ausgeschrieben war der Lauf
+gegen `0.9.0-rc.6`. **Seit dem Abend des 28. September läuft auf `cloudsrv24`
+`0.9.0-rc.7`, die Freigabe mit der Behebung aus §5**; Teil 1 wird gegen sie
+gefahren, und was davon gefahren ist, steht in §7.
 
 **Der Lauf hat zwei Teile, weil das Kriterium an der Uhr hängt.** Teil 1 ist
 heute fahrbar: Er liest den Bestand, bestimmt den ersten Tag und rechnet daraus
@@ -27,6 +29,8 @@ diese beiden kann Teil 2 erst nach einer Behebung etwas zeigen (§5).
 Betreiber beide Fragen aus §6 wie vorgeschlagen entschieden hatte. Solange auf
 `cloudsrv24` eine Fassung ohne die Behebung läuft, gilt Teil 1, wie er dasteht;
 was sich mit ihr an den Erwartungen ändert, steht bei jedem Block und in §5.
+**Seit `0.9.0-rc.7` gelten die Erwartungen „mit der Behebung".** Block 4 ist
+dafür vor dem Fahren berichtigt worden, und Block 0 ist dazugekommen (§7).
 
 ---
 
@@ -123,7 +127,28 @@ die im Grundzustand alles verweigert"). Wo ein Modell nötig ist, in Block 3 fü
 die Kacheln, steht es in `withoutRestriction()`.
 
 **Die Blöcke 2 bis 5 sind im Container gegen MariaDB 10.11.14 gefahren, jeder
-mit einer Gegenprobe in beide Richtungen** (§1a). Block 1 braucht einen Server.
+mit einer Gegenprobe in beide Richtungen** (§1a). Die Blöcke 0 und 1 brauchen
+einen Server.
+
+**Block 0 ist nach dem Update auf `0.9.0-rc.7` dazugekommen.** Er ist die erste
+Stelle, an der die Behebung aus §5 auf dem Server sichtbar wird, und er braucht
+nichts als das Journal.
+
+```bash
+# 0 · Hat srvpanel:usage seit dem Update Platz und Datenbanken abgelegt?
+systemctl show srvpanel-usage.timer -p LastTriggerUSec
+journalctl -u srvpanel-usage.service --since today --no-pager | grep -E 'Verlauf für|nicht lesbar|scheiterte' | tail -3
+```
+
+**Erwartet:** die letzte Auslösung vor weniger als einer Viertelstunde und im
+Journal `Verlauf für <heute> (<Zone>): N Abonnement(s) mit Platz, M mit
+Datenbanken.`, mit N und M gleich der Zahl der Abonnements, wenn jede Messung
+gelungen ist. Ein Abonnement ohne Datenbank zählt bei M mit, denn es bekommt
+eine Null. **Steht dort keine solche Zeile, läuft die Behebung nicht**, und
+Block 1 sagt, welche Fassung stattdessen läuft. Eine Zeile mit `nicht lesbar`
+heisst, dass die Zone fehlt und der Lauf deshalb nichts ablegt. Eine Zeile mit
+`scheiterte` heisst, dass eine Messung gescheitert ist; dann steht N oder M
+unter der Zahl der Abonnements.
 
 ```bash
 # 1 · Welche Fassung läuft, und wie stehen die beiden Timer, die die Tabelle füllen sollen?
@@ -135,7 +160,8 @@ for t in srvpanel-traffic.timer srvpanel-usage.timer; do
 done
 ```
 
-**Erwartet:** `0.9.0-rc.6`. Für den Zähllauf `OnCalendar=daily`,
+**Erwartet:** `0.9.0-rc.7`. Ausgeschrieben war hier `0.9.0-rc.6`, die Fassung
+ohne die Behebung. Für den Zähllauf `OnCalendar=daily`,
 `Persistent=true`, `RandomizedDelaySec=1h` und die letzte Auslösung in der
 vergangenen Nacht zwischen 00:00 und 01:00; für die Messung des Platzes
 `OnBootSec=5min`, `OnCalendar=*:0/15`, `Persistent=true`,
@@ -247,34 +273,64 @@ app(App\Support\Tenancy\Tenancy::class)->withoutRestriction(function () use ($so
 # 4 · Derselbe Vortag noch einmal — die Zeilen bleiben, was sie sind
 B3_STAND='
 foreach (["subscription_metrics", "domain_metrics"] as $t) {
-    $z = DB::table($t)->orderBy("id")->get(["id", "day", "metric", "value"]);
-    printf("%-22s %4d Zeilen  Prüfsumme %s\n", $t, $z->count(), substr(md5($z->toJson()), 0, 12));
+    $z = DB::table($t)->whereNotIn("metric", ["disk_mb", "database_bytes"])->orderBy("id")->get(["id", "day", "metric", "value"]);
+    printf("%-22s %4d Zeilen  %4d Nullen  Prüfsumme %s\n", $t, $z->count(), $z->where("value", 0)->count(), substr(md5($z->toJson()), 0, 12));
 }
 '
 srvpanel tinker --execute="$B3_STAND"
 srvpanel traffic
 srvpanel tinker --execute="$B3_STAND"
+srvpanel traffic
+srvpanel tinker --execute="$B3_STAND"
 ```
 
-**Erwartet:** `srvpanel traffic` meldet `Abgelegt: N Zeile(n) je Domain, M je
-Abonnement.` mit **N über null**, und die beiden Ausgaben von `B3_STAND` sind
-Zeile für Zeile gleich — dieselbe Zahl, dieselbe Prüfsumme. Das ist
-„überschreibend und nicht addierend" an der Tabelle des Servers: Der Lauf hat
-N Zeilen geschrieben, und keine ist dazugekommen.
+**Berichtigt am 28. September, nach dem Update auf `0.9.0-rc.7` und bevor der
+Block lief.** Die erste Fassung las zweimal, vor und nach einem Lauf, und bildete
+die Prüfsumme über alle Zeilen. Gegen `rc.7` hätte sie aus zwei Gründen
+angeschlagen, und beide Male hätte „überschreibend" wie „addierend" ausgesehen:
 
-**Steht dort `Abgelegt: 0`, hat der Block nichts gemessen** — zwei gleiche
-Stände über einem Lauf, der nichts geschrieben hat, sind kein Beleg. Dann kam
-gestern keine Anfrage; eine heute an eine Kundendomain macht den Block morgen
-fahrbar:
+- **Der erste Lauf nach dem Update legt nach, was die alte Fassung nicht
+  kannte.** Unter `rc.6` bekam ein ruhiger Vortag keine Zeile. Der erste Lauf
+  unter `rc.7` legt denselben Vortag noch einmal ab und gibt ihm dabei seine
+  vier Nullen: Die Tabelle wächst um genau diese Nullen, und das ist richtig.
+  Verglichen wird deshalb die zweite mit der dritten Ablesung; zwischen der
+  ersten und der zweiten dürfen nur Nullen dazukommen.
+- **Platz und Datenbanken schreibt ein zweiter Lauf.** `srvpanel:usage` legt
+  sie alle fünfzehn Minuten für den laufenden Tag neu ab, überschreibend. Ein
+  Wert, der sich zwischen zwei Ablesungen um ein Megabyte ändert, änderte die
+  Prüfsumme, ohne dass eine Zeile dazukäme, und nach Mitternacht käme eine
+  dazu. Beide Kennzahlen stehen deshalb nicht in der Prüfsumme: Dieser Block
+  misst den Nachtlauf und nicht den Lauf daneben.
+
+> **Eine Prüfsumme über eine Tabelle, in die ein zweiter Lauf schreibt, misst
+> beide Läufe.**
+
+**Erwartet:**
+
+- Beide Läufe melden dasselbe, bis auf die Dauer in `Fertig in … ms`, darin
+  `Abgelegt: N Zeile(n) je Domain, M je Abonnement.` mit **N über null**. Eine
+  Zeile `Älter als …` kann nur beim ersten stehen.
+- **Die zweite und die dritte Ablesung sind Zeile für Zeile gleich:** dieselbe
+  Zahl, dieselben Nullen, dieselbe Prüfsumme. Das ist „überschreibend und
+  nicht addierend" an der Tabelle des Servers, über einem Lauf, der
+  geschrieben hat.
+- Zwischen der ersten und der zweiten kommen **nur Nullen** dazu, also so viele
+  Zeilen wie Nullen. Beim ersten Lauf unter `rc.7` sind es in `domain_metrics`
+  vier je Domain, die der Lauf „ruhig" nennt, und in `subscription_metrics`
+  vier je Abonnement, dessen Domains am Vortag alle ruhig waren. Ist schon ein
+  Nachtlauf unter `rc.7` gelaufen, sind alle drei Ablesungen gleich.
+
+**Steht dort `Abgelegt: 0`, hat der Block nichts gemessen:** Zwei gleiche
+Stände über einem Lauf, der nichts geschrieben hat, sind kein Beleg. Mit der
+Behebung legt der Lauf auch an einem ruhigen Tag ab, vier Nullen je ganz
+gelesener Domain; `Abgelegt: 0` heisst dann, dass keine Domain ganz gelesen
+war, und der Lauf nennt jede unter „nicht ganz gelesen". Unter einer Fassung
+ohne die Behebung hiess es, dass gestern keine Anfrage kam. Dann machte eine
+Anfrage heute an eine Kundendomain den Block morgen fahrbar:
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' "https://<domain>/?b3=1"
 ```
-
-**Mit der Behebung legt der Lauf auch an einem ruhigen Tag ab** — vier Nullen je
-ganz gelesener Domain, und der Block ist jeden Tag fahrbar. `Abgelegt: 0` heisst
-dann, dass keine Domain ganz gelesen war; der Lauf nennt jede unter „nicht ganz
-gelesen".
 
 ### §1a · Was im Container gemessen ist
 
@@ -295,6 +351,11 @@ hinterlässt.
 | 3 | zurück | wie gebaut |
 | 4 | derselbe Vortag noch einmal durch `record()` und `forget()` | je 8 Zeilen geschrieben, 40 und 40 Zeilen, Prüfsummen vorher und nachher gleich |
 | 4 | ein Wert in `subscription_metrics` um eins erhöht | deren Prüfsumme ändert sich, die von `domain_metrics` nicht |
+| 4, berichtigt | der Bestand aus dem Vorflug von B4 (`docs/139 §1a`), mit Platz und Datenbanken an zwei Tagen | `subscription_metrics 180 Zeilen 8 Nullen`, `domain_metrics 212 Zeilen 8 Nullen` |
+| 4, berichtigt | `disk_mb` des laufenden Tages um eins erhöht, dazu eine `database_bytes`-Zeile für den nächsten Tag | beide Prüfsummen unverändert |
+| 4, berichtigt | dazu ein `requests`-Wert in `subscription_metrics` um eins erhöht | deren Prüfsumme ändert sich, die von `domain_metrics` nicht |
+| 4, berichtigt | dazu eine Null in `domain_metrics` eingefügt | `213 Zeilen 9 Nullen`, Prüfsumme geändert |
+| 4, berichtigt | zurück | beide Prüfsummen wie am Anfang |
 | 5 | `forget` am 22.10. / am 23.10. | 0 und 0 / 8 und 8; der erste Tag rückt vom 22. auf den 23., die Tage von 6 auf 5 |
 
 **Dass beide Tabellen im Container dieselbe Prüfsumme trugen, ist kein Fehler
@@ -394,10 +455,11 @@ Grenze nimmt sie alle (gemessen, §5).
 
 ## §4 · Wann er durch ist
 
-**Teil 1 ist durch, wenn die Blöcke 1 bis 4 gefahren sind und ihre Ausgabe im
+**Teil 1 ist durch, wenn die Blöcke 0 bis 4 gefahren sind und ihre Ausgabe im
 Protokoll steht.** Er bestätigt oder widerlegt §0 Punkt 1 und Punkt 2 auf dem
-Server. **Block 4 darf ausfallen**, wenn gestern keine Anfrage kam
-(`Abgelegt: 0`); er wird dann am nächsten Tag nachgeholt.
+Server, und mit `0.9.0-rc.7` deren Behebung. **Block 4 darf ausfallen**, wenn
+der Lauf nichts ablegt (`Abgelegt: 0`); er wird dann am nächsten Tag
+nachgeholt.
 
 **Teil 2 erfüllt das Kriterium für die vier Kennzahlen des Verkehrs**, wenn
 
@@ -509,3 +571,109 @@ Format. Sonst wird aus „nicht gemessen" ein „nichts gewesen". Ohne die Null
 zeigt die Kurve eines ruhigen Abonnements eine Nachbarschaft von Tagen, die es
 so nicht gab, und Punkt 3 aus §4 ist auf `cloudsrv24` womöglich an keinem
 Abonnement messbar.
+
+---
+
+## §7 · Protokoll — Teil 1, gefahren am 28. September 2026 gegen `0.9.0-rc.7`
+
+Gefahren auf `cloudsrv24` am Abend des 28. September, nach dem Update auf
+`0.9.0-rc.7` (`srvpanel version`). **Bisher stehen Block 0 und Block 4 da; die
+Blöcke 1 bis 3 sind noch zu fahren**, und Teil 1 ist damit nicht durch (§4).
+
+### Block 0 — der Schreiber aus §5 läuft auf dem Server
+
+```
+LastTriggerUSec=Mon 2026-09-28 21:15:56 CEST
+Sep 28 21:15:56 cloudsrv24 php[316640]: Verlauf für 2026-09-28 (Europe/Berlin): 3 Abonnement(s) mit Platz, 3 mit Datenbanken.
+```
+
+Jedes der drei Abonnements hat für den 28. eine Zeile Platz und eine Zeile
+Datenbanken, die Zone ist lesbar, und keine Messung ist gescheitert. **Das ist
+die Behebung von §0 Punkt 1, zum ersten Mal auf einem Server gesehen**; die
+Freigabenotiz von `rc.7` sagte noch, gesehen habe es niemand. Nachgetragen wird
+nichts: Der erste Tag von `disk_mb` und `database_bytes` ist der 28. September.
+Nacht 30 ihrer Uhr (§2) fällt damit auf den **28. Oktober**, Nacht 31 auf den
+**29. Oktober** — vorausgerechnet, und Block 2 bestätigt es mit dem ersten Tag
+je Kennzahl. Eine Kurve zeigen die beiden Kacheln ab dem 29.
+
+### Block 4 — überschreibend, über einem Lauf, der geschrieben hat
+
+Gefahren in der berichtigten Fassung (§1 Block 4). Die erste Ablesung, der
+erste Lauf und die zweite Ablesung:
+
+```
+subscription_metrics     28 Zeilen     0 Nullen  Prüfsumme 84938c68a5a4
+domain_metrics           84 Zeilen     1 Nullen  Prüfsumme 1ed9d8818098
+  Laufender Tag auf dem Server: 2026-09-28 (Europe/Berlin).
+  6 Domain(s) gelesen, 32665 Zeile(n), davon 32657 gedeutet, 8 aus dem alten Zeitalter, 0 unlesbar.
+  3 Tageswert(e) vom Vortag zählbar, 3 ruhig (eine Null), 0 übersprungen (gemischtes Format), 0 nicht ganz gelesen, 3 noch offen (laufender Tag), 5 älter und nicht erneut abgelegt.
+  Abgelegt: 24 Zeile(n) je Domain, 8 je Abonnement.
+  Fertig in 73 ms.
+subscription_metrics     32 Zeilen     4 Nullen  Prüfsumme 312a417c319a
+domain_metrics           96 Zeilen    13 Nullen  Prüfsumme c6bffbc35398
+```
+
+Der zweite Lauf meldete Zeile für Zeile dasselbe, auch die 73 ms, und die
+dritte Ablesung gleicht der zweiten:
+
+```
+subscription_metrics     32 Zeilen     4 Nullen  Prüfsumme 312a417c319a
+domain_metrics           96 Zeilen    13 Nullen  Prüfsumme c6bffbc35398
+```
+
+- **Die zweite und die dritte Ablesung sind gleich**, über einem Lauf, der 24
+  und 8 Zeilen abgelegt hat: Der Nachtlauf überschreibt und addiert nicht,
+  gemessen an der Tabelle des Servers. **Das Kriterium dieses Blocks ist
+  erfüllt.**
+- **Zwischen der ersten und der zweiten kamen nur Nullen dazu**, so viele wie
+  vorausgesagt. In `domain_metrics` sind es 12 Zeilen und 12 Nullen, vier je
+  ruhiger Domain; der Lauf nennt drei. In `subscription_metrics` sind es 4
+  Zeilen und 4 Nullen, also ein Abonnement, dessen Domains am 27. alle ruhig
+  waren. **Das ist die Behebung von §0 Punkt 2 auf dem Server.** Nachgelegt hat
+  sie genau den einen Tag, den die Vortagsregel zulässt; die ruhigen Tage davor
+  bleiben ohne Zeile.
+- Die übrigen abgelegten Zeilen standen schon da: zwölf für die drei zählbaren
+  Domains und vier für ihr Abonnement, geschrieben vom Nachtlauf unter `rc.6`.
+  Ob sie dabei ihre Werte behielten, sagt die Prüfsumme dieses einen Laufs
+  nicht, denn die Nullen haben sie ohnehin bewegt. Dass zwei Sichten desselben
+  Vortags dieselben Zahlen ergeben, ist seit B2 gemessen (`docs/134 §7`).
+- **`8 je Abonnement` sind zwei Abonnements, und der Server hat drei** (Block
+  0). Eines hat Verkehr, eines hat die Nullen, und **das dritte bekam keine
+  Zeile**: Entweder war keine seiner Domains unter den sechs gelesenen, oder es
+  hat keine. Welches von beiden zutrifft, zeigt Block 3 mit `ohne Zeile` und
+  seinen Kacheln; die Domains je Abonnement druckt `docs/139` Block 2.
+- `8 aus dem alten Zeitalter` sind die acht Zeilen aus B2 (`docs/134 §7`),
+  sechs vom 15. August und zwei vom 5. September, in den Dateien einer Domain
+  ohne Verkehr. Sie liegen ausserhalb des Vortags und stören ihn nicht.
+- `0 nicht ganz gelesen`: Jede der sechs Domains war ganz gelesen, und keine
+  Lücke hält eine Null auf.
+
+### Ein Befund am Prüfmittel
+
+**Block 4 stand in einer Fassung da, die gegen `rc.7` angeschlagen hätte, und
+zwar ohne Fehler am Prüfling.** Geschrieben war er gegen `rc.6`: zwei
+Ablesungen um einen Lauf, die Prüfsumme über alle Zeilen. Der erste Lauf unter
+`rc.7` legt die Nullen des Vortags nach, die der Nachtlauf unter `rc.6` nicht
+kannte. Ausserdem schreibt `srvpanel:usage` alle fünfzehn Minuten den Platz des
+laufenden Tages in dieselbe Tabelle. Beides hätte die Prüfsumme zwischen den
+beiden Ablesungen bewegt, und „überschreibend" hätte ausgesehen wie
+„addierend". Gefunden hat es das Nachrechnen der Erwartung nach dem Update,
+bevor der Block lief. Berichtigt ist er in §1, die Gegenprobe steht in §1a.
+
+> **Der erste Lauf nach einem Update misst den Übergang und nicht den Zustand —
+> er legt nach, was die alte Fassung nicht kannte.**
+
+### Was noch aussteht
+
+- **Die Blöcke 1 bis 3**, gegen `rc.7`. Am 28. gefahren, müssen die Zahlen
+  dieses Laufs darin wiederkehren. In Block 2 zeigt `subscription_metrics` je
+  Kennzahl des Verkehrs **8** Zeilen, `domain_metrics` **24**, und `disk_mb`
+  und `database_bytes` zeigen je **3** Zeilen mit dem 28. als erstem und letztem
+  Tag. Danach kommt je Tabelle jeden Tag einer dazu: beim Verkehr mit dem
+  Nachtlauf, bei Platz und Datenbanken mit der ersten Messung nach
+  Mitternacht.
+- **Der erste Nachtlauf unter `rc.7`**, am Morgen des 29.: Im Journal von
+  `srvpanel-traffic.service` stehen dieselben fünf Zeilen, und ein Block 4 danach
+  zeigt drei gleiche Ablesungen.
+- **Teil 2**: für den Verkehr an den beiden Tagen, die Block 2 aus dem ersten
+  Tag der Tabelle nennt, für Platz und Datenbanken am 28. und 29. Oktober.

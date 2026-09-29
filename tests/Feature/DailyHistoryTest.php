@@ -8,6 +8,7 @@ use App\Enums\DailyMetric;
 use App\Http\Middleware\ApplyTenancy;
 use App\Models\Account;
 use App\Models\Customer;
+use App\Models\Database;
 use App\Models\Domain;
 use App\Models\DomainMetric;
 use App\Models\Subscription;
@@ -164,6 +165,34 @@ final class DailyHistoryTest extends TestCase
             array_column($this->history()->forDomain($domain), 'key'),
             'Platz und Datenbanken gehören dem Abonnement und nicht einer seiner Domains.',
         );
+    }
+
+    /**
+     * **Die Reihe steht auch ohne eine einzige Zeile da** — fünf
+     * beziehungsweise drei leere Kacheln und keine leere Liste.
+     *
+     * Entschieden am 28. September 2026 (`docs/139 §6` Frage 2): Ein Kunde
+     * erfährt am ersten Tag, was kommt, und die Seite springt am zweiten nicht
+     * um eine Reihe. Beide Seiten zeigen die Reihe seitdem ohne Bedingung; bis
+     * dahin stand dort ein `v-if` auf eine Liste, die nie leer ist, unter einem
+     * Kommentar, der das Gegenteil versprach. Dieser Fall hält die Hälfte, die
+     * am Server liegt. Dass die Vorlage keine Bedingung trägt, hält kein
+     * Wächter.
+     */
+    public function test_the_row_stands_without_a_single_row(): void
+    {
+        [$subscription, $domain] = $this->angemeldetesAbonnement();
+
+        $abo = $this->history()->forSubscription($subscription);
+        $dom = $this->history()->forDomain($domain);
+
+        self::assertCount(5, $abo);
+        self::assertCount(3, $dom);
+
+        foreach ([...$abo, ...$dom] as $kachel) {
+            self::assertFalse($kachel['series']['has'], $kachel['key']);
+            self::assertSame('—', $kachel['value'], $kachel['key']);
+        }
     }
 
     /**
@@ -338,13 +367,20 @@ final class DailyHistoryTest extends TestCase
     /**
      * Die Datenbanken stehen in MB und nicht in Byte.
      *
-     * **Die Kachel richtet sich nach der Zahl, die zwei Zeilen über ihr
-     * steht**, und nicht nach der Ablage: Der Bereich „Datenbanken" derselben
-     * Seite zeigt seit P5 `used_mb`. Eine Kachel in Byte daneben wäre dieselbe
-     * Grösse in zwei Einheiten — und der Leser rechnete um, statt zu lesen.
+     * **Die Kachel richtet sich nach der Zahl im Bereich darunter** und nicht
+     * nach der Ablage: Der Bereich „Datenbanken" derselben Seite zeigt seit P5
+     * `used_mb`. Eine Kachel in Byte daneben wäre dieselbe Grösse in zwei
+     * Einheiten — und der Leser rechnete um, statt zu lesen.
      *
      * > **Eine Anzeige, die dieselbe Grösse zweimal verschieden schreibt,
      * > lässt den Leser rechnen.**
+     *
+     * **Dieser Fall hält die Einheit und nicht die Rundung.** Hier stand bis
+     * zum 28. September 2026 auch die Rundung, geprüft an einem Gigabyte — und
+     * das ist der eine Wert, an dem Teilen und Abrunden dasselbe ergeben. Die
+     * Kachel zeigte dabei `3,5 MB` über `3 MB` (`docs/139 §0` Punkt 1). Die
+     * Rundung hält seitdem
+     * `test_the_database_tile_shows_the_number_of_the_section_below`.
      */
     public function test_the_database_tile_speaks_the_unit_of_its_page(): void
     {
@@ -355,8 +391,183 @@ final class DailyHistoryTest extends TestCase
         $kachel = $this->kachel($this->history()->forSubscription($subscription), 'databases');
 
         self::assertSame('MB', $kachel['unit']);
-        self::assertSame('1.024', $kachel['value'],
-            'Ein Gigabyte sind 1.024 MB — dieselbe Rechnung wie im Bereich darunter.');
+        self::assertSame('1.024', $kachel['value'], 'Ein Gigabyte sind 1.024 MB und nicht 1.073.741.824 B.');
+    }
+
+    /**
+     * **Oben und unten dieselbe Zahl — gemessen an der Seite, wie sie
+     * hinausgeht.**
+     *
+     * Der Befund aus `docs/139 §0` Punkt 1: Die Kachel teilte, der Bereich
+     * darunter rundet über {@see Subscription::databaseUsedMb()} ab, und
+     * dieselbe Messung stand zur selben Minute oben als `3,5 MB` und unten als
+     * `3 MB`. Der Wächter davor war grün, weil sein Prüfkörper ein Gigabyte
+     * war.
+     *
+     * > **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im
+     * > Erfolgsfall, misst nicht.**
+     *
+     * **3,75 MiB trennen drei Rechnungen:** abgerundet 3, kaufmännisch
+     * gerundet 4, geteilt `3,8`. Der Fall liest beide Zahlen aus der Antwort
+     * der echten Route und nicht aus zwei Aufrufen hier: Rechnete der
+     * Controller den Bereich einmal anders, stünde der Unterschied nur dort.
+     * Die Seite schreibt `used_mb` mit `toLocaleString('de-DE')`; für eine
+     * ganze Zahl ist das `number_format($zahl, 0, ',', '.')`.
+     *
+     * Dasselbe für den Speicherplatz, an 3 MB: Dort stand `3,0 MB` über
+     * `3 MB`.
+     */
+    public function test_the_database_tile_shows_the_number_of_the_section_below(): void
+    {
+        [$subscription, $domain] = $this->abonnement();
+        $bytes = 3 * 1_048_576 + 786_432;
+
+        app(Tenancy::class)->withoutRestriction(function () use ($subscription, $bytes): void {
+            Database::factory()->create([
+                'subscription_id' => $subscription->id,
+                'size_bytes' => 1_048_576,
+                'size_measured_at' => now(),
+            ]);
+            Database::factory()->create([
+                'subscription_id' => $subscription->id,
+                'size_bytes' => $bytes - 1_048_576,
+                'size_measured_at' => now(),
+            ]);
+
+            // `disk_used_mb` ist gemessen und nicht füllbar; ein `update()`
+            // täte hier wortlos nichts.
+            $subscription->forceFill(['disk_used_mb' => 3, 'disk_usage_measured_at' => now()])->save();
+        });
+
+        $this->tag($subscription, $domain, '2026-09-27', 1, 0, 1, 1, disk: 2, database: 2 * 1_048_576);
+        $this->tag($subscription, $domain, '2026-09-28', 1, 0, 1, 1, disk: 3, database: $bytes);
+
+        $props = $this->actingAs(Account::factory()->admin()->create())
+            ->get('/subscriptions/'.$subscription->id)
+            ->assertOk()
+            ->inertiaProps();
+
+        $unten = $props['database_usage']['used_mb'];
+
+        self::assertSame(3, $unten, 'Der Bereich rundet ab: 3,75 MiB sind dort 3 MB.');
+        self::assertSame(
+            number_format($unten, 0, ',', '.'),
+            $this->kachel($props['history'], 'databases')['value'],
+            'Die Kachel zeigt dieselbe Zahl wie der Bereich darunter — 3,75 MiB trennen Abrunden (3), '
+            .'Runden (4) und Teilen (3,8).',
+        );
+
+        self::assertSame(
+            number_format((int) $props['usage']['used_mb'], 0, ',', '.'),
+            $this->kachel($props['history'], 'disk')['value'],
+            'Der Speicherplatz steht oben wie unten in ganzen MB: 3 und nicht 3,0.',
+        );
+    }
+
+    /**
+     * Abgerundet wird **vor** der Kurve und nicht erst an der Zahl.
+     *
+     * 3 MiB und 3,75 MiB sind im Bereich darunter beide 3 MB. Rundete erst
+     * die Zahl, stiege die Kurve zwischen den beiden Tagen, und ihre Ablesung
+     * nennte zweimal `3 MB`: ein Ausschlag, den keine Zahl benennt.
+     */
+    public function test_the_curve_is_rounded_before_it_is_drawn(): void
+    {
+        [$subscription, $domain] = $this->angemeldetesAbonnement();
+        $this->tag($subscription, $domain, '2026-09-19', 1, 0, 1, 1, database: 3 * 1_048_576);
+        $this->tag($subscription, $domain, '2026-09-20', 1, 0, 1, 1, database: 3 * 1_048_576 + 786_432);
+
+        $punkte = $this->kachel($this->history()->forSubscription($subscription), 'databases')['series']['points'];
+
+        self::assertSame(['3 MB', '3 MB'], array_column($punkte, 'v'));
+        self::assertSame($punkte[0]['y'], $punkte[1]['y'],
+            'Zwei Tage mit derselben Zahl liegen auf derselben Höhe.');
+    }
+
+    /**
+     * Eine Anzahl steht ganz da — `5` und nicht `5,0`, `0` und nicht `0,00`.
+     *
+     * Die Zugriffe liefen bis zum 28. September 2026 durch die Regel für
+     * Raten (`docs/139 §0` Punkt 1). Auf `cloudsrv24` hätte ab dem 29. auf den
+     * Seiten der ruhigen Domains `Zugriffe 0,00` gestanden.
+     *
+     * > **Ein Format, das für eine Rate reicht, reicht nicht für eine
+     * > Anzahl.**
+     */
+    public function test_a_count_stands_whole(): void
+    {
+        [$subscription, $domain] = $this->angemeldetesAbonnement();
+        $this->tag($subscription, $domain, '2026-09-18', 5, 0, 1, 1);
+        $this->tag($subscription, $domain, '2026-09-19', 0, 0, 0, 0);
+        $this->tag($subscription, $domain, '2026-09-20', 2389, 0, 1, 1);
+
+        foreach ([
+            'Abonnement' => $this->history()->forSubscription($subscription),
+            'Domain' => $this->history()->forDomain($domain),
+        ] as $seite => $kacheln) {
+            $kachel = $this->kachel($kacheln, 'requests');
+
+            self::assertSame(['5', '0', '2.389'], array_column($kachel['series']['points'], 'v'), $seite);
+            self::assertSame('2.389', $kachel['value'], $seite);
+        }
+    }
+
+    /**
+     * Und der Speicherplatz steht in ganzen MB — `3 MB` und nicht `3,0 MB`.
+     *
+     * `disk_used_mb` ist eine ganze Zahl, und der Bereich darunter schreibt sie
+     * so. Die Stelle hinter dem Komma gab es nicht.
+     */
+    public function test_the_disk_tile_stands_in_whole_mb(): void
+    {
+        [$subscription, $domain] = $this->angemeldetesAbonnement();
+        $this->tag($subscription, $domain, '2026-09-19', 1, 0, 1, 1, disk: 3);
+        $this->tag($subscription, $domain, '2026-09-20', 1, 0, 1, 1, disk: 1250);
+
+        $kachel = $this->kachel($this->history()->forSubscription($subscription), 'disk');
+
+        self::assertSame(['3 MB', '1.250 MB'], array_column($kachel['series']['points'], 'v'));
+        self::assertSame('1.250', $kachel['value']);
+    }
+
+    /**
+     * Ein leerer Wert trägt keine Einheit — `—` und nicht `— MB`.
+     *
+     * Bis zum 28. September 2026 stand an jeder leeren Kachel dieser beiden
+     * Seiten eine Einheit neben dem Strich: `— MB`, `— B`, `— %`
+     * (`docs/139 §0` Punkt 1). Ein Tag ergibt keine Kurve, und damit ist jede
+     * Kachel leer.
+     *
+     * Die Gegenrichtung steht daneben: Mit zwei Tagen tragen dieselben
+     * Kacheln ihre Einheit. Ohne sie bestünde der Fall auch, wenn die Einheit
+     * überall fehlte.
+     */
+    public function test_an_empty_tile_carries_no_unit(): void
+    {
+        [$subscription, $domain] = $this->angemeldetesAbonnement();
+        $this->tag($subscription, $domain, '2026-09-19', 100, 5, 5_000, 900, disk: 3, database: 1_048_576);
+
+        $leer = [
+            ...$this->history()->forSubscription($subscription),
+            ...$this->history()->forDomain($domain),
+        ];
+
+        foreach ($leer as $kachel) {
+            self::assertSame('—', $kachel['value'], $kachel['key']);
+            self::assertSame('', $kachel['unit'], "Die Kachel „{$kachel['key']}“ trägt eine Einheit neben dem Strich.");
+        }
+
+        self::assertSame('', $this->kachel($leer, 'traffic')['second']['unit'],
+            'Auch die zweite Richtung schreibt keine Einheit neben ihren Strich.');
+
+        $this->tag($subscription, $domain, '2026-09-20', 120, 6, 6_000, 950, disk: 4, database: 2 * 1_048_576);
+        $voll = $this->history()->forSubscription($subscription);
+
+        self::assertSame(
+            ['disk' => 'MB', 'traffic' => 'kB', 'requests' => '', 'errors' => '%', 'databases' => 'MB'],
+            array_column($voll, 'unit', 'key'),
+        );
+        self::assertSame('B', $this->kachel($voll, 'traffic')['second']['unit']);
     }
 
     /**

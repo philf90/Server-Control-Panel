@@ -33133,3 +33133,176 @@ echten Agenten (`docs/138 §5a`): `srvpanel:traffic` meldete „1 zählbar, 3 ru
 Quota keinen Platz und für die gemessene Datenbank 507 904 B, und das Abräumen
 nahm mit den Ständen genau die Zeilen, die Block 5 unmittelbar davor gezählt
 hatte.
+
+### B3 hat einen Server gesehen, und der Abnahmelauf für B4 steht — mit Zahlen, die Stellen tragen, die es nicht gibt
+
+**Die Behebung von B3 ist am Abend des 28. September auf `cloudsrv24` gegen
+`0.9.0-rc.7` gesehen** (`docs/138 §7`). Im Journal von `srvpanel:usage` steht
+`Verlauf für 2026-09-28 (Europe/Berlin): 3 Abonnement(s) mit Platz, 3 mit
+Datenbanken.`, und der erste Lauf von Hand hat den drei ruhigen Domains ihre
+vier Nullen für den Vortag gegeben: zwölf Zeilen und zwölf Nullen in
+`domain_metrics`, vier und vier in `subscription_metrics`. Ein zweiter Lauf
+über demselben Vortag liess beide Tabellen gleich, die Prüfsumme
+eingeschlossen. Von Teil 1 fehlen die Blöcke 1 bis 3, und offen ist, warum das
+dritte Abonnement keine Zeile bekam; Block 3 zeigt es.
+
+**Block 4 ist vor dem Fahren berichtigt worden, und zwar ohne Fehler am
+Prüfling.** Er war gegen `rc.6` geschrieben: zwei Ablesungen um einen Lauf, die
+Prüfsumme über alle Zeilen. Gegen `rc.7` hätte er zweimal angeschlagen. Der
+erste Lauf nach dem Update legt die Nullen nach, die die alte Fassung nicht
+kannte, und `srvpanel:usage` schreibt alle fünfzehn Minuten den Platz des
+laufenden Tages in dieselbe Tabelle. Jetzt sind es drei Ablesungen um zwei
+Läufe, und Platz und Datenbanken stehen nicht in der Prüfsumme. Gegengeprüft im
+Container: Eine geänderte Platzzeile lässt die Prüfsumme stehen, eine geänderte
+Anfragezahl bewegt sie.
+
+> **Der erste Lauf nach einem Update misst den Übergang und nicht den Zustand —
+> er legt nach, was die alte Fassung nicht kannte.**
+
+> **Eine Prüfsumme über eine Tabelle, in die ein zweiter Lauf schreibt, misst
+> beide Läufe.**
+
+**Der Abnahmelauf für B4 ist `docs/139`**, ausgeschrieben vor dem Fahren und
+fahrbar ab dem 29. September, wenn die Stände ihren zweiten Tag haben. Jede
+Seite wird gegen das gehalten, was `History` für sie rechnet. Dazu kommt die
+Bilderrunde auf einer Abonnement- und einer Domainseite in vier Lagen. Im
+Container ergab sie in zwanzig Lagen `dokument=0`, Gegenprobe 200 und
+`schiebt=0`.
+
+**Beim Ausschreiben fielen zwei Befunde am Prüfling heraus.** Der erste sind
+Stellen, die es nicht gibt. `Points::plainFormatter()` ist für Raten gebaut —
+unter 1 zwei Stellen, unter 10 eine —, und `History` formatiert damit auch
+Anzahlen und ganze Megabyte: `Zugriffe 5,0`, an einem ruhigen Tag `0,00`,
+`Speicherplatz 3,0 MB` über `3 MB` im Bereich darunter. Die Datenbanken zeigen
+in der Kachel `3,5 MB` und darunter `3 MB`, dieselbe Messung zur selben Minute,
+weil die Kachel teilt und `databaseUsedMb()` abrundet. Und jede leere Kachel
+trägt ihre Einheit: `— MB`.
+
+> **Ein Format, das für eine Rate reicht, reicht nicht für eine Anzahl.**
+
+`DailyHistoryTest::test_the_database_tile_speaks_the_unit_of_its_page` verlangt
+„dieselbe Rechnung wie im Bereich darunter" und blieb grün. Er prüft an einem
+Gigabyte, also an 1024 ganzen MB, und dort geben beide Rundungen dasselbe.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht** — hier ist es eine glatte Zahl, an der zwei Rundungen gleich
+> aussehen.
+
+**Die Fehlerquote gehört nicht dazu.** Sie stand im ersten Wurf der Liste mit
+`0,00 %` für einen ruhigen Tag. `DailyHistoryTest` hält genau diesen Wert
+ausdrücklich, denn eine Rate braucht ihre Stellen. Gefunden hat es das
+Nachlesen der Tests vor dem Abschicken.
+
+> **Was ein Wächter ausdrücklich festhält, ist eine Entscheidung und kein
+> Befund — wer ihn nicht liest, bevor er aufschreibt, meldet die Entscheidung
+> als Fehler.**
+
+**Der zweite Befund ist eine Bedingung, die keine ist.** Beide Seiten zeigen die
+Reihe hinter `props.history.length > 0`, und `History` gibt immer fünf
+beziehungsweise drei Kacheln zurück. Beide Kommentare darüber sagen, die Reihe
+verschwinde ohne Messwerte. Gemessen steht eine leere Kachel genau so hoch da
+wie eine mit Kurve; kaputt sieht nichts aus, aber Code und Kommentar
+beschreiben zwei verschiedene Seiten.
+
+> **Ein `v-if` über eine Liste, die nie leer ist, ist keine Bedingung — und der
+> Kommentar darüber beschreibt eine Seite, die es nicht gibt.**
+
+Behoben ist davon nichts. Ob die Zahlen vor dem Lauf gerichtet werden und ob die
+leere Reihe stehen bleibt, sind Fragen an den Betreiber (`docs/139 §6`). Die
+Entwurfsfrage aus `docs/129 §6`, ob die Abonnementseite alle fünf Kacheln
+zeigt, hat das Kriterium beantwortet, das fünf verlangt. Der Preis ist
+gemessen: Bei 390 px ist die Reihe 886 px hoch.
+
+**Und ein Messmittel ist dazugekommen:** `tests/kacheln-messen.js` liest je
+Kachel Wert, Einheit, Punkte, Zustand und Höhe und die Ablesung am ersten und am
+letzten Punkt. Im Container ist es in jede Richtung gegengeprüft: ohne
+Stylesheet `reihe=block`, ohne Kurve `UNKLAR`, ohne Reihe `keine Kachelreihe`,
+über dem Kontingent `warnt` an genau der einen Kachel.
+
+**Seine erste Fassung hat `OverflowProbeTest` angehalten, vor dem Commit.** Der
+Wächter sammelt jedes `tests/*-messen.js` ein, das eine Seite ausliest, und
+verlangt eine Sperre gegen den zweiten Aufruf ohne Neuladen und ein
+Ergebnisobjekt mit Stand. Beides fehlte, und er war rot. Nachgebaut ist beides;
+nach der Ablesung wirft ausserdem die Messung, weil die Ablesung mit dem Zeiger
+über jede Kurve streicht. Die zwanzig Lagen geben danach Zeile für Zeile
+dieselbe Ausgabe wie vorher, und die Sperren sind in beide Richtungen gemessen:
+Ein zweiter Aufruf und die Messung nach der Ablesung werfen, die Ablesung nach
+der Messung läuft.
+
+> **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+> gefahren — man denkt an das Gebaute und nicht an das Berührte.** Gefahren
+> waren die Wächter über Dokumente; die neue Datei lag in einem Verzeichnis,
+> das ein anderer einsammelt.
+
+### B4 ist behoben — Kacheln ohne erfundene Stellen, und die Reihe steht so da, wie ihr Kommentar sagt
+
+**Entschieden am 28. September 2026, wie `docs/139 §6` es vorgeschlagen hat,
+und gebaut für `0.9.0-rc.8`.** Der Lauf für B4 wird gegen diese Freigabe
+gefahren. Sonst hielte seine Bilderrunde Zahlen fest, von denen feststeht,
+dass sie falsch dastehen.
+
+**Frage 1, die Zahlen.** Eine Anzahl steht ganz da: `5` statt `5,0`, `0` statt
+`0,00`, `2.389`. Speicherplatz und Datenbanken stehen in ganzen MB wie im
+Bereich darunter, `3 MB` statt `3,0 MB`. Neu ist dafür
+`Points::wholeFormatter()`. Die Regel von `plainFormatter()` bleibt bei den
+Raten, und die Fehlerquote und die Übersichtsseite sind deshalb unverändert.
+
+**Die Datenbanken runden jetzt an einer Stelle.** `Subscription::wholeMegabytes()`
+rechnet für `databaseUsedMb()` und für die Kachel darüber. Bis dahin teilte die
+Kachel, und dieselbe Messung stand oben als `3,5 MB` und unten als `3 MB`.
+
+> **Dieselbe Grösse in zwei Fassungen anzuzeigen ist keine doppelte Auskunft,
+> sondern eine widersprüchliche.**
+
+**Abgerundet wird vor der Kurve und nicht erst an der Zahl.** Sonst stiege die
+Kurve zwischen zwei Tagen, die beide `3 MB` heissen: ein Ausschlag, den keine
+Zahl benennt. Das ist der Fall, den `Points::plainFormatter()` von der
+CPU-Kachel erzählt, in die andere Richtung behoben. Dort bekam die Zahl ihre
+Stellen, hier verliert die Kurve die ihren.
+
+**Und ein leerer Wert trägt keine Einheit**: `—` statt `— MB`, `— B` und `— %`.
+Gefragt wird dieselbe Bedingung wie in `Points::latest()`, das den Strich
+schreibt.
+
+**Frage 2, die Reihe.** Sie bleibt auch ohne Messwerte stehen. Das `v-if` über
+`props.history.length` ist auf beiden Seiten fort, und die Kommentare
+beschreiben die Seite, die es gibt. Auf der Domainseite musste der Rahmen mit:
+Die Bedingung stand an einem `<template>`, das Reihe und Satz zusammenhielt.
+Ohne Direktive übersetzt Vue ein `<template>` zu einem echten
+`template`-Element, und dessen Inhalt zeigt der Browser nicht an. Gemessen am
+Übersetzer: `_createElementVNode("template", …)` ohne Direktive, kein Element
+mit `v-if`.
+
+> **Wer die Bedingung von einem `<template>` streicht, streicht den Rahmen mit —
+> ohne Direktive ist er ein Element, dessen Inhalt niemand sieht.**
+
+**Der Wächter misst jetzt an einem Wert, an dem die Rechnungen
+auseinandergehen.** `DailyHistoryTest` hat sechs neue Fälle. Der wichtigste
+liest beide Zahlen aus der Antwort der echten Route, an 3,75 MiB: abgerundet
+3, gerundet 4, geteilt `3,8`. Der alte prüfte an einem Gigabyte, und dort
+ergeben Teilen und Abrunden dasselbe.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+Gehalten ist dabei die Hälfte am Server: `History` liefert auch ohne eine
+einzige Zeile fünf beziehungsweise drei Kacheln. Dass die Vorlage keine
+Bedingung trägt, hält kein Wächter.
+
+**Ein Satz in einem der neuen Eingriffe war falsch, gefunden vor dem Commit.**
+Er begründete 3,75 MiB damit, dass 3,5 Runden und Abrunden nicht trenne. PHP
+rundet die Hälfte auf, `round(3.5)` ist 4 (gemessen); erst unterhalb der Hälfte
+sehen beide gleich aus, bei 3,25 MiB zum Beispiel.
+
+**Die Brüche beissen alle, und zwei alte Eingriffe hatten ihren Anker
+verloren.** Der Trockenlauf über alle 1781 Python-Eingriffe fand genau die
+beiden, die auf die geänderten Zeilen zielten: einen in `History`, einen in
+`databaseUsedMb()`. Beide zielen jetzt auf die neue Stelle, und dreizehn neue
+sind dazugekommen. Die Auswahl aller Eingriffe in die berührten Dateien, 42
+Abschnitte mit 111 Prüfungen, beisst vollständig.
+
+**Im Container nachgemessen**, am Bestand aus `docs/139 §2a`: Die Kacheln
+zeigen `Zugriffe 5` und `0`, `Speicherplatz 3 MB` und `Datenbanken 3 MB` über
+denselben Zahlen im Bereich darunter, und jede leere Kachel `—` ohne Einheit.
+In allen zwanzig Lagen blieb jede Höhe aufs Pixel dieselbe; verändert haben
+sich nur die Werte.

@@ -247,11 +247,27 @@ final class History
         $achse = $this->axis($rows, [$metric]);
         $werte = $achse['values'][$metric->value];
 
-        // Die Datenbanken liegen in Byte in der Tabelle und stehen auf dieser
-        // Seite seit P5 in MB — die Kachel richtet sich nach der Zahl, die
-        // zwei Zeilen über ihr steht, und nicht nach der Ablage.
+        /*
+         * Die Datenbanken liegen in Byte in der Tabelle und stehen auf dieser
+         * Seite seit P5 in **ganzen** MB: Die Kachel richtet sich nach der
+         * Zahl im Bereich darunter und nicht nach der Ablage.
+         *
+         * **Bis zum 28. September 2026 galt das nur für die Einheit.** Die
+         * Kachel teilte, der Bereich rundet ab, und dieselbe Messung stand
+         * oben als 3,5 MB und unten als 3 MB (`docs/139 §0` Punkt 1). Hier
+         * stand dazu, die Kachel richte sich nach der Zahl „zwei Zeilen über
+         * ihr" — sie steht darunter, und gerichtet hat sich die Kachel nur
+         * nach ihrer Einheit.
+         *
+         * **Abgerundet wird vor der Kurve und nicht erst an der Zahl.** Sonst
+         * stiege die Kurve von 3 MB auf 3 MB, und ihre Ablesung nennte zweimal
+         * dieselbe Zahl: ein Ausschlag, den keine Zahl benennt. Das ist der
+         * Fall, den {@see Points::plainFormatter()} von der CPU-Kachel
+         * erzählt. Dort bekam die Zahl ihre Stellen; hier verliert die Kurve
+         * die ihren, weil die Zahl darunter keine hat.
+         */
         if ($bytes) {
-            $werte = array_map(static fn (float $v): float => $v / 1_048_576.0, $werte);
+            $werte = array_map(static fn (float $v): float => (float) Subscription::wholeMegabytes((int) $v), $werte);
         }
 
         $reihe = Points::build(
@@ -259,7 +275,7 @@ final class History
             $achse['labels'],
             $werte === [] ? 0.0 : min($werte),
             $werte === [] ? 0.0 : max($werte),
-            Points::plainFormatter(' MB', 0),
+            Points::wholeFormatter(' MB'),
             ' MB',
             $limitMb,
         );
@@ -268,7 +284,7 @@ final class History
             'key' => $key,
             'label' => $label,
             'value' => Points::latest($reihe, '—'),
-            'unit' => 'MB',
+            'unit' => self::unit($reihe, 'MB'),
             'subline' => $subline,
             'series' => $reihe,
         ];
@@ -327,13 +343,13 @@ final class History
             'key' => 'traffic',
             'label' => 'Traffic',
             'value' => Points::latest($ausgehend, '—'),
-            'unit' => $ausgehend['unit'],
+            'unit' => self::unit($ausgehend, $ausgehend['unit']),
             'subline' => 'ausgehend',
             'series' => $ausgehend,
             'second' => [
                 'label' => 'eingehend',
                 'value' => Points::latest($eingehend, '—'),
-                'unit' => $eingehend['unit'],
+                'unit' => self::unit($eingehend, $eingehend['unit']),
                 'series' => $eingehend,
             ],
         ];
@@ -345,6 +361,10 @@ final class History
      * `docs/129 §11` sagt es ausdrücklich: Gezählt werden Anfragen und Bytes.
      * Besucher, Sitzungen und Herkunft wären ein eigenes Merkmal, und ein
      * Wort wie „Besuche" an dieser Stelle behauptete sie.
+     *
+     * **Und eine Anzahl steht ganz da.** Bis zum 28. September 2026 lief sie
+     * durch die Regel für Raten, und ein ruhiger Tag stand als `0,00` da,
+     * fünf Anfragen als `5,0` (`docs/139 §0` Punkt 1).
      *
      * @param  array<string, array<string, float>>  $rows
      * @return array<string,mixed>
@@ -359,7 +379,7 @@ final class History
             $achse['labels'],
             $werte === [] ? 0.0 : min($werte),
             $werte === [] ? 0.0 : max($werte),
-            Points::plainFormatter('', 0),
+            Points::wholeFormatter(''),
             '',
             null,
         );
@@ -386,6 +406,12 @@ final class History
      * Website — hier steht trotzdem 0, weil die Kurve eine Zahl braucht, und
      * die Ablesung nennt den Tag dazu. Eine Lücke ist an dieser x-Achse
      * ohnehin nicht darstellbar (siehe den Kopf dieser Klasse).
+     *
+     * **Anders als die Zugriffe behält sie ihre Stellen**, entschieden am
+     * 28. September 2026 (`docs/139 §6`): Sie ist eine Rate, und für Raten ist
+     * die Regel von {@see Points::plainFormatter()} gebaut. `0,4 %` ist dort
+     * der Unterschied zu einer Website, die jede zweihundertfünfzigste Anfrage
+     * verliert.
      *
      * @param  array<string, array<string, float>>  $rows
      * @return array<string,mixed>
@@ -416,10 +442,30 @@ final class History
             'key' => 'errors',
             'label' => 'Fehlerquote',
             'value' => Points::latest($reihe, '—'),
-            'unit' => '%',
+            'unit' => self::unit($reihe, '%'),
             'subline' => '4xx und 5xx',
             'series' => $reihe,
         ];
+    }
+
+    /**
+     * Die Einheit neben der grossen Zahl — und keine neben dem Strich.
+     *
+     * **`— MB` behauptet eine Einheit an einem Wert, den es nicht gibt**
+     * (`docs/139 §0` Punkt 1). Bis zum 28. September 2026 stand sie an jeder
+     * leeren Kachel dieser beiden Seiten, weil die Einheit fest am Aufbau hing
+     * und der Strich erst in {@see Points::latest()} entsteht. Gefragt wird
+     * deshalb dieselbe Bedingung wie dort: ob die Reihe etwas zu zeigen hat.
+     *
+     * Die Übersichtsseite ruft das nicht, und das ist entschieden und kein
+     * Versehen (`docs/139 §6`): Gerichtet wurde, was der Lauf für B4 gezeigt
+     * hat, und nicht mehr.
+     *
+     * @param  array{has:bool,points:list<array{x:float,y:float,t:string,v:string}>}  $series
+     */
+    private static function unit(array $series, string $unit): string
+    {
+        return $series['has'] && $series['points'] !== [] ? $unit : '';
     }
 
     /**

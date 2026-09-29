@@ -23,7 +23,11 @@ Betreibers sind danach behoben und mit `0.9.0-rc.5` ausgeliefert; auf dem Server
 gesehen hat sie noch niemand. **B3 bis B8 sind gebaut und nicht abgenommen**;
 der Lauf für B3 ist `docs/138`, ausgeschrieben am 28. September, und er hat vor
 dem Fahren einen Befund am Prüfling gebracht (Abschnitt weiter unten) — behoben
-am selben Tag und noch in keiner Freigabe.
+am selben Tag, ausgeliefert mit `0.9.0-rc.7` und am Abend auf `cloudsrv24`
+gesehen; von Teil 1 sind Block 0 und Block 4 gefahren (`docs/138 §7`). Der Lauf
+für B4 ist `docs/139`. Beim Ausschreiben fielen zwei Befunde heraus; der
+Betreiber hat sie am selben Tag entschieden, und behoben sind sie für
+`0.9.0-rc.8`, gegen die der Lauf gefahren wird (`docs/139 §6`).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -6258,7 +6262,8 @@ Lücke der Flexzeile mitnimmt (gemessen 14 px, mit `content: none` 0).
 **`docs/138` ist ausgeschrieben, vor dem Fahren und in zwei Teilen**, weil das
 Kriterium an der Uhr hängt: Teil 1 liest heute den Bestand und rechnet aus dem
 ersten Tag der Tabelle die beiden Nächte, Teil 2 misst an Nacht 30 und Nacht 31.
-Auf dem Server ist noch nichts davon gefahren.
+Auf dem Server gefahren sind seit dem Abend des 28. September Block 0 und
+Block 4 (Abschnitt weiter unten).
 
 **Der Befund kam beim Ausschreiben, und es ist eine Naht ohne Schreiber.**
 `History` liest für die Kacheln „Speicherplatz" und „Datenbanken" die
@@ -6375,6 +6380,96 @@ nur die neuen.
 **Und eine Kleinigkeit an Pint:** Ein `{@see \Voll\Qualifiziert}` wird zu einem
 `use`, und steht der Name danach nur noch als Wort im Fliesstext, bleibt das
 `use` stehen — Pint hält das Wort für eine Verwendung.
+
+---
+
+## B3 auf dem Server und der Lauf für B4 — 28. September 2026
+
+**Die Behebung von B3 hat einen Server gesehen**, gegen `0.9.0-rc.7` am Abend
+des 28. September (`docs/138 §7`). `srvpanel:usage` legt Platz und Datenbanken
+für alle drei Abonnements ab. Der erste Lauf von Hand hat den drei ruhigen
+Domains ihre Nullen für den Vortag gegeben, zwölf Zeilen und zwölf Nullen. Ein
+zweiter Lauf über demselben Vortag liess beide Tabellen gleich, die Prüfsumme
+eingeschlossen. Von Teil 1 fehlen die Blöcke 1 bis 3.
+
+**Block 4 stand in einer Fassung da, die gegen `rc.7` angeschlagen hätte, ohne
+Fehler am Prüfling.** Er las zweimal um einen Lauf und bildete die Prüfsumme
+über alle Zeilen. Der erste Lauf nach dem Update legt aber nach, was die alte
+Fassung nicht kannte. Ausserdem schreibt `srvpanel:usage` alle fünfzehn Minuten
+in dieselbe Tabelle. Berichtigt ist er vor dem Fahren: drei Ablesungen um zwei
+Läufe, Platz und Datenbanken nicht in der Prüfsumme.
+
+> **Der erste Lauf nach einem Update misst den Übergang und nicht den Zustand —
+> er legt nach, was die alte Fassung nicht kannte.**
+
+> **Eine Prüfsumme über eine Tabelle, in die ein zweiter Lauf schreibt, misst
+> beide Läufe.**
+
+**Der Lauf für B4 ist `docs/139`**, und beim Ausschreiben fielen zwei Befunde am
+Prüfling heraus. Der erste: Zugriffe, Speicherplatz und Datenbanken tragen
+Stellen, die es nicht gibt. `Zugriffe 5,0`, `3,0 MB`, und bei den Datenbanken
+`3,5 MB` in der Kachel über `3 MB` im Bereich darunter, dieselbe Messung zur
+selben Minute. Der Wächter dafür war grün, weil er an genau einem Gigabyte
+prüfte, dem einen Wert, an dem beide Rundungen übereinstimmen.
+
+> **Ein Format, das für eine Rate reicht, reicht nicht für eine Anzahl.**
+
+Der zweite: Beide Seiten zeigen die Kachelreihe hinter
+`v-if="props.history.length > 0"`, und `History` gibt immer fünf
+beziehungsweise drei Kacheln zurück. Beide Kommentare darüber beschreiben eine
+Reihe, die bei fehlenden Messwerten verschwindet.
+
+> **Ein `v-if` über eine Liste, die nie leer ist, ist keine Bedingung — und der
+> Kommentar darüber beschreibt eine Seite, die es nicht gibt.**
+
+**Und eine Zeile meines eigenen Befundes war falsch, gefunden vor dem
+Abschicken.** Die Fehlerquote eines ruhigen Tages stand zuerst mit `0,00 %` in
+der Liste. `DailyHistoryTest` hält genau diesen Wert ausdrücklich, weil eine
+Rate ihre Stellen braucht.
+
+> **Was ein Wächter ausdrücklich festhält, ist eine Entscheidung und kein
+> Befund — wer ihn nicht liest, bevor er aufschreibt, meldet die Entscheidung
+> als Fehler.**
+
+**Ein neues Messmittel steht daneben:** `tests/kacheln-messen.js` liest je
+Kachel Wert, Einheit, Punkte, Zustand und Höhe, dazu die Ablesung am ersten und
+am letzten Punkt. Sein Ladebeleg ist `reihe=flex`, denn ohne Stylesheet steht
+dort `block`. Eine Kachel, die weder Kurve noch Leerzustand trägt, heisst
+`UNKLAR` und nicht „leer". Im Container ist jede Richtung gegengeprüft.
+
+**Seine erste Fassung hat ein bestehender Wächter angehalten, vor dem Commit.**
+`OverflowProbeTest` sammelt jedes `tests/*-messen.js` ein, das eine Seite
+ausliest, und verlangt eine Sperre gegen den zweiten Aufruf und ein Ergebnis
+mit Stand. Beides fehlte. Gefahren hatte ich die Wächter über Dokumente, weil
+ich Dokumente geschrieben hatte; die neue Datei lag aber in einem Verzeichnis,
+das ein anderer Wächter liest.
+
+> **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+> gefahren — man denkt an das Gebaute und nicht an das Berührte.**
+
+Einen Schaden verhindert die Sperre bei der Messung selbst nicht, denn ein
+zweites `kachelnMessen()` liest nur. Sie belegt, dass jede Lage frisch geladen
+war. Nach der Ablesung wirft auch die Messung, weil der Zeiger dann über jede
+Kurve gestrichen hat.
+
+**Beide Befunde sind am selben Abend behoben**, entschieden vom Betreiber wie
+vorgeschlagen (`docs/139 §6`). Eine Anzahl steht ganz da, Speicherplatz und
+Datenbanken in ganzen MB wie im Bereich darunter, und ein leerer Wert trägt
+keine Einheit. Die Datenbanken runden dabei an **einer** Stelle,
+`Subscription::wholeMegabytes()`, für den Bereich und für die Kachel; abgerundet
+wird vor der Kurve. Fehlerquote und Übersicht bleiben, wie sie sind.
+
+Der neue Wächter misst durch die echte Route an 3,75 MiB, wo Abrunden (3),
+Runden (4) und Teilen (`3,8`) auseinandergehen. Der alte prüfte an einem
+Gigabyte, dem einen Wert, an dem sie gleich aussehen.
+
+Die Reihe bleibt auch ohne Messwerte stehen, das `v-if` darüber ist fort. Auf
+der Domainseite stand es an einem `<template>`, und das musste mit: Ohne
+Direktive übersetzt Vue es zu einem echten `template`-Element, dessen Inhalt
+der Browser nicht anzeigt (gemessen am Übersetzer).
+
+> **Wer die Bedingung von einem `<template>` streicht, streicht den Rahmen mit
+> — ohne Direktive ist er ein Element, dessen Inhalt niemand sieht.**
 
 ---
 

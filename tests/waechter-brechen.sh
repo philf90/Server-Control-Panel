@@ -5708,10 +5708,13 @@ vorher_datei app/Models/Subscription.php
 python3 - <<'PY2'
 p = 'app/Models/Subscription.php'
 s = open(p, encoding='utf-8').read()
+alt = "return $databases->exists() ? self::wholeMegabytes((int) $databases->sum('size_bytes')) : null;"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 s = s.replace(
-    "return $databases->exists() ? intdiv((int) $databases->sum('size_bytes'), 1024 * 1024) : null;",
+    alt,
     "return $databases->exists() ? (int) $databases->get()"
-    "->sum(static fn ($row): int => intdiv((int) $row->size_bytes, 1024 * 1024)) : null;",
+    "->sum(static fn ($row): int => self::wholeMegabytes((int) $row->size_bytes)) : null;",
+    1,
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
@@ -32796,7 +32799,7 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Metrics/History.php')
 s = p.read_text()
-alt = '$v / 1_048_576.0'
+alt = '(float) Subscription::wholeMegabytes((int) $v)'
 assert s.count(alt) == 1
 p.write_text(s.replace(alt, '$v', 1))
 PY
@@ -37506,6 +37509,258 @@ PY2
 griff_datei app/Support/Metrics/History.php "Fenster ueber alle Kennzahlen" &&
 pruefe "Fenster ueber alle Kennzahlen" \
   DailyHistoryTest::test_a_level_that_carries_today_takes_no_day_from_the_traffic failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
+
+echo "── DailyHistoryTest: die Zugriffe kommen wieder mit Komma ──"
+#
+# Die Regel fuer Raten schreibt fuenf Anfragen als "5,0" und einen ruhigen
+# Tag als "0,00" — Stellen, die es bei einer Anzahl nicht gibt
+# (docs/139 §0 Punkt 1).
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/History.php'
+s = open(p, encoding='utf-8').read()
+alt = "Points::wholeFormatter(''),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "Points::plainFormatter('', 0),", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Metrics/History.php "Zugriffe mit Komma" &&
+pruefe "Zugriffe mit Komma" \
+  DailyHistoryTest::test_a_count_stands_whole failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
+
+echo "── DailyHistoryTest: der Speicherplatz kommt wieder mit Komma ──"
+#
+# disk_used_mb ist eine ganze Zahl, und der Bereich darunter schreibt sie
+# so. "3,0 MB" in der Kachel ueber "3 MB" ist dieselbe Messung zweimal.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/History.php'
+s = open(p, encoding='utf-8').read()
+alt = "Points::wholeFormatter(' MB'),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "Points::plainFormatter(' MB', 0),", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Metrics/History.php "Speicherplatz mit Komma" &&
+pruefe "Speicherplatz mit Komma" \
+  DailyHistoryTest::test_the_disk_tile_stands_in_whole_mb failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
+
+echo "── DailyHistoryTest: die Kachel teilt wieder, statt abzurunden ──"
+#
+# Der Befund selbst: 3,75 MiB stehen oben als 4 und unten als 3. Der alte
+# Waechter pruefte an einem Gigabyte, und dort ergeben Teilen und
+# Abrunden dasselbe.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/History.php'
+s = open(p, encoding='utf-8').read()
+alt = '(float) Subscription::wholeMegabytes((int) $v)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, '$v / 1_048_576.0', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Metrics/History.php "Kachel teilt statt abzurunden" &&
+pruefe "Kachel teilt statt abzurunden" \
+  DailyHistoryTest::test_the_database_tile_shows_the_number_of_the_section_below failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
+
+echo "── DailyHistoryTest: die Kachel rundet kaufmaennisch ──"
+#
+# Runden und Abrunden trennen sich erst ab der Haelfte: Bei 3,25 MiB saehen
+# beide 3. Der Fall misst an 3,75 MiB, sicher darueber.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/History.php'
+s = open(p, encoding='utf-8').read()
+alt = '(float) Subscription::wholeMegabytes((int) $v)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, 'round($v / 1_048_576.0)', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Metrics/History.php "Kachel rundet kaufmaennisch" &&
+pruefe "Kachel rundet kaufmaennisch" \
+  DailyHistoryTest::test_the_database_tile_shows_the_number_of_the_section_below failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
+
+echo "── DailyHistoryTest: abgerundet wird erst an der Zahl ──"
+#
+# Die Zahl stimmt dann, und die Kurve steigt zwischen zwei Tagen, die
+# beide "3 MB" heissen: ein Ausschlag, den keine Zahl benennt. Die
+# Faelle ueber die Zahl bleiben dabei gruen; nur die Hoehe verraet es.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/History.php'
+s = open(p, encoding='utf-8').read()
+alt = '(float) Subscription::wholeMegabytes((int) $v)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, '$v / 1_048_576.0', 1)
+alt = "Points::wholeFormatter(' MB'),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "static fn (float $v): string => number_format(floor($v), 0, ',', '.').' MB',", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Metrics/History.php "erst an der Zahl abgerundet" &&
+pruefe "erst an der Zahl abgerundet" \
+  DailyHistoryTest::test_the_curve_is_rounded_before_it_is_drawn failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
+
+echo "── DailyHistoryTest: der Bereich darunter rundet anders als die Kachel ──"
+#
+# Die Gegenseite der Naht: Rechnete databaseUsedMb() an seiner eigenen
+# Stelle, stuende die Kachel bei 3 und der Bereich bei 4. Gemessen wird
+# durch die echte Route, sonst saehe der Fall diese Seite nicht.
+vorher_datei app/Models/Subscription.php
+python3 - <<'PY2'
+p = 'app/Models/Subscription.php'
+s = open(p, encoding='utf-8').read()
+alt = "self::wholeMegabytes((int) $databases->sum('size_bytes'))"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "(int) round((int) $databases->sum('size_bytes') / 1_048_576)", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Models/Subscription.php "Bereich rundet anders" &&
+pruefe "Bereich rundet anders" \
+  DailyHistoryTest::test_the_database_tile_shows_the_number_of_the_section_below failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
+
+echo "── DailyHistoryTest: der Strich traegt wieder seine Einheit ──"
+#
+# "— MB" behauptet eine Einheit an einem Wert, den es nicht gibt.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/History.php'
+s = open(p, encoding='utf-8').read()
+alt = "return $series['has'] && $series['points'] !== [] ? $unit : '';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, 'return $unit;', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Metrics/History.php "Strich mit Einheit" &&
+pruefe "Strich mit Einheit" \
+  DailyHistoryTest::test_an_empty_tile_carries_no_unit failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
+
+echo "── DailyHistoryTest: auch mit Messwerten fehlt die Einheit ──"
+#
+# Die Gegenrichtung: Ohne sie bestuende der Fall auch, wenn die Einheit
+# ueberall fehlte.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/History.php'
+s = open(p, encoding='utf-8').read()
+alt = "return $series['has'] && $series['points'] !== [] ? $unit : '';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "return '';", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Metrics/History.php "Einheit fehlt ueberall" &&
+pruefe "Einheit fehlt ueberall" \
+  DailyHistoryTest::test_an_empty_tile_carries_no_unit failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
+
+echo "── DailyHistoryTest: Platz und Datenbanken umgehen die Regel der Einheit ──"
+#
+# Jede Kachel fragt dieselbe Stelle; eine, die es nicht tut, schreibt
+# wieder "— MB".
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/History.php'
+s = open(p, encoding='utf-8').read()
+alt = "'unit' => self::unit($reihe, 'MB'),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "'unit' => 'MB',", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Metrics/History.php "Stand umgeht die Einheitenregel" &&
+pruefe "Stand umgeht die Einheitenregel" \
+  DailyHistoryTest::test_an_empty_tile_carries_no_unit failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
+
+echo "── DailyHistoryTest: der Verkehr umgeht die Regel der Einheit ──"
+#
+# Die Verkehrskachel hat ihre Einheit aus der Reihe, und die leere Reihe
+# traegt "B".
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/History.php'
+s = open(p, encoding='utf-8').read()
+alt = "'unit' => self::unit($ausgehend, $ausgehend['unit']),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "'unit' => $ausgehend['unit'],", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Metrics/History.php "Verkehr umgeht die Einheitenregel" &&
+pruefe "Verkehr umgeht die Einheitenregel" \
+  DailyHistoryTest::test_an_empty_tile_carries_no_unit failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
+
+echo "── DailyHistoryTest: die zweite Richtung umgeht die Regel der Einheit ──"
+#
+# Die zweite Richtung steht in der Beizeile: "eingehend — B".
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/History.php'
+s = open(p, encoding='utf-8').read()
+alt = "'unit' => self::unit($eingehend, $eingehend['unit']),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "'unit' => $eingehend['unit'],", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Metrics/History.php "zweite Richtung umgeht die Einheitenregel" &&
+pruefe "zweite Richtung umgeht die Einheitenregel" \
+  DailyHistoryTest::test_an_empty_tile_carries_no_unit failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
+
+echo "── DailyHistoryTest: die Fehlerquote umgeht die Regel der Einheit ──"
+#
+# Die Fehlerquote behaelt ihre Stellen, aber nicht ihr "%" neben dem
+# Strich.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/History.php'
+s = open(p, encoding='utf-8').read()
+alt = "'unit' => self::unit($reihe, '%'),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "'unit' => '%',", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Metrics/History.php "Fehlerquote umgeht die Einheitenregel" &&
+pruefe "Fehlerquote umgeht die Einheitenregel" \
+  DailyHistoryTest::test_an_empty_tile_carries_no_unit failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
+
+echo "── DailyHistoryTest: ohne eine Zeile gibt es keine Reihe ──"
+#
+# Entschieden am 28. September 2026 (docs/139 §6 Frage 2): Die Reihe steht
+# auch am ersten Tag. Eine leere Liste liesse sie auf der Seite fallen.
+vorher_datei app/Support/Metrics/History.php
+python3 - <<'PY2'
+p = 'app/Support/Metrics/History.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $rows = $this->read(SubscriptionMetric::query()->where('subscription_id', (int) $subscription->id));\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, "        $rows = $this->read(SubscriptionMetric::query()->where('subscription_id', (int) $subscription->id));\n\n        if ($rows === []) {\n            return [];\n        }\n", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Metrics/History.php "ohne Zeile keine Reihe" &&
+pruefe "ohne Zeile keine Reihe" \
+  DailyHistoryTest::test_the_row_stands_without_a_single_row failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
 

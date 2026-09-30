@@ -58,6 +58,7 @@ final class StandaloneClassTest extends TestCase
      * @var array<string,string>
      */
     private const CONTEXT_BOUND = [
+        'amount' => 'Zahl und Einheit in der Beizeile einer .tile, die dort nicht umbrechen',
         'aside' => 'die schmale Hälfte eines .split',
         'cell' => 'eine Zelle in .rows',
         'clamped' => 'der Text einer Ankündigung in einem .band, über zwei Zeilen geklammert',

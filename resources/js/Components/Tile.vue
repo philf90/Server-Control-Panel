@@ -256,18 +256,26 @@ function nearest(event: PointerEvent): void {
       der der Zeiger steht — und nennt sie beim Namen: Die Zuordnung über die
       Kurvenfarbe zu machen wäre genau der Fehler, den WCAG 1.4.1 meint, und
       beide Richtungen zusammen brauchten drei Zeilen (gemessen bei 1440px).
+
+      **Ein Betrag bricht nicht in sich.** Jede Zahl steht mit ihrer Einheit
+      in einem `.amount`, und die Zeile bricht davor. Ohne die Einfassung brach
+      sie auf der Abonnementseite bei 1440px zwischen „3,6" und „MB" — im
+      Ruhezustand und in beiden Ablesungen, gesehen auf `cloudsrv24`
+      (`docs/139 §7`). Die Kachel fasst den Betrag nur ein; geschrieben hat
+      ihn der Server.
     -->
     <div class="tile-sub" :class="{ paired: second }" :data-readout="hovered !== null">
       <template v-if="hovered && second && hoveredSecond">
         {{ hovered.t }} ·
         {{ hoveredOn === 'second' ? second.label : subline }}
-        {{ hoveredOn === 'second' ? hoveredSecond.v : hovered.v }}
+        <span class="amount">{{ hoveredOn === 'second' ? hoveredSecond.v : hovered.v }}</span>
       </template>
-      <template v-else-if="hovered">{{ hovered.t }} · {{ hovered.v }}</template>
+      <template v-else-if="hovered">{{ hovered.t }} · <span class="amount">{{ hovered.v }}</span></template>
       <!-- Das Leerzeichen vor der Einheit steht hier absichtlich: Ohne es las
            sich die Zeile als „ausgehend 65.981.645B/s". Die grosse Zahl hat
-           dafür ein `<small>` mit Abstand, diese hier hat keins. -->
-      <template v-else-if="second">{{ subline }} · {{ second.label }} {{ second.value }} {{ second.unit }}</template>
+           dafür ein `<small>` mit Abstand, diese hier hat keins — und dass
+           an diesem Leerzeichen nicht umbrochen wird, sagt `.amount`. -->
+      <template v-else-if="second">{{ subline }} · {{ second.label }} <span class="amount">{{ second.value }} {{ second.unit }}</span></template>
       <template v-else>{{ subline }}</template>
     </div>
 

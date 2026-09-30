@@ -33306,3 +33306,105 @@ zeigen `Zugriffe 5` und `0`, `Speicherplatz 3 MB` und `Datenbanken 3 MB` über
 denselben Zahlen im Bereich darunter, und jede leere Kachel `—` ohne Einheit.
 In allen zwanzig Lagen blieb jede Höhe aufs Pixel dieselbe; verändert haben
 sich nur die Werte.
+
+### Teil 1 von B3 ist durch, und B4 hat seinen Server gesehen — an einer Datenbank, die es dafür erst geben musste
+
+**B3, Teil 1** (`docs/138 §7`): Die Blöcke 1 bis 3 sind am 29. und
+30. September gegen `0.9.0-rc.8` gefahren, Block 4 ein zweites Mal nach dem
+ersten Nachtlauf unter `rc.8`. Jede Zahl war vorher ausgerechnet und stand so
+da: 10, 30 und 6 Zeilen je Kennzahl am 29., am 30. 48 und 144 Zeilen mit 12
+und 37 Nullen, und drei gleiche Ablesungen über zwei Läufen, die je 24 und 8
+Zeilen abgelegt haben. Das dritte Abonnement bekam keine Zeile des Verkehrs,
+weil es keine Domain hat. Teil 2 misst den Verkehr am 21. und 22. Oktober,
+Platz und Datenbanken am 28. und 29. Oktober.
+
+**B4, Teil 1** (`docs/139 §7`): Der Server rechnet die Form von `rc.8`, ganze
+Zugriffe, `—` ohne Einheit und die Fehlerquote mit Stellen. Die Zugriffe der
+Domains ergeben die ihres Abonnements genau, 14.088.
+
+**Block 2 druckte `—` für zwei Zustände, die die Seite verschieden zeigt**:
+„Keine Datenbanken angelegt." und „Noch nicht gemessen.". Er druckt jetzt die
+Wörter der Seite, im Container an allen drei Zuständen gegengeprüft.
+
+**Und Punkt 1 setzte eine Zahl voraus, die es auf dem Server nicht gab.** Kein
+Abonnement dort hatte eine Datenbank, und „oben und unten dieselbe Zahl" stand
+über einem Satz. Hergestellt hat den Fall ein Prüfkörper mit 3.801.036 B, an
+dem Abrunden, Runden und Teilen 3, 4 und `3,6` ergeben; oben und unten stand
+danach `3 MB`. Gefüllt ist er mit MyISAM, weil InnoDB seine Grösse in
+`information_schema` erst nach einer Neuberechnung der Statistik meldet
+(im Container: 16.384 B statt 4.734.976 B).
+
+> **Ein Kriterium, das eine Zahl darunter verlangt, prüft nichts, wo darunter
+> ein Satz steht — und die Kachel darüber liest sich trotzdem wie erfüllt.**
+
+### Teil 2 von B4 ist gefahren — und in der Traffic-Kachel stand die Einheit allein in einer Zeile
+
+**B4, Teil 2** (`docs/139 §7`): Am 30. September im Browser gegen
+`0.9.0-rc.8`, alle fünf Punkte erfüllt. Drei Abonnement- und sechs
+Domainseiten zeigen, was Block 2 rechnet. Die Datenbanken des Prüfkörpers
+stehen oben und unten mit `3 MB` da, wo `rc.7` oben `3,6 MB` gezeigt hätte. In
+acht Lagen misst `bilderMessen()` `dokument=0`, Gegenprobe 200, `schiebt=0`,
+und die leeren Kacheln sind bei 390 px auf das Pixel so hoch wie die mit Kurve
+an derselben Stelle (172, 193, 173, 173, 173).
+
+**Befund am Bild:** Auf der Abonnementseite brach die Beizeile der
+Traffic-Kachel bei 1440 px zwischen Zahl und Einheit. Oben stand „ausgehend ·
+eingehend 3,6", darunter „MB", in beiden Themen und in beiden Ablesungen.
+Lesbar war die Zeile, aber eine Einheit allein am Anfang einer Zeile liest
+sich wie eine eigene Angabe. Der Betreiber hat entschieden, dass es behoben
+wird, mit `0.9.0-rc.9`, und dass die Abnahme danach kommt.
+
+**Behoben**, indem die Kachel jeden Betrag in ein `.amount` fasst und
+`app.css` ihn in einer Zeile hält. Die Zeichenketten kommen weiter fertig vom
+Server. Im Container ist alt gegen neu gemessen: vorher in drei Lagen
+getrennt, nachher in allen zusammen, die Kacheln gleich hoch. Die Netzkachel
+der Übersicht ist dieselbe Komponente und brach mit gebauten Werten genauso,
+bei „1,2" und „MB/s". Der längste Betrag, den `Points` schreiben kann, ist
+102 px breit, die schmalste Beizeile 151 px. `TileAmountTest` hält die
+Einfassung, das Paar aus Zahl und Einheit und die Regel.
+
+**Im Container war der Befund vorher nicht zu sehen**, und daran war der
+Aufsatz schuld: Er hatte keine Seitenleiste, und die Kacheln waren bei
+1440 px 280 px breit statt 228. Mit dem Raster aus `PanelLayout` trifft er die
+Masse des Servers auf das Pixel, 228 × 196 und 358 × 193.
+
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst
+> die falsche — und sein Grün liest sich wie ein Freispruch.**
+
+In zwei dunklen Aufnahmen stand oben in der Konsole ein Fehler ohne
+sichtbaren Text. Er kam nicht wieder und bleibt ungeklärt.
+
+### Vier Pakete in den Sperrdateien angehoben — sieben Advisories seit dem 29. September
+
+**`laravel/framework` 13.23.0 → 13.34.0, `league/commonmark` 2.10.0 → 2.10.3,
+`league/flysystem` 3.35.2 → 3.36.0 und `brace-expansion` 2.1.4 → 2.1.7.** Auf
+`main` war der Lauf „Schwachstellen und Lizenzen" am 29. September um
+06:37 UTC noch grün; danach kamen sieben Meldungen, die vier für Composer am
+29. und 30. September. Seitdem war er für jeden Beitrag rot, auch für einen,
+der keine Abhängigkeit anfasst:
+
+- `laravel/framework`, niedrig: eine XSS auf der Fehlerseite, die nur bei
+  eingeschaltetem Debug-Modus erscheint.
+- `league/commonmark`, mittel und hoch: Der Filter für rohes HTML lässt sich
+  umgehen, und die Tabellenerweiterung braucht quadratische Laufzeit. Das Paket
+  ist transitiv, und dieses Panel ruft es nirgends auf.
+- `league/flysystem`, niedrig: Ungültiges UTF-8 umgeht die Prüfung auf
+  Steuerzeichen im Pfad. Der Dateimanager legt Hochgeladenes über
+  `Storage::disk('local')` unter einem Namen aus Zufallsbytes ab.
+- `brace-expansion` in `package-lock.json`, 2.1.4 → 2.1.7, hoch: drei Wege zu
+  einer Laufzeit, die mit der Eingabe explodiert. Das Paket hängt an `vue-tsc`,
+  also an der Typprüfung, und kommt nicht ins Paket. `npm audit` stand im
+  selben Lauf hinter `composer audit` und kam dort gar nicht an die Reihe.
+
+Der Betreiber hat entschieden, dass es mit `0.9.0-rc.9` kommt. Wie bei
+`league/commonmark` im August und am 1. September wandern nur die Sperrdateien;
+`composer.json` und `package.json` bleiben, und der Inhalts-Hash auch. Diesmal
+steigt allerdings das Framework selbst, um elf kleine Fassungen. Den Namen im
+npm-Lock hat `npm audit fix` nach dem Verzeichnis umgeschrieben; das ist
+zurückgenommen, sonst wechselte er mit jedem Checkout.
+
+Gegen die neuen Fassungen gefahren: der volle PHPUnit-Lauf, 3934 Tests ohne
+Fehlschlag, und PHPStan über alle Pfade der Projektdatei, mit einem
+eingepflanzten Fehler als Gegenprobe; gemeldet wurde nur er. Danach meldet
+`composer audit` „No security vulnerability advisories found.", `npm audit`
+„found 0 vulnerabilities", und die Lizenzprüfung der CI besteht.

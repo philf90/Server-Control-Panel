@@ -37764,6 +37764,156 @@ pruefe "ohne Zeile keine Reihe" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DailyHistoryTest passed
 
+echo "── TileAmountTest: der Betrag der zweiten Richtung verliert seine Einfassung ──"
+#
+# Gesehen auf cloudsrv24 am 30. September 2026: Ohne die Einfassung brach die
+# Beizeile der Traffic-Kachel bei 1440px zwischen der Zahl und ihrer Einheit,
+# im Ruhezustand und in beiden Ablesungen (docs/139 §7).
+vorher_datei resources/js/Components/Tile.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/Tile.vue')
+s = p.read_text()
+alt = '<span class="amount">{{ second.value }} {{ second.unit }}</span>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '{{ second.value }} {{ second.unit }}', 1))
+PY
+griff_datei resources/js/Components/Tile.vue "Betrag ohne Einfassung" &&
+pruefe "Betrag ohne Einfassung" \
+  TileAmountTest::test_every_amount_in_the_subline_is_enclosed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TileAmountTest passed
+
+echo "── TileAmountTest: Zahl und Einheit in zwei Einfassungen ──"
+#
+# Jede fuer sich eingefasst, und zwischen den beiden darf die Zeile wieder
+# brechen. Der Fall ueber die Einfassung sieht das nicht — jede Einbettung
+# steht ja in einer; gehalten wird es vom Fall ueber das Paar.
+vorher_datei resources/js/Components/Tile.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/Tile.vue')
+s = p.read_text()
+alt = '<span class="amount">{{ second.value }} {{ second.unit }}</span>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '<span class="amount">{{ second.value }}</span> <span class="amount">{{ second.unit }}</span>', 1))
+PY
+griff_datei resources/js/Components/Tile.vue "Zahl und Einheit getrennt eingefasst" &&
+pruefe "Zahl und Einheit getrennt eingefasst" \
+  TileAmountTest::test_number_and_unit_share_one_enclosure failed
+wiederherstellen
+
+echo "── TileAmountTest: die Ablesung einer Richtung ohne Einfassung ──"
+#
+# Die Ablesung traegt Zahl und Einheit in einer Zeichenkette vom Server. Ohne
+# Einfassung bricht sie an deren Leerzeichen, sobald die Zeile knapp wird.
+vorher_datei resources/js/Components/Tile.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/Tile.vue')
+s = p.read_text()
+alt = '{{ hovered.t }} · <span class="amount">{{ hovered.v }}</span>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '{{ hovered.t }} · {{ hovered.v }}', 1))
+PY
+griff_datei resources/js/Components/Tile.vue "Ablesung ohne Einfassung" &&
+pruefe "Ablesung ohne Einfassung" \
+  TileAmountTest::test_every_amount_in_the_subline_is_enclosed failed
+wiederherstellen
+
+echo "── TileAmountTest: die Ablesung zweier Richtungen ohne Einfassung ──"
+#
+# Genau die Zeile, die auf cloudsrv24 beim Zeigen brach: 29.09. und die
+# Richtung in der ersten Zeile, die Zahl am Ende und die Einheit darunter.
+vorher_datei resources/js/Components/Tile.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/Tile.vue')
+s = p.read_text()
+alt = "<span class=\"amount\">{{ hoveredOn === 'second' ? hoveredSecond.v : hovered.v }}</span>"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "{{ hoveredOn === 'second' ? hoveredSecond.v : hovered.v }}", 1))
+PY
+griff_datei resources/js/Components/Tile.vue "Ablesung zweier Richtungen ohne Einfassung" &&
+pruefe "Ablesung zweier Richtungen ohne Einfassung" \
+  TileAmountTest::test_every_amount_in_the_subline_is_enclosed failed
+wiederherstellen
+
+echo "── TileAmountTest: ein Kommentar zitiert die entfernte Einfassung ──"
+#
+# Dieses Repo haelt in jeder Behebung ihren Vorzustand im Kommentar fest. Ein
+# Kommentar, der die Einfassung woertlich hinschreibt, darf sie fuer den
+# Waechter nicht wiederherstellen — der Fall ueber das Paar faende sie sonst
+# dort.
+vorher_datei resources/js/Components/Tile.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/Tile.vue')
+s = p.read_text()
+alt = '<span class="amount">{{ second.value }} {{ second.unit }}</span>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '<!-- vorher: ' + alt + ' -->{{ second.value }} {{ second.unit }}', 1))
+PY
+griff_datei resources/js/Components/Tile.vue "Einfassung nur im Kommentar" &&
+pruefe "Einfassung nur im Kommentar" \
+  TileAmountTest::test_number_and_unit_share_one_enclosure failed
+wiederherstellen
+
+echo "── TileAmountTest: die Regel haelt den Betrag nicht mehr zusammen ──"
+#
+# Ohne die Regel ist die Einfassung in Tile.vue ein Wunsch: Die Klasse steht
+# da, und die Zeile bricht wie vorher.
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+alt = '.tile-sub .amount {\n  white-space: nowrap;\n}\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '.tile-sub .amount {\n  white-space: normal;\n}\n', 1))
+PY
+griff_datei resources/css/app.css "Regel haelt den Betrag nicht" &&
+pruefe "Regel haelt den Betrag nicht" \
+  TileAmountTest::test_the_stylesheet_keeps_an_amount_on_one_line failed
+wiederherstellen
+
+echo "── TileAmountTest: eine zweite Regel nimmt es auf der schmalen Flaeche zurueck ──"
+#
+# Die erste Regel bleibt stehen, und die Frage, ob es eine gibt, bleibt mit Ja
+# beantwortet. Eine zweite fuer dieselbe Klasse macht sie stumpf.
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+alt = '.tile-sub .amount {\n  white-space: nowrap;\n}\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, alt + '\n@media (max-width: 720px) {\n  .tile-sub .amount {\n    white-space: normal;\n  }\n}\n', 1))
+PY
+griff_datei resources/css/app.css "zweite Regel nimmt den Betrag zurueck" &&
+pruefe "zweite Regel nimmt den Betrag zurueck" \
+  TileAmountTest::test_the_stylesheet_keeps_an_amount_on_one_line failed
+wiederherstellen
+
+echo "── TileAmountTest: die Kachel nimmt es im eigenen Stilblock zurueck ──"
+#
+# Eine Regel in style scoped traegt das Attribut des Uebersetzers und schlaegt
+# die aus app.css, ohne dass dort etwas anders aussieht.
+vorher_datei resources/js/Components/Tile.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/Tile.vue')
+s = p.read_text()
+alt = '<style scoped>\n.trend {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '<style scoped>\n.amount {\n  white-space: normal;\n}\n\n.trend {', 1))
+PY
+griff_datei resources/js/Components/Tile.vue "Kachel nimmt den Betrag zurueck" &&
+pruefe "Kachel nimmt den Betrag zurueck" \
+  TileAmountTest::test_the_stylesheet_keeps_an_amount_on_one_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TileAmountTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

@@ -24,10 +24,14 @@ gesehen hat sie noch niemand. **B3 bis B8 sind gebaut und nicht abgenommen**;
 der Lauf für B3 ist `docs/138`, ausgeschrieben am 28. September, und er hat vor
 dem Fahren einen Befund am Prüfling gebracht (Abschnitt weiter unten) — behoben
 am selben Tag, ausgeliefert mit `0.9.0-rc.7` und am Abend auf `cloudsrv24`
-gesehen; von Teil 1 sind Block 0 und Block 4 gefahren (`docs/138 §7`). Der Lauf
-für B4 ist `docs/139`. Beim Ausschreiben fielen zwei Befunde heraus; der
-Betreiber hat sie am selben Tag entschieden, und behoben sind sie für
-`0.9.0-rc.8`, gegen die der Lauf gefahren wird (`docs/139 §6`).
+gesehen. **Teil 1 ist am 30. September durch** (`docs/138 §7`); Teil 2 misst
+am 21. und 22. sowie am 28. und 29. Oktober. Der Lauf für B4 ist `docs/139`.
+Beim Ausschreiben fielen zwei Befunde heraus; der Betreiber hat sie am selben
+Tag entschieden, und behoben sind sie mit `0.9.0-rc.8` (`docs/139 §6`). Auf
+dem Server ist Teil 1 gefahren, Teil 2 im Browser am 30. September: **alle
+fünf Punkte erfüllt** (`docs/139 §7`). Ein Befund am Bild, Zahl und Einheit
+der Traffic-Kachel in zwei Zeilen, ist für `0.9.0-rc.9` behoben
+(`docs/139 §6b`); die Abnahme spricht der Betreiber nach dem Nachlauf aus.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -1758,7 +1762,10 @@ Anteil vor einem „%" kommt aus `percent.ts`, ohne Ausnahme für ganze Zahlen) 
 `PlainTextMailTest` (keine Mail ist HTML, und keine Textvorlage maskiert —
 samt `@include` und gemessen an der Wirkung) und `OperatorMailTest` (die Mail an
 den Betreiber nennt keinen Absender, den sie nicht hat, und die Seite so, wie das
-Menü sie nennt). Der Bruch selbst steht als
+Menü sie nennt) und `TileAmountTest` (ein Betrag in der Beizeile einer Kachel
+bricht nicht in sich — Zahl und Einheit stehen in **einer** Einfassung, und
+keine zweite Regel nimmt das `nowrap` zurück, auch nicht im Stilblock der
+Kachel). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -6470,6 +6477,93 @@ der Browser nicht anzeigt (gemessen am Übersetzer).
 
 > **Wer die Bedingung von einem `<template>` streicht, streicht den Rahmen mit
 > — ohne Direktive ist er ein Element, dessen Inhalt niemand sieht.**
+
+---
+
+## Teil 1 von B3 und B4 auf dem Server — 30. September 2026
+
+**Von B3 ist Teil 1 durch** (`docs/138 §7`): alle fünf Blöcke gegen `rc.7` und
+`rc.8`, und jede Zahl war vorher ausgerechnet. Nach dem ersten Nachtlauf unter
+`rc.8` blieben drei Ablesungen über zwei Läufen gleich, 48 und 144 Zeilen, die
+Nullen genau an der vorausgesagten Untergrenze. Das dritte Abonnement bekam
+keine Zeile, weil es keine Domain hat. Teil 2 misst am 21. und 22. sowie am
+28. und 29. Oktober, und zwar an `p6-b.invalid`, dem einzigen Abonnement mit
+einer Zeile an jedem Tag.
+
+**Von B4 ist Teil 1 gefahren** (`docs/139 §7`), und er hat einen Befund am
+Prüfmittel gebracht. Die Klammer von Block 2 druckte `—` für zwei Zustände, die
+die Seite verschieden zeigt: „Keine Datenbanken angelegt." und „Noch nicht
+gemessen.". Sie druckt jetzt die Wörter der Seite.
+
+> **Eine Anzeige, die zwei verschiedene Zustände gleich aussehen lässt,
+> behauptet etwas, das sie nicht weiss** — auch dann, wenn die Anzeige ein
+> Messmittel ist.
+
+**Und Punkt 1 setzte eine Zahl voraus, die es auf dem Server nicht gab.**
+„Oben und unten dieselbe Zahl" braucht unten eine Zahl, und kein Abonnement
+auf `cloudsrv24` hatte eine Datenbank; die Kachel zeigte `0 MB` über einem
+Satz. Hergestellt hat den Fall ein Prüfkörper, eine Datenbank mit 3.801.036 B,
+also 3,625 MiB. Dort ergeben Abrunden, Runden und Teilen drei verschiedene
+Zahlen, an der `0` des Bestands dieselbe. Auf dem Server stand danach oben und
+unten `3 MB`, wo `rc.7` `3,6 MB` gezeigt hätte.
+
+> **Ein Kriterium, das eine Zahl darunter verlangt, prüft nichts, wo darunter
+> ein Satz steht — und die Kachel darüber liest sich trotzdem wie erfüllt.**
+
+**Die Messung im Container hatte dieselbe blinde Stelle.** Zwei der drei
+Abonnements dort haben keine Datenbank, und verglichen war nur der Platz.
+
+**Und eine Beobachtung am Rand, nicht behoben:** InnoDB meldet in
+`information_schema` die Grösse aus seiner Statistik. Eine Tabelle mit einer
+Zeile von 3,8 MB stand dort direkt nach dem Einfügen und zwölf Sekunden später
+mit 16.384 B, erst nach `ANALYZE TABLE` mit 4.734.976 B. `DbUsage` liest genau
+diese Zahl. Wie lange sie nachläuft und ab wie vielen Zeilen nicht mehr, ist
+nicht gemessen, auf dem Server gar nicht; der Prüfkörper ist deshalb MyISAM.
+
+---
+
+## Teil 2 von B4 im Browser — 30. September 2026
+
+**Alle fünf Punkte sind erfüllt** (`docs/139 §7`): drei Abonnement- und sechs
+Domainseiten wie Block 2, acht Lagen mit `dokument=0` und Gegenprobe 200, die
+leeren Kacheln bei 390 px auf das Pixel so hoch wie die mit Kurve. Die Abnahme
+kommt nach dem Nachlauf gegen `0.9.0-rc.9`, so hat es der Betreiber
+entschieden.
+
+**Der Befund stand im Bild und in keiner Zahl.** Auf der Abonnementseite brach
+die Beizeile der Traffic-Kachel bei 1440 px zwischen „3,6" und „MB". Im
+Container war das vorher nicht zu sehen: Der Aufsatz hatte keine Seitenleiste,
+und die Kacheln waren 280 px breit statt 228. Mit dem Raster aus
+`PanelLayout`, 236 px Leiste und 32 px Innenabstand, trifft er die Masse des
+Servers auf das Pixel. Die Netzkachel der Übersicht ist dieselbe Komponente;
+mit gebauten Werten brach sie genauso, und die Behebung gilt dort mit.
+
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst
+> die falsche — und sein Grün liest sich wie ein Freispruch.** Bei Kacheln
+> gehört der Rahmen zur Form, denn er entscheidet ihre Breite.
+
+**Das Messmittel musste für die Behebung selbst umgebaut werden.** Es las nur
+die Textknoten direkt unter der Beizeile, den Betrag im neuen `<span>` hätte es
+nicht gesehen. Die neue Fassung lief zuerst gegen den alten Stand und gab dort
+Zeile für Zeile dasselbe wie die alte.
+
+> **Ein Messmittel, das man für eine Behebung umbaut, fährt man zuerst gegen
+> den alten Stand — sonst vergleicht der Unterschied zwei Werkzeuge und nicht
+> zwei Fassungen.**
+
+**Und ein Vergleich hat Gleichheit gemeldet, ohne zu vergleichen.** Ein `sed`
+davor scheiterte an seinem Ausdruck, beide Seiten waren leer, und `diff` fand
+zwei leere Ausgaben gleich. Aufgefallen ist es an der Fehlermeldung darüber,
+nicht am Ergebnis.
+
+> **Ein Vergleich, dessen Werkzeug scheitert, vergleicht zwei leere Ausgaben —
+> und meldet Gleichheit.**
+
+**Ein `nowrap` am Betrag ist hier eine gemessene Zusage.** `Points` schreibt
+Bytes höchstens in GB. Der längste Betrag, „1.000.000,0 GB", ist 102 px
+breit, die schmalste Beizeile 151 px. Liefe einer über, bliebe `dokument` bei
+0: Der Überstand landet in der Nachbarkachel, und nur die Messung am Kasten
+sieht ihn.
 
 ---
 

@@ -1173,6 +1173,30 @@ input[type='radio'] {
   min-height: 40px;
 }
 
+/*
+ * Ein Betrag — Zahl und Einheit — steht in einer Zeile.
+ *
+ * **Gesehen auf `cloudsrv24` am 30. September 2026** (`docs/139 §7`): Auf der
+ * Abonnementseite brach die Traffic-Kachel bei 1440px zwischen „3,6" und
+ * „MB", im Ruhezustand und in beiden Ablesungen. Eine Einheit allein am
+ * Anfang einer Zeile liest sich wie eine eigene Angabe.
+ *
+ * **Das `nowrap` bindet den Betrag und nicht die Zeile.** Sie bricht weiter
+ * zwischen den Wörtern davor, und `.paired` hält die zweite Zeile ohnehin
+ * frei; die Kachel bleibt gleich hoch.
+ *
+ * Ein `nowrap` über einer Zahl, die wächst, ist eine Zusage über den Bestand.
+ * Hier trägt sie `Points`, das Bytes höchstens in GB schreibt. „1.000.000,0
+ * GB", ein Petabyte an einem Tag, ist 102px breit, und die schmalste
+ * Beizeile hat 151px: eine Kachel von 200px, `--kachel-min` der Verwaltung.
+ * Gemessen im Container gegen das gebaute Stylesheet, alt gegen neu
+ * (`docs/139 §6b`). Ein Betrag, der nicht passt, liefe in die Nachbarkachel,
+ * und `dokument` bliebe dabei 0.
+ */
+.tile-sub .amount {
+  white-space: nowrap;
+}
+
 .tile-sub[data-readout='true'] {
   color: var(--accent);
   font-weight: 580;

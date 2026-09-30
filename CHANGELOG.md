@@ -33373,3 +33373,38 @@ Masse des Servers auf das Pixel, 228 × 196 und 358 × 193.
 
 In zwei dunklen Aufnahmen stand oben in der Konsole ein Fehler ohne
 sichtbaren Text. Er kam nicht wieder und bleibt ungeklärt.
+
+### Vier Pakete in den Sperrdateien angehoben — sieben Advisories seit dem 29. September
+
+**`laravel/framework` 13.23.0 → 13.34.0, `league/commonmark` 2.10.0 → 2.10.3,
+`league/flysystem` 3.35.2 → 3.36.0 und `brace-expansion` 2.1.4 → 2.1.7.** Auf
+`main` war der Lauf „Schwachstellen und Lizenzen" am 29. September um
+06:37 UTC noch grün; danach kamen sieben Meldungen, die vier für Composer am
+29. und 30. September. Seitdem war er für jeden Beitrag rot, auch für einen,
+der keine Abhängigkeit anfasst:
+
+- `laravel/framework`, niedrig: eine XSS auf der Fehlerseite, die nur bei
+  eingeschaltetem Debug-Modus erscheint.
+- `league/commonmark`, mittel und hoch: Der Filter für rohes HTML lässt sich
+  umgehen, und die Tabellenerweiterung braucht quadratische Laufzeit. Das Paket
+  ist transitiv, und dieses Panel ruft es nirgends auf.
+- `league/flysystem`, niedrig: Ungültiges UTF-8 umgeht die Prüfung auf
+  Steuerzeichen im Pfad. Der Dateimanager legt Hochgeladenes über
+  `Storage::disk('local')` unter einem Namen aus Zufallsbytes ab.
+- `brace-expansion` in `package-lock.json`, 2.1.4 → 2.1.7, hoch: drei Wege zu
+  einer Laufzeit, die mit der Eingabe explodiert. Das Paket hängt an `vue-tsc`,
+  also an der Typprüfung, und kommt nicht ins Paket. `npm audit` stand im
+  selben Lauf hinter `composer audit` und kam dort gar nicht an die Reihe.
+
+Der Betreiber hat entschieden, dass es mit `0.9.0-rc.9` kommt. Wie bei
+`league/commonmark` im August und am 1. September wandern nur die Sperrdateien;
+`composer.json` und `package.json` bleiben, und der Inhalts-Hash auch. Diesmal
+steigt allerdings das Framework selbst, um elf kleine Fassungen. Den Namen im
+npm-Lock hat `npm audit fix` nach dem Verzeichnis umgeschrieben; das ist
+zurückgenommen, sonst wechselte er mit jedem Checkout.
+
+Gegen die neuen Fassungen gefahren: der volle PHPUnit-Lauf, 3934 Tests ohne
+Fehlschlag, und PHPStan über alle Pfade der Projektdatei, mit einem
+eingepflanzten Fehler als Gegenprobe; gemeldet wurde nur er. Danach meldet
+`composer audit` „No security vulnerability advisories found.", `npm audit`
+„found 0 vulnerabilities", und die Lizenzprüfung der CI besteht.

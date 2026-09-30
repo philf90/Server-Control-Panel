@@ -258,7 +258,7 @@ function nearest(event: PointerEvent): void {
       beide Richtungen zusammen brauchten drei Zeilen (gemessen bei 1440px).
 
       **Ein Betrag bricht nicht in sich.** Jede Zahl steht mit ihrer Einheit
-      in einem `.amount`, und die Zeile bricht davor. Ohne die Klammer brach
+      in einem `.amount`, und die Zeile bricht davor. Ohne die Einfassung brach
       sie auf der Abonnementseite bei 1440px zwischen „3,6" und „MB" — im
       Ruhezustand und in beiden Ablesungen, gesehen auf `cloudsrv24`
       (`docs/139 §7`). Die Kachel fasst den Betrag nur ein; geschrieben hat

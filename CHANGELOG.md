@@ -33336,3 +33336,40 @@ danach `3 MB`. Gefüllt ist er mit MyISAM, weil InnoDB seine Grösse in
 
 > **Ein Kriterium, das eine Zahl darunter verlangt, prüft nichts, wo darunter
 > ein Satz steht — und die Kachel darüber liest sich trotzdem wie erfüllt.**
+
+### Teil 2 von B4 ist gefahren — und in der Traffic-Kachel stand die Einheit allein in einer Zeile
+
+**B4, Teil 2** (`docs/139 §7`): Am 30. September im Browser gegen
+`0.9.0-rc.8`, alle fünf Punkte erfüllt. Drei Abonnement- und sechs
+Domainseiten zeigen, was Block 2 rechnet. Die Datenbanken des Prüfkörpers
+stehen oben und unten mit `3 MB` da, wo `rc.7` oben `3,6 MB` gezeigt hätte. In
+acht Lagen misst `bilderMessen()` `dokument=0`, Gegenprobe 200, `schiebt=0`,
+und die leeren Kacheln sind bei 390 px auf das Pixel so hoch wie die mit Kurve
+an derselben Stelle (172, 193, 173, 173, 173).
+
+**Befund am Bild:** Auf der Abonnementseite brach die Beizeile der
+Traffic-Kachel bei 1440 px zwischen Zahl und Einheit. Oben stand „ausgehend ·
+eingehend 3,6", darunter „MB", in beiden Themen und in beiden Ablesungen.
+Lesbar war die Zeile, aber eine Einheit allein am Anfang einer Zeile liest
+sich wie eine eigene Angabe. Der Betreiber hat entschieden, dass es behoben
+wird, mit `0.9.0-rc.9`, und dass die Abnahme danach kommt.
+
+**Behoben**, indem die Kachel jeden Betrag in ein `.amount` fasst und
+`app.css` ihn in einer Zeile hält. Die Zeichenketten kommen weiter fertig vom
+Server. Im Container ist alt gegen neu gemessen: vorher in drei Lagen
+getrennt, nachher in allen zusammen, die Kacheln gleich hoch. Die Netzkachel
+der Übersicht ist dieselbe Komponente und brach mit gebauten Werten genauso,
+bei „1,2" und „MB/s". Der längste Betrag, den `Points` schreiben kann, ist
+102 px breit, die schmalste Beizeile 151 px. `TileAmountTest` hält die
+Einfassung, das Paar aus Zahl und Einheit und die Regel.
+
+**Im Container war der Befund vorher nicht zu sehen**, und daran war der
+Aufsatz schuld: Er hatte keine Seitenleiste, und die Kacheln waren bei
+1440 px 280 px breit statt 228. Mit dem Raster aus `PanelLayout` trifft er die
+Masse des Servers auf das Pixel, 228 × 196 und 358 × 193.
+
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst
+> die falsche — und sein Grün liest sich wie ein Freispruch.**
+
+In zwei dunklen Aufnahmen stand oben in der Konsole ein Fehler ohne
+sichtbaren Text. Er kam nicht wieder und bleibt ungeklärt.

@@ -28,7 +28,10 @@ gesehen. **Teil 1 ist am 30. September durch** (`docs/138 §7`); Teil 2 misst
 am 21. und 22. sowie am 28. und 29. Oktober. Der Lauf für B4 ist `docs/139`.
 Beim Ausschreiben fielen zwei Befunde heraus; der Betreiber hat sie am selben
 Tag entschieden, und behoben sind sie mit `0.9.0-rc.8` (`docs/139 §6`). Auf
-dem Server ist Teil 1 gefahren (`docs/139 §7`), Teil 2 im Browser steht aus.
+dem Server ist Teil 1 gefahren, Teil 2 im Browser am 30. September: **alle
+fünf Punkte erfüllt** (`docs/139 §7`). Ein Befund am Bild, Zahl und Einheit
+der Traffic-Kachel in zwei Zeilen, ist für `0.9.0-rc.9` behoben
+(`docs/139 §6b`); die Abnahme spricht der Betreiber nach dem Nachlauf aus.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -1759,7 +1762,10 @@ Anteil vor einem „%" kommt aus `percent.ts`, ohne Ausnahme für ganze Zahlen) 
 `PlainTextMailTest` (keine Mail ist HTML, und keine Textvorlage maskiert —
 samt `@include` und gemessen an der Wirkung) und `OperatorMailTest` (die Mail an
 den Betreiber nennt keinen Absender, den sie nicht hat, und die Seite so, wie das
-Menü sie nennt). Der Bruch selbst steht als
+Menü sie nennt) und `TileAmountTest` (ein Betrag in der Beizeile einer Kachel
+bricht nicht in sich — Zahl und Einheit stehen in **einer** Einfassung, und
+keine zweite Regel nimmt das `nowrap` zurück, auch nicht im Stilblock der
+Kachel). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -6513,6 +6519,51 @@ Zeile von 3,8 MB stand dort direkt nach dem Einfügen und zwölf Sekunden späte
 mit 16.384 B, erst nach `ANALYZE TABLE` mit 4.734.976 B. `DbUsage` liest genau
 diese Zahl. Wie lange sie nachläuft und ab wie vielen Zeilen nicht mehr, ist
 nicht gemessen, auf dem Server gar nicht; der Prüfkörper ist deshalb MyISAM.
+
+---
+
+## Teil 2 von B4 im Browser — 30. September 2026
+
+**Alle fünf Punkte sind erfüllt** (`docs/139 §7`): drei Abonnement- und sechs
+Domainseiten wie Block 2, acht Lagen mit `dokument=0` und Gegenprobe 200, die
+leeren Kacheln bei 390 px auf das Pixel so hoch wie die mit Kurve. Die Abnahme
+kommt nach dem Nachlauf gegen `0.9.0-rc.9`, so hat es der Betreiber
+entschieden.
+
+**Der Befund stand im Bild und in keiner Zahl.** Auf der Abonnementseite brach
+die Beizeile der Traffic-Kachel bei 1440 px zwischen „3,6" und „MB". Im
+Container war das vorher nicht zu sehen: Der Aufsatz hatte keine Seitenleiste,
+und die Kacheln waren 280 px breit statt 228. Mit dem Raster aus
+`PanelLayout`, 236 px Leiste und 32 px Innenabstand, trifft er die Masse des
+Servers auf das Pixel. Die Netzkachel der Übersicht ist dieselbe Komponente;
+mit gebauten Werten brach sie genauso, und die Behebung gilt dort mit.
+
+> **Ein Prüfkörper, der eine andere Form misst als die des Prüflings, misst
+> die falsche — und sein Grün liest sich wie ein Freispruch.** Bei Kacheln
+> gehört der Rahmen zur Form, denn er entscheidet ihre Breite.
+
+**Das Messmittel musste für die Behebung selbst umgebaut werden.** Es las nur
+die Textknoten direkt unter der Beizeile, den Betrag im neuen `<span>` hätte es
+nicht gesehen. Die neue Fassung lief zuerst gegen den alten Stand und gab dort
+Zeile für Zeile dasselbe wie die alte.
+
+> **Ein Messmittel, das man für eine Behebung umbaut, fährt man zuerst gegen
+> den alten Stand — sonst vergleicht der Unterschied zwei Werkzeuge und nicht
+> zwei Fassungen.**
+
+**Und ein Vergleich hat Gleichheit gemeldet, ohne zu vergleichen.** Ein `sed`
+davor scheiterte an seinem Ausdruck, beide Seiten waren leer, und `diff` fand
+zwei leere Ausgaben gleich. Aufgefallen ist es an der Fehlermeldung darüber,
+nicht am Ergebnis.
+
+> **Ein Vergleich, dessen Werkzeug scheitert, vergleicht zwei leere Ausgaben —
+> und meldet Gleichheit.**
+
+**Ein `nowrap` am Betrag ist hier eine gemessene Zusage.** `Points` schreibt
+Bytes höchstens in GB. Der längste Betrag, „1.000.000,0 GB", ist 102 px
+breit, die schmalste Beizeile 151 px. Liefe einer über, bliebe `dokument` bei
+0: Der Überstand landet in der Nachbarkachel, und nur die Messung am Kasten
+sieht ihn.
 
 ---
 

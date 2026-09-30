@@ -192,11 +192,12 @@ $zeile = function (array $k): string {
     return sprintf("%-14s %-12s %2d Punkte%s%s", $k["label"], trim($k["value"] . " " . $k["unit"]), count($p),
         $p === [] ? "" : sprintf(", %s bis %s", $p[0]["t"], $p[count($p) - 1]["t"]), $zweite);
 };
-$mb = fn ($v) => $v === null ? "—" : number_format((int) $v, 0, ",", ".") . " MB";
-app(App\Support\Tenancy\Tenancy::class)->withoutRestriction(function () use ($h, $zeile, $mb) {
+$mb = fn ($v) => $v === null ? "noch nicht gemessen" : number_format((int) $v, 0, ",", ".") . " MB";
+$db = fn ($s) => $s->databases()->count() === 0 ? "keine angelegt" : $mb($s->databaseUsedMb());
+app(App\Support\Tenancy\Tenancy::class)->withoutRestriction(function () use ($h, $zeile, $mb, $db) {
     foreach (App\Models\Subscription::query()->orderBy("id")->get() as $s) {
         printf("/subscriptions/%d  %s   (darunter auf der Seite: Platz %s, Datenbanken %s)\n", $s->id, $s->name,
-            $mb($s->disk_used_mb), $mb($s->databaseUsedMb()));
+            $mb($s->disk_used_mb), $db($s));
         foreach ($h->forSubscription($s) as $k) { printf("  %s\n", $zeile($k)); }
         foreach (App\Models\Domain::query()->where("subscription_id", $s->id)->orderBy("id")->get() as $d) {
             printf("  /domains/%d  %s\n", $d->id, $d->name);
@@ -206,6 +207,14 @@ app(App\Support\Tenancy\Tenancy::class)->withoutRestriction(function () use ($h,
 });
 '
 ```
+
+**Berichtigt am 30. September, nach dem Fahren** (§7). Die Klammer druckte
+`—` für zwei Zustände, die die Seite verschieden zeigt: „Keine Datenbanken
+angelegt." und „Noch nicht gemessen.". Sie druckt jetzt die Wörter der Seite,
+`keine angelegt` und `noch nicht gemessen`, beim Platz ebenso. Im Container
+gegengeprüft, alle drei Zustände: an den Abonnements des Bestands aus §2a und
+in einer Transaktion, die beide Messungen auf `null` setzt und danach
+zurückgerollt wird.
 
 **Erwartet** am 29. September auf `cloudsrv24`, drei Abonnements:
 
@@ -224,6 +233,10 @@ app(App\Support\Tenancy\Tenancy::class)->withoutRestriction(function () use ($h,
   Speicherplatz und Datenbanken stehen in ganzen MB und gleichen der Zahl in
   der Klammer dahinter (`darunter auf der Seite`). Eine Kachel ohne Punkte
   zeigt `—` ohne Einheit. Die Fehlerquote behält ihre Stellen.
+- **Ein Abonnement ohne Datenbank** zeigt in der Klammer `keine angelegt` und
+  in der Kachel `0 MB`: Der Messlauf legt für ein Abonnement ohne Datenbank
+  eine Null ab (`docs/138 §5`), und die Seite sagt darunter „Keine Datenbanken
+  angelegt.". Verglichen wird dort keine Zahl (§3 Punkt 1).
 
 ### §2a · Was im Container gemessen ist
 
@@ -267,6 +280,12 @@ bleibt.
 | Sperre | `kachelnMessen()` nach `ablesungMessen()`, danach ein zweites `ablesungMessen()` | beide werfen |
 | Gegenrichtung | `ablesungMessen()` nach `kachelnMessen()` | läuft; beide geben ihr Ergebnis mit `stand: '2026-09-28'` auch als Objekt zurück |
 
+**Nachgetragen am 30. September:** `beta` und `gamma` haben keine Datenbank,
+und die Klammer von Block 2 druckte bei beiden `—`, gegen denselben Bestand
+mit der Fassung vor der Berichtigung nachgefahren. Die Tabelle hält bei `beta`
+nur den Platz gegen die Klammer. Dieselbe blinde Stelle hatte der Lauf auf dem
+Server (§7).
+
 **Die Ablesung zeigt die beiden Fenster nebeneinander**, ohne dass es jemand
 herstellen musste: Die Kurve des Platzes endet am 28., dem Tag der Messung, die
 des Verkehrs am 27. Und der erste Punkt des Verkehrs ist der 29.08. und nicht
@@ -306,6 +325,13 @@ Reihenfolge. Eine Kachel mit 0 Punkten heisst `leer`, eine mit zwei oder mehr
 **Und Speicherplatz und Datenbanken zeigen dieselbe Zahl wie der Bereich
 darunter**, die Block 2 in der Klammer druckt. Das ist die Behebung aus §6
 Frage 1 auf dem Server.
+
+**Ein Abonnement ohne Datenbank hat darunter keine Zahl**, sondern den Satz
+„Keine Datenbanken angelegt.", und die Kachel zeigt `0 MB`. Dort wird nichts
+verglichen. Auf `cloudsrv24` hatte keines der drei Abonnements eine Datenbank;
+für diesen Lauf trägt `p6-abnahme.invalid` deshalb den Prüfkörper aus §7,
+3.801.036 B. An ihm muss oben und unten `3 MB` stehen: `rc.7` hätte oben
+`3,6 MB` gezeigt, und Runden ergäbe `4 MB`.
 
 ### Punkt 2 — Jede Domainseite trägt drei Kacheln und den Satz darunter
 
@@ -485,4 +511,199 @@ die Vorlage keine Bedingung trägt, hält kein Wächter.
 
 ## §7 · Protokoll
 
-Noch nicht gefahren.
+### Teil 1 — der Server, am 29. und 30. September 2026 gegen `0.9.0-rc.8`
+
+Gefahren auf `cloudsrv24` nach dem Update auf `0.9.0-rc.8` am 29. September.
+Der Nachtlauf dieses Tages lief noch unter `rc.7`, der vom 30. als erster
+unter `rc.8`; `rc.8` ändert keinen Schreiber (`docs/138 §7`). Block 2 lief
+einen Tag später als ausgeschrieben, am 30., und alles steht deshalb einen Tag
+weiter als in §2: Platz und Datenbanken reichen bis zum 30.09., der Verkehr bis
+zum 29.09.
+
+#### Die Vorbedingung, am 29. September gegen 17 Uhr
+
+```
+0.9.0-rc.8
+LastTriggerUSec=Tue 2026-09-29 00:20:01 CEST
+Sep 29 00:20:01 cloudsrv24 php[324521]:   Laufender Tag auf dem Server: 2026-09-29 (Europe/Berlin).
+Sep 29 00:20:01 cloudsrv24 php[324521]:   3 Tageswert(e) vom Vortag zählbar, 3 ruhig (eine Null), 0 übersprungen (gemischtes Format), 0 nicht ganz gelesen, 1 noch offen (laufender Tag), 5 älter und nicht erneut abgelegt.
+Sep 29 00:20:01 cloudsrv24 php[324521]:   Abgelegt: 24 Zeile(n) je Domain, 8 je Abonnement.
+Sep 29 00:20:01 cloudsrv24 php[324521]:   Fertig in 62 ms.
+Sep 29 17:01:04 cloudsrv24 php[370710]: Verlauf für 2026-09-29 (Europe/Berlin): 3 Abonnement(s) mit Platz, 3 mit Datenbanken.
+```
+
+Erfüllt. Die Fassung ist `rc.8`, der Nachtlauf hat um 00:20:01 abgelegt,
+darunter drei ruhige Domains mit ihren Nullen, und `srvpanel:usage` hat für
+den 29. alle drei Abonnements abgelegt. Platz und Datenbanken haben damit ihren
+zweiten Tag.
+
+#### Block 2, am 30. September um 11:01
+
+```
+/subscriptions/137  p6-b.invalid   (darunter auf der Seite: Platz 68 MB, Datenbanken —)
+  Speicherplatz  68 MB        3 Punkte, 28.09. bis 30.09.
+  Traffic        6,0 MB       9 Punkte, 21.09. bis 29.09.  (eingehend 3,6 MB)
+  Zugriffe       14.088       9 Punkte, 21.09. bis 29.09.
+  Fehlerquote    97 %         9 Punkte, 21.09. bis 29.09.
+  Datenbanken    0 MB         3 Punkte, 28.09. bis 30.09.
+  /domains/51  p6-b.invalid
+    Traffic        0 B          3 Punkte, 27.09. bis 29.09.  (eingehend 0 B)
+    Zugriffe       0            3 Punkte, 27.09. bis 29.09.
+    Fehlerquote    0,00 %       3 Punkte, 27.09. bis 29.09.
+  /domains/55  cloudlab24.de
+    Traffic        5,8 MB       9 Punkte, 21.09. bis 29.09.  (eingehend 3,6 MB)
+    Zugriffe       13.917       9 Punkte, 21.09. bis 29.09.
+    Fehlerquote    97 %         9 Punkte, 21.09. bis 29.09.
+  /domains/56  cloudlab24.ipv64.de
+    Traffic        108,4 kB     9 Punkte, 21.09. bis 29.09.  (eingehend 47,4 kB)
+    Zugriffe       160          9 Punkte, 21.09. bis 29.09.
+    Fehlerquote    64 %         9 Punkte, 21.09. bis 29.09.
+  /domains/61  domain-mit-richtig-langem-namen.invalid
+    Traffic        0 B          3 Punkte, 27.09. bis 29.09.  (eingehend 0 B)
+    Zugriffe       0            3 Punkte, 27.09. bis 29.09.
+    Fehlerquote    0,00 %       3 Punkte, 27.09. bis 29.09.
+  /domains/62  neu.cloudlab24.ipv64.de
+    Traffic        7,2 kB       9 Punkte, 21.09. bis 29.09.  (eingehend 3,3 kB)
+    Zugriffe       11           9 Punkte, 21.09. bis 29.09.
+    Fehlerquote    36 %         9 Punkte, 21.09. bis 29.09.
+/subscriptions/140  p6-abnahme.invalid   (darunter auf der Seite: Platz 3 MB, Datenbanken —)
+  Speicherplatz  3 MB         3 Punkte, 28.09. bis 30.09.
+  Traffic        0 B          3 Punkte, 27.09. bis 29.09.  (eingehend 0 B)
+  Zugriffe       0            3 Punkte, 27.09. bis 29.09.
+  Fehlerquote    0,00 %       3 Punkte, 27.09. bis 29.09.
+  Datenbanken    0 MB         3 Punkte, 28.09. bis 30.09.
+  /domains/54  p6-abnahme.invalid
+    Traffic        0 B          3 Punkte, 27.09. bis 29.09.  (eingehend 0 B)
+    Zugriffe       0            3 Punkte, 27.09. bis 29.09.
+    Fehlerquote    0,00 %       3 Punkte, 27.09. bis 29.09.
+/subscriptions/141  p6-nochmaltest   (darunter auf der Seite: Platz 0 MB, Datenbanken —)
+  Speicherplatz  0 MB         3 Punkte, 28.09. bis 30.09.
+  Traffic        —            0 Punkte  (eingehend —)
+  Zugriffe       —            0 Punkte
+  Fehlerquote    —            0 Punkte
+  Datenbanken    0 MB         3 Punkte, 28.09. bis 30.09.
+```
+
+- **Die Reihen stehen so da, wie §2 sie verlangt**: fünf Kacheln je
+  Abonnement, drei je Domain, in derselben Reihenfolge. Platz und Datenbanken
+  haben drei Punkte, 28.09. bis 30.09., der Verkehr endet am 29.09.
+- **Sechs Domains.** Drei haben Verkehr und neun Punkte ab dem 21.09., drei
+  sind ruhig und haben drei Punkte ab dem 27.09. Das sind die `3 zählbar` und
+  `3 ruhig` des Nachtlaufs.
+- **Die Zugriffe der Domains ergeben die des Abonnements genau**:
+  0 + 13.917 + 160 + 0 + 11 = 14.088. Verkehr und Fehlerquote lassen sich nur
+  im Rahmen der Rundung nachrechnen, und dort passen sie.
+- **`p6-nochmaltest` hat keine Domain.** Das beantwortet die Frage aus
+  `docs/138 §7`, warum es keine Zeile des Verkehrs bekam.
+- **Der Server rechnet die Form von `rc.8`**: Zugriffe als ganze Zahl, auch
+  `0`; eine Kachel ohne Punkte `—` ohne Einheit, auch `(eingehend —)`; die
+  Fehlerquote mit Stellen, `0,00 %`. Speicherplatz gleicht der Klammer, 68, 3
+  und 0 MB.
+- **Die Klammer der Datenbanken stand bei allen drei auf `—`, die Kachel auf
+  `0 MB`.** Angehalten und nachgesehen: Kein Abonnement hat eine Datenbank.
+  `databaseUsedMb()` gibt dann `null`, und die Seite zeigt darunter keine
+  Zahl, sondern „Keine Datenbanken angelegt.". Die Kachel zeigt `0 MB`, weil
+  der Messlauf für ein Abonnement ohne Datenbank eine Null ablegt
+  (`docs/138 §5`). „0 MB" über „Keine Datenbanken angelegt." widerspricht sich
+  nicht; der Befund steckt in Block 2 und in §3 Punkt 1 (unten).
+- Nebenbei: `cloudlab24.de` hatte am 29. 13.917 Zugriffe, 97 % davon mit
+  Fehlerstatus. Die Kachel zeigt, was in der Tabelle steht; woher die Anfragen
+  kommen, ist nicht Gegenstand dieses Laufs.
+
+#### Der Prüfkörper für Punkt 1, am 30. September um 13:21
+
+Punkt 1 verlangt, dass die Datenbanken oben und unten dieselbe Zahl zeigen, und
+er darf nicht ausfallen (§5). Ohne Datenbank steht darunter keine Zahl.
+Hergestellt hat den Zustand eine Datenbank `rundung` in `p6-abnahme.invalid`,
+im Panel ohne Zugang angelegt und als root gefüllt:
+
+```bash
+DB=$(mariadb -N -e "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE '%\_rundung'")
+printf 'Datenbank: %s\n' "${DB:-KEINE GEFUNDEN}"
+mariadb "$DB" -e "CREATE TABLE fuellung (b LONGBLOB) ENGINE=MyISAM; INSERT INTO fuellung VALUES (REPEAT('x', 3800000));"
+mariadb -N -e "SELECT COALESCE(SUM(data_length + index_length), 0) FROM information_schema.tables WHERE table_schema = '$DB'"
+systemctl start srvpanel-usage.service
+journalctl -u srvpanel-usage.service --since '-5min' --no-pager | grep -E 'Verlauf für|scheiterte|nicht lesbar' | tail -1
+```
+
+```
+Datenbank: p1139_rundung
++---------+
+| 3801036 |
++---------+
+Sep 30 13:21:54 cloudsrv24 php[428526]: Verlauf für 2026-09-30 (Europe/Berlin): 3 Abonnement(s) mit Platz, 3 mit Datenbanken.
+```
+
+- **3.801.036 B sind 3,625 MiB, und die Zahl war vorher gemessen**, im
+  Container gegen MariaDB 10.11.14 mit demselben Block. An diesem Wert trennen
+  sich die drei Rechnungen: abgerundet 3, gerundet 4, geteilt `3,6`, so wie
+  `rc.7` ihn gezeigt hätte, nachgerechnet am alten Rechenweg. Die `0` der drei
+  Abonnements trennt keine davon.
+- **MyISAM und nicht InnoDB, und auch das ist gemessen.** InnoDB meldete in
+  `information_schema` direkt nach dem Einfügen und zwölf Sekunden später
+  16.384 B und erst nach `ANALYZE TABLE` 4.734.976 B. MyISAM meldet sofort,
+  was in der Datei steht.
+- Der Block findet die Datenbank über ihren Namen und nicht über eine
+  abgeschriebene Zeile; im Container gegengeprüft ohne Datenbank
+  (`KEINE GEFUNDEN`) und neben einem Namen ohne Unterstrich, den er nicht
+  trifft. Die Rahmen um die Zahl zeichnet der Klient, wenn er in ein Terminal
+  schreibt.
+- `srvpanel-usage.service` ist `Type=oneshot`: `systemctl start` wartet, bis der
+  Lauf fertig ist, und seine Zeile steht danach im Journal.
+
+Block 2 danach, um 13:22, der Teil von `p6-abnahme.invalid`:
+
+```
+/subscriptions/140  p6-abnahme.invalid   (darunter auf der Seite: Platz 3 MB, Datenbanken 3 MB)
+  Speicherplatz  3 MB         3 Punkte, 28.09. bis 30.09.
+  Traffic        0 B          3 Punkte, 27.09. bis 29.09.  (eingehend 0 B)
+  Zugriffe       0            3 Punkte, 27.09. bis 29.09.
+  Fehlerquote    0,00 %       3 Punkte, 27.09. bis 29.09.
+  Datenbanken    3 MB         3 Punkte, 28.09. bis 30.09.
+```
+
+- **Oben und unten `3 MB`.** Das ist die Behebung aus §6 Frage 1, auf dem
+  Server gerechnet, an einem Wert, an dem die alte Fassung oben `3,6 MB`
+  gezeigt hätte.
+- In derselben Ausgabe standen bei `p6-b.invalid` `Platz 69 MB` und
+  `Speicherplatz 69 MB`, um 11:01 waren es 68. Ein Messlauf dazwischen hat
+  beide zusammen bewegt.
+- Alles andere gleicht der Ausgabe von 11:01. Die Klammer der beiden anderen
+  Abonnements steht weiter auf `—`, gedruckt mit der Fassung vor der
+  Berichtigung.
+
+#### Ein Befund am Prüfmittel und einer an der Erwartung
+
+**Block 2 druckte `—` für zwei Zustände, die die Seite verschieden zeigt.**
+„Keine Datenbanken angelegt." und „Noch nicht gemessen." sind auf der Seite
+zwei Sätze mit zwei Bedeutungen, ein fertiger Befund und ein ausstehender Lauf,
+und in der Klammer derselbe Strich. Berichtigt ist der Block in §2.
+
+> **Eine Anzeige, die zwei verschiedene Zustände gleich aussehen lässt,
+> behauptet etwas, das sie nicht weiss.** Der Satz steht seit P5c über die
+> Oberfläche in `CLAUDE.md`; hier traf er das Messmittel, das die Oberfläche
+> nachrechnen soll.
+
+**Und §3 Punkt 1 hatte den Fall ohne Datenbank nicht bedacht.** „Dieselbe
+Zahl wie der Bereich darunter" setzt eine Zahl darunter voraus. Auf
+`cloudsrv24` hatte keines der drei Abonnements eine Datenbank. Die Hälfte von
+Punkt 1 wäre so nicht gemessen worden, und die Kachel `0 MB` hätte sich wie
+ein erfülltes Kriterium gelesen. Die Erwartung in §2 stand ebenso da:
+Speicherplatz und Datenbanken „gleichen der Zahl in der Klammer dahinter".
+Nachgesehen, was `databaseUsedMb()` ohne Datenbank liefert, hatte beim
+Ausschreiben niemand.
+
+**Die Messung im Container hatte dieselbe blinde Stelle** (§2a, Nachtrag):
+`beta` und `gamma` haben dort keine Datenbank, und die Tabelle hielt bei `beta`
+nur den Platz gegen die Klammer.
+
+> **Ein Kriterium, das eine Zahl darunter verlangt, prüft nichts, wo darunter
+> ein Satz steht — und die Kachel darüber liest sich trotzdem wie erfüllt.**
+
+#### Was noch aussteht
+
+- **Teil 2 im Browser**, die Punkte 1 bis 5 aus §3. Erwartung ist Block 2 von
+  11:01 und für `p6-abnahme.invalid` die Ausgabe von 13:22. Ändert ein
+  Messlauf dazwischen den Platz, ändern sich Kachel und Bereich zusammen.
+- **Danach kommt der Prüfkörper wieder weg**: `p1139_rundung` im Panel
+  entfernen.

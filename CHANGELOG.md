@@ -33306,3 +33306,33 @@ zeigen `Zugriffe 5` und `0`, `Speicherplatz 3 MB` und `Datenbanken 3 MB` über
 denselben Zahlen im Bereich darunter, und jede leere Kachel `—` ohne Einheit.
 In allen zwanzig Lagen blieb jede Höhe aufs Pixel dieselbe; verändert haben
 sich nur die Werte.
+
+### Teil 1 von B3 ist durch, und B4 hat seinen Server gesehen — an einer Datenbank, die es dafür erst geben musste
+
+**B3, Teil 1** (`docs/138 §7`): Die Blöcke 1 bis 3 sind am 29. und
+30. September gegen `0.9.0-rc.8` gefahren, Block 4 ein zweites Mal nach dem
+ersten Nachtlauf unter `rc.8`. Jede Zahl war vorher ausgerechnet und stand so
+da: 10, 30 und 6 Zeilen je Kennzahl am 29., am 30. 48 und 144 Zeilen mit 12
+und 37 Nullen, und drei gleiche Ablesungen über zwei Läufen, die je 24 und 8
+Zeilen abgelegt haben. Das dritte Abonnement bekam keine Zeile des Verkehrs,
+weil es keine Domain hat. Teil 2 misst den Verkehr am 21. und 22. Oktober,
+Platz und Datenbanken am 28. und 29. Oktober.
+
+**B4, Teil 1** (`docs/139 §7`): Der Server rechnet die Form von `rc.8`, ganze
+Zugriffe, `—` ohne Einheit und die Fehlerquote mit Stellen. Die Zugriffe der
+Domains ergeben die ihres Abonnements genau, 14.088.
+
+**Block 2 druckte `—` für zwei Zustände, die die Seite verschieden zeigt**:
+„Keine Datenbanken angelegt." und „Noch nicht gemessen.". Er druckt jetzt die
+Wörter der Seite, im Container an allen drei Zuständen gegengeprüft.
+
+**Und Punkt 1 setzte eine Zahl voraus, die es auf dem Server nicht gab.** Kein
+Abonnement dort hatte eine Datenbank, und „oben und unten dieselbe Zahl" stand
+über einem Satz. Hergestellt hat den Fall ein Prüfkörper mit 3.801.036 B, an
+dem Abrunden, Runden und Teilen 3, 4 und `3,6` ergeben; oben und unten stand
+danach `3 MB`. Gefüllt ist er mit MyISAM, weil InnoDB seine Grösse in
+`information_schema` erst nach einer Neuberechnung der Statistik meldet
+(im Container: 16.384 B statt 4.734.976 B).
+
+> **Ein Kriterium, das eine Zahl darunter verlangt, prüft nichts, wo darunter
+> ein Satz steht — und die Kachel darüber liest sich trotzdem wie erfüllt.**

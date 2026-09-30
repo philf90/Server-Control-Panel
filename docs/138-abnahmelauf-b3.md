@@ -574,11 +574,15 @@ Abonnement messbar.
 
 ---
 
-## §7 · Protokoll — Teil 1, gefahren am 28. September 2026 gegen `0.9.0-rc.7`
+## §7 · Protokoll — Teil 1, gefahren vom 28. bis 30. September 2026
 
-Gefahren auf `cloudsrv24` am Abend des 28. September, nach dem Update auf
-`0.9.0-rc.7` (`srvpanel version`). **Bisher stehen Block 0 und Block 4 da; die
-Blöcke 1 bis 3 sind noch zu fahren**, und Teil 1 ist damit nicht durch (§4).
+Gefahren auf `cloudsrv24`. Block 0 und Block 4 liefen am Abend des
+28. September gegen `0.9.0-rc.7`, die Blöcke 1 bis 3 am 29. und 30. September
+gegen `0.9.0-rc.8`, und Block 4 lief am 30. ein zweites Mal. **Teil 1 ist damit
+durch** (§4). `rc.8` ändert, wie die Kacheln ihre Zahlen zeigen
+(`docs/139 §6a`), und keinen Schreiber dieser Tabellen. Für diesen Lauf sind
+beide Fassungen deshalb gleich; nur die Zeile `Kacheln:` in Block 3 zeigt die
+Zahlen in der Form von `rc.8`.
 
 ### Block 0 — der Schreiber aus §5 läuft auf dem Server
 
@@ -595,6 +599,112 @@ nichts: Der erste Tag von `disk_mb` und `database_bytes` ist der 28. September.
 Nacht 30 ihrer Uhr (§2) fällt damit auf den **28. Oktober**, Nacht 31 auf den
 **29. Oktober** — vorausgerechnet, und Block 2 bestätigt es mit dem ersten Tag
 je Kennzahl. Eine Kurve zeigen die beiden Kacheln ab dem 29.
+
+### Block 1 — die beiden Zeitgeber
+
+Am Nachmittag des 29. September, gegen `0.9.0-rc.8`:
+
+```
+0.9.0-rc.8
+srvpanel-traffic.timer
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=1h
+NextElapseUSecRealtime=Wed 2026-09-30 00:18:49 CEST
+LastTriggerUSec=Tue 2026-09-29 00:20:01 CEST
+srvpanel-usage.timer
+OnBootSec=5min
+OnCalendar=*:0/15
+Persistent=true
+RandomizedDelaySec=90
+NextElapseUSecRealtime=Tue 2026-09-29 17:16:03 CEST
+LastTriggerUSec=Tue 2026-09-29 17:01:04 CEST
+```
+
+Jede Zeile der beiden Unit-Dateien steht so da, wie §1 sie aus
+`packaging/systemd/` abgelesen hat. Der Nachtlauf hat um 00:20:01 ausgelöst,
+im Fenster zwischen 00:00 und 01:00, der Messlauf um 17:01:04, wenige Minuten
+vor der Ablesung. Erwartet war hier `0.9.0-rc.7`; am 29. war schon `rc.8`
+eingespielt, und es trägt dieselbe Behebung.
+
+### Block 2 — der Bestand je Kennzahl, der Index und der erste Tag
+
+Am Nachmittag des 29. September:
+
+```
+subscription_metrics
+  traffic_sent_bytes          10 Zeilen    8 Tage  2026-09-21 bis 2026-09-28
+  traffic_received_bytes      10 Zeilen    8 Tage  2026-09-21 bis 2026-09-28
+  requests                    10 Zeilen    8 Tage  2026-09-21 bis 2026-09-28
+  errors                      10 Zeilen    8 Tage  2026-09-21 bis 2026-09-28
+  disk_mb                      6 Zeilen    2 Tage  2026-09-28 bis 2026-09-29
+  database_bytes               6 Zeilen    2 Tage  2026-09-28 bis 2026-09-29
+  eindeutig über (subscription_id,day,metric), doppelt: 0
+domain_metrics
+  traffic_sent_bytes          30 Zeilen    8 Tage  2026-09-21 bis 2026-09-28
+  traffic_received_bytes      30 Zeilen    8 Tage  2026-09-21 bis 2026-09-28
+  requests                    30 Zeilen    8 Tage  2026-09-21 bis 2026-09-28
+  errors                      30 Zeilen    8 Tage  2026-09-21 bis 2026-09-28
+  eindeutig über (domain_id,day,metric), doppelt: 0
+Erster Tag: 2026-09-21   Nacht 30: 2026-10-21   Nacht 31: 2026-10-22   heute (Europe/Berlin): 2026-09-29
+```
+
+- **Jede Zahl ist die vom Abend des 28., um eine Nacht weitergezählt.** Für
+  jenen Abend standen hier je Kennzahl des Verkehrs 8 Zeilen in
+  `subscription_metrics` und 24 in `domain_metrics`, dazu je 3 für `disk_mb`
+  und `database_bytes`. Der Nachtlauf des 29. hat für den 28. die beiden
+  Abonnements mit Zeilen und die sechs Domains dazugelegt (`8 je Abonnement`
+  und `24 je Domain`, geteilt durch die vier Kennzahlen), der erste Messlauf
+  nach Mitternacht den 29. für alle drei Abonnements.
+- Beide Tabellen sind über `(…, day, metric)` eindeutig, `doppelt: 0`.
+- Der letzte Tag des Verkehrs ist der Vortag, und die Zone ist lesbar.
+- **`D0` ist der 21. September.** Teil 2 misst den Verkehr damit an Nacht 30
+  am **21. Oktober** und an Nacht 31 am **22. Oktober**. Für Platz und
+  Datenbanken bleibt es beim 28. und 29. Oktober aus Block 0, denn ihr erster
+  Tag ist der 28. September.
+
+### Block 3 — je Abonnement
+
+Am Morgen des 30. September, einen Tag nach Block 2 und nach dem ersten
+Nachtlauf unter `rc.8`. Alles steht deshalb einen Tag weiter als am 29.:
+
+```
+Spanne 2026-09-21 bis 2026-09-29: 9 Tage
+p6-b.invalid
+  Zeilen: traffic_sent_bytes 9  traffic_received_bytes 9  requests 9  errors 9  disk_mb 3  database_bytes 3
+  ohne Zeile: 0 von 9 Tagen
+  Kacheln: disk 68  |  traffic 6,0  |  requests 14.088  |  errors 97  |  databases 0
+  jetzt gemessen: Platz 68 MB (2026-09-30 08:45:11), Datenbanken 0 B
+p6-abnahme.invalid
+  Zeilen: traffic_sent_bytes 3  traffic_received_bytes 3  requests 3  errors 3  disk_mb 3  database_bytes 3
+  ohne Zeile: 6 von 9 Tagen — 2026-09-21 2026-09-22 2026-09-23 2026-09-24 2026-09-25 2026-09-26
+  Kacheln: disk 3  |  traffic 0  |  requests 0  |  errors 0,00  |  databases 0
+  jetzt gemessen: Platz 3 MB (2026-09-30 08:45:11), Datenbanken 0 B
+p6-nochmaltest
+  Zeilen: traffic_sent_bytes 0  traffic_received_bytes 0  requests 0  errors 0  disk_mb 3  database_bytes 3
+  ohne Zeile: 9 von 9 Tagen — 2026-09-21 2026-09-22 2026-09-23 2026-09-24 2026-09-25 2026-09-26 2026-09-27 2026-09-28 …
+  Kacheln: disk 0  |  traffic —  |  requests —  |  errors —  |  databases 0
+  jetzt gemessen: Platz 0 MB (2026-09-30 08:45:11), Datenbanken 0 B
+```
+
+- **`p6-b.invalid` hat an jedem der neun Tage eine Zeile**, `ohne Zeile: 0`.
+  An ihm misst Teil 2 die dreissig Zeilen (§4 Punkt 3).
+- **`p6-abnahme.invalid` hat Zeilen erst ab dem 27.**, dem Vortag der
+  Behebung. Die ruhigen Tage davor bleiben ohne Zeile, nachgetragen wird
+  nichts. Auch der 29. war ruhig, und seine Null kam aus dem Nachtlauf.
+- **`p6-nochmaltest` hat keine Domain.** `docs/139` Block 2 druckt die Domains
+  je Abonnement, und unter diesem steht keine (`docs/139 §7`). Damit ist die
+  Frage aus Block 4 beantwortet: ohne Domain keine Zeile des Verkehrs.
+- Die vier Kennzahlen des Verkehrs stehen je Abonnement mit derselben Zahl da,
+  9, 3 und 0. Zusammen sind es 12: die 10 aus Block 2 und die 2 des
+  Nachtlaufs.
+- `disk_mb` und `database_bytes` haben bei allen drei je drei Zeilen, den 28.,
+  29. und 30.
+- Platz und Datenbanken tragen ab dem zweiten Tag eine Zahl, und sie gleicht
+  der gerade gemessenen: `disk 68` neben `Platz 68 MB`, `3` neben `3`, `0`
+  neben `0`. Gemessen war um 08:45:11 UTC, sieben Minuten vor der Ablesung.
+- Die Kacheln zeigen die Form von `rc.8`: `requests 14.088` und `0`,
+  `errors 0,00`, und `—` ohne Einheit, wo keine Zeile ist.
 
 ### Block 4 — überschreibend, über einem Lauf, der geschrieben hat
 
@@ -642,11 +752,55 @@ domain_metrics           96 Zeilen    13 Nullen  Prüfsumme c6bffbc35398
   Zeile**: Entweder war keine seiner Domains unter den sechs gelesenen, oder es
   hat keine. Welches von beiden zutrifft, zeigt Block 3 mit `ohne Zeile` und
   seinen Kacheln; die Domains je Abonnement druckt `docs/139` Block 2.
+  **Es hat keine** (Block 3, nachgetragen am 30. September).
 - `8 aus dem alten Zeitalter` sind die acht Zeilen aus B2 (`docs/134 §7`),
   sechs vom 15. August und zwei vom 5. September, in den Dateien einer Domain
   ohne Verkehr. Sie liegen ausserhalb des Vortags und stören ihn nicht.
 - `0 nicht ganz gelesen`: Jede der sechs Domains war ganz gelesen, und keine
   Lücke hält eine Null auf.
+
+### Der erste Nachtlauf unter der Behebung, und Block 4 noch einmal
+
+Der Nachtlauf des 29. September lief um 00:20:01 unter `rc.7`. Sein Journal
+steht in `docs/139 §7` (Vorbedingung): `3 Tageswert(e) vom Vortag zählbar,
+3 ruhig (eine Null)`, `0 nicht ganz gelesen` und `Abgelegt: 24 Zeile(n) je
+Domain, 8 je Abonnement.` — dieselben Zahlen wie der Lauf von Hand am Abend
+davor, bis auf `1 noch offen` statt `3`: Der laufende Tag war um 00:20 zwanzig
+Minuten alt. Die fünfte Zeile, `6 Domain(s) gelesen`, filtert der Block dort
+heraus.
+
+Block 4 lief am 30. September gegen 11 Uhr ein zweites Mal, nach dem ersten
+Nachtlauf unter `rc.8`. Die drei Ablesungen und die beiden Läufe:
+
+```
+subscription_metrics     48 Zeilen    12 Nullen  Prüfsumme b1dd272a2f2a
+domain_metrics          144 Zeilen    37 Nullen  Prüfsumme 85b5394c50bb
+  Laufender Tag auf dem Server: 2026-09-30 (Europe/Berlin).
+  6 Domain(s) gelesen, 24104 Zeile(n), davon 24096 gedeutet, 8 aus dem alten Zeitalter, 0 unlesbar.
+  3 Tageswert(e) vom Vortag zählbar, 3 ruhig (eine Null), 0 übersprungen (gemischtes Format), 0 nicht ganz gelesen, 3 noch offen (laufender Tag), 5 älter und nicht erneut abgelegt.
+  Abgelegt: 24 Zeile(n) je Domain, 8 je Abonnement.
+  Fertig in 51 ms.
+subscription_metrics     48 Zeilen    12 Nullen  Prüfsumme b1dd272a2f2a
+domain_metrics          144 Zeilen    37 Nullen  Prüfsumme 85b5394c50bb
+  Laufender Tag auf dem Server: 2026-09-30 (Europe/Berlin).
+  6 Domain(s) gelesen, 24104 Zeile(n), davon 24096 gedeutet, 8 aus dem alten Zeitalter, 0 unlesbar.
+  3 Tageswert(e) vom Vortag zählbar, 3 ruhig (eine Null), 0 übersprungen (gemischtes Format), 0 nicht ganz gelesen, 3 noch offen (laufender Tag), 5 älter und nicht erneut abgelegt.
+  Abgelegt: 24 Zeile(n) je Domain, 8 je Abonnement.
+  Fertig in 58 ms.
+subscription_metrics     48 Zeilen    12 Nullen  Prüfsumme b1dd272a2f2a
+domain_metrics          144 Zeilen    37 Nullen  Prüfsumme 85b5394c50bb
+```
+
+- **Alle drei Ablesungen sind gleich**, über zwei Läufen, die je 24 und 8
+  Zeilen abgelegt haben: überschreibend und nicht addierend, nach einem
+  Nachtlauf, der die Nullen schon kennt. Zwischen der ersten und der zweiten
+  kam diesmal nichts dazu, wie für diesen Fall vorausgesagt.
+- **Beide Zahlen waren vorher ausgerechnet.** 48 Zeilen sind 9 + 3 + 0 je
+  Kennzahl mal vier, 144 sind 36 je Kennzahl mal vier. Die Nullen stehen genau
+  an der vorausgesagten Untergrenze, 12 und 37: Ausser den ruhigen Tagen und
+  der einen Null aus der ersten Ablesung vom 28. steht keine da.
+- Beide Läufe melden dasselbe bis auf die Dauer, 51 und 58 ms, und wie am 28.
+  `8 aus dem alten Zeitalter`.
 
 ### Ein Befund am Prüfmittel
 
@@ -665,15 +819,11 @@ bevor der Block lief. Berichtigt ist er in §1, die Gegenprobe steht in §1a.
 
 ### Was noch aussteht
 
-- **Die Blöcke 1 bis 3**, gegen `rc.7`. Am 28. gefahren, müssen die Zahlen
-  dieses Laufs darin wiederkehren. In Block 2 zeigt `subscription_metrics` je
-  Kennzahl des Verkehrs **8** Zeilen, `domain_metrics` **24**, und `disk_mb`
-  und `database_bytes` zeigen je **3** Zeilen mit dem 28. als erstem und letztem
-  Tag. Danach kommt je Tabelle jeden Tag einer dazu: beim Verkehr mit dem
-  Nachtlauf, bei Platz und Datenbanken mit der ersten Messung nach
-  Mitternacht.
-- **Der erste Nachtlauf unter `rc.7`**, am Morgen des 29.: Im Journal von
-  `srvpanel-traffic.service` stehen dieselben fünf Zeilen, und ein Block 4 danach
-  zeigt drei gleiche Ablesungen.
-- **Teil 2**: für den Verkehr an den beiden Tagen, die Block 2 aus dem ersten
-  Tag der Tabelle nennt, für Platz und Datenbanken am 28. und 29. Oktober.
+- **Teil 2.** Den Verkehr misst er am **21. und 22. Oktober**, Nacht 30 und
+  Nacht 31 ab `D0`, dem 21. September (Block 2). Platz und Datenbanken misst
+  er am **28. und 29. Oktober**. Punkt 3 aus §4 misst an `p6-b.invalid`, dem
+  einzigen Abonnement mit `ohne Zeile: 0` (Block 3): `p6-abnahme.invalid` hat
+  Zeilen erst ab dem 27. September, und `p6-nochmaltest` hat keine Domain.
+- Am 30. September hat `p6-abnahme.invalid` für den Lauf von B4 eine
+  Datenbank mit 3.801.036 B bekommen (`docs/139 §7`). Sie ändert, was
+  `database_bytes` an diesem Tag trägt, und keine Zahl von Zeilen.

@@ -33536,3 +33536,82 @@ ist abgelaufen.". Aufgefallen ist es am Bild des Nachlaufs. Berichtigt sind
 
 > **Ein Text aus dem eigenen Prüfkörper, zitiert als Text der Seite, ist
 > erfunden — auch wenn die Zahl daneben stimmt.**
+
+### Der Abnahmelauf für B6 steht ausgeschrieben — und die helle Farbe des Betreibers greift nie
+
+**Der Abnahmelauf für B6 ist `docs/140`**, ausgeschrieben am 1. Oktober vor dem
+Fahren. Neu ist ein Snippet für die Konsole. Es liest auf der Anmeldeseite und
+im Panel, was von der Marke ankommt: den Titel im Reiter, das Logo samt einem
+Bildpunkt, die Fusszeile und die Farben in beiden Themen. Seine Erwartung nimmt
+es aus den Daten der Seite und aus dem Markenblock im Kopf, und zur Gegenprobe
+schaltet es den Markenblock ab. Dazu kommen vier Prüfkörper: zwei Logos, die
+sich an einem Bildpunkt unterscheiden, ein SVG unter dem Namen `.png` und ein
+Bild von 470 KB.
+
+**Beim Ausschreiben fielen sechs Befunde am Prüfling heraus.** Gemessen ist
+jeder im echten Chromium und durch die Tür, gegen `09999b07`. Die 26 Fälle aus
+`BrandReachTest`, `BrandStyleTest` und `BrandContrastTest` waren dabei grün.
+
+Der erste: **Die helle Farbe des Betreibers greift nie.** `app.css` setzt die
+helle Fassung mit `:root, :root[data-theme='light']`, und `data-theme` steht
+immer am `<html>`. Der Markenblock aus `App\Support\Brand\Style` schreibt für
+hell nur `:root`, also 0,1,0 gegen 0,2,0. Im dunklen Thema greift die Farbe,
+weil beide Seiten denselben Selektor schreiben und der Markenblock später
+steht. `BrandStyleTest` liest, was `Style::css()` ausgibt; ob es gegen
+`app.css` ankommt, fragt kein Fall.
+
+> **Ein Wert, der eine Marke überschreiben soll, muss mindestens so spezifisch
+> sein wie die Regel, die sie setzt — die Reihenfolge entscheidet erst bei
+> Gleichstand.**
+
+Der zweite: Nach dem Speichern bleibt die Farbe bis zum Neuladen die alte. Der
+Markenblock steht im Kopf des Dokuments, und eine Inertia-Antwort lässt den
+Kopf, wie er war.
+
+> **Was im Kopf des Dokuments steht, erneuert nur ein volles Laden.**
+
+Der dritte: **„Logo entfernen" entfernt nichts.** In Formulardaten reist ein
+Wahrheitswert als `"1"`, und der Controller vergleicht mit `=== true`. Die
+Seite meldet „Die Marke ist gespeichert.", und das Logo liegt weiter da. Kein
+Test schickt `remove_logo` überhaupt.
+
+> **Dieselbe Regel über einem Wert, der einmal als JSON und einmal als
+> Zeichenkette reist, gilt nur einmal.** Zum zweiten Mal nach der Suche im
+> Dateimanager in P6.
+
+Der vierte: Ein neues Logo erscheint erst nach bis zu fünf Minuten. Die Adresse
+`/branding/logo` bleibt dieselbe und trägt `max-age=300`; derselbe Browser zeigt
+beim Neuladen weiter das alte Bild.
+
+> **Eine Adresse, die bleibt, wenn sich ihr Inhalt ändert, liefert den alten
+> Inhalt, solange der Zwischenspeicher ihn für frisch hält.**
+
+Der fünfte: Im Reiter steht „SrvPanel", auf jeder Seite. Der Server schreibt
+den Namen der Marke in den Titel, und sobald Inertia startet, ersetzt
+`resources/js/app.ts` ihn durch `<Seite> · SrvPanel`.
+`BrandReachTest::test_the_document_title_carries_the_name` liest die Antwort
+des Servers, also den Titel davor. Dazu trägt das Zeichen in `MarkIcon.vue`
+`aria-label="SrvPanel"`.
+
+> **Ein Wächter über die Antwort des Servers sieht den Titel nicht, den der
+> Browser danach ersetzt.**
+
+Der sechste: Betreff und Testmail sagen „SrvPanel". Alle drei Mails des Panels
+beginnen ihren Betreff mit dem festen Wort, auch die an die Kunden des
+Betreibers.
+
+> **Ein Name, den der Betreiber einstellen kann, steht überall dort falsch, wo
+> ihn jemand als Wort hingeschrieben hat.**
+
+**Und das Kriterium ist wörtlich nicht erfüllbar.** Es verlangt Logo, Farbe,
+Fusszeile und Absenderadresse auf der Anmeldeseite **und** in einer Mail. Die
+Mails sind seit P2 reiner Text, und die Absenderadresse steht nur in der Mail.
+Die Leiste nimmt die Farbe des Betreibers ausserdem nicht mit; sie setzt in
+`app.css` ein eigenes `--accent`.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den
+> Verfasser.**
+
+Behoben ist davon nichts. Ob die sechs Befunde vor dem Lauf behoben werden, wie
+das Kriterium gelesen wird und ob die Leiste die Farbe mitnimmt, sind Fragen an
+den Betreiber (`docs/140 §6`).

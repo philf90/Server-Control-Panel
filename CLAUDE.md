@@ -35,7 +35,10 @@ der Traffic-Kachel in zwei Zeilen, ist mit `0.9.0-rc.9` behoben
 Server gezeigt (`docs/139 §8`). Danach hat der Betreiber B4 abgenommen. Ein
 Befund ausserhalb von B4, der Schriftzug der Leiste im hellen Thema, ist am
 selben Tag behoben, mit `0.9.0-rc.10` ausgeliefert und auf `cloudsrv24`
-nachgesehen (`docs/139 §9`, Abschnitt weiter unten).
+nachgesehen (`docs/139 §9`, Abschnitt weiter unten). Der Lauf für B6 ist
+`docs/140`, ausgeschrieben am 1. Oktober vor dem Fahren. Beim Ausschreiben
+fielen sechs Befunde am Prüfling heraus, und über sie entscheidet der Betreiber
+vor dem Lauf (Abschnitt weiter unten).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -6734,6 +6737,74 @@ einem aktiven Konto.", und aufgefallen ist es erst am Bild des Servers.
 
 > **Ein Text aus dem eigenen Prüfkörper, zitiert als Text der Seite, ist
 > erfunden — auch wenn die Zahl daneben stimmt.**
+
+---
+
+## Der Abnahmelauf für B6 — sechs Befunde vor dem Fahren — 1. Oktober 2026
+
+`docs/140` ist ausgeschrieben, vor dem Fahren, und beim Ausschreiben sind sechs
+Befunde am Prüfling herausgefallen. Die 26 Fälle der drei Wächter von B6 waren
+grün; gezeigt haben sich die Befunde erst im echten Chromium und durch die Tür.
+Behoben ist noch keiner, der Betreiber entscheidet vor dem Lauf
+(`docs/140 §6`).
+
+**Der teuerste trifft die Farbe, für die es B6 gibt.** `app.css` setzt die
+helle Fassung mit `:root, :root[data-theme='light']`, und `data-theme` steht
+immer am `<html>`. Der Markenblock schreibt für hell nur `:root`, also 0,1,0
+gegen 0,2,0. Im dunklen Thema greift er, weil beide Seiten denselben Selektor
+schreiben und er später steht. Die Anmeldeseite nimmt in beiden Themen die
+dunkle Farbe, und so sah jeder Blick eine wirkende Marke, der nicht gezielt das
+helle Thema im Panel ansah.
+
+> **Ein Wert, der eine Marke überschreiben soll, muss mindestens so spezifisch
+> sein wie die Regel, die sie setzt — die Reihenfolge entscheidet erst bei
+> Gleichstand.**
+
+`BrandStyleTest` liest, was `Style::css()` ausgibt. Ob es gegen `app.css`
+ankommt, fragt kein Fall.
+
+> **Ein Wächter über die Ausgabe sagt, was geschrieben wird — nicht, ob es gegen
+> das ankommt, was es überschreiben soll.**
+
+**Zwei Befunde sind Wissen über Inertia, und sie gelten über B6 hinaus.** Eine
+Inertia-Antwort tauscht die Seite und lässt den `<head>` so, wie Blade ihn beim
+ersten Laden geschrieben hat. Und der `title`-Rückruf in `resources/js/app.ts`
+ersetzt den Titel des Servers, sobald Inertia startet.
+
+> **Was im Kopf des Dokuments steht, erneuert nur ein volles Laden.**
+
+> **Ein Wächter über die Antwort des Servers sieht den Titel nicht, den der
+> Browser danach ersetzt.**
+
+**Ein dritter ist der Satz aus P6 zum zweiten Mal.** Mit `forceFormData` reist
+ein Wahrheitswert als `"1"` (Inertia 3.6.1, `append()` in `@inertiajs/core`),
+und das `=== true` im Controller trifft ihn nie. „Logo entfernen" meldete
+Erfolg und liess das Logo liegen. `validate()` wandelt dabei nichts um: Die
+Regel `boolean` lässt `"1"` durch, und in den geprüften Daten steht danach die
+Zeichenkette. Einen Wahrheitswert gibt `$request->boolean()`.
+
+> **Dieselbe Regel über einem Wert, der einmal als JSON und einmal als
+> Zeichenkette reist, gilt nur einmal.**
+
+**Die übrigen zwei:** Ein Logo unter einer festen Adresse mit `max-age=300`
+bleibt bis zu fünf Minuten das alte. Und drei Betreffzeilen und die Testmail
+schreiben „SrvPanel" als Wort, auch die Mail an die Kunden des Betreibers.
+
+> **Ein Name, den der Betreiber einstellen kann, steht überall dort falsch, wo
+> ihn jemand als Wort hingeschrieben hat.**
+
+**Und das Kriterium ist wörtlich nicht erfüllbar** (`docs/140 §0` Punkt 7): Die
+Mails sind seit P2 reiner Text, und die Absenderadresse steht nur in der Mail.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den
+> Verfasser.**
+
+**Gemessen ist das an der echten Seite, ohne ein Konto der lokalen Datenbank.**
+Der Weg: eine eigene, frisch migrierte SQLite-Datenbank im Scratchpad, darin ein
+selbst angelegtes Wegwerfkonto mit zweitem Faktor, und `artisan serve` mit
+`DB_DATABASE` darauf. Er trägt weiter als der Vite-Aufsatz aus dem Lauf von
+„Platte voll": Anmeldung, Formular, Upload und Weiterleitung laufen über die
+echten Seiten und den echten Controller.
 
 ---
 

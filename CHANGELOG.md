@@ -33447,10 +33447,11 @@ Schriftzug in `BrandMark.vue` nicht mehr. Behoben wird er mit `0.9.0-rc.10`.
 
 **Für `0.9.0-rc.10`** (`docs/139 §9`): Im hellen Thema stehen Schriftzug,
 Zeichen und Versionsmarke wieder lesbar auf der Leiste, der Schriftzug mit
-18,56:1 statt 1,76:1. Auf der Anmeldeseite stehen Fehlermeldung, Hinweis der
-Sitzung und Fusszeile mit 15,57 bis 16,17:1 statt 1,76 bis 1,83:1. Die Ränder
-der Meldungen und eines ungültigen Feldes haben 7,59 bis 8,85:1 statt 2,73 bis
-2,85:1. Im dunklen Thema hat der Schriftzug seine Gestalt aus der Zeit vor B6
+18,56:1 statt 1,76:1. Auf der Anmeldeseite steht die Fehlermeldung mit 13,25:1
+statt 1,75:1, ein Hinweis zur Sitzung mit 12,39 statt 1,65 und die Fusszeile mit
+16,17 statt 1,83:1. Die Ränder der Meldungen und eines ungültigen Feldes haben
+7,59 bis 8,85:1 statt 2,73 bis 2,85:1. (Die Zahlen der Anmeldeseite sind am
+selben Tag berichtigt, siehe den nächsten Eintrag.) Im dunklen Thema hat der Schriftzug seine Gestalt aus der Zeit vor B6
 zurück, weiss und 17 px statt 15.
 
 **Drei Ursachen, eine Familie.** Die Regel für den Namen stand als `.row b` im
@@ -33504,3 +33505,34 @@ Das hat der Eingriff gefunden, der den Handgriff herausnahm und nicht biss.
 Beide Handgriffe bleiben als Vorsicht stehen und sind so beschriftet. Gemessen
 ist dagegen, dass `{{ n<max ? 1 : 2 }}` ein Element `<max>` öffnet, und dafür
 gibt es jetzt einen Fall.
+
+### Der Nachlauf zu rc.10 trifft jede Zahl — und meine eigenen Zahlen von der Behebung waren zu hoch
+
+**Für `0.9.0-rc.10`, gefahren am 1. Oktober** (`docs/139 §9`): Auf `cloudsrv24`
+messen Leiste und Anmeldeseite in beiden Themen genau wie vorhergesagt. Der
+Schriftzug steht mit 18,56:1 auf der Leiste, das Zeichen mit 8,40 · 18,56 ·
+5,24:1. Auf der Anmeldeseite steht die Meldung „Diese Zugangsdaten passen nicht
+zu einem aktiven Konto." mit 13,25:1, ihr Rand mit 7,88:1 und der Rand des
+ungültigen Feldes mit 7,59:1. Gemessen hat ein Snippet für die Konsole, das
+beide Themen auf derselben Seite fährt. Es legt die Flächen übereinander, und
+seine Gegenprobe, die Schrift der Seite auf der Leiste, steht im hellen Thema
+bei den 1,76:1 von vorher.
+
+**Beim Vorabmessen fiel ein Fehler in meinen eigenen Zahlen heraus.** Der
+Prüfkörper der Behebung hatte die getönte Fläche einer Meldung und die halbe
+Deckkraft des dritten Balkens weggeworfen. Die Fehlermeldung stand deshalb mit
+16,17:1 statt 13,25 im Eintrag darüber und der Hinweis zur Sitzung mit 15,57
+statt 12,39; der dritte Balken hat 5,24:1 und nicht 18,56. Kein Urteil kippt
+dadurch.
+
+> **Ein Prüfkörper, der die Deckkraft wegwirft, misst die Farbe vor dem
+> Überblenden — und die sieht niemand.** Der Satz steht seit A14 in CLAUDE.md.
+
+**Und zwei Sätze, die ich als Text der Seite zitiert hatte, standen nur in den
+Stubs meines Aufsatzes**: „Diese Anmeldedaten sind ungültig." und „Die Sitzung
+ist abgelaufen.". Aufgefallen ist es am Bild des Nachlaufs. Berichtigt sind
+`docs/139 §9`, die Kommentare in `app.css` und der Kopf eines Falls in
+`SurfaceTokenTest`.
+
+> **Ein Text aus dem eigenen Prüfkörper, zitiert als Text der Seite, ist
+> erfunden — auch wenn die Zahl daneben stimmt.**

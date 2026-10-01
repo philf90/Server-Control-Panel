@@ -348,7 +348,8 @@
  * der Sitzung (`--warn`), die Fehlermeldung (`--critical`) und der Rand eines
  * ungültigen Feldes. Im hellen Thema waren sie gegen den hellen Grund
  * gerechnet und standen auf Inkberry: die Ränder bei 2,73 bis 2,85:1, und der
- * Text der Fehlermeldung erbte die Schrift der Seite, 1,83:1 (`docs/139 §8`).
+ * Text der Fehlermeldung erbte die Schrift der Seite, 1,75:1 auf der getönten
+ * Fläche der Meldung (`docs/139 §9`).
  * Die Anmeldeseite trägt deshalb eigene Zustandswerte, die des dunklen
  * Themas — siehe `.signin`.
  *
@@ -5081,13 +5082,13 @@ p:not([class]) {
  * aus `FormErrors.vue`) und der Rand eines ungültigen Feldes. Im hellen Thema
  * trugen sie die Werte für den hellen Grund und standen auf Inkberry, mit
  * Rändern von 2,73 bis 2,85:1. Ihr Text hatte gar keine Regel und erbte die
- * Schrift der Seite: „Diese Anmeldedaten sind ungültig." mit 1,83:1, der
- * Hinweis mit 1,76:1 und die Fusszeile des Betreibers mit 1,83:1
- * (`docs/139 §8`). Entschieden vom Betreiber am selben Tag: Die Fläche trägt
- * die Zustandswerte des dunklen Themas — sie ist in beiden Themen dunkel, und
- * diese Werte sind für einen dunklen Grund gerechnet —, und sie setzt `color`
- * selbst, damit Text ohne eigene Regel ihre Schrift erbt und nicht die der
- * Seite.
+ * Schrift der Seite: „Diese Zugangsdaten passen nicht zu einem aktiven Konto."
+ * mit 1,75:1 auf der getönten Fläche der Meldung, ein Hinweis zur Sitzung mit
+ * 1,65:1 und die Fusszeile des Betreibers mit 1,83:1 (`docs/139 §9`).
+ * Entschieden vom Betreiber am selben Tag: Die Fläche trägt die Zustandswerte
+ * des dunklen Themas — sie ist in beiden Themen dunkel, und diese Werte sind
+ * für einen dunklen Grund gerechnet —, und sie setzt `color` selbst, damit
+ * Text ohne eigene Regel ihre Schrift erbt und nicht die der Seite.
  *
  * **Die Marken sitzen auf `.signin` und nicht auf `.signin-frame`, und das ist
  * tragend.** Über dem Formular steht seit A14 ein Band der Kategorie

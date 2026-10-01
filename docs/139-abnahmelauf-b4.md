@@ -1821,10 +1821,16 @@ Thema der Seite zurück auf: dark
 
 Jede Zeile wie vorhergesagt, in beiden Themen. Der Ladebeleg zeigt das neue
 Stylesheet (`17px/660`), und die Gegenprobe steht im hellen Thema bei genau den
-1,76:1, mit denen der Schriftzug vorher auf der Leiste stand. Das Bild zeigt die
-Leiste im dunklen Thema: Schriftzug weiss, Zeichen pink und weiss, die
-Versionsmarke `0.9.0-rc.10` als Rahmen auf der Leiste. **Ein Bild im hellen
-Thema steht noch aus**; gemessen ist die Leiste in beiden.
+1,76:1, mit denen der Schriftzug vorher auf der Leiste stand.
+
+Dazu zwei Bilder, eines je Thema. Das erste zeigt die Leiste im dunklen Thema:
+Schriftzug weiss, Zeichen pink und weiss, die Versionsmarke `0.9.0-rc.10` als
+Rahmen auf der Leiste. Das zweite ist nach `window.srvpanelTheme('light')`
+aufgenommen, der Aufruf steht in der Konsole daneben. Die Übersicht ist hell,
+und die Leiste sieht aus wie im ersten Bild: Schriftzug weiss, Zeichen pink und
+weiss, die Versionsmarke als Rahmen. Vor der Behebung stand dort ein
+dunkelgrauer Schriftzug, ein Zeichen in Indigo und Dunkelgrau und eine weisse
+Pille (oben, „Was falsch war, im hellen Thema").
 
 #### Schritt 2 — die Anmeldeseite, im privaten Fenster
 

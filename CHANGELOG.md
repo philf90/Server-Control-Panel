@@ -33496,8 +33496,11 @@ fragt jetzt je Thema.
 > **Eine Zahl, die eine Bedeutung zählen soll, zählt Zeilen — und die nächste
 > Zeile mit derselben Zeichenkette bedeutet etwas anderes.**
 
-**Und eine Begründung in `TemplateDom` war ungemessen**, gefunden vor dem
-Commit: Ein Kommentar, der ein Tag zitiert, werde für den Parser eines.
-Nachgemessen lässt libxml ihn als Kommentar stehen. Gemessen ist dagegen, dass
-`{{ n<max ? 1 : 2 }}` ein Element `<max>` öffnet, und dafür gibt es jetzt einen
-Fall.
+**Und zwei Begründungen in `TemplateDom` waren ungemessen.** Ein Kommentar,
+der ein Tag zitiert, werde für den Parser eines: Nachgemessen lässt libxml ihn
+als Kommentar stehen, gefunden vor dem Commit. Und ein `<BrandMark />` schlucke
+ohne Ausschreiben alles, was danach kommt: libxml 2.9.14 schliesst es selbst.
+Das hat der Eingriff gefunden, der den Handgriff herausnahm und nicht biss.
+Beide Handgriffe bleiben als Vorsicht stehen und sind so beschriftet. Gemessen
+ist dagegen, dass `{{ n<max ? 1 : 2 }}` ein Element `<max>` öffnet, und dafür
+gibt es jetzt einen Fall.

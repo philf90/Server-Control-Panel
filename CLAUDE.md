@@ -6678,8 +6678,9 @@ fragt jede gescopte Regel gegen ihre eigene Vorlage. `SurfaceTokenTest` setzt
 unter jeder Markenfläche die Vorlagen der eingesetzten Komponenten ein, zwei
 Ebenen tief bis `MarkIcon.vue`, und fragt jede Regel gegen diesen Baum. Den
 Baum baut `Tests\Support\TemplateDom`. Jeder gemessene Handgriff darin hat
-einen Fall, der ohne ihn rot wird; dass Kommentare vorher wegfallen, ist
-Vorsicht und steht dort auch so. Die Selektoren liest `Tests\Support\CssRules`, und
+einen Fall, der ohne ihn rot wird. Zwei sind Vorsicht und stehen dort auch so:
+dass Kommentare wegfallen und dass selbstschliessende Tags ausgeschrieben
+werden. Die Selektoren liest `Tests\Support\CssRules`, und
 übersetzt werden sie mit `symfony/css-selector`, das über Laravels Mail
 mitkommt. Gegen den Stand vor der Behebung meldet der eine Wächter `.row b`,
 der andere zehn Stellen.
@@ -6691,11 +6692,17 @@ verstand.** `IconTest` verlangte genau zwei Zeilen `--mark-accent:` in
 > **Eine Zahl, die eine Bedeutung zählen soll, zählt Zeilen — und die nächste
 > Zeile mit derselben Zeichenkette bedeutet etwas anderes.**
 
-**Und eine eigene Begründung war ungemessen, gefunden vor dem Commit.** Im Kopf
-von `TemplateDom` stand, ein Kommentar, der ein Tag zitiert, werde für den
-Parser eines. libxml lässt ihn als Kommentar stehen, gemessen. Gemessen ist
-dagegen, dass `{{ n<max ? 1 : 2 }}` ein Element `<max>` öffnet und die nächste
-Zeile verschluckt.
+**Und zwei eigene Begründungen waren ungemessen.** Im Kopf von `TemplateDom`
+stand, ein Kommentar, der ein Tag zitiert, werde für den Parser eines — libxml
+lässt ihn als Kommentar stehen, gefunden vor dem Commit. Und dort stand, ein
+`<BrandMark />` schlucke ohne Ausschreiben alles, was danach kommt. libxml 2.9.14
+schliesst es selbst; gefunden hat das der Eingriff, der den Handgriff
+herausnahm und nicht biss. Gemessen ist dagegen, dass `{{ n<max ? 1 : 2 }}` ein
+Element `<max>` öffnet und die nächste Zeile verschluckt.
+
+> **Ein Eingriff, der nicht beisst, ist ein Befund über den Wächter oder über
+> den Eingriff — und manchmal über die Begründung, für die es den Handgriff
+> gibt.**
 
 > **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch
 > dann falsch, wenn der Handgriff daneben richtig ist.** Zum dritten Mal in

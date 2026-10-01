@@ -17,14 +17,18 @@ use DOMXPath;
  * beantwortet kein Ausdruck über Zeichenketten; ein Selektor wie `.row b`
  * braucht den Baum.
  *
- * **Fünf Handgriffe, jeder an einer Messung bezahlt** (1. Oktober 2026):
+ * **Fünf Handgriffe, vier davon an einer Messung bezahlt** (1. Oktober 2026):
  *
  * - **Komponenten heissen `x-…`.** `<Link>` wäre für den HTML-Parser das leere
  *   Element `<link>`, und seine Kinder rückten zu Geschwistern auf. So meldete
  *   der erste Wurf `.nav-item .badge` in `PanelLayout` als tot.
- * - **Selbstschliessende Tags werden ausgeschrieben.** Der Parser kennt `/>`
- *   nur an leeren Elementen; ein `<BrandMark />` schluckte sonst alles, was
- *   danach kommt.
+ * - **Selbstschliessende Tags werden ausgeschrieben, und das ist Vorsicht.**
+ *   Hier stand zuerst, der Parser kenne `/>` nur an leeren Elementen und ein
+ *   `<BrandMark />` schlucke sonst alles danach. Gemessen mit libxml 2.9.14,
+ *   der Fassung in diesem Container, schliesst er `<x-brandmark />` und
+ *   sogar `<div />` selbst; gefunden hat es ein Eingriff, der nicht biss. Ein
+ *   Parser, der `/>` nach HTML5 liest, täte das nicht — gemessen ist das
+ *   nicht.
  * - **Gebundene Klassen zählen als mögliche Klassen.** Aus
  *   `:class="{ open: menuOpen }"` wird `open`, aus `['a', b ? 'c' : '']` werden
  *   `a` und `c`. Der Baum trägt damit jede Klasse, die das Element haben

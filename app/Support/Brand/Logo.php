@@ -89,6 +89,28 @@ final class Logo
     }
 
     /**
+     * Eine Fassung des abgelegten Bildes, gebildet aus seinem Inhalt.
+     *
+     * **Sie steht in der Adresse, damit ein neues Logo eine neue Adresse
+     * bekommt.** Die Route liefert mit `max-age=300` aus. Unter einer festen
+     * Adresse zeigte ein Browser bis zu fünf Minuten lang das alte Bild, auch
+     * beim Neuladen, und wer sein Logo austauschte, hielt das Hochladen für
+     * gescheitert (`docs/140 §0` Punkt 4).
+     *
+     * > **Eine Adresse, die bleibt, wenn sich ihr Inhalt ändert, liefert den
+     * > alten Inhalt, solange der Zwischenspeicher ihn für frisch hält.**
+     *
+     * **Aus dem Inhalt und nicht aus der Zeit.** Ein Dateidatum zählt
+     * Sekunden, und zwei Logos in derselben Sekunde trügen dieselbe Fassung.
+     * `xxh3` über die höchstens 256 KiB kostet gemessen 0,03 ms; sicher muss
+     * der Wert nicht sein, nur verschieden.
+     */
+    public function version(string $path): string
+    {
+        return (string) hash_file('xxh3', $path);
+    }
+
+    /**
      * Die drei Namen, die es überhaupt geben kann.
      *
      * @return list<string>

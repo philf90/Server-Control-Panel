@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Mail\DiagnoseReport;
 use App\Mail\QuotaWarning;
 use App\Mail\TestMessage;
 use App\Models\Account;
@@ -52,6 +54,35 @@ final class BrandReachTest extends TestCase
         );
 
         return $this->file('logo.png', (string) $bytes);
+    }
+
+    /** Ein zweites, mit einem roten Bildpunkt — ein anderes Bild und kein anderer Name. */
+    private function otherPng(): UploadedFile
+    {
+        $bytes = base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGM4oKDwHwAEpAIAwvXz5QAAAABJRU5ErkJggg=='
+        );
+
+        return $this->file('logo.png', (string) $bytes);
+    }
+
+    /** Das Logo des Prüfstands wieder abräumen, auf dem Weg, den auch das Entfernen nimmt. */
+    private function forgetTheLogoAfterwards(): void
+    {
+        $this->beforeApplicationDestroyed(static function (): void {
+            app(Logo::class)->forget();
+        });
+    }
+
+    /** Die Adresse des Logos, wie die Anmeldeseite sie bekommt. */
+    private function logoAddress(): string
+    {
+        $this->abmelden();
+
+        $adresse = $this->get('/login')->viewData('page')['props']['brand']['logo'];
+        self::assertIsString($adresse, 'Die Anmeldeseite nennt kein Logo — dann misst dieser Fall nichts.');
+
+        return $adresse;
     }
 
     private function file(string $name, string $bytes): UploadedFile
@@ -199,6 +230,111 @@ final class BrandReachTest extends TestCase
         $bild->assertHeader('X-Content-Type-Options', 'nosniff');
     }
 
+    /**
+     * Nach dem Speichern lädt die Seite vollständig neu.
+     *
+     * Der Markenblock steht im Kopf des Dokuments, und eine Inertia-Antwort
+     * tauscht die Seite und lässt den Kopf, wie er war. Bis zum 1. Oktober
+     * 2026 blieb die Farbe deshalb bis F5 die alte (`docs/140 §0` Punkt 2).
+     *
+     * Gemessen mit den Kopfzeilen, die der Browser schickt, die Fassung aus
+     * der Mittelschicht eingeschlossen. Ohne `X-Inertia` ist die Antwort eine
+     * gewöhnliche Weiterleitung, und dieser Fall wäre derselbe wie
+     * {@see self::gespeichert()}.
+     */
+    public function test_saving_reloads_the_whole_page(): void
+    {
+        $fassung = (string) app(HandleInertiaRequests::class)->version(request());
+
+        $antwort = $this->actingAs($this->operator())
+            ->withHeaders(['X-Inertia' => 'true', 'X-Requested-With' => 'XMLHttpRequest', 'X-Inertia-Version' => $fassung])
+            ->put('/settings/branding', [
+                'name' => 'Hoster GmbH',
+                'accent_light' => '#111827',
+                'accent_dark' => '#fde68a',
+                'footer' => '',
+            ]);
+
+        $antwort->assertStatus(409);
+        $antwort->assertHeader('X-Inertia-Location', url('/settings/general'));
+
+        // Die Meldung liegt in der Sitzung und kommt mit dem neuen Laden an.
+        self::assertSame('Die Marke ist gespeichert.', session('success'));
+    }
+
+    /**
+     * „Logo entfernen" entfernt das Logo, mit dem Wert, den der Browser
+     * schickt.
+     *
+     * Die Seite schickt Formulardaten, und Inertia 3.6.1 schreibt einen
+     * Wahrheitswert darin als `"1"`. Bis zum 1. Oktober 2026 verglich der
+     * Controller mit `=== true`, und kein Fall schickte `remove_logo`
+     * überhaupt. Im Browser meldete die Seite Erfolg und liess das Logo
+     * liegen (`docs/140 §0` Punkt 3).
+     */
+    public function test_the_logo_is_removed_as_the_browser_sends_it(): void
+    {
+        $this->forgetTheLogoAfterwards();
+        $this->gespeichert(['logo' => $this->png()]);
+
+        self::assertNotNull(app(Logo::class)->path('logo.png'), 'Vorbedingung: Das Logo liegt da.');
+
+        $this->gespeichert(['remove_logo' => '1']);
+
+        self::assertNull(app(Settings::class)->brand()->logo);
+        self::assertNull(app(Logo::class)->path('logo.png'), 'Die Datei liegt nach „Logo entfernen" noch da.');
+
+        $this->abmelden();
+        $this->get('/branding/logo')->assertNotFound();
+    }
+
+    /**
+     * Und `"0"` lässt es liegen.
+     *
+     * Der Gegenfall zum Fall darüber: Eine Prüfung, die nur fragt, ob der
+     * Schlüssel da ist, entfernte das Logo auch hier.
+     */
+    public function test_a_zero_keeps_the_logo(): void
+    {
+        $this->forgetTheLogoAfterwards();
+        $this->gespeichert(['logo' => $this->png()]);
+        $this->gespeichert(['remove_logo' => '0']);
+
+        self::assertSame('logo.png', app(Settings::class)->brand()->logo);
+
+        $this->abmelden();
+        $this->get('/branding/logo')->assertOk();
+    }
+
+    /**
+     * Ein neues Logo bekommt eine neue Adresse, und dasselbe Logo behält sie.
+     *
+     * Die Route liefert mit `max-age=300` aus. Unter einer festen Adresse
+     * zeigte ein Browser bis zu fünf Minuten lang das alte Bild, auch beim
+     * Neuladen (`docs/140 §0` Punkt 4). Die Fassung kommt aus dem Inhalt:
+     * Speichern ohne neues Bild lässt die Adresse stehen.
+     */
+    public function test_a_new_logo_gets_a_new_address(): void
+    {
+        $this->forgetTheLogoAfterwards();
+
+        $this->gespeichert(['logo' => $this->png()]);
+        $erste = $this->logoAddress();
+
+        $this->gespeichert();
+        self::assertSame($erste, $this->logoAddress(),
+            'Dasselbe Bild hat eine neue Adresse — dann lädt jeder Besucher es nach jedem Speichern neu.');
+
+        $this->gespeichert(['logo' => $this->otherPng()]);
+        $zweite = $this->logoAddress();
+
+        self::assertNotSame($erste, $zweite,
+            'Ein neues Bild unter derselben Adresse zeigt der Zwischenspeicher bis zu fünf Minuten lang als das alte.');
+
+        // Und die Adresse mit ihrer Fassung liefert das Bild.
+        $this->get((string) parse_url($zweite, PHP_URL_PATH).'?'.parse_url($zweite, PHP_URL_QUERY))->assertOk();
+    }
+
     /** Ohne Logo ist die Adresse ein 404 und kein leeres Bild. */
     public function test_the_route_is_a_404_without_a_logo(): void
     {
@@ -214,6 +350,11 @@ final class BrandReachTest extends TestCase
      */
     public function test_an_svg_is_refused(): void
     {
+        // Unter dem Bruch „SVG kommt durch" legt dieser Fall die Datei ab. Ohne
+        // Abräumen lag sie seit dem 28. September in storage/app/branding,
+        // gefunden am 1. Oktober beim Nachsehen nach einer Messung.
+        $this->forgetTheLogoAfterwards();
+
         $svg = $this->file('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"><script>x()</script></svg>');
 
         $antwort = $this->save(['logo' => $svg]);
@@ -277,6 +418,39 @@ final class BrandReachTest extends TestCase
             return str_contains($text, 'Hoster GmbH')
                 && str_contains($text, 'Betrieben von der Hoster GmbH · Musterstadt');
         });
+    }
+
+    /**
+     * Jeder Betreff beginnt mit dem Namen der Marke.
+     *
+     * Bis zum 1. Oktober 2026 schrieben alle drei Mails „SrvPanel —" als
+     * Wort, auch die an die Kunden des Betreibers (`docs/140 §0` Punkt 6). Der
+     * Fall darüber liest den Rumpf und nicht den Betreff.
+     */
+    public function test_every_subject_begins_with_the_name(): void
+    {
+        $this->gespeichert();
+
+        $betreffe = [
+            (new TestMessage('Erika Muster', 'heute'))->envelope()->subject,
+            (new QuotaWarning('p1000', []))->envelope()->subject,
+            (new DiagnoseReport([['label' => 'l', 'subject' => 's', 'detail' => 'd', 'since' => 'x']]))->envelope()->subject,
+        ];
+
+        foreach ($betreffe as $betreff) {
+            self::assertStringStartsWith('Hoster GmbH — ', (string) $betreff);
+        }
+    }
+
+    /** Und die Testmail spricht von diesem Panel und nicht von „SrvPanel". */
+    public function test_the_test_mail_speaks_of_this_panel(): void
+    {
+        $this->gespeichert();
+
+        $text = (new TestMessage('Erika Muster', 'heute'))->render();
+
+        self::assertStringContainsString('dass dieses Panel über das eingetragene Relay', $text);
+        self::assertStringNotContainsString('SrvPanel', $text);
     }
 
     /**

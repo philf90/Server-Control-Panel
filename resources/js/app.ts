@@ -45,7 +45,27 @@ router.on('before', (ereignis) => {
 })
 
 createInertiaApp({
-  title: (titel) => (titel ? `${titel} · SrvPanel` : 'SrvPanel'),
+  /**
+   * Der Reiter trägt den Namen der Marke.
+   *
+   * Der Server schreibt ihn in den Kopf, und Inertia ersetzt diesen Titel,
+   * sobald es startet. Hier stand bis zum 1. Oktober 2026 ein festes Wort: Im
+   * Reiter stand auf jeder Seite der eingebaute Name, und der Wächter über die
+   * Antwort des Servers sah den Titel von vor dem Ersetzen (`docs/140 §0`
+   * Punkt 5).
+   *
+   * > **Ein Wächter über die Antwort des Servers sieht den Titel nicht, den der
+   * > Browser danach ersetzt.**
+   *
+   * Inertia 3.6.1 reicht die aktuelle Seite als zweiten Wert mit, und der Name
+   * kommt aus ihren geteilten Daten. Der Rückfall gilt einer Seite ohne sie
+   * und steht so auch in `BrandMark.vue`.
+   */
+  title: (titel, seite) => {
+    const name = (seite?.props?.brand as { name?: string } | undefined)?.name || 'SrvPanel'
+
+    return titel ? `${titel} · ${name}` : name
+  },
 
   /**
    * Der Fortschrittsbalken trägt die Farbe dieses Panels.

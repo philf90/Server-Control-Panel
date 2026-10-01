@@ -134,6 +134,11 @@
     {{--
         Die Markenfarbe — **nach** dem Stylesheet und vor allem anderen.
 
+        **Die Stelle ist tragend.** Der Block schreibt dieselben Selektoren wie
+        `app.css`, also gleich spezifisch, und bei Gleichstand gewinnt die
+        spätere Regel. Stünde er davor, gälte überall die Vorgabe.
+        `BrandStyleTest` hält beides, die Selektoren und die Stelle.
+
         Was hier steht, sind ausschliesslich Werte für Marken, deren Regeln in
         `app.css` stehen; kein Selektor bekommt hier eine Eigenschaft. Damit
         gilt „jede Farbe kommt aus app.css" weiter für alles, was aussieht —

@@ -33,6 +33,13 @@
  * Die halbe Deckung ist Teil des Zeichens und keine Abstufung, die etwas
  * bedeutet: Es liest sich als Liste, die weitergeht, nicht als etwas, das
  * abgeschaltet wäre.
+ *
+ * **Für einen Vorleser ist das Zeichen Schmuck.** Es steht nur in
+ * `BrandMark.vue`, und dort steht der Name der Marke daneben. Bis zum
+ * 1. Oktober 2026 trug es `aria-label="SrvPanel"`; ein Vorleser las damit
+ * „SrvPanel Muster Hosting" und ohne Marke „SrvPanel SrvPanel"
+ * (`docs/140 §0` Punkt 5). Wer das Zeichen allein einsetzt, gibt ihm wieder
+ * einen Namen, und `BrandNameTest` meldet die Stelle.
  */
 withDefaults(defineProps<{ size?: number }>(), { size: 22 })
 </script>
@@ -43,8 +50,7 @@ withDefaults(defineProps<{ size?: number }>(), { size: 22 })
     viewBox="0 0 64 64"
     :width="size"
     :height="size"
-    role="img"
-    aria-label="SrvPanel"
+    aria-hidden="true"
   >
     <rect x="2" y="5.5" width="60" height="13" rx="4" class="bar-top" />
     <rect x="2" y="25.5" width="44" height="13" rx="4" fill="currentColor" />

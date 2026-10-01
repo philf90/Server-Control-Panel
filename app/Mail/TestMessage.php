@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Mail;
 
+use App\Support\Brand\MailSubject;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -32,7 +33,7 @@ final class TestMessage extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'SrvPanel — Testmail');
+        return new Envelope(subject: MailSubject::of('Testmail'));
     }
 
     public function content(): Content

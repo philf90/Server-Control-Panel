@@ -37,8 +37,9 @@ Befund ausserhalb von B4, der Schriftzug der Leiste im hellen Thema, ist am
 selben Tag behoben, mit `0.9.0-rc.10` ausgeliefert und auf `cloudsrv24`
 nachgesehen (`docs/139 §9`, Abschnitt weiter unten). Der Lauf für B6 ist
 `docs/140`, ausgeschrieben am 1. Oktober vor dem Fahren. Beim Ausschreiben
-fielen sechs Befunde am Prüfling heraus, und über sie entscheidet der Betreiber
-vor dem Lauf (Abschnitt weiter unten).
+fielen sechs Befunde am Prüfling heraus. Der Betreiber hat sie am selben Tag
+entschieden, und behoben sind sie mit `0.9.0-rc.11` (`docs/140 §6a`, Abschnitt
+weiter unten).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -6745,8 +6746,9 @@ einem aktiven Konto.", und aufgefallen ist es erst am Bild des Servers.
 `docs/140` ist ausgeschrieben, vor dem Fahren, und beim Ausschreiben sind sechs
 Befunde am Prüfling herausgefallen. Die 26 Fälle der drei Wächter von B6 waren
 grün; gezeigt haben sich die Befunde erst im echten Chromium und durch die Tür.
-Behoben ist noch keiner, der Betreiber entscheidet vor dem Lauf
-(`docs/140 §6`).
+Der Betreiber hat am selben Tag entschieden, alle drei Fragen aus
+`docs/140 §6` wie vorgeschlagen, und behoben sind sie mit `0.9.0-rc.11`
+(`docs/140 §6a`).
 
 **Der teuerste trifft die Farbe, für die es B6 gibt.** `app.css` setzt die
 helle Fassung mit `:root, :root[data-theme='light']`, und `data-theme` steht
@@ -6805,6 +6807,39 @@ selbst angelegtes Wegwerfkonto mit zweitem Faktor, und `artisan serve` mit
 `DB_DATABASE` darauf. Er trägt weiter als der Vite-Aufsatz aus dem Lauf von
 „Platte voll": Anmeldung, Formular, Upload und Weiterleitung laufen über die
 echten Seiten und den echten Controller.
+
+### Behoben am selben Tag
+
+Der Markenblock schreibt seitdem an genau die Selektoren, an denen `app.css`
+den Akzent setzt, Leiste und Kopfleiste eingeschlossen, und er setzt den
+Fokusring mit. `BrandStyleTest` liest die Selektoren aus dem Stylesheet und
+hält die Stelle des Blocks nach `@vite`. Drei Dinge daraus gelten über B6
+hinaus.
+
+**`Inertia::location()` nimmt eine Weiterleitung entgegen.** Einer
+Inertia-Anfrage antwortet es mit 409 und der Adresse, und der Browser lädt
+ganz; einer gewöhnlichen gibt es die Weiterleitung unverändert zurück. Eine
+Meldung, die mit `->with()` daran hängt, liegt dann schon in der Sitzung und
+kommt mit dem neuen Laden an. Das ist der Griff, wenn sich nach einer Handlung
+etwas im Kopf des Dokuments ändert.
+
+**Der Titel-Rückruf bekommt die Seite mit.** Inertia 3.6.1 ruft ihn als
+`title(titel, seite)`, und was der Server teilt, steht in `seite.props`.
+
+**Die Reihenfolge der Stylesheets hält nur im gebauten Stand.** Unter
+`npm run dev` setzt Vite die Regeln aus `app.css` erst zur Laufzeit ins
+Dokument, also hinter jeden Block aus dem Server. Gemessen: Der Markenblock
+stand vor den Stilblöcken der Komponenten und vor `app.css`, und hell galt an
+der Wurzel die Vorgabe `#3730a3`. Wer dort eine Markenfarbe prüft, sieht sie
+nicht.
+
+**Und ein Rest des Bruchskripts ist dabei aufgefallen.** Unter dem Bruch „SVG
+kommt durch" legte `test_an_svg_is_refused` seinen Prüfkörper ab und räumte ihn
+nicht ab. Seit dem 28. September lag er als `storage/app/branding/logo.svg` im
+Container, und beim Ausschreiben des Laufs habe ich ihn für Bestand gehalten.
+
+> **Ein Fall, der im heilen Zustand nichts ablegt, braucht trotzdem ein
+> Abräumen — unter dem Bruch legt er ab.**
 
 ---
 

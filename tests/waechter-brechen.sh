@@ -33784,9 +33784,9 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Brand/Style.php')
 s = p.read_text()
-alt = "'--accent:%s;--accent-on:%s;--accent-surface:rgb(%s / %s);'"
+alt = "'--accent:%s;--accent-on:%s;--accent-surface:rgb(%s / %s);--focus:%s;'"
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, "'color:%s;--accent-on:%s;--accent-surface:rgb(%s / %s);'", 1))
+p.write_text(s.replace(alt, "'color:%s;--accent-on:%s;--accent-surface:rgb(%s / %s);--focus:%s;'", 1))
 PY
 griff_datei app/Support/Brand/Style.php "Regel statt Marke" &&
 pruefe "Regel statt Marke" \
@@ -33802,13 +33802,13 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Brand/Style.php')
 s = p.read_text()
-alt = "'.signin{'.$dunkel.'--focus:'.$brand->accent_dark.';}',"
+alt = "'.signin{'.$dunkel.'}',"
 assert s.count(alt) == 1
 p.write_text(s.replace(alt, "'',", 1))
 PY
 griff_datei app/Support/Brand/Style.php "Anmeldeseite ohne Farbe" &&
 pruefe "Anmeldeseite ohne Farbe" \
-  BrandStyleTest::test_the_sign_in_surface_gets_the_colour_too failed
+  BrandStyleTest::test_the_block_writes_where_the_stylesheet_sets_the_accent failed
 wiederherstellen
 
 echo "── BrandStyleTest: die Anmeldeseite bekommt den hellen Akzent ──"
@@ -33821,13 +33821,13 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Brand/Style.php')
 s = p.read_text()
-alt = "'.signin{'.$dunkel.'--focus:'.$brand->accent_dark.';}',"
+alt = "'.signin{'.$dunkel.'}',"
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, "'.signin{'.$hell.'--focus:'.$brand->accent_light.';}',", 1))
+p.write_text(s.replace(alt, "'.signin{'.$hell.'}',", 1))
 PY
 griff_datei app/Support/Brand/Style.php "Anmeldeseite hell" &&
 pruefe "Anmeldeseite hell" \
-  BrandStyleTest::test_the_sign_in_surface_takes_the_dark_accent failed
+  BrandStyleTest::test_the_dark_surfaces_take_the_dark_accent failed
 wiederherstellen
 
 echo "── BrandStyleTest: der Block steht auch bei der Auslieferung da ──"
@@ -33848,6 +33848,101 @@ griff_datei app/Support/Brand/Style.php "Block auch bei Vorgabe" &&
 pruefe "Block auch bei Vorgabe" \
   BrandStyleTest::test_the_shipped_colours_produce_nothing failed
 wiederherstellen
+echo "── BrandStyleTest: die helle Farbe steht wieder nur an :root ──"
+#
+# `app.css` setzt die helle Fassung mit `:root, :root[data-theme='light']`, und
+# `data-theme` steht immer am `<html>`. Ein `:root` allein ist 0,1,0 gegen
+# 0,2,0 und verliert, gleich wo es steht. So hat die helle Farbe des
+# Betreibers bis zum 1. Oktober 2026 nie gegriffen (`docs/140 §0` Punkt 1).
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = "\":root,:root[data-theme='light']{\".$hell.'}',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "':root{'.$hell.'}',", 1))
+PY
+griff_datei app/Support/Brand/Style.php "helle Farbe nur an :root" &&
+pruefe "helle Farbe nur an :root" \
+  BrandStyleTest::test_the_block_writes_where_the_stylesheet_sets_the_accent failed
+wiederherstellen
+
+echo "── BrandStyleTest: die Leiste bekommt die Farbe nicht ──"
+#
+# Leiste und Kopfleiste setzen in `app.css` ein eigenes `--accent`. Ohne eine
+# Regel dafuer steht im Menue Pfirsich neben Knoepfen in der Farbe des
+# Betreibers (`docs/140 §6` Frage 3).
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = "'.rail,.topbar{'.$dunkel.'}',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'',", 1))
+PY
+griff_datei app/Support/Brand/Style.php "Leiste ohne Farbe" &&
+pruefe "Leiste ohne Farbe" \
+  BrandStyleTest::test_the_block_writes_where_the_stylesheet_sets_the_accent failed
+wiederherstellen
+
+echo "── BrandStyleTest: die Leiste bekommt den hellen Akzent ──"
+#
+# Sie ist in beiden Themen dunkel. Ein heller Akzent ist auf ihrem Grund der
+# falsche, und gerechnet wurde er gegen einen weissen.
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = "'.rail,.topbar{'.$dunkel.'}',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'.rail,.topbar{'.$hell.'}',", 1))
+PY
+griff_datei app/Support/Brand/Style.php "Leiste hell" &&
+pruefe "Leiste hell" \
+  BrandStyleTest::test_the_dark_surfaces_take_the_dark_accent failed
+wiederherstellen
+
+echo "── BrandStyleTest: der Fokusring bleibt bei der Vorgabe ──"
+#
+# `--focus` traegt in `app.css` an jeder Flaeche denselben Wert wie der Akzent.
+# Ohne ihn steht neben einem gruenen Knopf ein indigoblauer Ring.
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = "--accent-surface:rgb(%s / %s);--focus:%s;',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "--accent-surface:rgb(%s / %s);',", 1))
+PY
+griff_datei app/Support/Brand/Style.php "Fokusring fehlt" &&
+pruefe "Fokusring fehlt" \
+  BrandStyleTest::test_every_accent_token_of_the_stylesheet_comes_along failed
+wiederherstellen
+
+echo "── BrandStyleTest: der Markenblock steht vor dem Stylesheet ──"
+#
+# Bei gleichen Selektoren entscheidet die Reihenfolge. Steht der Block vor dem
+# Stylesheet, gewinnt ueberall die Vorgabe.
+vorher_datei resources/views/app.blade.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/views/app.blade.php')
+s = p.read_text()
+vite = "    @vite('resources/js/app.ts')\n"
+ende = "        <style>{!! $css !!}</style>\n    @endif\n"
+assert s.count(vite) == 1 and s.count(ende) == 1
+s = s.replace(vite, '', 1)
+p.write_text(s.replace(ende, ende + vite, 1))
+PY
+griff_datei resources/views/app.blade.php "Markenblock vor dem Stylesheet" &&
+pruefe "Markenblock vor dem Stylesheet" \
+  BrandStyleTest::test_the_block_stands_after_the_stylesheet failed
+wiederherstellen
+
 pruefe "  … zurückgesetzt wieder grün" BrandStyleTest passed
 
 echo "── BrandReachTest: SVG kommt durch ──"
@@ -33963,6 +34058,231 @@ griff_datei resources/views/app.blade.php "Titel fest verdrahtet" &&
 pruefe "Titel fest verdrahtet" \
   BrandReachTest::test_the_document_title_carries_the_name failed
 wiederherstellen
+
+echo "── BrandReachTest: Logo entfernen vergleicht wieder mit true ──"
+#
+# In Formulardaten reist ein Wahrheitswert als "1". Ein `=== true` trifft ihn
+# nie: Die Seite meldete Erfolg und liess das Logo liegen (`docs/140 §0`
+# Punkt 3).
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "        if ($request->boolean('remove_logo')) {"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "        if (($data['remove_logo'] ?? false) === true) {", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "Logo entfernen nur mit true" &&
+pruefe "Logo entfernen nur mit true" \
+  BrandReachTest::test_the_logo_is_removed_as_the_browser_sends_it failed
+wiederherstellen
+
+echo "── BrandReachTest: Logo entfernen fragt nur, ob der Schluessel da ist ──"
+#
+# Der Gegenfall: Dann entfernt auch eine "0" das Logo.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "        if ($request->boolean('remove_logo')) {"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "        if ($request->has('remove_logo')) {", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "Logo entfernen bei jeder Angabe" &&
+pruefe "Logo entfernen bei jeder Angabe" \
+  BrandReachTest::test_a_zero_keeps_the_logo failed
+wiederherstellen
+
+echo "── BrandReachTest: nach dem Speichern bleibt der Kopf der alte ──"
+#
+# Der Markenblock steht im Kopf des Dokuments, und eine Inertia-Antwort laesst
+# den Kopf, wie er war. Ohne volles Neuladen bleibt die Farbe bis F5 die alte
+# (`docs/140 §0` Punkt 2).
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "        return Inertia::location(to_route('settings.general')->with('success', 'Die Marke ist gespeichert.'));"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "        return to_route('settings.general')->with('success', 'Die Marke ist gespeichert.');", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "kein volles Neuladen" &&
+pruefe "kein volles Neuladen" \
+  BrandReachTest::test_saving_reloads_the_whole_page failed
+wiederherstellen
+
+echo "── BrandReachTest: das Logo hat wieder eine feste Adresse ──"
+#
+# Die Route liefert mit max-age=300 aus. Unter einer festen Adresse zeigt ein
+# Browser bis zu fuenf Minuten lang das alte Bild (`docs/140 §0` Punkt 4).
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Middleware/HandleInertiaRequests.php')
+s = p.read_text()
+alt = "                        : route('branding.logo', ['v' => $logo->version($pfad)]),"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "                        : route('branding.logo'),", 1))
+PY
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "Logo ohne Fassung" &&
+pruefe "Logo ohne Fassung" \
+  BrandReachTest::test_a_new_logo_gets_a_new_address failed
+wiederherstellen
+
+echo "── BrandReachTest: die Fassung haengt nicht am Inhalt ──"
+#
+# Eine Fassung, die fuer jedes Bild dieselbe ist, ist eine feste Adresse mit
+# einem Anhang.
+vorher_datei app/Support/Brand/Logo.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Logo.php')
+s = p.read_text()
+alt = "        return (string) hash_file('xxh3', $path);"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "        return 'v1';", 1))
+PY
+griff_datei app/Support/Brand/Logo.php "Fassung ohne Inhalt" &&
+pruefe "Fassung ohne Inhalt" \
+  BrandReachTest::test_a_new_logo_gets_a_new_address failed
+wiederherstellen
+
+echo "── BrandReachTest: der Betreff kommt nicht aus der Marke ──"
+#
+# Ein Betreff aus einer anderen Quelle als der Marke traegt den Namen, den der
+# Betreiber eingestellt hat, nicht. Die Pruefung am Quelltext sieht das nicht:
+# Hier steht kein Wort, nur die falsche Quelle.
+vorher_datei app/Support/Brand/MailSubject.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/MailSubject.php')
+s = p.read_text()
+alt = "        return app(Settings::class)->brand()->name.' — '.$rest;"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "        return config('app.name').' — '.$rest;", 1))
+PY
+griff_datei app/Support/Brand/MailSubject.php "Betreff ohne Marke" &&
+pruefe "Betreff ohne Marke" \
+  BrandReachTest::test_every_subject_begins_with_the_name failed
+wiederherstellen
+
+echo "── BrandReachTest: die Testmail nennt wieder den eingebauten Namen ──"
+#
+# Sie bestaetigt, dass dieses Panel verschicken kann. Mit Marke steht dort
+# sonst ein Name, den der Empfaenger nicht kennt.
+vorher_datei resources/views/mail/test.blade.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/views/mail/test.blade.php')
+s = p.read_text()
+alt = 'dass dieses Panel über das eingetragene Relay'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'dass SrvPanel über das eingetragene Relay', 1))
+PY
+griff_datei resources/views/mail/test.blade.php "Testmail mit festem Namen" &&
+pruefe "Testmail mit festem Namen" \
+  BrandReachTest::test_the_test_mail_speaks_of_this_panel failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BrandReachTest passed
+
+echo "── BrandNameTest: der Reiter hat wieder ein festes Wort ──"
+#
+# Inertia ersetzt den Titel des Servers, sobald es startet. Ein Rueckruf ohne
+# die Seite kennt die Marke nicht (`docs/140 §0` Punkt 5).
+vorher_datei resources/js/app.ts
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/app.ts')
+s = p.read_text()
+alt = """  title: (titel, seite) => {
+    const name = (seite?.props?.brand as { name?: string } | undefined)?.name || 'SrvPanel'
+
+    return titel ? `${titel} · ${name}` : name
+  },
+"""
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "  title: (titel) => (titel ? `${titel} · SrvPanel` : 'SrvPanel'),\n", 1))
+PY
+griff_datei resources/js/app.ts "Reiter mit festem Wort" &&
+pruefe "Reiter mit festem Wort" \
+  BrandNameTest::test_the_tab_title_takes_the_name_of_the_brand failed
+wiederherstellen
+
+echo "── BrandNameTest: der Reiter liest den Namen und schreibt das Wort ──"
+#
+# Die Seite wird gelesen, der Name steht da, und hinter dem Trenner steht
+# trotzdem das feste Wort. Der Fall fragt deshalb auch nach dem Wort.
+vorher_datei resources/js/app.ts
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/app.ts')
+s = p.read_text()
+alt = "    return titel ? `${titel} · ${name}` : name\n"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "    return titel ? `${titel} · SrvPanel` : name\n", 1))
+PY
+griff_datei resources/js/app.ts "Reiter liest und schreibt das Wort" &&
+pruefe "Reiter liest und schreibt das Wort" \
+  BrandNameTest::test_the_tab_title_takes_the_name_of_the_brand failed
+wiederherstellen
+
+echo "── BrandNameTest: das Zeichen traegt wieder einen eigenen Namen ──"
+#
+# Neben dem Zeichen steht der Name. Mit eigenem Namen liest ein Vorleser
+# zweimal eine Marke, ohne Marke "SrvPanel SrvPanel".
+vorher_datei resources/js/Components/MarkIcon.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/MarkIcon.vue')
+s = p.read_text()
+alt = '    aria-hidden="true"\n  >\n'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '    role="img"\n    aria-label="SrvPanel"\n  >\n', 1))
+PY
+griff_datei resources/js/Components/MarkIcon.vue "Zeichen mit eigenem Namen" &&
+pruefe "Zeichen mit eigenem Namen" \
+  BrandNameTest::test_the_mark_beside_the_name_is_decoration failed
+wiederherstellen
+
+echo "── BrandNameTest: das Zeichen steht ohne den Namen daneben ──"
+#
+# Ein Zeichen, das fuer einen Vorleser verborgen ist, braucht den Namen neben
+# sich. Ohne ihn steht dort fuer einen Vorleser nichts.
+vorher_datei resources/js/Components/BrandMark.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/BrandMark.vue')
+s = p.read_text()
+alt = '    <span class="brand-name">{{ brand.name }}</span>\n'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei resources/js/Components/BrandMark.vue "Zeichen ohne Namen daneben" &&
+pruefe "Zeichen ohne Namen daneben" \
+  BrandNameTest::test_the_mark_beside_the_name_is_decoration failed
+wiederherstellen
+
+echo "── BrandNameTest: der Betreff schreibt wieder das feste Wort ──"
+#
+# Den Namen kann der Betreiber einstellen. Als Wort im Betreff steht er falsch,
+# sobald er das tut, auch in der Mail an seine Kunden (`docs/140 §0` Punkt 6).
+vorher_datei app/Mail/TestMessage.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/TestMessage.php')
+s = p.read_text()
+alt = "        return new Envelope(subject: MailSubject::of('Testmail'));"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "        return new Envelope(subject: 'SrvPanel — Testmail');", 1))
+PY
+griff_datei app/Mail/TestMessage.php "Betreff mit festem Wort" &&
+pruefe "Betreff mit festem Wort" \
+  BrandNameTest::test_no_mail_writes_the_shipped_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BrandNameTest passed
 
 echo "── SharedClosureTest: die Marke als fertiger Wert ──"
 #

@@ -9,10 +9,11 @@ use App\Support\Brand\Logo;
 use App\Support\Design\Contrast;
 use App\Support\Settings\BrandSettings;
 use App\Support\Settings\Settings;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Das Aussehen, das der Betreiber vorgibt — B6, `docs/129 §9`.
@@ -23,7 +24,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  */
 final class BrandingSettingsController extends Controller
 {
-    public function update(Request $request, Settings $settings, Logo $logo, Audit $audit): RedirectResponse
+    public function update(Request $request, Settings $settings, Logo $logo, Audit $audit): Response
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:40'],
@@ -49,7 +50,20 @@ final class BrandingSettingsController extends Controller
         $marke = $settings->brand();
         $name = $marke->logo;
 
-        if (($data['remove_logo'] ?? false) === true) {
+        /*
+         * **Wahr ist, was der Browser als wahr schickt.** Die Seite schickt das
+         * Formular als Formulardaten, weil ein Bild dabei sein kann, und darin
+         * reist ein Wahrheitswert als Zeichenkette: Inertia 3.6.1 schreibt
+         * `"1"`. Die Regel `boolean` lässt das durch, und in `$data` steht
+         * danach die Zeichenkette. Hier stand bis zum 1. Oktober 2026
+         * `=== true`, und das traf nur einen Prüfstand, der `true` schickt:
+         * „Logo entfernen" meldete Erfolg und liess das Logo liegen
+         * (`docs/140 §0` Punkt 3). `boolean()` nimmt `"1"` und `true` gleich.
+         *
+         * > **Dieselbe Regel über einem Wert, der einmal als JSON und einmal als
+         * > Zeichenkette reist, gilt nur einmal.**
+         */
+        if ($request->boolean('remove_logo')) {
             $logo->forget();
             $name = null;
         }
@@ -87,7 +101,21 @@ final class BrandingSettingsController extends Controller
          * `Route::getRoutes()`; `RedirectTargetTest` hält es seitdem für jeden
          * Namen, den ein Controller nennt.
          */
-        return to_route('settings.general')->with('success', 'Die Marke ist gespeichert.');
+        /*
+         * **Und danach lädt die Seite vollständig neu.** Die Farbe steht im
+         * Markenblock im Kopf des Dokuments, und eine Inertia-Antwort tauscht
+         * die Seite und lässt den Kopf, wie er war. Bis zum 1. Oktober 2026
+         * blieb die Farbe deshalb bis F5 die alte, während die Hinweise darunter
+         * schon die neue nannten (`docs/140 §0` Punkt 2).
+         *
+         * `Inertia::location()` antwortet einer Inertia-Anfrage mit 409 und der
+         * Adresse, und der Browser lädt sie ganz. Die Meldung liegt dann schon
+         * in der Sitzung und kommt mit dem neuen Laden an. Einer gewöhnlichen
+         * Anfrage gibt es die Weiterleitung unverändert zurück.
+         *
+         * > **Was im Kopf des Dokuments steht, erneuert nur ein volles Laden.**
+         */
+        return Inertia::location(to_route('settings.general')->with('success', 'Die Marke ist gespeichert.'));
     }
 
     /**

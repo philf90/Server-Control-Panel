@@ -19,7 +19,9 @@ Fälle aus `BrandReachTest`, `BrandStyleTest` und `BrandContrastTest` waren
 grün. Gezeigt haben sich die Befunde erst im echten Chromium und durch die Tür,
 gegen den gebauten Stand von `main` (`09999b07`). §6 fragt, ob sie vor dem
 Lauf behoben werden und wie das Kriterium gelesen wird. Gefahren wird gegen
-die Freigabe, die diese Entscheidungen trägt.
+die Freigabe, die diese Entscheidungen trägt. **Entschieden hat der Betreiber
+am selben Tag, alle drei Fragen wie vorgeschlagen**, und behoben sind die
+sechs Befunde mit `0.9.0-rc.11` (§6a).
 
 **Neu ist ein Snippet für die Konsole** (§3). Es liest auf der Anmeldeseite
 und auf jeder Seite des Panels, was von der Marke ankommt: den Titel im
@@ -528,8 +530,8 @@ sha256sum /tmp/b6-logo; rm -f /tmp/b6-logo
 - `<title inertia>Muster Hosting</title>`.
 - Der Markenblock, eine Zeile `<style>…</style>`. Seine helle Regel trägt die
   Selektoren aus `app.css` (§6 Frage 1, Befund 1), seine Werte sind `#0b6e4f`
-  und `#6ee7b7`. Ob `.rail` darin steht, entscheidet §6 Frage 3. Der genaue
-  Wortlaut steht nach dem Bau in §6a.
+  und `#6ee7b7`, und `.rail,.topbar` steht darin (§6 Frage 3). Der Wortlaut
+  steht in §6a.
 - Die Adresse des Logos in den Daten der Seite, mit einer Fassung dahinter
   (`…/branding/logo?v=…`, §6 Frage 1, Befund 4). Die Schrägstriche stehen dort
   als `\/`, so schreibt JSON sie.
@@ -579,9 +581,8 @@ einfügen.
 - Hell: `Wurzel #0b6e4f  Hauptknopf #0b6e4f`.
   Dunkel: `Wurzel #6ee7b7  Hauptknopf #6ee7b7`.
   Unter `rc.10` stünde hell `#3730a3`, und das Urteil meldete es (§2a).
-- Die Leiste nach §6 Frage 3: wie vorgeschlagen
-  `Leiste #6ee7b7  aktiver Menüpunkt #6ee7b7` in beiden Themen, sonst
-  `#ffb7a5`.
+- Die Leiste in beiden Themen `Leiste #6ee7b7  aktiver Menüpunkt #6ee7b7`
+  (§6 Frage 3).
 - In der Gegenprobe ohne Markenblock die Vorgaben: hell `#3730a3`, dunkel
   `#ff7fec`, Leiste `#ffb7a5`.
 - `Urteil: was die Seite über die Marke sagt, kommt an`.
@@ -724,6 +725,9 @@ ist nicht angekommen. Die Abnahme spricht der Betreiber aus.
 
 ## §6 · Drei Fragen an den Betreiber — vor dem Lauf
 
+**Entschieden am 1. Oktober 2026, alle drei wie vorgeschlagen.** Was gebaut
+ist, steht in §6a.
+
 Alle drei betreffen, was ein Betreiber und seine Kunden sehen, und stehen
 damit unter der Regel vom 27. September: *Macht es Sinn und gibt es einen
 spürbaren Mehrwert für einen Nutzer im Panel?*
@@ -774,3 +778,114 @@ in den Flächen, gegen die jede dunkle Farbe geprüft wird. Ohne die Leiste
 stehen nebeneinander zwei Akzente: Pfirsich im Menü, die Farbe des Betreibers
 auf den Knöpfen. Gebaut wäre es als eine Regel mehr im Markenblock, für
 `.rail` und `.topbar`.
+
+---
+
+## §6a · Entschieden und gebaut: `0.9.0-rc.11`
+
+Gebaut am 1. Oktober, am Tag der Entscheidung. Das Kriterium wird gelesen wie
+in Frage 2, und `docs/129 §9` sagt es so.
+
+| Befund | Gebaut | Gehalten von |
+|---|---|---|
+| 1 · helle Farbe | `Style::css()` schreibt an dieselben Selektoren wie `app.css`; der Block steht nach dem Stylesheet | `BrandStyleTest`, vier neue Fälle |
+| 2 · Neuladen | `Inertia::location()` mit der Weiterleitung samt Meldung: 409 und `X-Inertia-Location`, der Browser lädt ganz | `BrandReachTest::test_saving_reloads_the_whole_page` |
+| 3 · Logo entfernen | `$request->boolean('remove_logo')` | zwei Fälle in `BrandReachTest`, mit `"1"` und mit `"0"` |
+| 4 · Logo-Adresse | `/branding/logo?v=` mit 16 Hexziffern, `xxh3` über den Inhalt (`Logo::version()`) | `BrandReachTest::test_a_new_logo_gets_a_new_address` |
+| 5 · Reiter | Der Titel nimmt den Namen aus den Daten der Seite; das Zeichen trägt `aria-hidden` | `BrandNameTest` |
+| 6 · Mails | Der Betreff kommt aus `MailSubject::of()`, die Testmail sagt „dieses Panel" | `BrandReachTest`, `BrandNameTest` |
+| Frage 3 · Leiste | `.rail,.topbar` mit dem dunklen Akzent | `BrandStyleTest` |
+
+**Dazu kommt ohne eigene Frage der Fokusring.** `--focus` trägt in `app.css`
+an jeder dieser Flächen denselben Wert wie `--accent`. Ohne ihn stünde neben
+einem grünen Knopf ein indigoblauer Ring, und deshalb setzt der Block ihn
+jetzt überall mit.
+
+**Der Markenblock mit den Werten aus §2**, wörtlich, so wie Block 2 ihn nach
+Punkt 3 zeigt:
+
+```
+<style>:root,:root[data-theme='light']{--accent:#0b6e4f;--accent-on:#ffffff;--accent-surface:rgb(11 110 79 / 0.09);--focus:#0b6e4f;}:root[data-theme='dark']{--accent:#6ee7b7;--accent-on:#0f1116;--accent-surface:rgb(110 231 183 / 0.14);--focus:#6ee7b7;}.rail,.topbar{--accent:#6ee7b7;--accent-on:#0f1116;--accent-surface:rgb(110 231 183 / 0.14);--focus:#6ee7b7;}.signin{--accent:#6ee7b7;--accent-on:#0f1116;--accent-surface:rgb(110 231 183 / 0.14);--focus:#6ee7b7;}</style>
+```
+
+Vier Regeln mit je vier Marken. Das Snippet druckt deshalb
+`Markenblock: 4 Regeln, 16 Zuweisungen, davon keine Marke: 0`. Die Selektoren
+zeigt es so, wie der Browser sie liest, mit Leerzeichen nach dem Komma und
+doppelten Anführungszeichen.
+
+**Die Brüche.** Sechzehn neue Eingriffe stehen im Bruchskript, drei
+bestehende haben einen neuen Anker. Gefahren ist jeder Eingriff, der eine der
+geänderten Dateien anfasst, einzeln und mit `cp` gesichert: **50 von 50
+beissen.** Gegen den alten Stand sind die neuen Fälle rot, drei in
+`BrandStyleTest` und drei in `BrandNameTest`.
+
+**Beim Nachsehen fiel ein Rest des Bruchskripts auf.** Unter dem Bruch „SVG
+kommt durch" legt `test_an_svg_is_refused` seinen Prüfkörper ab, und der Fall
+räumte ihn nicht ab. Seit dem 28. September lag er als
+`storage/app/branding/logo.svg` im Container, 66 Bytes mit
+`<script>x()</script>`. Beim Ausschreiben dieses Laufs hatte ich die Datei für
+älteren Bestand gehalten und liegen lassen. Der Fall räumt jetzt ab.
+
+> **Ein Fall, der im heilen Zustand nichts ablegt, braucht trotzdem ein
+> Abräumen — unter dem Bruch legt er ab.**
+
+### Nachgemessen im Chromium
+
+Gegen den gebauten Stand im Container, mit der Marke aus §2 in einer eigenen
+Datenbank, gespeichert über das echte Formular. Ein Gastfenster steht für das
+private Fenster. Die Zeilen sind die des Snippets, gekürzt auf das, wonach die
+Punkte fragen.
+
+**Punkt 3.** Vor dem Speichern stand ein Merker im Fenster, danach war er fort:
+Die Seite hat ganz neu geladen, und die Meldung „Die Marke ist gespeichert."
+stand da. Den dunklen Akzent auf `#7dd3fc` gesetzt und ohne F5 gelesen:
+Hauptknopf `rgb(125, 211, 252)`, Leiste `--accent #7dd3fc`. Danach zurück auf
+`#6ee7b7`.
+
+**Punkt 4**, Gastfenster, 1440 px:
+
+```
+Markenblock: 4 Regeln, 16 Zuweisungen, davon keine Marke: 0
+  :root, :root[data-theme="light"] → #0b6e4f · :root[data-theme="dark"] → #6ee7b7 · .rail, .topbar → #6ee7b7 · .signin → #6ee7b7
+Titel im Reiter: Anmeldung · Muster Hosting
+Anmeldeseite: Logo http://127.0.0.1:8123/branding/logo?v=904eae8051dd7024 · alt „Muster Hosting" · Bild 360×96 · Kasten 128×34 · Punkt(40,48) rgb(110,231,183)
+Farben, wie sie wirken:
+  light  Wurzel #0b6e4f  Hauptknopf #6ee7b7  Anmeldeseite #6ee7b7  Leiste —  aktiver Menüpunkt —
+  dark   Wurzel #6ee7b7  Hauptknopf #6ee7b7  Anmeldeseite #6ee7b7  Leiste —  aktiver Menüpunkt —
+Urteil: was die Seite über die Marke sagt, kommt an
+```
+
+**Punkt 5**, `/settings/general`, angemeldet:
+
+```
+Titel im Reiter: Allgemein · Muster Hosting
+Farben, wie sie wirken:
+  light  Wurzel #0b6e4f  Hauptknopf #0b6e4f  Anmeldeseite —  Leiste #6ee7b7  aktiver Menüpunkt #6ee7b7
+  dark   Wurzel #6ee7b7  Hauptknopf #6ee7b7  Anmeldeseite —  Leiste #6ee7b7  aktiver Menüpunkt #6ee7b7
+Gegenprobe, Markenblock abgeschaltet:
+  light  Wurzel #3730a3  Hauptknopf #3730a3  Anmeldeseite —  Leiste #ffb7a5  aktiver Menüpunkt #ffb7a5
+  dark   Wurzel #ff7fec  Hauptknopf #ff7fec  Anmeldeseite —  Leiste #ffb7a5  aktiver Menüpunkt #ffb7a5
+Urteil: was die Seite über die Marke sagt, kommt an
+```
+
+**Punkt 6**, Block 3 gegen dieselbe Datenbank: `Muster Hosting — Testmail`,
+`Muster Hosting — Kontingent überschritten: kunde-web` und
+`Muster Hosting — ein neuer Befund auf vm`. Die Testmail beginnt mit „Diese
+Nachricht bestätigt, dass dieses Panel über das eingetragene Relay verschicken
+kann." und endet mit `--`, „Muster Hosting" und der Fusszeile.
+
+**Punkt 7.** Logo B gespeichert, dann im Gastfenster F5 ohne Strg: sofort
+`branding/logo?v=96a55ff9c30b1a1e · Punkt(40,48) rgb(192,32,32)`, also Logo B
+unter einer neuen Adresse.
+
+**Punkt 8.** Nach „Logo entfernen" ist der Knopf fort, `/branding/logo` gibt
+404, und im Gastfenster steht
+`Anmeldeseite: kein Logo · Zeichen ja · Name „Muster Hosting"` mit dem Urteil
+„kommt an".
+
+**Und der Name für einen Vorleser**, gelesen aus dem Baum, den Chromium
+daraus macht: mit Logo die Überschrift „Muster Hosting" mit dem Bild
+„Muster Hosting" darin, ohne Logo die Überschrift „Muster Hosting". Die
+Gegenprobe auf derselben Seite setzt das alte Markup des Zeichens
+(`role="img"`, `aria-label="SrvPanel"`) im Browser; dann heisst dieselbe
+Überschrift „SrvPanel Muster Hosting".

@@ -1,4 +1,4 @@
-Diese Nachricht bestätigt, dass SrvPanel über das eingetragene Relay verschicken kann.
+Diese Nachricht bestätigt, dass dieses Panel über das eingetragene Relay verschicken kann.
 
 Ausgelöst von {!! $actor !!} am {!! $when !!}.
 

@@ -33615,3 +33615,73 @@ Die Leiste nimmt die Farbe des Betreibers ausserdem nicht mit; sie setzt in
 Behoben ist davon nichts. Ob die sechs Befunde vor dem Lauf behoben werden, wie
 das Kriterium gelesen wird und ob die Leiste die Farbe mitnimmt, sind Fragen an
 den Betreiber (`docs/140 §6`).
+
+### B6 ist behoben — die Farbe greift in beiden Themen, und der Name steht im Reiter und im Betreff
+
+**Entschieden am 1. Oktober 2026, wie `docs/140 §6` es vorgeschlagen hat, und
+gebaut für `0.9.0-rc.11`.** Der Lauf für B6 wird gegen diese Freigabe
+gefahren. Das Kriterium wird gelesen wie in §6 Frage 2: Logo, Farbe und
+Fusszeile auf der Anmeldeseite, Absenderadresse, Name und Fusszeile in der
+Mail. Logo und Farbe in einer Mail werden nicht gebaut.
+
+**Die helle Farbe greift.** `App\Support\Brand\Style` schreibt an genau die
+Selektoren, an denen `app.css` den Akzent setzt: hell
+`:root, :root[data-theme='light']`, dunkel `:root[data-theme='dark']`, dazu
+Leiste und Kopfleiste und die Anmeldeseite. Gleich spezifisch, und der Block
+steht im Kopf nach dem Stylesheet; bei Gleichstand gewinnt die spätere Regel.
+`BrandStyleTest` liest die Selektoren aus `app.css` und hält auch die Stelle
+in `app.blade.php`. Gegen den alten Block sind drei der neuen Fälle rot.
+
+> **Ein Wächter über die Ausgabe sagt, was geschrieben wird — nicht, ob es
+> gegen das ankommt, was es überschreiben soll.**
+
+**Die Leiste nimmt die Farbe mit**, entschieden vom Betreiber (§6 Frage 3):
+Leiste, Kopfleiste und Anmeldeseite bekommen den dunklen Akzent. **Und der
+Fokusring geht mit.** Dafür gab es keine eigene Frage: `--focus` trägt in
+`app.css` an jeder dieser Stellen denselben Wert wie `--accent`, und ohne ihn
+stünde neben einem grünen Knopf ein indigoblauer Ring.
+
+**Nach dem Speichern lädt die Seite vollständig neu.**
+`Inertia::location()` nimmt die Weiterleitung samt Meldung entgegen und
+antwortet einer Inertia-Anfrage mit 409 und der Adresse; einer gewöhnlichen
+Anfrage gibt es die Weiterleitung unverändert zurück. Die Meldung liegt dann
+schon in der Sitzung und kommt mit dem neuen Laden an.
+
+**„Logo entfernen" entfernt das Logo.** Der Controller liest `remove_logo`
+mit `$request->boolean()`. Zwei Fälle durch die Tür schicken, was der Browser
+schickt: `"1"` entfernt, `"0"` lässt liegen.
+
+> **Dieselbe Regel über einem Wert, der einmal als JSON und einmal als
+> Zeichenkette reist, gilt nur einmal.**
+
+**Ein neues Logo hat eine neue Adresse.** Die Seite bekommt
+`/branding/logo?v=…`, gebildet mit `xxh3` aus dem Inhalt der Datei
+(`Logo::version()`), gemessen 0,03 ms für 256 KiB. Aus dem Inhalt und nicht
+aus der Zeit: Ein Dateidatum zählt Sekunden.
+
+**Im Reiter steht der Name der Marke.** Inertia 3.6.1 reicht dem
+Titel-Rückruf die aktuelle Seite als zweiten Wert mit, und der Name kommt aus
+ihren geteilten Daten. Das Zeichen neben dem Namen trägt `aria-hidden` und
+keinen eigenen Namen mehr. `BrandNameTest` hält beides am Quelltext; dass es
+im Browser ankommt, misst `docs/140`.
+
+**Und jeder Betreff beginnt mit dem Namen der Marke**, gebildet an einer
+Stelle (`App\Support\Brand\MailSubject`). Die Testmail sagt „dieses Panel".
+`BrandNameTest` meldet jede Zeichenkette mit dem eingebauten Namen in den
+Mail-Klassen und ihren Vorlagen.
+
+**Nachgemessen im echten Chromium**, gegen den gebauten Stand und über das
+echte Formular (`docs/140 §6a`): Hell steht die Wurzel auf `#0b6e4f`, die
+Leiste in beiden Themen auf `#6ee7b7`, im Reiter „Anmeldung · Muster Hosting".
+Eine geänderte Farbe steht ohne F5 da. Logo B erscheint im Gastfenster nach F5
+sofort, unter einer neuen Adresse. Nach „Logo entfernen" gibt die Route 404.
+Ein Vorleser hört die Überschrift als „Muster Hosting"; mit dem alten Markup
+des Zeichens, im Browser gesetzt, hiess sie „SrvPanel Muster Hosting".
+
+**Und ein Rest des Bruchskripts ist dabei aufgefallen.** Unter dem Bruch „SVG
+kommt durch" legt `BrandReachTest::test_an_svg_is_refused` seinen Prüfkörper
+ab, und der Fall räumte ihn nicht ab. Seit dem 28. September lag er als
+`storage/app/branding/logo.svg` im Container. Der Fall räumt jetzt ab.
+
+> **Ein Fall, der im heilen Zustand nichts ablegt, braucht trotzdem ein
+> Abräumen — unter dem Bruch legt er ab.**

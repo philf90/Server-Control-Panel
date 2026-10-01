@@ -33408,3 +33408,37 @@ Fehlschlag, und PHPStan über alle Pfade der Projektdatei, mit einem
 eingepflanzten Fehler als Gegenprobe; gemeldet wurde nur er. Danach meldet
 `composer audit` „No security vulnerability advisories found.", `npm audit`
 „found 0 vulnerabilities", und die Lizenzprüfung der CI besteht.
+
+### B4 ist abgenommen — und auf Windows brach die Zeile bei 1440 px gar nicht
+
+**B4, Nachlauf** (`docs/139 §8`): Am 1. Oktober gegen `0.9.0-rc.9`. Die
+Behebung aus Teil 2 wirkt auf dem Server. Ohne die Regel
+`.tile-sub .amount { white-space: nowrap }` trennt dieselbe Seite „3,4" von
+„MB", mit ihr steht der Betrag zusammen: in der Ruhezeile bei 1374 px, in
+beiden Ablesungen bei 1304 px und auf der Übersicht bei 1440 px. Danach hat der
+Betreiber B4 abgenommen, und der Prüfkörper `p1139_rundung` ist fort.
+
+**Wie ausgeschrieben gefahren, hat der Nachlauf nichts gemessen.** Bei 1440 px
+stand die ganze Beizeile in einer Zeile, und `betrag in 1 Zeile(n)` las sich
+wie ein Beleg. Die Beizeile steht in `system-ui`. Teil 2 lief nach den Bildern
+auf einem Mac, der Nachlauf auf Windows, und in Segoe UI ist die Zeile
+177,1 px breit, bei 179 px Beizeile.
+
+> **Eine Erwartung, die einen Umbruch voraussetzt, setzt die Schrift voraus,
+> in der er entstand.**
+
+Ergänzt wurde beim Fahren ein Snippet. Es druckt Breite und Schrift mit,
+rechnet die Fensterbreiten aus, bei denen ohne die Regel getrennt würde, und
+fährt dort eine Gegenprobe auf derselben Seite: die Regel weg, messen, die
+Regel zurück. Vier Läufe bei den vorher ausgerechneten Breiten, und alle haben
+getroffen. Die Schrift bestimmt es über eine Leinwand, denn die Geräteleiste
+gibt sich als Telefon aus, und `navigator.userAgentData` meldet dann
+`Android`.
+
+> **Ein Zwilling misst Kästen auf das Pixel und Text in seiner eigenen
+> Schrift.** Der Container zeichnet in DejaVu Sans. Den Umbruch aus Teil 2 hat
+> er nachgestellt, weil der Text in beiden Schriften zu breit war.
+
+**Und ein Befund am Bild, nicht B4:** Im hellen Thema ist „SrvPanel" in der
+Leiste kaum zu lesen, 1,76:1. Seit B6 erreicht die gescopte Regel `.row b` den
+Schriftzug in `BrandMark.vue` nicht mehr. Behoben wird er mit `0.9.0-rc.10`.

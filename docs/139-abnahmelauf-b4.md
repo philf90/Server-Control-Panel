@@ -28,8 +28,9 @@ vorgeschlagen entschieden**, und behoben sind sie für `0.9.0-rc.8` (§6). Gegen
 diese Freigabe wird der Lauf gefahren.
 
 **Gefahren am 29. und 30. September 2026** (§7): Teil 1 auf dem Server,
-Teil 2 im Browser, **alle fünf Punkte erfüllt**. Ein Befund am Bild ist für
-`0.9.0-rc.9` behoben (§6b), und die Abnahme kommt nach dem Nachlauf (§8).
+Teil 2 im Browser, **alle fünf Punkte erfüllt**. Ein Befund am Bild ist mit
+`0.9.0-rc.9` behoben (§6b). Der Nachlauf ist am 1. Oktober gefahren (§8), und
+**am selben Tag hat der Betreiber B4 abgenommen.**
 
 Neu ist dazu ein Messmittel: **`tests/kacheln-messen.js`** liest die
 Kachelreihe einer Seite und die Ablesung an ihren Kurven, so wie
@@ -1057,6 +1058,8 @@ bleibt ungeklärt.
 - **Der Prüfkörper kommt weg**: `p1139_rundung` in `p6-abnahme.invalid` im
   Panel entfernen. Der Nachlauf braucht ihn nicht.
 
+**Beides ist am 1. Oktober 2026 erledigt** (§8).
+
 ---
 
 ## §8 · Der Nachlauf gegen `0.9.0-rc.9`
@@ -1159,3 +1162,358 @@ wäre ein Befund an der Übersicht.
 
 N1 ist in beiden Themen erfüllt. Die Abnahme von B4 spricht danach der
 Betreiber aus.
+
+### N1a — die Bedingung herstellen, ergänzt beim Fahren am 1. Oktober 2026
+
+N1 lief am 1. Oktober zuerst so, wie es dasteht, im dunklen Thema bei 1440 px.
+Jede Zeile der Erwartung traf zu bis auf eine, und das war die tragende: **Es
+stand kein Schrägstrich da.** Die ganze Beizeile passte in eine Zeile, und
+dann sagt `betrag in 1 Zeile(n)` nichts über die Behebung. Eine Zeile, die gar
+nicht bricht, bricht auch nicht an der falschen Stelle.
+
+**Die Erwartung setzte die Schrift von Teil 2 voraus.** Die Beizeile steht in
+`--font-sans`, also in `system-ui`, und welche Schrift das ist, entscheidet der
+Rechner, der die Seite anzeigt. Teil 2 lief nach den Bildern auf einem Mac,
+der Nachlauf auf Windows mit Segoe UI; gemessen ist nur das zweite. Die Kachel
+ist dieselbe, die Beizeile 179 px breit wie im Container. Schmaler ist der
+Text: Die Ruhezeile misst auf Windows 177,1 px, im Container 202,3 px.
+
+N1a druckt deshalb mit, wovon das Ergebnis abhängt:
+
+- **Die Breite der Beizeile und die Schrift.** Bestimmt wird die Schrift über
+  eine Leinwand: Sie misst denselben Satz in `system-ui` und in einer Reihe
+  benannter Schriften, und eine Schrift, die es nicht gibt, fällt auf die
+  Vorgabe zurück und misst anders. `navigator.userAgentData` taugt dafür nicht,
+  denn die Geräteleiste gibt sich als Telefon aus und meldet `Android`.
+- **Je Zustand die Breite der Zeile**, ganz und bis zur Zahl.
+- **Eine Gegenprobe auf derselben Seite:** dieselbe Messung mit
+  `white-space: normal` am Betrag, also so, wie `rc.8` bricht. Danach nimmt das
+  Snippet die Regel zurück und misst die Ruhezeile noch einmal.
+- **Die Fensterbreiten, bei denen ohne die Regel Zahl und Einheit getrennt
+  würden**, für die Ruhezeile, für die beiden Ablesungen und für alle drei.
+  Jede Kachel der Reihe nimmt ein Fünftel einer Änderung der Fensterbreite,
+  bis eine bei ihrer Grundbreite von 200 px ankommt.
+
+Gegengeprüft im Container, bevor der Betreiber es fuhr: Vorhergesagt waren für
+die Ruhezeile 1435 bis 1556 px. Ohne die Regel brach sie bei 1430 px vor der
+Zahl, bei 1500 px zwischen Zahl und Einheit und bei 1560 px gar nicht.
+
+```js
+async function umbruchMessen () {
+  const warten = () => new Promise((fertig) => setTimeout(fertig, 60))
+  const zeilen = (sub) => {
+    const reihen = new Map()
+    const gang = document.createTreeWalker(sub, NodeFilter.SHOW_TEXT)
+    for (let n = gang.nextNode(); n; n = gang.nextNode()) {
+      for (let i = 0; i < n.textContent.length; i++) {
+        const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + 1)
+        const k = [...r.getClientRects()].find((x) => x.width > 0)
+        if (k) reihen.set(Math.round(k.top), (reihen.get(Math.round(k.top)) ?? '') + n.textContent[i])
+      }
+    }
+    return [...reihen.entries()].sort((a, b) => a[0] - b[0]).map(([, t]) => t.replace(/\s+/g, ' ').trim()).join(' / ')
+  }
+  const kachel = [...document.querySelectorAll('.tiles > .tile')].find((k) => k.querySelector('.tile-sub.paired .amount'))
+  if (!kachel) throw new Error('Keine Kachel mit Einfassung in der Beizeile.')
+  const sub = kachel.querySelector('.tile-sub.paired')
+  const feld = kachel.querySelector('.trend svg')
+  const name = kachel.querySelector('.tile-label').textContent.trim()
+  // Wie breit ein Text in der Schrift der Beizeile ohne Umbruch ist: ein unsichtbarer Klon derselben Zeile.
+  const breit = (text) => {
+    const klon = sub.cloneNode(false)
+    klon.textContent = text
+    Object.assign(klon.style, { position: 'absolute', visibility: 'hidden', whiteSpace: 'nowrap', width: 'max-content', minHeight: '0' })
+    kachel.appendChild(klon)
+    const b = klon.getBoundingClientRect().width
+    klon.remove()
+    return b
+  }
+  const fenster = document.documentElement.clientWidth
+  const beizeile = sub.getBoundingClientRect().width
+  // Welche Schrift `system-ui` hier ist: Die Geräteleiste gibt sich als Telefon aus, die Schrift kommt
+  // trotzdem vom Rechner. Eine Familie, die es nicht gibt, fällt auf die Vorgabe zurück und misst anders.
+  const leinwand = document.createElement('canvas').getContext('2d')
+  const probe = (familie) => { leinwand.font = `13px ${familie}`; return leinwand.measureText('ausgehend · eingehend 3,4 MB').width }
+  const kandidaten = ['Segoe UI', 'SF Pro Text', 'Helvetica Neue', 'Roboto', 'Noto Sans', 'DejaVu Sans', 'Ubuntu', 'Arial']
+  const schrift = kandidaten.filter((k) => Math.abs(probe(`"${k}"`) - probe('system-ui')) < 0.01).join('/') || '?'
+  const aus = [`${location.pathname}  breite=${fenster}  thema=${document.documentElement.dataset.theme}  schrift=${schrift} (${probe('system-ui').toFixed(1)}, Vorgabe ${probe('serif').toFixed(1)})  beizeile=${beizeile.toFixed(1)} px`]
+  const lesen = (wo) => {
+    const text = sub.textContent.replace(/\s+/g, ' ').trim()
+    const voll = breit(text)
+    const zahl = breit(text.slice(0, text.lastIndexOf(' ')))
+    const betrag = sub.querySelector('.amount')
+    const reihen = new Set([...betrag.getClientRects()].map((x) => Math.round(x.top))).size
+    aus.push(`  ${name.padEnd(8)} ${wo.padEnd(6)} ${getComputedStyle(betrag).whiteSpace.padEnd(6)}  einfassung=${sub.querySelectorAll('.amount').length}  betrag in ${reihen} Zeile(n)  kachel ${Math.round(kachel.getBoundingClientRect().height)} px  ganz ${voll.toFixed(1)}  bis zur Zahl ${zahl.toFixed(1)}  | ${zeilen(sub)}`)
+    return { voll, zahl }
+  }
+  const runde = async () => {
+    const masse = [lesen('ruhe')]
+    if (!feld) return masse
+    for (const wo of ['oben', 'unten']) {
+      const r = feld.getBoundingClientRect()
+      feld.dispatchEvent(new PointerEvent('pointermove', { clientX: r.right - 1, clientY: wo === 'oben' ? r.top + 1 : r.bottom - 1, bubbles: true }))
+      await warten()
+      masse.push(lesen(wo))
+    }
+    feld.dispatchEvent(new PointerEvent('pointerleave'))
+    await warten()
+    lesen('danach')
+    return masse
+  }
+  const masse = await runde()
+  // Gegenprobe: dieselbe Seite ohne das nowrap am Betrag, danach wieder mit.
+  const gegen = document.createElement('style')
+  gegen.textContent = '.tile-sub .amount { white-space: normal }'
+  document.head.appendChild(gegen)
+  aus.push('  Gegenprobe ohne nowrap:')
+  await runde()
+  gegen.remove()
+  await warten()
+  aus.push('  wieder mit nowrap:')
+  lesen('ruhe')
+  // Ohne nowrap bricht eine Zeile zwischen Zahl und Einheit, wenn die Beizeile breiter ist als der
+  // Text bis zur Zahl und schmaler als der ganze. Jede Kachel der Reihe nimmt denselben Teil einer
+  // Änderung der Fensterbreite, bis eine bei ihrer Grundbreite ankommt und die Reihe umbricht.
+  const reihe = [...kachel.parentElement.children].filter((k) => k.offsetTop === kachel.offsetTop).length
+  const rand = kachel.getBoundingClientRect().width - beizeile
+  const unten = parseFloat(getComputedStyle(kachel).flexBasis) - rand
+  const w = (s) => fenster + reihe * (s - beizeile)
+  const spanne = (liste) => {
+    const von = Math.max(unten, ...liste.map((m) => m.zahl))
+    const bis = Math.min(...liste.map((m) => m.voll))
+    return bis > von ? `${Math.ceil(w(von))} bis ${Math.ceil(w(bis)) - 1} px, Mitte ${Math.round(w((von + bis) / 2))} px` : 'keine'
+  }
+  aus.push(`  Bruch zwischen Zahl und Einheit ohne nowrap — Ruhe: ${spanne(masse.slice(0, 1))} · Ablesung: ${spanne(masse.slice(1))} · alle drei: ${spanne(masse)}`)
+  console.log(aus.join('\n'))
+}
+umbruchMessen()
+```
+
+Auf `/subscriptions/137` lief eine frühere Fassung. Sie druckte statt der
+Schrift `plattform=`, rundete die Mitte auf zehn Pixel und kannte die Spanne
+der Ablesungen nicht; die Messwerte sind dieselben. Auf `/` lief die Fassung,
+die hier steht.
+
+### Protokoll — gefahren am 1. Oktober 2026 gegen `0.9.0-rc.9`
+
+**Vorbedingung:** Das Update am Abend des 30. September endete mit `rc=0`, und
+`srvpanel version` meldet `0.9.0-rc.9`. Gefahren in Chrome auf Windows, in der
+Geräteleiste mit „Responsive", 900 px Höhe und „Fit to window". Im Bereich
+Speicher stand „Gemessen am 2026-10-01 12:45:19", im hellen Thema „13:01:09"
+und bei den Breiten aus N1a „13:15:53". Die Ausgaben stehen wörtlich da.
+
+#### N1 im dunklen Thema bei 1440 px
+
+```
+stand=2026-09-28 /subscriptions/137  breite=1440  thema=dark  reihe=flex  höhe=197 px  kacheln=5
+  Speicherplatz   68 MB          4 Punkte  Kurve  -      196 px  | belegt
+  Traffic         4,1 MB        10 Punkte  Kurve  -      196 px  | ausgehend · eingehend 3,4 MB
+  Zugriffe        10.504        10 Punkte  Kurve  -      196 px  | Anfragen
+  Fehlerquote     98 %          10 Punkte  Kurve  -      196 px  | 4xx und 5xx
+  Datenbanken     0 MB           4 Punkte  Kurve  -      196 px  | belegt
+/subscriptions/137  breite=1440  thema=dark
+  Traffic  ruhe   einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  | ausgehend · eingehend 3,4 MB
+  Traffic  oben   einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  | 30.09. · ausgehend 4,1 MB
+  Traffic  unten  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  | 30.09. · eingehend 3,4 MB
+  Traffic  danach einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  | ausgehend · eingehend 3,4 MB
+```
+
+Bis auf den Schrägstrich ist die Erwartung erfüllt: fünf Kacheln mit je
+196 px und `einfassung=1` in allen vier Zuständen, also läuft `rc.9` im
+Browser. Oben stehen 68 MB, darunter „68 MB von 5.120 MB". Seit Teil 2 ist ein
+Tag dazugekommen; aus 3 und 9 Punkten sind 4 und 10 geworden. Ein drittes Bild
+bei voller Fensterbreite zeigt die Ablesung „27.09. · ausgehend 6,8 MB" in
+einer Zeile.
+
+#### N1a bei 1440 px, beide Themen
+
+```
+/subscriptions/137  breite=1440  thema=dark  plattform=Android  beizeile=179.0 px
+  Traffic  ruhe   nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 177.1  bis zur Zahl 154.4  | ausgehend · eingehend 3,4 MB
+  Traffic  oben   nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 154.6  bis zur Zahl 131.2  | 30.09. · ausgehend 4,1 MB
+  Traffic  unten  nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 152.5  bis zur Zahl 129.1  | 30.09. · eingehend 3,4 MB
+  Traffic  danach nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 177.1  bis zur Zahl 154.4  | ausgehend · eingehend 3,4 MB
+  Gegenprobe ohne nowrap:
+  Traffic  ruhe   normal  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 177.1  bis zur Zahl 154.4  | ausgehend · eingehend 3,4 MB
+  Traffic  oben   normal  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 154.6  bis zur Zahl 131.2  | 30.09. · ausgehend 4,1 MB
+  Traffic  unten  normal  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 152.5  bis zur Zahl 129.1  | 30.09. · eingehend 3,4 MB
+  Traffic  danach normal  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 177.1  bis zur Zahl 154.4  | ausgehend · eingehend 3,4 MB
+  wieder mit nowrap:
+  Traffic  ruhe   nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 177.1  bis zur Zahl 154.4  | ausgehend · eingehend 3,4 MB
+  Bruch zwischen Zahl und Einheit ohne nowrap — Ruhe: 1317 bis 1430 px, Mitte 1370 px · alle drei: keine
+```
+
+Im hellen Thema Zeile für Zeile dasselbe, im Kopf `thema=light`. Davor lief
+dort `kachelnMessen()`, mit denselben fünf Kacheln wie im dunklen Thema:
+
+```
+stand=2026-09-28 /subscriptions/137  breite=1440  thema=light  reihe=flex  höhe=197 px  kacheln=5
+  Speicherplatz   68 MB          4 Punkte  Kurve  -      196 px  | belegt
+  Traffic         4,1 MB        10 Punkte  Kurve  -      196 px  | ausgehend · eingehend 3,4 MB
+  Zugriffe        10.504        10 Punkte  Kurve  -      196 px  | Anfragen
+  Fehlerquote     98 %          10 Punkte  Kurve  -      196 px  | 4xx und 5xx
+  Datenbanken     0 MB           4 Punkte  Kurve  -      196 px  | belegt
+```
+
+**Bei 1440 px gibt es auf diesem Rechner nichts zu messen.** Mit und ohne die
+Regel stehen alle vier Zustände gleich da. Die Ruhezeile passt mit 1,9 px
+Luft, und die Spanne in der letzten Zeile liegt unterhalb von 1440.
+
+#### N1a bei 1374 px, beide Themen — die Ruhezeile
+
+Aus den Zahlen bei 1440 px ausgerechnet: Die Beizeile wird 165,8 px breit. Die
+Ruhezeile bricht, ohne die Regel zwischen Zahl und Einheit. Die Ablesungen
+passen in eine Zeile.
+
+```
+/subscriptions/137  breite=1374  thema=dark  plattform=Android  beizeile=165.8 px
+  Traffic  ruhe   nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 177.1  bis zur Zahl 154.4  | ausgehend · eingehend / 3,4 MB
+  Traffic  oben   nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 154.6  bis zur Zahl 131.2  | 30.09. · ausgehend 4,1 MB
+  Traffic  unten  nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 152.5  bis zur Zahl 129.1  | 30.09. · eingehend 3,4 MB
+  Traffic  danach nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 177.1  bis zur Zahl 154.4  | ausgehend · eingehend / 3,4 MB
+  Gegenprobe ohne nowrap:
+  Traffic  ruhe   normal  einfassung=1  betrag in 2 Zeile(n)  kachel 196 px  ganz 177.1  bis zur Zahl 154.4  | ausgehend · eingehend 3,4 / MB
+  Traffic  oben   normal  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 154.6  bis zur Zahl 131.2  | 30.09. · ausgehend 4,1 MB
+  Traffic  unten  normal  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 152.5  bis zur Zahl 129.1  | 30.09. · eingehend 3,4 MB
+  Traffic  danach normal  einfassung=1  betrag in 2 Zeile(n)  kachel 196 px  ganz 177.1  bis zur Zahl 154.4  | ausgehend · eingehend 3,4 / MB
+  wieder mit nowrap:
+  Traffic  ruhe   nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 177.1  bis zur Zahl 154.4  | ausgehend · eingehend / 3,4 MB
+  Bruch zwischen Zahl und Einheit ohne nowrap — Ruhe: 1317 bis 1430 px, Mitte 1370 px · alle drei: keine
+```
+
+Im hellen Thema Zeile für Zeile dasselbe.
+
+#### N1a bei 1304 px, beide Themen — die Ablesungen
+
+Die Beizeile wird 151,8 px breit. Jetzt brechen beide Ablesungen, ohne die
+Regel zwischen Zahl und Einheit. Die Ruhezeile bricht mit und ohne Regel vor
+der Zahl, weil schon der Text bis zur Zahl mit 154,4 px nicht mehr passt.
+
+```
+/subscriptions/137  breite=1304  thema=dark  plattform=Android  beizeile=151.8 px
+  Traffic  ruhe   nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 177.1  bis zur Zahl 154.4  | ausgehend · eingehend / 3,4 MB
+  Traffic  oben   nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 154.6  bis zur Zahl 131.2  | 30.09. · ausgehend / 4,1 MB
+  Traffic  unten  nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 152.5  bis zur Zahl 129.1  | 30.09. · eingehend / 3,4 MB
+  Traffic  danach nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 177.1  bis zur Zahl 154.4  | ausgehend · eingehend / 3,4 MB
+  Gegenprobe ohne nowrap:
+  Traffic  ruhe   normal  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 177.1  bis zur Zahl 154.4  | ausgehend · eingehend / 3,4 MB
+  Traffic  oben   normal  einfassung=1  betrag in 2 Zeile(n)  kachel 196 px  ganz 154.6  bis zur Zahl 131.2  | 30.09. · ausgehend 4,1 / MB
+  Traffic  unten  normal  einfassung=1  betrag in 2 Zeile(n)  kachel 196 px  ganz 152.5  bis zur Zahl 129.1  | 30.09. · eingehend 3,4 / MB
+  Traffic  danach normal  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 177.1  bis zur Zahl 154.4  | ausgehend · eingehend / 3,4 MB
+  wieder mit nowrap:
+  Traffic  ruhe   nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 177.1  bis zur Zahl 154.4  | ausgehend · eingehend / 3,4 MB
+  Bruch zwischen Zahl und Einheit ohne nowrap — Ruhe: 1317 bis 1430 px, Mitte 1370 px · alle drei: keine
+```
+
+Im hellen Thema Zeile für Zeile dasselbe.
+
+#### N2 — die Übersicht bei 1440 px
+
+```
+/  breite=1440  thema=dark  schrift=Segoe UI (177.1, Vorgabe 162.1)  beizeile=179.0 px
+  Netz     ruhe   nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 182.4  bis zur Zahl 154.4  | eingehend · ausgehend / 1,0 kB/s
+  Netz     oben   nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 157.0  bis zur Zahl 127.8  | 11:27 · ausgehend 1,0 kB/s
+  Netz     unten  nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 154.9  bis zur Zahl 125.7  | 11:27 · eingehend 1,0 kB/s
+  Netz     danach nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 182.4  bis zur Zahl 154.4  | eingehend · ausgehend / 1,0 kB/s
+  Gegenprobe ohne nowrap:
+  Netz     ruhe   normal  einfassung=1  betrag in 2 Zeile(n)  kachel 196 px  ganz 182.4  bis zur Zahl 154.4  | eingehend · ausgehend 1,0 / kB/s
+  Netz     oben   normal  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 157.0  bis zur Zahl 127.8  | 11:27 · ausgehend 1,0 kB/s
+  Netz     unten  normal  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 154.9  bis zur Zahl 125.7  | 11:27 · eingehend 1,0 kB/s
+  Netz     danach normal  einfassung=1  betrag in 2 Zeile(n)  kachel 196 px  ganz 182.4  bis zur Zahl 154.4  | eingehend · ausgehend 1,0 / kB/s
+  wieder mit nowrap:
+  Netz     ruhe   nowrap  einfassung=1  betrag in 1 Zeile(n)  kachel 196 px  ganz 182.4  bis zur Zahl 154.4  | eingehend · ausgehend / 1,0 kB/s
+  Bruch zwischen Zahl und Einheit ohne nowrap — Ruhe: 1317 bis 1457 px, Mitte 1387 px · Ablesung: 1300 bis 1319 px, Mitte 1310 px · alle drei: 1317 bis 1319 px, Mitte 1318 px
+```
+
+**Hier entsteht die Bedingung schon bei 1440 px**, auch in Segoe UI: Mit
+„kB/s" ist die Netzzeile 182,4 px breit. Mit der Regel bricht sie vor dem
+Betrag, ohne sie zwischen „1,0" und „kB/s". Das ist derselbe Befund, den der
+Container mit gebauten Werten gezeigt hat (§6b).
+
+#### Was der Nachlauf zeigt
+
+- **Die Behebung wirkt auf dem Server.** Dieselbe Seite in derselben Schrift
+  trennt Zahl und Einheit, sobald die eine Regel fehlt, und hält sie zusammen,
+  sobald sie wieder gilt. Das gilt für die Ruhezeile bei 1374 px, für beide
+  Ablesungen bei 1304 px und für die Übersicht bei 1440 px.
+- **Die Gegenprobe braucht keine alte Fassung.** Gegen `rc.8` hätte sie
+  denselben Rechner gebraucht wie Teil 2. Auf derselben Seite nimmt sie nur die
+  eine Regel weg.
+- **Beide Breiten und jeder Bruch waren vorher ausgerechnet**, aus den Zahlen
+  bei 1440 px. Alle vier Läufe bei 1374 und 1304 px haben getroffen, auch die
+  Ablesung „unten" bei 1304 px mit 0,7 px Luft.
+- **Die Kacheln bleiben 196 px hoch**, auch wenn die Beizeile zweizeilig wird.
+  Dafür hält `.tile-sub.paired` zwei Zeilen frei.
+- **Bilder:** die Kachelreihe in Ruhe bei 1374 und 1304 px in beiden Themen und
+  die Übersicht bei 1440 px. Bilder mit dem Zeiger auf der Kurve gibt es
+  nicht; die Ablesungen sind Zeile für Zeile gemessen, mit Gegenprobe.
+- **In keiner der zehn Aufnahmen steht ein Fehler in der Konsole.** Das „⊗1"
+  aus Teil 2 kam nicht wieder und bleibt ungeklärt.
+
+#### Was der Lauf über sich selbst gelernt hat
+
+> **Eine Erwartung, die einen Umbruch voraussetzt, setzt die Schrift voraus,
+> in der er entstand.** `system-ui` ist auf jedem Rechner eine andere Schrift,
+> und die Bedingung aus Teil 2 gab es auf Windows bei 1440 px nicht.
+
+> **Eine Zeile, die gar nicht bricht, bricht auch nicht an der falschen Stelle
+> — und `betrag in 1 Zeile(n)` liest sich trotzdem wie ein Beleg.** Erst die
+> Breiten daneben sagen, ob die Messung ihren Fall hatte.
+
+> **Die Geräteleiste gibt sich als Telefon aus, und `navigator.userAgentData`
+> glaubt ihr.** Die Schrift kommt trotzdem vom Rechner; gefragt wird deshalb
+> die Schrift und nicht die Plattform.
+
+> **Eine Gegenprobe, die nur die eine Regel wegnimmt, stellt die alte Fassung
+> auf derselben Seite her** — in derselben Schrift, bei derselben Breite und
+> mit denselben Zahlen.
+
+Und einer über den Container: Er misst Kästen auf das Pixel, Text aber in
+seiner eigenen Schrift, DejaVu Sans. Den Umbruch aus Teil 2 hat er
+nachgestellt, weil der Text in beiden Schriften breiter war als die Beizeile,
+und nicht, weil es dieselbe Schrift war. In Segoe UI ist die Ruhezeile 12 %
+schmaler. Die Zusage aus §6b, dass der längste Betrag in die schmalste
+Beizeile passt, ist in DejaVu Sans gemessen.
+
+> **Ein Zwilling misst Kästen auf das Pixel und Text in seiner eigenen
+> Schrift.**
+
+#### Ein Befund am Bild, nicht B4
+
+Im hellen Thema ist der Schriftzug „SrvPanel" oben in der Leiste kaum zu
+lesen, auf den Bildern dieses Laufs wie schon auf denen von Teil 2. Im
+Container ist das mit der echten Komponente gemessen, gegen das Markup vor B6:
+
+| | Schriftzug | gegen die Leiste `#1a0b2e` |
+|---|---|---|
+| hell, heute | `#3a3f49`, 15 px | 1,76:1 |
+| hell, Markup vor B6 | `#ffffff`, 17 px | 18,56:1 |
+| dunkel, heute | `#c4c9d4`, 15 px | 11,18:1 |
+
+Seit B6 steht der Schriftzug in `BrandMark.vue`, und die Regel `.row b` aus
+dem Stilblock von `PanelLayout` erreicht ihn dort nicht mehr. Das Zeichen
+daneben ist im hellen Thema schon vor B6 schwach, mit 1,87:1 und 1,76:1.
+**Der Betreiber hat am 1. Oktober entschieden, das nach dem Nachlauf zu
+beheben**, mit `0.9.0-rc.10`.
+
+#### Der Prüfkörper ist fort
+
+`p1139_rundung` ist im Panel entfernt. Danach auf dem Server die Abfrage aus
+§7:
+
+```
++-----------------+
+| mit _rundung: 0 |
++-----------------+
++---------------------+
+| alle Datenbanken: 5 |
++---------------------+
+```
+
+Die zweite Zeile ist die Gegenprobe; sie zeigt, dass die Abfrage gelaufen ist.
+
+#### Die Abnahme
+
+**B4 ist am 1. Oktober 2026 abgenommen**, ausgesprochen vom Betreiber auf Grund
+von Teil 1, Teil 2 und diesem Nachlauf. N1 ist in beiden Themen erfüllt, N2
+auch.

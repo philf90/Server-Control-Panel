@@ -33,8 +33,9 @@ fünf Punkte erfüllt** (`docs/139 §7`). Ein Befund am Bild, Zahl und Einheit
 der Traffic-Kachel in zwei Zeilen, ist mit `0.9.0-rc.9` behoben
 (`docs/139 §6b`), und der Nachlauf hat die Behebung am 1. Oktober auf dem
 Server gezeigt (`docs/139 §8`). Danach hat der Betreiber B4 abgenommen. Ein
-Befund ausserhalb von B4, der Schriftzug der Leiste im hellen Thema, kommt mit
-`0.9.0-rc.10` (Abschnitt weiter unten).
+Befund ausserhalb von B4, der Schriftzug der Leiste im hellen Thema, ist am
+selben Tag behoben und kommt mit `0.9.0-rc.10` (`docs/139 §9`, Abschnitt
+weiter unten); auf dem Server gesehen hat ihn noch niemand.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -1768,7 +1769,11 @@ den Betreiber nennt keinen Absender, den sie nicht hat, und die Seite so, wie da
 Menü sie nennt) und `TileAmountTest` (ein Betrag in der Beizeile einer Kachel
 bricht nicht in sich — Zahl und Einheit stehen in **einer** Einfassung, und
 keine zweite Regel nimmt das `nowrap` zurück, auch nicht im Stilblock der
-Kachel). Der Bruch selbst steht als
+Kachel) und `ScopedReachTest` (eine gescopte Regel trifft ein Element ihrer
+eigenen Vorlage — gefragt an einem Baum aus der Vorlage und mit einem
+XPath-Ausdruck aus dem Selektor, denn `.row b` ist eine Frage an einen Baum und
+an keine Zeichenkette; was erst die Laufzeit entscheidet, fällt vorher weg, und
+ein Selektor, den er nicht übersetzen kann, ist ein Befund). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -6628,6 +6633,73 @@ Teil 2, nur waren die auf die Kacheln hin angesehen worden.
 > verdeckt alles, was daneben steht.**
 
 Der Betreiber hat entschieden, ihn mit `0.9.0-rc.10` zu beheben.
+
+---
+
+## Die Behebung des Schriftzugs — 1. Oktober 2026
+
+Behoben am selben Tag (`docs/139 §9`), und der Befund war grösser als der
+Schriftzug. Auf der Leiste lasen auch Zeichen und Versionsmarke Marken, die die
+Leiste nicht setzte, und auf der Anmeldeseite stand dieselbe Familie im
+Formular: Fehlermeldung 1,83:1, Hinweis der Sitzung 1,76:1, Ränder 2,73 bis
+2,85:1. Die Anmeldeseite hat der Betreiber mitbeheben lassen.
+
+**Drei Ursachen, und jede hat ihren Satz.** Die erste ist die Regel, die seit
+B6 nichts mehr traf:
+
+> **Eine gescopte Regel, deren Ziel in eine Kindkomponente umzieht, ist tot —
+> und sieht im Quelltext aus wie Gestaltung.**
+
+Die zweite sind die Marken, die eine Fläche nicht setzt. „Ein Streifen mit
+eigenem Grund braucht acht Marken und nicht eine" stand seit dem 9. September
+in `SurfaceTokenTest`. Gerechnet war aber nur, was die Fläche setzt, und nicht,
+was auf ihr gelesen wird.
+
+> **Eine Fläche mit eigenem Grund setzt jede Marke, die etwas auf ihr liest —
+> nicht nur die, an die man beim Entwurf gedacht hat.**
+
+Die dritte ist die Vererbung. `color` erbt ein Element als fertigen Wert, also
+als die Farbe, die der nächste Vorfahr mit einer Regel ausgerechnet hat. Ohne
+eigene Zeile ist das der `body`, und die Marke `--text` der Fläche kommt nie zum
+Zug.
+
+> **Eine Marke, die eine Fläche setzt, erreicht Text ohne eigene Regel nicht —
+> der erbt, was ein Vorfahr schon ausgerechnet hat.**
+
+**Und ein Satz in `app.css` war für eine der beiden Flächen falsch.** Seit dem
+9. September stand dort, auf beiden Markenflächen stehe keine Zustandsfarbe.
+Für die Leiste stimmt das, für die Anmeldeseite nie.
+
+> **Eine Begründung, die für zwei Dinge aufgeschrieben ist, gilt nur für das,
+> an dem jemand nachgesehen hat.**
+
+**Gebaut sind zwei Wächter, und beide fragen einen Baum.** `ScopedReachTest`
+fragt jede gescopte Regel gegen ihre eigene Vorlage. `SurfaceTokenTest` setzt
+unter jeder Markenfläche die Vorlagen der eingesetzten Komponenten ein, zwei
+Ebenen tief bis `MarkIcon.vue`, und fragt jede Regel gegen diesen Baum. Den
+Baum baut `Tests\Support\TemplateDom`. Jeder gemessene Handgriff darin hat
+einen Fall, der ohne ihn rot wird; dass Kommentare vorher wegfallen, ist
+Vorsicht und steht dort auch so. Die Selektoren liest `Tests\Support\CssRules`, und
+übersetzt werden sie mit `symfony/css-selector`, das über Laravels Mail
+mitkommt. Gegen den Stand vor der Behebung meldet der eine Wächter `.row b`,
+der andere zehn Stellen.
+
+**Gemeldet hat beim Bauen ein bestehender Wächter etwas, das er falsch
+verstand.** `IconTest` verlangte genau zwei Zeilen `--mark-accent:` in
+`app.css` und meinte damit „beide Themen". Mit den Flächen sind es vier.
+
+> **Eine Zahl, die eine Bedeutung zählen soll, zählt Zeilen — und die nächste
+> Zeile mit derselben Zeichenkette bedeutet etwas anderes.**
+
+**Und eine eigene Begründung war ungemessen, gefunden vor dem Commit.** Im Kopf
+von `TemplateDom` stand, ein Kommentar, der ein Tag zitiert, werde für den
+Parser eines. libxml lässt ihn als Kommentar stehen, gemessen. Gemessen ist
+dagegen, dass `{{ n<max ? 1 : 2 }}` ein Element `<max>` öffnet und die nächste
+Zeile verschluckt.
+
+> **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch
+> dann falsch, wenn der Handgriff daneben richtig ist.** Zum dritten Mal in
+> diesem Repo, und diesmal an einem Wächter, der am selben Tag entstand.
 
 ---
 

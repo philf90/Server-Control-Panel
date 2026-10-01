@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use PHPUnit\Framework\TestCase;
+use Tests\Support\CssRules;
 
 /**
  * Jede Adresse im Kopf der Seite zeigt auf eine Datei, die es gibt.
@@ -155,12 +156,55 @@ final class IconTest extends TestCase
 
         // Und die Marke gibt es in beiden Themes — sonst fiele sie in einem
         // davon auf den Vorgabewert des Browsers zurück, also auf Schwarz.
+        //
+        // Gefragt wird je Theme und nicht nach der Zahl der Zeilen. Hier stand
+        // bis zum 1. Oktober 2026 „genau zwei in der Datei"; seitdem setzen
+        // auch Leiste und Anmeldeseite die Marke (`docs/139 §8`), und eine
+        // Zählung hätte zwei Themen nicht von zwei Flächen unterschieden.
         $css = (string) file_get_contents($this->root().'/resources/css/app.css');
 
-        $this->assertSame(
-            2,
-            preg_match_all('/--mark-accent\s*:/', $css),
-            '--mark-accent muss in beiden Themes stehen, hell und dunkel.',
+        foreach (['light', 'dark'] as $theme) {
+            $gesetzt = array_filter(
+                CssRules::flatten($css),
+                static fn (array $regel): bool => $regel['selector'] === ":root[data-theme='".$theme."']"
+                    && preg_match('/--mark-accent\s*:/', $regel['body']) === 1,
+            );
+
+            $this->assertNotSame([], $gesetzt, sprintf(
+                '--mark-accent fehlt im Theme „%s" — dort fiele das Zeichen auf Schwarz zurück.',
+                $theme,
+            ));
+        }
+    }
+
+    /**
+     * Die unteren Balken tragen `currentColor`, und die Farbe dazu setzt das
+     * Zeichen selbst: die Schrift der Überschrift seiner Fläche.
+     *
+     * Bis zum 1. Oktober 2026 erbte es sie von dem, was darüber stand — in der
+     * Leiste vom `body`, im hellen Thema also die dunkle Schrift der Seite auf
+     * Inkberry (`docs/139 §8`). Auf der Anmeldeseite stimmte es, weil die
+     * Überschrift `--text-strong` setzt; der Kopf von `MarkIcon.vue` beschrieb,
+     * was dort zufällig galt.
+     */
+    public function test_the_mark_sets_the_colour_of_its_lower_bars(): void
+    {
+        $component = (string) file_get_contents(
+            $this->root().'/resources/js/Components/MarkIcon.vue',
+        );
+
+        $gesetzt = array_filter(
+            CssRules::flatten(CssRules::scoped($component)),
+            static fn (array $regel): bool => $regel['selector'] === '.mark'
+                && preg_match('/(?<![\w-])color\s*:\s*var\(--text-strong\)/', $regel['body']) === 1,
+        );
+
+        $this->assertNotSame(
+            [],
+            $gesetzt,
+            "MarkIcon.vue setzt die Farbe seiner unteren Balken nicht selbst.\n\n".
+            'Sie tragen `currentColor` und erben dann, was darüber steht — in der Leiste war das bis '.
+            'zum 1. Oktober 2026 die Schrift der Seite. `.mark` braucht `color: var(--text-strong);`.',
         );
     }
 }

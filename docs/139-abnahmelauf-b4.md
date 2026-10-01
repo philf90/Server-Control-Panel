@@ -30,7 +30,9 @@ diese Freigabe wird der Lauf gefahren.
 **Gefahren am 29. und 30. September 2026** (§7): Teil 1 auf dem Server,
 Teil 2 im Browser, **alle fünf Punkte erfüllt**. Ein Befund am Bild ist mit
 `0.9.0-rc.9` behoben (§6b). Der Nachlauf ist am 1. Oktober gefahren (§8), und
-**am selben Tag hat der Betreiber B4 abgenommen.**
+**am selben Tag hat der Betreiber B4 abgenommen.** Ein Befund ausserhalb von
+B4, der Schriftzug der Leiste im hellen Thema, ist am selben Tag behoben und
+kommt mit `0.9.0-rc.10` (§9).
 
 Neu ist dazu ein Messmittel: **`tests/kacheln-messen.js`** liest die
 Kachelreihe einer Seite und die Ablesung an ihren Kurven, so wie
@@ -1494,7 +1496,8 @@ Seit B6 steht der Schriftzug in `BrandMark.vue`, und die Regel `.row b` aus
 dem Stilblock von `PanelLayout` erreicht ihn dort nicht mehr. Das Zeichen
 daneben ist im hellen Thema schon vor B6 schwach, mit 1,87:1 und 1,76:1.
 **Der Betreiber hat am 1. Oktober entschieden, das nach dem Nachlauf zu
-beheben**, mit `0.9.0-rc.10`.
+beheben**, mit `0.9.0-rc.10`. Behoben ist es am selben Tag, und es war mehr als
+der Schriftzug (§9).
 
 #### Der Prüfkörper ist fort
 
@@ -1517,3 +1520,105 @@ Die zweite Zeile ist die Gegenprobe; sie zeigt, dass die Abfrage gelaufen ist.
 **B4 ist am 1. Oktober 2026 abgenommen**, ausgesprochen vom Betreiber auf Grund
 von Teil 1, Teil 2 und diesem Nachlauf. N1 ist in beiden Themen erfüllt, N2
 auch.
+
+## §9 · Schriftzug, Zeichen und Anmeldeseite — behoben für `0.9.0-rc.10`
+
+Der Befund aus §8 ist am selben Tag behoben, wie vom Betreiber entschieden. Beim
+Nachsehen war er grösser als der Schriftzug: Auf der Leiste lasen vier Dinge
+Marken, die die Leiste nicht setzte, und auf der Anmeldeseite stand dieselbe
+Familie im Formular. Die Anmeldeseite hat der Betreiber auf Rückfrage
+mitbeheben lassen („Ja, ganz").
+
+### Was falsch war, im hellen Thema
+
+Gegen die Fläche `#1a0b2e`, gemessen im Container mit den echten Komponenten:
+
+| Leiste | vorher | |
+|---|---|---|
+| Schriftzug | `#3a3f49`, 15 px, Gewicht 700 | 1,76:1 |
+| Zeichen, oberer Balken | `#3730a3`, der Indigo der Seite | 1,87:1 |
+| Zeichen, untere Balken | `#3a3f49` | 1,76:1 |
+| Versionsmarke | eine weisse Pille, `--text-faint` darauf | 2,90:1 |
+
+| Anmeldeseite | vorher |
+|---|---|
+| „Diese Anmeldedaten sind ungültig." | 1,83:1 |
+| „Die Sitzung ist abgelaufen." | 1,76:1 |
+| Fusszeile des Betreibers | 1,83:1 |
+| Ränder der Meldungen und eines ungültigen Feldes | 2,73 bis 2,85:1 |
+| Zeichen, oberer Balken | 1,87:1 |
+
+Im dunklen Thema war alles lesbar. Der Schriftzug trug dort die Schrift der
+Seite (`#c4c9d4`, 15 px, 11,18:1) statt seiner Gestalt aus der Zeit vor B6.
+
+### Drei Ursachen
+
+1. **Eine gescopte Regel, deren Ziel in eine Kindkomponente umgezogen ist.**
+   `.row b` stand im Stilblock von `PanelLayout`. Vue übersetzt die Regel zu
+   `.row b[data-v-…]`, und das Attribut tragen nur die Elemente der eigenen
+   Vorlage und die eine Wurzel einer eingesetzten Komponente. `BrandMark` hat
+   zwei Wurzeln. Seit B6 traf die Regel nichts mehr.
+2. **Eine Fläche, die nicht jede Marke setzt, die auf ihr gelesen wird.** Das
+   Zeichen liest `--mark-accent`, die Versionsmarke `--surface` und `--line`,
+   die Meldungen der Anmeldeseite `--warn` und `--critical`. Gesetzt waren sie
+   nur in `:root`, für den hellen Grund.
+3. **`color` erbt als fertiger Wert.** Text ohne eigene Regel nahm die Farbe,
+   die der `body` aus dem `--text` der Seite gerechnet hat. Die Marke `--text`
+   der Fläche kam dabei nie zum Zug.
+
+Dazu stand in `app.css` seit dem 9. September, auf beiden Markenflächen stehe
+keine Zustandsfarbe. Für die Anmeldeseite war das nie richtig.
+
+### Was geändert ist
+
+- Der Name steht in `BrandMark.vue` als `.brand-name`, gestaltet in `app.css`
+  unter `.rail .brand-name`. Die tote Regel aus `PanelLayout` ist fort.
+- `.rail, .topbar` setzt `--surface`, `--line`, `--mark-accent` und `color`.
+- `.signin` setzt `--mark-accent`, für `--warn` und `--critical` die Werte des
+  dunklen Themas und `color`.
+- `MarkIcon` setzt die Farbe seiner unteren Balken selbst, `--text-strong`.
+
+### Gemessen im Container, nachher
+
+In beiden Themen dieselben Werte, gegen `#1a0b2e`:
+
+| Leiste | nachher | |
+|---|---|---|
+| Schriftzug | `#ffffff`, 17 px, Gewicht 660 | 18,56:1 |
+| Zeichen, oberer Balken | `#ff7fec` | 8,40:1 |
+| Zeichen, untere Balken | `#ffffff` | 18,56:1 |
+| Versionsmarke | `#9b8fb0` auf dem Grund der Leiste, Rand `#3a2954` | 6,14:1 |
+
+| Anmeldeseite | nachher |
+|---|---|
+| Schriftzug | `#ffb7a5`, 26 px, Gewicht 660, 11,11:1 |
+| „Diese Anmeldedaten sind ungültig." | 16,17:1 |
+| „Die Sitzung ist abgelaufen." | 15,57:1 |
+| Fusszeile des Betreibers | 16,17:1 |
+| Rand der Warnung · der Störung · des ungültigen Feldes | 8,85 · 7,88 · 7,59:1 |
+| Zeichen, oberer Balken | 8,40:1 |
+
+Der Schriftzug der Anmeldeseite stand vorher mit Gewicht 900 da: Das `<b>` gab
+`bolder` auf die Überschrift.
+
+### Die Wächter
+
+- **`ScopedReachTest`**: Jede gescopte Regel trifft ein Element ihrer eigenen
+  Vorlage. Gegen den Stand vor der Behebung meldet er `.row b`.
+- **`SurfaceTokenTest`** fragt seitdem in beide Richtungen. Was auf einer
+  Markenfläche steht, liest nur Marken, die sie setzt oder die beide Themen
+  gleich setzen. Dafür werden die Vorlagen der Komponenten unter der Fläche
+  eingesetzt, und jede Regel wird gegen diesen Baum gefragt. Gegen den Stand
+  vor der Behebung meldet er zehn Stellen, alle aus der Tabelle oben. Dazu
+  rechnet er Zustandsfarbe und Zeichen auf der Fläche nach und verlangt, dass
+  jede Fläche `color` aus einer eigenen Schriftmarke setzt.
+- **`IconTest`**: Das Zeichen setzt die Farbe seiner unteren Balken selbst.
+  Ob `--mark-accent` in beiden Themen steht, fragt er seitdem je Thema. Vorher
+  zählte er zwei Zeilen in der Datei, und seit Leiste und Anmeldeseite die
+  Marke setzen, sind es vier.
+
+### Was noch aussteht
+
+Der Nachlauf gegen `0.9.0-rc.10`: die Leiste und die Anmeldeseite im hellen
+und im dunklen Thema, als Bild, und dazu eine Fehlermeldung auf der
+Anmeldeseite.

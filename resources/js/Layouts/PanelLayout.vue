@@ -1138,25 +1138,11 @@ onBeforeUnmount(() => {
 }
 
 /*
- * Der Schriftzug in `--text-section` und nicht in `--text-heading`.
- *
- * **Gemessen, nicht geschätzt — und beim ersten Anlauf falsch.** Mit
- * `--text-heading` (26px) war der Schriftzug 126px breit; zusammen mit dem
- * Zeichen (24px), der Versionsmarke (76px) und zwei Lücken sind das 244px, und
- * im Rail stehen nach Innenabstand 203px zur Verfügung. Die Zeile brach um —
- * also genau der Fehler, wegen dem das Rail von 186px auf 236px gewachsen ist.
- *
- * Bei 17px sind es 200px und die Zeile hält. Eine eigene Stufe für den
- * Schriftzug wäre die achte Rolle für einen Sonderfall gewesen, und genau so
- * ist die alte Skala mit ihren zehn rem-Werten entstanden.
+ * Den Namen neben dem Zeichen gestaltet `app.css` (`.rail .brand-name`) und
+ * nicht dieser Block. Er steht in `BrandMark.vue`, und dorthin reicht keine
+ * gescopte Regel von hier: Bis zum 1. Oktober 2026 stand hier `.row b`, und
+ * seit B6 traf es nichts mehr (`docs/139 §8`).
  */
-.row b {
-  font-size: var(--text-section);
-  font-weight: 660;
-  letter-spacing: -0.015em;
-  color: var(--text-strong);
-}
-
 .row :deep(.version) {
   flex: none;
 }

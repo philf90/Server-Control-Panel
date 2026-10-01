@@ -33685,3 +33685,10 @@ ab, und der Fall räumte ihn nicht ab. Seit dem 28. September lag er als
 
 > **Ein Fall, der im heilen Zustand nichts ablegt, braucht trotzdem ein
 > Abräumen — unter dem Bruch legt er ab.**
+
+**Der volle Bruchlauf hat einen Eingriff ohne Biss gemeldet**, von 3223. „Logo
+bleibt liegen" fand seinen Anker zweimal, weil der neue Helfer in
+`BrandReachTest` dieselben drei Zeilen trägt wie der Fall, an dem der Eingriff
+hängt. Dem Einzellauf davor waren die Testdateien nicht mitgegeben worden. Der
+Fall benutzt jetzt den Helfer, und der Eingriff beisst. Was er mit Absicht
+liegen lässt, räumt das Bruchskript danach ab.

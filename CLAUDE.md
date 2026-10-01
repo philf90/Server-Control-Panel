@@ -6841,6 +6841,18 @@ Container, und beim Ausschreiben des Laufs habe ich ihn für Bestand gehalten.
 > **Ein Fall, der im heilen Zustand nichts ablegt, braucht trotzdem ein
 > Abräumen — unter dem Bruch legt er ab.**
 
+**Und der volle Bruchlauf fand einen Eingriff, den der Einzellauf davor nicht
+gefahren hatte.** Mitgegeben hatte ich ihm die geänderten Dateien unter `app/`
+und `resources/`, nicht die geänderten Tests. „Logo bleibt liegen" hängt an
+`BrandReachTest`, und dort trug mein neuer Helfer dieselben drei Zeilen wie der
+Fall, den der Eingriff bricht. Der Anker stand zweimal da, die Zusicherung
+brach ab, und der Eingriff meldete „nichts geändert".
+
+> **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+> gefahren — man denkt an das Gebaute und nicht an das Berührte.** Zu den
+> geänderten Dateien gehören die Tests, und wer einen Helfer aus einem
+> bestehenden Fall herauszieht, verdoppelt dessen Zeilen.
+
 ---
 
 ## Befehle

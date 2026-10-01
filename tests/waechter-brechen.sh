@@ -35599,6 +35599,10 @@ griff_datei tests/Feature/BrandReachTest.php "Logo bleibt liegen" &&
 pruefe "Logo bleibt liegen" \
   BrandReachTest::test_an_uploaded_logo_is_served_without_a_login failed
 wiederherstellen
+# Was der Eingriff liegen laesst, stellt `wiederherstellen` nicht zurueck: Es
+# ist keine Datei unter git. Ohne diese Zeile lag es nach jedem vollen Lauf in
+# der Arbeitskopie, und beim naechsten Nachsehen sah es aus wie Bestand.
+rm -f storage/app/branding/logo.png
 pruefe "  … zurückgesetzt wieder grün" BrandReachTest passed
 
 echo

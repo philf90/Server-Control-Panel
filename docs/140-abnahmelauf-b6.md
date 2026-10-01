@@ -819,6 +819,18 @@ geänderten Dateien anfasst, einzeln und mit `cp` gesichert: **50 von 50
 beissen.** Gegen den alten Stand sind die neuen Fälle rot, drei in
 `BrandStyleTest` und drei in `BrandNameTest`.
 
+**Der volle Lauf danach: 3222 Prüfungen mit Biss und eine ohne.** Der Eingriff
+„Logo bleibt liegen" fand seinen Anker zweimal und brach ab, weil mein neuer
+Helfer in `BrandReachTest` dieselben drei Zeilen trägt wie der Fall, an dem er
+hängt. Dem Einzellauf hatte ich die Dateien unter `app/` und `resources/`
+mitgegeben und die Testdateien nicht. Der Fall benutzt jetzt den Helfer, der
+Anker steht wieder einmal da, und der Eingriff beisst. Er lässt mit Absicht
+`logo.png` liegen, und das Bruchskript räumt es seitdem danach ab.
+
+> **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+> gefahren — man denkt an das Gebaute und nicht an das Berührte.** Diesmal an
+> den Testdateien, die zum Berührten gehören.
+
 **Beim Nachsehen fiel ein Rest des Bruchskripts auf.** Unter dem Bruch „SVG
 kommt durch" legt `test_an_svg_is_refused` seinen Prüfkörper ab, und der Fall
 räumte ihn nicht ab. Seit dem 28. September lag er als

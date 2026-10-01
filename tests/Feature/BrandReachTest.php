@@ -213,9 +213,7 @@ final class BrandReachTest extends TestCase
         // 24. September 2026 jeden Lauf — mit festem Namen, deshalb fiel es in
         // einer alten Arbeitskopie nie auf. Zurück über `Logo::forget()`, den
         // Weg, den auch das Entfernen in den Einstellungen nimmt.
-        $this->beforeApplicationDestroyed(static function (): void {
-            app(Logo::class)->forget();
-        });
+        $this->forgetTheLogoAfterwards();
 
         $this->abmelden();
 

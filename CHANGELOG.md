@@ -33451,8 +33451,8 @@ Zeichen und Versionsmarke wieder lesbar auf der Leiste, der Schriftzug mit
 statt 1,75:1, ein Hinweis zur Sitzung mit 12,39 statt 1,65 und die Fusszeile mit
 16,17 statt 1,83:1. Die Ränder der Meldungen und eines ungültigen Feldes haben
 7,59 bis 8,85:1 statt 2,73 bis 2,85:1. (Die Zahlen der Anmeldeseite sind am
-selben Tag berichtigt, siehe den nächsten Eintrag.) Im dunklen Thema hat der Schriftzug seine Gestalt aus der Zeit vor B6
-zurück, weiss und 17 px statt 15.
+selben Tag berichtigt, siehe den nächsten Eintrag.) Im dunklen Thema hat der
+Schriftzug seine Gestalt aus der Zeit vor B6 zurück, weiss und 17 px statt 15.
 
 **Drei Ursachen, eine Familie.** Die Regel für den Namen stand als `.row b` im
 gescopten Block von `PanelLayout`, und seit B6 steht der Name in

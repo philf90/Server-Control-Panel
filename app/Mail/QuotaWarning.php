@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Mail;
 
+use App\Support\Brand\MailSubject;
 use App\Support\Plans\Quota;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -50,7 +51,7 @@ final class QuotaWarning extends Mailable
          * mit drei Abonnements bekommt sonst drei Mails, die sich im Betreff
          * nicht unterscheiden.
          */
-        return new Envelope(subject: sprintf('SrvPanel — Kontingent überschritten: %s', $this->subscription));
+        return new Envelope(subject: MailSubject::of(sprintf('Kontingent überschritten: %s', $this->subscription)));
     }
 
     public function content(): Content

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Mail;
 
+use App\Support\Brand\MailSubject;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -63,11 +64,11 @@ final class DiagnoseReport extends Mailable
          */
         $anzahl = count($this->findings);
 
-        return new Envelope(subject: sprintf(
-            'SrvPanel — %s auf %s',
+        return new Envelope(subject: MailSubject::of(sprintf(
+            '%s auf %s',
             $anzahl === 1 ? 'ein neuer Befund' : $anzahl.' neue Befunde',
             Names::host(),
-        ));
+        )));
     }
 
     public function content(): Content

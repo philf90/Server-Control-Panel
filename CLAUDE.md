@@ -35,7 +35,11 @@ der Traffic-Kachel in zwei Zeilen, ist mit `0.9.0-rc.9` behoben
 Server gezeigt (`docs/139 §8`). Danach hat der Betreiber B4 abgenommen. Ein
 Befund ausserhalb von B4, der Schriftzug der Leiste im hellen Thema, ist am
 selben Tag behoben, mit `0.9.0-rc.10` ausgeliefert und auf `cloudsrv24`
-nachgesehen (`docs/139 §9`, Abschnitt weiter unten).
+nachgesehen (`docs/139 §9`, Abschnitt weiter unten). Der Lauf für B6 ist
+`docs/140`, ausgeschrieben am 1. Oktober vor dem Fahren. Beim Ausschreiben
+fielen sechs Befunde am Prüfling heraus. Der Betreiber hat sie am selben Tag
+entschieden, und behoben sind sie mit `0.9.0-rc.11` (`docs/140 §6a`, Abschnitt
+weiter unten).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -6734,6 +6738,120 @@ einem aktiven Konto.", und aufgefallen ist es erst am Bild des Servers.
 
 > **Ein Text aus dem eigenen Prüfkörper, zitiert als Text der Seite, ist
 > erfunden — auch wenn die Zahl daneben stimmt.**
+
+---
+
+## Der Abnahmelauf für B6 — sechs Befunde vor dem Fahren — 1. Oktober 2026
+
+`docs/140` ist ausgeschrieben, vor dem Fahren, und beim Ausschreiben sind sechs
+Befunde am Prüfling herausgefallen. Die 26 Fälle der drei Wächter von B6 waren
+grün; gezeigt haben sich die Befunde erst im echten Chromium und durch die Tür.
+Der Betreiber hat am selben Tag entschieden, alle drei Fragen aus
+`docs/140 §6` wie vorgeschlagen, und behoben sind sie mit `0.9.0-rc.11`
+(`docs/140 §6a`).
+
+**Der teuerste trifft die Farbe, für die es B6 gibt.** `app.css` setzt die
+helle Fassung mit `:root, :root[data-theme='light']`, und `data-theme` steht
+immer am `<html>`. Der Markenblock schreibt für hell nur `:root`, also 0,1,0
+gegen 0,2,0. Im dunklen Thema greift er, weil beide Seiten denselben Selektor
+schreiben und er später steht. Die Anmeldeseite nimmt in beiden Themen die
+dunkle Farbe, und so sah jeder Blick eine wirkende Marke, der nicht gezielt das
+helle Thema im Panel ansah.
+
+> **Ein Wert, der eine Marke überschreiben soll, muss mindestens so spezifisch
+> sein wie die Regel, die sie setzt — die Reihenfolge entscheidet erst bei
+> Gleichstand.**
+
+`BrandStyleTest` liest, was `Style::css()` ausgibt. Ob es gegen `app.css`
+ankommt, fragt kein Fall.
+
+> **Ein Wächter über die Ausgabe sagt, was geschrieben wird — nicht, ob es gegen
+> das ankommt, was es überschreiben soll.**
+
+**Zwei Befunde sind Wissen über Inertia, und sie gelten über B6 hinaus.** Eine
+Inertia-Antwort tauscht die Seite und lässt den `<head>` so, wie Blade ihn beim
+ersten Laden geschrieben hat. Und der `title`-Rückruf in `resources/js/app.ts`
+ersetzt den Titel des Servers, sobald Inertia startet.
+
+> **Was im Kopf des Dokuments steht, erneuert nur ein volles Laden.**
+
+> **Ein Wächter über die Antwort des Servers sieht den Titel nicht, den der
+> Browser danach ersetzt.**
+
+**Ein dritter ist der Satz aus P6 zum zweiten Mal.** Mit `forceFormData` reist
+ein Wahrheitswert als `"1"` (Inertia 3.6.1, `append()` in `@inertiajs/core`),
+und das `=== true` im Controller trifft ihn nie. „Logo entfernen" meldete
+Erfolg und liess das Logo liegen. `validate()` wandelt dabei nichts um: Die
+Regel `boolean` lässt `"1"` durch, und in den geprüften Daten steht danach die
+Zeichenkette. Einen Wahrheitswert gibt `$request->boolean()`.
+
+> **Dieselbe Regel über einem Wert, der einmal als JSON und einmal als
+> Zeichenkette reist, gilt nur einmal.**
+
+**Die übrigen zwei:** Ein Logo unter einer festen Adresse mit `max-age=300`
+bleibt bis zu fünf Minuten das alte. Und drei Betreffzeilen und die Testmail
+schreiben „SrvPanel" als Wort, auch die Mail an die Kunden des Betreibers.
+
+> **Ein Name, den der Betreiber einstellen kann, steht überall dort falsch, wo
+> ihn jemand als Wort hingeschrieben hat.**
+
+**Und das Kriterium ist wörtlich nicht erfüllbar** (`docs/140 §0` Punkt 7): Die
+Mails sind seit P2 reiner Text, und die Absenderadresse steht nur in der Mail.
+
+> **Ein Kriterium, das der Prüfling nicht erfüllen kann, prüft den
+> Verfasser.**
+
+**Gemessen ist das an der echten Seite, ohne ein Konto der lokalen Datenbank.**
+Der Weg: eine eigene, frisch migrierte SQLite-Datenbank im Scratchpad, darin ein
+selbst angelegtes Wegwerfkonto mit zweitem Faktor, und `artisan serve` mit
+`DB_DATABASE` darauf. Er trägt weiter als der Vite-Aufsatz aus dem Lauf von
+„Platte voll": Anmeldung, Formular, Upload und Weiterleitung laufen über die
+echten Seiten und den echten Controller.
+
+### Behoben am selben Tag
+
+Der Markenblock schreibt seitdem an genau die Selektoren, an denen `app.css`
+den Akzent setzt, Leiste und Kopfleiste eingeschlossen, und er setzt den
+Fokusring mit. `BrandStyleTest` liest die Selektoren aus dem Stylesheet und
+hält die Stelle des Blocks nach `@vite`. Drei Dinge daraus gelten über B6
+hinaus.
+
+**`Inertia::location()` nimmt eine Weiterleitung entgegen.** Einer
+Inertia-Anfrage antwortet es mit 409 und der Adresse, und der Browser lädt
+ganz; einer gewöhnlichen gibt es die Weiterleitung unverändert zurück. Eine
+Meldung, die mit `->with()` daran hängt, liegt dann schon in der Sitzung und
+kommt mit dem neuen Laden an. Das ist der Griff, wenn sich nach einer Handlung
+etwas im Kopf des Dokuments ändert.
+
+**Der Titel-Rückruf bekommt die Seite mit.** Inertia 3.6.1 ruft ihn als
+`title(titel, seite)`, und was der Server teilt, steht in `seite.props`.
+
+**Die Reihenfolge der Stylesheets hält nur im gebauten Stand.** Unter
+`npm run dev` setzt Vite die Regeln aus `app.css` erst zur Laufzeit ins
+Dokument, also hinter jeden Block aus dem Server. Gemessen: Der Markenblock
+stand vor den Stilblöcken der Komponenten und vor `app.css`, und hell galt an
+der Wurzel die Vorgabe `#3730a3`. Wer dort eine Markenfarbe prüft, sieht sie
+nicht.
+
+**Und ein Rest des Bruchskripts ist dabei aufgefallen.** Unter dem Bruch „SVG
+kommt durch" legte `test_an_svg_is_refused` seinen Prüfkörper ab und räumte ihn
+nicht ab. Seit dem 28. September lag er als `storage/app/branding/logo.svg` im
+Container, und beim Ausschreiben des Laufs habe ich ihn für Bestand gehalten.
+
+> **Ein Fall, der im heilen Zustand nichts ablegt, braucht trotzdem ein
+> Abräumen — unter dem Bruch legt er ab.**
+
+**Und der volle Bruchlauf fand einen Eingriff, den der Einzellauf davor nicht
+gefahren hatte.** Mitgegeben hatte ich ihm die geänderten Dateien unter `app/`
+und `resources/`, nicht die geänderten Tests. „Logo bleibt liegen" hängt an
+`BrandReachTest`, und dort trug mein neuer Helfer dieselben drei Zeilen wie der
+Fall, den der Eingriff bricht. Der Anker stand zweimal da, die Zusicherung
+brach ab, und der Eingriff meldete „nichts geändert".
+
+> **Ein Wächter, der die eigene Änderung nicht im Blick hatte, wird nicht
+> gefahren — man denkt an das Gebaute und nicht an das Berührte.** Zu den
+> geänderten Dateien gehören die Tests, und wer einen Helfer aus einem
+> bestehenden Fall herauszieht, verdoppelt dessen Zeilen.
 
 ---
 

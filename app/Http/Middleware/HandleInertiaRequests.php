@@ -354,7 +354,9 @@ final class HandleInertiaRequests extends Middleware
              *
              * `logo` ist eine **Adresse und kein Dateiname**: Die Seite soll
              * nicht wissen, wie die Ablage heisst, und der Name allein liesse
-             * offen, woher man das Bild bekommt.
+             * offen, woher man das Bild bekommt. **Und sie trägt eine Fassung**
+             * ({@see Logo::version()}), damit ein neues Logo eine neue Adresse
+             * hat und kein Zwischenspeicher das alte zeigt.
              */
             'brand' => function () use ($settings, $logo): array {
                 $marke = $settings->brand();
@@ -362,7 +364,9 @@ final class HandleInertiaRequests extends Middleware
                 return [
                     'name' => $marke->name,
                     'footer' => $marke->footer,
-                    'logo' => $logo->path($marke->logo) === null ? null : route('branding.logo'),
+                    'logo' => ($pfad = $logo->path($marke->logo)) === null
+                        ? null
+                        : route('branding.logo', ['v' => $logo->version($pfad)]),
                 ];
             },
 

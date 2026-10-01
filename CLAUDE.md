@@ -20,8 +20,8 @@ abgenommen — die Schwelle aus A7, die in B1 fehlte, gebaut am 27. September
 ist bewusst nicht hergestellt worden, entschieden vom Betreiber: Der Lauf bei
 95 % hat Befund, Meldung und Rückweg belegt. Die drei Befunde an der Mail des
 Betreibers sind danach behoben und mit `0.9.0-rc.5` ausgeliefert; auf dem Server
-gesehen hat sie noch niemand. **B3 bis B8 sind gebaut und nicht abgenommen**;
-der Lauf für B3 ist `docs/138`, ausgeschrieben am 28. September, und er hat vor
+gesehen hat sie noch niemand. **B4 ist am 1. Oktober 2026 abgenommen**, B3
+und B5 bis B8 sind gebaut und nicht abgenommen. Der Lauf für B3 ist `docs/138`, ausgeschrieben am 28. September, und er hat vor
 dem Fahren einen Befund am Prüfling gebracht (Abschnitt weiter unten) — behoben
 am selben Tag, ausgeliefert mit `0.9.0-rc.7` und am Abend auf `cloudsrv24`
 gesehen. **Teil 1 ist am 30. September durch** (`docs/138 §7`); Teil 2 misst
@@ -30,8 +30,12 @@ Beim Ausschreiben fielen zwei Befunde heraus; der Betreiber hat sie am selben
 Tag entschieden, und behoben sind sie mit `0.9.0-rc.8` (`docs/139 §6`). Auf
 dem Server ist Teil 1 gefahren, Teil 2 im Browser am 30. September: **alle
 fünf Punkte erfüllt** (`docs/139 §7`). Ein Befund am Bild, Zahl und Einheit
-der Traffic-Kachel in zwei Zeilen, ist für `0.9.0-rc.9` behoben
-(`docs/139 §6b`); die Abnahme spricht der Betreiber nach dem Nachlauf aus.
+der Traffic-Kachel in zwei Zeilen, ist mit `0.9.0-rc.9` behoben
+(`docs/139 §6b`), und der Nachlauf hat die Behebung am 1. Oktober auf dem
+Server gezeigt (`docs/139 §8`). Danach hat der Betreiber B4 abgenommen. Ein
+Befund ausserhalb von B4, der Schriftzug der Leiste im hellen Thema, ist am
+selben Tag behoben und kommt mit `0.9.0-rc.10` (`docs/139 §9`, Abschnitt
+weiter unten); auf dem Server gesehen hat ihn noch niemand.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -1765,7 +1769,11 @@ den Betreiber nennt keinen Absender, den sie nicht hat, und die Seite so, wie da
 Menü sie nennt) und `TileAmountTest` (ein Betrag in der Beizeile einer Kachel
 bricht nicht in sich — Zahl und Einheit stehen in **einer** Einfassung, und
 keine zweite Regel nimmt das `nowrap` zurück, auch nicht im Stilblock der
-Kachel). Der Bruch selbst steht als
+Kachel) und `ScopedReachTest` (eine gescopte Regel trifft ein Element ihrer
+eigenen Vorlage — gefragt an einem Baum aus der Vorlage und mit einem
+XPath-Ausdruck aus dem Selektor, denn `.row b` ist eine Frage an einen Baum und
+an keine Zeichenkette; was erst die Laufzeit entscheidet, fällt vorher weg, und
+ein Selektor, den er nicht übersetzen kann, ist ein Befund). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -6567,6 +6575,141 @@ sieht ihn.
 
 ---
 
+## Der Nachlauf zu B4 und die Abnahme — 1. Oktober 2026
+
+**B4 ist abgenommen**, ausgesprochen vom Betreiber nach dem Nachlauf gegen
+`0.9.0-rc.9` (`docs/139 §8`). Die Behebung aus Teil 2 wirkt auf dem Server:
+Ohne die eine Regel trennt dieselbe Seite Zahl und Einheit, mit ihr nicht. Das
+gilt in der Ruhezeile, in beiden Ablesungen und auf der Übersicht.
+
+**Gesehen hat das der Nachlauf erst im zweiten Anlauf.** Wie ausgeschrieben
+gefahren, bei 1440 px, stand die ganze Beizeile in einer Zeile, und
+`betrag in 1 Zeile(n)` las sich wie ein Beleg. Die Bedingung aus Teil 2 gab es
+auf diesem Rechner nicht. Die Beizeile steht in `system-ui`; Teil 2 lief nach
+den Bildern auf einem Mac, der Nachlauf auf Windows mit Segoe UI. Dort ist die
+Ruhezeile 177,1 px breit, im Container 202,3, und die Beizeile hat 179.
+
+> **Eine Erwartung, die einen Umbruch voraussetzt, setzt die Schrift voraus,
+> in der er entstand.**
+
+> **Eine Zeile, die gar nicht bricht, bricht auch nicht an der falschen Stelle
+> — und `betrag in 1 Zeile(n)` liest sich trotzdem wie ein Beleg.**
+
+Getragen hat ein Snippet, das seine Bedingung mitdruckt: die Breite der
+Beizeile, die Schrift, die Breite jeder Zeile ganz und bis zur Zahl, und die
+Fensterbreiten, bei denen ohne die Regel getrennt würde. Daraus waren 1374 und
+1304 px ausgerechnet, und alle vier Läufe dort trafen, auch einer mit 0,7 px
+Luft.
+
+**Die Gegenprobe lief auf derselben Seite**: dieselbe Messung mit
+`white-space: normal` am Betrag, danach die Regel zurück. Gegen `rc.8` hätte
+sie denselben Rechner gebraucht wie Teil 2.
+
+> **Eine Gegenprobe, die nur die eine Regel wegnimmt, stellt die alte Fassung
+> auf derselben Seite her** — in derselben Schrift, bei derselben Breite und
+> mit denselben Zahlen.
+
+**Die Geräteleiste gibt sich als Telefon aus.**
+`navigator.userAgentData.platform` meldete `Android`, die Schrift kam trotzdem
+von Windows. Bestimmt wird sie deshalb über eine Leinwand: derselbe Satz in
+`system-ui` und in benannten Schriften, und eine Schrift, die es nicht gibt,
+fällt auf die Vorgabe zurück und misst anders.
+
+**Und der Container hat eine Grenze, die hier bisher fehlte** (unter „Diese
+Umgebung" nachgetragen). Er misst Kästen auf das Pixel, Text aber in
+DejaVu Sans. Den Umbruch aus Teil 2 hat er nachgestellt, weil der Text in
+beiden Schriften zu breit war, und nicht, weil es dieselbe Schrift war.
+
+> **Ein Zwilling misst Kästen auf das Pixel und Text in seiner eigenen
+> Schrift.**
+
+**Ein Befund am Bild ausserhalb von B4:** Im hellen Thema ist der Schriftzug
+„SrvPanel" in der Leiste kaum zu lesen, 1,76:1 gegen die Leiste. Seit B6 steht
+er in `BrandMark.vue`, und die gescopte Regel `.row b` aus `PanelLayout`
+erreicht ihn dort nicht mehr. Zu sehen war er schon auf den Bildern von
+Teil 2, nur waren die auf die Kacheln hin angesehen worden.
+
+> **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+> verdeckt alles, was daneben steht.**
+
+Der Betreiber hat entschieden, ihn mit `0.9.0-rc.10` zu beheben.
+
+---
+
+## Die Behebung des Schriftzugs — 1. Oktober 2026
+
+Behoben am selben Tag (`docs/139 §9`), und der Befund war grösser als der
+Schriftzug. Auf der Leiste lasen auch Zeichen und Versionsmarke Marken, die die
+Leiste nicht setzte, und auf der Anmeldeseite stand dieselbe Familie im
+Formular: Fehlermeldung 1,83:1, Hinweis der Sitzung 1,76:1, Ränder 2,73 bis
+2,85:1. Die Anmeldeseite hat der Betreiber mitbeheben lassen.
+
+**Drei Ursachen, und jede hat ihren Satz.** Die erste ist die Regel, die seit
+B6 nichts mehr traf:
+
+> **Eine gescopte Regel, deren Ziel in eine Kindkomponente umzieht, ist tot —
+> und sieht im Quelltext aus wie Gestaltung.**
+
+Die zweite sind die Marken, die eine Fläche nicht setzt. „Ein Streifen mit
+eigenem Grund braucht acht Marken und nicht eine" stand seit dem 9. September
+in `SurfaceTokenTest`. Gerechnet war aber nur, was die Fläche setzt, und nicht,
+was auf ihr gelesen wird.
+
+> **Eine Fläche mit eigenem Grund setzt jede Marke, die etwas auf ihr liest —
+> nicht nur die, an die man beim Entwurf gedacht hat.**
+
+Die dritte ist die Vererbung. `color` erbt ein Element als fertigen Wert, also
+als die Farbe, die der nächste Vorfahr mit einer Regel ausgerechnet hat. Ohne
+eigene Zeile ist das der `body`, und die Marke `--text` der Fläche kommt nie zum
+Zug.
+
+> **Eine Marke, die eine Fläche setzt, erreicht Text ohne eigene Regel nicht —
+> der erbt, was ein Vorfahr schon ausgerechnet hat.**
+
+**Und ein Satz in `app.css` war für eine der beiden Flächen falsch.** Seit dem
+9. September stand dort, auf beiden Markenflächen stehe keine Zustandsfarbe.
+Für die Leiste stimmt das, für die Anmeldeseite nie.
+
+> **Eine Begründung, die für zwei Dinge aufgeschrieben ist, gilt nur für das,
+> an dem jemand nachgesehen hat.**
+
+**Gebaut sind zwei Wächter, und beide fragen einen Baum.** `ScopedReachTest`
+fragt jede gescopte Regel gegen ihre eigene Vorlage. `SurfaceTokenTest` setzt
+unter jeder Markenfläche die Vorlagen der eingesetzten Komponenten ein, zwei
+Ebenen tief bis `MarkIcon.vue`, und fragt jede Regel gegen diesen Baum. Den
+Baum baut `Tests\Support\TemplateDom`. Jeder gemessene Handgriff darin hat
+einen Fall, der ohne ihn rot wird. Zwei sind Vorsicht und stehen dort auch so:
+dass Kommentare wegfallen und dass selbstschliessende Tags ausgeschrieben
+werden. Die Selektoren liest `Tests\Support\CssRules`, und
+übersetzt werden sie mit `symfony/css-selector`, das über Laravels Mail
+mitkommt. Gegen den Stand vor der Behebung meldet der eine Wächter `.row b`,
+der andere zehn Stellen.
+
+**Gemeldet hat beim Bauen ein bestehender Wächter etwas, das er falsch
+verstand.** `IconTest` verlangte genau zwei Zeilen `--mark-accent:` in
+`app.css` und meinte damit „beide Themen". Mit den Flächen sind es vier.
+
+> **Eine Zahl, die eine Bedeutung zählen soll, zählt Zeilen — und die nächste
+> Zeile mit derselben Zeichenkette bedeutet etwas anderes.**
+
+**Und zwei eigene Begründungen waren ungemessen.** Im Kopf von `TemplateDom`
+stand, ein Kommentar, der ein Tag zitiert, werde für den Parser eines — libxml
+lässt ihn als Kommentar stehen, gefunden vor dem Commit. Und dort stand, ein
+`<BrandMark />` schlucke ohne Ausschreiben alles, was danach kommt. libxml 2.9.14
+schliesst es selbst; gefunden hat das der Eingriff, der den Handgriff
+herausnahm und nicht biss. Gemessen ist dagegen, dass `{{ n<max ? 1 : 2 }}` ein
+Element `<max>` öffnet und die nächste Zeile verschluckt.
+
+> **Ein Eingriff, der nicht beisst, ist ein Befund über den Wächter oder über
+> den Eingriff — und manchmal über die Begründung, für die es den Handgriff
+> gibt.**
+
+> **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch
+> dann falsch, wenn der Handgriff daneben richtig ist.** Zum dritten Mal in
+> diesem Repo, und diesmal an einem Wächter, der am selben Tag entstand.
+
+---
+
 ## Befehle
 
 ```bash
@@ -6820,6 +6963,17 @@ Testen berücksichtigen:
 
   > **Eine Regel, die an ein Attribut gebunden ist, das nur der Übersetzer
   > setzt, fehlt in jedem Aufsatz, der das Markup selbst schreibt.**
+
+  **Und mit einer dritten Grenze, gemessen am 1. Oktober 2026: der Schrift.**
+  Der Aufsatz zeichnet Text in DejaVu Sans, und `system-ui` ist auf dem Rechner
+  des Betrachters eine andere: Dieselbe Beizeile ist dort in Segoe UI 177,1 px
+  breit und hier 202,3 (`docs/139 §8`). Kästen, Höhen und Ränder trifft er auf
+  das Pixel. Wo ein Ergebnis an der Breite eines Textes hängt — an einem
+  Umbruch oder einem Überstand —, gilt es für DejaVu Sans und nicht für den
+  Rechner des Betreibers.
+
+  > **Ein Zwilling misst Kästen auf das Pixel und Text in seiner eigenen
+  > Schrift.**
 
   Was das **nicht** ersetzt: den Blick auf die echte Seite mit echten Daten. Der
   braucht `artisan serve` und damit `vendor/`. **Und der Blick auf das Bild, das

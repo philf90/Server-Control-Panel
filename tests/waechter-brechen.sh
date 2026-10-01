@@ -37914,6 +37914,493 @@ pruefe "Kachel nimmt den Betrag zurueck" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TileAmountTest passed
 
+echo "── ScopedReachTest: die Gestalt des Namens steht wieder als gescopte Regel im Elternteil ──"
+#
+# Der Befund vom 1. Oktober 2026 (docs/139 §8): Seit B6 steht der Name in
+# BrandMark.vue. Eine gescopte Regel in PanelLayout trifft ihn dort nicht
+# mehr, und im Quelltext sieht sie aus wie Gestaltung.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Layouts/PanelLayout.vue')
+s = p.read_text()
+alt = '.row :deep(.version) {\n  flex: none;\n}\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '.row b {\n  font-weight: 660;\n}\n\n' + alt, 1))
+PY
+griff_datei resources/js/Layouts/PanelLayout.vue "tote Regel im Elternteil" &&
+pruefe "tote Regel im Elternteil" \
+  ScopedReachTest::test_every_scoped_rule_reaches_an_element_of_its_template failed
+wiederherstellen
+
+echo "── ScopedReachTest: dieselbe tote Regel in einer Medienabfrage ──"
+#
+# Eine Regel unter @media zaehlt wie jede andere. Ein Leser, der nur die
+# oberste Ebene liest, saehe sie nicht.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Layouts/PanelLayout.vue')
+s = p.read_text()
+alt = '.row :deep(.version) {\n  flex: none;\n}\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '@media (max-width: 720px) {\n  .row b {\n    font-weight: 660;\n  }\n}\n\n' + alt, 1))
+PY
+griff_datei resources/js/Layouts/PanelLayout.vue "tote Regel in der Medienabfrage" &&
+pruefe "tote Regel in der Medienabfrage" \
+  ScopedReachTest::test_every_scoped_rule_reaches_an_element_of_its_template failed
+wiederherstellen
+
+echo "── ScopedReachTest: eine Regel ohne Ziel gilt als lebend ──"
+vorher_datei tests/Unit/ScopedReachTest.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Unit/ScopedReachTest.php')
+s = p.read_text()
+alt = '            if ($treffer === false || $treffer->length === 0) {\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '            if (false) {\n', 1))
+PY
+griff_datei tests/Unit/ScopedReachTest.php "Regel ohne Ziel lebt" &&
+pruefe "Regel ohne Ziel lebt" \
+  ScopedReachTest::test_a_rule_whose_target_moved_into_a_child_is_dead failed
+wiederherstellen
+
+echo "── ScopedReachTest: eine Regel, die mit Absicht hineingreift, wird mitgefragt ──"
+#
+# :deep() zielt ueber die eigene Vorlage hinaus. Gefragt, uebersetzt es der
+# Umsetzer nicht, und der Waechter meldete jede solche Regel.
+vorher_datei tests/Unit/ScopedReachTest.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Unit/ScopedReachTest.php')
+s = p.read_text()
+alt = "            if (preg_match('/:deep\\(|:global\\(|:slotted\\(|::v-deep|>>>/', $selektor) === 1) {\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '            if (false) {\n', 1))
+PY
+griff_datei tests/Unit/ScopedReachTest.php "deep wird mitgefragt" &&
+pruefe "deep wird mitgefragt" \
+  ScopedReachTest::test_states_and_bound_attributes_count_as_possible failed
+wiederherstellen
+
+echo "── CssRules: eine Verneinung bleibt in der Frage stehen ──"
+#
+# Eine gebundene Klasse steht im Baum immer da. Bleibt :not(.active) stehen,
+# trifft die Regel nie, obwohl sie im Browser trifft, sobald der Eintrag
+# nicht aktiv ist.
+vorher_datei tests/Support/CssRules.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Support/CssRules.php')
+s = p.read_text()
+alt = r"preg_replace('/:(?:has|not)\((?:[^()]|\([^()]*\))*\)/', $weg, $frage);"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, r"preg_replace('/:(?:has)\((?:[^()]|\([^()]*\))*\)/', $weg, $frage);", 1))
+PY
+griff_datei tests/Support/CssRules.php "Verneinung bleibt stehen" &&
+pruefe "Verneinung bleibt stehen" \
+  ScopedReachTest::test_the_place_in_a_list_and_a_negation_count_as_possible failed
+wiederherstellen
+
+echo "── CssRules: die Stellung in einer Liste bleibt in der Frage stehen ──"
+vorher_datei tests/Support/CssRules.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Support/CssRules.php')
+s = p.read_text()
+alt = r"'/:(?:first|last|only)-(?:of-type|child)\b|:nth(?:-last)?-(?:of-type|child)\([^)]*\)/'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, r"'/:(?:first|last|only)-of-type\b|:nth(?:-last)?-of-type\([^)]*\)/'", 1))
+PY
+griff_datei tests/Support/CssRules.php "Stellung bleibt stehen" &&
+pruefe "Stellung bleibt stehen" \
+  ScopedReachTest::test_the_place_in_a_list_and_a_negation_count_as_possible failed
+wiederherstellen
+
+echo "── CssRules: ein leeres Glied bekommt keinen Stern ──"
+#
+# Aus .pager > :first-child wird sonst .pager > und damit kein Selektor.
+vorher_datei tests/Support/CssRules.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Support/CssRules.php')
+s = p.read_text()
+alt = "        $frage = (string) preg_replace('/(^|[\\s>+~(,])\\x00+/', '$1*', $frage);\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei tests/Support/CssRules.php "leeres Glied ohne Stern" &&
+pruefe "leeres Glied ohne Stern" \
+  ScopedReachTest::test_the_place_in_a_list_and_a_negation_count_as_possible failed
+wiederherstellen
+
+echo "── TemplateDom: eine Komponente behaelt ihren Namen ──"
+#
+# Link hiesse fuer den Parser link, ein leeres Element, und seine Kinder
+# rueckten zu Geschwistern auf.
+vorher_datei tests/Support/TemplateDom.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Support/TemplateDom.php')
+s = p.read_text()
+alt = "        $html = (string) preg_replace('#<(/?)([A-Z]\\w*)#', '<$1x-$2', $html);\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei tests/Support/TemplateDom.php "Komponente ohne eigenen Namen" &&
+pruefe "Komponente ohne eigenen Namen" \
+  ScopedReachTest::test_a_component_named_like_an_empty_element_keeps_its_children failed
+wiederherstellen
+
+echo "── TemplateDom: eine gebundene Klasse zaehlt nicht ──"
+vorher_datei tests/Support/TemplateDom.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Support/TemplateDom.php')
+s = p.read_text()
+alt = """        if (preg_match('/\\s(?::|v-bind:)class="([^"]*)"/', $attribute, $gebunden) === 1) {\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, alt.replace('=== 1) {', '=== 2) {'), 1))
+PY
+griff_datei tests/Support/TemplateDom.php "gebundene Klasse zaehlt nicht" &&
+pruefe "gebundene Klasse zaehlt nicht" \
+  ScopedReachTest::test_a_class_that_is_only_bound_counts failed
+wiederherstellen
+
+echo "── TemplateDom: template bleibt ein Kasten ──"
+vorher_datei tests/Support/TemplateDom.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Support/TemplateDom.php')
+s = p.read_text()
+alt = "iterator_to_array($xpath->query('//template') ?: [])"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "iterator_to_array($xpath->query('//kein-template') ?: [])", 1))
+PY
+griff_datei tests/Support/TemplateDom.php "template bleibt ein Kasten" &&
+pruefe "template bleibt ein Kasten" \
+  ScopedReachTest::test_a_template_is_a_fragment_and_not_a_box failed
+wiederherstellen
+
+echo "── TemplateDom: ein gebundenes Attribut behaelt seinen Doppelpunkt ──"
+#
+# Welchen Wert ein gebundenes Attribut hat, weiss erst die Laufzeit. Bleibt
+# der Doppelpunkt im Namen, fragt ein Selektor nach dem Attribut vergebens.
+vorher_datei tests/Support/TemplateDom.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Support/TemplateDom.php')
+s = p.read_text()
+alt = """        $attribute = (string) preg_replace('/\\s(?::|v-bind:)([\\w-]+)="[^"]*"/', ' $1=""', $attribute);\n"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei tests/Support/TemplateDom.php "gebundenes Attribut mit Doppelpunkt" &&
+pruefe "gebundenes Attribut mit Doppelpunkt" \
+  ScopedReachTest::test_states_and_bound_attributes_count_as_possible failed
+wiederherstellen
+
+echo "── TemplateDom: ein Ausdruck bleibt im Text stehen ──"
+#
+# Gemessen am 1. Oktober 2026: Aus n<max wird fuer den Parser ein Element max,
+# und es verschluckt die naechste Zeile.
+vorher_datei tests/Support/TemplateDom.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Support/TemplateDom.php')
+s = p.read_text()
+alt = "        $html = (string) preg_replace('/\\{\\{.*?\\}\\}/s', 'x', $html);\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei tests/Support/TemplateDom.php "Ausdruck bleibt stehen" &&
+pruefe "Ausdruck bleibt stehen" \
+  ScopedReachTest::test_a_comparison_in_an_expression_opens_no_tag failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ScopedReachTest passed
+
+echo "── SurfaceTokenTest: die Leiste setzt die Marke des Zeichens nicht ──"
+#
+# Der Befund vom 1. Oktober 2026 (docs/139 §8): Ohne eigenen Wert trug das
+# Zeichen im hellen Thema den Indigo der Seite, 1,87:1 auf Inkberry.
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+alt = '  --line: #3a2954;\n  --mark-accent: #ff7fec;\n\n  --text: #d9d2e6;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '  --line: #3a2954;\n\n  --text: #d9d2e6;', 1))
+PY
+griff_datei resources/css/app.css "Leiste ohne Marke des Zeichens" &&
+pruefe "Leiste ohne Marke des Zeichens" \
+  SurfaceTokenTest::test_what_stands_on_a_brand_surface_reads_its_own_marks failed
+wiederherstellen
+
+echo "── SurfaceTokenTest: die Anmeldeseite setzt die Marke des Zeichens nicht ──"
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+alt = '  --line: #3a2954;\n  --mark-accent: #ff7fec;\n\n  --text: #efe9f2;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '  --line: #3a2954;\n\n  --text: #efe9f2;', 1))
+PY
+griff_datei resources/css/app.css "Anmeldeseite ohne Marke des Zeichens" &&
+pruefe "Anmeldeseite ohne Marke des Zeichens" \
+  SurfaceTokenTest::test_what_stands_on_a_brand_surface_reads_its_own_marks failed
+wiederherstellen
+
+echo "── SurfaceTokenTest: die Leiste setzt Grund und Linie der Versionsmarke nicht ──"
+#
+# Ohne sie stand im hellen Thema eine weisse Pille auf der Leiste.
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+alt = '  --nav-border: #3a2954;\n  --surface: #1a0b2e;\n  --line: #3a2954;\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '  --nav-border: #3a2954;\n', 1))
+PY
+griff_datei resources/css/app.css "Leiste ohne Grund der Versionsmarke" &&
+pruefe "Leiste ohne Grund der Versionsmarke" \
+  SurfaceTokenTest::test_what_stands_on_a_brand_surface_reads_its_own_marks failed
+wiederherstellen
+
+echo "── SurfaceTokenTest: die Anmeldeseite setzt die Warnung nicht ──"
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+alt = '  --warn: #e2a94a;\n  --warn-surface: rgb(226 169 74 / 0.14);\n  --critical: #f08a72;\n  --critical-surface: rgb(240 138 114 / 0.14);\n\n  color: var(--text);\n  min-height: 100dvh;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, alt.replace('  --warn: #e2a94a;\n  --warn-surface: rgb(226 169 74 / 0.14);\n', ''), 1))
+PY
+griff_datei resources/css/app.css "Anmeldeseite ohne Warnung" &&
+pruefe "Anmeldeseite ohne Warnung" \
+  SurfaceTokenTest::test_what_stands_on_a_brand_surface_reads_its_own_marks failed
+wiederherstellen
+
+echo "── SurfaceTokenTest: die Anmeldeseite setzt die Stoerung nicht ──"
+#
+# Die Fehlermeldung aus FormErrors.vue und der Rand eines ungueltigen Feldes
+# lesen --critical; ohne eigenen Wert standen die Raender bei 2,73 bis 2,85:1.
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+alt = '  --warn: #e2a94a;\n  --warn-surface: rgb(226 169 74 / 0.14);\n  --critical: #f08a72;\n  --critical-surface: rgb(240 138 114 / 0.14);\n\n  color: var(--text);\n  min-height: 100dvh;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, alt.replace('  --critical: #f08a72;\n  --critical-surface: rgb(240 138 114 / 0.14);\n', ''), 1))
+PY
+griff_datei resources/css/app.css "Anmeldeseite ohne Stoerung" &&
+pruefe "Anmeldeseite ohne Stoerung" \
+  SurfaceTokenTest::test_what_stands_on_a_brand_surface_reads_its_own_marks failed
+wiederherstellen
+
+echo "── SurfaceTokenTest: die Anmeldeseite traegt die Warnung des hellen Themas ──"
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+alt = '  --warn: #e2a94a;\n  --warn-surface: rgb(226 169 74 / 0.14);\n  --critical: #f08a72;\n  --critical-surface: rgb(240 138 114 / 0.14);\n\n  color: var(--text);\n  min-height: 100dvh;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, alt.replace('  --warn: #e2a94a;\n', '  --warn: #845306;\n'), 1))
+PY
+griff_datei resources/css/app.css "Warnung des hellen Themas" &&
+pruefe "Warnung des hellen Themas" \
+  SurfaceTokenTest::test_a_state_colour_on_a_brand_surface_is_reckoned_against_it failed
+wiederherstellen
+
+echo "── SurfaceTokenTest: die Leiste traegt das Zeichen des hellen Themas ──"
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+alt = '  --line: #3a2954;\n  --mark-accent: #ff7fec;\n\n  --text: #d9d2e6;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '  --line: #3a2954;\n  --mark-accent: #3730a3;\n\n  --text: #d9d2e6;', 1))
+PY
+griff_datei resources/css/app.css "Zeichen des hellen Themas" &&
+pruefe "Zeichen des hellen Themas" \
+  SurfaceTokenTest::test_the_mark_on_a_brand_surface_stays_visible failed
+wiederherstellen
+
+echo "── SurfaceTokenTest: die Leiste setzt color nicht ──"
+#
+# color erbt als fertiger Wert. Ohne die Zeile erbte der Name neben dem
+# Zeichen die Schrift, die der body aus dem --text der Seite gerechnet hat.
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+alt = '  --focus: #ffb7a5;\n\n  color: var(--text);\n}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '  --focus: #ffb7a5;\n}', 1))
+PY
+griff_datei resources/css/app.css "Leiste ohne color" &&
+pruefe "Leiste ohne color" \
+  SurfaceTokenTest::test_a_brand_surface_sets_the_colour_its_text_inherits failed
+wiederherstellen
+
+echo "── SurfaceTokenTest: die Anmeldeseite setzt color nicht ──"
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+alt = '  --critical-surface: rgb(240 138 114 / 0.14);\n\n  color: var(--text);\n  min-height: 100dvh;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '  --critical-surface: rgb(240 138 114 / 0.14);\n\n  min-height: 100dvh;', 1))
+PY
+griff_datei resources/css/app.css "Anmeldeseite ohne color" &&
+pruefe "Anmeldeseite ohne color" \
+  SurfaceTokenTest::test_a_brand_surface_sets_the_colour_its_text_inherits failed
+wiederherstellen
+
+echo "── SurfaceTokenTest: die Anmeldeseite setzt color aus einer fremden Marke ──"
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+alt = '  --critical-surface: rgb(240 138 114 / 0.14);\n\n  color: var(--text);\n  min-height: 100dvh;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '  --critical-surface: rgb(240 138 114 / 0.14);\n\n  color: var(--line);\n  min-height: 100dvh;', 1))
+PY
+griff_datei resources/css/app.css "color aus einer Linienmarke" &&
+pruefe "color aus einer Linienmarke" \
+  SurfaceTokenTest::test_a_brand_surface_sets_the_colour_its_text_inherits failed
+wiederherstellen
+
+echo "── SurfaceTokenTest: ein Link gilt nicht als Verweis ──"
+vorher_datei tests/Feature/SurfaceTokenTest.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Feature/SurfaceTokenTest.php')
+s = p.read_text()
+alt = "        'x-link' => 'a',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "        'x-link' => null,\n", 1))
+PY
+griff_datei tests/Feature/SurfaceTokenTest.php "Link ohne Verweis" &&
+pruefe "Link ohne Verweis" \
+  SurfaceTokenTest::test_a_link_counts_as_the_anchor_it_renders failed
+wiederherstellen
+
+echo "── SurfaceTokenTest: die Vorlage einer Kindkomponente wird nicht eingesetzt ──"
+#
+# Der Befund sass zwei Komponenten tief. Ohne das Einsetzen saehe der Waechter
+# nur die Seite, und auf der stand nichts Falsches.
+vorher_datei tests/Feature/SurfaceTokenTest.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Feature/SurfaceTokenTest.php')
+s = p.read_text()
+alt = '            if (in_array($ziel, $weg, true)) {\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '            if (true) {\n', 1))
+PY
+griff_datei tests/Feature/SurfaceTokenTest.php "Kindkomponente nicht eingesetzt" &&
+pruefe "Kindkomponente nicht eingesetzt" \
+  SurfaceTokenTest::test_a_mark_read_two_components_deep_is_seen failed
+wiederherstellen
+
+echo "── SurfaceTokenTest: eine unbekannte Komponente wird still uebergangen ──"
+vorher_datei tests/Feature/SurfaceTokenTest.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Feature/SurfaceTokenTest.php')
+s = p.read_text()
+alt = "                $befunde[sprintf('%s: <%s> ist keine Komponente, die dieser Wächter kennt — darunter hat er nicht gemessen.', $pfad, $name)] = true;\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei tests/Feature/SurfaceTokenTest.php "unbekannte Komponente still" &&
+pruefe "unbekannte Komponente still" \
+  SurfaceTokenTest::test_a_component_it_cannot_read_is_a_finding failed
+wiederherstellen
+
+echo "── SurfaceTokenTest: eine fehlende Datei wird still uebergangen ──"
+vorher_datei tests/Feature/SurfaceTokenTest.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Feature/SurfaceTokenTest.php')
+s = p.read_text()
+alt = "                $befunde[sprintf('%s: %s ist nicht auffindbar — darunter hat dieser Wächter nicht gemessen.', $pfad, $ziel)] = true;\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei tests/Feature/SurfaceTokenTest.php "fehlende Datei still" &&
+pruefe "fehlende Datei still" \
+  SurfaceTokenTest::test_a_component_it_cannot_read_is_a_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SurfaceTokenTest passed
+
+echo "── IconTest: das Zeichen setzt die Farbe seiner unteren Balken nicht ──"
+vorher_datei resources/js/Components/MarkIcon.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/MarkIcon.vue')
+s = p.read_text()
+alt = '  color: var(--text-strong);\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei resources/js/Components/MarkIcon.vue "Zeichen ohne eigene Farbe" &&
+pruefe "Zeichen ohne eigene Farbe" \
+  IconTest::test_the_mark_sets_the_colour_of_its_lower_bars failed
+wiederherstellen
+
+echo "── IconTest: das dunkle Thema setzt die Marke des Zeichens nicht ──"
+#
+# Seit dem 1. Oktober 2026 setzen auch Leiste und Anmeldeseite die Marke. Eine
+# Zaehlung ueber die Datei faende sie dort und hielte das Thema fuer versorgt.
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+anfang = s.index(":root[data-theme='dark'] {")
+ende = s.index('\n}\n', anfang)
+alt = '  --mark-accent: #ff7fec;\n'
+stelle = s.index(alt, anfang)
+assert stelle < ende, 'Zielstelle nicht im dunklen Block — der Bruch waere blind'
+p.write_text(s[:stelle] + s[stelle + len(alt):])
+PY
+griff_datei resources/css/app.css "dunkles Thema ohne Marke des Zeichens" &&
+pruefe "dunkles Thema ohne Marke des Zeichens" \
+  IconTest::test_the_mark_in_the_interface_carries_no_colour_of_its_own failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" IconTest passed
+
+echo "── ClassNameTest: der Name neben dem Zeichen verliert seine Klasse ──"
+#
+# Steht dort wieder ein b, erreicht die Regel in app.css ihn nicht, und der
+# Name steht ohne seine Gestalt in der Leiste.
+vorher_datei resources/js/Components/BrandMark.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Components/BrandMark.vue')
+s = p.read_text()
+alt = '<span class="brand-name">{{ brand.name }}</span>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '<b>{{ brand.name }}</b>', 1))
+PY
+griff_datei resources/js/Components/BrandMark.vue "Name ohne Klasse" &&
+pruefe "Name ohne Klasse" \
+  ClassNameTest::test_every_rule_in_app_css_is_reached_by_a_template failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ClassNameTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

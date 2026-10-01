@@ -60,6 +60,7 @@ final class StandaloneClassTest extends TestCase
     private const CONTEXT_BOUND = [
         'amount' => 'Zahl und Einheit in der Beizeile einer .tile, die dort nicht umbrechen',
         'aside' => 'die schmale Hälfte eines .split',
+        'brand-name' => 'der Name neben dem Zeichen in der .rail; auf der Anmeldeseite trägt ihn die Überschrift',
         'cell' => 'eine Zelle in .rows',
         'clamped' => 'der Text einer Ankündigung in einem .band, über zwei Zeilen geklammert',
         'code' => 'ein textarea in einem .field',

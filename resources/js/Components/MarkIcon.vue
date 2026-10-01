@@ -64,6 +64,15 @@ withDefaults(defineProps<{ size?: number }>(), { size: 22 })
  */
 .mark {
   display: block;
+
+  /* Die Farbe der beiden unteren Balken (`currentColor`) setzt das Zeichen
+     selbst. Bis zum 1. Oktober 2026 erbte es sie von dem, was darüber stand —
+     in der Leiste vom `body`, also die Schrift der Seite und nicht die der
+     Leiste: im hellen Thema dunkles Grau auf Inkberry, 1,76:1. Auf der
+     Anmeldeseite stimmte es, weil die Überschrift `--text-strong` setzt; der
+     Kopf dieser Datei beschrieb, was dort zufällig galt (`docs/139 §8`). */
+  color: var(--text-strong);
+
   /* `flex: none`: In der Seitenleiste steht das Zeichen neben Schriftzug und
      Version, und ohne das schrumpft es zu einem Streifen, sobald die Zeile eng
      wird. Derselbe Fehler wie beim Quadrat davor — deshalb steht er hier. */

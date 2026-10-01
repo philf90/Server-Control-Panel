@@ -336,14 +336,21 @@
  * einmal gerechnet werden muss: `--ok`, `--warn` und `--critical` stehen auf
  * `--bg` und `--surface` und sonst auf nichts.
  *
- * Zwei Flächen dürfen einen eigenen Grund mitbringen, und beide haben denselben
- * Grund dafür: Auf ihnen steht **keine Zustandsfarbe**. Der
- * Navigationsstreifen führt Menüpunkte, ein Konto und eine Fassungsnummer; die
- * Anmeldeseite (siehe `.signin`) ein Formular. Keine Tabelle, kein Vorgang,
- * keine Marke.
+ * Zwei Flächen dürfen einen eigenen Grund mitbringen. Auf dem
+ * Navigationsstreifen steht **keine Zustandsfarbe**: Er führt Menüpunkte, ein
+ * Konto und eine Fassungsnummer, keine Tabelle, keinen Vorgang, keine Marke.
  *
  * > **Eine Markenfläche endet dort, wo eine Zustandsfarbe anfängt — sonst ist
  * > sie keine Fläche, sondern ein zweites Theme.**
+ *
+ * **Für die Anmeldeseite stimmte das nicht, und hier stand bis zum
+ * 1. Oktober 2026, es stimme für beide.** In ihrem Formular stehen der Hinweis
+ * der Sitzung (`--warn`), die Fehlermeldung (`--critical`) und der Rand eines
+ * ungültigen Feldes. Im hellen Thema waren sie gegen den hellen Grund
+ * gerechnet und standen auf Inkberry: die Ränder bei 2,73 bis 2,85:1, und der
+ * Text der Fehlermeldung erbte die Schrift der Seite, 1,83:1 (`docs/139 §8`).
+ * Die Anmeldeseite trägt deshalb eigene Zustandswerte, die des dunklen
+ * Themas — siehe `.signin`.
  *
  * **Warum es ein Markensatz ist und kein Baustein.** Weil jede Farbe dieses
  * Panels aus einer Marke kommt, genügt es, die Marken auf dem Selektor zu
@@ -363,8 +370,30 @@
  *
  * Jeder Wert ist gegen `--nav-bg` (`#1a0b2e`) gerechnet: Überschrift 18,56:1 ·
  * Menüpunkt 12,65:1 · Konto und Umschalter 7,24:1 · Gruppenüberschrift 6,14:1 ·
- * aktiver Punkt 11,11:1. Die Fläche des aktiven Punktes ergibt `#3a233f`, der
- * Peach darauf 8,42:1. Gehalten von `SurfaceTokenTest`.
+ * aktiver Punkt 11,11:1 · der obere Balken des Zeichens 8,40:1. Die Fläche des
+ * aktiven Punktes ergibt `#3a233f`, der Peach darauf 8,42:1. Gehalten von
+ * `SurfaceTokenTest`.
+ *
+ * **`--mark-accent` gehört zu den Marken, und bis zum 1. Oktober 2026 fehlte
+ * er.** Ohne eigenen Wert erbte das Zeichen im hellen Thema den Indigo der
+ * Seite, `#3730a3` auf Inkberry, 1,87:1 (`docs/139 §8`). Gesetzt ist der Wert
+ * des dunklen Themas: Die Leiste ist in beiden Themen dieselbe Fläche, und das
+ * Zeichen darauf sieht in beiden gleich aus.
+ *
+ * **Und `--surface` und `--line`, weil die Versionsmarke sie liest.** Ohne sie
+ * stand im hellen Thema eine weisse Pille auf der Leiste und `--text-faint`
+ * darauf mit 2,90:1. Gesetzt sind Grund und Linie der Leiste selbst; so sah
+ * die Marke im dunklen Thema schon aus, als Rahmen um eine Zahl.
+ *
+ * > **Eine Fläche mit eigenem Grund setzt jede Marke, die etwas auf ihr liest
+ * > — nicht nur die, an die man beim Entwurf gedacht hat.**
+ *
+ * **Und `color` als Eigenschaft und nicht nur `--text` als Marke.** `color`
+ * erbt der Text als **fertigen Wert**: Was keine eigene Regel hat, nimmt die
+ * Farbe, die der `body` aus seinem `--text` gerechnet hat, und die Marke der
+ * Leiste kommt dabei nie zum Zug. So stand der Name neben dem Zeichen seit B6
+ * im hellen Thema mit 1,76:1 auf der Leiste. Mit der Eigenschaft hier erbt
+ * alles darunter die Schrift der Fläche.
  *
  * `--nav-border` ist davon ausgenommen und steht bei 1,44:1: Es ist eine
  * Haarlinie zum Trennen und kein Bedienelement — dieselbe Rolle wie `--line`
@@ -374,6 +403,9 @@
 .topbar {
   --nav-bg: #1a0b2e;
   --nav-border: #3a2954;
+  --surface: #1a0b2e;
+  --line: #3a2954;
+  --mark-accent: #ff7fec;
 
   --text: #d9d2e6;
   --text-strong: #ffffff;
@@ -383,6 +415,8 @@
   --accent: #ffb7a5;
   --accent-surface: rgb(255 183 165 / 0.14);
   --focus: #ffb7a5;
+
+  color: var(--text);
 }
 
 /*
@@ -1059,6 +1093,36 @@ input[type='radio'] {
 .signin .brand-logo {
   height: 34px;
   max-width: 220px;
+}
+
+/*
+ * Der Name neben dem Zeichen, in der Seitenleiste.
+ *
+ * **Er stand bis zum 1. Oktober 2026 als `.row b` im gescopten Block von
+ * `PanelLayout` und erreichte den Namen seit B6 nicht mehr.** Der Name steht
+ * seit dem 21. September in `BrandMark.vue`, und eine gescopte Regel trifft nur
+ * die Elemente der eigenen Vorlage und die Wurzel einer eingesetzten
+ * Komponente; `BrandMark` hat zwei Wurzeln. Der Name erbte danach die Schrift
+ * der Seite, im hellen Thema `#3a3f49` auf der Leiste, 1,76:1
+ * (`docs/139 §8`). `ScopedReachTest` hält seitdem, dass jede gescopte Regel ein
+ * Element ihrer Vorlage trifft.
+ *
+ * **In `--text-section` und nicht in `--text-heading`, gemessen und beim
+ * ersten Anlauf falsch.** Mit 26px war der Schriftzug 126px breit; zusammen
+ * mit dem Zeichen (24px), der Versionsmarke (76px) und zwei Lücken sind das
+ * 244px, und in der Leiste stehen nach Innenabstand 203px zur Verfügung. Die
+ * Zeile brach um — genau der Fehler, wegen dem die Leiste von 186px auf 236px
+ * gewachsen ist. Bei 17px sind es 200px, und die Zeile hält. Eine eigene Stufe
+ * für den Schriftzug wäre die achte Rolle für einen Sonderfall gewesen.
+ *
+ * Auf der Anmeldeseite braucht der Name keine Regel: Er steht in der
+ * Überschrift und nimmt deren Grösse, Gewicht und Farbe.
+ */
+.rail .brand-name {
+  font-size: var(--text-section);
+  font-weight: 660;
+  letter-spacing: -0.015em;
+  color: var(--text-strong);
 }
 
 .tiles {
@@ -5006,11 +5070,24 @@ p:not([class]) {
  * Die Anmeldeseite ist eine **Markenfläche** — der zweite und letzte Ort
  * dieses Panels, an dem eine Fläche ihren eigenen Grund mitbringen darf.
  *
- * Der erste ist der Navigationsstreifen (siehe `.rail, .topbar`). Beide haben
- * gemeinsam, dass auf ihnen **keine Zustandsfarbe** steht: keine Tabelle, kein
- * Vorgang, keine Marke. Überall sonst erbt eine Fläche den Grund der Seite,
- * und das ist keine Beschränkung, sondern der Grund, warum `--ok`, `--warn`
- * und `--critical` je Theme genau einmal gerechnet werden müssen.
+ * Der erste ist der Navigationsstreifen (siehe `.rail, .topbar`). Überall sonst
+ * erbt eine Fläche den Grund der Seite, und das ist keine Beschränkung, sondern
+ * der Grund, warum `--ok`, `--warn` und `--critical` je Theme genau einmal
+ * gerechnet werden müssen.
+ *
+ * **Hier stand bis zum 1. Oktober 2026, auf beiden stehe keine
+ * Zustandsfarbe, und für diese Fläche war es falsch.** Im Formular stehen der
+ * Hinweis der Sitzung (`.notice.warn`), die Fehlermeldung (`.notice.critical`
+ * aus `FormErrors.vue`) und der Rand eines ungültigen Feldes. Im hellen Thema
+ * trugen sie die Werte für den hellen Grund und standen auf Inkberry, mit
+ * Rändern von 2,73 bis 2,85:1. Ihr Text hatte gar keine Regel und erbte die
+ * Schrift der Seite: „Diese Anmeldedaten sind ungültig." mit 1,83:1, der
+ * Hinweis mit 1,76:1 und die Fusszeile des Betreibers mit 1,83:1
+ * (`docs/139 §8`). Entschieden vom Betreiber am selben Tag: Die Fläche trägt
+ * die Zustandswerte des dunklen Themas — sie ist in beiden Themen dunkel, und
+ * diese Werte sind für einen dunklen Grund gerechnet —, und sie setzt `color`
+ * selbst, damit Text ohne eigene Regel ihre Schrift erbt und nicht die der
+ * Seite.
  *
  * **Die Marken sitzen auf `.signin` und nicht auf `.signin-frame`, und das ist
  * tragend.** Über dem Formular steht seit A14 ein Band der Kategorie
@@ -5024,13 +5101,17 @@ p:not([class]) {
  *
  * Jeder Wert ist gegen die Fläche gerechnet, auf der er liegt (`--surface`,
  * `#1a0b2e`): Überschrift 11,11:1 · Fliesstext 15,57:1 · Beschriftung 9,26:1 ·
- * Feldgrenze 4,96:1 auf der Feldfläche, verlangt sind dort 3:1. Gehalten von
- * `SurfaceTokenTest`, der denselben Selektor liest.
+ * Feldgrenze 4,96:1 auf der Feldfläche, verlangt sind dort 3:1 · der obere
+ * Balken des Zeichens 8,40:1 · Warnung 8,85:1 · Störung 7,88:1. Gehalten von
+ * `SurfaceTokenTest`, der denselben Selektor liest. `--mark-accent` steht hier
+ * aus demselben Grund wie an der Leiste: Ohne ihn trug das Zeichen im hellen
+ * Thema den Indigo der Seite, 1,87:1.
  */
 .signin {
   --bg: #140823;
   --surface: #1a0b2e;
   --line: #3a2954;
+  --mark-accent: #ff7fec;
 
   --text: #efe9f2;
   --text-strong: #ffb7a5;
@@ -5045,6 +5126,12 @@ p:not([class]) {
   --accent-surface: rgb(255 183 165 / 0.14);
   --focus: #ffb7a5;
 
+  --warn: #e2a94a;
+  --warn-surface: rgb(226 169 74 / 0.14);
+  --critical: #f08a72;
+  --critical-surface: rgb(240 138 114 / 0.14);
+
+  color: var(--text);
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -5188,7 +5275,7 @@ p:not([class]) {
  * keine Zustandsfarbe.
  *
  * **Warum keine der fünf Varianten darüber.** `.rail` und `.topbar` führen
- * acht eigene Marken; `--warn` gehört nicht dazu. Gemessen ergibt
+ * eigene Marken; `--warn` gehört nicht dazu. Gemessen ergibt
  * `.badge.warn` im Streifen **2,67:1** im hellen Thema — die Farbe ist gegen
  * den Seitengrund gerechnet, und der Streifen ist in beiden Themen dunkel
  * (`#1a0b2e`). Mit `--accent` sind es **8,42:1 in beiden**, und das ist genau

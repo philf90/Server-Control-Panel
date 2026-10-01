@@ -34,8 +34,8 @@ der Traffic-Kachel in zwei Zeilen, ist mit `0.9.0-rc.9` behoben
 (`docs/139 §6b`), und der Nachlauf hat die Behebung am 1. Oktober auf dem
 Server gezeigt (`docs/139 §8`). Danach hat der Betreiber B4 abgenommen. Ein
 Befund ausserhalb von B4, der Schriftzug der Leiste im hellen Thema, ist am
-selben Tag behoben und kommt mit `0.9.0-rc.10` (`docs/139 §9`, Abschnitt
-weiter unten); auf dem Server gesehen hat ihn noch niemand.
+selben Tag behoben, mit `0.9.0-rc.10` ausgeliefert und auf `cloudsrv24`
+nachgesehen (`docs/139 §9`, Abschnitt weiter unten).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -6641,8 +6641,8 @@ Der Betreiber hat entschieden, ihn mit `0.9.0-rc.10` zu beheben.
 Behoben am selben Tag (`docs/139 §9`), und der Befund war grösser als der
 Schriftzug. Auf der Leiste lasen auch Zeichen und Versionsmarke Marken, die die
 Leiste nicht setzte, und auf der Anmeldeseite stand dieselbe Familie im
-Formular: Fehlermeldung 1,83:1, Hinweis der Sitzung 1,76:1, Ränder 2,73 bis
-2,85:1. Die Anmeldeseite hat der Betreiber mitbeheben lassen.
+Formular: Fehlermeldung 1,75:1, ein Hinweis zur Sitzung 1,65:1, Ränder 2,73
+bis 2,85:1. Die Anmeldeseite hat der Betreiber mitbeheben lassen.
 
 **Drei Ursachen, und jede hat ihren Satz.** Die erste ist die Regel, die seit
 B6 nichts mehr traf:
@@ -6707,6 +6707,33 @@ Element `<max>` öffnet und die nächste Zeile verschluckt.
 > **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch
 > dann falsch, wenn der Handgriff daneben richtig ist.** Zum dritten Mal in
 > diesem Repo, und diesmal an einem Wächter, der am selben Tag entstand.
+
+**Der Nachlauf gegen `0.9.0-rc.10` hat jede Zahl getroffen**, auf der Leiste
+wie auf der Anmeldeseite, in beiden Themen und auf die zweite Stelle. Gemessen
+hat ein Snippet, das beide Themen auf derselben Seite fährt und eine
+Gegenprobe mitdruckt: die Schrift der Seite auf derselben Fläche, im hellen
+Thema 1,76:1.
+
+> **Farben trifft der Zwilling auf die zweite Stelle — sie hängen an Stylesheet
+> und Markup und an keiner Schrift.** Die Gegenseite zu dem, was der Nachlauf
+> zu B4 am Umbruch gelernt hat.
+
+**Und das Vorabmessen hat zwei Fehler in meinen eigenen Zahlen gefunden.** Der
+Prüfkörper der Behebung warf die getönte Fläche einer Meldung und die halbe
+Deckkraft des dritten Balkens weg. Die Fehlermeldung stand mit 16,17:1 statt
+13,25 da, vorher mit 1,83 statt 1,75. Kein Urteil kippt dadurch, aber die
+Zahlen standen im Commit, im CHANGELOG und hier.
+
+> **Ein Prüfkörper, der die Deckkraft wegwirft, misst die Farbe vor dem
+> Überblenden — und die sieht niemand.** Zum zweiten Mal nach A14, und der Satz
+> stand die ganze Zeit in dieser Datei.
+
+Dazu zitierte die erste Fassung zwei Sätze als Text der Seite, die nur in den
+Stubs des Aufsatzes standen. Die Seite sagt „Diese Zugangsdaten passen nicht zu
+einem aktiven Konto.", und aufgefallen ist es erst am Bild des Servers.
+
+> **Ein Text aus dem eigenen Prüfkörper, zitiert als Text der Seite, ist
+> erfunden — auch wenn die Zahl daneben stimmt.**
 
 ---
 

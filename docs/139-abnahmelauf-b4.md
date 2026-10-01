@@ -31,8 +31,8 @@ diese Freigabe wird der Lauf gefahren.
 Teil 2 im Browser, **alle fünf Punkte erfüllt**. Ein Befund am Bild ist mit
 `0.9.0-rc.9` behoben (§6b). Der Nachlauf ist am 1. Oktober gefahren (§8), und
 **am selben Tag hat der Betreiber B4 abgenommen.** Ein Befund ausserhalb von
-B4, der Schriftzug der Leiste im hellen Thema, ist am selben Tag behoben und
-kommt mit `0.9.0-rc.10` (§9).
+B4, der Schriftzug der Leiste im hellen Thema, ist am selben Tag behoben, mit
+`0.9.0-rc.10` ausgeliefert und auf dem Server nachgesehen (§9).
 
 Neu ist dazu ein Messmittel: **`tests/kacheln-messen.js`** liest die
 Kachelreihe einer Seite und die Ablesung an ihren Kurven, so wie
@@ -1531,22 +1531,25 @@ mitbeheben lassen („Ja, ganz").
 
 ### Was falsch war, im hellen Thema
 
-Gegen die Fläche `#1a0b2e`, gemessen im Container mit den echten Komponenten:
+Gegen den Grund, auf dem es wirklich steht, gemessen im Container mit den
+echten Komponenten des Stands `0.9.0-rc.9`. Eine Meldung hat eine getönte
+Fläche, und der dritte Balken des Zeichens hat halbe Deckkraft; beides ist
+übereinandergelegt. Die erste Fassung dieser Tabellen hat das nicht getan
+(weiter unten, „Die erste Fassung dieser Zahlen").
 
 | Leiste | vorher | |
 |---|---|---|
 | Schriftzug | `#3a3f49`, 15 px, Gewicht 700 | 1,76:1 |
-| Zeichen, oberer Balken | `#3730a3`, der Indigo der Seite | 1,87:1 |
-| Zeichen, untere Balken | `#3a3f49` | 1,76:1 |
-| Versionsmarke | eine weisse Pille, `--text-faint` darauf | 2,90:1 |
+| Zeichen, Balken 1 · 2 · 3 | `#3730a3` · `#3a3f49` · `#3a3f49` mit halber Deckkraft | 1,87 · 1,76 · 1,26:1 |
+| Versionsmarke | `#9b8fb0` auf einer weissen Pille | 2,90:1 |
 
 | Anmeldeseite | vorher |
 |---|---|
-| „Diese Anmeldedaten sind ungültig." | 1,83:1 |
-| „Die Sitzung ist abgelaufen." | 1,76:1 |
+| Fehlermeldung „Diese Zugangsdaten passen nicht zu einem aktiven Konto." | 1,75:1 |
+| Hinweis zur Sitzung (`.notice.warn`) | 1,65:1 |
 | Fusszeile des Betreibers | 1,83:1 |
-| Ränder der Meldungen und eines ungültigen Feldes | 2,73 bis 2,85:1 |
-| Zeichen, oberer Balken | 1,87:1 |
+| Ränder der Fehlermeldung · des Hinweises · eines ungültigen Feldes | 2,84 · 2,85 · 2,73:1 |
+| Zeichen, Balken 1 | 1,87:1 |
 
 Im dunklen Thema war alles lesbar. Der Schriftzug trug dort die Schrift der
 Seite (`#c4c9d4`, 15 px, 11,18:1) statt seiner Gestalt aus der Zeit vor B6.
@@ -1580,26 +1583,55 @@ keine Zustandsfarbe. Für die Anmeldeseite war das nie richtig.
 
 ### Gemessen im Container, nachher
 
-In beiden Themen dieselben Werte, gegen `#1a0b2e`:
+In beiden Themen dieselben Werte:
 
 | Leiste | nachher | |
 |---|---|---|
 | Schriftzug | `#ffffff`, 17 px, Gewicht 660 | 18,56:1 |
-| Zeichen, oberer Balken | `#ff7fec` | 8,40:1 |
-| Zeichen, untere Balken | `#ffffff` | 18,56:1 |
+| Zeichen, Balken 1 · 2 · 3 | `#ff7fec` · `#ffffff` · `#ffffff` mit halber Deckkraft | 8,40 · 18,56 · 5,24:1 |
 | Versionsmarke | `#9b8fb0` auf dem Grund der Leiste, Rand `#3a2954` | 6,14:1 |
 
 | Anmeldeseite | nachher |
 |---|---|
 | Schriftzug | `#ffb7a5`, 26 px, Gewicht 660, 11,11:1 |
-| „Diese Anmeldedaten sind ungültig." | 16,17:1 |
-| „Die Sitzung ist abgelaufen." | 15,57:1 |
+| Fehlermeldung, Titel · Text | 9,46 · 13,25:1 |
+| Hinweis zur Sitzung | 12,39:1 |
 | Fusszeile des Betreibers | 16,17:1 |
-| Rand der Warnung · der Störung · des ungültigen Feldes | 8,85 · 7,88 · 7,59:1 |
-| Zeichen, oberer Balken | 8,40:1 |
+| Ränder der Fehlermeldung · des Hinweises · eines ungültigen Feldes | 7,88 · 8,85 · 7,59:1 |
+| Zeichen, Balken 1 · 2 · 3 | 8,40 · 11,11 · 3,57:1 |
 
+Der Rand der Versionsmarke steht bei 1,44:1. Er ist eine Haarlinie wie
+`--nav-border` und kein Bedienelement, und die Schrift darin trägt die Marke.
 Der Schriftzug der Anmeldeseite stand vorher mit Gewicht 900 da: Das `<b>` gab
 `bolder` auf die Überschrift.
+
+#### Die erste Fassung dieser Zahlen
+
+**Sie war an drei Stellen zu hoch** und stand so im Commit der Behebung, im
+CHANGELOG und in CLAUDE.md. Der Prüfkörper rechnete eine Schrift gegen den
+ersten Vorfahren mit mehr als halber Deckkraft und warf dabei die getönte
+Fläche einer Meldung weg. Den dritten Balken des Zeichens las er ohne seine
+halbe Deckkraft. So standen die Fehlermeldung mit 16,17:1 statt 13,25 da, der
+Hinweis mit 15,57 statt 12,39 und der dritte Balken mit 18,56 statt 5,24. Vor
+der Behebung standen dort 1,83 und 1,76 statt 1,75 und 1,65. Gefunden hat es
+das Snippet für den Nachlauf beim Vorabmessen im Container, denn es legt die
+Flächen übereinander. Kein Urteil kippt dabei: Vorher lag jeder Wert unter
+seiner Grenze, nachher jeder darüber.
+
+> **Ein Prüfkörper, der die Deckkraft wegwirft, misst die Farbe vor dem
+> Überblenden — und die sieht niemand.** Der Satz steht seit A14 in CLAUDE.md,
+> und dieser Prüfkörper ist trotzdem hineingelaufen.
+
+**Und zwei Zitate kamen aus dem Prüfkörper und nicht von der Seite.** Die erste
+Fassung zitierte „Diese Anmeldedaten sind ungültig." und „Die Sitzung ist
+abgelaufen." — beide Sätze standen nur in den Stubs des Aufsatzes. Die Seite
+sagt „Diese Zugangsdaten passen nicht zu einem aktiven Konto."
+(`LoginController`). Einen Hinweis zur Sitzung gibt es in mehreren Fassungen,
+etwa „Die Sitzung hat ihre Höchstdauer erreicht. Bitte erneut anmelden.".
+Aufgefallen ist es am Bild des Nachlaufs, auf dem der echte Satz steht.
+
+> **Ein Text aus dem eigenen Prüfkörper, zitiert als Text der Seite, ist
+> erfunden — auch wenn die Zahl daneben stimmt.**
 
 ### Die Wächter
 
@@ -1617,8 +1649,245 @@ Der Schriftzug der Anmeldeseite stand vorher mit Gewicht 900 da: Das `<b>` gab
   zählte er zwei Zeilen in der Datei, und seit Leiste und Anmeldeseite die
   Marke setzen, sind es vier.
 
-### Was noch aussteht
+### Der Nachlauf gegen `0.9.0-rc.10` — gefahren am 1. Oktober 2026
 
-Der Nachlauf gegen `0.9.0-rc.10`: die Leiste und die Anmeldeseite im hellen
-und im dunklen Thema, als Bild, und dazu eine Fehlermeldung auf der
-Anmeldeseite.
+`v0.9.0-rc.10` steht auf dem Merge-Commit `f7c6d595`, gesetzt vom Betreiber;
+auf `cloudsrv24` meldet `srvpanel version` danach `0.9.0-rc.10`.
+
+**Die Vorschrift** ist ein Snippet für die Konsole, einmal auf der frisch
+geladenen Seite eingefügt. Es misst beide Themen auf derselben Seite, indem es
+`data-theme` am `<html>` umstellt, und stellt danach das Thema der Seite wieder
+her. Es legt die Flächen der Vorfahren übereinander, rechnet die Deckkraft
+eines Balkens mit und wertet einen Rand nur, wenn er einen Zustand trägt.
+Daneben druckt es einen Ladebeleg und eine Gegenprobe: die Schrift der Seite
+auf derselben Fläche, also den Wert, den der Schriftzug vor `rc.10` hatte. Ein
+zweiter Aufruf ohne Neuladen misst nicht. Vorab im Container gegen `rc.9` und
+`rc.10` gefahren; daraus stammen die Tabellen oben.
+
+```js
+// Nachlauf docs/139 §9: Leiste und Anmeldeseite in beiden Themen.
+// Einmal auf der frisch geladenen Seite in die Konsole einfügen.
+(() => {
+  const STAND = 'markeMessen · 1. Oktober 2026'
+  if (window.__markeGemessen) {
+    console.log('Schon gemessen — Seite neu laden (Strg+F5) und dann erneut einfügen.')
+    return
+  }
+  window.__markeGemessen = true
+
+  const rgba = (s) => {
+    const m = (String(s).match(/[\d.]+/g) || []).map(Number)
+    return m.length < 3 ? null : [m[0], m[1], m[2], m.length > 3 ? m[3] : 1]
+  }
+  // Eine Farbe mit Deckkraft über einen deckenden Grund gelegt.
+  const ueber = (o, u) => [0, 1, 2].map((i) => o[i] * o[3] + u[i] * (1 - o[3])).concat(1)
+  const lum = (c) => {
+    const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }
+    return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2])
+  }
+  const kon = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05) }
+  // Der Grund hinter einem Element: die Flächen der Vorfahren, von der ersten
+  // deckenden an übereinandergelegt — eine Meldung hat eine getönte Fläche.
+  const grund = (el) => {
+    const s = []
+    for (let e = el; e; e = e.parentElement) {
+      const c = rgba(getComputedStyle(e).backgroundColor)
+      if (c && c[3] > 0) { s.push(c); if (c[3] >= 1) break }
+    }
+    let g = [255, 255, 255, 1]
+    for (const c of s.reverse()) g = ueber(c, g)
+    return g
+  }
+  const hex = (c) => '#' + c.slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')
+  const z = (k) => k.toFixed(2).replace('.', ',')
+
+  const html = document.documentElement
+  const vorher = html.getAttribute('data-theme')
+  const zeilen = [`${STAND} · ${location.pathname} · Breite ${innerWidth} px`]
+  const zuWenig = []
+
+  // Eine Zeile: was es ist, seine sichtbare Farbe, sein Grund, das Verhältnis.
+  const zeile = (name, farbe, g, grenze, extra = '') => {
+    const k = kon(farbe, g)
+    if (k < grenze) zuWenig.push(`${name} ${z(k)}:1 < ${grenze}`)
+    zeilen.push(`  ${name.padEnd(30)} ${hex(farbe)} auf ${hex(g)}  ${z(k).padStart(5)}:1${extra}`)
+  }
+  const text = (name, el) => {
+    if (!el) { zeilen.push(`  ${name.padEnd(30)} (nicht da)`); return }
+    const s = getComputedStyle(el)
+    const g = grund(el)
+    zeile(name, ueber(rgba(s.color), g), g, 4.5, `  ${s.fontSize}/${s.fontWeight}`)
+  }
+  // Ein Rand, der einen Zustand trägt, braucht 3:1. Eine Haarlinie nicht — sie
+  // wird gedruckt und nicht gewertet (siehe --nav-border in app.css).
+  const rand = (name, el, haarlinie = false) => {
+    if (!el) { zeilen.push(`  ${name.padEnd(30)} (nicht da)`); return }
+    const g = grund(el.parentElement)
+    zeile(name, ueber(rgba(getComputedStyle(el).borderLeftColor), g), g, haarlinie ? 0 : 3, haarlinie ? '  Haarlinie, ohne Grenze' : '')
+  }
+  const zeichen = (wo, svg) => {
+    if (!svg) { zeilen.push(`  ${('Zeichen ' + wo).padEnd(30)} (nicht da)`); return }
+    const g = grund(svg)
+    svg.querySelectorAll('rect').forEach((r, i) => {
+      const s = getComputedStyle(r)
+      const f = rgba(s.fill)
+      const deck = parseFloat(s.opacity) * f[3]
+      zeile(`Zeichen ${wo}, Balken ${i + 1}`, ueber([f[0], f[1], f[2], deck], g), g, 3, deck < 1 ? `  Deckkraft ${deck}` : '')
+    })
+  }
+
+  const messen = (thema) => {
+    html.setAttribute('data-theme', thema)
+    zeilen.push(`thema=${thema}`)
+    const rail = document.querySelector('aside.rail')
+    const signin = document.querySelector('main.signin')
+    if (rail) {
+      const name = rail.querySelector('.brand-name, .row b')
+      const s = name ? getComputedStyle(name) : null
+      zeilen.push(`  Ladebeleg Leiste: Grund ${hex(rgba(getComputedStyle(rail).backgroundColor))}, Schriftzug ${s ? s.fontSize + '/' + s.fontWeight : 'fehlt'} (neu: 17px/660)`)
+      text('Schriftzug', name)
+      zeichen('Leiste', rail.querySelector('svg.mark'))
+      const v = rail.querySelector('.version')
+      text('Versionsmarke, Schrift', v)
+      rand('Versionsmarke, Rand', v, true)
+      if (v) zeilen.push(`  Versionsmarke, Fläche: ${hex(grund(v))} · Leiste ${hex(grund(rail))}`)
+      const b = grund(name || rail)
+      zeilen.push(`  Gegenprobe: Schrift der Seite ${hex(rgba(getComputedStyle(document.body).color))} auf der Leiste ${z(kon(rgba(getComputedStyle(document.body).color), b))}:1`)
+    }
+    if (signin) {
+      const sheet = signin.querySelector('.sheet') || signin
+      zeilen.push(`  Ladebeleg Anmeldeseite: color der Fläche ${hex(rgba(getComputedStyle(signin).color))} (neu: #efe9f2), Grund der Maske ${hex(grund(sheet))}`)
+      text('Schriftzug', signin.querySelector('.brand-name, h1 b'))
+      zeichen('Anmeldung', signin.querySelector('svg.mark'))
+      const kritisch = signin.querySelector('.notice.critical')
+      text('Fehlermeldung, Titel', kritisch && kritisch.querySelector('b'))
+      text('Fehlermeldung, Text', kritisch && kritisch.querySelector('span'))
+      rand('Fehlermeldung, Rand', kritisch)
+      const warn = signin.querySelector('.notice.warn')
+      text('Hinweis der Sitzung', warn && warn.querySelector('span'))
+      rand('Hinweis der Sitzung, Rand', warn)
+      rand('Feld, ungültig, Rand', signin.querySelector('input[aria-invalid="true"]'))
+      text('Fusszeile', signin.querySelector('p.release:not(:has(.version))'))
+      text('Versionsnummer', signin.querySelector('.release .version'))
+      zeilen.push(`  Gegenprobe: Schrift der Seite ${hex(rgba(getComputedStyle(document.body).color))} auf der Maske ${z(kon(rgba(getComputedStyle(document.body).color), grund(sheet)))}:1`)
+    }
+    if (!rail && !signin) zeilen.push('  weder Leiste noch Anmeldeseite auf dieser Seite')
+  }
+
+  try {
+    messen('light')
+    messen('dark')
+  } finally {
+    if (vorher === null) html.removeAttribute('data-theme'); else html.setAttribute('data-theme', vorher)
+  }
+  zeilen.push(zuWenig.length === 0
+    ? 'Urteil: jede Schrift über 4,5:1, jedes Zeichen und jeder Rand eines Zustands über 3:1'
+    : `Urteil: zu wenig Kontrast — ${[...new Set(zuWenig)].join(' · ')}`)
+  zeilen.push(`Thema der Seite zurück auf: ${vorher ?? '(keins)'}`)
+  console.log(zeilen.join('\n'))
+})()
+```
+
+#### Schritt 1 — die Leiste, angemeldet
+
+Auf `cloudsrv24.de:8443`, Übersicht, Geräteleiste 1440 × 900, die Seite im
+dunklen Thema:
+
+```
+markeMessen · 1. Oktober 2026 · / · Breite 1440 px
+thema=light
+  Ladebeleg Leiste: Grund #1a0b2e, Schriftzug 17px/660 (neu: 17px/660)
+  Schriftzug                     #ffffff auf #1a0b2e  18,56:1  17px/660
+  Zeichen Leiste, Balken 1       #ff7fec auf #1a0b2e   8,40:1
+  Zeichen Leiste, Balken 2       #ffffff auf #1a0b2e  18,56:1
+  Zeichen Leiste, Balken 3       #8d8597 auf #1a0b2e   5,24:1  Deckkraft 0.5
+  Versionsmarke, Schrift         #9b8fb0 auf #1a0b2e   6,14:1  11.5px/400
+  Versionsmarke, Rand            #3a2954 auf #1a0b2e   1,44:1  Haarlinie, ohne Grenze
+  Versionsmarke, Fläche: #1a0b2e · Leiste #1a0b2e
+  Gegenprobe: Schrift der Seite #3a3f49 auf der Leiste 1,76:1
+thema=dark
+  Ladebeleg Leiste: Grund #1a0b2e, Schriftzug 17px/660 (neu: 17px/660)
+  Schriftzug                     #ffffff auf #1a0b2e  18,56:1  17px/660
+  Zeichen Leiste, Balken 1       #ff7fec auf #1a0b2e   8,40:1
+  Zeichen Leiste, Balken 2       #ffffff auf #1a0b2e  18,56:1
+  Zeichen Leiste, Balken 3       #8d8597 auf #1a0b2e   5,24:1  Deckkraft 0.5
+  Versionsmarke, Schrift         #9b8fb0 auf #1a0b2e   6,14:1  11.5px/400
+  Versionsmarke, Rand            #3a2954 auf #1a0b2e   1,44:1  Haarlinie, ohne Grenze
+  Versionsmarke, Fläche: #1a0b2e · Leiste #1a0b2e
+  Gegenprobe: Schrift der Seite #c4c9d4 auf der Leiste 11,18:1
+Urteil: jede Schrift über 4,5:1, jedes Zeichen und jeder Rand eines Zustands über 3:1
+Thema der Seite zurück auf: dark
+```
+
+Jede Zeile wie vorhergesagt, in beiden Themen. Der Ladebeleg zeigt das neue
+Stylesheet (`17px/660`), und die Gegenprobe steht im hellen Thema bei genau den
+1,76:1, mit denen der Schriftzug vorher auf der Leiste stand.
+
+Dazu zwei Bilder, eines je Thema. Das erste zeigt die Leiste im dunklen Thema:
+Schriftzug weiss, Zeichen pink und weiss, die Versionsmarke `0.9.0-rc.10` als
+Rahmen auf der Leiste. Das zweite ist nach `window.srvpanelTheme('light')`
+aufgenommen, der Aufruf steht in der Konsole daneben. Die Übersicht ist hell,
+und die Leiste sieht aus wie im ersten Bild: Schriftzug weiss, Zeichen pink und
+weiss, die Versionsmarke als Rahmen. Vor der Behebung stand dort ein
+dunkelgrauer Schriftzug, ein Zeichen in Indigo und Dunkelgrau und eine weisse
+Pille (oben, „Was falsch war, im hellen Thema").
+
+#### Schritt 2 — die Anmeldeseite, im privaten Fenster
+
+Ein Fehlversuch mit `nachlauf@example.invalid` und einem falschen Passwort, dann
+das Snippet:
+
+```
+markeMessen · 1. Oktober 2026 · /login · Breite 1440 px
+thema=light
+  Ladebeleg Anmeldeseite: color der Fläche #efe9f2 (neu: #efe9f2), Grund der Maske #1a0b2e
+  Schriftzug                     #ffb7a5 auf #1a0b2e  11,11:1  26px/660
+  Zeichen Anmeldung, Balken 1    #ff7fec auf #1a0b2e   8,40:1
+  Zeichen Anmeldung, Balken 2    #ffb7a5 auf #1a0b2e  11,11:1
+  Zeichen Anmeldung, Balken 3    #8d616a auf #1a0b2e   3,57:1  Deckkraft 0.5
+  Fehlermeldung, Titel           #ffb7a5 auf #331a2e   9,46:1  14px/700
+  Fehlermeldung, Text            #efe9f2 auf #331a2e  13,25:1  14px/400
+  Fehlermeldung, Rand            #f08a72 auf #140823   7,88:1
+  Hinweis der Sitzung            (nicht da)
+  Hinweis der Sitzung, Rand      (nicht da)
+  Feld, ungültig, Rand           #f08a72 auf #1a0b2e   7,59:1
+  Fusszeile                      (nicht da)
+  Versionsnummer                 #a99cbe auf #1a0b2e   7,24:1  11.5px/400
+  Gegenprobe: Schrift der Seite #3a3f49 auf der Maske 1,76:1
+thema=dark
+  Ladebeleg Anmeldeseite: color der Fläche #efe9f2 (neu: #efe9f2), Grund der Maske #1a0b2e
+  Schriftzug                     #ffb7a5 auf #1a0b2e  11,11:1  26px/660
+  Zeichen Anmeldung, Balken 1    #ff7fec auf #1a0b2e   8,40:1
+  Zeichen Anmeldung, Balken 2    #ffb7a5 auf #1a0b2e  11,11:1
+  Zeichen Anmeldung, Balken 3    #8d616a auf #1a0b2e   3,57:1  Deckkraft 0.5
+  Fehlermeldung, Titel           #ffb7a5 auf #331a2e   9,46:1  14px/700
+  Fehlermeldung, Text            #efe9f2 auf #331a2e  13,25:1  14px/400
+  Fehlermeldung, Rand            #f08a72 auf #140823   7,88:1
+  Hinweis der Sitzung            (nicht da)
+  Hinweis der Sitzung, Rand      (nicht da)
+  Feld, ungültig, Rand           #f08a72 auf #1a0b2e   7,59:1
+  Fusszeile                      (nicht da)
+  Versionsnummer                 #a99cbe auf #1a0b2e   7,24:1  11.5px/400
+  Gegenprobe: Schrift der Seite #c4c9d4 auf der Maske 11,18:1
+Urteil: jede Schrift über 4,5:1, jedes Zeichen und jeder Rand eines Zustands über 3:1
+Thema der Seite zurück auf: light
+```
+
+Jede vorhandene Zeile wie vorhergesagt. Nicht da sind der Hinweis zur Sitzung,
+den es nur nach einer beendeten Sitzung gibt, und die Fusszeile, die auf
+`cloudsrv24` nicht eingerichtet ist; für beide gilt die Messung im Container.
+Gäste sehen auf `cloudsrv24` das helle Thema (`SRVPANEL_THEME`), daher
+„zurück auf: light". Die Bilder zeigen „Das Formular wurde nicht gespeichert.
+Diese Zugangsdaten passen nicht zu einem aktiven Konto." hell auf der getönten
+Fläche und das Adressfeld mit dem Rand der Störung. In beiden Themen sieht die
+Seite gleich aus, und das ist die Absicht einer Markenfläche.
+
+#### Was der Nachlauf zeigt
+
+Die Behebung wirkt auf dem Server, auf beiden Flächen und in beiden Themen, und
+der Container hat jede Zahl auf die zweite Stelle vorhergesagt. Das ist die
+Gegenseite zu §8: Dort lag der Zwilling bei einem Umbruch daneben, weil Text in
+seiner eigenen Schrift steht.
+
+> **Farben trifft der Zwilling auf die zweite Stelle — sie hängen an Stylesheet
+> und Markup und an keiner Schrift.**

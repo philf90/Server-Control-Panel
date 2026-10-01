@@ -235,7 +235,7 @@ final class SurfaceTokenTest extends TestCase
      * `body`, mit seinem `--text` aus `:root`. Die Marke der Fläche kommt dabei
      * nie zum Zug. So stand der Name neben dem Zeichen seit B6 im hellen Thema
      * mit 1,76:1 auf der Leiste, und auf der Anmeldeseite die Fehlermeldung mit
-     * 1,83:1 (`docs/139 §8`).
+     * 1,75:1 auf ihrer getönten Fläche (`docs/139 §9`).
      *
      * Gelesen werden muss eine Schriftmarke, die die Fläche selbst setzt —
      * sonst erbt alles darunter wieder eine fremde.

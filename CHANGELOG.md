@@ -33692,3 +33692,129 @@ bleibt liegen" fand seinen Anker zweimal, weil der neue Helfer in
 hängt. Dem Einzellauf davor waren die Testdateien nicht mitgegeben worden. Der
 Fall benutzt jetzt den Helfer, und der Eingriff beisst. Was er mit Absicht
 liegen lässt, räumt das Bruchskript danach ab.
+
+### Der Lauf für B6 hat begonnen — und auf „Allgemein" klebte „Speichern" an der Marke
+
+**Gefahren ab dem 3. Oktober 2026 gegen `0.9.0-rc.11`.** Block 1 und Punkt 1
+stimmen: Die Farbe `#2f8f5b` wird mit „Diese Farbe erreicht auf #fafafb nur
+3,87:1" abgewiesen.
+
+**Gemeldet hat der Betreiber dabei einen Befund am Bild**, auf dem Telefon.
+Auf `/settings/general` stand „Speichern" unmittelbar an der Überschrift
+„Name und Fusszeile". Gemessen sind es 0 px, bei 390 und bei 1440 px. B6 hat
+das zweite Formular unter das erste gesetzt, ohne die Hülle `.sections`, die
+`app.css` für zwei Formulare auf einer Seite vorsieht. Mit ihr sind es 26 und
+30 px, so viel wie zwischen zwei Bereichen eines Formulars.
+
+**Der Wächter dafür war da und hat geschwiegen.** `BlockSpacingTest` findet
+die Fuge `form + form`. In seiner Liste offener Fugen stand sie schon, für die
+Datenbankseite, und ein Eintrag galt jeder Vorlage, in der das Paar vorkommt.
+Seitdem nennt jeder Eintrag seine Vorlagen. Gegen die alte Seite ist der alte
+Wächter grün und der neue rot.
+
+> **Eine Ausnahme, die für ein Paar gilt, gilt an jeder Stelle, an der das
+> Paar vorkommt — auch an der nächsten, die niemand angesehen hat.**
+
+Drei neue Eingriffe halten das, und gefahren sind alle 15 Eingriffe an den
+berührten Dateien und am Wächter. Einer davon, der von `NtpVerdictTest`,
+brauchte zwei Leerzeichen mehr in seinem Anker, weil die Hülle die Seite
+eingerückt hat (`docs/140 §6b`).
+
+**Die vier Prüfkörper des Laufs liegen seitdem im Repo**, unter
+`tests/pruefkoerper/b6/`, damit sie sich direkt verlinken lassen.
+`.gitattributes` führt sie als Bytes: Unter `text=auto` hielte Git das
+getarnte SVG für Text, und die Prüfsummen in `docs/140 §2` hängen an jedem
+Byte.
+
+### Schrift und Zeichen in der Farbe der Marke — und eine Prüfung, die die Tönungen rechnet
+
+**Am Bild von Punkt 4a stand „Angemeldet bleiben" in Pfirsich** neben dem
+mintgrünen Knopf der Anmeldeseite. Ohne Logo waren auch Name und Zeichen
+Pfirsich und der obere Balken des Zeichens Pink, in der Leiste ebenso. Der
+Markenblock setzte dort nur die vier Akzentmarken. Entschieden vom Betreiber
+am 3. Oktober 2026: Auf der Anmeldeseite gehen `--text-strong` und
+`--mark-accent` mit, in Leiste und Kopfleiste `--mark-accent`. Gemessen mit
+dem dunkelsten Akzent, den das Panel annimmt, stehen danach 0 statt 82 Stellen
+in einer Farbe der Auslieferung.
+
+**Dieselbe Messung hat eine Stelle gefunden, die die Änderung unlesbar
+machte, und eine ältere.** Die Überschrift einer Fehlermeldung liest
+`--text-strong` und stand mit `#02925b` bei 3,96:1. Der aktive Menüpunkt der
+Leiste steht seit `rc.11` im Akzent auf dessen eigener Tönung, gemessen
+4,14:1. Die Prüfung beim Speichern rechnete nur die Flächen und keine Tönung
+darüber.
+
+> **Eine Farbe, die auf jeder Fläche lesbar ist, ist es auf der Tönung
+> darüber noch lange nicht — und die Tönung ist die Stelle, an der etwas
+> hervorgehoben werden soll.**
+
+**Seitdem rechnet sie jede Tönung des Stylesheets mit**, entschieden vom
+Betreiber: die eigene Tönung des Akzents und die Tönung jedes Zustands, auf
+jedem Grund ihrer Fläche. Von den Tönen, die die alte Prüfung annahm, weist
+sie hell 19,9 % und dunkel 22,9 % ab. Die ausgelieferten Farben und die
+Prüffarben des Laufs bestehen. Meldung und Hinweis nennen bei einer Tönung
+den Ort, denn ihr Hexwert steht in keinem Stylesheet. Nachgemessen mit dem
+dunkelsten Akzent, den die neue Prüfung annimmt (`#869c36`): keine Stelle in
+der Farbe des Betreibers unter ihrer Forderung, am knappsten 5,11:1.
+
+**Im Vorschlag an den Betreiber stand, auf der Anmeldeseite brauche nur das
+Auge 3:1, und das war unvollständig.** Die Zahl der Abweisungen, die ich ihm
+zuerst genannt hatte, war ebenfalls zu klein; berichtigt sind beide vor dem
+Bauen (`docs/140 §6c`). Dazu rechnet `BrandStyleTest` Reste seitdem nach dem
+Wert und nicht nach dem Namen, `BrandContrastTest` hält die Tönungen gegen
+`app.css` und die Gründe der Anmeldeseite gegen den dunkelsten Akzent, den
+die Prüfung annimmt, und `BrandReachTest` hält Meldung und Hinweis durch die
+Tür. Im Bruchskript stehen 14 neue Eingriffe, und alle 40 an den berührten
+Dateien beissen.
+
+### Ohne Eintrag gilt die Vorgabe — für Name und Farben der Marke
+
+**Ein Wunsch des Betreibers nach Punkt 9 des Laufs für B6:** Wer Name oder
+Farbe leert, bekommt die Vorgabe. Bis dahin trugen die drei Felder `required`,
+im Formular und an der Tür; ein leeres Feld schickte der Browser gar nicht ab,
+und wer zurück wollte, musste `SrvPanel`, `#3730a3` und `#ff7fec` abschreiben.
+
+**Entschieden hat der Betreiber zwischen zwei Fassungen**, und gewählt ist die,
+in der das Feld leer bleibt (`docs/140 §6d`). Abgelegt wird keine Angabe, und
+das Formular zeigt die Vorgabe grau als Platzhalter; der Hinweis unter einer
+Farbe sagt dann „Vorgabe, gemessen …". Eine eingetippte Vorgabe zählt ebenso
+als keine Angabe, auch in Grossbuchstaben. Ändert eine spätere Fassung die
+Vorgabe, folgt ein Panel ohne eigene Angabe ihr.
+
+> **Ein Wert, der der Vorgabe gleicht, ist keine eigene Angabe — wer ihn als
+> Wert ablegt, hält eine zweite Fassung der Vorgabe, und die veraltet.**
+
+Die Regel steht in `BrandSettings`: `fromForm()` macht aus dem Formular, was
+gilt, `own()` sagt, was davon eigene Angabe ist, und `toStored()` legt nur
+diese ab. In die Felder der Seite gehen die eigenen Angaben und nicht, was
+gilt — sonst schickte das nächste Speichern die Vorgabe als eigene Angabe
+zurück. `BrandReachTest` misst das durch die Tür bis in die Ablage,
+`BrandFormTest` hält die Vorlage ohne `required` und mit Platzhaltern aus den
+Vorgaben des Servers. Im Bruchskript stehen 13 neue Eingriffe, und alle 38 an
+den berührten Dateien beissen. Was vor `0.9.0-rc.12` gespeichert wurde, trägt
+die Vorgabe noch als Wert; das Formular zeigt es trotzdem leer, und beim
+nächsten Speichern wird daraus keine Angabe.
+
+### Die Unterschrift der Mails ist eine für ein Mailprogramm — und ihre Leerzeile kam nie an
+
+**Beobachtet am 3. Oktober 2026 an der Quelle der Testmail aus dem Lauf für
+B6** (`docs/140 §6e`). Die Unterschrift stand ohne Leerzeile unmittelbar unter
+dem letzten Satz, und ihre Trennzeile war `--`. Nach RFC 3676 §4.3 lautet sie
+`-- `, mit Leerzeichen; erst daran setzt ein Mailprogramm die Unterschrift ab
+und lässt sie beim Antworten weg.
+
+**Die Leerzeile stand in der Vorlage der Unterschrift und kam nie an.**
+Laravel schneidet jeder gerenderten Ansicht den Leerraum am Anfang ab
+(`ltrim(ob_get_clean())` in `PhpEngine`), auch einer, die mit `@include`
+eingebunden ist.
+
+> **Eine Leerzeile am Anfang einer eingebundenen Vorlage kommt nie an —
+> Laravel kürzt jede gerenderte Ansicht vorn.**
+
+Entschieden hat der Betreiber am selben Tag, gebaut ist es für
+`0.9.0-rc.12`. Die Leerzeile steht jetzt in den drei einbindenden Vorlagen.
+Die Trennzeile steht als Ausgabe `{!! '-- ' !!}` da, weil `.editorconfig`
+Leerzeichen am Zeilenende entfernt. `MailSignatureTest` hält beides: an der
+Wirkung über alle drei Mails und an jeder Vorlage, die die Unterschrift
+einbindet. Im Bruchskript stehen sechs neue Eingriffe, und alle 18 an den
+berührten Dateien und an den Wächtern der Mails beissen.

@@ -240,9 +240,15 @@ final class Settings
         return $this->brand = BrandSettings::fromArray($this->read(self::BRAND));
     }
 
+    /**
+     * **Abgelegt werden die eigenen Angaben, nicht das, was gilt.** Für die
+     * Vorgabe steht `null` in der Ablage, und `brand()` füllt beim Lesen mit
+     * der Vorgabe der laufenden Fassung auf ({@see BrandSettings::toStored()},
+     * `docs/140 §6d`).
+     */
     public function saveBrand(BrandSettings $settings): void
     {
-        Setting::query()->updateOrCreate(['key' => self::BRAND], ['value' => $settings->toArray()]);
+        Setting::query()->updateOrCreate(['key' => self::BRAND], ['value' => $settings->toStored()]);
 
         $this->brand = $settings;
     }

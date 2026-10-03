@@ -23,6 +23,15 @@ die Freigabe, die diese Entscheidungen trägt. **Entschieden hat der Betreiber
 am selben Tag, alle drei Fragen wie vorgeschlagen**, und behoben sind die
 sechs Befunde mit `0.9.0-rc.11` (§6a).
 
+**Gefahren am 3. Oktober 2026 gegen `0.9.0-rc.11`** (§7): Block 1 und **alle
+neun Punkte erfüllt**, Punkt 7 im zweiten Anlauf. Zwei Befunde am Prüfling
+kamen aus dem Lauf und ein dritter beim Bauen des zweiten; gebaut sind sie für
+`0.9.0-rc.12` (§6b, §6c), dazu ein Wunsch des Betreibers (§6d) und die
+Unterschrift der Mails (§6e). Drei Befunde an der Vorschrift sind beim Fahren
+berichtigt, in §3 Punkt 3 und Punkt 7, und Punkt 8 ist ergänzt. Es stehen aus:
+der Nachlauf gegen `rc.12` (§8) und danach die Abnahme, so entschieden vom
+Betreiber.
+
 **Neu ist ein Snippet für die Konsole** (§3). Es liest auf der Anmeldeseite
 und auf jeder Seite des Panels, was von der Marke ankommt: den Titel im
 Reiter, Logo oder Zeichen, die Fusszeile und die Farben, wie sie in beiden
@@ -251,8 +260,14 @@ stellt sie wieder her.
 
 ## §2 · Die Prüfkörper und die Werte des Laufs
 
-Vier Dateien, verschickt mit diesem Lauf. Sie liegen auf dem Rechner, an dem
-der Browser läuft.
+Vier Dateien, verschickt mit diesem Lauf und seit dem 3. Oktober auch im Repo
+unter `tests/pruefkoerper/b6/`. Sie liegen auf dem Rechner, an dem der Browser
+läuft. GitHub liefert die drei Bilder mit dem Typ aus ihrer Endung aus, das
+getarnte SVG dagegen als `text/plain`, alle mit `nosniff` und einer Sandbox
+(gemessen am 3. Oktober an den Adressen aus dem Repo). Ein Browser zeigt vom
+getarnten SVG also seinen Quelltext, und ausgeführt wird nichts. Unter seinem
+Namen lässt es sich aus dieser Ansicht nicht sicher speichern; deshalb liegt
+daneben `b6-svg-als-png.zip`, das nur diese eine Datei enthält.
 
 | Datei | Grösse | Inhalt | sha256 |
 |---|---|---|---|
@@ -515,10 +530,17 @@ srvpanel tinker --execute='echo json_encode(app(App\Support\Settings\Settings::c
 ls -la /var/lib/srvpanel/storage/app/branding/
 sha256sum /var/lib/srvpanel/storage/app/branding/logo.*
 P=$(awk -F= '/^PANEL_PORT=/{print $2; exit}' /etc/srvpanel/panel.env); H=$(hostname -f); U="https://$H:$P"; C=(curl -sk --noproxy '*' --resolve "$H:$P:127.0.0.1")
-"${C[@]}" "$U/login" | grep -o -E '<title inertia>[^<]*</title>|<style>:root[^<]*</style>|"logo":"[^"]*"'
+"${C[@]}" "$U/login" | grep -o -E '<title inertia>[^<]*</title>|<style>:root[^<]*</style>|"logo":(null|"[^"]*")'
 "${C[@]}" -D - -o /tmp/b6-logo "$U/branding/logo" | grep -i -E '^HTTP|^content-type|^x-content-type|^cache-control' | tr -d '\r'
 sha256sum /tmp/b6-logo; rm -f /tmp/b6-logo
 ```
+
+**Berichtigt am 3. Oktober, vor Punkt 8** (§7). Das Muster für die Adresse
+des Logos lautete `"logo":"[^"]*"` und trifft nur eine Zeichenkette. Ohne
+Logo steht in den Daten der Seite `"logo":null`, und der Block druckte dazu
+keine Zeile. Gerade das erwartet Punkt 8. Im Container gegengeprüft: Mit dem
+alten Muster steht ohne Logo nur der Titel da, mit dem neuen zusätzlich
+`"logo":null`.
 
 **Erwartet:**
 
@@ -647,6 +669,90 @@ Bytes, beide Prüfsummen `b48f82fb…77cf`, `content-type: image/jpeg`, und
 `"logo":"logo.jpg"` in der Marke. `logo.png` ist fort, weil `Logo::store()`
 vor dem Ablegen jede ältere Fassung entfernt.
 
+**Berichtigt am 3. Oktober, beim Fahren** (§7). **So wie oben beschrieben,
+misst der Punkt nichts mehr, wenn Punkt 4 länger als fünf Minuten zurückliegt.**
+Logo A liegt im privaten Fenster dann abgelaufen im Zwischenspeicher, und ein
+Neuladen holt es neu. Das täte es auch unter der festen Adresse von `rc.10`,
+und der Punkt wäre in beiden Fassungen grün. Gefahren wird deshalb in dieser
+Reihenfolge, alle Schritte innerhalb von fünf Minuten:
+
+1. Im **privaten Fenster** die Anmeldeseite **ohne** Zwischenspeicher neu
+   laden (Strg+F5, auf dem Mac ⇧⌘R) und das Snippet einfügen. Erwartet:
+   Logo A, `rgb(110,231,183)`. Danach liegt Logo A frisch im Zwischenspeicher.
+   „Cache deaktivieren" in den DevTools bleibt aus.
+2. Im **normalen Fenster** `b6-logo-b.jpg` wählen und „Marke speichern".
+3. Im privaten Fenster gewöhnlich neu laden (F5, auf dem Mac ⌘R) und das
+   Snippet einfügen. Erwartet: Logo B, `rgb(192,32,32)`, unter einer neuen
+   Fassung hinter `?v=`.
+4. Im privaten Fenster die **Gegenprobe** einfügen. Sie fragt die alte
+   Adresse von Logo A dreimal: im Zwischenspeicher, wie beim Neuladen und vom
+   Server. Erwartet: `Urteil: unter der alten Adresse käme beim Neuladen noch
+   Logo A, der Server hat Logo B — Logo B zeigt die Seite, weil die Adresse neu
+   ist.` Das ist das Verhalten von `rc.10`, gemessen an derselben Seite.
+5. Im normalen Fenster nach dem vollständigen Neuladen das Snippet einfügen.
+   Erwartet: Logo B in der Leiste.
+
+```js
+// B6 · docs/140 Punkt 7, Gegenprobe: die alte Adresse von Logo A — im Zwischenspeicher, wie beim Neuladen, vom Server.
+// Im privaten Fenster nach dem Neuladen und dem Snippet einfügen. Sie verändert den Zwischenspeicher nicht.
+(async () => {
+  const alt = location.origin + '/branding/logo?v=904eae8051dd7024'
+  const A = 'rgb(110,231,183)'
+  const B = 'rgb(192,32,32)'
+  const lesen = async (wie, init) => {
+    try {
+      const r = await fetch(alt, init)
+      const blob = await r.blob()
+      const bild = await createImageBitmap(blob)
+      const c = document.createElement('canvas'); c.width = bild.width; c.height = bild.height
+      const g = c.getContext('2d'); g.drawImage(bild, 0, 0)
+      const punkt = `rgb(${[...g.getImageData(40, 48, 1, 1).data].slice(0, 3).join(',')})`
+      const datum = r.headers.get('date')
+      const alter = datum ? Math.round((Date.now() - Date.parse(datum)) / 1000) : null
+      return { wie, punkt, typ: blob.type, bytes: blob.size, alter, regel: r.headers.get('cache-control') }
+    } catch (e) {
+      return { wie, fehler: e.name }
+    }
+  }
+  const zeile = (x) => x.fehler
+    ? `  ${x.wie.padEnd(20)} ${x.fehler}`
+    : `  ${x.wie.padEnd(20)} Punkt(40,48) ${x.punkt} · ${x.typ} ${x.bytes} B · Alter ${x.alter ?? '?'} s · ${x.regel ?? '—'}`
+
+  // Erst lesen, was liegt — ohne Netz. Nur ein frischer Eintrag wird danach „wie beim Neuladen" gefragt:
+  // Ein abgelaufener würde dabei neu geholt und unter der alten Adresse durch Logo B ersetzt.
+  const gespeichert = await lesen('im Zwischenspeicher', { cache: 'only-if-cached', mode: 'same-origin' })
+  const frisch = !gespeichert.fehler && gespeichert.alter !== null && gespeichert.alter < 300
+  const neuladen = frisch
+    ? await lesen('wie beim Neuladen', { cache: 'default' })
+    : { wie: 'wie beim Neuladen', fehler: 'nicht gefragt — der Eintrag ist nicht frisch' }
+  const server = await lesen('vom Server', { cache: 'no-store' })
+
+  let urteil
+  if (gespeichert.fehler) urteil = 'unter der alten Adresse liegt nichts im Zwischenspeicher — „Cache deaktivieren" an? So misst die Gegenprobe nichts.'
+  else if (!frisch) urteil = `der Eintrag ist ${gespeichert.alter} s alt und damit abgelaufen — die Gegenprobe trennt nicht.`
+  else if (gespeichert.punkt !== A) urteil = 'unter der alten Adresse liegt nicht Logo A — die Gegenprobe trennt nicht.'
+  else if (neuladen.punkt === A && server.punkt === B) urteil = 'unter der alten Adresse käme beim Neuladen noch Logo A, der Server hat Logo B — Logo B zeigt die Seite, weil die Adresse neu ist.'
+  else urteil = 'unerwartet — die Zeilen bitte so schicken.'
+  console.log([`Gegenprobe Punkt 7 · ${new Date().toLocaleTimeString('de-DE')} · ${alt}`, zeile(gespeichert), zeile(neuladen), zeile(server), `Urteil: ${urteil}`].join('\n'))
+})()
+```
+
+**„Wie beim Neuladen" fragt sie nur einen frischen Eintrag.** Der kommt dann
+aus dem Zwischenspeicher, und an ihm ändert sich nichts. Ein abgelaufener
+Eintrag würde dabei neu geholt, und unter der alten Adresse läge danach Logo
+B. Die erste Fassung der Gegenprobe tat genau das (§7). Im Container
+gegengeprüft, je Fall allein am Server:
+
+| Lage | im Zwischenspeicher | wie beim Neuladen | vom Server | Urteil |
+|---|---|---|---|---|
+| frisch | A, 1 s | A | B | „weil die Adresse neu ist" |
+| „Cache deaktivieren" an | nichts (`TypeError`) | nicht gefragt | B | „so misst die Gegenprobe nichts" |
+| abgelaufen | A, 312 s | nicht gefragt | B | „abgelaufen — trennt nicht" |
+| alte Adresse mit Logo B neu geholt | B | B | B | „nicht Logo A — trennt nicht" |
+
+Im abgelaufenen Fall bleibt der Zwischenspeicher unberührt: Ein zweiter
+Aufruf nach dem Neuladen zeigt unverändert A, 312 s.
+
 ### Punkt 8 — Das Logo lässt sich entfernen
 
 Auf `/settings/general` „Logo entfernen". Dann Block 2 noch einmal und im
@@ -664,6 +770,27 @@ privaten Fenster die Anmeldeseite neu laden und das Snippet einfügen.
 
 Unter `rc.10` bliebe das Logo liegen, bei gleicher Prüfsumme und mit der
 Meldung „Die Marke ist gespeichert." (Befund 3).
+
+**Ergänzt am 3. Oktober, vor Punkt 8** (§7). Drei Dinge, gemessen im
+Container am Knopf der Seite oder gelesen am Controller:
+
+- **„Logo entfernen" schickt das ganze Formular**, mit `remove_logo` und ohne
+  Rückfrage. Die Meldung danach ist dieselbe wie nach dem Speichern, sie
+  allein belegt also nichts. Den Beleg gibt Block 2.
+- **Unter „Bilddatei" bleibt nichts gewählt.** Der Controller entfernt erst
+  das Logo und legt danach eine gewählte Datei ab; mit einer gewählten Datei
+  stünde danach wieder ein Logo da.
+- **Auf den Bildern des Laufs lag der Knopf unterhalb des Ausschnitts.**
+  Gelesen wird er deshalb mit einer Zeile in der Konsole, auf
+  `/settings/general` nach dem Neuladen. Erwartet:
+  `Knopf „Logo entfernen": fort · Feld „Bilddatei": da · has_logo: false`.
+
+```js
+(() => { const p = document.getElementById('app').__vue_app__.config.globalProperties.$page; const knopf = [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Logo entfernen'); console.log(`${p.url} · Knopf „Logo entfernen": ${knopf ? 'da' : 'fort'} · Feld „Bilddatei": ${document.querySelector('input[type=file]') ? 'da' : 'fehlt'} · has_logo: ${p.props.brandSettings?.has_logo}`) })()
+```
+
+Im Container in beiden Zuständen gemessen: mit Logo `da · has_logo: true`,
+nach einem Klick auf den echten Knopf `fort · has_logo: false`.
 
 ### Punkt 9 — Zurück
 
@@ -901,3 +1028,995 @@ daraus macht: mit Logo die Überschrift „Muster Hosting" mit dem Bild
 Gegenprobe auf derselben Seite setzt das alte Markup des Zeichens
 (`role="img"`, `aria-label="SrvPanel"`) im Browser; dann heisst dieselbe
 Überschrift „SrvPanel Muster Hosting".
+
+---
+
+## §6b · Ein Befund aus dem Lauf: zwei Formulare ohne Abstand
+
+Gefunden am 3. Oktober 2026 bei Punkt 1, auf dem Telefon, gemeldet vom
+Betreiber: Auf `/settings/general` steht der Knopf „Speichern" des ersten
+Formulars unmittelbar an der Überschrift „Name und Fusszeile" des zweiten.
+Das Kriterium fragt nicht danach, die Seite gehört trotzdem zu B6: Das zweite
+Formular steht dort seit B6.
+
+**Gemessen im Chromium**, gegen den gebauten Stand im Container und mit der
+Wegwerf-Datenbank aus §6a, je Lage frisch geladen:
+
+| | 390 px | 1440 px |
+|---|---|---|
+| Fuge zwischen den beiden Formularen, `0.9.0-rc.11` | 0 px | 0 px |
+| dieselbe Fuge mit der Behebung | 26 px | 30 px |
+| zum Vergleich: `gap` von `.form` zwischen zwei Bereichen | 26 px | 30 px |
+
+Der Abstand fehlt also auch bei 1440 px. Auf dem Telefon fällt er auf, weil
+der Knopf dort die ganze Breite nimmt.
+
+**Die Ursache steht in `app.css`, über `.sections > .form`.** Zwei Formulare
+als Geschwister unter `main` stehen auf 0 px: Den Abstand zwischen Bereichen
+gibt der jeweilige Behälter an seine Kinder, und zwei Formulare sind
+niemandes Kinder. Die Antwort steht in derselben Regel, eine Hülle `.sections`
+um beide. Die Seiten der Konten und des Zugangs tragen sie, die Seite
+„Allgemein" bekam ihr zweites Formular ohne sie.
+
+**Und der Wächter dafür hat geschwiegen.** `BlockSpacingTest` findet genau
+diese Fuge, `form + form`. In seiner Liste offener Fugen stand sie aber
+schon, für die Datenbankseite, und ein Eintrag galt jeder Vorlage, in der das
+Paar vorkommt. Gegen die alte Seite gefahren ist der alte Wächter grün und
+der neue rot.
+
+> **Eine Ausnahme, die für ein Paar gilt, gilt an jeder Stelle, an der das
+> Paar vorkommt — auch an der nächsten, die niemand angesehen hat.**
+
+**Gebaut für `0.9.0-rc.12`:**
+
+- Die Seite fasst beide Formulare in `.sections` ein. Eingerückt ist dabei der
+  ganze Inhalt der Hülle; ohne Leerzeichen gelesen sind es 14 neue Zeilen.
+- `BlockSpacingTest` bindet jede offene Fuge an die Vorlagen, in denen sie
+  steht, 22 Paare an 52 Stellen. Eine neue Stelle ist rot, auch wenn das Paar
+  anderswo schon eingetragen ist, und eine genannte Stelle ohne die Fuge
+  ebenfalls.
+- Drei neue Eingriffe im Bruchskript: die Hülle ohne Klasse, eine Vorlage zu
+  viel in einem Eintrag, ein Eintrag ohne Vorlage. Gefahren mit allen
+  Eingriffen, die eine der beiden Dateien anfassen oder `BlockSpacingTest`
+  zum Ziel haben: 15 von 15 beissen. Der Eingriff von `NtpVerdictTest` an
+  dieser Seite brauchte zwei Leerzeichen mehr in seinem Anker.
+
+Die Datenbankseite trägt `form + form` weiter, und dort bleibt es eine
+gezählte offene Fuge. Ob sie zu eng steht, entscheidet ein Blick und keine
+Regel.
+
+**Nachgemessen** in vier Lagen, 390 und 1440 px in beiden Themen:
+`dokument=0`, Gegenprobe 200, die Fuge wie in der Tabelle. Eine Zeile meldet
+`schiebt=1`. Das ist das Feld der Fusszeile, dessen Text in der
+Wegwerf-Datenbank länger ist als das Feld; vor der Behebung steht dieselbe
+Zeile mit denselben 279 und 59 px da.
+
+**Für den Lauf heisst das:** Er geht gegen `0.9.0-rc.11` weiter, denn kein
+Punkt hängt an dieser Fuge. Gesehen wird die Behebung danach gegen
+`0.9.0-rc.12`, mit einem Bild von `/settings/general` bei 390 px an der
+Stelle zwischen den beiden Formularen.
+
+## §6c · Schrift und Zeichen in der Farbe des Betreibers — und eine Prüfung, die die Tönungen rechnet
+
+Gefunden am 3. Oktober 2026 bei Punkt 4a, am Bild der Anmeldeseite mit
+Marke: **„Angemeldet bleiben" steht in Pfirsich neben dem mintgrünen Knopf.**
+Im Container nachgemessen sind es mehr Stellen. Mit Logo ist es nur dieses
+Wort, ohne Logo zusätzlich der Name „Muster Hosting" in Pfirsich und das
+Zeichen, dessen Balken Pfirsich und dessen oberer Balken Pink tragen. In der
+Leiste trägt der obere Balken des Zeichens ohne Logo weiter Pink. Der
+Markenblock setzte auf diesen Flächen nur die vier Akzentmarken, und
+`--text-strong` und `--mark-accent` blieben in den Farben der Auslieferung.
+
+**Entscheidung 1, vom Betreiber am selben Tag:** Schrift und Zeichen gehen
+auf den Markenflächen mit. Die Anmeldeseite bekommt `--text-strong` und
+`--mark-accent` im dunklen Akzent, Leiste und Kopfleiste `--mark-accent`. An
+der Wurzel bleibt `--mark-accent`, wie es ist. Dort färbt es nur die Auswahl
+und die Suchtreffer im Datei-Editor, und über dieser Fläche steht Text.
+
+### Was die Messung beim Bauen gezeigt hat
+
+Gemessen im Chromium gegen den gebauten Stand, mit der Wegwerf-Datenbank aus
+§6a. Als Akzent diente der dunkelste, den die Prüfung damals annahm,
+`#02925b`. Gefunden ist er über die Prüfung selbst, und seine Leuchtdichte
+trifft die Schwelle der Formel auf sechs Stellen (0,213260). Gemessen wurden
+die Anmeldeseite, die Seite des zweiten Faktors, eine Ankündigung, Leiste und
+Kopfleiste, je Element die Farbe gegen ihren wirksamen Grund, in Ruhe, beim
+Überfahren und mit Fokusrahmen.
+
+| | Block bisher | mit Schrift und Zeichen |
+|---|---|---|
+| Stellen in einer Farbe der Auslieferung | 82 | 0 |
+| Überschrift der Fehlermeldung, auf `#331a2e` | Pfirsich, 9,46:1 | **3,96:1** |
+| aktiver Menüpunkt der Leiste, auf `#171e34` | **4,14:1** | **4,14:1** |
+| Ziffern im Feld des zweiten Faktors, 34 px, auf `#2a1745` | Pfirsich, 9,62:1 | 4,03:1 |
+
+Die Überschrift einer Fehlermeldung liest `--text-strong` und steht auf der
+Tönung der Meldung. Der aktive Menüpunkt trägt den Akzent auf seiner eigenen
+Tönung, und das schon seit `rc.11`. Die Ziffern sind grosse Schrift, für die
+`docs/20 §7.2` 3:1 verlangt; sie tragen.
+
+**In meinem Vorschlag stand, auf der Anmeldeseite brauche nur das Auge
+„Passwort zeigen" beim Überfahren 3:1.** Das war unvollständig. Die Prüfung
+beim Speichern rechnete den Akzent nur gegen die drei Flächen, und als Schrift
+steht er auch auf getönten: auf seiner eigenen Tönung (aktiver Menüpunkt,
+aktive Knöpfe, Zählmarken), als Verweis im Band eines Vorgangs und seit
+Entscheidung 1 in der Überschrift einer Fehlermeldung. Gerechnet fiel der
+Akzent auf seiner eigenen Tönung im ganzen Panel auf 3,81:1 (dunkel) und
+3,86:1 (hell).
+
+> **Eine Farbe, die auf jeder Fläche lesbar ist, ist es auf der Tönung
+> darüber noch lange nicht — und die Tönung ist die Stelle, an der etwas
+> hervorgehoben werden soll.**
+
+**Entscheidung 2, vom Betreiber am selben Tag: Die Prüfung rechnet die
+getönten Flächen mit, und zwar alle.** Zur Wahl standen zwei Fassungen,
+gerechnet über alle Töne, die die alte Prüfung annahm, in Schritten von 3:
+
+| | abgewiesen, hell | abgewiesen, dunkel |
+|---|---|---|
+| jede Tönung des Stylesheets über jedem Grund ihrer Fläche | 19,9 % | 22,9 % |
+| nur die Orte, an denen heute Schrift im Akzent steht | 16,3 % | 15,9 % |
+
+Gewählt ist die erste. Ein Verweis, der morgen in eine Erfolgsmeldung kommt,
+ist damit schon gerechnet und braucht keinen Wächter, der ihn findet. Die
+Zahlen, die ich dem Betreiber zuerst genannt hatte (rund 17 % dunkel, 16 %
+hell), rechneten die eigene Tönung und die Meldungen der Anmeldeseite, aber
+nicht die Tönungen der Meldungen und Bänder im Panel. Berichtigt sind sie vor
+dem Bauen und nicht danach.
+
+> **Eine Zahl, auf der eine Entscheidung beruht, wird berichtigt, bevor
+> gebaut wird — sonst hat jemand etwas entschieden, das es nicht gibt.**
+
+### Gebaut für `0.9.0-rc.12`
+
+- `Contrast::over()` mischt eine Tönung so, wie der Browser es tut: Kanal für
+  Kanal im sRGB-Raum. Gemessen: `rgb(2 146 91 / 0.14)` über `#1a0b2e` zeichnet
+  Chromium als `#171e34`, und die Methode rechnet dasselbe.
+- `BrandSettings::verdictLight()` und `verdictDark()` rechnen jeden Grund, auf
+  dem der Akzent Schrift tragen kann. Für hell sind das 12: die beiden
+  Flächen, die eigene Tönung über jeder und die vier Zustandstönungen über
+  jeder. Für dunkel sind es 19: die drei Flächen, die eigene Tönung über
+  ihnen und über dem Grund der Anmeldeseite, die vier Zustandstönungen über
+  den beiden Gründen des Themas und die zwei Zustände der Anmeldeseite über
+  ihren beiden Gründen. Farben und Deckungen stehen in `BrandSettings`, und
+  `BrandContrastTest` hält sie in beide Richtungen gegen `app.css`.
+- Die Meldung beim Speichern und der Hinweis neben dem Feld nennen bei einer
+  Tönung den Ort, denn ihr Hexwert steht in keinem Stylesheet.
+- Die Wächter: `BrandStyleTest` sucht Reste nach dem Wert und nicht nach dem
+  Namen, mit der Ausnahme an der Wurzel samt Grund und in beide Richtungen.
+  `BrandContrastTest` hält die Tönungen gegen `app.css`, weist eine Farbe ab,
+  die nur auf einer Tönung durchfällt, und rechnet die Gründe der
+  Anmeldeseite gegen den dunkelsten Akzent, den die Prüfung annimmt. Dass
+  diese Rechnung die Prüfung selbst ist, hält eine Gegenprobe an jedem der
+  256 Grautöne. `BrandReachTest` hält Meldung und Hinweis durch die Tür.
+- Im Bruchskript 14 neue Eingriffe und 4 nachgezogene Anker. Gefahren mit
+  allen Eingriffen der berührten Dateien: 40 von 40 beissen, dazu einer mit
+  zwei Blöcken von Hand.
+
+### Nachgemessen
+
+Mit dem dunkelsten Akzent, den die neue Prüfung annimmt: `#869c36`, gesucht
+in Schritten von 2 über Rot und Blau, Leuchtdichte 0,2911. Dieselben Seiten
+und Zustände wie oben.
+
+- Stellen in einer Farbe der Auslieferung: **0**.
+- Stellen in der Farbe des Betreibers unter ihrer Forderung: **0**. Am
+  knappsten sind der aktive Menüpunkt mit 5,11:1, die Überschrift der
+  Fehlermeldung mit 5,13:1 und die Ziffern des Codes mit 5,22:1.
+- Der Hinweis neben dem hellen Feld:
+  `Gemessen 5,13:1 auf #ede8e0 (der Tönung einer Warnung) — verlangt sind 4,5:1.`
+- Abgewiesen wird `#02925b`, den die alte Prüfung annahm:
+  `Diese Farbe erreicht auf #1d302f (der Tönung einer Erfolgsmeldung) nur 3,47:1. Der Akzent trägt auch Schrift; verlangt sind 4,5:1.`
+
+### Für den Lauf heisst das
+
+Er geht gegen `0.9.0-rc.11` weiter. Gegen `0.9.0-rc.12` ändern sich vier
+Erwartungen, und sie gehören in den Nachlauf:
+
+| Stelle | `rc.11` | `rc.12` |
+|---|---|---|
+| Punkt 1, Meldung für `#2f8f5b` | `auf #fafafb nur 3,87:1` | `auf #ede8e0 (der Tönung einer Warnung) nur 3,31:1` |
+| Punkt 3, Hinweis hell | `Gemessen 6:1 auf #fafafb` | `Gemessen 5,13:1 auf #ede8e0 (der Tönung einer Warnung)` |
+| Punkt 3, Hinweis dunkel | `Gemessen 11,77:1 auf #14171d` | `Gemessen 8,59:1 auf #213433 (ihrer eigenen Tönung, wie in einem aktiven Knopf)` |
+| Snippet, Markenblock | 4 Regeln, 16 Zuweisungen | 4 Regeln, 19 Zuweisungen |
+
+Dazu am Bild: „Angemeldet bleiben", Name und Zeichen auf der Anmeldeseite in
+Mint, und in der Leiste ohne Logo der obere Balken des Zeichens ebenfalls.
+Die Prüffarben des Laufs bleiben gültig, `#0b6e4f` mit 5,13:1 und `#6ee7b7`
+mit 8,59:1.
+
+## §6d · Ein Wunsch nach dem Lauf: Ohne Eintrag gilt die Vorgabe
+
+Geäussert vom Betreiber am 3. Oktober 2026, nach Punkt 9:
+
+> „Die ursprünglichen Werte, auch unter Punkt 9 Schritt 1 gelistet, sollten
+> immer der Default sein. Wenn die geänderten Werte entfernt werden und die
+> Input Felder leer bleiben, muss immer der Default geladen werden."
+
+**Bis dahin ging das nicht.** Name und beide Akzente trugen `required`, im
+Formular und in der Prüfung der Tür. Ein leeres Feld schickte der Browser gar
+nicht erst ab; in Punkt 9 wurden die Vorgaben deshalb von Hand eingetippt.
+Fusszeile und Logo gingen schon zurück: Die Fusszeile ist ohne Eintrag leer,
+und für das Logo gibt es „Logo entfernen".
+
+**Entschieden vom Betreiber am selben Tag, aus zwei Fassungen:**
+
+| | gewählt: das Feld bleibt leer | verworfen: die Vorgabe wird eingetragen |
+|---|---|---|
+| im Feld nach dem Speichern | nichts, die Vorgabe grau als Platzhalter | die Vorgabe als Wert |
+| in der Ablage | keine Angabe, `null` | eine Abschrift der Vorgabe |
+| eine spätere Fassung ändert die Vorgabe | das Panel folgt ihr | das Panel bleibt bei der alten |
+
+Eine eingetippte Vorgabe zählt ebenso als keine Angabe, auch in
+Grossbuchstaben.
+
+> **Ein Wert, der der Vorgabe gleicht, ist keine eigene Angabe — wer ihn als
+> Wert ablegt, hält eine zweite Fassung der Vorgabe, und die veraltet.**
+
+Dieselbe Regel steht seit B6 in `Style::css()` für den Markenblock: Bei den
+Vorgabewerten gibt es keinen. Hier gilt sie eine Ebene tiefer, in der Ablage.
+
+### Gebaut für `0.9.0-rc.12`
+
+- `BrandSettings::fromForm()` macht aus dem Formular die Marke, die gilt: Ein
+  leeres Feld wird die Vorgabe, eine Farbe wird kleingeschrieben. `own()` sagt,
+  was davon eigene Angabe ist, und ein Wert, der der Vorgabe gleicht, ist es
+  nicht. `toStored()` legt nur die eigenen Angaben ab und für die Vorgabe
+  `null`; `Settings::saveBrand()` speichert genau das. `toArray()` bleibt, was
+  gilt, und das druckt Block 1.
+- Die Tür nimmt ein leeres Feld an, `nullable` statt `required`, und rechnet
+  die Farbe, die gelten wird.
+- Die Seite bekommt die eigenen Angaben, leer für die Vorgabe, und daneben die
+  Vorgaben selbst. Stünde im Feld der Wert, der gilt, schickte das nächste
+  Speichern ihn als eigene Angabe zurück, etwa wenn nur ein Logo dazukommt.
+- Die drei Felder tragen kein `required` mehr und zeigen die Vorgabe als
+  Platzhalter. Der Hinweis unter einer Farbe beginnt mit „Vorgabe, gemessen …",
+  wenn keine eigene Angabe gespeichert ist, und endet sonst mit „Ohne Eintrag
+  gilt die Vorgabe.". Unter dem Namen steht „Ohne Eintrag gilt „SrvPanel"."
+- Die Wächter: `BrandReachTest` misst durch die Tür, dass ein leeres Feld die
+  Vorgabe wird, bis in die Ablage und bis auf die Anmeldeseite, dass eine
+  eingetippte Vorgabe in Grossbuchstaben keine eigene Angabe ist, und was das
+  Formular bekommt. Gegen den Code von vorher sind alle drei Fälle rot.
+  `BrandFormTest` hält die Vorlage: kein `required` an den drei Feldern, auch
+  kein gebundenes, und einen Platzhalter aus den Vorgaben des Servers. Gegen
+  die Vorlage von vorher sind zwei seiner drei Fälle rot; der dritte ist seine
+  Untergrenze.
+- Im Bruchskript 13 neue Eingriffe und ein nachgezogener Anker. Gefahren mit
+  allen Eingriffen an den fünf berührten Dateien: 38 von 38 beissen, dazu
+  einer mit zwei Blöcken von Hand.
+
+### Nachgemessen
+
+Im Chromium gegen den gebauten Stand, angemeldet mit dem Wegwerfkonto aus §6a.
+Vorher stand eine eigene Marke da (`Muster Hosting`, `#0b6e4f`, `#6ee7b7`);
+dann sind die drei Felder geleert und gespeichert worden.
+
+| | vorher | nach dem Speichern |
+|---|---|---|
+| Feld Name | `Muster Hosting`, Platzhalter `SrvPanel` | leer, Platzhalter `SrvPanel` |
+| Feld hell | `#0b6e4f`, Platzhalter `#3730a3` | leer, Platzhalter `#3730a3` |
+| Feld dunkel | `#6ee7b7`, Platzhalter `#ff7fec` | leer, Platzhalter `#ff7fec` |
+| Hinweis hell | `Gemessen 5,13:1 auf #ede8e0 (der Tönung einer Warnung)` … `Ohne Eintrag gilt die Vorgabe.` | `Vorgabe, gemessen 8,15:1 auf #ede8e0 (der Tönung einer Warnung)` … |
+| Hinweis dunkel | `Gemessen 8,59:1 auf #213433 (ihrer eigenen Tönung, wie in einem aktiven Knopf)` … | `Vorgabe, gemessen 6,27:1 auf #1d302f (der Tönung einer Erfolgsmeldung)` … |
+| Reiter | `Allgemein · Muster Hosting` | `Allgemein · SrvPanel` |
+| Markenblock im Kopf | ja | nein |
+| Ablage | `"name":"Muster Hosting"` … | `"name":null,"accent_light":null,"accent_dark":null` |
+
+Danach steht „Die Marke ist gespeichert." da, und die Fusszeile bleibt, wie sie
+war. Bei 390 px ist `dokument=0`.
+
+**Was offen bleibt.** Was vor `rc.12` gespeichert wurde, trägt die Vorgabe als
+Wert, auf `cloudsrv24` seit Punkt 9. Das Formular zeigt solche Felder trotzdem
+leer, denn gefragt wird, ob der Wert der Vorgabe gleicht. In der Ablage wird
+daraus beim nächsten Speichern keine Angabe. Ändert eine spätere Fassung die
+Vorgabe vorher, braucht sie eine Migration, die die alte Vorgabe kennt; bis
+dahin lässt sich eine solche Zeile von einer eigenen Angabe nicht
+unterscheiden.
+
+### Für den Nachlauf
+
+- Punkt 9 geht gegen `rc.12` ohne Abschreiben: Name, beide Farben und die
+  Fusszeile leeren, speichern. Block 1 druckt danach dieselbe Marke wie vor
+  dem Lauf, denn `toArray()` gibt aus, was gilt.
+- Was abgelegt ist, zeigt eine Zeile mehr:
+
+  ```bash
+  srvpanel tinker --execute='echo json_encode(App\Models\Setting::query()->where("key", "brand")->first()?->value, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES), PHP_EOL;'
+  ```
+
+  Erwartet nach dem Leeren:
+  `{"name":null,"accent_light":null,"accent_dark":null,"footer":"","logo":null}`.
+  Vor dem ersten Speichern unter `rc.12` steht dort noch die Abschrift aus
+  Punkt 9, und die Felder zeigen trotzdem leer.
+- Die Hinweise mit der Vorgabe: hell
+  `Vorgabe, gemessen 8,15:1 auf #ede8e0 (der Tönung einer Warnung)`, dunkel
+  `Vorgabe, gemessen 6,27:1 auf #1d302f (der Tönung einer Erfolgsmeldung)`.
+
+## §6e · Eine Beobachtung aus dem Lauf: die Unterschrift der Mails
+
+Gefunden am 3. Oktober 2026 an der Quelle der zweiten Testmail aus Punkt 6
+(§7, Beobachtung 2). Die Unterschrift stand so da:
+
+```
+Protokoll des Panels nach: Dort steht, wer sie ausgel=
+=C3=B6st hat.
+--
+Muster Hosting
+```
+
+Zwei Dinge fehlten, und beide sind für ein Mailprogramm der Unterschied
+zwischen Unterschrift und Text:
+
+- **Die Trennzeile lautet `-- `, mit Leerzeichen** (RFC 3676 §4.3). Ohne das
+  Leerzeichen setzen Mailprogramme die Unterschrift nicht ab und lassen sie
+  beim Antworten im Zitat.
+- **Die Leerzeile davor kam nie an.** `resources/views/mail/signature.blade.php`
+  hatte eine, aber Laravel schneidet jeder gerenderten Ansicht den Leerraum am
+  Anfang ab (`ltrim(ob_get_clean())` in `PhpEngine`), auch einer
+  eingebundenen. Im Container gerendert begann die Unterschrift mit `--`, und
+  in allen drei Mails stand sie direkt unter der letzten Zeile.
+
+> **Eine Leerzeile am Anfang einer eingebundenen Vorlage kommt nie an —
+> Laravel kürzt jede gerenderte Ansicht vorn.**
+
+**Entschieden vom Betreiber am selben Tag: beides mit `0.9.0-rc.12`.** Ich
+hatte das Leerzeichen allein zuerst nicht bauen wollen; mit der fehlenden
+Leerzeile ist der Unterschied in jeder Mail zu sehen.
+
+### Gebaut für `0.9.0-rc.12`
+
+- Die Trennzeile steht als Ausgabe da, `{!! '-- ' !!}`, und nicht als Text.
+  `.editorconfig` entfernt Leerzeichen am Zeilenende, und mit ihnen das eine,
+  auf das es ankommt.
+- Die Leerzeile steht in den drei einbindenden Vorlagen, unmittelbar vor
+  `@include('mail.signature')`.
+- `MailSignatureTest` hält beides. An der Wirkung: Jede der drei Mails trägt
+  genau eine Zeile `-- `, davor eine leere und danach den Namen der Marke, und
+  keine Zeile `--`. An der Vorlage: Jede Vorlage, die die Unterschrift
+  einbindet, lässt davor eine Zeile frei, auch die einer Mail, die es noch
+  nicht gibt. Gegen den Stand von vorher sind beide Fälle rot.
+- Im Bruchskript sechs neue Eingriffe. Gefahren mit allen Eingriffen an den
+  berührten Dateien und an den Wächtern der Mails: 18 von 18 beissen.
+
+### Nachgemessen
+
+Im Container gerendert, mit der Marke aus dem Lauf, das Ende jeder der drei
+Mails. In JSON ist das Leerzeichen am Ende der Trennzeile zu sehen:
+
+```
+Probe: "…ausgelöst hat.\n\n-- \nMuster Hosting\nBetrieben von der Muster Hosting GmbH · Musterweg 1 · 12345 Musterstadt\n"
+Kunde: "…darüber liegt.\n\n-- \nMuster Hosting\nBetrieben von der Muster Hosting GmbH · Musterweg 1 · 12345 Musterstadt\n"
+Betreiber: "…erzeugt keine Nachricht.\n\n-- \nMuster Hosting\nBetrieben von der Muster Hosting GmbH · Musterweg 1 · 12345 Musterstadt\n"
+```
+
+### Für den Nachlauf
+
+Die Quelle einer Testmail gegen `rc.12`: vor der Trennzeile eine leere Zeile,
+und die Trennzeile ist `-- `. In der Quelle steht das Leerzeichen am
+Zeilenende und ist nicht zu sehen; gelesen wird es deshalb am Mailprogramm,
+das die Unterschrift absetzt, oder in der Quelle mit markiertem Text.
+
+## §7 · Protokoll
+
+Gefahren am 3. Oktober 2026 auf `cloudsrv24` gegen `0.9.0-rc.11`, vom Morgen
+bis 20:12 Uhr. Punkt 1 lief auf dem Telefon, alle weiteren am Mac in Chrome:
+die Anmeldeseite im privaten Fenster, das Panel im normalen. Die Prüfkörper
+kamen aus dem Repo (`tests/pruefkoerper/b6/`, Stand `7910516d`). Was hier
+steht, ist von den Bildern und Ausgaben des Betreibers abgelesen, und die
+Uhrzeiten sind die der Anzeigezone, CEST.
+
+**Block 1 und alle neun Punkte sind erfüllt**, die Punkte 3, 4 und 6
+darunter, und keiner ist als „nicht herstellbar" ausgefallen. Punkt 7 ist es
+im zweiten Anlauf, mit berichtigter Reihenfolge und berichtigter Gegenprobe
+(§3 Punkt 7). Kein Befund aus §0 stand noch da: Die sechs Behebungen von
+`rc.11` sind auf dem Server angekommen.
+
+**Acht Befunde.** Drei stecken im Prüfling, zwei kamen aus dem Lauf und einer
+beim Bauen des zweiten, und alle drei sind für `0.9.0-rc.12` gebaut (§6b,
+§6c). Drei stecken in der Vorschrift und sind beim Fahren berichtigt, zwei in
+meinem Prüfstand im Container. Nach Punkt 9 kam ein Wunsch des Betreibers
+dazu, ebenfalls gebaut (§6d), und aus Beobachtung 2 ist nach dem Lauf eine
+Behebung geworden (§6e).
+
+### Block 1 vor dem Lauf
+
+```
+0.9.0-rc.11
+{"name":"SrvPanel","accent_light":"#3730a3","accent_dark":"#ff7fec","footer":"","logo":null}
+Absender: SrvPanel <panel@cloudsrv24.de>
+ls: cannot access '/var/lib/srvpanel/storage/app/branding/': No such file or directory
+Panel: https://cloudsrv24.de:8443
+<title inertia>SrvPanel</title>
+Logo-Route: 404
+```
+
+Erfüllt, so wie §1 es für einen Server erwartet, auf dem nie eine Marke
+gesetzt war: keine `<style>`-Zeile und kein Verzeichnis `branding/`. Die
+Absenderadresse ist eingetragen, und damit steht die Vorbedingung für
+Punkt 6.
+
+### Punkt 1 — erfüllt, um 09:53 auf dem Telefon
+
+Oben stand die Zusammenfassung, Wort für Wort wie erwartet:
+
+> Das Formular wurde nicht gespeichert.
+> Diese Farbe erreicht auf #fafafb nur 3,87:1. Der Akzent trägt auch Schrift;
+> verlangt sind 4,5:1.
+
+Der Hinweis unter dem Feld blieb bei „Gemessen 9,52:1 auf #fafafb", also bei
+der Vorgabe. Block 1 lief erst nach Punkt 2 noch einmal und gilt für beide.
+
+- Ein Bild zeigt im Feld `#3730a3` statt `#2f8f5b`. Das ist kein Befund: Nach
+  einer Abweisung bleibt der eingetippte Wert im Feld stehen, im Container
+  gemessen. Das Bild ist vor dem Speichern oder nach einem Neuladen
+  entstanden.
+- **Am Bild hat der Betreiber einen Befund gemeldet**: „Speichern" klebt an
+  „Name und Fusszeile". Dieselbe Fuge stand danach auf jedem Bild der Seite,
+  auch bei 1440 px am Mac. Gemessen sind es 0 px bei beiden Breiten (§6b).
+
+### Punkt 2 — erfüllt, um 15:03, und Block 1 danach
+
+Beide Meldungen standen Wort für Wort da:
+
+> Nur PNG, JPEG und WebP — diese Datei ist image/svg+xml. SVG ist
+> ausgeschlossen: Es darf Skript enthalten, und das Logo steht auf der
+> Anmeldeseite.
+
+> Das Bild ist 470 KB gross; erlaubt sind 256 KB.
+
+Die erste Datei heisst `.png`, und der Typ kam trotzdem aus ihrem Inhalt.
+**Block 1 danach war Zeile für Zeile derselbe wie vor dem Lauf**, und
+`branding/` gab es weiterhin nicht. Abgewiesen heisst also auch: nichts
+abgelegt, in Punkt 1 wie in Punkt 2.
+
+### Punkt 3 — erfüllt, gespeichert um 15:32
+
+**Auf der Seite** stand „Die Marke ist gespeichert.", und sie hatte ganz neu
+geladen: Die Knöpfe waren ohne F5 mintgrün, das Dateifeld war leer, in der
+Leiste stand das Logo, und unter dem hellen Akzent stand „Gemessen 6:1 auf
+#fafafb".
+
+**Block 2** trug beim Fahren eine Zeile mehr. Sie vergleicht die
+`<style>`-Zeile Zeichen für Zeichen mit dem Wortlaut aus §6a und druckt
+„Markenblock wie §6a: ja" oder „NEIN". Unter `rc.12` trägt der Block drei
+Zuweisungen mehr (§6c); der Vergleich gilt also nur für `rc.11`.
+
+- Die Marke:
+  `{"name":"Muster Hosting","accent_light":"#0b6e4f","accent_dark":"#6ee7b7","footer":"Betrieben von der Muster Hosting GmbH · Musterweg 1 · 12345 Musterstadt","logo":"logo.png"}`.
+- `logo.png` mit 681 Bytes, Eigentümer und Gruppe `srvpanel`, das
+  Verzeichnis `drwxr-x---`, beide mit der Zeit 15:32.
+- **Beide Prüfsummen `9dd9c55e…975d7`**, die der abgelegten und die der
+  ausgelieferten Datei.
+- `<title inertia>Muster Hosting</title>` und „Markenblock wie §6a: ja".
+- `"logo":"https:\/\/cloudsrv24.de:8443\/branding\/logo?v=904eae8051dd7024"`.
+  Die Fassung hinter `?v=` ist genau die, die vorher aus Logo A gerechnet war.
+- `HTTP/2 200`, `content-type: image/png` und
+  `cache-control: max-age=300, public`, dazu
+  `x-content-type-options: nosniff` zweimal (Beobachtung 1).
+
+### Punkt 4 — erfüllt, die Anmeldeseite gegen 15:40
+
+**4a, das Snippet** im privaten Fenster bei 1440 px, jede Zeile wie erwartet:
+
+- `Titel im Reiter: Anmeldung · Muster Hosting`.
+- `Markenblock: 4 Regeln, 16 Zuweisungen, davon keine Marke: 0`, mit den
+  Selektoren aus §6a.
+- `Anmeldeseite: Logo https://cloudsrv24.de:8443/branding/logo?v=904eae8051dd7024 · alt „Muster Hosting" · Bild 360×96 · Kasten 128×34 · Punkt(40,48) rgb(110,231,183)`.
+- Die Fusszeile über `0.9.0-rc.11` und `Ladebeleg: Grund der Maske #1a0b2e`.
+- Hell `Wurzel #0b6e4f`, Hauptknopf und Anmeldeseite in beiden Themen
+  `#6ee7b7`. Ohne Markenblock die Vorgaben, `#3730a3`, `#ff7fec` und
+  `#ffb7a5`.
+- `Urteil: was die Seite über die Marke sagt, kommt an` und
+  `Thema der Seite zurück auf: light`. Hell ist die Vorgabe des Servers für
+  Seiten ohne Konto.
+
+**4b, die vier Bilder** bei 1440 und 390 px in beiden Themen: Logo A oben in
+der Maske, der Knopf in Mint, die Fusszeile darunter, bei 390 px sauber in
+zwei Zeilen. Die Anmeldeseite sieht in beiden Themen gleich aus.
+`bilderMessen()` bei 390 px meldete hell wie dunkel dasselbe, Zeichen für
+Zeichen wie vorab im Container:
+
+```
+dokument=0 gegenprobe=200 schiebt=0 rollt=0 versteckt=0
+```
+
+**Am Bild von 4a** stand „Angemeldet bleiben" in Pfirsich neben dem mintgrünen
+Knopf. Daraus sind die Befunde 2 und 3 geworden (§6c).
+
+### Punkt 5 — erfüllt, das Panel in beiden Themen
+
+**Das Snippet** auf `/settings/general`, angemeldet, jede Zeile wie erwartet:
+`Titel im Reiter: Allgemein · Muster Hosting`, in der Leiste Logo A unter
+`?v=904eae8051dd7024` im Kasten 90×24 mit `rgb(110,231,183)`, der Ladebeleg
+`#1a0b2e`. Hell stehen Wurzel und Hauptknopf auf `#0b6e4f`, dunkel beide auf
+`#6ee7b7`, Leiste und aktiver Menüpunkt in beiden Themen auf `#6ee7b7`. Ohne
+Markenblock stehen die Vorgaben da, `#3730a3`, `#ff7fec` und in der Leiste
+`#ffb7a5`. Das Urteil: „kommt an".
+
+**Die beiden Bilder** bei 1440 px, dunkel und hell, mit dem Bereich „Farbe".
+Die Hinweise lauten „Gemessen 6:1 auf #fafafb — verlangt sind 4,5:1. Der
+Akzent trägt auch Schrift." und „Gemessen 11,77:1 auf #14171d. Diese Farbe
+gilt auch auf der Anmeldeseite — sie trägt in beiden Themes einen dunklen
+Grund.". Die Knöpfe stehen hell in Dunkelgrün und dunkel in Mint. Die Leiste
+bleibt in beiden Themen dunkel, und „Allgemein" ist darin in Mint markiert.
+
+- Die Fusszeile ist im Feld abgeschnitten, weil ihr Text länger ist als das
+  Feld. Kein Befund.
+- Die DevTools meldeten „6 issues". Das ist die Ausfüllhilfe von Chrome
+  (`docs/76`, `docs/126`), kein Befund.
+
+### Punkt 6 — erfüllt, die Mails um 17:32 und 17:39
+
+**Block 3:**
+
+```
+Muster Hosting — Testmail
+Muster Hosting — Kontingent überschritten: kunde-web
+Muster Hosting — ein neuer Befund auf cloudsrv24.de
+```
+
+Unter `rc.10` stand dort dreimal „SrvPanel —".
+
+**Die Quelle der zweiten Mail**, ohne die Zeilen der Zustellung, ohne DKIM und
+ohne Message-ID:
+
+```
+From: SrvPanel <panel@cloudsrv24.de>
+Subject: Muster Hosting =?utf-8?Q?=E2=80=94?= Testmail
+MIME-Version: 1.0
+Date: Sat, 03 Oct 2026 15:39:54 +0000
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Diese Nachricht best=C3=A4tigt, dass dieses Panel =C3=BCber das eingetragen=
+e Relay verschicken kann.
+
+Ausgel=C3=B6st von Administrator am 2026-10-=
+03 17:39:54.
+
+Wenn Sie diese Mail erhalten haben, ohne sie erwartet zu =
+haben, sehen Sie im
+Protokoll des Panels nach: Dort steht, wer sie ausgel=
+=C3=B6st hat.
+--
+Muster Hosting
+Betrieben von der Muster Hosting GmbH=
+ =C2=B7 Musterweg 1 =C2=B7 12345 Musterstadt =C2=B7 zweite Fassung
+```
+
+- `From:` trägt Name und Adresse aus Block 1. Der Name des Absenders bleibt
+  der aus `/settings/mail` (§6 Frage 1, Punkt 6).
+- Der Betreff ist „Muster Hosting — Testmail"; `=E2=80=94` ist der
+  Gedankenstrich.
+- Ein einziger Teil, `text/plain; charset=utf-8`, kein HTML.
+- Die erste Zeile sagt, dass **dieses Panel** über das Relay verschicken kann.
+- Am Ende stehen Name und Fusszeile; `=C2=B7` ist der Mittelpunkt.
+
+**Die Gegenprobe in der Zeit:** Die erste Mail um 17:32 endet auf
+„… 12345 Musterstadt". Danach ist die Fusszeile um „ · zweite Fassung"
+verlängert worden, und die zweite Mail um 17:39 endet darauf. Die Unterschrift
+liest also die gespeicherte Marke. Logo und Farbe stehen in keiner der beiden
+Mails (§6 Frage 2). Die Fusszeile behielt den Zusatz bis Punkt 9.
+
+### Punkt 7 — erfüllt im zweiten Anlauf
+
+**Vor dem Fahren war die Vorschrift berichtigt.** Logo A lag im privaten
+Fenster seit Punkt 4 im Zwischenspeicher, also seit rund vier Stunden, und
+mit `max-age=300` war der Eintrag längst abgelaufen. Ein Neuladen hätte Logo B
+auch unter der festen Adresse von `rc.10` geholt, und der Punkt wäre in beiden
+Fassungen grün gewesen. Gefahren wurde deshalb in der Reihenfolge, die jetzt
+in §3 Punkt 7 steht, dazu eine Gegenprobe. „F5 ohne Strg" ist auf dem Mac ⌘R.
+
+**Der erste Anlauf, 19:40 bis 19:47:**
+
+- Schritt 1, privat: Logo A unter `?v=904eae8051dd7024`, `rgb(110,231,183)`,
+  Kasten 128×34, die Fusszeile mit „· zweite Fassung" über `0.9.0-rc.11`,
+  Urteil „kommt an".
+- Schritt 2, normal: Logo B gespeichert, die Datei trägt 19:44.
+- Schritt 3, privat mit ⌘R: Logo B unter `?v=96a55ff9c30b1a1e`,
+  `rgb(192,32,32)`, Kasten 128×34, Urteil „kommt an".
+- Schritt 5, normal: Logo B in der Leiste, Kasten 90×24, `rgb(192,32,32)`,
+  die Farben wie in Punkt 5, Urteil „kommt an".
+- Block 2: die Marke mit `"logo":"logo.jpg"`, im Verzeichnis nur noch
+  `logo.jpg` mit 5.194 Bytes, beide Prüfsummen `b48f82fb…77cf`, „Markenblock
+  wie §6a: ja", `"logo":"…\/branding\/logo?v=96a55ff9c30b1a1e"`, `HTTP/2 200`
+  und `content-type: image/jpeg`. `logo.png` ist fort.
+- **Schritt 4, die Gegenprobe, sagte „unerwartet".** Unter der alten Adresse
+  lag schon Logo B, 5.194 Bytes und 20 s alt; abgeholt war es also um
+  19:45:49, nach dem Speichern. Im Bild stand der Code der ersten Fassung, und
+  die hatte ich zwei Stunden vorher berichtigt (Befund 5).
+
+Die wahrscheinliche Erklärung: Ein erster Aufruf der ersten Fassung fand den
+Eintrag aus Schritt 1 abgelaufen vor, denn Schritt 1 lag mehr als fünf Minuten
+zurück. Er fragte ihn „wie beim Neuladen", holte damit das gegenwärtige Logo
+und legte es unter die alte Adresse. Das geht, weil die Route unter jeder
+Fassung das gegenwärtige Logo ausliefert; `?v=` ist allein für den
+Zwischenspeicher da. Belegt ist die Erklärung nicht: Der Verlauf der Konsole
+war nach den Neuladungen der Wiederholung leer.
+
+**Die Wiederholung, 19:52 bis 19:55**, mit der berichtigten Gegenprobe. Auf
+dem Server lag Logo B, und im privaten Fenster lag Logo B frisch unter der
+alten Adresse. Deshalb wurde zuerst Logo A gespeichert und im privaten Fenster
+ohne Zwischenspeicher geladen:
+
+| Schritt | Fenster | gemessen |
+|---|---|---|
+| R1 | normal | Logo A gespeichert um 19:52:55, Logo A in der Leiste |
+| R2 | privat, ⇧⌘R | Logo A unter `?v=904eae8051dd7024`, `rgb(110,231,183)`, Urteil „kommt an" |
+| R3 | normal | Logo B gespeichert um 19:54:12, Logo B in der Leiste |
+| R4 | privat, ⌘R | Logo B unter `?v=96a55ff9c30b1a1e`, `rgb(192,32,32)`, Urteil „kommt an" |
+| R5 | privat, Gegenprobe | im Zwischenspeicher `rgb(110,231,183)`, `image/png`, 681 B, 69 s alt · wie beim Neuladen dasselbe · vom Server `rgb(192,32,32)`, `image/jpeg`, 5.194 B |
+
+Das Urteil der Gegenprobe um 19:54:47: „unter der alten Adresse käme beim
+Neuladen noch Logo A, der Server hat Logo B — Logo B zeigt die Seite, weil die
+Adresse neu ist." Die 69 s führen auf 19:53:38 zurück, zwischen R1 und R3,
+also auf R2. **Erfüllt**, und die Gegenprobe zeigt das Verhalten von `rc.10`
+an derselben Seite. Block 2 lief nach der Wiederholung nicht noch einmal; R3
+hat denselben Stand hergestellt wie Schritt 2.
+
+### Punkt 8 — erfüllt, um 20:00
+
+Im normalen Fenster „Logo entfernen", ohne gewählte Datei. Die Seite meldete
+„Die Marke ist gespeichert." und lud ganz neu, und in der Leiste stehen
+seitdem Zeichen und Name. Das Snippet druckte
+`Leiste: kein Logo · Zeichen ja · Name „Muster Hosting"`, den Markenblock mit
+4 Regeln und 16 Zuweisungen und das Urteil „kommt an". Die Zeile in der
+Konsole: `Knopf „Logo entfernen": fort · Feld „Bilddatei": da · has_logo: false`.
+
+**Block 2**, mit dem berichtigten Muster:
+
+- `"logo":null` in der Marke und in den Daten der Seite.
+- `branding/` leer, und `sha256sum` meldet `No such file or directory`.
+- `<title inertia>Muster Hosting</title>`, der Markenblock unverändert.
+- Die Route: `HTTP/2 404`, `content-type: text/html; charset=utf-8`,
+  `cache-control: no-cache, private` und `nosniff` einmal, nur von nginx. Die
+  Prüfsumme danach gilt der Fehlerseite.
+
+**Im privaten Fenster** mit ⌘R:
+`Anmeldeseite: kein Logo · Zeichen ja · Name „Muster Hosting"`, die Fusszeile
+über `0.9.0-rc.11`, das Urteil „kommt an". Am Bild stehen Zeichen und Name in
+Pfirsich, in der Leiste trägt der obere Balken des Zeichens Pink. Das ist
+Befund 2.
+
+### Punkt 9 — erfüllt, um 20:12
+
+Die Vorgaben eingetippt, `SrvPanel`, Fusszeile leer, `#3730a3` und `#ff7fec`.
+„Die Marke ist gespeichert." stand um 20:12:56 da. In der Leiste stehen
+wieder Zeichen und „SrvPanel", die Knöpfe sind im dunklen Thema wieder Pink,
+und der Hinweis lautet „Gemessen 9,52:1 auf #fafafb".
+
+**Block 1 war Zeile für Zeile der vom Morgen**, mit der einen Ausnahme, die §3
+Punkt 9 vorhersagt: `branding/` steht jetzt da, leer, zuletzt geändert um
+20:00 beim Entfernen. `<title inertia>SrvPanel</title>`, keine
+`<style>`-Zeile, `Logo-Route: 404`. Ohne eigene Farben schreibt `Style::css()`
+keinen Block, und das ist die Gegenprobe zu Punkt 3 in der Zeit.
+
+In der Ablage stehen die Vorgaben seitdem als Werte; unter `rc.11` geht es
+nicht anders. Danach äusserte der Betreiber den Wunsch, aus dem §6d geworden
+ist.
+
+### Die acht Befunde
+
+| | wo | was | gefunden | Stand |
+|---|---|---|---|---|
+| 1 | Prüfling | Die beiden Formulare auf `/settings/general` stehen ohne Abstand, 0 px | vom Betreiber in Punkt 1, auf dem Telefon | gebaut für `rc.12` (§6b) |
+| 2 | Prüfling | Schrift und Zeichen auf den Markenflächen bleiben in den Farben der Auslieferung | am Bild von Punkt 4a | gebaut für `rc.12` (§6c) |
+| 3 | Prüfling | Die Prüfung beim Speichern rechnet die getönten Flächen nicht. Der aktive Menüpunkt fällt schon unter `rc.11` auf 4,14:1 | beim Bauen von 2, im Container | gebaut für `rc.12` (§6c) |
+| 4 | Vorschrift | Punkt 7 misst nichts, wenn Punkt 4 länger als fünf Minuten zurückliegt | vor Punkt 7, an der Uhr, gemessen im Container | berichtigt, §3 Punkt 7 |
+| 5 | Vorschrift | Die erste Gegenprobe zu Punkt 7 legt bei einem abgelaufenen Eintrag Logo B unter die alte Adresse | vor Punkt 7, im Container; gefahren wurde sie trotzdem | berichtigt, Punkt 7 wiederholt |
+| 6 | Vorschrift | Block 2 druckt `"logo":null` nicht | vor Punkt 8, im Container | berichtigt, §3 Punkt 3 |
+| 7 | Prüfstand | Ein Lauf mit 310 s Wartezeit neben anderen Läufen gegen denselben Server: Der Fall „frisch" druckte nichts, und der lange Lauf war wertlos | im Container | nacheinander wiederholt |
+| 8 | Prüfstand | `Network.setCacheDisabled` wirkt ohne `Network.enable` nicht | im Container, an der Gegenprobe zur Gegenprobe | berichtigt |
+
+Die Befunde 7 und 8 betrafen die Messungen, mit denen ich die Gegenprobe im
+Container belegt habe, und keine Zahl auf dem Server.
+
+### Beobachtungen, keine Befunde
+
+1. **`x-content-type-options: nosniff` steht in der Antwort der Logo-Route
+   zweimal.** nginx setzt die Zeile für jede Antwort des Panels
+   (`add_header … always` in `PanelVhost`), der Controller für die Route noch
+   einmal. Der Wert ist derselbe und wirkt wie einer. Bei der 404
+   in Punkt 8 steht er einmal.
+2. **Die Unterschrift ist für ein Mailprogramm keine.** Die Trennzeile lautet
+   `--`. Die Konvention ist `-- ` mit Leerzeichen (RFC 3676 §4.3), und ohne
+   das Leerzeichen setzen Mailprogramme die Unterschrift nicht ab und lassen
+   sie beim Antworten im Zitat. Dazu fehlt die Leerzeile davor:
+   `resources/views/mail/signature.blade.php` hat eine, aber Laravel kürzt
+   jede gerenderte Ansicht vorn (`ltrim(ob_get_clean())` in `PhpEngine`),
+   auch eine eingebundene. Die Quelle oben zeigt es: Auf „… ausgelöst hat."
+   folgt unmittelbar `--`, und im Container gerendert beginnt die Vorlage der
+   Unterschrift mit `--`. In allen drei Mailvorlagen steht sie direkt unter
+   der letzten Zeile. Kein Kriterium dieses Laufs; gebaut ist es trotzdem,
+   entschieden vom Betreiber am selben Tag (§6e).
+3. **Die Zeit im Rumpf steht ohne Zone.** `Date:` sagt `15:39:54 +0000`, der
+   Rumpf „am 2026-10-03 17:39:54", dieselbe Sekunde in der Anzeigezone des
+   Panels. Die Zone nennt er nicht. Kein Kriterium dieses Laufs.
+4. **„Logo entfernen" fragt nicht zurück** und meldet dasselbe wie das
+   Speichern; eine gewählte Datei legt der Controller danach wieder ab (§3
+   Punkt 8). Das Logo lässt sich jederzeit neu hochladen, und den Beleg gab
+   Block 2.
+
+### Was der Lauf über sich selbst gelernt hat
+
+**Punkt 7 hat seinen Prüfkörper vier Stunden vor dem Gebrauch hergestellt.**
+Logo A kam in Punkt 4 in den Zwischenspeicher und war nach fünf Minuten
+abgelaufen. Der Satz dazu steht seit P7 in diesem Repo, dort an einer TTL von
+zehn Sekunden:
+
+> **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr
+> hergestellt.**
+
+**Die erste Gegenprobe hat den Zwischenspeicher verändert, den sie lesen
+sollte.** Im Container zeigte ein Neuladen danach Logo B unter der Adresse von
+Logo A, also Befund 4 aus §0 im Kleinen, und hergestellt hatte ihn die
+Gegenprobe selbst.
+
+> **Ein Prüfkörper, der seinen Gegenstand beim Messen verändert, meldet den
+> Unterschied als Fehler des Gemessenen.**
+
+**Und die berichtigte Fassung stand zwei Stunden vor Punkt 7 bereit.** Sie
+kam als Nachtrag in einer späteren Nachricht, die erste Fassung stand in der
+Anweisung zum Schritt, und gefahren wurde die erste.
+
+> **Eine Berichtigung, die als Nachtrag neben der alten Fassung steht, ersetzt
+> sie nicht — gefahren wird, was beim Schritt steht.**
+
+Wer eine Anweisung berichtigt, schreibt den ganzen Schritt neu und sagt, dass
+der alte nicht mehr gilt.
+
+**Zwei Fehler meines Prüfstands, beide an der Gegenprobe.** Den Fall
+„abgelaufen" belegt nur ein Lauf mit 310 s Wartezeit. Ich habe ihn neben
+anderen Läufen gestartet, die das Logo desselben Servers umschalteten. Der Fall
+„frisch" druckte danach nichts, und der lange Lauf war wertlos.
+
+> **Ein Test, dessen Ergebnis davon abhängt, was gerade nebenher läuft, misst
+> die Umgebung mit.**
+
+Zwei Läufe gegen einen Server, den beide umschalten, gehören hintereinander.
+Den Fall „Cache deaktivieren" stellt `Network.setCacheDisabled` her, und das
+wirkt erst nach `Network.enable`. Der erste Anlauf zeigte Logo A aus dem
+Zwischenspeicher, also gerade den Zustand, den er ausschliessen sollte. Der
+Satz dazu steht in `docs/96`:
+
+> **Eine Vorbereitung, die man nicht belegt, ist keine Bedingung der Messung,
+> sondern eine Hoffnung daneben.**
+
+**Und einmal hat das Hinsehen über die Frage hinaus getragen.** Am Bild von
+Punkt 4a waren Logo, Fusszeile und Knopf gefragt. Gefunden wurde daneben die
+Schrift in Pfirsich, und daraus kamen die Befunde 2 und 3.
+
+### Was aussteht
+
+- **Der Nachlauf gegen `0.9.0-rc.12`**, ausgeschrieben vor dem Fahren (§8). Er
+  sieht §6b an der Fuge bei 390 px nach, §6c an den vier Erwartungen aus „Für
+  den Lauf heisst das" und an Schrift und Zeichen in Mint, §6d an Punkt 9
+  ohne Abschreiben, an der Ablage mit `null` und an den Hinweisen mit der
+  Vorgabe, und §6e an der Quelle einer Testmail.
+- **Danach die Abnahme**, die der Betreiber ausspricht (§5). Entschieden hat
+  er am 3. Oktober, dass sie nach dem Nachlauf kommt, wie bei B4: Abgenommen
+  wird, was ausgeliefert ist.
+
+## §8 · Der Nachlauf gegen `0.9.0-rc.12`
+
+Ausgeschrieben am 3. Oktober 2026, vor dem Fahren. Er sieht nach, was `rc.12`
+gegenüber `rc.11` ändert: die Fuge zwischen den beiden Formularen (§6b),
+Schrift und Zeichen in der Farbe der Marke und die Prüfung über den Tönungen
+(§6c), das leere Feld als Vorgabe (§6d) und die Unterschrift der Mails (§6e).
+**Danach spricht der Betreiber die Abnahme aus**, so entschieden am 3. Oktober.
+
+Jede erwartete Zeile ist vorab gemessen: im Container gegen den gebauten Stand,
+mit der Wegwerf-Datenbank aus §6a und in dem Zustand, in dem `cloudsrv24` nach
+Punkt 9 steht (unten N0). Die Versionsnummer heisst im Container `Quellbaum`,
+auf dem Server `0.9.0-rc.12`.
+
+Gefahren wird in dieser Reihenfolge, das Panel im normalen Fenster, die
+Anmeldeseite im privaten. Logo und Prüfkörper braucht er nicht.
+
+### N0 — Die Vorbedingung
+
+Block 1 aus §1, dazu eine Zeile mehr. Sie zeigt, was abgelegt ist, und nicht,
+was gilt:
+
+```bash
+srvpanel tinker --execute='echo json_encode(App\Models\Setting::query()->where("key", "brand")->first()?->value, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES), PHP_EOL;'
+```
+
+**Erwartet:** Block 1 mit `0.9.0-rc.12` und sonst wie nach Punkt 9 (§7). Die
+neue Zeile zeigt die Abschrift aus Punkt 9, denn unter `rc.11` ging es nicht
+anders:
+
+```
+{"name":"SrvPanel","accent_light":"#3730a3","accent_dark":"#ff7fec","footer":"","logo":null}
+```
+
+### N1 — Die Felder zeigen die Vorgabe als Platzhalter (§6d) und stehen mit Abstand (§6b)
+
+`/settings/general` frisch laden, bei 1440 px.
+
+**Erwartet:** Die Felder für Name, helle und dunkle Farbe sind **leer** und
+zeigen grau `SrvPanel`, `#3730a3` und `#ff7fec`. Die Abschrift gleicht der
+Vorgabe, und gefragt wird, ob der Wert der Vorgabe gleicht. Darunter stehen:
+
+> Steht im Reiter des Browsers und neben dem Zeichen — solange kein Logo
+> hinterlegt ist. Ohne Eintrag gilt „SrvPanel".
+
+> Vorgabe, gemessen 8,15:1 auf #ede8e0 (der Tönung einer Warnung) — verlangt
+> sind 4,5:1. Der Akzent trägt auch Schrift.
+
+> Vorgabe, gemessen 6,27:1 auf #1d302f (der Tönung einer Erfolgsmeldung). Diese
+> Farbe gilt auch auf der Anmeldeseite — sie trägt in beiden Themes einen
+> dunklen Grund.
+
+Dann in die Konsole, einmal bei 1440 px und frisch geladen noch einmal bei
+390 px:
+
+```js
+(() => { const f = [...document.querySelectorAll('main form.form')]; const a = f[0]?.getBoundingClientRect(), b = f[1]?.getBoundingClientRect(); console.log(`Fuge zwischen den Formularen: ${a && b ? Math.round(b.top - a.bottom) : '—'} px · Formulare ${f.length} · Breite ${innerWidth} px`) })()
+```
+
+**Erwartet:** `Fuge zwischen den Formularen: 30 px · Formulare 2 · Breite 1440 px`
+und `… 26 px · Formulare 2 · Breite 390 px`. Unter `rc.11` stand dort 0 px.
+Dazu ein Bild bei 390 px mit „Speichern" und „Name und Fusszeile".
+
+### N2 — Speichern ohne Änderung legt keine Angabe ab (§6d)
+
+Auf `/settings/general` „Marke speichern", ohne etwas zu ändern. Dann die Zeile
+aus N0.
+
+**Erwartet:** „Die Marke ist gespeichert.", die Felder weiter leer, und
+abgelegt ist keine Angabe mehr:
+
+```
+{"name":null,"accent_light":null,"accent_dark":null,"footer":"","logo":null}
+```
+
+Block 1 bleibt, wie er war: Er druckt, was gilt, und das sind die Vorgaben.
+
+### N3 — Die Prüfung rechnet die Tönungen (§6c)
+
+Punkt 1 noch einmal: im hellen Feld `#2f8f5b`, „Marke speichern".
+
+**Erwartet** oben die Zusammenfassung:
+
+> Das Formular wurde nicht gespeichert.
+> Diese Farbe erreicht auf #ede8e0 (der Tönung einer Warnung) nur 3,31:1. Der
+> Akzent trägt auch Schrift; verlangt sind 4,5:1.
+
+Unter `rc.11` lautete die Meldung „auf #fafafb nur 3,87:1". Die Zeile aus N0
+bleibt bei `null`. Danach die Seite neu laden.
+
+### N4 — Die Marke, ohne Logo (§6c, §6d)
+
+Name, Fusszeile und beide Farben aus §2 eintragen, **kein** Logo wählen,
+„Marke speichern".
+
+**Erwartet** unter den Farbfeldern:
+
+> Gemessen 5,13:1 auf #ede8e0 (der Tönung einer Warnung) — verlangt sind 4,5:1.
+> Der Akzent trägt auch Schrift. Ohne Eintrag gilt die Vorgabe.
+
+> Gemessen 8,59:1 auf #213433 (ihrer eigenen Tönung, wie in einem aktiven
+> Knopf). Diese Farbe gilt auch auf der Anmeldeseite — sie trägt in beiden
+> Themes einen dunklen Grund. Ohne Eintrag gilt die Vorgabe.
+
+Dann frisch geladen das Snippet aus §3. **Erwartet** wie in Punkt 5, nur
+ohne Logo und mit drei Zuweisungen mehr: `Logo —` in der Marke laut Seite,
+`Markenblock: 4 Regeln, 19 Zuweisungen, davon keine Marke: 0` und
+`Leiste: kein Logo · Zeichen ja · Name „Muster Hosting"`. Die Farben und die
+Gegenprobe stehen da wie in Punkt 5, das Urteil lautet „kommt an". Danach,
+wieder frisch geladen, diese Zeilen:
+
+```js
+// B6 · docs/140 §8: Schrift und Zeichen in der Farbe der Marke, mit Gegenprobe.
+(() => {
+  const hex = (s) => { const m = (String(s).match(/[\d.]+/g) || []).map(Number); return m.length < 3 ? String(s) : '#' + m.slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, '0')).join('') }
+  const lies = () => {
+    const z = []
+    for (const [wo, sel] of [['Anmeldeseite', 'main.signin'], ['Leiste', 'aside.rail']]) {
+      const f = document.querySelector(sel)
+      if (!f) continue
+      const mark = f.querySelector('svg.mark'), oben = mark?.querySelector('.bar-top'), name = f.querySelector('.brand-name'), bleiben = f.querySelector('label.toggle span')
+      const teile = [`Name ${name ? hex(getComputedStyle(name).color) : '—'}`, `Balken oben ${oben ? hex(getComputedStyle(oben).fill) : '—'}`, `Balken unten ${mark ? hex(getComputedStyle(mark).color) : '—'}`]
+      if (bleiben) teile.push(`„Angemeldet bleiben" ${hex(getComputedStyle(bleiben).color)}`)
+      z.push(`  ${wo}: ${teile.join(' · ')}`)
+    }
+    return z
+  }
+  const block = [...document.head.querySelectorAll('style')].find((s) => [...(s.sheet?.cssRules ?? [])].some((r) => r.style && r.style.getPropertyValue('--accent') !== ''))
+  const z = [`Schrift und Zeichen · ${location.pathname} · Thema ${document.documentElement.getAttribute('data-theme') ?? '(keins)'}`, ...lies()]
+  if (block) {
+    block.disabled = true
+    z.push('Gegenprobe, Markenblock abgeschaltet:', ...lies())
+    block.disabled = false
+  } else {
+    z.push('Markenblock: keiner')
+  }
+  console.log(z.join('\n'))
+})()
+```
+
+**Erwartet** auf `/settings/general`:
+
+```
+  Leiste: Name #ffffff · Balken oben #6ee7b7 · Balken unten #ffffff
+Gegenprobe, Markenblock abgeschaltet:
+  Leiste: Name #ffffff · Balken oben #ff7fec · Balken unten #ffffff
+```
+
+Der obere Balken des Zeichens trägt die Farbe der Marke, ohne Markenblock das
+Pink der Auslieferung. Name und untere Balken bleiben weiss; sie gehören zur
+Leiste und nicht zur Marke.
+
+Dann Block 2 aus §3 Punkt 3, mit einer Zeile mehr. Sie vergleicht den
+Markenblock mit dem Wortlaut, den `rc.12` für diese Marke schreibt:
+
+```bash
+B6S="<style>:root,:root[data-theme='light']{--accent:#0b6e4f;--accent-on:#ffffff;--accent-surface:rgb(11 110 79 / 0.09);--focus:#0b6e4f;}:root[data-theme='dark']{--accent:#6ee7b7;--accent-on:#0f1116;--accent-surface:rgb(110 231 183 / 0.14);--focus:#6ee7b7;}.rail,.topbar{--accent:#6ee7b7;--accent-on:#0f1116;--accent-surface:rgb(110 231 183 / 0.14);--focus:#6ee7b7;--mark-accent:#6ee7b7;}.signin{--accent:#6ee7b7;--accent-on:#0f1116;--accent-surface:rgb(110 231 183 / 0.14);--focus:#6ee7b7;--text-strong:#6ee7b7;--mark-accent:#6ee7b7;}</style>"; [ "$("${C[@]}" "$U/login" | grep -o -E '<style>:root[^<]*</style>')" = "$B6S" ] && echo "Markenblock wie §8: ja" || echo "Markenblock wie §8: NEIN"
+```
+
+**Erwartet:** die Marke mit `"logo":null`, kein `logo.*`, die Route `404`,
+`<title inertia>Muster Hosting</title>`, `"logo":null` in den Daten der Seite
+und „Markenblock wie §8: ja".
+
+### N5 — Die Anmeldeseite: Schrift und Zeichen in der Farbe der Marke (§6c)
+
+Im privaten Fenster die Anmeldeseite frisch laden, bei 1440 px, und das
+Snippet aus §3 einfügen. **Erwartet** wie in Punkt 4, nur ohne Logo und mit
+drei Zuweisungen mehr: `Logo —` in der Marke laut Seite,
+`Markenblock: 4 Regeln, 19 Zuweisungen, davon keine Marke: 0` und
+`Anmeldeseite: kein Logo · Zeichen ja · Name „Muster Hosting"`. Die Fusszeile
+steht über `0.9.0-rc.12`, das Urteil lautet „kommt an".
+
+Frisch geladen dann die Zeilen aus N4. **Erwartet:**
+
+```
+  Anmeldeseite: Name #6ee7b7 · Balken oben #6ee7b7 · Balken unten #6ee7b7 · „Angemeldet bleiben" #6ee7b7
+Gegenprobe, Markenblock abgeschaltet:
+  Anmeldeseite: Name #ffb7a5 · Balken oben #ff7fec · Balken unten #ffb7a5 · „Angemeldet bleiben" #ffb7a5
+```
+
+Unter `rc.11` stand die erste Zeile so da wie die Gegenprobe. Dazu ein Bild bei
+1440 px: Name, Zeichen und „Angemeldet bleiben" in Mint.
+
+### N6 — Die Unterschrift der Mails (§6e)
+
+Zuerst rechnet der Server die Testmail, mit der Marke aus N4:
+
+```bash
+srvpanel tinker --execute='$t = (new App\Mail\TestMessage("Administrator", "jetzt"))->render(); echo json_encode(substr($t, strrpos($t, "ausgel")), JSON_UNESCAPED_UNICODE), PHP_EOL;'
+```
+
+**Erwartet:**
+
+```
+"ausgelöst hat.\n\n-- \nMuster Hosting\nBetrieben von der Muster Hosting GmbH · Musterweg 1 · 12345 Musterstadt\n"
+```
+
+In JSON ist zu sehen, was die Quelle einer Mail nicht zeigt: das Leerzeichen
+hinter `--`. Unter `rc.11` stand dort `"ausgelöst hat.\n--\nMuster Hosting…"`.
+
+Dann auf `/settings/mail` die Testmail verschicken und die Quelle ansehen.
+**Erwartet:** vor der Trennzeile eine leere Zeile. In einem Mailprogramm, das
+Unterschriften erkennt, ist die Unterschrift abgesetzt, in Thunderbird grau.
+
+### N7 — Zurück, ohne abzuschreiben (§6d)
+
+Auf `/settings/general` Name, Fusszeile und beide Farben **leeren**, „Marke
+speichern". Dann Block 1 und die Zeile aus N0.
+
+**Erwartet:** die Felder leer mit den Platzhaltern, die Hinweise wie in N1,
+und abgelegt ist keine Angabe:
+
+```
+{"name":null,"accent_light":null,"accent_dark":null,"footer":"","logo":null}
+```
+
+Block 1 druckt dieselbe Marke wie vor dem Lauf, mit `0.9.0-rc.12` als Fassung,
+und keine `<style>`-Zeile.
+
+### Wann er durch ist
+
+N0 bis N7 wie erwartet. Steht eine Zeile anders da, ist die Behebung dahinter
+nicht angekommen, und der Punkt ist nicht erfüllt. Danach spricht der
+Betreiber die Abnahme von B6 aus.

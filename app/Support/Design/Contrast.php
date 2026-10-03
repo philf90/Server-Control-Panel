@@ -36,6 +36,11 @@ namespace App\Support\Design;
  *
  * > **Ein Prüfkörper, der die Deckkraft wegwirft, misst die Farbe vor dem
  * > Überblenden — und die sieht niemand.**
+ *
+ * Geblendet wird mit {@see self::over()}, seit dem 3. Oktober 2026 an dieser
+ * einen Stelle: Die Prüfung der Markenfarbe rechnet seitdem auch die getönten
+ * Flächen, und eine zweite Mischung in `BrandSettings` wäre die zweite
+ * Fassung derselben Rechnung.
  */
 final class Contrast
 {
@@ -75,6 +80,28 @@ final class Contrast
         return 0.2126 * $kanal($rgb[0] ?? 0)
             + 0.7152 * $kanal($rgb[1] ?? 0)
             + 0.0722 * $kanal($rgb[2] ?? 0);
+    }
+
+    /**
+     * Eine Farbe mit Deckung über einem Grund — so gemischt, wie der Browser
+     * es tut.
+     *
+     * Kanal für Kanal im sRGB-Raum und auf ganze Werte gerundet. Gemessen am
+     * 3. Oktober 2026 gegen Chromium: `rgb(2 146 91 / 0.14)` über `#1a0b2e`
+     * zeichnet der Browser als `#171e34`, und diese Methode rechnet dasselbe.
+     * Linear gemischt käme ein anderer Wert heraus, und gegen den hätte niemand
+     * etwas zu lesen.
+     */
+    public static function over(string $colour, float $alpha, string $ground): string
+    {
+        $oben = sscanf(ltrim($colour, '#'), '%2x%2x%2x') ?? [0, 0, 0];
+        $unten = sscanf(ltrim($ground, '#'), '%2x%2x%2x') ?? [0, 0, 0];
+
+        $kanal = static fn (int $i): int => (int) round(
+            ((int) ($oben[$i] ?? 0)) * $alpha + ((int) ($unten[$i] ?? 0)) * (1 - $alpha),
+        );
+
+        return sprintf('#%02x%02x%02x', $kanal(0), $kanal(1), $kanal(2));
     }
 
     /**

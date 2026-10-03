@@ -29,6 +29,23 @@ use Tests\TestCase;
  */
 final class BrandStyleTest extends TestCase
 {
+    /**
+     * Was nach einem Wechsel der Marke in der Farbe der Auslieferung stehen
+     * bleiben darf — jede Stelle mit ihrem Grund.
+     *
+     * @var array<string, string>
+     */
+    private const LEFT_AS_SHIPPED = [
+        ':root --mark-accent' => self::EDITOR,
+        ":root[data-theme='light'] --mark-accent" => self::EDITOR,
+        ":root[data-theme='dark'] --mark-accent" => self::EDITOR,
+    ];
+
+    private const EDITOR = 'An der Wurzel färbt --mark-accent nur die Auswahl und die Suchtreffer im Datei-Editor, '
+        .'und über dieser Fläche steht Text. Die Prüfung beim Speichern rechnet den Akzent als Schrift auf einem Grund '
+        .'und nicht als Grund unter Schrift. Das Zeichen selbst steht nur auf Leiste und Anmeldeseite, und dort setzt '
+        .'der Block die Marke.';
+
     private function brand(string $hell = '#111827', string $dunkel = '#fde68a'): BrandSettings
     {
         return new BrandSettings(accent_light: $hell, accent_dark: $dunkel);
@@ -147,6 +164,92 @@ final class BrandStyleTest extends TestCase
     }
 
     /**
+     * Keine Marke einer Akzentfläche bleibt in einer Farbe der Auslieferung
+     * stehen, wenn der Betreiber eine eigene setzt.
+     *
+     * **Gefragt wird nach dem Wert und nicht nach dem Namen.** Bis zum
+     * 3. Oktober 2026 kannte dieser Wächter nur die vier Akzentmarken
+     * ({@see self::test_every_accent_token_of_the_stylesheet_comes_along()}).
+     * Auf der Anmeldeseite trägt aber auch `--text-strong` Pfirsich und
+     * `--mark-accent` Pink, und beide blieben stehen: „Angemeldet bleiben" in
+     * Pfirsich neben einem grünen Knopf, ohne Logo dazu Name und Zeichen;
+     * in der Leiste der obere Balken des Zeichens (`docs/140 §6c`). Ein
+     * Wächter über die Namen hätte die nächste Marke dieser Art wieder nicht
+     * gekannt.
+     *
+     * > **Was nach einem Wechsel der Marke in der Farbe der Auslieferung
+     * > stehen bleibt, sieht der Besucher als Rest — gleich, wie die Marke
+     * > heisst.**
+     *
+     * Die Farben der Auslieferung kommen aus `app.css`: der Wert von
+     * `--accent` an jeder Fläche, die ihn setzt, als Hexwert und als Kanäle in
+     * `rgb(…)`. Die Ausnahmen in {@see self::LEFT_AS_SHIPPED} tragen ihren
+     * Grund, und eine, die nichts mehr ausnimmt, ist selbst ein Befund.
+     */
+    public function test_no_mark_is_left_in_a_shipped_accent(): void
+    {
+        $css = $this->stylesheet();
+        $flaechen = $this->accentRules($css);
+        $farben = [];
+
+        foreach (CssRules::flatten($css) as $regel) {
+            if (isset($flaechen[$regel['selector']])
+                && preg_match('/(?:^|;)\s*--accent\s*:\s*(#[0-9a-fA-F]{6})\s*(?:;|$)/', $regel['body'], $wert) === 1) {
+                $farben[strtolower($wert[1])] = true;
+            }
+        }
+
+        self::assertCount(3, $farben,
+            'Untergrenze: app.css liefert drei Akzente aus — Indigo, Pink und Pfirsich. Weniger heisst, der Leser greift ins Leere.');
+
+        $geschrieben = [];
+
+        foreach (CssRules::flatten(Style::css($this->brand())) as $regel) {
+            preg_match_all('/(?:^|;)\s*(--[\w-]+)\s*:/', $regel['body'], $marken);
+
+            foreach ($marken[1] as $marke) {
+                $geschrieben[$regel['selector'].' '.$marke] = true;
+            }
+        }
+
+        $rest = [];
+
+        foreach (CssRules::flatten($css) as $regel) {
+            if (! isset($flaechen[$regel['selector']])) {
+                continue;
+            }
+
+            preg_match_all('/(?:^|;)\s*(--[\w-]+)\s*:\s*([^;]+)/', $regel['body'], $marken, PREG_SET_ORDER);
+
+            foreach ($marken as [, $marke, $wert]) {
+                if ($this->isShippedAccent(trim($wert), array_keys($farben))
+                    && ! isset($geschrieben[$regel['selector'].' '.$marke])) {
+                    $rest[$regel['selector'].' '.$marke] = trim($wert);
+                }
+            }
+        }
+
+        self::assertGreaterThanOrEqual(3, count($rest),
+            'Untergrenze: Die Ausnahmen an der Wurzel stehen im Stylesheet. Fehlen sie hier, misst dieser Fall nichts.');
+
+        $offen = array_diff_key($rest, self::LEFT_AS_SHIPPED);
+
+        self::assertSame([], $offen, sprintf(
+            "Diese Marken stehen in einer Farbe der Auslieferung, und der Markenblock setzt sie nicht:\n  %s\n\n"
+            ."Nach einem Wechsel der Marke bleiben sie als Rest stehen. Der Block setzt sie mit dem Akzent der Fläche —\n"
+            .'oder die Stelle kommt mit ihrem Grund nach LEFT_AS_SHIPPED.',
+            implode("\n  ", array_map(static fn (string $k, string $v): string => $k.' ('.$v.')', array_keys($offen), $offen)),
+        ));
+
+        $verwaist = array_keys(array_diff_key(self::LEFT_AS_SHIPPED, $rest));
+
+        self::assertSame([], $verwaist, sprintf(
+            "Diese Ausnahmen nehmen nichts mehr aus:\n  %s\n\nEine Ausnahme ohne Gegenstand erlaubt beim nächsten Mal etwas, das niemand geprüft hat.",
+            implode("\n  ", $verwaist),
+        ));
+    }
+
+    /**
      * Hell nimmt den hellen Akzent, jede andere Fläche den dunklen.
      *
      * Leiste, Kopfleiste und Anmeldeseite sind eigene, dunkle Markenflächen
@@ -230,6 +333,25 @@ final class BrandStyleTest extends TestCase
     private function stylesheet(): string
     {
         return (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css');
+    }
+
+    /**
+     * Steht hier eine Farbe der Auslieferung — als Hexwert oder als Kanäle
+     * einer Tönung?
+     *
+     * @param  list<string>  $farben
+     */
+    private function isShippedAccent(string $wert, array $farben): bool
+    {
+        foreach ($farben as $farbe) {
+            $kanaele = vsprintf('%d %d %d', sscanf(ltrim($farbe, '#'), '%2x%2x%2x') ?? [0, 0, 0]);
+
+            if (strtolower($wert) === $farbe || preg_match('/^rgb\(\s*'.preg_quote($kanaele, '/').'\s*\//', $wert) === 1) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

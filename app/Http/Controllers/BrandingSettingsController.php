@@ -27,9 +27,15 @@ final class BrandingSettingsController extends Controller
     public function update(Request $request, Settings $settings, Logo $logo, Audit $audit): Response
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:40'],
-            'accent_light' => ['required', 'string', 'regex:/^#[0-9a-fA-F]{6}$/D'],
-            'accent_dark' => ['required', 'string', 'regex:/^#[0-9a-fA-F]{6}$/D'],
+            /*
+             * **Leer ist erlaubt und heisst „die Vorgabe"**, entschieden vom
+             * Betreiber am 3. Oktober 2026 (`docs/140 §6d`). Hier stand
+             * `required`; wer zurück zur Vorgabe wollte, musste sie abschreiben.
+             * Was ein leeres Feld bedeutet, sagt {@see BrandSettings::fromForm()}.
+             */
+            'name' => ['nullable', 'string', 'max:40'],
+            'accent_light' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/D'],
+            'accent_dark' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/D'],
 
             /*
              * **Reiner Text und kein Markup.** Die Fusszeile steht auf der
@@ -44,11 +50,17 @@ final class BrandingSettingsController extends Controller
             'remove_logo' => ['nullable', 'boolean'],
         ]);
 
-        $this->refuseUnreadable('accent_light', $data['accent_light'], BrandSettings::SURFACES_LIGHT);
-        $this->refuseUnreadable('accent_dark', $data['accent_dark'], BrandSettings::SURFACES_DARK);
+        /*
+         * **Gerechnet wird die Farbe, die gelten wird** — bei einem leeren
+         * Feld also die Vorgabe. Die trägt; die Prüfung bleibt trotzdem für
+         * jeden Fall dieselbe und kennt keinen, den sie auslässt.
+         */
+        $eingabe = BrandSettings::fromForm($data, $settings->brand()->logo);
 
-        $marke = $settings->brand();
-        $name = $marke->logo;
+        $this->refuseUnreadable('accent_light', BrandSettings::verdictLight($eingabe->accent_light));
+        $this->refuseUnreadable('accent_dark', BrandSettings::verdictDark($eingabe->accent_dark));
+
+        $name = $eingabe->logo;
 
         /*
          * **Wahr ist, was der Browser als wahr schickt.** Die Seite schickt das
@@ -78,15 +90,10 @@ final class BrandingSettingsController extends Controller
             $name = $logo->store($datei);
         }
 
-        $settings->saveBrand(new BrandSettings(
-            name: trim($data['name']),
-            accent_light: strtolower($data['accent_light']),
-            accent_dark: strtolower($data['accent_dark']),
-            footer: trim((string) ($data['footer'] ?? '')),
-            logo: $name,
-        ));
+        $settings->saveBrand(BrandSettings::fromForm($data, $name));
 
-        $audit->success('settings.branding', null, ['name' => trim($data['name'])]);
+        // Der Name, der gilt — bei einem leeren Feld also die Vorgabe.
+        $audit->success('settings.branding', null, ['name' => $eingabe->name]);
 
         /*
          * **Zurück auf die Seite, auf der das Formular steht — und das ist
@@ -146,23 +153,27 @@ final class BrandingSettingsController extends Controller
     /**
      * Eine Farbe abweisen, unter der die Schrift nicht mehr lesbar ist.
      *
-     * Die Meldung nennt den **gemessenen** Wert und die Fläche, an der er
+     * Die Meldung nennt den **gemessenen** Wert und den Grund, an dem er
      * entsteht. „Zu wenig Kontrast" allein liesse den Betreiber raten, um wie
      * viel er danebenliegt und wo.
      *
-     * @param  list<string>  $surfaces
+     * **Und bei einer Tönung auch den Ort.** Seit dem 3. Oktober 2026 rechnet
+     * die Prüfung die getönten Flächen mit (`docs/140 §6c`). Deren Hexwert
+     * steht nirgends im Stylesheet — der Browser mischt ihn erst —, und ohne
+     * „der Tönung einer Warnung" daneben suchte der Betreiber eine Farbe, die
+     * es nur auf dem Bildschirm gibt.
+     *
+     * @param  array{ratio: float, passes: bool, surface: string, place: string|null}  $urteil
      */
-    private function refuseUnreadable(string $field, string $colour, array $surfaces): void
+    private function refuseUnreadable(string $field, array $urteil): void
     {
-        $urteil = BrandSettings::verdict($colour, $surfaces);
-
         if ($urteil['passes']) {
             return;
         }
 
         throw ValidationException::withMessages([$field => sprintf(
             'Diese Farbe erreicht auf %s nur %s:1. Der Akzent trägt auch Schrift; verlangt sind %s:1.',
-            $urteil['surface'],
+            $urteil['surface'].($urteil['place'] === null ? '' : ' ('.$urteil['place'].')'),
             number_format($urteil['ratio'], 2, ',', '.'),
             number_format(Contrast::TEXT, 1, ',', '.'),
         )]);

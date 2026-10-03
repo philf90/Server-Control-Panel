@@ -9,6 +9,7 @@ use App\Mail\DiagnoseReport;
 use App\Mail\QuotaWarning;
 use App\Mail\TestMessage;
 use App\Models\Account;
+use App\Models\Setting;
 use App\Support\Brand\Logo;
 use App\Support\Settings\BrandSettings;
 use App\Support\Settings\MailConfiguration;
@@ -372,7 +373,13 @@ final class BrandReachTest extends TestCase
 
     /**
      * Eine Farbe, unter der niemand mehr liest, wird abgewiesen — mit ihrer
-     * Zahl und mit der Fläche, an der sie entsteht.
+     * Zahl, dem Grund, an dem sie entsteht, und seinem Ort.
+     *
+     * **Seit dem 3. Oktober 2026 ist der schlechteste Grund eine Tönung.** Auf
+     * `#fafafb` erreicht `#cccccc` 1,54:1, auf der Tönung einer Warnung darüber
+     * 1,32:1 (`docs/140 §6c`). Die Tür benutzt also die schärfere Prüfung, und
+     * die Meldung nennt den Ort, weil der Hexwert einer Tönung in keinem
+     * Stylesheet steht.
      */
     public function test_an_unreadable_colour_is_refused_with_its_number(): void
     {
@@ -382,8 +389,38 @@ final class BrandReachTest extends TestCase
 
         $meldung = session('errors')->first('accent_light');
 
-        self::assertStringContainsString('1,54:1', $meldung, 'Der gemessene Wert steht in der Meldung.');
-        self::assertStringContainsString('#fafafb', $meldung, 'Und die Fläche, an der er entsteht.');
+        self::assertStringContainsString('1,32:1', $meldung, 'Der gemessene Wert steht in der Meldung.');
+        self::assertStringContainsString('#ede8e0', $meldung, 'Und der Grund, an dem er entsteht.');
+        self::assertStringContainsString('(der Tönung einer Warnung)', $meldung, 'Und sein Ort — der Hexwert einer Tönung steht in keinem Stylesheet.');
+    }
+
+    /**
+     * Der Hinweis neben dem Feld rechnet dieselbe Prüfung wie das Speichern.
+     *
+     * Zeigte die Seite weiter die Rechnung über die Flächen allein, stünde
+     * neben dem Feld „Gemessen 6:1 auf #fafafb", und eine Farbe knapp darüber
+     * würde beim Speichern abgewiesen, ohne dass der Hinweis sie je knapp
+     * genannt hätte. Gemessen an den Prüffarben des Laufs (`docs/140 §2`):
+     * Beide entscheidet eine Tönung, und die nennt der Hinweis mit ihrem Ort.
+     */
+    public function test_the_hint_beside_the_field_is_the_check_that_saving_asks(): void
+    {
+        $this->gespeichert(['accent_light' => '#0b6e4f', 'accent_dark' => '#6ee7b7']);
+
+        $hell = BrandSettings::verdictLight('#0b6e4f');
+        $dunkel = BrandSettings::verdictDark('#6ee7b7');
+
+        self::assertNotNull($hell['place'], 'Untergrenze: Entscheidet hier eine Fläche, trennt dieser Fall die beiden Prüfungen nicht.');
+        self::assertNotNull($dunkel['place'], 'Untergrenze: Entscheidet hier eine Fläche, trennt dieser Fall die beiden Prüfungen nicht.');
+
+        $this->actingAs($this->operator())->get('/settings/general')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('contrast.light.surface', $hell['surface'])
+                ->where('contrast.light.place', $hell['place'])
+                ->where('contrast.dark.surface', $dunkel['surface'])
+                ->where('contrast.dark.place', $dunkel['place'])
+                ->etc());
     }
 
     /** Die gespeicherte Marke bleibt dabei, wie sie war. */
@@ -393,6 +430,101 @@ final class BrandReachTest extends TestCase
         $this->save(['accent_light' => '#cccccc']);
 
         self::assertSame('#111827', app(Settings::class)->brand()->accent_light);
+    }
+
+    /**
+     * Was in der Ablage steht — so, wie der nächste Lauf es liest.
+     *
+     * @return array<string, mixed>
+     */
+    private function abgelegt(): array
+    {
+        $wert = Setting::query()->where('key', 'brand')->first()?->value;
+        self::assertIsArray($wert, 'Es steht keine Marke in der Ablage — dann misst dieser Fall nichts.');
+
+        return $wert;
+    }
+
+    /**
+     * Ein leeres Feld heisst „die Vorgabe" — durch die Tür und bis in die Ablage.
+     *
+     * Entschieden vom Betreiber am 3. Oktober 2026 (`docs/140 §6d`). Bis dahin
+     * wies die Tür ein leeres Feld als fehlend ab, und wer zurück wollte,
+     * musste die Vorgaben abschreiben.
+     *
+     * Vorher steht eine eigene Marke da, und das ist der Prüfkörper: Über der
+     * Vorgabe gespeichert, sähe ein leeres Feld danach genauso aus wie eines,
+     * das nichts bewirkt hat. Abgelegt wird **keine Angabe** und keine
+     * Abschrift der Vorgabe — sonst bliebe das Panel bei ihr stehen, wenn eine
+     * spätere Fassung sie ändert.
+     */
+    public function test_an_empty_field_means_the_default(): void
+    {
+        $this->gespeichert();
+        $this->abmelden();
+        $this->get('/login')->assertSee('<style>:root', false);
+        self::assertSame('Hoster GmbH', $this->abgelegt()['name'], 'Untergrenze: Ohne eigene Marke vorher trennt dieser Fall nichts.');
+
+        $this->gespeichert(['name' => '', 'accent_light' => '', 'accent_dark' => '']);
+
+        $abgelegt = $this->abgelegt();
+        self::assertNull($abgelegt['name'], 'Für die Vorgabe steht keine Angabe in der Ablage.');
+        self::assertNull($abgelegt['accent_light'], 'Für die Vorgabe steht keine Angabe in der Ablage.');
+        self::assertNull($abgelegt['accent_dark'], 'Für die Vorgabe steht keine Angabe in der Ablage.');
+
+        $gelesen = BrandSettings::fromArray($abgelegt);
+        self::assertSame(BrandSettings::DEFAULT_NAME, $gelesen->name);
+        self::assertSame(BrandSettings::DEFAULT_ACCENT_LIGHT, $gelesen->accent_light);
+        self::assertSame(BrandSettings::DEFAULT_ACCENT_DARK, $gelesen->accent_dark);
+
+        $this->abmelden();
+        $antwort = $this->get('/login')->assertDontSee('<style>:root', false);
+        self::assertSame(BrandSettings::DEFAULT_NAME, $antwort->viewData('page')['props']['brand']['name']);
+    }
+
+    /**
+     * Eine eingetippte Vorgabe ist keine eigene Angabe — auch in Grossbuchstaben.
+     *
+     * Wer `#3730A3` eintippt, hat dasselbe gesagt wie ein leeres Feld. Die
+     * Frage danach stellt {@see BrandSettings::own()}, und sie hat nur eine
+     * Antwort, wenn vorher kleingeschrieben wird.
+     */
+    public function test_a_default_typed_by_hand_is_no_own_value(): void
+    {
+        $this->gespeichert([
+            'name' => BrandSettings::DEFAULT_NAME,
+            'accent_light' => strtoupper(BrandSettings::DEFAULT_ACCENT_LIGHT),
+            'accent_dark' => strtoupper(BrandSettings::DEFAULT_ACCENT_DARK),
+        ]);
+
+        $abgelegt = $this->abgelegt();
+        self::assertNull($abgelegt['name']);
+        self::assertNull($abgelegt['accent_light'], 'Eine Vorgabe in Grossbuchstaben ist dieselbe Vorgabe.');
+        self::assertNull($abgelegt['accent_dark'], 'Eine Vorgabe in Grossbuchstaben ist dieselbe Vorgabe.');
+    }
+
+    /**
+     * Das Feld zeigt die eigene Angabe — und bleibt leer, wo keine ist.
+     *
+     * Stünde im Feld der Wert, der gilt, schickte das nächste Speichern ihn
+     * als eigene Angabe zurück, etwa wenn nur ein Logo dazukommt; aus „die
+     * Vorgabe" würde still eine Abschrift von ihr. Die Vorgabe selbst kommt
+     * daneben mit, als Platzhalter.
+     */
+    public function test_the_form_shows_the_own_value_and_leaves_the_default_empty(): void
+    {
+        $this->gespeichert(['name' => '', 'accent_light' => '#0b6e4f', 'accent_dark' => '']);
+
+        $this->actingAs($this->operator())->get('/settings/general')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('brandSettings.name', '')
+                ->where('brandSettings.accent_light', '#0b6e4f')
+                ->where('brandSettings.accent_dark', '')
+                ->where('brandDefaults.name', BrandSettings::DEFAULT_NAME)
+                ->where('brandDefaults.accent_light', BrandSettings::DEFAULT_ACCENT_LIGHT)
+                ->where('brandDefaults.accent_dark', BrandSettings::DEFAULT_ACCENT_DARK)
+                ->etc());
     }
 
     /**

@@ -39,7 +39,16 @@ nachgesehen (`docs/139 §9`, Abschnitt weiter unten). Der Lauf für B6 ist
 `docs/140`, ausgeschrieben am 1. Oktober vor dem Fahren. Beim Ausschreiben
 fielen sechs Befunde am Prüfling heraus. Der Betreiber hat sie am selben Tag
 entschieden, und behoben sind sie mit `0.9.0-rc.11` (`docs/140 §6a`, Abschnitt
-weiter unten).
+weiter unten). Gefahren ist er am 3. Oktober gegen `rc.11`: **Block 1 und
+alle neun Punkte erfüllt**, Punkt 7 im zweiten Anlauf; das Protokoll ist
+`docs/140 §7`. Abgenommen wird B6 nach dem Nachlauf gegen `rc.12`
+(`docs/140 §8`, ausgeschrieben vor dem Fahren), so entschieden vom Betreiber.
+Für `rc.12` gebaut sind zwei Befunde aus dem Lauf: zwei Formulare ohne Abstand
+(`docs/140 §6b`) sowie Schrift und Zeichen in der Farbe der Marke, samt einer
+Prüfung beim Speichern, die die Tönungen rechnet (`docs/140 §6c`). Dazu ein
+Wunsch des Betreibers: Ohne Eintrag gelten für Name und Farben die Vorgaben
+(`docs/140 §6d`). Und die Unterschrift der Mails steht seitdem mit Leerzeile
+und `-- `, wie ein Mailprogramm sie erkennt (`docs/140 §6e`).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -5600,6 +5609,12 @@ eine ungemessene zu ersetzen.
 
 > **Zwei Marken mit demselben Wert sind nicht dieselbe Marke.**
 
+Am 3. Oktober 2026 hat der Betreiber sie trotzdem mitziehen lassen, und die
+Messung hat dem Satz recht gegeben: Die Überschrift einer Fehlermeldung fiel
+mit einem Akzent, den die Prüfung annahm, auf 3,96:1. Gemessen ist die Zusage
+wieder, seit die Prüfung die Tönungen rechnet (Abschnitt „Schrift, Zeichen
+und Tönungen" weiter unten).
+
 **Der dritte ist die Fehlerklasse dieses Repos, und diesmal an einer
 Weiterleitung.** `BrandingSettingsController` leitete auf `settings.branding`
 weiter — einen Namen, den `routes/web.php` nie vergeben hat. `to_route()` wirft
@@ -6853,6 +6868,137 @@ brach ab, und der Eingriff meldete „nichts geändert".
 > geänderten Dateien gehören die Tests, und wer einen Helfer aus einem
 > bestehenden Fall herauszieht, verdoppelt dessen Zeilen.
 
+### Ein Befund aus dem Lauf — 3. Oktober 2026
+
+Bei Punkt 1 hat der Betreiber auf dem Telefon gesehen, dass auf
+`/settings/general` der Knopf „Speichern" an der Überschrift „Name und
+Fusszeile" klebt. Gemessen sind es 0 px, bei 390 und bei 1440 px. B6 hatte das
+zweite Formular unter das erste gesetzt, ohne die Hülle `.sections`, die
+`app.css` für genau diesen Fall vorsieht (`docs/140 §6b`).
+
+**Der Wächter dafür war da und hat geschwiegen.** `BlockSpacingTest` findet
+die Fuge `form + form`, und in seiner Liste offener Fugen stand sie schon, für
+die Datenbankseite. Ein Eintrag galt jeder Vorlage, in der das Paar vorkommt.
+Seitdem nennt jeder Eintrag seine Vorlagen.
+
+> **Eine Ausnahme, die für ein Paar gilt, gilt an jeder Stelle, an der das
+> Paar vorkommt — auch an der nächsten, die niemand angesehen hat.**
+
+Wer eine Ausnahmeliste führt, bindet jeden Eintrag an den Ort, an dem jemand
+ihn gezählt hat.
+
+### Schrift, Zeichen und Tönungen — 3. Oktober 2026
+
+Am Bild von Punkt 4a stand „Angemeldet bleiben" in Pfirsich neben einem
+mintgrünen Knopf; der Markenblock setzte auf den Markenflächen nur die vier
+Akzentmarken. Entschieden vom Betreiber: `--text-strong` und `--mark-accent`
+gehen auf der Anmeldeseite mit, `--mark-accent` an der Leiste
+(`docs/140 §6c`).
+
+**Mein Vorschlag dazu stand auf einer Rechnung, die nur die Flächen kannte.**
+Gemessen wurde danach im Chromium, mit dem dunkelsten Akzent, den die Prüfung
+annahm, und gefunden über die Prüfung selbst und nicht über eine Formel
+daneben. Je Element stand dabei die Farbe gegen ihren wirksamen Grund, in
+Ruhe, beim Überfahren und mit Fokusrahmen. Dabei fiel die Überschrift einer
+Fehlermeldung auf 3,96:1 und der aktive Menüpunkt der Leiste auf 4,14:1, der
+eine auf der Tönung der Meldung, der andere auf der eigenen Tönung des
+Akzents.
+
+> **Eine Farbe, die auf jeder Fläche lesbar ist, ist es auf der Tönung
+> darüber noch lange nicht — und die Tönung ist die Stelle, an der etwas
+> hervorgehoben werden soll.**
+
+Seitdem rechnet `BrandSettings` jede Tönung des Stylesheets über jedem Grund
+ihrer Fläche, gemischt mit `Contrast::over()` wie im Browser. Die Werte hält
+`BrandContrastTest` in beide Richtungen gegen `app.css`. Seine Grenze für die
+Anmeldeseite ist eine Rechnung, und dass sie die Prüfung selbst ist, hält eine
+Gegenprobe an jedem der 256 Grautöne.
+
+> **Ein Wächter, der eine Grenze rechnet, hält sie an der Prüfung fest, die
+> sie ziehen soll — sonst rechnet er ein Modell nach.**
+
+**Und eine Zahl musste vor dem Bauen berichtigt werden.** Die Kosten, die ich
+dem Betreiber für die schärfere Prüfung nannte, rechneten die Bänder und
+Meldungen im Panel nicht mit. Die zweite Frage danach kostete eine Minute, und
+gebaut wurde die Fassung, die er mit den richtigen Zahlen gewählt hat.
+
+> **Eine Zahl, auf der eine Entscheidung beruht, wird berichtigt, bevor
+> gebaut wird — sonst hat jemand etwas entschieden, das es nicht gibt.**
+
+### Ohne Eintrag gilt die Vorgabe — 3. Oktober 2026
+
+Ein Wunsch des Betreibers nach Punkt 9: Wer Name oder Farbe leert, bekommt die
+Vorgabe und muss sie nicht abschreiben. Gewählt hat er die Fassung, in der das
+Feld leer bleibt und keine Angabe abgelegt wird (`docs/140 §6d`). Dieselbe
+Regel steht in `Style::css()` für den Markenblock, hier eine Ebene tiefer:
+
+> **Ein Wert, der der Vorgabe gleicht, ist keine eigene Angabe — wer ihn als
+> Wert ablegt, hält eine zweite Fassung der Vorgabe, und die veraltet.**
+
+**Daraus folgt eine Regel für das Formular.** In die Felder gehen die eigenen
+Angaben und nicht, was gilt. Ein Feld, das die geltende Vorgabe zeigt, schickt
+sie beim nächsten Speichern als eigene Angabe zurück, etwa wenn nur ein Logo
+dazukommt.
+
+> **Ein Formular, das zeigt, was gilt, legt es beim nächsten Speichern als
+> eigene Angabe ab — und aus „die Vorgabe" wird still eine Abschrift.**
+
+**Und die Tür allein reicht nicht.** Trägt ein Feld `required`, schickt der
+Browser das leere Formular gar nicht erst ab, und die Tür bekommt den Fall nie
+zu sehen. `BrandFormTest` hält deshalb die Vorlage, `BrandReachTest` die Tür.
+
+> **Ein Wächter über die Antwort des Servers sieht nicht, was der Browser
+> vorher abweist.**
+
+### Der Lauf gegen `rc.11` — 3. Oktober 2026
+
+Block 1 und alle neun Punkte aus `docs/140` sind erfüllt, Punkt 7 im zweiten
+Anlauf (`docs/140 §7`). Von acht Befunden stecken drei im Prüfling, drei in
+der Vorschrift und zwei in meinem Prüfstand im Container.
+
+**Der teuerste stand in der Vorschrift, und der Satz dagegen stand schon
+hier.** Punkt 7 brauchte Logo A frisch im Zwischenspeicher des privaten
+Fensters. Hergestellt war es in Punkt 4, vier Stunden vorher, bei
+`max-age=300`. Ein Neuladen hätte Logo B auch unter der festen Adresse von
+`rc.10` geholt, und der Punkt wäre in beiden Fassungen grün gewesen.
+
+> **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr
+> hergestellt.**
+
+Zum zweiten Mal nach P7, dort an einer TTL von zehn Sekunden.
+
+**Die Gegenprobe dazu hat im ersten Wurf den Zwischenspeicher verändert, den
+sie lesen sollte.** Einen abgelaufenen Eintrag fragte sie „wie beim
+Neuladen", holte damit das neue Logo und legte es unter die alte Adresse. Das
+geht, weil die Route unter jeder Fassung das gegenwärtige Logo ausliefert.
+Gefragt wird seitdem nur ein frischer Eintrag.
+
+> **Ein Prüfkörper, der seinen Gegenstand beim Messen verändert, meldet den
+> Unterschied als Fehler des Gemessenen.**
+
+**Gefahren wurde trotzdem der erste Wurf.** Die Berichtigung kam zwei Stunden
+vor Punkt 7 als Nachtrag in einer späteren Nachricht, und die erste Fassung
+stand bei der Anweisung zum Schritt.
+
+> **Eine Berichtigung, die als Nachtrag neben der alten Fassung steht, ersetzt
+> sie nicht — gefahren wird, was beim Schritt steht.**
+
+Wer eine Anweisung berichtigt, schreibt den ganzen Schritt neu und sagt, dass
+der alte nicht mehr gilt.
+
+**Und an der Quelle einer Testmail stand eine Beobachtung, aus der eine
+Behebung wurde** (`docs/140 §6e`). Die Unterschrift klebte ohne Leerzeile am
+letzten Satz, obwohl ihre Vorlage eine hatte. Laravel schneidet jeder
+gerenderten Ansicht den Leerraum am Anfang ab (`ltrim(ob_get_clean())` in
+`PhpEngine`), auch einer eingebundenen.
+
+> **Eine Leerzeile am Anfang einer eingebundenen Vorlage kommt nie an —
+> Laravel kürzt jede gerenderte Ansicht vorn.**
+
+Sie steht deshalb in der einbindenden Vorlage. Die Trennzeile `-- ` steht als
+Ausgabe da, weil `.editorconfig` Leerzeichen am Zeilenende entfernt;
+`MailSignatureTest` hält beides an der gerenderten Mail.
+
 ---
 
 ## Befehle
@@ -8102,6 +8248,12 @@ Testen berücksichtigen:
 
     > **Ein Bild, das ein abgebrochener Lauf hat liegen lassen, sieht aus wie
     > ein Ergebnis — es trägt kein Datum im Bild.**
+  - **„Cache deaktivieren" heisst über CDP `Network.setCacheDisabled`, und das
+    wirkt erst nach `Network.enable`.** Ohne liefert der Zwischenspeicher
+    weiter, und eine Messung, die ihn ausschliessen soll, misst mit ihm.
+    Gemessen am 3. Oktober 2026 (`docs/140 §7`). Und zwei Läufe gegen
+    denselben Wegwerf-Server, die beide etwas daran umschalten, gehören
+    hintereinander: Ein Lauf mit 310 s Wartezeit neben anderen war wertlos.
 - Vordergrund-`sleep` ist blockiert — Hintergrundlauf verwenden.
 - **`git checkout -- resources/` wirft eigene Arbeit weg.** Beim Gegenprüfen
   eines Wächters ist das der Weg zurück — und wenn im selben Verzeichnis noch

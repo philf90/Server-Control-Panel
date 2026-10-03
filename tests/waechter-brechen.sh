@@ -9699,6 +9699,74 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
 
 echo
+echo "── BlockSpacingTest: zwei Formulare ohne Hülle auf der Seite Allgemein ──"
+#
+# Der Befund vom 3. Oktober 2026 (docs/140): B6 hat ein zweites Formular unter
+# das erste gesetzt, ohne `.sections` darum, und „Speichern" stand auf 0 px an
+# „Name und Fusszeile". Der Wächter hat damals geschwiegen, weil `form + form`
+# in OPEN_SEAMS für die Datenbankseite stand und dort für jede Vorlage galt.
+#
+# Der Eingriff nimmt der Hülle ihre Klasse. Ein `<div>` ohne Klasse reicht die
+# Kanten seiner Kinder durch, im Browser wie im Wächter. Gegen den Wächter von
+# vorher gefahren bleibt er grün; das ist die Blindheit, die B6 durchgelassen
+# hat.
+vorher_datei resources/js/Pages/Settings/General.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/General.vue'
+s = open(p, encoding='utf-8').read()
+alt = '    <div class="sections">\n      <form class="form" @submit.prevent="submit">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '    <div>\n      <form class="form" @submit.prevent="submit">', 1))
+PY2
+griff_datei resources/js/Pages/Settings/General.vue "zwei Formulare ohne Huelle" &&
+pruefe "zwei Formulare ohne Huelle" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
+echo "── BlockSpacingTest: eine offene Fuge nennt eine Vorlage, in der sie nicht vorkommt ──"
+#
+# Die Sperrklinke je Vorlage. Seit dem 3. Oktober nennt jeder Eintrag in
+# OPEN_SEAMS die Vorlagen, in denen seine Fuge steht. Der Eingriff trägt die
+# Seite Allgemein wieder bei `form + form` ein — genau die Zeile, mit der eine
+# Ausnahme den Befund hätte zudecken können, nachdem er behoben ist.
+vorher_datei tests/Feature/BlockSpacingTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/BlockSpacingTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'form + form' => [\n            'resources/js/Pages/Databases/Show.vue',\n        ],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt.replace("Show.vue',", "Show.vue',\n            'resources/js/Pages/Settings/General.vue',", 1)
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Feature/BlockSpacingTest.php "Fuge fuer eine Vorlage ohne sie" &&
+pruefe "Fuge fuer eine Vorlage ohne sie" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+
+echo
+echo "── BlockSpacingTest: ein Eintrag ohne Vorlage ──"
+#
+# Ein Eintrag mit leerer Liste gilt nirgends, und keine der beiden Richtungen
+# fragt ihn: Die erste sucht die gefundenen Fugen in der Liste, die zweite die
+# genannten Vorlagen in den Funden. Ohne eigene Frage stünde er da wie ein
+# gezähltes Loch.
+vorher_datei tests/Feature/BlockSpacingTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/BlockSpacingTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "    private const OPEN_SEAMS = [\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt + "        'nie + da' => [],\n", 1))
+PY2
+griff_datei tests/Feature/BlockSpacingTest.php "Eintrag ohne Vorlage" &&
+pruefe "Eintrag ohne Vorlage" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
 echo "── MobileLayoutTest: eine Wertzelle, die nicht brechen darf ──"
 #
 # Die Messung war grün und die Ansicht kaputt: Eine bei 512 Zeichen gekürzte
@@ -26857,8 +26925,8 @@ vorher_datei resources/js/Pages/Settings/General.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Settings/General.vue'
 s = open(p, encoding='utf-8').read()
-alt = "              <td class=\"right\">{{ props.time.service }}</td>"
-neu = "              <td class=\"right\">{{ props.time.service || 'kein Zeitdienst installiert' }}</td>"
+alt = "                <td class=\"right\">{{ props.time.service }}</td>"
+neu = "                <td class=\"right\">{{ props.time.service || 'kein Zeitdienst installiert' }}</td>"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
 PY2
@@ -33772,6 +33840,136 @@ griff_datei app/Support/Settings/BrandSettings.php "Ablage faellt auf Schwarz" &
 pruefe "Ablage faellt auf Schwarz" \
   BrandContrastTest::test_a_broken_store_falls_back_to_the_shipped_colour failed
 wiederherstellen
+echo "── BrandContrastTest: die Pruefung rechnet nur die Flaechen ──"
+#
+# Bis zum 3. Oktober 2026 rechnete die Pruefung keine getoente Flaeche. Mit
+# `#02925b` stand die Ueberschrift einer Fehlermeldung auf der Anmeldeseite
+# dann bei 3,96:1 und der aktive Menuepunkt der Leiste bei 4,14:1.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = '        return self::verdict($accent, self::groundsDark($accent));'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '        return self::verdict($accent, self::SURFACES_DARK);', 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "Pruefung ohne Toenungen" &&
+pruefe "Pruefung ohne Toenungen" \
+  BrandContrastTest::test_a_colour_that_fails_only_on_a_tint_is_refused failed
+wiederherstellen
+
+echo "── BrandContrastTest: die eigene Toenung fehlt der Pruefung ──"
+#
+# Der aktive Menuepunkt und ein aktiver Knopf tragen den Akzent auf seiner
+# eigenen Toenung. Die haengt am Akzent und wird mit ihm gemischt.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = '            $gruende += [Contrast::over($accent, Style::SURFACE_ALPHA_DARK, $grund) => $grund === self::SURFACES_DARK[2]\n'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '            $gruende += [$grund => $grund === self::SURFACES_DARK[2]\n', 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "eigene Toenung fehlt" &&
+pruefe "eigene Toenung fehlt" \
+  BrandContrastTest::test_the_accent_is_reckoned_on_its_own_tint failed
+wiederherstellen
+
+echo "── BrandContrastTest: die Toenung wird verkehrt herum gemischt ──"
+#
+# Gemischt wird wie im Browser: die Farbe mit ihrer Deckung ueber dem Grund.
+# Verkehrt herum steht dort ein Wert, den niemand sieht.
+vorher_datei app/Support/Design/Contrast.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Design/Contrast.php')
+s = p.read_text()
+alt = '((int) ($oben[$i] ?? 0)) * $alpha + ((int) ($unten[$i] ?? 0)) * (1 - $alpha),'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '((int) ($oben[$i] ?? 0)) * (1 - $alpha) + ((int) ($unten[$i] ?? 0)) * $alpha,', 1))
+PY
+griff_datei app/Support/Design/Contrast.php "Mischung verkehrt herum" &&
+pruefe "Mischung verkehrt herum" \
+  BrandContrastTest::test_the_accent_is_reckoned_on_its_own_tint failed
+wiederherstellen
+
+echo "── BrandContrastTest: eine Toenung des Stylesheets fehlt der Pruefung ──"
+#
+# Eine Toenung, die `app.css` fuehrt und die Pruefung nicht, ist ein Grund,
+# auf dem der Akzent ungeprueft Schrift tragen kann.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = "        'ok' => ['#57c99c', 0.14],\n"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "Toenung fehlt der Pruefung" &&
+pruefe "Toenung fehlt der Pruefung" \
+  BrandContrastTest::test_the_tints_are_the_ones_the_stylesheet_has failed
+wiederherstellen
+
+echo "── BrandContrastTest: die Anmeldeseite setzt eine Toenung, die die Pruefung nicht kennt ──"
+#
+# Setzt die Anmeldeseite einen dritten Zustand, steht dort eine Meldung, deren
+# Grund die Pruefung nicht rechnet.
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+alt = '  --critical-surface: rgb(240 138 114 / 0.14);\n\n  color: var(--text);\n  min-height: 100dvh;'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '  --critical-surface: rgb(240 138 114 / 0.14);\n  --info-surface: rgb(255 70 150 / 0.14);\n\n  color: var(--text);\n  min-height: 100dvh;', 1))
+PY
+griff_datei resources/css/app.css "unbekannte Toenung auf der Anmeldeseite" &&
+pruefe "unbekannte Toenung auf der Anmeldeseite" \
+  BrandContrastTest::test_the_tints_are_the_ones_the_stylesheet_has failed
+wiederherstellen
+
+echo "── BrandContrastTest: die Feldflaeche der Anmeldeseite wird heller ──"
+#
+# Auf der Feldflaeche stehen in der Farbe des Betreibers das Auge und die
+# Ziffern des Codes. Wird sie heller, reicht der dunkelste Akzent, den die
+# Pruefung annimmt, dort nicht mehr fuer 3:1.
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+alt = '  --control-bg: #2a1745;\n'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '  --control-bg: #6a5785;\n', 1))
+PY
+griff_datei resources/css/app.css "Feldflaeche heller" &&
+pruefe "Feldflaeche heller" \
+  BrandContrastTest::test_what_the_check_accepts_holds_on_every_ground_of_the_signin_page failed
+wiederherstellen
+
+echo "── BrandContrastTest: an der Grenze entscheidet die eigene Toenung ──"
+#
+# Die Grenze fuer die Anmeldeseite gilt nur, solange die Pruefung an jedem
+# Grauton die Rechnung des Waechters ist. Deckt die eigene Toenung fast wie
+# die Farbe selbst, entscheidet sie an der Grenze — und der Waechter rechnete
+# ein Modell nach.
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = '    public const SURFACE_ALPHA_DARK = 0.14;'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '    public const SURFACE_ALPHA_DARK = 0.6;', 1))
+PY
+griff_datei app/Support/Brand/Style.php "eigene Toenung entscheidet" &&
+pruefe "eigene Toenung entscheidet" \
+  BrandContrastTest::test_what_the_check_accepts_holds_on_every_ground_of_the_signin_page failed
+wiederherstellen
+
 pruefe "  … zurückgesetzt wieder grün" BrandContrastTest passed
 
 echo "── BrandStyleTest: der Block schreibt eine Regel statt einer Marke ──"
@@ -33802,7 +34000,7 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Brand/Style.php')
 s = p.read_text()
-alt = "'.signin{'.$dunkel.'}',"
+alt = "'.signin{'.$dunkel.$schrift.$zeichen.'}',"
 assert s.count(alt) == 1
 p.write_text(s.replace(alt, "'',", 1))
 PY
@@ -33821,9 +34019,9 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Brand/Style.php')
 s = p.read_text()
-alt = "'.signin{'.$dunkel.'}',"
+alt = "'.signin{'.$dunkel.$schrift.$zeichen.'}',"
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, "'.signin{'.$hell.'}',", 1))
+p.write_text(s.replace(alt, "'.signin{'.$hell.$schrift.$zeichen.'}',", 1))
 PY
 griff_datei app/Support/Brand/Style.php "Anmeldeseite hell" &&
 pruefe "Anmeldeseite hell" \
@@ -33878,7 +34076,7 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Brand/Style.php')
 s = p.read_text()
-alt = "'.rail,.topbar{'.$dunkel.'}',"
+alt = "'.rail,.topbar{'.$dunkel.$zeichen.'}',"
 assert s.count(alt) == 1
 p.write_text(s.replace(alt, "'',", 1))
 PY
@@ -33896,9 +34094,9 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Brand/Style.php')
 s = p.read_text()
-alt = "'.rail,.topbar{'.$dunkel.'}',"
+alt = "'.rail,.topbar{'.$dunkel.$zeichen.'}',"
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, "'.rail,.topbar{'.$hell.'}',", 1))
+p.write_text(s.replace(alt, "'.rail,.topbar{'.$hell.$zeichen.'}',", 1))
 PY
 griff_datei app/Support/Brand/Style.php "Leiste hell" &&
 pruefe "Leiste hell" \
@@ -33941,6 +34139,79 @@ PY
 griff_datei resources/views/app.blade.php "Markenblock vor dem Stylesheet" &&
 pruefe "Markenblock vor dem Stylesheet" \
   BrandStyleTest::test_the_block_stands_after_the_stylesheet failed
+wiederherstellen
+
+echo "── BrandStyleTest: die Anmeldeseite behaelt die Schrift der Auslieferung ──"
+#
+# `.signin` setzt `--text-strong` in Pfirsich. Ohne den Wert aus der Marke
+# steht „Angemeldet bleiben" in Pfirsich neben einem Knopf in der Farbe des
+# Betreibers (`docs/140 §6c`).
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = "'.signin{'.$dunkel.$schrift.$zeichen.'}',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'.signin{'.$dunkel.$zeichen.'}',", 1))
+PY
+griff_datei app/Support/Brand/Style.php "Anmeldeseite ohne Schrift der Marke" &&
+pruefe "Anmeldeseite ohne Schrift der Marke" \
+  BrandStyleTest::test_no_mark_is_left_in_a_shipped_accent failed
+wiederherstellen
+
+echo "── BrandStyleTest: das Zeichen der Leiste bleibt pink ──"
+#
+# Leiste und Kopfleiste setzen `--mark-accent` in Pink. Ohne den Wert aus der
+# Marke traegt der obere Balken des Zeichens die Farbe der Auslieferung.
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = "'.rail,.topbar{'.$dunkel.$zeichen.'}',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'.rail,.topbar{'.$dunkel.'}',", 1))
+PY
+griff_datei app/Support/Brand/Style.php "Leiste ohne Zeichen der Marke" &&
+pruefe "Leiste ohne Zeichen der Marke" \
+  BrandStyleTest::test_no_mark_is_left_in_a_shipped_accent failed
+wiederherstellen
+
+echo "── BrandStyleTest: die Ausnahme an der Wurzel faellt weg ──"
+#
+# An der Wurzel bleibt `--mark-accent` mit Grund in der Farbe der
+# Auslieferung. Ohne den Eintrag meldet der Waechter die Stelle als Rest.
+vorher_datei tests/Feature/BrandStyleTest.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Feature/BrandStyleTest.php')
+s = p.read_text()
+alt = "        ':root --mark-accent' => self::EDITOR,\n"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei tests/Feature/BrandStyleTest.php "Ausnahme an der Wurzel fehlt" &&
+pruefe "Ausnahme an der Wurzel fehlt" \
+  BrandStyleTest::test_no_mark_is_left_in_a_shipped_accent failed
+wiederherstellen
+
+echo "── BrandStyleTest: eine Ausnahme nimmt nichts mehr aus ──"
+#
+# Eine Ausnahme fuer eine Marke, die der Block setzt, erlaubt beim naechsten
+# Mal etwas, das niemand geprueft hat.
+vorher_datei tests/Feature/BrandStyleTest.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Feature/BrandStyleTest.php')
+s = p.read_text()
+alt = "        \":root[data-theme='dark'] --mark-accent\" => self::EDITOR,\n"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, alt + "        '.signin --text-strong' => self::EDITOR,\n", 1))
+PY
+griff_datei tests/Feature/BrandStyleTest.php "verwaiste Ausnahme" &&
+pruefe "verwaiste Ausnahme" \
+  BrandStyleTest::test_no_mark_is_left_in_a_shipped_accent failed
 wiederherstellen
 
 pruefe "  … zurückgesetzt wieder grün" BrandStyleTest passed
@@ -34186,7 +34457,295 @@ griff_datei resources/views/mail/test.blade.php "Testmail mit festem Namen" &&
 pruefe "Testmail mit festem Namen" \
   BrandReachTest::test_the_test_mail_speaks_of_this_panel failed
 wiederherstellen
+
+echo "── BrandReachTest: die Meldung nennt den Ort einer Toenung nicht ──"
+#
+# Der Hexwert einer Toenung steht in keinem Stylesheet. Ohne den Ort sucht
+# der Betreiber eine Farbe, die es nur auf dem Bildschirm gibt.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "            $urteil['surface'].($urteil['place'] === null ? '' : ' ('.$urteil['place'].')'),"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "            $urteil['surface'],", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "Meldung ohne Ort" &&
+pruefe "Meldung ohne Ort" \
+  BrandReachTest::test_an_unreadable_colour_is_refused_with_its_number failed
+wiederherstellen
+
+echo "── BrandReachTest: die Tuer fragt wieder nur die Flaechen ──"
+#
+# Die Tuer muss dieselbe Pruefung fragen, die die getoenten Flaechen rechnet —
+# sonst nimmt das Speichern an, was der Waechter abweist.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "BrandSettings::verdictLight($eingabe->accent_light)"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "BrandSettings::verdict($eingabe->accent_light, BrandSettings::SURFACES_LIGHT)", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "Tuer fragt nur die Flaechen" &&
+pruefe "Tuer fragt nur die Flaechen" \
+  BrandReachTest::test_an_unreadable_colour_is_refused_with_its_number failed
+wiederherstellen
+
+echo "── BrandReachTest: der Hinweis rechnet eine andere Pruefung als das Speichern ──"
+#
+# Neben dem Feld steht, was das Speichern fragt. Rechnet der Hinweis nur die
+# Flaechen, nennt er eine Farbe knapp, die das Speichern abweist, nie knapp.
+vorher_datei app/Http/Controllers/GeneralSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/GeneralSettingsController.php')
+s = p.read_text()
+alt = "'light' => BrandSettings::verdictLight($marke->accent_light),"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'light' => BrandSettings::verdict($marke->accent_light, BrandSettings::SURFACES_LIGHT),", 1))
+PY
+griff_datei app/Http/Controllers/GeneralSettingsController.php "Hinweis rechnet nur die Flaechen" &&
+pruefe "Hinweis rechnet nur die Flaechen" \
+  BrandReachTest::test_the_hint_beside_the_field_is_the_check_that_saving_asks failed
+wiederherstellen
+
+echo "── BrandReachTest: die Tuer verlangt wieder einen Namen ──"
+#
+# Ein leeres Feld heisst die Vorgabe (`docs/140 §6d`). Verlangt die Tuer den
+# Namen wieder, muss der Betreiber die Vorgabe abschreiben.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "'name' => ['nullable', 'string', 'max:40'],"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'name' => ['required', 'string', 'max:40'],", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "Name wieder Pflicht" &&
+pruefe "Name wieder Pflicht" \
+  BrandReachTest::test_an_empty_field_means_the_default failed
+wiederherstellen
+
+echo "── BrandReachTest: die Tuer verlangt wieder eine helle Farbe ──"
+#
+# Dasselbe fuer den hellen Akzent: Jede der drei Regeln kann einzeln
+# zurueckfallen.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "'accent_light' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/D'],"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'accent_light' => ['required', 'string', 'regex:/^#[0-9a-fA-F]{6}$/D'],", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "helle Farbe wieder Pflicht" &&
+pruefe "helle Farbe wieder Pflicht" \
+  BrandReachTest::test_an_empty_field_means_the_default failed
+wiederherstellen
+
+echo "── BrandReachTest: die Tuer verlangt wieder eine dunkle Farbe ──"
+#
+# Und fuer den dunklen.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "'accent_dark' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/D'],"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'accent_dark' => ['required', 'string', 'regex:/^#[0-9a-fA-F]{6}$/D'],", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "dunkle Farbe wieder Pflicht" &&
+pruefe "dunkle Farbe wieder Pflicht" \
+  BrandReachTest::test_an_empty_field_means_the_default failed
+wiederherstellen
+
+echo "── BrandReachTest: ein leeres Feld faellt nicht auf die Vorgabe ──"
+#
+# Bleibt der leere Name leer, steht er als eigene Angabe in der Ablage — und
+# im Reiter steht nichts.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = "name: self::text($form['name'] ?? null, self::DEFAULT_NAME),"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "name: trim((string) ($form['name'] ?? '')),", 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "leerer Name ohne Vorgabe" &&
+pruefe "leerer Name ohne Vorgabe" \
+  BrandReachTest::test_an_empty_field_means_the_default failed
+wiederherstellen
+
+echo "── BrandReachTest: die Ablage schreibt wieder die Abschrift der Vorgabe ──"
+#
+# Eine abgelegte Vorgabe ist eine zweite Fassung von ihr: Aendert eine spaetere
+# Fassung die Vorgabe, bliebe das Panel bei der alten stehen.
+vorher_datei app/Support/Settings/Settings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/Settings.php')
+s = p.read_text()
+alt = "['value' => $settings->toStored()]"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "['value' => $settings->toArray()]", 1))
+PY
+griff_datei app/Support/Settings/Settings.php "Ablage mit Abschrift der Vorgabe" &&
+pruefe "Ablage mit Abschrift der Vorgabe" \
+  BrandReachTest::test_an_empty_field_means_the_default failed
+wiederherstellen
+
+echo "── BrandReachTest: eine eingetippte Vorgabe zaehlt als eigene Angabe ──"
+#
+# Wer die Vorgabe eintippt, hat dasselbe gesagt wie ein leeres Feld. Ohne den
+# Vergleich wird daraus eine Abschrift.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = "'name' => $this->name === self::DEFAULT_NAME ? null : $this->name,"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'name' => $this->name,", 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "eingetippte Vorgabe als eigene Angabe" &&
+pruefe "eingetippte Vorgabe als eigene Angabe" \
+  BrandReachTest::test_a_default_typed_by_hand_is_no_own_value failed
+wiederherstellen
+
+echo "── BrandReachTest: die Vorgabe in Grossbuchstaben bleibt eine eigene Angabe ──"
+#
+# `#3730A3` und `#3730a3` sind derselbe Wert — aber nur, wenn vor dem Vergleich
+# kleingeschrieben wird.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = "accent_light: strtolower(self::text($form['accent_light'] ?? null, self::DEFAULT_ACCENT_LIGHT)),"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "accent_light: self::text($form['accent_light'] ?? null, self::DEFAULT_ACCENT_LIGHT),", 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "Grossbuchstaben ohne Kleinschreibung" &&
+pruefe "Grossbuchstaben ohne Kleinschreibung" \
+  BrandReachTest::test_a_default_typed_by_hand_is_no_own_value failed
+wiederherstellen
+
+echo "── BrandReachTest: das Formular zeigt wieder, was gilt ──"
+#
+# Steht im Feld der Wert, der gilt, schickt das naechste Speichern ihn als
+# eigene Angabe zurueck.
+vorher_datei app/Http/Controllers/GeneralSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/GeneralSettingsController.php')
+s = p.read_text()
+alt = "'name' => $eigen['name'] ?? '',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'name' => $marke->name,", 1))
+PY
+griff_datei app/Http/Controllers/GeneralSettingsController.php "Formular zeigt, was gilt" &&
+pruefe "Formular zeigt, was gilt" \
+  BrandReachTest::test_the_form_shows_the_own_value_and_leaves_the_default_empty failed
+wiederherstellen
+
+echo "── BrandReachTest: das Formular kennt die Vorgaben nicht ──"
+#
+# Ohne die Vorgaben hat das leere Feld keinen Platzhalter und sagt nicht, was
+# dann gilt.
+vorher_datei app/Http/Controllers/GeneralSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/GeneralSettingsController.php')
+s = p.read_text()
+alt = "            'brandDefaults' => BrandSettings::defaults(),\n"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei app/Http/Controllers/GeneralSettingsController.php "Formular ohne Vorgaben" &&
+pruefe "Formular ohne Vorgaben" \
+  BrandReachTest::test_the_form_shows_the_own_value_and_leaves_the_default_empty failed
+wiederherstellen
+
 pruefe "  … zurückgesetzt wieder grün" BrandReachTest passed
+
+echo "── BrandFormTest: das Namensfeld verlangt wieder einen Wert ──"
+#
+# Traegt das Feld required, schickt der Browser ein leeres Formular gar nicht
+# ab, und die Tuer bekommt den Fall nie zu sehen.
+vorher_datei resources/js/Pages/Settings/General.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Settings/General.vue')
+s = p.read_text()
+alt = '                :placeholder="props.brandDefaults.name"\n              />'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '                :placeholder="props.brandDefaults.name"\n                required\n              />', 1))
+PY
+griff_datei resources/js/Pages/Settings/General.vue "Namensfeld required" &&
+pruefe "Namensfeld required" \
+  BrandFormTest::test_no_field_requires_a_value failed
+wiederherstellen
+
+echo "── BrandFormTest: ein gebundenes required zaehlt mit ──"
+#
+# Dasselbe in der gebundenen Form, am dunklen Akzent.
+vorher_datei resources/js/Pages/Settings/General.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Settings/General.vue')
+s = p.read_text()
+alt = '                :placeholder="props.brandDefaults.accent_dark"\n              />'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '                :placeholder="props.brandDefaults.accent_dark"\n                :required="true"\n              />', 1))
+PY
+griff_datei resources/js/Pages/Settings/General.vue "gebundenes required" &&
+pruefe "gebundenes required" \
+  BrandFormTest::test_no_field_requires_a_value failed
+wiederherstellen
+
+echo "── BrandFormTest: die helle Farbe zeigt ihre Vorgabe nicht ──"
+#
+# Ohne Platzhalter sagt das leere Feld nicht, welche Vorgabe dann gilt.
+vorher_datei resources/js/Pages/Settings/General.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Settings/General.vue')
+s = p.read_text()
+alt = '                :placeholder="props.brandDefaults.accent_light"\n'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei resources/js/Pages/Settings/General.vue "heller Akzent ohne Platzhalter" &&
+pruefe "heller Akzent ohne Platzhalter" \
+  BrandFormTest::test_every_field_shows_its_default_as_placeholder failed
+wiederherstellen
+
+echo "── BrandFormTest: das Feld heisst anders, und der Waechter sieht es nicht mehr ──"
+#
+# Die Untergrenze: Ein umbenanntes Feld darf den Waechter nicht still gruen
+# lassen.
+vorher_datei resources/js/Pages/Settings/General.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Settings/General.vue')
+s = p.read_text()
+alt = 'v-model="marke.name"'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'v-model="marke.panelName"', 1))
+PY
+griff_datei resources/js/Pages/Settings/General.vue "umbenanntes Feld" &&
+pruefe "umbenanntes Feld" \
+  BrandFormTest::test_every_field_is_found_once failed
+wiederherstellen
+
+pruefe "  … zurückgesetzt wieder grün" BrandFormTest passed
 
 echo "── BrandNameTest: der Reiter hat wieder ein festes Wort ──"
 #
@@ -38724,6 +39283,124 @@ pruefe "Name ohne Klasse" \
   ClassNameTest::test_every_rule_in_app_css_is_reached_by_a_template failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ClassNameTest passed
+
+echo
+echo "── MailSignatureTest: die Trennzeile verliert ihr Leerzeichen ──"
+#
+# So stand sie bis rc.11 da. Ein Mailprogramm erkennt nur die Zeile mit
+# Leerzeichen als Beginn der Unterschrift (RFC 3676, docs/140 §7).
+vorher_datei resources/views/mail/signature.blade.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/views/mail/signature.blade.php')
+s = p.read_text(encoding='utf-8')
+alt = "{!! '-- ' !!}\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '--\n', 1), encoding='utf-8')
+PY
+griff_datei resources/views/mail/signature.blade.php "Trennzeile ohne Leerzeichen" &&
+pruefe "Trennzeile ohne Leerzeichen" \
+  MailSignatureTest::test_every_mail_ends_with_a_signature_a_mail_program_recognises failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MailSignatureTest passed
+
+echo
+echo "── MailSignatureTest: die Testmail bindet die Unterschrift ohne Leerzeile ein ──"
+#
+# Gemessen an der Wirkung: Die Unterschrift klebt am letzten Satz, wie in der
+# Quelle der Testmail vom 3. Oktober.
+vorher_datei resources/views/mail/test.blade.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/views/mail/test.blade.php')
+s = p.read_text(encoding='utf-8')
+alt = "ausgelöst hat.\n\n@include('mail.signature')\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "ausgelöst hat.\n@include('mail.signature')\n", 1), encoding='utf-8')
+PY
+griff_datei resources/views/mail/test.blade.php "Testmail ohne Leerzeile" &&
+pruefe "Testmail ohne Leerzeile" \
+  MailSignatureTest::test_every_mail_ends_with_a_signature_a_mail_program_recognises failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MailSignatureTest passed
+
+echo
+echo "── MailSignatureTest: die Kundenmail bindet die Unterschrift ohne Leerzeile ein ──"
+#
+# Gemessen an der Vorlage.
+vorher_datei resources/views/mail/quota.blade.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/views/mail/quota.blade.php')
+s = p.read_text(encoding='utf-8')
+alt = "darüber liegt.\n\n@include('mail.signature')\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "darüber liegt.\n@include('mail.signature')\n", 1), encoding='utf-8')
+PY
+griff_datei resources/views/mail/quota.blade.php "Kundenmail ohne Leerzeile" &&
+pruefe "Kundenmail ohne Leerzeile" \
+  MailSignatureTest::test_every_view_that_includes_the_signature_leaves_a_line_before_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MailSignatureTest passed
+
+echo
+echo "── MailSignatureTest: die Betreibermail bindet die Unterschrift ohne Leerzeile ein ──"
+#
+# Gemessen an der Vorlage, deren Kommentar der Leser vorher abstreift.
+vorher_datei resources/views/mail/diagnose.blade.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/views/mail/diagnose.blade.php')
+s = p.read_text(encoding='utf-8')
+alt = "keine Nachricht.\n\n@include('mail.signature')\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "keine Nachricht.\n@include('mail.signature')\n", 1), encoding='utf-8')
+PY
+griff_datei resources/views/mail/diagnose.blade.php "Betreibermail ohne Leerzeile" &&
+pruefe "Betreibermail ohne Leerzeile" \
+  MailSignatureTest::test_every_view_that_includes_the_signature_leaves_a_line_before_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MailSignatureTest passed
+
+echo
+echo "── MailSignatureTest: eine weitere Vorlage bindet die Unterschrift ohne Leerzeile ein ──"
+#
+# Der erste Fall rendert drei bekannte Mails; der zweite liest jede Vorlage und
+# sieht deshalb auch eine, deren Mail es noch nicht gibt.
+vorher_datei resources/views/errors/404.blade.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/views/errors/404.blade.php')
+s = p.read_text(encoding='utf-8')
+assert s.endswith("')\n"), 'Die Vorlage endet anders als erwartet — der Bruch waere blind'
+assert "@include('mail.signature')" not in s, 'Die Vorlage bindet die Unterschrift schon ein'
+p.write_text(s + "@include('mail.signature')\n", encoding='utf-8')
+PY
+griff_datei resources/views/errors/404.blade.php "weitere Vorlage ohne Leerzeile" &&
+pruefe "weitere Vorlage ohne Leerzeile" \
+  MailSignatureTest::test_every_view_that_includes_the_signature_leaves_a_line_before_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MailSignatureTest passed
+
+echo
+echo "── MailSignatureTest: der Leser findet keine Einbindung ──"
+#
+# Dann waere der zweite Fall ueber null Vorlagen gruen, und seine Untergrenze
+# muss anschlagen.
+vorher_datei tests/Feature/MailSignatureTest.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Feature/MailSignatureTest.php')
+s = p.read_text(encoding='utf-8')
+alt = "'mail\\\\.signature'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "'mail\\\\.unterschrift'", 1), encoding='utf-8')
+PY
+griff_datei tests/Feature/MailSignatureTest.php "Leser ohne Einbindung" &&
+pruefe "Leser ohne Einbindung" \
+  MailSignatureTest::test_every_view_that_includes_the_signature_leaves_a_line_before_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MailSignatureTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

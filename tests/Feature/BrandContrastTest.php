@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Support\Brand\Style;
 use App\Support\Design\Contrast;
 use App\Support\Settings\BrandSettings;
 use Tests\TestCase;
@@ -81,6 +82,39 @@ final class BrandContrastTest extends TestCase
     }
 
     /**
+     * Die Zustandstönungen eines Blocks: Name des Zustands => Farbe und Deckung.
+     * `--accent-surface` gehört nicht dazu — das ist die eigene Tönung des
+     * Akzents, und die mischt die Prüfung aus dem Akzent selbst.
+     *
+     * @return array<string, array{string, float}>
+     */
+    private function tints(string $selector): array
+    {
+        $aus = [];
+
+        foreach ($this->tokens($selector) as $marke => $wert) {
+            if (preg_match('/^--([a-z]+)-surface$/D', $marke, $name) !== 1 || $name[1] === 'accent') {
+                continue;
+            }
+
+            self::assertSame(1, preg_match('/^rgb\((\d+) (\d+) (\d+) \/ ([\d.]+)\)$/D', $wert, $t), sprintf(
+                '%s in `%s` ist keine Tönung in der Schreibweise von app.css: %s', $marke, $selector, $wert));
+
+            $aus[$name[1]] = [sprintf('#%02x%02x%02x', (int) $t[1], (int) $t[2], (int) $t[3]), (float) $t[4]];
+        }
+
+        return $aus;
+    }
+
+    /** Die Deckung aus `rgb(r g b / a)`. */
+    private function alpha(string $wert): float
+    {
+        self::assertSame(1, preg_match('/\/\s*([\d.]+)\)$/D', $wert, $t), sprintf('Keine Deckung in %s.', $wert));
+
+        return (float) $t[1];
+    }
+
+    /**
      * Die Flächen, gegen die gerechnet wird, sind die des Stylesheets.
      *
      * **Drei Blöcke und nicht zwei.** `.signin` trägt seit „Kontor" einen
@@ -104,6 +138,138 @@ final class BrandContrastTest extends TestCase
             BrandSettings::SURFACES_DARK,
             'Die dunklen Flächen sind die beiden des Themes **und** die der Anmeldeseite.',
         );
+    }
+
+    /**
+     * Die getönten Flächen, gegen die gerechnet wird, sind die des Stylesheets
+     * — in beide Richtungen.
+     *
+     * Eine Tönung, die `app.css` dazubekommt und diese Liste nicht, ist ein
+     * Grund, auf dem der Akzent ungeprüft Schrift tragen kann. Eine, die es
+     * nicht mehr führt, weist Farben für eine Fläche ab, die es nicht gibt.
+     * Beides sieht im Formular gleich aus: Die Farbe wird angenommen
+     * beziehungsweise abgewiesen, und niemand fragt warum.
+     *
+     * Die Leiste führt keine Zustandstönung, und das ist der Grund, dass die
+     * Prüfung sie dort nicht rechnet: Auf ihr steht keine Meldung.
+     */
+    public function test_the_tints_are_the_ones_the_stylesheet_has(): void
+    {
+        self::assertSame($this->tints(":root[data-theme='light']"), BrandSettings::TINTS_LIGHT,
+            'Die Tönungen des hellen Themas stehen in app.css und werden hier nur nachgehalten.');
+        self::assertSame($this->tints(":root[data-theme='dark']"), BrandSettings::TINTS_DARK,
+            'Die Tönungen des dunklen Themas stehen in app.css und werden hier nur nachgehalten.');
+        self::assertSame($this->tints('.signin'), BrandSettings::TINTS_SIGNIN,
+            'Die Anmeldeseite setzt ihre Zustände selbst; die Prüfung rechnet genau diese.');
+        self::assertSame([], $this->tints('.topbar'),
+            'Leiste und Kopfleiste setzen eine Zustandstönung — dann steht dort eine Meldung, und die Prüfung kennt ihren Grund nicht.');
+
+        $anmeldung = $this->tokens('.signin');
+
+        self::assertSame([$anmeldung['--bg'], $anmeldung['--surface']], BrandSettings::SIGNIN_GROUNDS,
+            'Die Gründe der Anmeldeseite stehen in app.css: um die Maske und in ihr.');
+
+        // Die eigene Tönung des Akzents: dieselbe Deckung, mit der der
+        // Markenblock --accent-surface schreibt.
+        self::assertSame(Style::SURFACE_ALPHA_LIGHT, $this->alpha($this->tokens(":root[data-theme='light']")['--accent-surface']));
+        self::assertSame(Style::SURFACE_ALPHA_DARK, $this->alpha($this->tokens(":root[data-theme='dark']")['--accent-surface']));
+    }
+
+    /**
+     * Eine Farbe, die auf jeder Fläche besteht und auf einer Tönung nicht, wird
+     * abgewiesen — und die Meldung nennt den Ort.
+     *
+     * Die beiden Prüfkörper hat die alte Prüfung angenommen: `#02925b` war der
+     * dunkelste Akzent, den sie zuliess, und mit ihm stand am 3. Oktober 2026
+     * die Überschrift einer Fehlermeldung auf der Anmeldeseite bei 3,96:1 und
+     * der aktive Menüpunkt der Leiste bei 4,14:1 (`docs/140 §6c`).
+     */
+    public function test_a_colour_that_fails_only_on_a_tint_is_refused(): void
+    {
+        foreach ([
+            'hell' => ['#737373', BrandSettings::SURFACES_LIGHT, BrandSettings::verdictLight('#737373')],
+            'dunkel' => ['#02925b', BrandSettings::SURFACES_DARK, BrandSettings::verdictDark('#02925b')],
+        ] as $thema => [$farbe, $flaechen, $urteil]) {
+            self::assertTrue(BrandSettings::verdict($farbe, $flaechen)['passes'],
+                sprintf('%s: %s besteht auf den Flächen nicht mehr — dann misst dieser Fall nichts über die Tönungen.', $thema, $farbe));
+
+            self::assertFalse($urteil['passes'], sprintf(
+                '%s: %s wird angenommen, obwohl sie auf %s nur %s:1 erreicht.', $thema, $farbe, $urteil['surface'], $urteil['ratio']));
+            self::assertNotContains($urteil['surface'], $flaechen, 'Entschieden hat eine Tönung und keine Fläche.');
+            self::assertStringContainsString('Tönung', (string) $urteil['place'],
+                'Der Hexwert einer Tönung steht in keinem Stylesheet; ohne den Ort sucht der Betreiber eine Farbe, die es nur auf dem Bildschirm gibt.');
+        }
+    }
+
+    /**
+     * Die eigene Tönung des Akzents hängt am Akzent und wird mit ihm gemischt.
+     *
+     * Gemessen an `#6ee7b7`: Ihr schlechtester Grund ist ihre eigene Tönung
+     * über `#14171d`. Ohne die Mischung stünde dort eine Fläche, und der
+     * aktive Knopf bliebe ungeprüft.
+     */
+    public function test_the_accent_is_reckoned_on_its_own_tint(): void
+    {
+        $urteil = BrandSettings::verdictDark('#6ee7b7');
+
+        self::assertSame(Contrast::over('#6ee7b7', Style::SURFACE_ALPHA_DARK, '#14171d'), $urteil['surface']);
+        self::assertStringContainsString('eigenen Tönung', (string) $urteil['place']);
+        self::assertTrue($urteil['passes']);
+
+        self::assertSame('#171e34', Contrast::over('#02925b', 0.14, '#1a0b2e'),
+            'Die Mischung ist die des Browsers: Chromium zeichnet diese Tönung am 3. Oktober 2026 als #171e34.');
+    }
+
+    /**
+     * Was die Prüfung annimmt, ist auf jedem Grund der Anmeldeseite lesbar —
+     * auch auf den beiden, die sie nicht ausdrücklich rechnet.
+     *
+     * Seit dem 3. Oktober 2026 trägt dort auch `--text-strong` die Farbe des
+     * Betreibers: die Überschrift, „Angemeldet bleiben", die Ziffern im Feld
+     * des zweiten Faktors. `--bg` liegt um die Maske, `--control-bg` unter den
+     * Feldern. Auf der Feldfläche stehen in dieser Farbe nur das Auge beim
+     * Überfahren und die Ziffern des Codes, 34 px gross — beides verlangt
+     * 3:1 (`docs/20 §7.2`: grosse Schrift).
+     *
+     * **Gerechnet wird mit dem dunkelsten Akzent, den die Prüfung annimmt.**
+     * Er folgt aus dem hellsten Grund, der nicht vom Akzent abhängt — den
+     * Flächen und den Tönungen der Zustände; die eigene Tönung kann nur mehr
+     * abweisen. Dass das die Prüfung selbst ist und kein Modell daneben, hält
+     * die Gegenprobe an jedem Grauton.
+     */
+    public function test_what_the_check_accepts_holds_on_every_ground_of_the_signin_page(): void
+    {
+        $fest = array_intersect_key(BrandSettings::groundsDark('#ffffff'), BrandSettings::groundsDark('#000000'));
+
+        self::assertGreaterThan(count(BrandSettings::SURFACES_DARK), count($fest),
+            'Untergrenze: Ohne getönte Gründe rechnete dieser Fall die alte Prüfung nach.');
+
+        $hellste = max(array_map(static fn (int|string $grund): float => Contrast::luminance((string) $grund), array_keys($fest)));
+        $schwelle = Contrast::TEXT * ($hellste + 0.05) - 0.05;
+
+        for ($k = 0; $k < 256; $k++) {
+            $grau = sprintf('#%02x%02x%02x', $k, $k, $k);
+
+            self::assertSame(Contrast::luminance($grau) >= $schwelle, BrandSettings::verdictDark($grau)['passes'], sprintf(
+                'Bei %s gehen die Rechnung hier und die Prüfung auseinander — dann gilt die Grenze unten nicht für das, was die Prüfung annimmt.',
+                $grau,
+            ));
+        }
+
+        $anmeldung = $this->tokens('.signin');
+
+        foreach (['--bg' => Contrast::TEXT, '--surface' => Contrast::TEXT, '--control-bg' => Contrast::CONTROL] as $marke => $verlangt) {
+            $verhaeltnis = ($schwelle + 0.05) / (Contrast::luminance($anmeldung[$marke]) + 0.05);
+
+            self::assertGreaterThanOrEqual($verlangt, $verhaeltnis, sprintf(
+                "Der dunkelste Akzent, den die Prüfung annimmt, erreicht auf %s (%s) der Anmeldeseite nur %.2f:1; verlangt sind %s:1.\n\n"
+                .'Dort steht seit dem 3. Oktober 2026 auch --text-strong in der Farbe des Betreibers (docs/140 §6c).',
+                $marke,
+                $anmeldung[$marke],
+                $verhaeltnis,
+                $verlangt,
+            ));
+        }
     }
 
     /** Und die Vorgabefarben sind die, die das Stylesheet ausliefert. */

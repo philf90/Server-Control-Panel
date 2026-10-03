@@ -91,8 +91,8 @@ final class GeneralSettingsController extends Controller
             ],
 
             'contrast' => [
-                'light' => BrandSettings::verdict($marke->accent_light, BrandSettings::SURFACES_LIGHT),
-                'dark' => BrandSettings::verdict($marke->accent_dark, BrandSettings::SURFACES_DARK),
+                'light' => BrandSettings::verdictLight($marke->accent_light),
+                'dark' => BrandSettings::verdictDark($marke->accent_dark),
                 'required' => Contrast::TEXT,
             ],
 

@@ -974,3 +974,132 @@ Zeile mit denselben 279 und 59 px da.
 Punkt hängt an dieser Fuge. Gesehen wird die Behebung danach gegen
 `0.9.0-rc.12`, mit einem Bild von `/settings/general` bei 390 px an der
 Stelle zwischen den beiden Formularen.
+
+## §6c · Schrift und Zeichen in der Farbe des Betreibers — und eine Prüfung, die die Tönungen rechnet
+
+Gefunden am 3. Oktober 2026 bei Punkt 4a, am Bild der Anmeldeseite mit
+Marke: **„Angemeldet bleiben" steht in Pfirsich neben dem mintgrünen Knopf.**
+Im Container nachgemessen sind es mehr Stellen. Mit Logo ist es nur dieses
+Wort, ohne Logo zusätzlich der Name „Muster Hosting" in Pfirsich und das
+Zeichen, dessen Balken Pfirsich und dessen oberer Balken Pink tragen. In der
+Leiste trägt der obere Balken des Zeichens ohne Logo weiter Pink. Der
+Markenblock setzte auf diesen Flächen nur die vier Akzentmarken, und
+`--text-strong` und `--mark-accent` blieben in den Farben der Auslieferung.
+
+**Entscheidung 1, vom Betreiber am selben Tag:** Schrift und Zeichen gehen
+auf den Markenflächen mit. Die Anmeldeseite bekommt `--text-strong` und
+`--mark-accent` im dunklen Akzent, Leiste und Kopfleiste `--mark-accent`. An
+der Wurzel bleibt `--mark-accent`, wie es ist. Dort färbt es nur die Auswahl
+und die Suchtreffer im Datei-Editor, und über dieser Fläche steht Text.
+
+### Was die Messung beim Bauen gezeigt hat
+
+Gemessen im Chromium gegen den gebauten Stand, mit der Wegwerf-Datenbank aus
+§6a. Als Akzent diente der dunkelste, den die Prüfung damals annahm,
+`#02925b`. Gefunden ist er über die Prüfung selbst, und seine Leuchtdichte
+trifft die Schwelle der Formel auf sechs Stellen (0,213260). Gemessen wurden
+die Anmeldeseite, die Seite des zweiten Faktors, eine Ankündigung, Leiste und
+Kopfleiste, je Element die Farbe gegen ihren wirksamen Grund, in Ruhe, beim
+Überfahren und mit Fokusrahmen.
+
+| | Block bisher | mit Schrift und Zeichen |
+|---|---|---|
+| Stellen in einer Farbe der Auslieferung | 82 | 0 |
+| Überschrift der Fehlermeldung, auf `#331a2e` | Pfirsich, 9,46:1 | **3,96:1** |
+| aktiver Menüpunkt der Leiste, auf `#171e34` | **4,14:1** | **4,14:1** |
+| Ziffern im Feld des zweiten Faktors, 34 px, auf `#2a1745` | Pfirsich, 9,62:1 | 4,03:1 |
+
+Die Überschrift einer Fehlermeldung liest `--text-strong` und steht auf der
+Tönung der Meldung. Der aktive Menüpunkt trägt den Akzent auf seiner eigenen
+Tönung, und das schon seit `rc.11`. Die Ziffern sind grosse Schrift, für die
+`docs/20 §7.2` 3:1 verlangt; sie tragen.
+
+**In meinem Vorschlag stand, auf der Anmeldeseite brauche nur das Auge
+„Passwort zeigen" beim Überfahren 3:1.** Das war unvollständig. Die Prüfung
+beim Speichern rechnete den Akzent nur gegen die drei Flächen, und als Schrift
+steht er auch auf getönten: auf seiner eigenen Tönung (aktiver Menüpunkt,
+aktive Knöpfe, Zählmarken), als Verweis im Band eines Vorgangs und seit
+Entscheidung 1 in der Überschrift einer Fehlermeldung. Gerechnet fiel der
+Akzent auf seiner eigenen Tönung im ganzen Panel auf 3,81:1 (dunkel) und
+3,86:1 (hell).
+
+> **Eine Farbe, die auf jeder Fläche lesbar ist, ist es auf der Tönung
+> darüber noch lange nicht — und die Tönung ist die Stelle, an der etwas
+> hervorgehoben werden soll.**
+
+**Entscheidung 2, vom Betreiber am selben Tag: Die Prüfung rechnet die
+getönten Flächen mit, und zwar alle.** Zur Wahl standen zwei Fassungen,
+gerechnet über alle Töne, die die alte Prüfung annahm, in Schritten von 3:
+
+| | abgewiesen, hell | abgewiesen, dunkel |
+|---|---|---|
+| jede Tönung des Stylesheets über jedem Grund ihrer Fläche | 19,9 % | 22,9 % |
+| nur die Orte, an denen heute Schrift im Akzent steht | 16,3 % | 15,9 % |
+
+Gewählt ist die erste. Ein Verweis, der morgen in eine Erfolgsmeldung kommt,
+ist damit schon gerechnet und braucht keinen Wächter, der ihn findet. Die
+Zahlen, die ich dem Betreiber zuerst genannt hatte (rund 17 % dunkel, 16 %
+hell), rechneten die eigene Tönung und die Meldungen der Anmeldeseite, aber
+nicht die Tönungen der Meldungen und Bänder im Panel. Berichtigt sind sie vor
+dem Bauen und nicht danach.
+
+> **Eine Zahl, auf der eine Entscheidung beruht, wird berichtigt, bevor
+> gebaut wird — sonst hat jemand etwas entschieden, das es nicht gibt.**
+
+### Gebaut für `0.9.0-rc.12`
+
+- `Contrast::over()` mischt eine Tönung so, wie der Browser es tut: Kanal für
+  Kanal im sRGB-Raum. Gemessen: `rgb(2 146 91 / 0.14)` über `#1a0b2e` zeichnet
+  Chromium als `#171e34`, und die Methode rechnet dasselbe.
+- `BrandSettings::verdictLight()` und `verdictDark()` rechnen jeden Grund, auf
+  dem der Akzent Schrift tragen kann. Für hell sind das 12: die beiden
+  Flächen, die eigene Tönung über jeder und die vier Zustandstönungen über
+  jeder. Für dunkel sind es 19: die drei Flächen, die eigene Tönung über
+  ihnen und über dem Grund der Anmeldeseite, die vier Zustandstönungen über
+  den beiden Gründen des Themas und die zwei Zustände der Anmeldeseite über
+  ihren beiden Gründen. Farben und Deckungen stehen in `BrandSettings`, und
+  `BrandContrastTest` hält sie in beide Richtungen gegen `app.css`.
+- Die Meldung beim Speichern und der Hinweis neben dem Feld nennen bei einer
+  Tönung den Ort, denn ihr Hexwert steht in keinem Stylesheet.
+- Die Wächter: `BrandStyleTest` sucht Reste nach dem Wert und nicht nach dem
+  Namen, mit der Ausnahme an der Wurzel samt Grund und in beide Richtungen.
+  `BrandContrastTest` hält die Tönungen gegen `app.css`, weist eine Farbe ab,
+  die nur auf einer Tönung durchfällt, und rechnet die Gründe der
+  Anmeldeseite gegen den dunkelsten Akzent, den die Prüfung annimmt. Dass
+  diese Rechnung die Prüfung selbst ist, hält eine Gegenprobe an jedem der
+  256 Grautöne. `BrandReachTest` hält Meldung und Hinweis durch die Tür.
+- Im Bruchskript 14 neue Eingriffe und 4 nachgezogene Anker. Gefahren mit
+  allen Eingriffen der berührten Dateien: 40 von 40 beissen, dazu einer mit
+  zwei Blöcken von Hand.
+
+### Nachgemessen
+
+Mit dem dunkelsten Akzent, den die neue Prüfung annimmt: `#869c36`, gesucht
+in Schritten von 2 über Rot und Blau, Leuchtdichte 0,2911. Dieselben Seiten
+und Zustände wie oben.
+
+- Stellen in einer Farbe der Auslieferung: **0**.
+- Stellen in der Farbe des Betreibers unter ihrer Forderung: **0**. Am
+  knappsten sind der aktive Menüpunkt mit 5,11:1, die Überschrift der
+  Fehlermeldung mit 5,13:1 und die Ziffern des Codes mit 5,22:1.
+- Der Hinweis neben dem hellen Feld:
+  `Gemessen 5,13:1 auf #ede8e0 (der Tönung einer Warnung) — verlangt sind 4,5:1.`
+- Abgewiesen wird `#02925b`, den die alte Prüfung annahm:
+  `Diese Farbe erreicht auf #1d302f (der Tönung einer Erfolgsmeldung) nur 3,47:1. Der Akzent trägt auch Schrift; verlangt sind 4,5:1.`
+
+### Für den Lauf heisst das
+
+Er geht gegen `0.9.0-rc.11` weiter. Gegen `0.9.0-rc.12` ändern sich vier
+Erwartungen, und sie gehören in den Nachlauf:
+
+| Stelle | `rc.11` | `rc.12` |
+|---|---|---|
+| Punkt 1, Meldung für `#2f8f5b` | `auf #fafafb nur 3,87:1` | `auf #ede8e0 (der Tönung einer Warnung) nur 3,31:1` |
+| Punkt 3, Hinweis hell | `Gemessen 6:1 auf #fafafb` | `Gemessen 5,13:1 auf #ede8e0 (der Tönung einer Warnung)` |
+| Punkt 3, Hinweis dunkel | `Gemessen 11,77:1 auf #14171d` | `Gemessen 8,59:1 auf #213433 (ihrer eigenen Tönung, wie in einem aktiven Knopf)` |
+| Snippet, Markenblock | 4 Regeln, 16 Zuweisungen | 4 Regeln, 19 Zuweisungen |
+
+Dazu am Bild: „Angemeldet bleiben", Name und Zeichen auf der Anmeldeseite in
+Mint, und in der Leiste ohne Logo der obere Balken des Zeichens ebenfalls.
+Die Prüffarben des Laufs bleiben gültig, `#0b6e4f` mit 5,13:1 und `#6ee7b7`
+mit 8,59:1.

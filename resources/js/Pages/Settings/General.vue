@@ -63,8 +63,8 @@ const props = defineProps<{
    * sobald jemand die Schwelle ändert.
    */
   contrast: {
-    light: { ratio: number; passes: boolean; surface: string }
-    dark: { ratio: number; passes: boolean; surface: string }
+    light: { ratio: number; passes: boolean; surface: string; place: string | null }
+    dark: { ratio: number; passes: boolean; surface: string; place: string | null }
     required: number
   }
 
@@ -365,9 +365,15 @@ function waehleLogo(event: Event): void {
               <input v-model="marke.accent_light" type="text" maxlength="7" autocomplete="off" required />
             </label>
 
+            <!--
+              Der Ort steht neben dem Hexwert, wenn der Grund eine Tönung ist:
+              Ihr Wert steht in keinem Stylesheet, der Browser mischt ihn erst
+              (`docs/140 §6c`).
+            -->
             <p class="hint">
               Gemessen {{ props.contrast.light.ratio.toLocaleString('de-DE') }}:1 auf
-              <span class="ident">{{ props.contrast.light.surface }}</span> — verlangt sind
+              <span class="ident">{{ props.contrast.light.surface }}</span><template v-if="props.contrast.light.place">
+                ({{ props.contrast.light.place }})</template> — verlangt sind
               {{ props.contrast.required.toLocaleString('de-DE') }}:1. Der Akzent trägt auch Schrift.
             </p>
 
@@ -378,7 +384,8 @@ function waehleLogo(event: Event): void {
 
             <p class="hint">
               Gemessen {{ props.contrast.dark.ratio.toLocaleString('de-DE') }}:1 auf
-              <span class="ident">{{ props.contrast.dark.surface }}</span>. Diese Farbe gilt auch auf
+              <span class="ident">{{ props.contrast.dark.surface }}</span><template v-if="props.contrast.dark.place">
+                ({{ props.contrast.dark.place }})</template>. Diese Farbe gilt auch auf
               der Anmeldeseite — sie trägt in beiden Themes einen dunklen Grund.
             </p>
           </Section>

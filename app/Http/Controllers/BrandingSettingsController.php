@@ -44,8 +44,8 @@ final class BrandingSettingsController extends Controller
             'remove_logo' => ['nullable', 'boolean'],
         ]);
 
-        $this->refuseUnreadable('accent_light', $data['accent_light'], BrandSettings::SURFACES_LIGHT);
-        $this->refuseUnreadable('accent_dark', $data['accent_dark'], BrandSettings::SURFACES_DARK);
+        $this->refuseUnreadable('accent_light', BrandSettings::verdictLight($data['accent_light']));
+        $this->refuseUnreadable('accent_dark', BrandSettings::verdictDark($data['accent_dark']));
 
         $marke = $settings->brand();
         $name = $marke->logo;
@@ -146,23 +146,27 @@ final class BrandingSettingsController extends Controller
     /**
      * Eine Farbe abweisen, unter der die Schrift nicht mehr lesbar ist.
      *
-     * Die Meldung nennt den **gemessenen** Wert und die Fläche, an der er
+     * Die Meldung nennt den **gemessenen** Wert und den Grund, an dem er
      * entsteht. „Zu wenig Kontrast" allein liesse den Betreiber raten, um wie
      * viel er danebenliegt und wo.
      *
-     * @param  list<string>  $surfaces
+     * **Und bei einer Tönung auch den Ort.** Seit dem 3. Oktober 2026 rechnet
+     * die Prüfung die getönten Flächen mit (`docs/140 §6c`). Deren Hexwert
+     * steht nirgends im Stylesheet — der Browser mischt ihn erst —, und ohne
+     * „der Tönung einer Warnung" daneben suchte der Betreiber eine Farbe, die
+     * es nur auf dem Bildschirm gibt.
+     *
+     * @param  array{ratio: float, passes: bool, surface: string, place: string|null}  $urteil
      */
-    private function refuseUnreadable(string $field, string $colour, array $surfaces): void
+    private function refuseUnreadable(string $field, array $urteil): void
     {
-        $urteil = BrandSettings::verdict($colour, $surfaces);
-
         if ($urteil['passes']) {
             return;
         }
 
         throw ValidationException::withMessages([$field => sprintf(
             'Diese Farbe erreicht auf %s nur %s:1. Der Akzent trägt auch Schrift; verlangt sind %s:1.',
-            $urteil['surface'],
+            $urteil['surface'].($urteil['place'] === null ? '' : ' ('.$urteil['place'].')'),
             number_format($urteil['ratio'], 2, ',', '.'),
             number_format(Contrast::TEXT, 1, ',', '.'),
         )]);

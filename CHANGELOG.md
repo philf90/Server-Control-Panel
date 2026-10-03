@@ -33725,3 +33725,44 @@ eingerückt hat (`docs/140 §6b`).
 `.gitattributes` führt sie als Bytes: Unter `text=auto` hielte Git das
 getarnte SVG für Text, und die Prüfsummen in `docs/140 §2` hängen an jedem
 Byte.
+
+### Schrift und Zeichen in der Farbe der Marke — und eine Prüfung, die die Tönungen rechnet
+
+**Am Bild von Punkt 4a stand „Angemeldet bleiben" in Pfirsich** neben dem
+mintgrünen Knopf der Anmeldeseite. Ohne Logo waren auch Name und Zeichen
+Pfirsich und der obere Balken des Zeichens Pink, in der Leiste ebenso. Der
+Markenblock setzte dort nur die vier Akzentmarken. Entschieden vom Betreiber
+am 3. Oktober 2026: Auf der Anmeldeseite gehen `--text-strong` und
+`--mark-accent` mit, in Leiste und Kopfleiste `--mark-accent`. Gemessen mit
+dem dunkelsten Akzent, den das Panel annimmt, stehen danach 0 statt 82 Stellen
+in einer Farbe der Auslieferung.
+
+**Dieselbe Messung hat eine Stelle gefunden, die die Änderung unlesbar
+machte, und eine ältere.** Die Überschrift einer Fehlermeldung liest
+`--text-strong` und stand mit `#02925b` bei 3,96:1. Der aktive Menüpunkt der
+Leiste steht seit `rc.11` im Akzent auf dessen eigener Tönung, gemessen
+4,14:1. Die Prüfung beim Speichern rechnete nur die Flächen und keine Tönung
+darüber.
+
+> **Eine Farbe, die auf jeder Fläche lesbar ist, ist es auf der Tönung
+> darüber noch lange nicht — und die Tönung ist die Stelle, an der etwas
+> hervorgehoben werden soll.**
+
+**Seitdem rechnet sie jede Tönung des Stylesheets mit**, entschieden vom
+Betreiber: die eigene Tönung des Akzents und die Tönung jedes Zustands, auf
+jedem Grund ihrer Fläche. Von den Tönen, die die alte Prüfung annahm, weist
+sie hell 19,9 % und dunkel 22,9 % ab. Die ausgelieferten Farben und die
+Prüffarben des Laufs bestehen. Meldung und Hinweis nennen bei einer Tönung
+den Ort, denn ihr Hexwert steht in keinem Stylesheet. Nachgemessen mit dem
+dunkelsten Akzent, den die neue Prüfung annimmt (`#869c36`): keine Stelle in
+der Farbe des Betreibers unter ihrer Forderung, am knappsten 5,11:1.
+
+**Im Vorschlag an den Betreiber stand, auf der Anmeldeseite brauche nur das
+Auge 3:1, und das war unvollständig.** Die Zahl der Abweisungen, die ich ihm
+zuerst genannt hatte, war ebenfalls zu klein; berichtigt sind beide vor dem
+Bauen (`docs/140 §6c`). Dazu rechnet `BrandStyleTest` Reste seitdem nach dem
+Wert und nicht nach dem Namen, `BrandContrastTest` hält die Tönungen gegen
+`app.css` und die Gründe der Anmeldeseite gegen den dunkelsten Akzent, den
+die Prüfung annimmt, und `BrandReachTest` hält Meldung und Hinweis durch die
+Tür. Im Bruchskript stehen 14 neue Eingriffe, und alle 40 an den berührten
+Dateien beissen.

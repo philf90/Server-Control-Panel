@@ -372,7 +372,13 @@ final class BrandReachTest extends TestCase
 
     /**
      * Eine Farbe, unter der niemand mehr liest, wird abgewiesen — mit ihrer
-     * Zahl und mit der Fläche, an der sie entsteht.
+     * Zahl, dem Grund, an dem sie entsteht, und seinem Ort.
+     *
+     * **Seit dem 3. Oktober 2026 ist der schlechteste Grund eine Tönung.** Auf
+     * `#fafafb` erreicht `#cccccc` 1,54:1, auf der Tönung einer Warnung darüber
+     * 1,32:1 (`docs/140 §6c`). Die Tür benutzt also die schärfere Prüfung, und
+     * die Meldung nennt den Ort, weil der Hexwert einer Tönung in keinem
+     * Stylesheet steht.
      */
     public function test_an_unreadable_colour_is_refused_with_its_number(): void
     {
@@ -382,8 +388,38 @@ final class BrandReachTest extends TestCase
 
         $meldung = session('errors')->first('accent_light');
 
-        self::assertStringContainsString('1,54:1', $meldung, 'Der gemessene Wert steht in der Meldung.');
-        self::assertStringContainsString('#fafafb', $meldung, 'Und die Fläche, an der er entsteht.');
+        self::assertStringContainsString('1,32:1', $meldung, 'Der gemessene Wert steht in der Meldung.');
+        self::assertStringContainsString('#ede8e0', $meldung, 'Und der Grund, an dem er entsteht.');
+        self::assertStringContainsString('(der Tönung einer Warnung)', $meldung, 'Und sein Ort — der Hexwert einer Tönung steht in keinem Stylesheet.');
+    }
+
+    /**
+     * Der Hinweis neben dem Feld rechnet dieselbe Prüfung wie das Speichern.
+     *
+     * Zeigte die Seite weiter die Rechnung über die Flächen allein, stünde
+     * neben dem Feld „Gemessen 6:1 auf #fafafb", und eine Farbe knapp darüber
+     * würde beim Speichern abgewiesen, ohne dass der Hinweis sie je knapp
+     * genannt hätte. Gemessen an den Prüffarben des Laufs (`docs/140 §2`):
+     * Beide entscheidet eine Tönung, und die nennt der Hinweis mit ihrem Ort.
+     */
+    public function test_the_hint_beside_the_field_is_the_check_that_saving_asks(): void
+    {
+        $this->gespeichert(['accent_light' => '#0b6e4f', 'accent_dark' => '#6ee7b7']);
+
+        $hell = BrandSettings::verdictLight('#0b6e4f');
+        $dunkel = BrandSettings::verdictDark('#6ee7b7');
+
+        self::assertNotNull($hell['place'], 'Untergrenze: Entscheidet hier eine Fläche, trennt dieser Fall die beiden Prüfungen nicht.');
+        self::assertNotNull($dunkel['place'], 'Untergrenze: Entscheidet hier eine Fläche, trennt dieser Fall die beiden Prüfungen nicht.');
+
+        $this->actingAs($this->operator())->get('/settings/general')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('contrast.light.surface', $hell['surface'])
+                ->where('contrast.light.place', $hell['place'])
+                ->where('contrast.dark.surface', $dunkel['surface'])
+                ->where('contrast.dark.place', $dunkel['place'])
+                ->etc());
     }
 
     /** Die gespeicherte Marke bleibt dabei, wie sie war. */

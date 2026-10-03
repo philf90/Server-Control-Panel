@@ -33840,6 +33840,136 @@ griff_datei app/Support/Settings/BrandSettings.php "Ablage faellt auf Schwarz" &
 pruefe "Ablage faellt auf Schwarz" \
   BrandContrastTest::test_a_broken_store_falls_back_to_the_shipped_colour failed
 wiederherstellen
+echo "── BrandContrastTest: die Pruefung rechnet nur die Flaechen ──"
+#
+# Bis zum 3. Oktober 2026 rechnete die Pruefung keine getoente Flaeche. Mit
+# `#02925b` stand die Ueberschrift einer Fehlermeldung auf der Anmeldeseite
+# dann bei 3,96:1 und der aktive Menuepunkt der Leiste bei 4,14:1.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = '        return self::verdict($accent, self::groundsDark($accent));'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '        return self::verdict($accent, self::SURFACES_DARK);', 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "Pruefung ohne Toenungen" &&
+pruefe "Pruefung ohne Toenungen" \
+  BrandContrastTest::test_a_colour_that_fails_only_on_a_tint_is_refused failed
+wiederherstellen
+
+echo "── BrandContrastTest: die eigene Toenung fehlt der Pruefung ──"
+#
+# Der aktive Menuepunkt und ein aktiver Knopf tragen den Akzent auf seiner
+# eigenen Toenung. Die haengt am Akzent und wird mit ihm gemischt.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = '            $gruende += [Contrast::over($accent, Style::SURFACE_ALPHA_DARK, $grund) => $grund === self::SURFACES_DARK[2]\n'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '            $gruende += [$grund => $grund === self::SURFACES_DARK[2]\n', 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "eigene Toenung fehlt" &&
+pruefe "eigene Toenung fehlt" \
+  BrandContrastTest::test_the_accent_is_reckoned_on_its_own_tint failed
+wiederherstellen
+
+echo "── BrandContrastTest: die Toenung wird verkehrt herum gemischt ──"
+#
+# Gemischt wird wie im Browser: die Farbe mit ihrer Deckung ueber dem Grund.
+# Verkehrt herum steht dort ein Wert, den niemand sieht.
+vorher_datei app/Support/Design/Contrast.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Design/Contrast.php')
+s = p.read_text()
+alt = '((int) ($oben[$i] ?? 0)) * $alpha + ((int) ($unten[$i] ?? 0)) * (1 - $alpha),'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '((int) ($oben[$i] ?? 0)) * (1 - $alpha) + ((int) ($unten[$i] ?? 0)) * $alpha,', 1))
+PY
+griff_datei app/Support/Design/Contrast.php "Mischung verkehrt herum" &&
+pruefe "Mischung verkehrt herum" \
+  BrandContrastTest::test_the_accent_is_reckoned_on_its_own_tint failed
+wiederherstellen
+
+echo "── BrandContrastTest: eine Toenung des Stylesheets fehlt der Pruefung ──"
+#
+# Eine Toenung, die `app.css` fuehrt und die Pruefung nicht, ist ein Grund,
+# auf dem der Akzent ungeprueft Schrift tragen kann.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = "        'ok' => ['#57c99c', 0.14],\n"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "Toenung fehlt der Pruefung" &&
+pruefe "Toenung fehlt der Pruefung" \
+  BrandContrastTest::test_the_tints_are_the_ones_the_stylesheet_has failed
+wiederherstellen
+
+echo "── BrandContrastTest: die Anmeldeseite setzt eine Toenung, die die Pruefung nicht kennt ──"
+#
+# Setzt die Anmeldeseite einen dritten Zustand, steht dort eine Meldung, deren
+# Grund die Pruefung nicht rechnet.
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+alt = '  --critical-surface: rgb(240 138 114 / 0.14);\n\n  color: var(--text);\n  min-height: 100dvh;'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '  --critical-surface: rgb(240 138 114 / 0.14);\n  --info-surface: rgb(255 70 150 / 0.14);\n\n  color: var(--text);\n  min-height: 100dvh;', 1))
+PY
+griff_datei resources/css/app.css "unbekannte Toenung auf der Anmeldeseite" &&
+pruefe "unbekannte Toenung auf der Anmeldeseite" \
+  BrandContrastTest::test_the_tints_are_the_ones_the_stylesheet_has failed
+wiederherstellen
+
+echo "── BrandContrastTest: die Feldflaeche der Anmeldeseite wird heller ──"
+#
+# Auf der Feldflaeche stehen in der Farbe des Betreibers das Auge und die
+# Ziffern des Codes. Wird sie heller, reicht der dunkelste Akzent, den die
+# Pruefung annimmt, dort nicht mehr fuer 3:1.
+vorher_datei resources/css/app.css
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/css/app.css')
+s = p.read_text()
+alt = '  --control-bg: #2a1745;\n'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '  --control-bg: #6a5785;\n', 1))
+PY
+griff_datei resources/css/app.css "Feldflaeche heller" &&
+pruefe "Feldflaeche heller" \
+  BrandContrastTest::test_what_the_check_accepts_holds_on_every_ground_of_the_signin_page failed
+wiederherstellen
+
+echo "── BrandContrastTest: an der Grenze entscheidet die eigene Toenung ──"
+#
+# Die Grenze fuer die Anmeldeseite gilt nur, solange die Pruefung an jedem
+# Grauton die Rechnung des Waechters ist. Deckt die eigene Toenung fast wie
+# die Farbe selbst, entscheidet sie an der Grenze — und der Waechter rechnete
+# ein Modell nach.
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = '    public const SURFACE_ALPHA_DARK = 0.14;'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '    public const SURFACE_ALPHA_DARK = 0.6;', 1))
+PY
+griff_datei app/Support/Brand/Style.php "eigene Toenung entscheidet" &&
+pruefe "eigene Toenung entscheidet" \
+  BrandContrastTest::test_what_the_check_accepts_holds_on_every_ground_of_the_signin_page failed
+wiederherstellen
+
 pruefe "  … zurückgesetzt wieder grün" BrandContrastTest passed
 
 echo "── BrandStyleTest: der Block schreibt eine Regel statt einer Marke ──"
@@ -33870,7 +34000,7 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Brand/Style.php')
 s = p.read_text()
-alt = "'.signin{'.$dunkel.'}',"
+alt = "'.signin{'.$dunkel.$schrift.$zeichen.'}',"
 assert s.count(alt) == 1
 p.write_text(s.replace(alt, "'',", 1))
 PY
@@ -33889,9 +34019,9 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Brand/Style.php')
 s = p.read_text()
-alt = "'.signin{'.$dunkel.'}',"
+alt = "'.signin{'.$dunkel.$schrift.$zeichen.'}',"
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, "'.signin{'.$hell.'}',", 1))
+p.write_text(s.replace(alt, "'.signin{'.$hell.$schrift.$zeichen.'}',", 1))
 PY
 griff_datei app/Support/Brand/Style.php "Anmeldeseite hell" &&
 pruefe "Anmeldeseite hell" \
@@ -33946,7 +34076,7 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Brand/Style.php')
 s = p.read_text()
-alt = "'.rail,.topbar{'.$dunkel.'}',"
+alt = "'.rail,.topbar{'.$dunkel.$zeichen.'}',"
 assert s.count(alt) == 1
 p.write_text(s.replace(alt, "'',", 1))
 PY
@@ -33964,9 +34094,9 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Brand/Style.php')
 s = p.read_text()
-alt = "'.rail,.topbar{'.$dunkel.'}',"
+alt = "'.rail,.topbar{'.$dunkel.$zeichen.'}',"
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, "'.rail,.topbar{'.$hell.'}',", 1))
+p.write_text(s.replace(alt, "'.rail,.topbar{'.$hell.$zeichen.'}',", 1))
 PY
 griff_datei app/Support/Brand/Style.php "Leiste hell" &&
 pruefe "Leiste hell" \
@@ -34009,6 +34139,79 @@ PY
 griff_datei resources/views/app.blade.php "Markenblock vor dem Stylesheet" &&
 pruefe "Markenblock vor dem Stylesheet" \
   BrandStyleTest::test_the_block_stands_after_the_stylesheet failed
+wiederherstellen
+
+echo "── BrandStyleTest: die Anmeldeseite behaelt die Schrift der Auslieferung ──"
+#
+# `.signin` setzt `--text-strong` in Pfirsich. Ohne den Wert aus der Marke
+# steht „Angemeldet bleiben" in Pfirsich neben einem Knopf in der Farbe des
+# Betreibers (`docs/140 §6c`).
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = "'.signin{'.$dunkel.$schrift.$zeichen.'}',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'.signin{'.$dunkel.$zeichen.'}',", 1))
+PY
+griff_datei app/Support/Brand/Style.php "Anmeldeseite ohne Schrift der Marke" &&
+pruefe "Anmeldeseite ohne Schrift der Marke" \
+  BrandStyleTest::test_no_mark_is_left_in_a_shipped_accent failed
+wiederherstellen
+
+echo "── BrandStyleTest: das Zeichen der Leiste bleibt pink ──"
+#
+# Leiste und Kopfleiste setzen `--mark-accent` in Pink. Ohne den Wert aus der
+# Marke traegt der obere Balken des Zeichens die Farbe der Auslieferung.
+vorher_datei app/Support/Brand/Style.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Brand/Style.php')
+s = p.read_text()
+alt = "'.rail,.topbar{'.$dunkel.$zeichen.'}',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'.rail,.topbar{'.$dunkel.'}',", 1))
+PY
+griff_datei app/Support/Brand/Style.php "Leiste ohne Zeichen der Marke" &&
+pruefe "Leiste ohne Zeichen der Marke" \
+  BrandStyleTest::test_no_mark_is_left_in_a_shipped_accent failed
+wiederherstellen
+
+echo "── BrandStyleTest: die Ausnahme an der Wurzel faellt weg ──"
+#
+# An der Wurzel bleibt `--mark-accent` mit Grund in der Farbe der
+# Auslieferung. Ohne den Eintrag meldet der Waechter die Stelle als Rest.
+vorher_datei tests/Feature/BrandStyleTest.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Feature/BrandStyleTest.php')
+s = p.read_text()
+alt = "        ':root --mark-accent' => self::EDITOR,\n"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei tests/Feature/BrandStyleTest.php "Ausnahme an der Wurzel fehlt" &&
+pruefe "Ausnahme an der Wurzel fehlt" \
+  BrandStyleTest::test_no_mark_is_left_in_a_shipped_accent failed
+wiederherstellen
+
+echo "── BrandStyleTest: eine Ausnahme nimmt nichts mehr aus ──"
+#
+# Eine Ausnahme fuer eine Marke, die der Block setzt, erlaubt beim naechsten
+# Mal etwas, das niemand geprueft hat.
+vorher_datei tests/Feature/BrandStyleTest.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Feature/BrandStyleTest.php')
+s = p.read_text()
+alt = "        \":root[data-theme='dark'] --mark-accent\" => self::EDITOR,\n"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, alt + "        '.signin --text-strong' => self::EDITOR,\n", 1))
+PY
+griff_datei tests/Feature/BrandStyleTest.php "verwaiste Ausnahme" &&
+pruefe "verwaiste Ausnahme" \
+  BrandStyleTest::test_no_mark_is_left_in_a_shipped_accent failed
 wiederherstellen
 
 pruefe "  … zurückgesetzt wieder grün" BrandStyleTest passed
@@ -34254,6 +34457,61 @@ griff_datei resources/views/mail/test.blade.php "Testmail mit festem Namen" &&
 pruefe "Testmail mit festem Namen" \
   BrandReachTest::test_the_test_mail_speaks_of_this_panel failed
 wiederherstellen
+
+echo "── BrandReachTest: die Meldung nennt den Ort einer Toenung nicht ──"
+#
+# Der Hexwert einer Toenung steht in keinem Stylesheet. Ohne den Ort sucht
+# der Betreiber eine Farbe, die es nur auf dem Bildschirm gibt.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "            $urteil['surface'].($urteil['place'] === null ? '' : ' ('.$urteil['place'].')'),"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "            $urteil['surface'],", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "Meldung ohne Ort" &&
+pruefe "Meldung ohne Ort" \
+  BrandReachTest::test_an_unreadable_colour_is_refused_with_its_number failed
+wiederherstellen
+
+echo "── BrandReachTest: die Tuer fragt wieder nur die Flaechen ──"
+#
+# Die Tuer muss dieselbe Pruefung fragen, die die getoenten Flaechen rechnet —
+# sonst nimmt das Speichern an, was der Waechter abweist.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "BrandSettings::verdictLight($data['accent_light'])"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "BrandSettings::verdict($data['accent_light'], BrandSettings::SURFACES_LIGHT)", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "Tuer fragt nur die Flaechen" &&
+pruefe "Tuer fragt nur die Flaechen" \
+  BrandReachTest::test_an_unreadable_colour_is_refused_with_its_number failed
+wiederherstellen
+
+echo "── BrandReachTest: der Hinweis rechnet eine andere Pruefung als das Speichern ──"
+#
+# Neben dem Feld steht, was das Speichern fragt. Rechnet der Hinweis nur die
+# Flaechen, nennt er eine Farbe knapp, die das Speichern abweist, nie knapp.
+vorher_datei app/Http/Controllers/GeneralSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/GeneralSettingsController.php')
+s = p.read_text()
+alt = "'light' => BrandSettings::verdictLight($marke->accent_light),"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'light' => BrandSettings::verdict($marke->accent_light, BrandSettings::SURFACES_LIGHT),", 1))
+PY
+griff_datei app/Http/Controllers/GeneralSettingsController.php "Hinweis rechnet nur die Flaechen" &&
+pruefe "Hinweis rechnet nur die Flaechen" \
+  BrandReachTest::test_the_hint_beside_the_field_is_the_check_that_saving_asks failed
+wiederherstellen
+
 pruefe "  … zurückgesetzt wieder grün" BrandReachTest passed
 
 echo "── BrandNameTest: der Reiter hat wieder ein festes Wort ──"

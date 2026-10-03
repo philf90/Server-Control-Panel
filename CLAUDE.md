@@ -39,9 +39,10 @@ nachgesehen (`docs/139 §9`, Abschnitt weiter unten). Der Lauf für B6 ist
 `docs/140`, ausgeschrieben am 1. Oktober vor dem Fahren. Beim Ausschreiben
 fielen sechs Befunde am Prüfling heraus. Der Betreiber hat sie am selben Tag
 entschieden, und behoben sind sie mit `0.9.0-rc.11` (`docs/140 §6a`, Abschnitt
-weiter unten). Gefahren wird er seit dem 3. Oktober gegen `rc.11`;
-ein Befund aus dem Lauf, zwei Formulare ohne Abstand, ist für `rc.12` gebaut
-(`docs/140 §6b`).
+weiter unten). Gefahren wird er seit dem 3. Oktober gegen `rc.11`.
+Für `rc.12` gebaut sind zwei Befunde aus dem Lauf: zwei Formulare ohne Abstand
+(`docs/140 §6b`) sowie Schrift und Zeichen in der Farbe der Marke, samt einer
+Prüfung beim Speichern, die die Tönungen rechnet (`docs/140 §6c`).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -5602,6 +5603,12 @@ eine ungemessene zu ersetzen.
 
 > **Zwei Marken mit demselben Wert sind nicht dieselbe Marke.**
 
+Am 3. Oktober 2026 hat der Betreiber sie trotzdem mitziehen lassen, und die
+Messung hat dem Satz recht gegeben: Die Überschrift einer Fehlermeldung fiel
+mit einem Akzent, den die Prüfung annahm, auf 3,96:1. Gemessen ist die Zusage
+wieder, seit die Prüfung die Tönungen rechnet (Abschnitt „Schrift, Zeichen
+und Tönungen" weiter unten).
+
 **Der dritte ist die Fehlerklasse dieses Repos, und diesmal an einer
 Weiterleitung.** `BrandingSettingsController` leitete auf `settings.branding`
 weiter — einen Namen, den `routes/web.php` nie vergeben hat. `to_route()` wirft
@@ -6873,6 +6880,44 @@ Seitdem nennt jeder Eintrag seine Vorlagen.
 
 Wer eine Ausnahmeliste führt, bindet jeden Eintrag an den Ort, an dem jemand
 ihn gezählt hat.
+
+### Schrift, Zeichen und Tönungen — 3. Oktober 2026
+
+Am Bild von Punkt 4a stand „Angemeldet bleiben" in Pfirsich neben einem
+mintgrünen Knopf; der Markenblock setzte auf den Markenflächen nur die vier
+Akzentmarken. Entschieden vom Betreiber: `--text-strong` und `--mark-accent`
+gehen auf der Anmeldeseite mit, `--mark-accent` an der Leiste
+(`docs/140 §6c`).
+
+**Mein Vorschlag dazu stand auf einer Rechnung, die nur die Flächen kannte.**
+Gemessen wurde danach im Chromium, mit dem dunkelsten Akzent, den die Prüfung
+annahm, und gefunden über die Prüfung selbst und nicht über eine Formel
+daneben. Je Element stand dabei die Farbe gegen ihren wirksamen Grund, in
+Ruhe, beim Überfahren und mit Fokusrahmen. Dabei fiel die Überschrift einer
+Fehlermeldung auf 3,96:1 und der aktive Menüpunkt der Leiste auf 4,14:1, der
+eine auf der Tönung der Meldung, der andere auf der eigenen Tönung des
+Akzents.
+
+> **Eine Farbe, die auf jeder Fläche lesbar ist, ist es auf der Tönung
+> darüber noch lange nicht — und die Tönung ist die Stelle, an der etwas
+> hervorgehoben werden soll.**
+
+Seitdem rechnet `BrandSettings` jede Tönung des Stylesheets über jedem Grund
+ihrer Fläche, gemischt mit `Contrast::over()` wie im Browser. Die Werte hält
+`BrandContrastTest` in beide Richtungen gegen `app.css`. Seine Grenze für die
+Anmeldeseite ist eine Rechnung, und dass sie die Prüfung selbst ist, hält eine
+Gegenprobe an jedem der 256 Grautöne.
+
+> **Ein Wächter, der eine Grenze rechnet, hält sie an der Prüfung fest, die
+> sie ziehen soll — sonst rechnet er ein Modell nach.**
+
+**Und eine Zahl musste vor dem Bauen berichtigt werden.** Die Kosten, die ich
+dem Betreiber für die schärfere Prüfung nannte, rechneten die Bänder und
+Meldungen im Panel nicht mit. Die zweite Frage danach kostete eine Minute, und
+gebaut wurde die Fassung, die er mit den richtigen Zahlen gewählt hat.
+
+> **Eine Zahl, auf der eine Entscheidung beruht, wird berichtigt, bevor
+> gebaut wird — sonst hat jemand etwas entschieden, das es nicht gibt.**
 
 ---
 

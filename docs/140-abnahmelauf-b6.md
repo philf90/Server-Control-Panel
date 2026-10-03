@@ -253,8 +253,12 @@ stellt sie wieder her.
 
 Vier Dateien, verschickt mit diesem Lauf und seit dem 3. Oktober auch im Repo
 unter `tests/pruefkoerper/b6/`. Sie liegen auf dem Rechner, an dem der Browser
-läuft. GitHub liefert sie mit dem Typ aus ihrer Endung und mit `nosniff` aus;
-das getarnte SVG zeigt ein Browser dort also als kaputtes Bild.
+läuft. GitHub liefert die drei Bilder mit dem Typ aus ihrer Endung aus, das
+getarnte SVG dagegen als `text/plain`, alle mit `nosniff` und einer Sandbox
+(gemessen am 3. Oktober an den Adressen aus dem Repo). Ein Browser zeigt vom
+getarnten SVG also seinen Quelltext, und ausgeführt wird nichts. Unter seinem
+Namen lässt es sich aus dieser Ansicht nicht sicher speichern; deshalb liegt
+daneben `b6-svg-als-png.zip`, das nur diese eine Datei enthält.
 
 | Datei | Grösse | Inhalt | sha256 |
 |---|---|---|---|

@@ -27,9 +27,15 @@ final class BrandingSettingsController extends Controller
     public function update(Request $request, Settings $settings, Logo $logo, Audit $audit): Response
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:40'],
-            'accent_light' => ['required', 'string', 'regex:/^#[0-9a-fA-F]{6}$/D'],
-            'accent_dark' => ['required', 'string', 'regex:/^#[0-9a-fA-F]{6}$/D'],
+            /*
+             * **Leer ist erlaubt und heisst „die Vorgabe"**, entschieden vom
+             * Betreiber am 3. Oktober 2026 (`docs/140 §6d`). Hier stand
+             * `required`; wer zurück zur Vorgabe wollte, musste sie abschreiben.
+             * Was ein leeres Feld bedeutet, sagt {@see BrandSettings::fromForm()}.
+             */
+            'name' => ['nullable', 'string', 'max:40'],
+            'accent_light' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/D'],
+            'accent_dark' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/D'],
 
             /*
              * **Reiner Text und kein Markup.** Die Fusszeile steht auf der
@@ -44,11 +50,17 @@ final class BrandingSettingsController extends Controller
             'remove_logo' => ['nullable', 'boolean'],
         ]);
 
-        $this->refuseUnreadable('accent_light', BrandSettings::verdictLight($data['accent_light']));
-        $this->refuseUnreadable('accent_dark', BrandSettings::verdictDark($data['accent_dark']));
+        /*
+         * **Gerechnet wird die Farbe, die gelten wird** — bei einem leeren
+         * Feld also die Vorgabe. Die trägt; die Prüfung bleibt trotzdem für
+         * jeden Fall dieselbe und kennt keinen, den sie auslässt.
+         */
+        $eingabe = BrandSettings::fromForm($data, $settings->brand()->logo);
 
-        $marke = $settings->brand();
-        $name = $marke->logo;
+        $this->refuseUnreadable('accent_light', BrandSettings::verdictLight($eingabe->accent_light));
+        $this->refuseUnreadable('accent_dark', BrandSettings::verdictDark($eingabe->accent_dark));
+
+        $name = $eingabe->logo;
 
         /*
          * **Wahr ist, was der Browser als wahr schickt.** Die Seite schickt das
@@ -78,15 +90,10 @@ final class BrandingSettingsController extends Controller
             $name = $logo->store($datei);
         }
 
-        $settings->saveBrand(new BrandSettings(
-            name: trim($data['name']),
-            accent_light: strtolower($data['accent_light']),
-            accent_dark: strtolower($data['accent_dark']),
-            footer: trim((string) ($data['footer'] ?? '')),
-            logo: $name,
-        ));
+        $settings->saveBrand(BrandSettings::fromForm($data, $name));
 
-        $audit->success('settings.branding', null, ['name' => trim($data['name'])]);
+        // Der Name, der gilt — bei einem leeren Feld also die Vorgabe.
+        $audit->success('settings.branding', null, ['name' => $eingabe->name]);
 
         /*
          * **Zurück auf die Seite, auf der das Formular steht — und das ist

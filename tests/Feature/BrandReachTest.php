@@ -9,6 +9,7 @@ use App\Mail\DiagnoseReport;
 use App\Mail\QuotaWarning;
 use App\Mail\TestMessage;
 use App\Models\Account;
+use App\Models\Setting;
 use App\Support\Brand\Logo;
 use App\Support\Settings\BrandSettings;
 use App\Support\Settings\MailConfiguration;
@@ -429,6 +430,101 @@ final class BrandReachTest extends TestCase
         $this->save(['accent_light' => '#cccccc']);
 
         self::assertSame('#111827', app(Settings::class)->brand()->accent_light);
+    }
+
+    /**
+     * Was in der Ablage steht — so, wie der nächste Lauf es liest.
+     *
+     * @return array<string, mixed>
+     */
+    private function abgelegt(): array
+    {
+        $wert = Setting::query()->where('key', 'brand')->first()?->value;
+        self::assertIsArray($wert, 'Es steht keine Marke in der Ablage — dann misst dieser Fall nichts.');
+
+        return $wert;
+    }
+
+    /**
+     * Ein leeres Feld heisst „die Vorgabe" — durch die Tür und bis in die Ablage.
+     *
+     * Entschieden vom Betreiber am 3. Oktober 2026 (`docs/140 §6d`). Bis dahin
+     * wies die Tür ein leeres Feld als fehlend ab, und wer zurück wollte,
+     * musste die Vorgaben abschreiben.
+     *
+     * Vorher steht eine eigene Marke da, und das ist der Prüfkörper: Über der
+     * Vorgabe gespeichert, sähe ein leeres Feld danach genauso aus wie eines,
+     * das nichts bewirkt hat. Abgelegt wird **keine Angabe** und keine
+     * Abschrift der Vorgabe — sonst bliebe das Panel bei ihr stehen, wenn eine
+     * spätere Fassung sie ändert.
+     */
+    public function test_an_empty_field_means_the_default(): void
+    {
+        $this->gespeichert();
+        $this->abmelden();
+        $this->get('/login')->assertSee('<style>:root', false);
+        self::assertSame('Hoster GmbH', $this->abgelegt()['name'], 'Untergrenze: Ohne eigene Marke vorher trennt dieser Fall nichts.');
+
+        $this->gespeichert(['name' => '', 'accent_light' => '', 'accent_dark' => '']);
+
+        $abgelegt = $this->abgelegt();
+        self::assertNull($abgelegt['name'], 'Für die Vorgabe steht keine Angabe in der Ablage.');
+        self::assertNull($abgelegt['accent_light'], 'Für die Vorgabe steht keine Angabe in der Ablage.');
+        self::assertNull($abgelegt['accent_dark'], 'Für die Vorgabe steht keine Angabe in der Ablage.');
+
+        $gelesen = BrandSettings::fromArray($abgelegt);
+        self::assertSame(BrandSettings::DEFAULT_NAME, $gelesen->name);
+        self::assertSame(BrandSettings::DEFAULT_ACCENT_LIGHT, $gelesen->accent_light);
+        self::assertSame(BrandSettings::DEFAULT_ACCENT_DARK, $gelesen->accent_dark);
+
+        $this->abmelden();
+        $antwort = $this->get('/login')->assertDontSee('<style>:root', false);
+        self::assertSame(BrandSettings::DEFAULT_NAME, $antwort->viewData('page')['props']['brand']['name']);
+    }
+
+    /**
+     * Eine eingetippte Vorgabe ist keine eigene Angabe — auch in Grossbuchstaben.
+     *
+     * Wer `#3730A3` eintippt, hat dasselbe gesagt wie ein leeres Feld. Die
+     * Frage danach stellt {@see BrandSettings::own()}, und sie hat nur eine
+     * Antwort, wenn vorher kleingeschrieben wird.
+     */
+    public function test_a_default_typed_by_hand_is_no_own_value(): void
+    {
+        $this->gespeichert([
+            'name' => BrandSettings::DEFAULT_NAME,
+            'accent_light' => strtoupper(BrandSettings::DEFAULT_ACCENT_LIGHT),
+            'accent_dark' => strtoupper(BrandSettings::DEFAULT_ACCENT_DARK),
+        ]);
+
+        $abgelegt = $this->abgelegt();
+        self::assertNull($abgelegt['name']);
+        self::assertNull($abgelegt['accent_light'], 'Eine Vorgabe in Grossbuchstaben ist dieselbe Vorgabe.');
+        self::assertNull($abgelegt['accent_dark'], 'Eine Vorgabe in Grossbuchstaben ist dieselbe Vorgabe.');
+    }
+
+    /**
+     * Das Feld zeigt die eigene Angabe — und bleibt leer, wo keine ist.
+     *
+     * Stünde im Feld der Wert, der gilt, schickte das nächste Speichern ihn
+     * als eigene Angabe zurück, etwa wenn nur ein Logo dazukommt; aus „die
+     * Vorgabe" würde still eine Abschrift von ihr. Die Vorgabe selbst kommt
+     * daneben mit, als Platzhalter.
+     */
+    public function test_the_form_shows_the_own_value_and_leaves_the_default_empty(): void
+    {
+        $this->gespeichert(['name' => '', 'accent_light' => '#0b6e4f', 'accent_dark' => '']);
+
+        $this->actingAs($this->operator())->get('/settings/general')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('brandSettings.name', '')
+                ->where('brandSettings.accent_light', '#0b6e4f')
+                ->where('brandSettings.accent_dark', '')
+                ->where('brandDefaults.name', BrandSettings::DEFAULT_NAME)
+                ->where('brandDefaults.accent_light', BrandSettings::DEFAULT_ACCENT_LIGHT)
+                ->where('brandDefaults.accent_dark', BrandSettings::DEFAULT_ACCENT_DARK)
+                ->etc());
     }
 
     /**

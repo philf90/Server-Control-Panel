@@ -52,6 +52,7 @@ final class GeneralSettingsController extends Controller
         $jetzt = now();
 
         $marke = $settings->brand();
+        $eigen = $marke->own();
 
         return Inertia::render('Settings/General', [
             /*
@@ -82,13 +83,22 @@ final class GeneralSettingsController extends Controller
              * `/updates` ein zweites Mal (`errors`). Gefunden hat es hier
              * `SharedPropTest`, nachdem sein Leser repariert war.
              */
+            /*
+             * **In die Felder gehen die eigenen Angaben, nicht das, was gilt.**
+             * Ein Feld ohne eigene Angabe bleibt leer und zeigt die Vorgabe als
+             * Platzhalter (`docs/140 §6d`). Stünde dort der Wert, der gilt,
+             * schickte das nächste Speichern ihn als eigene Angabe zurück —
+             * und aus „die Vorgabe" würde still eine Abschrift von ihr.
+             */
             'brandSettings' => [
-                'name' => $marke->name,
-                'accent_light' => $marke->accent_light,
-                'accent_dark' => $marke->accent_dark,
+                'name' => $eigen['name'] ?? '',
+                'accent_light' => $eigen['accent_light'] ?? '',
+                'accent_dark' => $eigen['accent_dark'] ?? '',
                 'footer' => $marke->footer,
                 'has_logo' => $logo->path($marke->logo) !== null,
             ],
+
+            'brandDefaults' => BrandSettings::defaults(),
 
             'contrast' => [
                 'light' => BrandSettings::verdictLight($marke->accent_light),

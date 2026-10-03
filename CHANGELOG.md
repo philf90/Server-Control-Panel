@@ -33766,3 +33766,31 @@ Wert und nicht nach dem Namen, `BrandContrastTest` hält die Tönungen gegen
 die Prüfung annimmt, und `BrandReachTest` hält Meldung und Hinweis durch die
 Tür. Im Bruchskript stehen 14 neue Eingriffe, und alle 40 an den berührten
 Dateien beissen.
+
+### Ohne Eintrag gilt die Vorgabe — für Name und Farben der Marke
+
+**Ein Wunsch des Betreibers nach Punkt 9 des Laufs für B6:** Wer Name oder
+Farbe leert, bekommt die Vorgabe. Bis dahin trugen die drei Felder `required`,
+im Formular und an der Tür; ein leeres Feld schickte der Browser gar nicht ab,
+und wer zurück wollte, musste `SrvPanel`, `#3730a3` und `#ff7fec` abschreiben.
+
+**Entschieden hat der Betreiber zwischen zwei Fassungen**, und gewählt ist die,
+in der das Feld leer bleibt (`docs/140 §6d`). Abgelegt wird keine Angabe, und
+das Formular zeigt die Vorgabe grau als Platzhalter; der Hinweis unter einer
+Farbe sagt dann „Vorgabe, gemessen …". Eine eingetippte Vorgabe zählt ebenso
+als keine Angabe, auch in Grossbuchstaben. Ändert eine spätere Fassung die
+Vorgabe, folgt ein Panel ohne eigene Angabe ihr.
+
+> **Ein Wert, der der Vorgabe gleicht, ist keine eigene Angabe — wer ihn als
+> Wert ablegt, hält eine zweite Fassung der Vorgabe, und die veraltet.**
+
+Die Regel steht in `BrandSettings`: `fromForm()` macht aus dem Formular, was
+gilt, `own()` sagt, was davon eigene Angabe ist, und `toStored()` legt nur
+diese ab. In die Felder der Seite gehen die eigenen Angaben und nicht, was
+gilt — sonst schickte das nächste Speichern die Vorgabe als eigene Angabe
+zurück. `BrandReachTest` misst das durch die Tür bis in die Ablage,
+`BrandFormTest` hält die Vorlage ohne `required` und mit Platzhaltern aus den
+Vorgaben des Servers. Im Bruchskript stehen 13 neue Eingriffe, und alle 38 an
+den berührten Dateien beissen. Was vor `0.9.0-rc.12` gespeichert wurde, trägt
+die Vorgabe noch als Wert; das Formular zeigt es trotzdem leer, und beim
+nächsten Speichern wird daraus keine Angabe.

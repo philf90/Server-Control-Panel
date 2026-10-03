@@ -47,6 +47,22 @@ use App\Support\Design\Contrast;
  * seit dem 3. Oktober 2026 auch auf den getönten Flächen
  * ({@see self::TINTS_LIGHT}); die Schwellen stehen in {@see Contrast} und
  * nicht hier.
+ *
+ * ## Ohne Eintrag gilt die Vorgabe
+ *
+ * Entschieden vom Betreiber am 3. Oktober 2026 im Lauf für B6
+ * (`docs/140 §6d`): Wer Name oder Farbe leert, bekommt die Vorgabe und muss
+ * sie nicht abschreiben. Bis dahin trugen die drei Felder `required`, im
+ * Browser und an der Tür; in Punkt 9 des Laufs wurden die Vorgaben deshalb
+ * von Hand eingetippt.
+ *
+ * **Abgelegt wird dafür keine Abschrift der Vorgabe, sondern keine Angabe**
+ * ({@see self::toStored()}). Eine Abschrift wäre eine zweite Fassung der
+ * Vorgabe: Ändert eine spätere Fassung des Panels sie, bliebe dieses Panel bei
+ * der alten stehen, als hätte der Betreiber sie gewählt.
+ *
+ * > **Ein Wert, der der Vorgabe gleicht, ist keine eigene Angabe — wer ihn als
+ * > Wert ablegt, hält eine zweite Fassung der Vorgabe, und die veraltet.**
  */
 final class BrandSettings
 {
@@ -204,7 +220,90 @@ final class BrandSettings
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * Was das Formular schickt — ein leeres Feld heisst „die Vorgabe".
+     *
+     * Gekürzt und kleingeschrieben wird hier und nicht im Controller: Ob ein
+     * Wert der Vorgabe gleicht, fragt {@see self::own()}, und die Frage hat
+     * nur dann eine Antwort, wenn `#3730A3` und `#3730a3` derselbe Wert sind.
+     * Die Form der Farbe hat die Tür schon geprüft.
+     *
+     * @param  array<string, mixed>  $form
+     */
+    public static function fromForm(array $form, ?string $logo): self
+    {
+        return new self(
+            name: self::text($form['name'] ?? null, self::DEFAULT_NAME),
+            accent_light: strtolower(self::text($form['accent_light'] ?? null, self::DEFAULT_ACCENT_LIGHT)),
+            accent_dark: strtolower(self::text($form['accent_dark'] ?? null, self::DEFAULT_ACCENT_DARK)),
+            footer: trim((string) ($form['footer'] ?? '')),
+            logo: $logo,
+        );
+    }
+
+    /**
+     * Was der Betreiber selbst eingetragen hat — `null` heisst „die Vorgabe".
+     *
+     * **Ein Wert, der der Vorgabe gleicht, ist keine eigene Angabe.** Wer
+     * `#3730a3` eintippt, hat dasselbe gesagt wie ein leeres Feld, und die
+     * Seite zeigt beides gleich: leer, mit der Vorgabe als Platzhalter. Die
+     * Frage steht hier und nicht in jedem Leser, damit Ablage und Formular
+     * dieselbe Antwort geben.
+     *
+     * @return array{name: ?string, accent_light: ?string, accent_dark: ?string}
+     */
+    public function own(): array
+    {
+        return [
+            'name' => $this->name === self::DEFAULT_NAME ? null : $this->name,
+            'accent_light' => $this->accent_light === self::DEFAULT_ACCENT_LIGHT ? null : $this->accent_light,
+            'accent_dark' => $this->accent_dark === self::DEFAULT_ACCENT_DARK ? null : $this->accent_dark,
+        ];
+    }
+
+    /**
+     * Was in die Ablage geht: die eigenen Angaben, und für die Vorgabe `null`.
+     *
+     * **Nicht {@see self::toArray()}.** Das gibt aus, was gilt, mit der
+     * Vorgabe aufgefüllt — und eine abgelegte Vorgabe wäre die zweite Fassung,
+     * vor der der Kopf dieser Klasse warnt. {@see self::fromArray()} füllt
+     * beim Lesen wieder auf, und zwar mit der Vorgabe der laufenden Fassung.
+     *
+     * Was vor `0.9.0-rc.12` gespeichert wurde, trägt die Vorgabe als Wert. Es
+     * wird beim nächsten Speichern zu keiner Angabe. Ändert eine spätere
+     * Fassung die Vorgabe, nimmt sie solche Zeilen mit einer Migration mit,
+     * die die alte Vorgabe kennt — vorher lassen sie sich von einer eigenen
+     * Angabe nicht unterscheiden.
+     *
+     * @return array<string, mixed>
+     */
+    public function toStored(): array
+    {
+        return [...$this->own(), 'footer' => $this->footer, 'logo' => $this->logo];
+    }
+
+    /**
+     * Die Vorgaben, wie das Formular sie als Platzhalter zeigt.
+     *
+     * @return array{name: string, accent_light: string, accent_dark: string}
+     */
+    public static function defaults(): array
+    {
+        return [
+            'name' => self::DEFAULT_NAME,
+            'accent_light' => self::DEFAULT_ACCENT_LIGHT,
+            'accent_dark' => self::DEFAULT_ACCENT_DARK,
+        ];
+    }
+
+    /**
+     * Was gilt — jede Angabe, die fehlt, mit der Vorgabe aufgefüllt.
+     *
+     * Das druckt Block 1 des Laufs für B6 (`docs/140`); was abgelegt wird,
+     * sagt {@see self::toStored()}.
+     *
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return [

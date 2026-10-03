@@ -56,6 +56,13 @@ const props = defineProps<{
   }
 
   /*
+   * Die Vorgaben, als Platzhalter in den Feldern. Ein leeres Feld heisst „die
+   * Vorgabe" (`docs/140 §6d`); die Werte kommen vom Server, damit sie nicht ein
+   * zweites Mal hier stehen.
+   */
+  brandDefaults: { name: string; accent_light: string; accent_dark: string }
+
+  /*
    * Die gemessenen Kontraste kommen fertig vom Server.
    *
    * Wer sie im Browser mitrechnete, hätte eine zweite Fassung von
@@ -330,17 +337,22 @@ function waehleLogo(event: Event): void {
           <Section title="Name und Fusszeile">
             <label class="field">
               <span>Name des Panels</span>
+              <!--
+                Kein `required`: Ein leeres Feld heisst „die Vorgabe", und der
+                Platzhalter zeigt, welche das ist (`docs/140 §6d`).
+              -->
               <input
                 v-model="marke.name"
                 type="text"
                 maxlength="40"
                 autocomplete="organization"
-                required
+                :placeholder="props.brandDefaults.name"
               />
             </label>
 
             <p class="hint">
               Steht im Reiter des Browsers und neben dem Zeichen — solange kein Logo hinterlegt ist.
+              Ohne Eintrag gilt „{{ props.brandDefaults.name }}".
             </p>
 
             <label class="field">
@@ -362,31 +374,55 @@ function waehleLogo(event: Event): void {
             -->
             <label class="field">
               <span>Akzent im hellen Thema</span>
-              <input v-model="marke.accent_light" type="text" maxlength="7" autocomplete="off" required />
+              <input
+                v-model="marke.accent_light"
+                type="text"
+                maxlength="7"
+                autocomplete="off"
+                :placeholder="props.brandDefaults.accent_light"
+              />
             </label>
 
             <!--
               Der Ort steht neben dem Hexwert, wenn der Grund eine Tönung ist:
               Ihr Wert steht in keinem Stylesheet, der Browser mischt ihn erst
               (`docs/140 §6c`).
+
+              „Vorgabe" steht davor, wenn keine eigene Angabe gespeichert ist:
+              Gemessen wird dann die Vorgabe, und ohne das Wort läse sich die
+              Zahl neben einem leeren Feld wie die Messung von nichts. Gefragt
+              wird die gespeicherte Angabe und nicht das Feld, denn der Hinweis
+              misst, was gespeichert ist, und nicht, was gerade getippt wird.
             -->
             <p class="hint">
-              Gemessen {{ props.contrast.light.ratio.toLocaleString('de-DE') }}:1 auf
+              <template v-if="props.brandSettings.accent_light === ''">Vorgabe, gemessen</template>
+              <template v-else>Gemessen</template>
+              {{ props.contrast.light.ratio.toLocaleString('de-DE') }}:1 auf
               <span class="ident">{{ props.contrast.light.surface }}</span><template v-if="props.contrast.light.place">
                 ({{ props.contrast.light.place }})</template> — verlangt sind
               {{ props.contrast.required.toLocaleString('de-DE') }}:1. Der Akzent trägt auch Schrift.
+              <template v-if="props.brandSettings.accent_light !== ''">Ohne Eintrag gilt die Vorgabe.</template>
             </p>
 
             <label class="field">
               <span>Akzent im dunklen Thema</span>
-              <input v-model="marke.accent_dark" type="text" maxlength="7" autocomplete="off" required />
+              <input
+                v-model="marke.accent_dark"
+                type="text"
+                maxlength="7"
+                autocomplete="off"
+                :placeholder="props.brandDefaults.accent_dark"
+              />
             </label>
 
             <p class="hint">
-              Gemessen {{ props.contrast.dark.ratio.toLocaleString('de-DE') }}:1 auf
+              <template v-if="props.brandSettings.accent_dark === ''">Vorgabe, gemessen</template>
+              <template v-else>Gemessen</template>
+              {{ props.contrast.dark.ratio.toLocaleString('de-DE') }}:1 auf
               <span class="ident">{{ props.contrast.dark.surface }}</span><template v-if="props.contrast.dark.place">
                 ({{ props.contrast.dark.place }})</template>. Diese Farbe gilt auch auf
               der Anmeldeseite — sie trägt in beiden Themes einen dunklen Grund.
+              <template v-if="props.brandSettings.accent_dark !== ''">Ohne Eintrag gilt die Vorgabe.</template>
             </p>
           </Section>
 

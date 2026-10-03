@@ -42,7 +42,9 @@ entschieden, und behoben sind sie mit `0.9.0-rc.11` (`docs/140 §6a`, Abschnitt
 weiter unten). Gefahren wird er seit dem 3. Oktober gegen `rc.11`.
 Für `rc.12` gebaut sind zwei Befunde aus dem Lauf: zwei Formulare ohne Abstand
 (`docs/140 §6b`) sowie Schrift und Zeichen in der Farbe der Marke, samt einer
-Prüfung beim Speichern, die die Tönungen rechnet (`docs/140 §6c`).
+Prüfung beim Speichern, die die Tönungen rechnet (`docs/140 §6c`). Dazu ein
+Wunsch des Betreibers: Ohne Eintrag gelten für Name und Farben die Vorgaben
+(`docs/140 §6d`).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -6918,6 +6920,31 @@ gebaut wurde die Fassung, die er mit den richtigen Zahlen gewählt hat.
 
 > **Eine Zahl, auf der eine Entscheidung beruht, wird berichtigt, bevor
 > gebaut wird — sonst hat jemand etwas entschieden, das es nicht gibt.**
+
+### Ohne Eintrag gilt die Vorgabe — 3. Oktober 2026
+
+Ein Wunsch des Betreibers nach Punkt 9: Wer Name oder Farbe leert, bekommt die
+Vorgabe und muss sie nicht abschreiben. Gewählt hat er die Fassung, in der das
+Feld leer bleibt und keine Angabe abgelegt wird (`docs/140 §6d`). Dieselbe
+Regel steht in `Style::css()` für den Markenblock, hier eine Ebene tiefer:
+
+> **Ein Wert, der der Vorgabe gleicht, ist keine eigene Angabe — wer ihn als
+> Wert ablegt, hält eine zweite Fassung der Vorgabe, und die veraltet.**
+
+**Daraus folgt eine Regel für das Formular.** In die Felder gehen die eigenen
+Angaben und nicht, was gilt. Ein Feld, das die geltende Vorgabe zeigt, schickt
+sie beim nächsten Speichern als eigene Angabe zurück, etwa wenn nur ein Logo
+dazukommt.
+
+> **Ein Formular, das zeigt, was gilt, legt es beim nächsten Speichern als
+> eigene Angabe ab — und aus „die Vorgabe" wird still eine Abschrift.**
+
+**Und die Tür allein reicht nicht.** Trägt ein Feld `required`, schickt der
+Browser das leere Formular gar nicht erst ab, und die Tür bekommt den Fall nie
+zu sehen. `BrandFormTest` hält deshalb die Vorlage, `BrandReachTest` die Tür.
+
+> **Ein Wächter über die Antwort des Servers sieht nicht, was der Browser
+> vorher abweist.**
 
 ---
 

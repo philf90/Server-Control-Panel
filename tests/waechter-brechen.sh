@@ -34485,9 +34485,9 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
 s = p.read_text()
-alt = "BrandSettings::verdictLight($data['accent_light'])"
+alt = "BrandSettings::verdictLight($eingabe->accent_light)"
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, "BrandSettings::verdict($data['accent_light'], BrandSettings::SURFACES_LIGHT)", 1))
+p.write_text(s.replace(alt, "BrandSettings::verdict($eingabe->accent_light, BrandSettings::SURFACES_LIGHT)", 1))
 PY
 griff_datei app/Http/Controllers/BrandingSettingsController.php "Tuer fragt nur die Flaechen" &&
 pruefe "Tuer fragt nur die Flaechen" \
@@ -34512,7 +34512,240 @@ pruefe "Hinweis rechnet nur die Flaechen" \
   BrandReachTest::test_the_hint_beside_the_field_is_the_check_that_saving_asks failed
 wiederherstellen
 
+echo "── BrandReachTest: die Tuer verlangt wieder einen Namen ──"
+#
+# Ein leeres Feld heisst die Vorgabe (`docs/140 §6d`). Verlangt die Tuer den
+# Namen wieder, muss der Betreiber die Vorgabe abschreiben.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "'name' => ['nullable', 'string', 'max:40'],"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'name' => ['required', 'string', 'max:40'],", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "Name wieder Pflicht" &&
+pruefe "Name wieder Pflicht" \
+  BrandReachTest::test_an_empty_field_means_the_default failed
+wiederherstellen
+
+echo "── BrandReachTest: die Tuer verlangt wieder eine helle Farbe ──"
+#
+# Dasselbe fuer den hellen Akzent: Jede der drei Regeln kann einzeln
+# zurueckfallen.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "'accent_light' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/D'],"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'accent_light' => ['required', 'string', 'regex:/^#[0-9a-fA-F]{6}$/D'],", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "helle Farbe wieder Pflicht" &&
+pruefe "helle Farbe wieder Pflicht" \
+  BrandReachTest::test_an_empty_field_means_the_default failed
+wiederherstellen
+
+echo "── BrandReachTest: die Tuer verlangt wieder eine dunkle Farbe ──"
+#
+# Und fuer den dunklen.
+vorher_datei app/Http/Controllers/BrandingSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/BrandingSettingsController.php')
+s = p.read_text()
+alt = "'accent_dark' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/D'],"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'accent_dark' => ['required', 'string', 'regex:/^#[0-9a-fA-F]{6}$/D'],", 1))
+PY
+griff_datei app/Http/Controllers/BrandingSettingsController.php "dunkle Farbe wieder Pflicht" &&
+pruefe "dunkle Farbe wieder Pflicht" \
+  BrandReachTest::test_an_empty_field_means_the_default failed
+wiederherstellen
+
+echo "── BrandReachTest: ein leeres Feld faellt nicht auf die Vorgabe ──"
+#
+# Bleibt der leere Name leer, steht er als eigene Angabe in der Ablage — und
+# im Reiter steht nichts.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = "name: self::text($form['name'] ?? null, self::DEFAULT_NAME),"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "name: trim((string) ($form['name'] ?? '')),", 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "leerer Name ohne Vorgabe" &&
+pruefe "leerer Name ohne Vorgabe" \
+  BrandReachTest::test_an_empty_field_means_the_default failed
+wiederherstellen
+
+echo "── BrandReachTest: die Ablage schreibt wieder die Abschrift der Vorgabe ──"
+#
+# Eine abgelegte Vorgabe ist eine zweite Fassung von ihr: Aendert eine spaetere
+# Fassung die Vorgabe, bliebe das Panel bei der alten stehen.
+vorher_datei app/Support/Settings/Settings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/Settings.php')
+s = p.read_text()
+alt = "['value' => $settings->toStored()]"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "['value' => $settings->toArray()]", 1))
+PY
+griff_datei app/Support/Settings/Settings.php "Ablage mit Abschrift der Vorgabe" &&
+pruefe "Ablage mit Abschrift der Vorgabe" \
+  BrandReachTest::test_an_empty_field_means_the_default failed
+wiederherstellen
+
+echo "── BrandReachTest: eine eingetippte Vorgabe zaehlt als eigene Angabe ──"
+#
+# Wer die Vorgabe eintippt, hat dasselbe gesagt wie ein leeres Feld. Ohne den
+# Vergleich wird daraus eine Abschrift.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = "'name' => $this->name === self::DEFAULT_NAME ? null : $this->name,"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'name' => $this->name,", 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "eingetippte Vorgabe als eigene Angabe" &&
+pruefe "eingetippte Vorgabe als eigene Angabe" \
+  BrandReachTest::test_a_default_typed_by_hand_is_no_own_value failed
+wiederherstellen
+
+echo "── BrandReachTest: die Vorgabe in Grossbuchstaben bleibt eine eigene Angabe ──"
+#
+# `#3730A3` und `#3730a3` sind derselbe Wert — aber nur, wenn vor dem Vergleich
+# kleingeschrieben wird.
+vorher_datei app/Support/Settings/BrandSettings.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Settings/BrandSettings.php')
+s = p.read_text()
+alt = "accent_light: strtolower(self::text($form['accent_light'] ?? null, self::DEFAULT_ACCENT_LIGHT)),"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "accent_light: self::text($form['accent_light'] ?? null, self::DEFAULT_ACCENT_LIGHT),", 1))
+PY
+griff_datei app/Support/Settings/BrandSettings.php "Grossbuchstaben ohne Kleinschreibung" &&
+pruefe "Grossbuchstaben ohne Kleinschreibung" \
+  BrandReachTest::test_a_default_typed_by_hand_is_no_own_value failed
+wiederherstellen
+
+echo "── BrandReachTest: das Formular zeigt wieder, was gilt ──"
+#
+# Steht im Feld der Wert, der gilt, schickt das naechste Speichern ihn als
+# eigene Angabe zurueck.
+vorher_datei app/Http/Controllers/GeneralSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/GeneralSettingsController.php')
+s = p.read_text()
+alt = "'name' => $eigen['name'] ?? '',"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, "'name' => $marke->name,", 1))
+PY
+griff_datei app/Http/Controllers/GeneralSettingsController.php "Formular zeigt, was gilt" &&
+pruefe "Formular zeigt, was gilt" \
+  BrandReachTest::test_the_form_shows_the_own_value_and_leaves_the_default_empty failed
+wiederherstellen
+
+echo "── BrandReachTest: das Formular kennt die Vorgaben nicht ──"
+#
+# Ohne die Vorgaben hat das leere Feld keinen Platzhalter und sagt nicht, was
+# dann gilt.
+vorher_datei app/Http/Controllers/GeneralSettingsController.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Http/Controllers/GeneralSettingsController.php')
+s = p.read_text()
+alt = "            'brandDefaults' => BrandSettings::defaults(),\n"
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei app/Http/Controllers/GeneralSettingsController.php "Formular ohne Vorgaben" &&
+pruefe "Formular ohne Vorgaben" \
+  BrandReachTest::test_the_form_shows_the_own_value_and_leaves_the_default_empty failed
+wiederherstellen
+
 pruefe "  … zurückgesetzt wieder grün" BrandReachTest passed
+
+echo "── BrandFormTest: das Namensfeld verlangt wieder einen Wert ──"
+#
+# Traegt das Feld required, schickt der Browser ein leeres Formular gar nicht
+# ab, und die Tuer bekommt den Fall nie zu sehen.
+vorher_datei resources/js/Pages/Settings/General.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Settings/General.vue')
+s = p.read_text()
+alt = '                :placeholder="props.brandDefaults.name"\n              />'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '                :placeholder="props.brandDefaults.name"\n                required\n              />', 1))
+PY
+griff_datei resources/js/Pages/Settings/General.vue "Namensfeld required" &&
+pruefe "Namensfeld required" \
+  BrandFormTest::test_no_field_requires_a_value failed
+wiederherstellen
+
+echo "── BrandFormTest: ein gebundenes required zaehlt mit ──"
+#
+# Dasselbe in der gebundenen Form, am dunklen Akzent.
+vorher_datei resources/js/Pages/Settings/General.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Settings/General.vue')
+s = p.read_text()
+alt = '                :placeholder="props.brandDefaults.accent_dark"\n              />'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '                :placeholder="props.brandDefaults.accent_dark"\n                :required="true"\n              />', 1))
+PY
+griff_datei resources/js/Pages/Settings/General.vue "gebundenes required" &&
+pruefe "gebundenes required" \
+  BrandFormTest::test_no_field_requires_a_value failed
+wiederherstellen
+
+echo "── BrandFormTest: die helle Farbe zeigt ihre Vorgabe nicht ──"
+#
+# Ohne Platzhalter sagt das leere Feld nicht, welche Vorgabe dann gilt.
+vorher_datei resources/js/Pages/Settings/General.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Settings/General.vue')
+s = p.read_text()
+alt = '                :placeholder="props.brandDefaults.accent_light"\n'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, '', 1))
+PY
+griff_datei resources/js/Pages/Settings/General.vue "heller Akzent ohne Platzhalter" &&
+pruefe "heller Akzent ohne Platzhalter" \
+  BrandFormTest::test_every_field_shows_its_default_as_placeholder failed
+wiederherstellen
+
+echo "── BrandFormTest: das Feld heisst anders, und der Waechter sieht es nicht mehr ──"
+#
+# Die Untergrenze: Ein umbenanntes Feld darf den Waechter nicht still gruen
+# lassen.
+vorher_datei resources/js/Pages/Settings/General.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Settings/General.vue')
+s = p.read_text()
+alt = 'v-model="marke.name"'
+assert s.count(alt) == 1
+p.write_text(s.replace(alt, 'v-model="marke.panelName"', 1))
+PY
+griff_datei resources/js/Pages/Settings/General.vue "umbenanntes Feld" &&
+pruefe "umbenanntes Feld" \
+  BrandFormTest::test_every_field_is_found_once failed
+wiederherstellen
+
+pruefe "  … zurückgesetzt wieder grün" BrandFormTest passed
 
 echo "── BrandNameTest: der Reiter hat wieder ein festes Wort ──"
 #

@@ -1103,3 +1103,110 @@ Dazu am Bild: „Angemeldet bleiben", Name und Zeichen auf der Anmeldeseite in
 Mint, und in der Leiste ohne Logo der obere Balken des Zeichens ebenfalls.
 Die Prüffarben des Laufs bleiben gültig, `#0b6e4f` mit 5,13:1 und `#6ee7b7`
 mit 8,59:1.
+
+## §6d · Ein Wunsch nach dem Lauf: Ohne Eintrag gilt die Vorgabe
+
+Geäussert vom Betreiber am 3. Oktober 2026, nach Punkt 9:
+
+> „Die ursprünglichen Werte, auch unter Punkt 9 Schritt 1 gelistet, sollten
+> immer der Default sein. Wenn die geänderten Werte entfernt werden und die
+> Input Felder leer bleiben, muss immer der Default geladen werden."
+
+**Bis dahin ging das nicht.** Name und beide Akzente trugen `required`, im
+Formular und in der Prüfung der Tür. Ein leeres Feld schickte der Browser gar
+nicht erst ab; in Punkt 9 wurden die Vorgaben deshalb von Hand eingetippt.
+Fusszeile und Logo gingen schon zurück: Die Fusszeile ist ohne Eintrag leer,
+und für das Logo gibt es „Logo entfernen".
+
+**Entschieden vom Betreiber am selben Tag, aus zwei Fassungen:**
+
+| | gewählt: das Feld bleibt leer | verworfen: die Vorgabe wird eingetragen |
+|---|---|---|
+| im Feld nach dem Speichern | nichts, die Vorgabe grau als Platzhalter | die Vorgabe als Wert |
+| in der Ablage | keine Angabe, `null` | eine Abschrift der Vorgabe |
+| eine spätere Fassung ändert die Vorgabe | das Panel folgt ihr | das Panel bleibt bei der alten |
+
+Eine eingetippte Vorgabe zählt ebenso als keine Angabe, auch in
+Grossbuchstaben.
+
+> **Ein Wert, der der Vorgabe gleicht, ist keine eigene Angabe — wer ihn als
+> Wert ablegt, hält eine zweite Fassung der Vorgabe, und die veraltet.**
+
+Dieselbe Regel steht seit B6 in `Style::css()` für den Markenblock: Bei den
+Vorgabewerten gibt es keinen. Hier gilt sie eine Ebene tiefer, in der Ablage.
+
+### Gebaut für `0.9.0-rc.12`
+
+- `BrandSettings::fromForm()` macht aus dem Formular die Marke, die gilt: Ein
+  leeres Feld wird die Vorgabe, eine Farbe wird kleingeschrieben. `own()` sagt,
+  was davon eigene Angabe ist, und ein Wert, der der Vorgabe gleicht, ist es
+  nicht. `toStored()` legt nur die eigenen Angaben ab und für die Vorgabe
+  `null`; `Settings::saveBrand()` speichert genau das. `toArray()` bleibt, was
+  gilt, und das druckt Block 1.
+- Die Tür nimmt ein leeres Feld an, `nullable` statt `required`, und rechnet
+  die Farbe, die gelten wird.
+- Die Seite bekommt die eigenen Angaben, leer für die Vorgabe, und daneben die
+  Vorgaben selbst. Stünde im Feld der Wert, der gilt, schickte das nächste
+  Speichern ihn als eigene Angabe zurück, etwa wenn nur ein Logo dazukommt.
+- Die drei Felder tragen kein `required` mehr und zeigen die Vorgabe als
+  Platzhalter. Der Hinweis unter einer Farbe beginnt mit „Vorgabe, gemessen …",
+  wenn keine eigene Angabe gespeichert ist, und endet sonst mit „Ohne Eintrag
+  gilt die Vorgabe.". Unter dem Namen steht „Ohne Eintrag gilt „SrvPanel"."
+- Die Wächter: `BrandReachTest` misst durch die Tür, dass ein leeres Feld die
+  Vorgabe wird, bis in die Ablage und bis auf die Anmeldeseite, dass eine
+  eingetippte Vorgabe in Grossbuchstaben keine eigene Angabe ist, und was das
+  Formular bekommt. Gegen den Code von vorher sind alle drei Fälle rot.
+  `BrandFormTest` hält die Vorlage: kein `required` an den drei Feldern, auch
+  kein gebundenes, und einen Platzhalter aus den Vorgaben des Servers. Gegen
+  die Vorlage von vorher sind zwei seiner drei Fälle rot; der dritte ist seine
+  Untergrenze.
+- Im Bruchskript 13 neue Eingriffe und ein nachgezogener Anker. Gefahren mit
+  allen Eingriffen an den fünf berührten Dateien: 38 von 38 beissen, dazu
+  einer mit zwei Blöcken von Hand.
+
+### Nachgemessen
+
+Im Chromium gegen den gebauten Stand, angemeldet mit dem Wegwerfkonto aus §6a.
+Vorher stand eine eigene Marke da (`Muster Hosting`, `#0b6e4f`, `#6ee7b7`);
+dann sind die drei Felder geleert und gespeichert worden.
+
+| | vorher | nach dem Speichern |
+|---|---|---|
+| Feld Name | `Muster Hosting`, Platzhalter `SrvPanel` | leer, Platzhalter `SrvPanel` |
+| Feld hell | `#0b6e4f`, Platzhalter `#3730a3` | leer, Platzhalter `#3730a3` |
+| Feld dunkel | `#6ee7b7`, Platzhalter `#ff7fec` | leer, Platzhalter `#ff7fec` |
+| Hinweis hell | `Gemessen 5,13:1 auf #ede8e0 (der Tönung einer Warnung)` … `Ohne Eintrag gilt die Vorgabe.` | `Vorgabe, gemessen 8,15:1 auf #ede8e0 (der Tönung einer Warnung)` … |
+| Hinweis dunkel | `Gemessen 8,59:1 auf #213433 (ihrer eigenen Tönung, wie in einem aktiven Knopf)` … | `Vorgabe, gemessen 6,27:1 auf #1d302f (der Tönung einer Erfolgsmeldung)` … |
+| Reiter | `Allgemein · Muster Hosting` | `Allgemein · SrvPanel` |
+| Markenblock im Kopf | ja | nein |
+| Ablage | `"name":"Muster Hosting"` … | `"name":null,"accent_light":null,"accent_dark":null` |
+
+Danach steht „Die Marke ist gespeichert." da, und die Fusszeile bleibt, wie sie
+war. Bei 390 px ist `dokument=0`.
+
+**Was offen bleibt.** Was vor `rc.12` gespeichert wurde, trägt die Vorgabe als
+Wert, auf `cloudsrv24` seit Punkt 9. Das Formular zeigt solche Felder trotzdem
+leer, denn gefragt wird, ob der Wert der Vorgabe gleicht. In der Ablage wird
+daraus beim nächsten Speichern keine Angabe. Ändert eine spätere Fassung die
+Vorgabe vorher, braucht sie eine Migration, die die alte Vorgabe kennt; bis
+dahin lässt sich eine solche Zeile von einer eigenen Angabe nicht
+unterscheiden.
+
+### Für den Nachlauf
+
+- Punkt 9 geht gegen `rc.12` ohne Abschreiben: Name, beide Farben und die
+  Fusszeile leeren, speichern. Block 1 druckt danach dieselbe Marke wie vor
+  dem Lauf, denn `toArray()` gibt aus, was gilt.
+- Was abgelegt ist, zeigt eine Zeile mehr:
+
+  ```bash
+  srvpanel tinker --execute='echo json_encode(App\Models\Setting::query()->where("key", "brand")->first()?->value, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES), PHP_EOL;'
+  ```
+
+  Erwartet nach dem Leeren:
+  `{"name":null,"accent_light":null,"accent_dark":null,"footer":"","logo":null}`.
+  Vor dem ersten Speichern unter `rc.12` steht dort noch die Abschrift aus
+  Punkt 9, und die Felder zeigen trotzdem leer.
+- Die Hinweise mit der Vorgabe: hell
+  `Vorgabe, gemessen 8,15:1 auf #ede8e0 (der Tönung einer Warnung)`, dunkel
+  `Vorgabe, gemessen 6,27:1 auf #1d302f (der Tönung einer Erfolgsmeldung)`.

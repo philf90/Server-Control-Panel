@@ -39,7 +39,9 @@ nachgesehen (`docs/139 §9`, Abschnitt weiter unten). Der Lauf für B6 ist
 `docs/140`, ausgeschrieben am 1. Oktober vor dem Fahren. Beim Ausschreiben
 fielen sechs Befunde am Prüfling heraus. Der Betreiber hat sie am selben Tag
 entschieden, und behoben sind sie mit `0.9.0-rc.11` (`docs/140 §6a`, Abschnitt
-weiter unten).
+weiter unten). Gefahren wird er seit dem 3. Oktober gegen `rc.11`;
+ein Befund aus dem Lauf, zwei Formulare ohne Abstand, ist für `rc.12` gebaut
+(`docs/140 §6b`).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -6852,6 +6854,25 @@ brach ab, und der Eingriff meldete „nichts geändert".
 > gefahren — man denkt an das Gebaute und nicht an das Berührte.** Zu den
 > geänderten Dateien gehören die Tests, und wer einen Helfer aus einem
 > bestehenden Fall herauszieht, verdoppelt dessen Zeilen.
+
+### Ein Befund aus dem Lauf — 3. Oktober 2026
+
+Bei Punkt 1 hat der Betreiber auf dem Telefon gesehen, dass auf
+`/settings/general` der Knopf „Speichern" an der Überschrift „Name und
+Fusszeile" klebt. Gemessen sind es 0 px, bei 390 und bei 1440 px. B6 hatte das
+zweite Formular unter das erste gesetzt, ohne die Hülle `.sections`, die
+`app.css` für genau diesen Fall vorsieht (`docs/140 §6b`).
+
+**Der Wächter dafür war da und hat geschwiegen.** `BlockSpacingTest` findet
+die Fuge `form + form`, und in seiner Liste offener Fugen stand sie schon, für
+die Datenbankseite. Ein Eintrag galt jeder Vorlage, in der das Paar vorkommt.
+Seitdem nennt jeder Eintrag seine Vorlagen.
+
+> **Eine Ausnahme, die für ein Paar gilt, gilt an jeder Stelle, an der das
+> Paar vorkommt — auch an der nächsten, die niemand angesehen hat.**
+
+Wer eine Ausnahmeliste führt, bindet jeden Eintrag an den Ort, an dem jemand
+ihn gezählt hat.
 
 ---
 

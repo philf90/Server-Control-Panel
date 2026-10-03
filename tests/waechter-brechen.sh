@@ -9699,6 +9699,74 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
 
 echo
+echo "── BlockSpacingTest: zwei Formulare ohne Hülle auf der Seite Allgemein ──"
+#
+# Der Befund vom 3. Oktober 2026 (docs/140): B6 hat ein zweites Formular unter
+# das erste gesetzt, ohne `.sections` darum, und „Speichern" stand auf 0 px an
+# „Name und Fusszeile". Der Wächter hat damals geschwiegen, weil `form + form`
+# in OPEN_SEAMS für die Datenbankseite stand und dort für jede Vorlage galt.
+#
+# Der Eingriff nimmt der Hülle ihre Klasse. Ein `<div>` ohne Klasse reicht die
+# Kanten seiner Kinder durch, im Browser wie im Wächter. Gegen den Wächter von
+# vorher gefahren bleibt er grün; das ist die Blindheit, die B6 durchgelassen
+# hat.
+vorher_datei resources/js/Pages/Settings/General.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/General.vue'
+s = open(p, encoding='utf-8').read()
+alt = '    <div class="sections">\n      <form class="form" @submit.prevent="submit">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '    <div>\n      <form class="form" @submit.prevent="submit">', 1))
+PY2
+griff_datei resources/js/Pages/Settings/General.vue "zwei Formulare ohne Huelle" &&
+pruefe "zwei Formulare ohne Huelle" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
+echo "── BlockSpacingTest: eine offene Fuge nennt eine Vorlage, in der sie nicht vorkommt ──"
+#
+# Die Sperrklinke je Vorlage. Seit dem 3. Oktober nennt jeder Eintrag in
+# OPEN_SEAMS die Vorlagen, in denen seine Fuge steht. Der Eingriff trägt die
+# Seite Allgemein wieder bei `form + form` ein — genau die Zeile, mit der eine
+# Ausnahme den Befund hätte zudecken können, nachdem er behoben ist.
+vorher_datei tests/Feature/BlockSpacingTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/BlockSpacingTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'form + form' => [\n            'resources/js/Pages/Databases/Show.vue',\n        ],"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = alt.replace("Show.vue',", "Show.vue',\n            'resources/js/Pages/Settings/General.vue',", 1)
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Feature/BlockSpacingTest.php "Fuge fuer eine Vorlage ohne sie" &&
+pruefe "Fuge fuer eine Vorlage ohne sie" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+
+echo
+echo "── BlockSpacingTest: ein Eintrag ohne Vorlage ──"
+#
+# Ein Eintrag mit leerer Liste gilt nirgends, und keine der beiden Richtungen
+# fragt ihn: Die erste sucht die gefundenen Fugen in der Liste, die zweite die
+# genannten Vorlagen in den Funden. Ohne eigene Frage stünde er da wie ein
+# gezähltes Loch.
+vorher_datei tests/Feature/BlockSpacingTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/BlockSpacingTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "    private const OPEN_SEAMS = [\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt + "        'nie + da' => [],\n", 1))
+PY2
+griff_datei tests/Feature/BlockSpacingTest.php "Eintrag ohne Vorlage" &&
+pruefe "Eintrag ohne Vorlage" \
+  BlockSpacingTest::test_every_seam_between_two_flush_blocks_is_covered failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
 echo "── MobileLayoutTest: eine Wertzelle, die nicht brechen darf ──"
 #
 # Die Messung war grün und die Ansicht kaputt: Eine bei 512 Zeichen gekürzte
@@ -26857,8 +26925,8 @@ vorher_datei resources/js/Pages/Settings/General.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Settings/General.vue'
 s = open(p, encoding='utf-8').read()
-alt = "              <td class=\"right\">{{ props.time.service }}</td>"
-neu = "              <td class=\"right\">{{ props.time.service || 'kein Zeitdienst installiert' }}</td>"
+alt = "                <td class=\"right\">{{ props.time.service }}</td>"
+neu = "                <td class=\"right\">{{ props.time.service || 'kein Zeitdienst installiert' }}</td>"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
 PY2

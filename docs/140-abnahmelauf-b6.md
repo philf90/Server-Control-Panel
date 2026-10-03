@@ -901,3 +901,70 @@ daraus macht: mit Logo die Überschrift „Muster Hosting" mit dem Bild
 Gegenprobe auf derselben Seite setzt das alte Markup des Zeichens
 (`role="img"`, `aria-label="SrvPanel"`) im Browser; dann heisst dieselbe
 Überschrift „SrvPanel Muster Hosting".
+
+---
+
+## §6b · Ein Befund aus dem Lauf: zwei Formulare ohne Abstand
+
+Gefunden am 3. Oktober 2026 bei Punkt 1, auf dem Telefon, gemeldet vom
+Betreiber: Auf `/settings/general` steht der Knopf „Speichern" des ersten
+Formulars unmittelbar an der Überschrift „Name und Fusszeile" des zweiten.
+Das Kriterium fragt nicht danach, die Seite gehört trotzdem zu B6: Das zweite
+Formular steht dort seit B6.
+
+**Gemessen im Chromium**, gegen den gebauten Stand im Container und mit der
+Wegwerf-Datenbank aus §6a, je Lage frisch geladen:
+
+| | 390 px | 1440 px |
+|---|---|---|
+| Fuge zwischen den beiden Formularen, `0.9.0-rc.11` | 0 px | 0 px |
+| dieselbe Fuge mit der Behebung | 26 px | 30 px |
+| zum Vergleich: `gap` von `.form` zwischen zwei Bereichen | 26 px | 30 px |
+
+Der Abstand fehlt also auch bei 1440 px. Auf dem Telefon fällt er auf, weil
+der Knopf dort die ganze Breite nimmt.
+
+**Die Ursache steht in `app.css`, über `.sections > .form`.** Zwei Formulare
+als Geschwister unter `main` stehen auf 0 px: Den Abstand zwischen Bereichen
+gibt der jeweilige Behälter an seine Kinder, und zwei Formulare sind
+niemandes Kinder. Die Antwort steht in derselben Regel, eine Hülle `.sections`
+um beide. Die Seiten der Konten und des Zugangs tragen sie, die Seite
+„Allgemein" bekam ihr zweites Formular ohne sie.
+
+**Und der Wächter dafür hat geschwiegen.** `BlockSpacingTest` findet genau
+diese Fuge, `form + form`. In seiner Liste offener Fugen stand sie aber
+schon, für die Datenbankseite, und ein Eintrag galt jeder Vorlage, in der das
+Paar vorkommt. Gegen die alte Seite gefahren ist der alte Wächter grün und
+der neue rot.
+
+> **Eine Ausnahme, die für ein Paar gilt, gilt an jeder Stelle, an der das
+> Paar vorkommt — auch an der nächsten, die niemand angesehen hat.**
+
+**Gebaut für `0.9.0-rc.12`:**
+
+- Die Seite fasst beide Formulare in `.sections` ein. Eingerückt ist dabei der
+  ganze Inhalt der Hülle; ohne Leerzeichen gelesen sind es 14 neue Zeilen.
+- `BlockSpacingTest` bindet jede offene Fuge an die Vorlagen, in denen sie
+  steht, 22 Paare an 52 Stellen. Eine neue Stelle ist rot, auch wenn das Paar
+  anderswo schon eingetragen ist, und eine genannte Stelle ohne die Fuge
+  ebenfalls.
+- Drei neue Eingriffe im Bruchskript: die Hülle ohne Klasse, eine Vorlage zu
+  viel in einem Eintrag, ein Eintrag ohne Vorlage. Gefahren mit allen
+  Eingriffen, die eine der beiden Dateien anfassen oder `BlockSpacingTest`
+  zum Ziel haben: 15 von 15 beissen. Der Eingriff von `NtpVerdictTest` an
+  dieser Seite brauchte zwei Leerzeichen mehr in seinem Anker.
+
+Die Datenbankseite trägt `form + form` weiter, und dort bleibt es eine
+gezählte offene Fuge. Ob sie zu eng steht, entscheidet ein Blick und keine
+Regel.
+
+**Nachgemessen** in vier Lagen, 390 und 1440 px in beiden Themen:
+`dokument=0`, Gegenprobe 200, die Fuge wie in der Tabelle. Eine Zeile meldet
+`schiebt=1`. Das ist das Feld der Fusszeile, dessen Text in der
+Wegwerf-Datenbank länger ist als das Feld; vor der Behebung steht dieselbe
+Zeile mit denselben 279 und 59 px da.
+
+**Für den Lauf heisst das:** Er geht gegen `0.9.0-rc.11` weiter, denn kein
+Punkt hängt an dieser Fuge. Gesehen wird die Behebung danach gegen
+`0.9.0-rc.12`, mit einem Bild von `/settings/general` bei 390 px an der
+Stelle zwischen den beiden Formularen.

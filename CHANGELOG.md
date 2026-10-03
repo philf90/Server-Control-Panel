@@ -33692,3 +33692,30 @@ bleibt liegen" fand seinen Anker zweimal, weil der neue Helfer in
 hängt. Dem Einzellauf davor waren die Testdateien nicht mitgegeben worden. Der
 Fall benutzt jetzt den Helfer, und der Eingriff beisst. Was er mit Absicht
 liegen lässt, räumt das Bruchskript danach ab.
+
+### Der Lauf für B6 hat begonnen — und auf „Allgemein" klebte „Speichern" an der Marke
+
+**Gefahren ab dem 3. Oktober 2026 gegen `0.9.0-rc.11`.** Block 1 und Punkt 1
+stimmen: Die Farbe `#2f8f5b` wird mit „Diese Farbe erreicht auf #fafafb nur
+3,87:1" abgewiesen.
+
+**Gemeldet hat der Betreiber dabei einen Befund am Bild**, auf dem Telefon.
+Auf `/settings/general` stand „Speichern" unmittelbar an der Überschrift
+„Name und Fusszeile". Gemessen sind es 0 px, bei 390 und bei 1440 px. B6 hat
+das zweite Formular unter das erste gesetzt, ohne die Hülle `.sections`, die
+`app.css` für zwei Formulare auf einer Seite vorsieht. Mit ihr sind es 26 und
+30 px, so viel wie zwischen zwei Bereichen eines Formulars.
+
+**Der Wächter dafür war da und hat geschwiegen.** `BlockSpacingTest` findet
+die Fuge `form + form`. In seiner Liste offener Fugen stand sie schon, für die
+Datenbankseite, und ein Eintrag galt jeder Vorlage, in der das Paar vorkommt.
+Seitdem nennt jeder Eintrag seine Vorlagen. Gegen die alte Seite ist der alte
+Wächter grün und der neue rot.
+
+> **Eine Ausnahme, die für ein Paar gilt, gilt an jeder Stelle, an der das
+> Paar vorkommt — auch an der nächsten, die niemand angesehen hat.**
+
+Drei neue Eingriffe halten das, und gefahren sind alle 15 Eingriffe an den
+berührten Dateien und am Wächter. Einer davon, der von `NtpVerdictTest`,
+brauchte zwei Leerzeichen mehr in seinem Anker, weil die Hülle die Seite
+eingerückt hat (`docs/140 §6b`).

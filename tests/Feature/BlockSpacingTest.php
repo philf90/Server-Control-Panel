@@ -165,11 +165,39 @@ final class BlockSpacingTest extends TestCase
      * > **Eine Zahl, die kleiner wird, weil der Zähler richtig zählt, ist keine
      * > Verbesserung — sie ist die Berichtigung einer Behauptung.**
      *
-     * @var list<string>
+     * ## Seit dem 3. Oktober 2026 gilt eine Fuge nur dort, wo sie steht
+     *
+     * Bis dahin war ein Eintrag ein Paar, und er galt jeder Vorlage, in der das
+     * Paar vorkommt. B6 hat am 21. September ein zweites Formular auf
+     * `/settings/general` gesetzt, ohne die Hülle `.sections`, die `app.css`
+     * dafür vorsieht. „Speichern" stand danach auf 0 px an der Überschrift
+     * „Name und Fusszeile", bei 390 und bei 1440 px. Gemeldet hat es der
+     * Betreiber auf dem Telefon, im Lauf für B6 (`docs/140`). Dieser Wächter
+     * hat dazu geschwiegen, weil `form + form` hier schon für die Datenbankseite
+     * stand.
+     *
+     * > **Eine Ausnahme, die für ein Paar gilt, gilt an jeder Stelle, an der
+     * > das Paar vorkommt — auch an der nächsten, die niemand angesehen hat.**
+     *
+     * Jeder Eintrag nennt deshalb die Vorlagen, in denen die Fuge steht. Eine
+     * neue Stelle ist rot, auch wenn das Paar anderswo schon dasteht, und eine
+     * genannte Stelle, an der es nicht mehr vorkommt, ist es ebenfalls. Erst
+     * damit hält die Liste, was ihr Kopf sagt: Neue Fugen kommen hier nicht
+     * dazu.
+     *
+     * @var array<string, list<string>>
      */
     private const OPEN_SEAMS = [
-        'arrow + label',
-        'button + button',
+        'arrow + label' => [
+            'resources/js/Pages/Databases/Console.vue',
+        ],
+        'button + button' => [
+            'resources/js/Pages/Customers/Show.vue',
+            'resources/js/Pages/Domains/Logs.vue',
+            'resources/js/Pages/Domains/Show.vue',
+            'resources/js/Pages/Settings/Notices.vue',
+            'resources/js/Pages/Subscriptions/Show.vue',
+        ],
 
         /*
          * **Zwei Feldreihen kleben nicht — der Abstand sitzt in ihren
@@ -185,10 +213,16 @@ final class BlockSpacingTest extends TestCase
          * > **Eine Fuge zwischen zwei Blöcken misst nicht, was der Leser als
          * > Abstand sieht — wenn den die Kinder tragen.**
          */
-        'field-row + field-row',
+        'field-row + field-row' => [
+            'resources/js/Components/AnnouncementForm.vue',
+        ],
 
-        'button-row + button',
-        'button-row + form',
+        'button-row + button' => [
+            'resources/js/Pages/Files/Index.vue',
+        ],
+        'button-row + form' => [
+            'resources/js/Pages/Databases/Show.vue',
+        ],
         /*
          * **Eine Brotkrume ist kein Block.** `<Link class="link">Kunden</Link> ·
          * <span class="ident">…</span>` steht in `Customers/Show.vue` und
@@ -203,7 +237,10 @@ final class BlockSpacingTest extends TestCase
          * > **Ein Wächter mit einem Zählfehler meldet nicht zu viel, sondern das
          * > Falsche — und schweigt über das Richtige.**
          */
-        'link + ident',
+        'link + ident' => [
+            'resources/js/Pages/Customers/Show.vue',
+            'resources/js/Pages/Operations/Show.vue',
+        ],
         /*
          * **`quiet + link` stand hier bis zum 8. September 2026 und war nie eine
          * Fuge.**
@@ -223,13 +260,40 @@ final class BlockSpacingTest extends TestCase
          * > bekanntes Loch — und verschwindet erst, wenn jemand den Leser
          * > berichtigt.**
          */
-        'form + form',
-        'field + field-row',
-        'hint + field-row',
-        'hint + form',
-        'scrolls + form',
-        'ident + ident',
-        'ident + notice',
+        'form + form' => [
+            'resources/js/Pages/Databases/Show.vue',
+        ],
+        'field + field-row' => [
+            'resources/js/Components/AnnouncementForm.vue',
+            'resources/js/Pages/Customers/Edit.vue',
+            'resources/js/Pages/Settings/Mail.vue',
+        ],
+        'hint + field-row' => [
+            'resources/js/Pages/Customers/Create.vue',
+            'resources/js/Pages/Customers/Edit.vue',
+        ],
+        'hint + form' => [
+            'resources/js/Pages/Databases/Console.vue',
+            'resources/js/Pages/Databases/Show.vue',
+        ],
+        'scrolls + form' => [
+            'resources/js/Pages/Databases/Show.vue',
+        ],
+        'ident + ident' => [
+            'resources/js/Pages/Databases/Create.vue',
+            'resources/js/Pages/Databases/Show.vue',
+            'resources/js/Pages/Overview.vue',
+            'resources/js/Pages/Schedules/Index.vue',
+            'resources/js/Pages/Settings/Access.vue',
+            'resources/js/Pages/Settings/Database.vue',
+            'resources/js/Pages/Settings/Profile.vue',
+            'resources/js/Pages/Subscriptions/Cron.vue',
+            'resources/js/Pages/Subscriptions/Sftp.vue',
+            'resources/js/Pages/Subscriptions/Show.vue',
+        ],
+        'ident + notice' => [
+            'resources/js/Pages/Subscriptions/Cron.vue',
+        ],
         /*
          * ## Sechs Fugen, die dieser Wächter am 19. August zum ersten Mal sah
          *
@@ -254,21 +318,51 @@ final class BlockSpacingTest extends TestCase
          * wo `td .quiet` mit `display: block` und `margin-top: 3px` den Abstand
          * macht — dieselbe Sorte Scheinfuge wie `cell-name + ident` darüber.
          */
-        'output + quiet',
-        'badge + quiet',
-        'link + quiet',
-        'field + quiet',
-        'quiet + quiet',
+        'output + quiet' => [
+            'resources/js/Pages/Subscriptions/CronRuns.vue',
+        ],
+        'badge + quiet' => [
+            'resources/js/Pages/Subscriptions/CronRuns.vue',
+        ],
+        'link + quiet' => [
+            'resources/js/Pages/Files/Index.vue',
+        ],
+        'field + quiet' => [
+            'resources/js/Pages/Files/Edit.vue',
+        ],
+        'quiet + quiet' => [
+            'resources/js/Pages/Diagnose/Index.vue',
+            'resources/js/Pages/Settings/Php.vue',
+            'resources/js/Pages/Subscriptions/CronRuns.vue',
+        ],
         /*
          * **Zwei Fugen, die nie zu diesem Lauf gehörten.** Sie standen schon
          * vorher hier; die Umstellung hat sie kurz gedeckt und dann wieder
          * freigegeben, weil die Regel darüber auf die drei gemessenen Fälle
          * verengt wurde.
          */
-        'leaf + leaf',
-        'link + link',
-        'toggle + choices',
-        'toggle + dependent',
+        'leaf + leaf' => [
+            'resources/js/Pages/Databases/Console.vue',
+        ],
+        'link + link' => [
+            'resources/js/Pages/Customers/Edit.vue',
+            'resources/js/Pages/Databases/Console.vue',
+            'resources/js/Pages/Databases/Create.vue',
+            'resources/js/Pages/Databases/Show.vue',
+            'resources/js/Pages/Domains/Create.vue',
+            'resources/js/Pages/Domains/Logs.vue',
+            'resources/js/Pages/Domains/Show.vue',
+            'resources/js/Pages/Operations/Show.vue',
+            'resources/js/Pages/Subscriptions/CronRuns.vue',
+            'resources/js/Pages/Subscriptions/Edit.vue',
+            'resources/js/Pages/Subscriptions/Show.vue',
+        ],
+        'toggle + choices' => [
+            'resources/js/Pages/Subscriptions/Edit.vue',
+        ],
+        'toggle + dependent' => [
+            'resources/js/Pages/Subscriptions/Edit.vue',
+        ],
     ];
 
     /**
@@ -1192,28 +1286,41 @@ final class BlockSpacingTest extends TestCase
             }
         }
 
+        /*
+         * **Gefragt wird je Vorlage und nicht je Paar** (3. Oktober 2026). Ein
+         * Paar, das in OPEN_SEAMS für eine andere Seite steht, deckt diese
+         * hier nicht: Die Fuge hier hat niemand gezählt.
+         */
         foreach ($offen as $name => $wo) {
             [$unten, $oben] = explode(' + ', $name);
+            $eingetragen = self::OPEN_SEAMS[$name] ?? [];
 
-            $this->assertContains(
-                $name,
-                self::OPEN_SEAMS,
-                sprintf(
-                    "%s setzt `.%s` unmittelbar unter `.%s`, und app.css kennt diese Nachbarschaft\n".
-                    "nicht.\n\n".
-                    "`.%s` endet bündig und `.%s` fängt bündig an — die beiden kleben dann\n".
-                    "aneinander. Die Nachbarschaft gehört in `app.css`; ein Abstand auf der Seite\n".
-                    "wäre derselbe Fehler wie ein Hexwert in einer Komponente.\n\n".
-                    'Liegen die beiden in Wahrheit nebeneinander, fehlt ihrem Elternteil in '.
-                    '`app.css` das `display: flex` — und dann ist das hier ein Fund über das '.
-                    'Stylesheet und nicht über diese Vorlage.',
-                    implode(', ', array_keys($wo)),
-                    $oben,
-                    $unten,
-                    $unten,
-                    $oben,
-                ),
-            );
+            foreach (array_keys($wo) as $vorlage) {
+                $this->assertContains(
+                    $vorlage,
+                    $eingetragen,
+                    sprintf(
+                        "%s setzt `.%s` unmittelbar unter `.%s`, und app.css kennt diese Nachbarschaft\n".
+                        "nicht.\n\n".
+                        "`.%s` endet bündig und `.%s` fängt bündig an — die beiden kleben dann\n".
+                        "aneinander. Die Nachbarschaft gehört in `app.css`; ein Abstand auf der Seite\n".
+                        "wäre derselbe Fehler wie ein Hexwert in einer Komponente.\n\n".
+                        'Liegen die beiden in Wahrheit nebeneinander, fehlt ihrem Elternteil in '.
+                        '`app.css` das `display: flex` — und dann ist das hier ein Fund über das '.
+                        'Stylesheet und nicht über diese Vorlage.%s',
+                        $vorlage,
+                        $oben,
+                        $unten,
+                        $unten,
+                        $oben,
+                        $eingetragen === [] ? '' : sprintf(
+                            "\n\nIn OPEN_SEAMS steht die Fuge für %s und nicht für diese Vorlage. Eine offene ".
+                            'Fuge gilt dort, wo sie jemand gezählt hat; jede weitere Stelle ist eine neue.',
+                            implode(', ', $eingetragen),
+                        ),
+                    ),
+                );
+            }
         }
 
         /*
@@ -1229,17 +1336,30 @@ final class BlockSpacingTest extends TestCase
          * > die kleiner werden kann.** Sie kann es aber nur, wenn jemand es
          * > merkt.
          */
-        foreach (self::OPEN_SEAMS as $bekannt) {
-            $this->assertArrayHasKey(
-                $bekannt,
-                $offen,
+        foreach (self::OPEN_SEAMS as $bekannt => $vorlagen) {
+            $this->assertNotSame(
+                [],
+                $vorlagen,
                 sprintf(
-                    "`%s` steht in BlockSpacingTest::OPEN_SEAMS und kommt nicht mehr vor.\n\n".
-                    'Entweder ist die Fuge geschlossen — dann gehört die Zeile gelöscht — oder die '.
-                    'Suche findet sie nicht mehr, und dann ist der Wächter kaputt.',
+                    '`%s` steht in BlockSpacingTest::OPEN_SEAMS ohne eine Vorlage. Ein Eintrag, der '.
+                    'nirgends gilt, sieht aus wie ein gezähltes Loch und zählt keins.',
                     $bekannt,
                 ),
             );
+
+            foreach ($vorlagen as $vorlage) {
+                $this->assertArrayHasKey(
+                    $vorlage,
+                    $offen[$bekannt] ?? [],
+                    sprintf(
+                        "`%s` steht in BlockSpacingTest::OPEN_SEAMS für %s und kommt dort nicht mehr vor.\n\n".
+                        'Entweder ist die Fuge dort geschlossen — dann gehört die Vorlage aus dem Eintrag '.
+                        'gelöscht — oder die Suche findet sie nicht mehr, und dann ist der Wächter kaputt.',
+                        $bekannt,
+                        $vorlage,
+                    ),
+                );
+            }
         }
 
         /*

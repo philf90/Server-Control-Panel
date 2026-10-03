@@ -9,3 +9,7 @@
 /.github export-ignore
 CHANGELOG.md export-ignore
 .styleci.yml export-ignore
+
+# Prüfkörper sind Bytes und kein Text. Ihre Prüfsummen stehen in den
+# Abnahmeläufen, und `text=auto` hielte das getarnte SVG aus docs/140 für Text.
+tests/pruefkoerper/** binary

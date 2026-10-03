@@ -56,6 +56,13 @@ const props = defineProps<{
   }
 
   /*
+   * Die Vorgaben, als Platzhalter in den Feldern. Ein leeres Feld heisst „die
+   * Vorgabe" (`docs/140 §6d`); die Werte kommen vom Server, damit sie nicht ein
+   * zweites Mal hier stehen.
+   */
+  brandDefaults: { name: string; accent_light: string; accent_dark: string }
+
+  /*
    * Die gemessenen Kontraste kommen fertig vom Server.
    *
    * Wer sie im Browser mitrechnete, hätte eine zweite Fassung von
@@ -63,8 +70,8 @@ const props = defineProps<{
    * sobald jemand die Schwelle ändert.
    */
   contrast: {
-    light: { ratio: number; passes: boolean; surface: string }
-    dark: { ratio: number; passes: boolean; surface: string }
+    light: { ratio: number; passes: boolean; surface: string; place: string | null }
+    dark: { ratio: number; passes: boolean; surface: string; place: string | null }
     required: number
   }
 
@@ -120,292 +127,342 @@ function waehleLogo(event: Event): void {
   <PanelLayout title="Allgemein" subline="Was für den ganzen Server gilt">
     <FormErrors />
 
-    <form class="form" @submit.prevent="submit">
-      <Section title="Anzeigezeit">
-        <!--
-          Der Satz oben und nicht am Feld: Wer hierherkommt, will zuerst wissen,
-          was sich ändert — und was ausdrücklich nicht.
-        -->
-        <p class="hint">
-          Zeitpunkte werden im Panel in dieser Zone angezeigt. <strong>Gespeichert
-          wird weiter in UTC</strong>, und der Export des Protokolls bleibt
-          ebenfalls UTC: Ein Zeitstempel ohne Zone in einer Datei, die drei Jahre
-          liegt, wird gelesen, wenn der Server längst umgezogen ist.
-        </p>
-
-        <!--
-          Eine Auswahl und kein Freitext: Der Wert geht in `setTimezone()`, und
-          ein unbekannter Name wirft dort — mitten im Aufbau einer Seite
-          (docs/40 §4).
-
-          Und das Feld steht **in** seiner Beschriftung, nicht daneben
-          (`FormLabelTest`): Ein `<select>` zeigt immer einen gültigen Wert und
-          sieht deshalb nie leer aus — wer es überliest, trifft seine Vorgabe.
-        -->
-        <label class="field">
-          <span>Zeitzone</span>
-          <select v-model="form.timezone">
-            <option v-for="zone in props.zones" :key="zone" :value="zone">{{ zone }}</option>
-          </select>
-        </label>
-
-        <!--
-          **Die Gegenprobe steht neben dem Feld.** Dieselbe Zeit zweimal — was in
-          der Datenbank steht und was auf der Seite stünde. Ohne sie ist die
-          Auswahl eine Behauptung; genau daran hing der Anlass für diese Seite:
-          Ein Zeitstempel, den man falsch liest, sieht aus wie eine Auskunft.
-        -->
-        <table class="pairs">
-          <tbody>
-            <tr>
-              <td>Gespeichert</td>
-              <td class="right ident">{{ props.example.utc }} UTC</td>
-            </tr>
-            <tr>
-              <td>Angezeigt</td>
-              <td class="right ident">{{ props.example.display ?? '—' }} {{ props.label }}</td>
-            </tr>
-          </tbody>
-        </table>
-
-      </Section>
-
-      <!--
-        **Die Zeit des Servers steht neben der Anzeigezeit** (A11, `docs/106`),
-        und genau deshalb steht sie hier und nicht auf einer eigenen Seite:
-        `docs/80` verlangt sie *neben* der Anzeigezone, „weil die beiden sonst
-        verwechselt werden".
-
-        Der Bereich ist reines Lesen und liegt trotzdem im Formular — das ist
-        gültiges Markup und hält die Reihenfolge, auf die es ankommt. Er nimmt
-        nichts entgegen, also hat er auch keinen Knopf; die eine Hauptsache des
-        Formulars steht unten.
-      -->
-      <Section title="Zeit des Servers">
-        <p class="hint">
-          Diese Angaben kommen vom Server und lassen sich hier nicht ändern.
-          <strong>Die Zeitzone des Servers ist etwas anderes als die Anzeigezeit
-          darüber</strong> — die letzte Zeile zeigt denselben Augenblick in
-          beiden.
-        </p>
-
-        <table class="pairs">
-          <tbody>
-            <tr>
-              <td>Zeitzone des Servers</td>
-              <td class="right ident">{{ props.time.zone }}</td>
-            </tr>
-            <tr>
-              <td>Zeitabgleich</td>
-              <td class="right">{{ props.time.service }}</td>
-            </tr>
-            <tr>
-              <td>Uhr abgeglichen</td>
-              <td class="right">{{ props.time.synchronized }}</td>
-            </tr>
-            <tr>
-              <td>Hardware-Uhr</td>
-              <td class="right">{{ props.time.clock }}</td>
-            </tr>
-            <tr>
-              <td>Jetzt auf dem Server</td>
-              <td class="right ident">{{ props.time.now }}</td>
-            </tr>
-            <tr>
-              <td>Dasselbe in der Anzeigezeit</td>
-              <td class="right ident">{{ props.time.display }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </Section>
-
-      <!--
-        **Der Ort ist gewählt und nicht geraten.** „Welche Adressen sollen meine
-        Domains tragen?" ist eine Frage über den Server und nicht über einen
-        Dienst — „DNS-Zugang" daneben führt Zugangsdaten für Bestellungen über
-        DNS-01 und ist ein anderes Thema.
-
-        Bis zum 22. August gab es diesen Bereich nicht, und
-        `Settings::saveDnsAddresses()` hatte keinen Aufrufer: Die Übersteuerung
-        war entschieden (`docs/72 §2.1a`), gebaut war nur die Ableitung.
-        Gefunden in der Zwischenabnahme (`docs/74`, Befund 2).
-      -->
-      <Section title="Adressen dieses Servers">
-        <p class="hint">
-          Der DNS-Abgleich hält die Einträge einer Domain gegen diese Adressen.
-          <strong>Leer heisst „nimm die abgeleiteten"</strong> — eingetragen wird
-          nur, wo die Ableitung nicht geht: hinter NAT, einer Floating-IP oder
-          einem Lastverteiler ist die Adresse, unter der ein Server von aussen
-          erreichbar ist, von innen nicht zu erfahren.
-        </p>
-
-        <!--
-          **Der Bereich sagt selbst, warum der Name kein Feld ist** (`docs/80`).
-          Ein Hinweis, der eine fehlende Handlung erklärt, ist billiger als der
-          Weg, auf dem jemand sie sucht.
-        -->
-        <p class="hint">
-          Der <strong>Rechnername</strong> lässt sich hier nicht ändern: Er steckt
-          im Zertifikat des Panels, in den vhosts und im DNS-Abgleich, und ein
-          Wechsel nimmt alle drei mit.
-        </p>
-
-        <label class="field">
-          <span>Eingetragene Adressen</span>
-          <textarea
-            v-model="form.dns_addresses"
-            rows="3"
-            spellcheck="false"
-            placeholder="eine Adresse je Zeile"
-            :aria-invalid="Boolean(form.errors.dns_addresses)"
-          />
-        </label>
-
-        <!--
-          **Beide Listen stehen da** (`docs/72 §2.1a`). Eine eingetragene
-          Adresse ist eine im Panel gemerkte Fassung eines Serverzustands und
-          kann veralten; wer nur das Ergebnis zeigt, macht aus einer alten
-          Eintragung eine falsche Auskunft über jede Domain.
-        -->
-        <table class="pairs">
-          <tbody>
-            <!--
-              **Der Rechnername steht hier und nicht bei der Zeit** (A11): Der
-              Bereich beantwortet, wie dieser Server heisst und wo er
-              erreichbar ist.
-
-              **Ändern ist kein Knopf**, und der Hinweis darunter sagt warum —
-              der Name steckt in Zertifikaten, vhosts und dem DNS-Abgleich
-              (`docs/80`).
-            -->
-            <tr>
-              <td>Rechnername</td>
-              <td class="right ident">{{ props.hostname }}</td>
-            </tr>
-            <tr>
-              <td>Abgeleitet</td>
-              <td class="right ident"><Idents :values="props.addresses.derived" /></td>
-            </tr>
-            <tr>
-              <td>Verglichen wird gegen</td>
-              <td class="right ident"><Idents :values="props.addresses.effective" /></td>
-            </tr>
-          </tbody>
-        </table>
-      </Section>
-
-      <!--
-        **Ein Knopf für beide Bereiche, weil es ein Formular ist.**
-        `ButtonStyleTest` besteht darauf: „Es gibt je Formular eine Hauptsache."
-        Beim ersten Wurf stand er zweimal da — einmal je Bereich —, und damit
-        hätte die Seite zwei Hauptsachen gehabt und trotzdem beide Felder auf
-        einmal gespeichert.
-      -->
-      <div class="button-row">
-        <button type="submit" class="button primary" :disabled="form.processing">
-          {{ form.processing ? 'Wird gespeichert …' : 'Speichern' }}
-        </button>
-      </div>
-    </form>
-
     <!--
-      Die Marke des Betreibers (B6) — ein eigenes Formular, weil es ein eigenes
-      Ziel hat und eine Datei trägt.
+      **Beide Formulare in einer `.sections`-Hülle**, wie auf den Seiten der
+      Konten und des Zugangs. Als Geschwister unter `main` standen sie auf 0 px:
+      Den Abstand zwischen Bereichen gibt der jeweilige Behälter an *seine*
+      Kinder, und zwei Formulare sind niemandes Kinder. „Speichern" klebte an
+      der Überschrift „Name und Fusszeile", bei 390 und bei 1440 px.
+
+      Gemeldet hat es der Betreiber auf dem Telefon, im Lauf für B6
+      (`docs/140`). `BlockSpacingTest` hat dazu geschwiegen: `form + form`
+      stand dort als offene Fuge der Datenbankseite, und die Ausnahme galt
+      jeder Vorlage, in der das Paar vorkommt.
     -->
-    <form class="form" @submit.prevent="speichereMarke()">
-      <div class="sections">
-        <Section title="Name und Fusszeile">
+    <div class="sections">
+      <form class="form" @submit.prevent="submit">
+        <Section title="Anzeigezeit">
+          <!--
+            Der Satz oben und nicht am Feld: Wer hierherkommt, will zuerst wissen,
+            was sich ändert — und was ausdrücklich nicht.
+          -->
+          <p class="hint">
+            Zeitpunkte werden im Panel in dieser Zone angezeigt. <strong>Gespeichert
+            wird weiter in UTC</strong>, und der Export des Protokolls bleibt
+            ebenfalls UTC: Ein Zeitstempel ohne Zone in einer Datei, die drei Jahre
+            liegt, wird gelesen, wenn der Server längst umgezogen ist.
+          </p>
+
+          <!--
+            Eine Auswahl und kein Freitext: Der Wert geht in `setTimezone()`, und
+            ein unbekannter Name wirft dort — mitten im Aufbau einer Seite
+            (docs/40 §4).
+
+            Und das Feld steht **in** seiner Beschriftung, nicht daneben
+            (`FormLabelTest`): Ein `<select>` zeigt immer einen gültigen Wert und
+            sieht deshalb nie leer aus — wer es überliest, trifft seine Vorgabe.
+          -->
           <label class="field">
-            <span>Name des Panels</span>
-            <input
-              v-model="marke.name"
-              type="text"
-              maxlength="40"
-              autocomplete="organization"
-              required
+            <span>Zeitzone</span>
+            <select v-model="form.timezone">
+              <option v-for="zone in props.zones" :key="zone" :value="zone">{{ zone }}</option>
+            </select>
+          </label>
+
+          <!--
+            **Die Gegenprobe steht neben dem Feld.** Dieselbe Zeit zweimal — was in
+            der Datenbank steht und was auf der Seite stünde. Ohne sie ist die
+            Auswahl eine Behauptung; genau daran hing der Anlass für diese Seite:
+            Ein Zeitstempel, den man falsch liest, sieht aus wie eine Auskunft.
+          -->
+          <table class="pairs">
+            <tbody>
+              <tr>
+                <td>Gespeichert</td>
+                <td class="right ident">{{ props.example.utc }} UTC</td>
+              </tr>
+              <tr>
+                <td>Angezeigt</td>
+                <td class="right ident">{{ props.example.display ?? '—' }} {{ props.label }}</td>
+              </tr>
+            </tbody>
+          </table>
+
+        </Section>
+
+        <!--
+          **Die Zeit des Servers steht neben der Anzeigezeit** (A11, `docs/106`),
+          und genau deshalb steht sie hier und nicht auf einer eigenen Seite:
+          `docs/80` verlangt sie *neben* der Anzeigezone, „weil die beiden sonst
+          verwechselt werden".
+
+          Der Bereich ist reines Lesen und liegt trotzdem im Formular — das ist
+          gültiges Markup und hält die Reihenfolge, auf die es ankommt. Er nimmt
+          nichts entgegen, also hat er auch keinen Knopf; die eine Hauptsache des
+          Formulars steht unten.
+        -->
+        <Section title="Zeit des Servers">
+          <p class="hint">
+            Diese Angaben kommen vom Server und lassen sich hier nicht ändern.
+            <strong>Die Zeitzone des Servers ist etwas anderes als die Anzeigezeit
+            darüber</strong> — die letzte Zeile zeigt denselben Augenblick in
+            beiden.
+          </p>
+
+          <table class="pairs">
+            <tbody>
+              <tr>
+                <td>Zeitzone des Servers</td>
+                <td class="right ident">{{ props.time.zone }}</td>
+              </tr>
+              <tr>
+                <td>Zeitabgleich</td>
+                <td class="right">{{ props.time.service }}</td>
+              </tr>
+              <tr>
+                <td>Uhr abgeglichen</td>
+                <td class="right">{{ props.time.synchronized }}</td>
+              </tr>
+              <tr>
+                <td>Hardware-Uhr</td>
+                <td class="right">{{ props.time.clock }}</td>
+              </tr>
+              <tr>
+                <td>Jetzt auf dem Server</td>
+                <td class="right ident">{{ props.time.now }}</td>
+              </tr>
+              <tr>
+                <td>Dasselbe in der Anzeigezeit</td>
+                <td class="right ident">{{ props.time.display }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </Section>
+
+        <!--
+          **Der Ort ist gewählt und nicht geraten.** „Welche Adressen sollen meine
+          Domains tragen?" ist eine Frage über den Server und nicht über einen
+          Dienst — „DNS-Zugang" daneben führt Zugangsdaten für Bestellungen über
+          DNS-01 und ist ein anderes Thema.
+
+          Bis zum 22. August gab es diesen Bereich nicht, und
+          `Settings::saveDnsAddresses()` hatte keinen Aufrufer: Die Übersteuerung
+          war entschieden (`docs/72 §2.1a`), gebaut war nur die Ableitung.
+          Gefunden in der Zwischenabnahme (`docs/74`, Befund 2).
+        -->
+        <Section title="Adressen dieses Servers">
+          <p class="hint">
+            Der DNS-Abgleich hält die Einträge einer Domain gegen diese Adressen.
+            <strong>Leer heisst „nimm die abgeleiteten"</strong> — eingetragen wird
+            nur, wo die Ableitung nicht geht: hinter NAT, einer Floating-IP oder
+            einem Lastverteiler ist die Adresse, unter der ein Server von aussen
+            erreichbar ist, von innen nicht zu erfahren.
+          </p>
+
+          <!--
+            **Der Bereich sagt selbst, warum der Name kein Feld ist** (`docs/80`).
+            Ein Hinweis, der eine fehlende Handlung erklärt, ist billiger als der
+            Weg, auf dem jemand sie sucht.
+          -->
+          <p class="hint">
+            Der <strong>Rechnername</strong> lässt sich hier nicht ändern: Er steckt
+            im Zertifikat des Panels, in den vhosts und im DNS-Abgleich, und ein
+            Wechsel nimmt alle drei mit.
+          </p>
+
+          <label class="field">
+            <span>Eingetragene Adressen</span>
+            <textarea
+              v-model="form.dns_addresses"
+              rows="3"
+              spellcheck="false"
+              placeholder="eine Adresse je Zeile"
+              :aria-invalid="Boolean(form.errors.dns_addresses)"
             />
           </label>
 
-          <p class="hint">
-            Steht im Reiter des Browsers und neben dem Zeichen — solange kein Logo hinterlegt ist.
-          </p>
-
-          <label class="field">
-            <span>Fusszeile der Anmeldeseite</span>
-            <input v-model="marke.footer" type="text" maxlength="200" autocomplete="off" />
-          </label>
-
-          <p class="hint">
-            Reiner Text, höchstens 200 Zeichen. Er steht über der Versionsnummer und geht ausserdem
-            als letzte Zeile in jede Mail, die dieses Panel verschickt.
-          </p>
-        </Section>
-
-        <Section title="Farbe">
           <!--
-            Zwei Farben und nicht eine: Beide Themes entstehen zusammen, nie
-            eines nachträglich. Die eine aus der anderen abzuleiten wäre eine
-            Vermutung über einen Grund, den niemand gemessen hat.
+            **Beide Listen stehen da** (`docs/72 §2.1a`). Eine eingetragene
+            Adresse ist eine im Panel gemerkte Fassung eines Serverzustands und
+            kann veralten; wer nur das Ergebnis zeigt, macht aus einer alten
+            Eintragung eine falsche Auskunft über jede Domain.
           -->
-          <label class="field">
-            <span>Akzent im hellen Thema</span>
-            <input v-model="marke.accent_light" type="text" maxlength="7" autocomplete="off" required />
-          </label>
+          <table class="pairs">
+            <tbody>
+              <!--
+                **Der Rechnername steht hier und nicht bei der Zeit** (A11): Der
+                Bereich beantwortet, wie dieser Server heisst und wo er
+                erreichbar ist.
 
-          <p class="hint">
-            Gemessen {{ props.contrast.light.ratio.toLocaleString('de-DE') }}:1 auf
-            <span class="ident">{{ props.contrast.light.surface }}</span> — verlangt sind
-            {{ props.contrast.required.toLocaleString('de-DE') }}:1. Der Akzent trägt auch Schrift.
-          </p>
-
-          <label class="field">
-            <span>Akzent im dunklen Thema</span>
-            <input v-model="marke.accent_dark" type="text" maxlength="7" autocomplete="off" required />
-          </label>
-
-          <p class="hint">
-            Gemessen {{ props.contrast.dark.ratio.toLocaleString('de-DE') }}:1 auf
-            <span class="ident">{{ props.contrast.dark.surface }}</span>. Diese Farbe gilt auch auf
-            der Anmeldeseite — sie trägt in beiden Themes einen dunklen Grund.
-          </p>
+                **Ändern ist kein Knopf**, und der Hinweis darunter sagt warum —
+                der Name steckt in Zertifikaten, vhosts und dem DNS-Abgleich
+                (`docs/80`).
+              -->
+              <tr>
+                <td>Rechnername</td>
+                <td class="right ident">{{ props.hostname }}</td>
+              </tr>
+              <tr>
+                <td>Abgeleitet</td>
+                <td class="right ident"><Idents :values="props.addresses.derived" /></td>
+              </tr>
+              <tr>
+                <td>Verglichen wird gegen</td>
+                <td class="right ident"><Idents :values="props.addresses.effective" /></td>
+              </tr>
+            </tbody>
+          </table>
         </Section>
 
-        <Section title="Logo">
-          <label class="field">
-            <span>Bilddatei</span>
-            <input type="file" accept="image/png,image/jpeg,image/webp" @change="waehleLogo" />
-          </label>
+        <!--
+          **Ein Knopf für beide Bereiche, weil es ein Formular ist.**
+          `ButtonStyleTest` besteht darauf: „Es gibt je Formular eine Hauptsache."
+          Beim ersten Wurf stand er zweimal da — einmal je Bereich —, und damit
+          hätte die Seite zwei Hauptsachen gehabt und trotzdem beide Felder auf
+          einmal gespeichert.
+        -->
+        <div class="button-row">
+          <button type="submit" class="button primary" :disabled="form.processing">
+            {{ form.processing ? 'Wird gespeichert …' : 'Speichern' }}
+          </button>
+        </div>
+      </form>
 
-          <p class="hint">
-            {{ props.brandLimits.types.join(', ') }} bis {{ props.brandLimits.logo_kb }} KB. Kein
-            SVG: Es darf Skript enthalten, und das Logo steht auf der Anmeldeseite. Ein hinterlegtes
-            Logo ersetzt Zeichen und Namen; der Name bleibt als Alternativtext.
-          </p>
+      <!--
+        Die Marke des Betreibers (B6) — ein eigenes Formular, weil es ein eigenes
+        Ziel hat und eine Datei trägt.
+      -->
+      <form class="form" @submit.prevent="speichereMarke()">
+        <div class="sections">
+          <Section title="Name und Fusszeile">
+            <label class="field">
+              <span>Name des Panels</span>
+              <!--
+                Kein `required`: Ein leeres Feld heisst „die Vorgabe", und der
+                Platzhalter zeigt, welche das ist (`docs/140 §6d`).
+              -->
+              <input
+                v-model="marke.name"
+                type="text"
+                maxlength="40"
+                autocomplete="organization"
+                :placeholder="props.brandDefaults.name"
+              />
+            </label>
 
-          <div v-if="props.brandSettings.has_logo" class="button-row">
-            <button type="button" class="button danger" @click="speichereMarke({ remove_logo: true })">
-              Logo entfernen
-            </button>
-          </div>
-        </Section>
+            <p class="hint">
+              Steht im Reiter des Browsers und neben dem Zeichen — solange kein Logo hinterlegt ist.
+              Ohne Eintrag gilt „{{ props.brandDefaults.name }}".
+            </p>
 
-        <Section title="Absender">
-          <p class="quiet">
-            Die Absenderadresse steht bei den
-            <Link href="/settings/mail" class="link">Mail-Einstellungen</Link> — dort, wo auch das
-            Relay hinterlegt ist. Zwei Formulare für einen Wert wären zwei Orte, an denen er
-            veralten kann.
-          </p>
+            <label class="field">
+              <span>Fusszeile der Anmeldeseite</span>
+              <input v-model="marke.footer" type="text" maxlength="200" autocomplete="off" />
+            </label>
 
-          <p v-if="props.sender" class="hint">
-            Zurzeit: <span class="ident">{{ props.sender }}</span>
-          </p>
-        </Section>
-      </div>
+            <p class="hint">
+              Reiner Text, höchstens 200 Zeichen. Er steht über der Versionsnummer und geht ausserdem
+              als letzte Zeile in jede Mail, die dieses Panel verschickt.
+            </p>
+          </Section>
 
-      <div class="button-row">
-        <button type="submit" class="button primary">Marke speichern</button>
-      </div>
-    </form>
+          <Section title="Farbe">
+            <!--
+              Zwei Farben und nicht eine: Beide Themes entstehen zusammen, nie
+              eines nachträglich. Die eine aus der anderen abzuleiten wäre eine
+              Vermutung über einen Grund, den niemand gemessen hat.
+            -->
+            <label class="field">
+              <span>Akzent im hellen Thema</span>
+              <input
+                v-model="marke.accent_light"
+                type="text"
+                maxlength="7"
+                autocomplete="off"
+                :placeholder="props.brandDefaults.accent_light"
+              />
+            </label>
+
+            <!--
+              Der Ort steht neben dem Hexwert, wenn der Grund eine Tönung ist:
+              Ihr Wert steht in keinem Stylesheet, der Browser mischt ihn erst
+              (`docs/140 §6c`).
+
+              „Vorgabe" steht davor, wenn keine eigene Angabe gespeichert ist:
+              Gemessen wird dann die Vorgabe, und ohne das Wort läse sich die
+              Zahl neben einem leeren Feld wie die Messung von nichts. Gefragt
+              wird die gespeicherte Angabe und nicht das Feld, denn der Hinweis
+              misst, was gespeichert ist, und nicht, was gerade getippt wird.
+            -->
+            <p class="hint">
+              <template v-if="props.brandSettings.accent_light === ''">Vorgabe, gemessen</template>
+              <template v-else>Gemessen</template>
+              {{ props.contrast.light.ratio.toLocaleString('de-DE') }}:1 auf
+              <span class="ident">{{ props.contrast.light.surface }}</span><template v-if="props.contrast.light.place">
+                ({{ props.contrast.light.place }})</template> — verlangt sind
+              {{ props.contrast.required.toLocaleString('de-DE') }}:1. Der Akzent trägt auch Schrift.
+              <template v-if="props.brandSettings.accent_light !== ''">Ohne Eintrag gilt die Vorgabe.</template>
+            </p>
+
+            <label class="field">
+              <span>Akzent im dunklen Thema</span>
+              <input
+                v-model="marke.accent_dark"
+                type="text"
+                maxlength="7"
+                autocomplete="off"
+                :placeholder="props.brandDefaults.accent_dark"
+              />
+            </label>
+
+            <p class="hint">
+              <template v-if="props.brandSettings.accent_dark === ''">Vorgabe, gemessen</template>
+              <template v-else>Gemessen</template>
+              {{ props.contrast.dark.ratio.toLocaleString('de-DE') }}:1 auf
+              <span class="ident">{{ props.contrast.dark.surface }}</span><template v-if="props.contrast.dark.place">
+                ({{ props.contrast.dark.place }})</template>. Diese Farbe gilt auch auf
+              der Anmeldeseite — sie trägt in beiden Themes einen dunklen Grund.
+              <template v-if="props.brandSettings.accent_dark !== ''">Ohne Eintrag gilt die Vorgabe.</template>
+            </p>
+          </Section>
+
+          <Section title="Logo">
+            <label class="field">
+              <span>Bilddatei</span>
+              <input type="file" accept="image/png,image/jpeg,image/webp" @change="waehleLogo" />
+            </label>
+
+            <p class="hint">
+              {{ props.brandLimits.types.join(', ') }} bis {{ props.brandLimits.logo_kb }} KB. Kein
+              SVG: Es darf Skript enthalten, und das Logo steht auf der Anmeldeseite. Ein hinterlegtes
+              Logo ersetzt Zeichen und Namen; der Name bleibt als Alternativtext.
+            </p>
+
+            <div v-if="props.brandSettings.has_logo" class="button-row">
+              <button type="button" class="button danger" @click="speichereMarke({ remove_logo: true })">
+                Logo entfernen
+              </button>
+            </div>
+          </Section>
+
+          <Section title="Absender">
+            <p class="quiet">
+              Die Absenderadresse steht bei den
+              <Link href="/settings/mail" class="link">Mail-Einstellungen</Link> — dort, wo auch das
+              Relay hinterlegt ist. Zwei Formulare für einen Wert wären zwei Orte, an denen er
+              veralten kann.
+            </p>
+
+            <p v-if="props.sender" class="hint">
+              Zurzeit: <span class="ident">{{ props.sender }}</span>
+            </p>
+          </Section>
+        </div>
+
+        <div class="button-row">
+          <button type="submit" class="button primary">Marke speichern</button>
+        </div>
+      </form>
+    </div>
   </PanelLayout>
 </template>

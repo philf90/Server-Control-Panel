@@ -41,8 +41,8 @@ fielen sechs Befunde am Prüfling heraus. Der Betreiber hat sie am selben Tag
 entschieden, und behoben sind sie mit `0.9.0-rc.11` (`docs/140 §6a`, Abschnitt
 weiter unten). Gefahren ist er am 3. Oktober gegen `rc.11`: **Block 1 und
 alle neun Punkte erfüllt**, Punkt 7 im zweiten Anlauf; das Protokoll ist
-`docs/140 §7`. Abgenommen wird B6 nach dem Nachlauf gegen `rc.12`, so
-entschieden vom Betreiber.
+`docs/140 §7`. Abgenommen wird B6 nach dem Nachlauf gegen `rc.12`
+(`docs/140 §8`, ausgeschrieben vor dem Fahren), so entschieden vom Betreiber.
 Für `rc.12` gebaut sind zwei Befunde aus dem Lauf: zwei Formulare ohne Abstand
 (`docs/140 §6b`) sowie Schrift und Zeichen in der Farbe der Marke, samt einer
 Prüfung beim Speichern, die die Tönungen rechnet (`docs/140 §6c`). Dazu ein

@@ -29,7 +29,7 @@ kamen aus dem Lauf und ein dritter beim Bauen des zweiten; gebaut sind sie für
 `0.9.0-rc.12` (§6b, §6c), dazu ein Wunsch des Betreibers (§6d) und die
 Unterschrift der Mails (§6e). Drei Befunde an der Vorschrift sind beim Fahren
 berichtigt, in §3 Punkt 3 und Punkt 7, und Punkt 8 ist ergänzt. Es stehen aus:
-der Nachlauf gegen `rc.12` und danach die Abnahme, so entschieden vom
+der Nachlauf gegen `rc.12` (§8) und danach die Abnahme, so entschieden vom
 Betreiber.
 
 **Neu ist ein Snippet für die Konsole** (§3). Es liest auf der Anmeldeseite
@@ -1788,7 +1788,7 @@ Schrift in Pfirsich, und daraus kamen die Befunde 2 und 3.
 
 ### Was aussteht
 
-- **Der Nachlauf gegen `0.9.0-rc.12`**, ausgeschrieben vor dem Fahren. Er
+- **Der Nachlauf gegen `0.9.0-rc.12`**, ausgeschrieben vor dem Fahren (§8). Er
   sieht §6b an der Fuge bei 390 px nach, §6c an den vier Erwartungen aus „Für
   den Lauf heisst das" und an Schrift und Zeichen in Mint, §6d an Punkt 9
   ohne Abschreiben, an der Ablage mit `null` und an den Hinweisen mit der
@@ -1796,3 +1796,227 @@ Schrift in Pfirsich, und daraus kamen die Befunde 2 und 3.
 - **Danach die Abnahme**, die der Betreiber ausspricht (§5). Entschieden hat
   er am 3. Oktober, dass sie nach dem Nachlauf kommt, wie bei B4: Abgenommen
   wird, was ausgeliefert ist.
+
+## §8 · Der Nachlauf gegen `0.9.0-rc.12`
+
+Ausgeschrieben am 3. Oktober 2026, vor dem Fahren. Er sieht nach, was `rc.12`
+gegenüber `rc.11` ändert: die Fuge zwischen den beiden Formularen (§6b),
+Schrift und Zeichen in der Farbe der Marke und die Prüfung über den Tönungen
+(§6c), das leere Feld als Vorgabe (§6d) und die Unterschrift der Mails (§6e).
+**Danach spricht der Betreiber die Abnahme aus**, so entschieden am 3. Oktober.
+
+Jede erwartete Zeile ist vorab gemessen: im Container gegen den gebauten Stand,
+mit der Wegwerf-Datenbank aus §6a und in dem Zustand, in dem `cloudsrv24` nach
+Punkt 9 steht (unten N0). Die Versionsnummer heisst im Container `Quellbaum`,
+auf dem Server `0.9.0-rc.12`.
+
+Gefahren wird in dieser Reihenfolge, das Panel im normalen Fenster, die
+Anmeldeseite im privaten. Logo und Prüfkörper braucht er nicht.
+
+### N0 — Die Vorbedingung
+
+Block 1 aus §1, dazu eine Zeile mehr. Sie zeigt, was abgelegt ist, und nicht,
+was gilt:
+
+```bash
+srvpanel tinker --execute='echo json_encode(App\Models\Setting::query()->where("key", "brand")->first()?->value, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES), PHP_EOL;'
+```
+
+**Erwartet:** Block 1 mit `0.9.0-rc.12` und sonst wie nach Punkt 9 (§7). Die
+neue Zeile zeigt die Abschrift aus Punkt 9, denn unter `rc.11` ging es nicht
+anders:
+
+```
+{"name":"SrvPanel","accent_light":"#3730a3","accent_dark":"#ff7fec","footer":"","logo":null}
+```
+
+### N1 — Die Felder zeigen die Vorgabe als Platzhalter (§6d) und stehen mit Abstand (§6b)
+
+`/settings/general` frisch laden, bei 1440 px.
+
+**Erwartet:** Die Felder für Name, helle und dunkle Farbe sind **leer** und
+zeigen grau `SrvPanel`, `#3730a3` und `#ff7fec`. Die Abschrift gleicht der
+Vorgabe, und gefragt wird, ob der Wert der Vorgabe gleicht. Darunter stehen:
+
+> Steht im Reiter des Browsers und neben dem Zeichen — solange kein Logo
+> hinterlegt ist. Ohne Eintrag gilt „SrvPanel".
+
+> Vorgabe, gemessen 8,15:1 auf #ede8e0 (der Tönung einer Warnung) — verlangt
+> sind 4,5:1. Der Akzent trägt auch Schrift.
+
+> Vorgabe, gemessen 6,27:1 auf #1d302f (der Tönung einer Erfolgsmeldung). Diese
+> Farbe gilt auch auf der Anmeldeseite — sie trägt in beiden Themes einen
+> dunklen Grund.
+
+Dann in die Konsole, einmal bei 1440 px und frisch geladen noch einmal bei
+390 px:
+
+```js
+(() => { const f = [...document.querySelectorAll('main form.form')]; const a = f[0]?.getBoundingClientRect(), b = f[1]?.getBoundingClientRect(); console.log(`Fuge zwischen den Formularen: ${a && b ? Math.round(b.top - a.bottom) : '—'} px · Formulare ${f.length} · Breite ${innerWidth} px`) })()
+```
+
+**Erwartet:** `Fuge zwischen den Formularen: 30 px · Formulare 2 · Breite 1440 px`
+und `… 26 px · Formulare 2 · Breite 390 px`. Unter `rc.11` stand dort 0 px.
+Dazu ein Bild bei 390 px mit „Speichern" und „Name und Fusszeile".
+
+### N2 — Speichern ohne Änderung legt keine Angabe ab (§6d)
+
+Auf `/settings/general` „Marke speichern", ohne etwas zu ändern. Dann die Zeile
+aus N0.
+
+**Erwartet:** „Die Marke ist gespeichert.", die Felder weiter leer, und
+abgelegt ist keine Angabe mehr:
+
+```
+{"name":null,"accent_light":null,"accent_dark":null,"footer":"","logo":null}
+```
+
+Block 1 bleibt, wie er war: Er druckt, was gilt, und das sind die Vorgaben.
+
+### N3 — Die Prüfung rechnet die Tönungen (§6c)
+
+Punkt 1 noch einmal: im hellen Feld `#2f8f5b`, „Marke speichern".
+
+**Erwartet** oben die Zusammenfassung:
+
+> Das Formular wurde nicht gespeichert.
+> Diese Farbe erreicht auf #ede8e0 (der Tönung einer Warnung) nur 3,31:1. Der
+> Akzent trägt auch Schrift; verlangt sind 4,5:1.
+
+Unter `rc.11` lautete die Meldung „auf #fafafb nur 3,87:1". Die Zeile aus N0
+bleibt bei `null`. Danach die Seite neu laden.
+
+### N4 — Die Marke, ohne Logo (§6c, §6d)
+
+Name, Fusszeile und beide Farben aus §2 eintragen, **kein** Logo wählen,
+„Marke speichern".
+
+**Erwartet** unter den Farbfeldern:
+
+> Gemessen 5,13:1 auf #ede8e0 (der Tönung einer Warnung) — verlangt sind 4,5:1.
+> Der Akzent trägt auch Schrift. Ohne Eintrag gilt die Vorgabe.
+
+> Gemessen 8,59:1 auf #213433 (ihrer eigenen Tönung, wie in einem aktiven
+> Knopf). Diese Farbe gilt auch auf der Anmeldeseite — sie trägt in beiden
+> Themes einen dunklen Grund. Ohne Eintrag gilt die Vorgabe.
+
+Dann frisch geladen das Snippet aus §3. **Erwartet** wie in Punkt 5, nur
+ohne Logo und mit drei Zuweisungen mehr: `Logo —` in der Marke laut Seite,
+`Markenblock: 4 Regeln, 19 Zuweisungen, davon keine Marke: 0` und
+`Leiste: kein Logo · Zeichen ja · Name „Muster Hosting"`. Die Farben und die
+Gegenprobe stehen da wie in Punkt 5, das Urteil lautet „kommt an". Danach,
+wieder frisch geladen, diese Zeilen:
+
+```js
+// B6 · docs/140 §8: Schrift und Zeichen in der Farbe der Marke, mit Gegenprobe.
+(() => {
+  const hex = (s) => { const m = (String(s).match(/[\d.]+/g) || []).map(Number); return m.length < 3 ? String(s) : '#' + m.slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, '0')).join('') }
+  const lies = () => {
+    const z = []
+    for (const [wo, sel] of [['Anmeldeseite', 'main.signin'], ['Leiste', 'aside.rail']]) {
+      const f = document.querySelector(sel)
+      if (!f) continue
+      const mark = f.querySelector('svg.mark'), oben = mark?.querySelector('.bar-top'), name = f.querySelector('.brand-name'), bleiben = f.querySelector('label.toggle span')
+      const teile = [`Name ${name ? hex(getComputedStyle(name).color) : '—'}`, `Balken oben ${oben ? hex(getComputedStyle(oben).fill) : '—'}`, `Balken unten ${mark ? hex(getComputedStyle(mark).color) : '—'}`]
+      if (bleiben) teile.push(`„Angemeldet bleiben" ${hex(getComputedStyle(bleiben).color)}`)
+      z.push(`  ${wo}: ${teile.join(' · ')}`)
+    }
+    return z
+  }
+  const block = [...document.head.querySelectorAll('style')].find((s) => [...(s.sheet?.cssRules ?? [])].some((r) => r.style && r.style.getPropertyValue('--accent') !== ''))
+  const z = [`Schrift und Zeichen · ${location.pathname} · Thema ${document.documentElement.getAttribute('data-theme') ?? '(keins)'}`, ...lies()]
+  if (block) {
+    block.disabled = true
+    z.push('Gegenprobe, Markenblock abgeschaltet:', ...lies())
+    block.disabled = false
+  } else {
+    z.push('Markenblock: keiner')
+  }
+  console.log(z.join('\n'))
+})()
+```
+
+**Erwartet** auf `/settings/general`:
+
+```
+  Leiste: Name #ffffff · Balken oben #6ee7b7 · Balken unten #ffffff
+Gegenprobe, Markenblock abgeschaltet:
+  Leiste: Name #ffffff · Balken oben #ff7fec · Balken unten #ffffff
+```
+
+Der obere Balken des Zeichens trägt die Farbe der Marke, ohne Markenblock das
+Pink der Auslieferung. Name und untere Balken bleiben weiss; sie gehören zur
+Leiste und nicht zur Marke.
+
+Dann Block 2 aus §3 Punkt 3, mit einer Zeile mehr. Sie vergleicht den
+Markenblock mit dem Wortlaut, den `rc.12` für diese Marke schreibt:
+
+```bash
+B6S="<style>:root,:root[data-theme='light']{--accent:#0b6e4f;--accent-on:#ffffff;--accent-surface:rgb(11 110 79 / 0.09);--focus:#0b6e4f;}:root[data-theme='dark']{--accent:#6ee7b7;--accent-on:#0f1116;--accent-surface:rgb(110 231 183 / 0.14);--focus:#6ee7b7;}.rail,.topbar{--accent:#6ee7b7;--accent-on:#0f1116;--accent-surface:rgb(110 231 183 / 0.14);--focus:#6ee7b7;--mark-accent:#6ee7b7;}.signin{--accent:#6ee7b7;--accent-on:#0f1116;--accent-surface:rgb(110 231 183 / 0.14);--focus:#6ee7b7;--text-strong:#6ee7b7;--mark-accent:#6ee7b7;}</style>"; [ "$("${C[@]}" "$U/login" | grep -o -E '<style>:root[^<]*</style>')" = "$B6S" ] && echo "Markenblock wie §8: ja" || echo "Markenblock wie §8: NEIN"
+```
+
+**Erwartet:** die Marke mit `"logo":null`, kein `logo.*`, die Route `404`,
+`<title inertia>Muster Hosting</title>`, `"logo":null` in den Daten der Seite
+und „Markenblock wie §8: ja".
+
+### N5 — Die Anmeldeseite: Schrift und Zeichen in der Farbe der Marke (§6c)
+
+Im privaten Fenster die Anmeldeseite frisch laden, bei 1440 px, und das
+Snippet aus §3 einfügen. **Erwartet** wie in Punkt 4, nur ohne Logo und mit
+drei Zuweisungen mehr: `Logo —` in der Marke laut Seite,
+`Markenblock: 4 Regeln, 19 Zuweisungen, davon keine Marke: 0` und
+`Anmeldeseite: kein Logo · Zeichen ja · Name „Muster Hosting"`. Die Fusszeile
+steht über `0.9.0-rc.12`, das Urteil lautet „kommt an".
+
+Frisch geladen dann die Zeilen aus N4. **Erwartet:**
+
+```
+  Anmeldeseite: Name #6ee7b7 · Balken oben #6ee7b7 · Balken unten #6ee7b7 · „Angemeldet bleiben" #6ee7b7
+Gegenprobe, Markenblock abgeschaltet:
+  Anmeldeseite: Name #ffb7a5 · Balken oben #ff7fec · Balken unten #ffb7a5 · „Angemeldet bleiben" #ffb7a5
+```
+
+Unter `rc.11` stand die erste Zeile so da wie die Gegenprobe. Dazu ein Bild bei
+1440 px: Name, Zeichen und „Angemeldet bleiben" in Mint.
+
+### N6 — Die Unterschrift der Mails (§6e)
+
+Zuerst rechnet der Server die Testmail, mit der Marke aus N4:
+
+```bash
+srvpanel tinker --execute='$t = (new App\Mail\TestMessage("Administrator", "jetzt"))->render(); echo json_encode(substr($t, strrpos($t, "ausgel")), JSON_UNESCAPED_UNICODE), PHP_EOL;'
+```
+
+**Erwartet:**
+
+```
+"ausgelöst hat.\n\n-- \nMuster Hosting\nBetrieben von der Muster Hosting GmbH · Musterweg 1 · 12345 Musterstadt\n"
+```
+
+In JSON ist zu sehen, was die Quelle einer Mail nicht zeigt: das Leerzeichen
+hinter `--`. Unter `rc.11` stand dort `"ausgelöst hat.\n--\nMuster Hosting…"`.
+
+Dann auf `/settings/mail` die Testmail verschicken und die Quelle ansehen.
+**Erwartet:** vor der Trennzeile eine leere Zeile. In einem Mailprogramm, das
+Unterschriften erkennt, ist die Unterschrift abgesetzt, in Thunderbird grau.
+
+### N7 — Zurück, ohne abzuschreiben (§6d)
+
+Auf `/settings/general` Name, Fusszeile und beide Farben **leeren**, „Marke
+speichern". Dann Block 1 und die Zeile aus N0.
+
+**Erwartet:** die Felder leer mit den Platzhaltern, die Hinweise wie in N1,
+und abgelegt ist keine Angabe:
+
+```
+{"name":null,"accent_light":null,"accent_dark":null,"footer":"","logo":null}
+```
+
+Block 1 druckt dieselbe Marke wie vor dem Lauf, mit `0.9.0-rc.12` als Fassung,
+und keine `<style>`-Zeile.
+
+### Wann er durch ist
+
+N0 bis N7 wie erwartet. Steht eine Zeile anders da, ist die Behebung dahinter
+nicht angekommen, und der Punkt ist nicht erfüllt. Danach spricht der
+Betreiber die Abnahme von B6 aus.

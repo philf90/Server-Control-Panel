@@ -33719,3 +33719,9 @@ Drei neue Eingriffe halten das, und gefahren sind alle 15 Eingriffe an den
 berührten Dateien und am Wächter. Einer davon, der von `NtpVerdictTest`,
 brauchte zwei Leerzeichen mehr in seinem Anker, weil die Hülle die Seite
 eingerückt hat (`docs/140 §6b`).
+
+**Die vier Prüfkörper des Laufs liegen seitdem im Repo**, unter
+`tests/pruefkoerper/b6/`, damit sie sich direkt verlinken lassen.
+`.gitattributes` führt sie als Bytes: Unter `text=auto` hielte Git das
+getarnte SVG für Text, und die Prüfsummen in `docs/140 §2` hängen an jedem
+Byte.

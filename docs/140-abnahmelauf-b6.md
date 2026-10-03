@@ -251,8 +251,10 @@ stellt sie wieder her.
 
 ## §2 · Die Prüfkörper und die Werte des Laufs
 
-Vier Dateien, verschickt mit diesem Lauf. Sie liegen auf dem Rechner, an dem
-der Browser läuft.
+Vier Dateien, verschickt mit diesem Lauf und seit dem 3. Oktober auch im Repo
+unter `tests/pruefkoerper/b6/`. Sie liegen auf dem Rechner, an dem der Browser
+läuft. GitHub liefert sie mit dem Typ aus ihrer Endung und mit `nosniff` aus;
+das getarnte SVG zeigt ein Browser dort also als kaputtes Bild.
 
 | Datei | Grösse | Inhalt | sha256 |
 |---|---|---|---|

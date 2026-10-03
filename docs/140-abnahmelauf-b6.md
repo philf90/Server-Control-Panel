@@ -23,6 +23,14 @@ die Freigabe, die diese Entscheidungen trägt. **Entschieden hat der Betreiber
 am selben Tag, alle drei Fragen wie vorgeschlagen**, und behoben sind die
 sechs Befunde mit `0.9.0-rc.11` (§6a).
 
+**Gefahren am 3. Oktober 2026 gegen `0.9.0-rc.11`** (§7): Block 1 und **alle
+neun Punkte erfüllt**, Punkt 7 im zweiten Anlauf. Zwei Befunde am Prüfling
+kamen aus dem Lauf und ein dritter beim Bauen des zweiten; gebaut sind sie für
+`0.9.0-rc.12` (§6b, §6c), dazu ein Wunsch des Betreibers (§6d). Drei Befunde
+an der Vorschrift sind beim Fahren berichtigt, in §3 Punkt 3 und Punkt 7, und
+Punkt 8 ist ergänzt. Es stehen aus: der Nachlauf gegen `rc.12` und die
+Abnahme.
+
 **Neu ist ein Snippet für die Konsole** (§3). Es liest auf der Anmeldeseite
 und auf jeder Seite des Panels, was von der Marke ankommt: den Titel im
 Reiter, Logo oder Zeichen, die Fusszeile und die Farben, wie sie in beiden
@@ -521,10 +529,17 @@ srvpanel tinker --execute='echo json_encode(app(App\Support\Settings\Settings::c
 ls -la /var/lib/srvpanel/storage/app/branding/
 sha256sum /var/lib/srvpanel/storage/app/branding/logo.*
 P=$(awk -F= '/^PANEL_PORT=/{print $2; exit}' /etc/srvpanel/panel.env); H=$(hostname -f); U="https://$H:$P"; C=(curl -sk --noproxy '*' --resolve "$H:$P:127.0.0.1")
-"${C[@]}" "$U/login" | grep -o -E '<title inertia>[^<]*</title>|<style>:root[^<]*</style>|"logo":"[^"]*"'
+"${C[@]}" "$U/login" | grep -o -E '<title inertia>[^<]*</title>|<style>:root[^<]*</style>|"logo":(null|"[^"]*")'
 "${C[@]}" -D - -o /tmp/b6-logo "$U/branding/logo" | grep -i -E '^HTTP|^content-type|^x-content-type|^cache-control' | tr -d '\r'
 sha256sum /tmp/b6-logo; rm -f /tmp/b6-logo
 ```
+
+**Berichtigt am 3. Oktober, vor Punkt 8** (§7). Das Muster für die Adresse
+des Logos lautete `"logo":"[^"]*"` und trifft nur eine Zeichenkette. Ohne
+Logo steht in den Daten der Seite `"logo":null`, und der Block druckte dazu
+keine Zeile. Gerade das erwartet Punkt 8. Im Container gegengeprüft: Mit dem
+alten Muster steht ohne Logo nur der Titel da, mit dem neuen zusätzlich
+`"logo":null`.
 
 **Erwartet:**
 
@@ -653,6 +668,90 @@ Bytes, beide Prüfsummen `b48f82fb…77cf`, `content-type: image/jpeg`, und
 `"logo":"logo.jpg"` in der Marke. `logo.png` ist fort, weil `Logo::store()`
 vor dem Ablegen jede ältere Fassung entfernt.
 
+**Berichtigt am 3. Oktober, beim Fahren** (§7). **So wie oben beschrieben,
+misst der Punkt nichts mehr, wenn Punkt 4 länger als fünf Minuten zurückliegt.**
+Logo A liegt im privaten Fenster dann abgelaufen im Zwischenspeicher, und ein
+Neuladen holt es neu. Das täte es auch unter der festen Adresse von `rc.10`,
+und der Punkt wäre in beiden Fassungen grün. Gefahren wird deshalb in dieser
+Reihenfolge, alle Schritte innerhalb von fünf Minuten:
+
+1. Im **privaten Fenster** die Anmeldeseite **ohne** Zwischenspeicher neu
+   laden (Strg+F5, auf dem Mac ⇧⌘R) und das Snippet einfügen. Erwartet:
+   Logo A, `rgb(110,231,183)`. Danach liegt Logo A frisch im Zwischenspeicher.
+   „Cache deaktivieren" in den DevTools bleibt aus.
+2. Im **normalen Fenster** `b6-logo-b.jpg` wählen und „Marke speichern".
+3. Im privaten Fenster gewöhnlich neu laden (F5, auf dem Mac ⌘R) und das
+   Snippet einfügen. Erwartet: Logo B, `rgb(192,32,32)`, unter einer neuen
+   Fassung hinter `?v=`.
+4. Im privaten Fenster die **Gegenprobe** einfügen. Sie fragt die alte
+   Adresse von Logo A dreimal: im Zwischenspeicher, wie beim Neuladen und vom
+   Server. Erwartet: `Urteil: unter der alten Adresse käme beim Neuladen noch
+   Logo A, der Server hat Logo B — Logo B zeigt die Seite, weil die Adresse neu
+   ist.` Das ist das Verhalten von `rc.10`, gemessen an derselben Seite.
+5. Im normalen Fenster nach dem vollständigen Neuladen das Snippet einfügen.
+   Erwartet: Logo B in der Leiste.
+
+```js
+// B6 · docs/140 Punkt 7, Gegenprobe: die alte Adresse von Logo A — im Zwischenspeicher, wie beim Neuladen, vom Server.
+// Im privaten Fenster nach dem Neuladen und dem Snippet einfügen. Sie verändert den Zwischenspeicher nicht.
+(async () => {
+  const alt = location.origin + '/branding/logo?v=904eae8051dd7024'
+  const A = 'rgb(110,231,183)'
+  const B = 'rgb(192,32,32)'
+  const lesen = async (wie, init) => {
+    try {
+      const r = await fetch(alt, init)
+      const blob = await r.blob()
+      const bild = await createImageBitmap(blob)
+      const c = document.createElement('canvas'); c.width = bild.width; c.height = bild.height
+      const g = c.getContext('2d'); g.drawImage(bild, 0, 0)
+      const punkt = `rgb(${[...g.getImageData(40, 48, 1, 1).data].slice(0, 3).join(',')})`
+      const datum = r.headers.get('date')
+      const alter = datum ? Math.round((Date.now() - Date.parse(datum)) / 1000) : null
+      return { wie, punkt, typ: blob.type, bytes: blob.size, alter, regel: r.headers.get('cache-control') }
+    } catch (e) {
+      return { wie, fehler: e.name }
+    }
+  }
+  const zeile = (x) => x.fehler
+    ? `  ${x.wie.padEnd(20)} ${x.fehler}`
+    : `  ${x.wie.padEnd(20)} Punkt(40,48) ${x.punkt} · ${x.typ} ${x.bytes} B · Alter ${x.alter ?? '?'} s · ${x.regel ?? '—'}`
+
+  // Erst lesen, was liegt — ohne Netz. Nur ein frischer Eintrag wird danach „wie beim Neuladen" gefragt:
+  // Ein abgelaufener würde dabei neu geholt und unter der alten Adresse durch Logo B ersetzt.
+  const gespeichert = await lesen('im Zwischenspeicher', { cache: 'only-if-cached', mode: 'same-origin' })
+  const frisch = !gespeichert.fehler && gespeichert.alter !== null && gespeichert.alter < 300
+  const neuladen = frisch
+    ? await lesen('wie beim Neuladen', { cache: 'default' })
+    : { wie: 'wie beim Neuladen', fehler: 'nicht gefragt — der Eintrag ist nicht frisch' }
+  const server = await lesen('vom Server', { cache: 'no-store' })
+
+  let urteil
+  if (gespeichert.fehler) urteil = 'unter der alten Adresse liegt nichts im Zwischenspeicher — „Cache deaktivieren" an? So misst die Gegenprobe nichts.'
+  else if (!frisch) urteil = `der Eintrag ist ${gespeichert.alter} s alt und damit abgelaufen — die Gegenprobe trennt nicht.`
+  else if (gespeichert.punkt !== A) urteil = 'unter der alten Adresse liegt nicht Logo A — die Gegenprobe trennt nicht.'
+  else if (neuladen.punkt === A && server.punkt === B) urteil = 'unter der alten Adresse käme beim Neuladen noch Logo A, der Server hat Logo B — Logo B zeigt die Seite, weil die Adresse neu ist.'
+  else urteil = 'unerwartet — die Zeilen bitte so schicken.'
+  console.log([`Gegenprobe Punkt 7 · ${new Date().toLocaleTimeString('de-DE')} · ${alt}`, zeile(gespeichert), zeile(neuladen), zeile(server), `Urteil: ${urteil}`].join('\n'))
+})()
+```
+
+**„Wie beim Neuladen" fragt sie nur einen frischen Eintrag.** Der kommt dann
+aus dem Zwischenspeicher, und an ihm ändert sich nichts. Ein abgelaufener
+Eintrag würde dabei neu geholt, und unter der alten Adresse läge danach Logo
+B. Die erste Fassung der Gegenprobe tat genau das (§7). Im Container
+gegengeprüft, je Fall allein am Server:
+
+| Lage | im Zwischenspeicher | wie beim Neuladen | vom Server | Urteil |
+|---|---|---|---|---|
+| frisch | A, 1 s | A | B | „weil die Adresse neu ist" |
+| „Cache deaktivieren" an | nichts (`TypeError`) | nicht gefragt | B | „so misst die Gegenprobe nichts" |
+| abgelaufen | A, 312 s | nicht gefragt | B | „abgelaufen — trennt nicht" |
+| alte Adresse mit Logo B neu geholt | B | B | B | „nicht Logo A — trennt nicht" |
+
+Im abgelaufenen Fall bleibt der Zwischenspeicher unberührt: Ein zweiter
+Aufruf nach dem Neuladen zeigt unverändert A, 312 s.
+
 ### Punkt 8 — Das Logo lässt sich entfernen
 
 Auf `/settings/general` „Logo entfernen". Dann Block 2 noch einmal und im
@@ -670,6 +769,27 @@ privaten Fenster die Anmeldeseite neu laden und das Snippet einfügen.
 
 Unter `rc.10` bliebe das Logo liegen, bei gleicher Prüfsumme und mit der
 Meldung „Die Marke ist gespeichert." (Befund 3).
+
+**Ergänzt am 3. Oktober, vor Punkt 8** (§7). Drei Dinge, gemessen im
+Container am Knopf der Seite oder gelesen am Controller:
+
+- **„Logo entfernen" schickt das ganze Formular**, mit `remove_logo` und ohne
+  Rückfrage. Die Meldung danach ist dieselbe wie nach dem Speichern, sie
+  allein belegt also nichts. Den Beleg gibt Block 2.
+- **Unter „Bilddatei" bleibt nichts gewählt.** Der Controller entfernt erst
+  das Logo und legt danach eine gewählte Datei ab; mit einer gewählten Datei
+  stünde danach wieder ein Logo da.
+- **Auf den Bildern des Laufs lag der Knopf unterhalb des Ausschnitts.**
+  Gelesen wird er deshalb mit einer Zeile in der Konsole, auf
+  `/settings/general` nach dem Neuladen. Erwartet:
+  `Knopf „Logo entfernen": fort · Feld „Bilddatei": da · has_logo: false`.
+
+```js
+(() => { const p = document.getElementById('app').__vue_app__.config.globalProperties.$page; const knopf = [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Logo entfernen'); console.log(`${p.url} · Knopf „Logo entfernen": ${knopf ? 'da' : 'fort'} · Feld „Bilddatei": ${document.querySelector('input[type=file]') ? 'da' : 'fehlt'} · has_logo: ${p.props.brandSettings?.has_logo}`) })()
+```
+
+Im Container in beiden Zuständen gemessen: mit Logo `da · has_logo: true`,
+nach einem Klick auf den echten Knopf `fort · has_logo: false`.
 
 ### Punkt 9 — Zurück
 
@@ -1210,3 +1330,400 @@ unterscheiden.
 - Die Hinweise mit der Vorgabe: hell
   `Vorgabe, gemessen 8,15:1 auf #ede8e0 (der Tönung einer Warnung)`, dunkel
   `Vorgabe, gemessen 6,27:1 auf #1d302f (der Tönung einer Erfolgsmeldung)`.
+
+## §7 · Protokoll
+
+Gefahren am 3. Oktober 2026 auf `cloudsrv24` gegen `0.9.0-rc.11`, vom Morgen
+bis 20:12 Uhr. Punkt 1 lief auf dem Telefon, alle weiteren am Mac in Chrome:
+die Anmeldeseite im privaten Fenster, das Panel im normalen. Die Prüfkörper
+kamen aus dem Repo (`tests/pruefkoerper/b6/`, Stand `7910516d`). Was hier
+steht, ist von den Bildern und Ausgaben des Betreibers abgelesen, und die
+Uhrzeiten sind die der Anzeigezone, CEST.
+
+**Block 1 und alle neun Punkte sind erfüllt**, die Punkte 3, 4 und 6
+darunter, und keiner ist als „nicht herstellbar" ausgefallen. Punkt 7 ist es
+im zweiten Anlauf, mit berichtigter Reihenfolge und berichtigter Gegenprobe
+(§3 Punkt 7). Kein Befund aus §0 stand noch da: Die sechs Behebungen von
+`rc.11` sind auf dem Server angekommen.
+
+**Acht Befunde.** Drei stecken im Prüfling, zwei kamen aus dem Lauf und einer
+beim Bauen des zweiten, und alle drei sind für `0.9.0-rc.12` gebaut (§6b,
+§6c). Drei stecken in der Vorschrift und sind beim Fahren berichtigt, zwei in
+meinem Prüfstand im Container. Nach Punkt 9 kam ein Wunsch des Betreibers
+dazu, ebenfalls gebaut (§6d).
+
+### Block 1 vor dem Lauf
+
+```
+0.9.0-rc.11
+{"name":"SrvPanel","accent_light":"#3730a3","accent_dark":"#ff7fec","footer":"","logo":null}
+Absender: SrvPanel <panel@cloudsrv24.de>
+ls: cannot access '/var/lib/srvpanel/storage/app/branding/': No such file or directory
+Panel: https://cloudsrv24.de:8443
+<title inertia>SrvPanel</title>
+Logo-Route: 404
+```
+
+Erfüllt, so wie §1 es für einen Server erwartet, auf dem nie eine Marke
+gesetzt war: keine `<style>`-Zeile und kein Verzeichnis `branding/`. Die
+Absenderadresse ist eingetragen, und damit steht die Vorbedingung für
+Punkt 6.
+
+### Punkt 1 — erfüllt, um 09:53 auf dem Telefon
+
+Oben stand die Zusammenfassung, Wort für Wort wie erwartet:
+
+> Das Formular wurde nicht gespeichert.
+> Diese Farbe erreicht auf #fafafb nur 3,87:1. Der Akzent trägt auch Schrift;
+> verlangt sind 4,5:1.
+
+Der Hinweis unter dem Feld blieb bei „Gemessen 9,52:1 auf #fafafb", also bei
+der Vorgabe. Block 1 lief erst nach Punkt 2 noch einmal und gilt für beide.
+
+- Ein Bild zeigt im Feld `#3730a3` statt `#2f8f5b`. Das ist kein Befund: Nach
+  einer Abweisung bleibt der eingetippte Wert im Feld stehen, im Container
+  gemessen. Das Bild ist vor dem Speichern oder nach einem Neuladen
+  entstanden.
+- **Am Bild hat der Betreiber einen Befund gemeldet**: „Speichern" klebt an
+  „Name und Fusszeile". Dieselbe Fuge stand danach auf jedem Bild der Seite,
+  auch bei 1440 px am Mac. Gemessen sind es 0 px bei beiden Breiten (§6b).
+
+### Punkt 2 — erfüllt, um 15:03, und Block 1 danach
+
+Beide Meldungen standen Wort für Wort da:
+
+> Nur PNG, JPEG und WebP — diese Datei ist image/svg+xml. SVG ist
+> ausgeschlossen: Es darf Skript enthalten, und das Logo steht auf der
+> Anmeldeseite.
+
+> Das Bild ist 470 KB gross; erlaubt sind 256 KB.
+
+Die erste Datei heisst `.png`, und der Typ kam trotzdem aus ihrem Inhalt.
+**Block 1 danach war Zeile für Zeile derselbe wie vor dem Lauf**, und
+`branding/` gab es weiterhin nicht. Abgewiesen heisst also auch: nichts
+abgelegt, in Punkt 1 wie in Punkt 2.
+
+### Punkt 3 — erfüllt, gespeichert um 15:32
+
+**Auf der Seite** stand „Die Marke ist gespeichert.", und sie hatte ganz neu
+geladen: Die Knöpfe waren ohne F5 mintgrün, das Dateifeld war leer, in der
+Leiste stand das Logo, und unter dem hellen Akzent stand „Gemessen 6:1 auf
+#fafafb".
+
+**Block 2** trug beim Fahren eine Zeile mehr. Sie vergleicht die
+`<style>`-Zeile Zeichen für Zeichen mit dem Wortlaut aus §6a und druckt
+„Markenblock wie §6a: ja" oder „NEIN". Unter `rc.12` trägt der Block drei
+Zuweisungen mehr (§6c); der Vergleich gilt also nur für `rc.11`.
+
+- Die Marke:
+  `{"name":"Muster Hosting","accent_light":"#0b6e4f","accent_dark":"#6ee7b7","footer":"Betrieben von der Muster Hosting GmbH · Musterweg 1 · 12345 Musterstadt","logo":"logo.png"}`.
+- `logo.png` mit 681 Bytes, Eigentümer und Gruppe `srvpanel`, das
+  Verzeichnis `drwxr-x---`, beide mit der Zeit 15:32.
+- **Beide Prüfsummen `9dd9c55e…975d7`**, die der abgelegten und die der
+  ausgelieferten Datei.
+- `<title inertia>Muster Hosting</title>` und „Markenblock wie §6a: ja".
+- `"logo":"https:\/\/cloudsrv24.de:8443\/branding\/logo?v=904eae8051dd7024"`.
+  Die Fassung hinter `?v=` ist genau die, die vorher aus Logo A gerechnet war.
+- `HTTP/2 200`, `content-type: image/png` und
+  `cache-control: max-age=300, public`, dazu
+  `x-content-type-options: nosniff` zweimal (Beobachtung 1).
+
+### Punkt 4 — erfüllt, die Anmeldeseite gegen 15:40
+
+**4a, das Snippet** im privaten Fenster bei 1440 px, jede Zeile wie erwartet:
+
+- `Titel im Reiter: Anmeldung · Muster Hosting`.
+- `Markenblock: 4 Regeln, 16 Zuweisungen, davon keine Marke: 0`, mit den
+  Selektoren aus §6a.
+- `Anmeldeseite: Logo https://cloudsrv24.de:8443/branding/logo?v=904eae8051dd7024 · alt „Muster Hosting" · Bild 360×96 · Kasten 128×34 · Punkt(40,48) rgb(110,231,183)`.
+- Die Fusszeile über `0.9.0-rc.11` und `Ladebeleg: Grund der Maske #1a0b2e`.
+- Hell `Wurzel #0b6e4f`, Hauptknopf und Anmeldeseite in beiden Themen
+  `#6ee7b7`. Ohne Markenblock die Vorgaben, `#3730a3`, `#ff7fec` und
+  `#ffb7a5`.
+- `Urteil: was die Seite über die Marke sagt, kommt an` und
+  `Thema der Seite zurück auf: light`. Hell ist die Vorgabe des Servers für
+  Seiten ohne Konto.
+
+**4b, die vier Bilder** bei 1440 und 390 px in beiden Themen: Logo A oben in
+der Maske, der Knopf in Mint, die Fusszeile darunter, bei 390 px sauber in
+zwei Zeilen. Die Anmeldeseite sieht in beiden Themen gleich aus.
+`bilderMessen()` bei 390 px meldete hell wie dunkel dasselbe, Zeichen für
+Zeichen wie vorab im Container:
+
+```
+dokument=0 gegenprobe=200 schiebt=0 rollt=0 versteckt=0
+```
+
+**Am Bild von 4a** stand „Angemeldet bleiben" in Pfirsich neben dem mintgrünen
+Knopf. Daraus sind die Befunde 2 und 3 geworden (§6c).
+
+### Punkt 5 — erfüllt, das Panel in beiden Themen
+
+**Das Snippet** auf `/settings/general`, angemeldet, jede Zeile wie erwartet:
+`Titel im Reiter: Allgemein · Muster Hosting`, in der Leiste Logo A unter
+`?v=904eae8051dd7024` im Kasten 90×24 mit `rgb(110,231,183)`, der Ladebeleg
+`#1a0b2e`. Hell stehen Wurzel und Hauptknopf auf `#0b6e4f`, dunkel beide auf
+`#6ee7b7`, Leiste und aktiver Menüpunkt in beiden Themen auf `#6ee7b7`. Ohne
+Markenblock stehen die Vorgaben da, `#3730a3`, `#ff7fec` und in der Leiste
+`#ffb7a5`. Das Urteil: „kommt an".
+
+**Die beiden Bilder** bei 1440 px, dunkel und hell, mit dem Bereich „Farbe".
+Die Hinweise lauten „Gemessen 6:1 auf #fafafb — verlangt sind 4,5:1. Der
+Akzent trägt auch Schrift." und „Gemessen 11,77:1 auf #14171d. Diese Farbe
+gilt auch auf der Anmeldeseite — sie trägt in beiden Themes einen dunklen
+Grund.". Die Knöpfe stehen hell in Dunkelgrün und dunkel in Mint. Die Leiste
+bleibt in beiden Themen dunkel, und „Allgemein" ist darin in Mint markiert.
+
+- Die Fusszeile ist im Feld abgeschnitten, weil ihr Text länger ist als das
+  Feld. Kein Befund.
+- Die DevTools meldeten „6 issues". Das ist die Ausfüllhilfe von Chrome
+  (`docs/76`, `docs/126`), kein Befund.
+
+### Punkt 6 — erfüllt, die Mails um 17:32 und 17:39
+
+**Block 3:**
+
+```
+Muster Hosting — Testmail
+Muster Hosting — Kontingent überschritten: kunde-web
+Muster Hosting — ein neuer Befund auf cloudsrv24.de
+```
+
+Unter `rc.10` stand dort dreimal „SrvPanel —".
+
+**Die Quelle der zweiten Mail**, ohne die Zeilen der Zustellung, ohne DKIM und
+ohne Message-ID:
+
+```
+From: SrvPanel <panel@cloudsrv24.de>
+Subject: Muster Hosting =?utf-8?Q?=E2=80=94?= Testmail
+MIME-Version: 1.0
+Date: Sat, 03 Oct 2026 15:39:54 +0000
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Diese Nachricht best=C3=A4tigt, dass dieses Panel =C3=BCber das eingetragen=
+e Relay verschicken kann.
+
+Ausgel=C3=B6st von Administrator am 2026-10-=
+03 17:39:54.
+
+Wenn Sie diese Mail erhalten haben, ohne sie erwartet zu =
+haben, sehen Sie im
+Protokoll des Panels nach: Dort steht, wer sie ausgel=
+=C3=B6st hat.
+--
+Muster Hosting
+Betrieben von der Muster Hosting GmbH=
+ =C2=B7 Musterweg 1 =C2=B7 12345 Musterstadt =C2=B7 zweite Fassung
+```
+
+- `From:` trägt Name und Adresse aus Block 1. Der Name des Absenders bleibt
+  der aus `/settings/mail` (§6 Frage 1, Punkt 6).
+- Der Betreff ist „Muster Hosting — Testmail"; `=E2=80=94` ist der
+  Gedankenstrich.
+- Ein einziger Teil, `text/plain; charset=utf-8`, kein HTML.
+- Die erste Zeile sagt, dass **dieses Panel** über das Relay verschicken kann.
+- Am Ende stehen Name und Fusszeile; `=C2=B7` ist der Mittelpunkt.
+
+**Die Gegenprobe in der Zeit:** Die erste Mail um 17:32 endet auf
+„… 12345 Musterstadt". Danach ist die Fusszeile um „ · zweite Fassung"
+verlängert worden, und die zweite Mail um 17:39 endet darauf. Die Unterschrift
+liest also die gespeicherte Marke. Logo und Farbe stehen in keiner der beiden
+Mails (§6 Frage 2). Die Fusszeile behielt den Zusatz bis Punkt 9.
+
+### Punkt 7 — erfüllt im zweiten Anlauf
+
+**Vor dem Fahren war die Vorschrift berichtigt.** Logo A lag im privaten
+Fenster seit Punkt 4 im Zwischenspeicher, also seit rund vier Stunden, und
+mit `max-age=300` war der Eintrag längst abgelaufen. Ein Neuladen hätte Logo B
+auch unter der festen Adresse von `rc.10` geholt, und der Punkt wäre in beiden
+Fassungen grün gewesen. Gefahren wurde deshalb in der Reihenfolge, die jetzt
+in §3 Punkt 7 steht, dazu eine Gegenprobe. „F5 ohne Strg" ist auf dem Mac ⌘R.
+
+**Der erste Anlauf, 19:40 bis 19:47:**
+
+- Schritt 1, privat: Logo A unter `?v=904eae8051dd7024`, `rgb(110,231,183)`,
+  Kasten 128×34, die Fusszeile mit „· zweite Fassung" über `0.9.0-rc.11`,
+  Urteil „kommt an".
+- Schritt 2, normal: Logo B gespeichert, die Datei trägt 19:44.
+- Schritt 3, privat mit ⌘R: Logo B unter `?v=96a55ff9c30b1a1e`,
+  `rgb(192,32,32)`, Kasten 128×34, Urteil „kommt an".
+- Schritt 5, normal: Logo B in der Leiste, Kasten 90×24, `rgb(192,32,32)`,
+  die Farben wie in Punkt 5, Urteil „kommt an".
+- Block 2: die Marke mit `"logo":"logo.jpg"`, im Verzeichnis nur noch
+  `logo.jpg` mit 5.194 Bytes, beide Prüfsummen `b48f82fb…77cf`, „Markenblock
+  wie §6a: ja", `"logo":"…\/branding\/logo?v=96a55ff9c30b1a1e"`, `HTTP/2 200`
+  und `content-type: image/jpeg`. `logo.png` ist fort.
+- **Schritt 4, die Gegenprobe, sagte „unerwartet".** Unter der alten Adresse
+  lag schon Logo B, 5.194 Bytes und 20 s alt; abgeholt war es also um
+  19:45:49, nach dem Speichern. Im Bild stand der Code der ersten Fassung, und
+  die hatte ich zwei Stunden vorher berichtigt (Befund 5).
+
+Die wahrscheinliche Erklärung: Ein erster Aufruf der ersten Fassung fand den
+Eintrag aus Schritt 1 abgelaufen vor, denn Schritt 1 lag mehr als fünf Minuten
+zurück. Er fragte ihn „wie beim Neuladen", holte damit das gegenwärtige Logo
+und legte es unter die alte Adresse. Das geht, weil die Route unter jeder
+Fassung das gegenwärtige Logo ausliefert; `?v=` ist allein für den
+Zwischenspeicher da. Belegt ist die Erklärung nicht: Der Verlauf der Konsole
+war nach den Neuladungen der Wiederholung leer.
+
+**Die Wiederholung, 19:52 bis 19:55**, mit der berichtigten Gegenprobe. Auf
+dem Server lag Logo B, und im privaten Fenster lag Logo B frisch unter der
+alten Adresse. Deshalb wurde zuerst Logo A gespeichert und im privaten Fenster
+ohne Zwischenspeicher geladen:
+
+| Schritt | Fenster | gemessen |
+|---|---|---|
+| R1 | normal | Logo A gespeichert um 19:52:55, Logo A in der Leiste |
+| R2 | privat, ⇧⌘R | Logo A unter `?v=904eae8051dd7024`, `rgb(110,231,183)`, Urteil „kommt an" |
+| R3 | normal | Logo B gespeichert um 19:54:12, Logo B in der Leiste |
+| R4 | privat, ⌘R | Logo B unter `?v=96a55ff9c30b1a1e`, `rgb(192,32,32)`, Urteil „kommt an" |
+| R5 | privat, Gegenprobe | im Zwischenspeicher `rgb(110,231,183)`, `image/png`, 681 B, 69 s alt · wie beim Neuladen dasselbe · vom Server `rgb(192,32,32)`, `image/jpeg`, 5.194 B |
+
+Das Urteil der Gegenprobe um 19:54:47: „unter der alten Adresse käme beim
+Neuladen noch Logo A, der Server hat Logo B — Logo B zeigt die Seite, weil die
+Adresse neu ist." Die 69 s führen auf 19:53:38 zurück, zwischen R1 und R3,
+also auf R2. **Erfüllt**, und die Gegenprobe zeigt das Verhalten von `rc.10`
+an derselben Seite. Block 2 lief nach der Wiederholung nicht noch einmal; R3
+hat denselben Stand hergestellt wie Schritt 2.
+
+### Punkt 8 — erfüllt, um 20:00
+
+Im normalen Fenster „Logo entfernen", ohne gewählte Datei. Die Seite meldete
+„Die Marke ist gespeichert." und lud ganz neu, und in der Leiste stehen
+seitdem Zeichen und Name. Das Snippet druckte
+`Leiste: kein Logo · Zeichen ja · Name „Muster Hosting"`, den Markenblock mit
+4 Regeln und 16 Zuweisungen und das Urteil „kommt an". Die Zeile in der
+Konsole: `Knopf „Logo entfernen": fort · Feld „Bilddatei": da · has_logo: false`.
+
+**Block 2**, mit dem berichtigten Muster:
+
+- `"logo":null` in der Marke und in den Daten der Seite.
+- `branding/` leer, und `sha256sum` meldet `No such file or directory`.
+- `<title inertia>Muster Hosting</title>`, der Markenblock unverändert.
+- Die Route: `HTTP/2 404`, `content-type: text/html; charset=utf-8`,
+  `cache-control: no-cache, private` und `nosniff` einmal, nur von nginx. Die
+  Prüfsumme danach gilt der Fehlerseite.
+
+**Im privaten Fenster** mit ⌘R:
+`Anmeldeseite: kein Logo · Zeichen ja · Name „Muster Hosting"`, die Fusszeile
+über `0.9.0-rc.11`, das Urteil „kommt an". Am Bild stehen Zeichen und Name in
+Pfirsich, in der Leiste trägt der obere Balken des Zeichens Pink. Das ist
+Befund 2.
+
+### Punkt 9 — erfüllt, um 20:12
+
+Die Vorgaben eingetippt, `SrvPanel`, Fusszeile leer, `#3730a3` und `#ff7fec`.
+„Die Marke ist gespeichert." stand um 20:12:56 da. In der Leiste stehen
+wieder Zeichen und „SrvPanel", die Knöpfe sind im dunklen Thema wieder Pink,
+und der Hinweis lautet „Gemessen 9,52:1 auf #fafafb".
+
+**Block 1 war Zeile für Zeile der vom Morgen**, mit der einen Ausnahme, die §3
+Punkt 9 vorhersagt: `branding/` steht jetzt da, leer, zuletzt geändert um
+20:00 beim Entfernen. `<title inertia>SrvPanel</title>`, keine
+`<style>`-Zeile, `Logo-Route: 404`. Ohne eigene Farben schreibt `Style::css()`
+keinen Block, und das ist die Gegenprobe zu Punkt 3 in der Zeit.
+
+In der Ablage stehen die Vorgaben seitdem als Werte; unter `rc.11` geht es
+nicht anders. Danach äusserte der Betreiber den Wunsch, aus dem §6d geworden
+ist.
+
+### Die acht Befunde
+
+| | wo | was | gefunden | Stand |
+|---|---|---|---|---|
+| 1 | Prüfling | Die beiden Formulare auf `/settings/general` stehen ohne Abstand, 0 px | vom Betreiber in Punkt 1, auf dem Telefon | gebaut für `rc.12` (§6b) |
+| 2 | Prüfling | Schrift und Zeichen auf den Markenflächen bleiben in den Farben der Auslieferung | am Bild von Punkt 4a | gebaut für `rc.12` (§6c) |
+| 3 | Prüfling | Die Prüfung beim Speichern rechnet die getönten Flächen nicht. Der aktive Menüpunkt fällt schon unter `rc.11` auf 4,14:1 | beim Bauen von 2, im Container | gebaut für `rc.12` (§6c) |
+| 4 | Vorschrift | Punkt 7 misst nichts, wenn Punkt 4 länger als fünf Minuten zurückliegt | vor Punkt 7, an der Uhr, gemessen im Container | berichtigt, §3 Punkt 7 |
+| 5 | Vorschrift | Die erste Gegenprobe zu Punkt 7 legt bei einem abgelaufenen Eintrag Logo B unter die alte Adresse | vor Punkt 7, im Container; gefahren wurde sie trotzdem | berichtigt, Punkt 7 wiederholt |
+| 6 | Vorschrift | Block 2 druckt `"logo":null` nicht | vor Punkt 8, im Container | berichtigt, §3 Punkt 3 |
+| 7 | Prüfstand | Ein Lauf mit 310 s Wartezeit neben anderen Läufen gegen denselben Server: Der Fall „frisch" druckte nichts, und der lange Lauf war wertlos | im Container | nacheinander wiederholt |
+| 8 | Prüfstand | `Network.setCacheDisabled` wirkt ohne `Network.enable` nicht | im Container, an der Gegenprobe zur Gegenprobe | berichtigt |
+
+Die Befunde 7 und 8 betrafen die Messungen, mit denen ich die Gegenprobe im
+Container belegt habe, und keine Zahl auf dem Server.
+
+### Beobachtungen, keine Befunde
+
+1. **`x-content-type-options: nosniff` steht in der Antwort der Logo-Route
+   zweimal.** nginx setzt die Zeile für jede Antwort des Panels
+   (`add_header … always` in `PanelVhost`), der Controller für die Route noch
+   einmal. Der Wert ist derselbe und wirkt wie einer. Bei der 404
+   in Punkt 8 steht er einmal.
+2. **Die Unterschrift ist für ein Mailprogramm keine.** Die Trennzeile lautet
+   `--`. Die Konvention ist `-- ` mit Leerzeichen (RFC 3676 §4.3), und ohne
+   das Leerzeichen setzen Mailprogramme die Unterschrift nicht ab und lassen
+   sie beim Antworten im Zitat. Dazu fehlt die Leerzeile davor:
+   `resources/views/mail/signature.blade.php` hat eine, aber Laravel kürzt
+   jede gerenderte Ansicht vorn (`ltrim(ob_get_clean())` in `PhpEngine`),
+   auch eine eingebundene. Die Quelle oben zeigt es: Auf „… ausgelöst hat."
+   folgt unmittelbar `--`, und im Container gerendert beginnt die Vorlage der
+   Unterschrift mit `--`. In allen drei Mailvorlagen steht sie direkt unter
+   der letzten Zeile. Kein Kriterium dieses Laufs.
+3. **Die Zeit im Rumpf steht ohne Zone.** `Date:` sagt `15:39:54 +0000`, der
+   Rumpf „am 2026-10-03 17:39:54", dieselbe Sekunde in der Anzeigezone des
+   Panels. Die Zone nennt er nicht. Kein Kriterium dieses Laufs.
+4. **„Logo entfernen" fragt nicht zurück** und meldet dasselbe wie das
+   Speichern; eine gewählte Datei legt der Controller danach wieder ab (§3
+   Punkt 8). Das Logo lässt sich jederzeit neu hochladen, und den Beleg gab
+   Block 2.
+
+### Was der Lauf über sich selbst gelernt hat
+
+**Punkt 7 hat seinen Prüfkörper vier Stunden vor dem Gebrauch hergestellt.**
+Logo A kam in Punkt 4 in den Zwischenspeicher und war nach fünf Minuten
+abgelaufen. Der Satz dazu steht seit P7 in diesem Repo, dort an einer TTL von
+zehn Sekunden:
+
+> **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr
+> hergestellt.**
+
+**Die erste Gegenprobe hat den Zwischenspeicher verändert, den sie lesen
+sollte.** Im Container zeigte ein Neuladen danach Logo B unter der Adresse von
+Logo A, also Befund 4 aus §0 im Kleinen, und hergestellt hatte ihn die
+Gegenprobe selbst.
+
+> **Ein Prüfkörper, der seinen Gegenstand beim Messen verändert, meldet den
+> Unterschied als Fehler des Gemessenen.**
+
+**Und die berichtigte Fassung stand zwei Stunden vor Punkt 7 bereit.** Sie
+kam als Nachtrag in einer späteren Nachricht, die erste Fassung stand in der
+Anweisung zum Schritt, und gefahren wurde die erste.
+
+> **Eine Berichtigung, die als Nachtrag neben der alten Fassung steht, ersetzt
+> sie nicht — gefahren wird, was beim Schritt steht.**
+
+Wer eine Anweisung berichtigt, schreibt den ganzen Schritt neu und sagt, dass
+der alte nicht mehr gilt.
+
+**Zwei Fehler meines Prüfstands, beide an der Gegenprobe.** Den Fall
+„abgelaufen" belegt nur ein Lauf mit 310 s Wartezeit. Ich habe ihn neben
+anderen Läufen gestartet, die das Logo desselben Servers umschalteten. Der Fall
+„frisch" druckte danach nichts, und der lange Lauf war wertlos.
+
+> **Ein Test, dessen Ergebnis davon abhängt, was gerade nebenher läuft, misst
+> die Umgebung mit.**
+
+Zwei Läufe gegen einen Server, den beide umschalten, gehören hintereinander.
+Den Fall „Cache deaktivieren" stellt `Network.setCacheDisabled` her, und das
+wirkt erst nach `Network.enable`. Der erste Anlauf zeigte Logo A aus dem
+Zwischenspeicher, also gerade den Zustand, den er ausschliessen sollte. Der
+Satz dazu steht in `docs/96`:
+
+> **Eine Vorbereitung, die man nicht belegt, ist keine Bedingung der Messung,
+> sondern eine Hoffnung daneben.**
+
+**Und einmal hat das Hinsehen über die Frage hinaus getragen.** Am Bild von
+Punkt 4a waren Logo, Fusszeile und Knopf gefragt. Gefunden wurde daneben die
+Schrift in Pfirsich, und daraus kamen die Befunde 2 und 3.
+
+### Was aussteht
+
+- **Der Nachlauf gegen `0.9.0-rc.12`**, ausgeschrieben vor dem Fahren. Er
+  sieht §6b an der Fuge bei 390 px nach, §6c an den vier Erwartungen aus „Für
+  den Lauf heisst das" und an Schrift und Zeichen in Mint, und §6d an Punkt 9
+  ohne Abschreiben, an der Ablage mit `null` und an den Hinweisen mit der
+  Vorgabe.
+- **Die Abnahme spricht der Betreiber aus** (§5).

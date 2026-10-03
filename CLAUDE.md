@@ -39,7 +39,9 @@ nachgesehen (`docs/139 §9`, Abschnitt weiter unten). Der Lauf für B6 ist
 `docs/140`, ausgeschrieben am 1. Oktober vor dem Fahren. Beim Ausschreiben
 fielen sechs Befunde am Prüfling heraus. Der Betreiber hat sie am selben Tag
 entschieden, und behoben sind sie mit `0.9.0-rc.11` (`docs/140 §6a`, Abschnitt
-weiter unten). Gefahren wird er seit dem 3. Oktober gegen `rc.11`.
+weiter unten). Gefahren ist er am 3. Oktober gegen `rc.11`: **Block 1 und
+alle neun Punkte erfüllt**, Punkt 7 im zweiten Anlauf; das Protokoll ist
+`docs/140 §7`, abgenommen ist B6 noch nicht.
 Für `rc.12` gebaut sind zwei Befunde aus dem Lauf: zwei Formulare ohne Abstand
 (`docs/140 §6b`) sowie Schrift und Zeichen in der Farbe der Marke, samt einer
 Prüfung beim Speichern, die die Tönungen rechnet (`docs/140 §6c`). Dazu ein
@@ -6946,6 +6948,42 @@ zu sehen. `BrandFormTest` hält deshalb die Vorlage, `BrandReachTest` die Tür.
 > **Ein Wächter über die Antwort des Servers sieht nicht, was der Browser
 > vorher abweist.**
 
+### Der Lauf gegen `rc.11` — 3. Oktober 2026
+
+Block 1 und alle neun Punkte aus `docs/140` sind erfüllt, Punkt 7 im zweiten
+Anlauf (`docs/140 §7`). Von acht Befunden stecken drei im Prüfling, drei in
+der Vorschrift und zwei in meinem Prüfstand im Container.
+
+**Der teuerste stand in der Vorschrift, und der Satz dagegen stand schon
+hier.** Punkt 7 brauchte Logo A frisch im Zwischenspeicher des privaten
+Fensters. Hergestellt war es in Punkt 4, vier Stunden vorher, bei
+`max-age=300`. Ein Neuladen hätte Logo B auch unter der festen Adresse von
+`rc.10` geholt, und der Punkt wäre in beiden Fassungen grün gewesen.
+
+> **Ein Prüfkörper, der eine Haltbarkeit hat, wird nicht vor ihr
+> hergestellt.**
+
+Zum zweiten Mal nach P7, dort an einer TTL von zehn Sekunden.
+
+**Die Gegenprobe dazu hat im ersten Wurf den Zwischenspeicher verändert, den
+sie lesen sollte.** Einen abgelaufenen Eintrag fragte sie „wie beim
+Neuladen", holte damit das neue Logo und legte es unter die alte Adresse. Das
+geht, weil die Route unter jeder Fassung das gegenwärtige Logo ausliefert.
+Gefragt wird seitdem nur ein frischer Eintrag.
+
+> **Ein Prüfkörper, der seinen Gegenstand beim Messen verändert, meldet den
+> Unterschied als Fehler des Gemessenen.**
+
+**Gefahren wurde trotzdem der erste Wurf.** Die Berichtigung kam zwei Stunden
+vor Punkt 7 als Nachtrag in einer späteren Nachricht, und die erste Fassung
+stand bei der Anweisung zum Schritt.
+
+> **Eine Berichtigung, die als Nachtrag neben der alten Fassung steht, ersetzt
+> sie nicht — gefahren wird, was beim Schritt steht.**
+
+Wer eine Anweisung berichtigt, schreibt den ganzen Schritt neu und sagt, dass
+der alte nicht mehr gilt.
+
 ---
 
 ## Befehle
@@ -8195,6 +8233,12 @@ Testen berücksichtigen:
 
     > **Ein Bild, das ein abgebrochener Lauf hat liegen lassen, sieht aus wie
     > ein Ergebnis — es trägt kein Datum im Bild.**
+  - **„Cache deaktivieren" heisst über CDP `Network.setCacheDisabled`, und das
+    wirkt erst nach `Network.enable`.** Ohne liefert der Zwischenspeicher
+    weiter, und eine Messung, die ihn ausschliessen soll, misst mit ihm.
+    Gemessen am 3. Oktober 2026 (`docs/140 §7`). Und zwei Läufe gegen
+    denselben Wegwerf-Server, die beide etwas daran umschalten, gehören
+    hintereinander: Ein Lauf mit 310 s Wartezeit neben anderen war wertlos.
 - Vordergrund-`sleep` ist blockiert — Hintergrundlauf verwenden.
 - **`git checkout -- resources/` wirft eigene Arbeit weg.** Beim Gegenprüfen
   eines Wächters ist das der Weg zurück — und wenn im selben Verzeichnis noch

@@ -39285,6 +39285,124 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ClassNameTest passed
 
 echo
+echo "── MailSignatureTest: die Trennzeile verliert ihr Leerzeichen ──"
+#
+# So stand sie bis rc.11 da. Ein Mailprogramm erkennt nur die Zeile mit
+# Leerzeichen als Beginn der Unterschrift (RFC 3676, docs/140 §7).
+vorher_datei resources/views/mail/signature.blade.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/views/mail/signature.blade.php')
+s = p.read_text(encoding='utf-8')
+alt = "{!! '-- ' !!}\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '--\n', 1), encoding='utf-8')
+PY
+griff_datei resources/views/mail/signature.blade.php "Trennzeile ohne Leerzeichen" &&
+pruefe "Trennzeile ohne Leerzeichen" \
+  MailSignatureTest::test_every_mail_ends_with_a_signature_a_mail_program_recognises failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MailSignatureTest passed
+
+echo
+echo "── MailSignatureTest: die Testmail bindet die Unterschrift ohne Leerzeile ein ──"
+#
+# Gemessen an der Wirkung: Die Unterschrift klebt am letzten Satz, wie in der
+# Quelle der Testmail vom 3. Oktober.
+vorher_datei resources/views/mail/test.blade.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/views/mail/test.blade.php')
+s = p.read_text(encoding='utf-8')
+alt = "ausgelöst hat.\n\n@include('mail.signature')\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "ausgelöst hat.\n@include('mail.signature')\n", 1), encoding='utf-8')
+PY
+griff_datei resources/views/mail/test.blade.php "Testmail ohne Leerzeile" &&
+pruefe "Testmail ohne Leerzeile" \
+  MailSignatureTest::test_every_mail_ends_with_a_signature_a_mail_program_recognises failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MailSignatureTest passed
+
+echo
+echo "── MailSignatureTest: die Kundenmail bindet die Unterschrift ohne Leerzeile ein ──"
+#
+# Gemessen an der Vorlage.
+vorher_datei resources/views/mail/quota.blade.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/views/mail/quota.blade.php')
+s = p.read_text(encoding='utf-8')
+alt = "darüber liegt.\n\n@include('mail.signature')\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "darüber liegt.\n@include('mail.signature')\n", 1), encoding='utf-8')
+PY
+griff_datei resources/views/mail/quota.blade.php "Kundenmail ohne Leerzeile" &&
+pruefe "Kundenmail ohne Leerzeile" \
+  MailSignatureTest::test_every_view_that_includes_the_signature_leaves_a_line_before_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MailSignatureTest passed
+
+echo
+echo "── MailSignatureTest: die Betreibermail bindet die Unterschrift ohne Leerzeile ein ──"
+#
+# Gemessen an der Vorlage, deren Kommentar der Leser vorher abstreift.
+vorher_datei resources/views/mail/diagnose.blade.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/views/mail/diagnose.blade.php')
+s = p.read_text(encoding='utf-8')
+alt = "keine Nachricht.\n\n@include('mail.signature')\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "keine Nachricht.\n@include('mail.signature')\n", 1), encoding='utf-8')
+PY
+griff_datei resources/views/mail/diagnose.blade.php "Betreibermail ohne Leerzeile" &&
+pruefe "Betreibermail ohne Leerzeile" \
+  MailSignatureTest::test_every_view_that_includes_the_signature_leaves_a_line_before_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MailSignatureTest passed
+
+echo
+echo "── MailSignatureTest: eine weitere Vorlage bindet die Unterschrift ohne Leerzeile ein ──"
+#
+# Der erste Fall rendert drei bekannte Mails; der zweite liest jede Vorlage und
+# sieht deshalb auch eine, deren Mail es noch nicht gibt.
+vorher_datei resources/views/errors/404.blade.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/views/errors/404.blade.php')
+s = p.read_text(encoding='utf-8')
+assert s.endswith("')\n"), 'Die Vorlage endet anders als erwartet — der Bruch waere blind'
+assert "@include('mail.signature')" not in s, 'Die Vorlage bindet die Unterschrift schon ein'
+p.write_text(s + "@include('mail.signature')\n", encoding='utf-8')
+PY
+griff_datei resources/views/errors/404.blade.php "weitere Vorlage ohne Leerzeile" &&
+pruefe "weitere Vorlage ohne Leerzeile" \
+  MailSignatureTest::test_every_view_that_includes_the_signature_leaves_a_line_before_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MailSignatureTest passed
+
+echo
+echo "── MailSignatureTest: der Leser findet keine Einbindung ──"
+#
+# Dann waere der zweite Fall ueber null Vorlagen gruen, und seine Untergrenze
+# muss anschlagen.
+vorher_datei tests/Feature/MailSignatureTest.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('tests/Feature/MailSignatureTest.php')
+s = p.read_text(encoding='utf-8')
+alt = "'mail\\\\.signature'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "'mail\\\\.unterschrift'", 1), encoding='utf-8')
+PY
+griff_datei tests/Feature/MailSignatureTest.php "Leser ohne Einbindung" &&
+pruefe "Leser ohne Einbindung" \
+  MailSignatureTest::test_every_view_that_includes_the_signature_leaves_a_line_before_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MailSignatureTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

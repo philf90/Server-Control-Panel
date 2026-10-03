@@ -41,12 +41,14 @@ fielen sechs Befunde am Prüfling heraus. Der Betreiber hat sie am selben Tag
 entschieden, und behoben sind sie mit `0.9.0-rc.11` (`docs/140 §6a`, Abschnitt
 weiter unten). Gefahren ist er am 3. Oktober gegen `rc.11`: **Block 1 und
 alle neun Punkte erfüllt**, Punkt 7 im zweiten Anlauf; das Protokoll ist
-`docs/140 §7`, abgenommen ist B6 noch nicht.
+`docs/140 §7`. Abgenommen wird B6 nach dem Nachlauf gegen `rc.12`, so
+entschieden vom Betreiber.
 Für `rc.12` gebaut sind zwei Befunde aus dem Lauf: zwei Formulare ohne Abstand
 (`docs/140 §6b`) sowie Schrift und Zeichen in der Farbe der Marke, samt einer
 Prüfung beim Speichern, die die Tönungen rechnet (`docs/140 §6c`). Dazu ein
 Wunsch des Betreibers: Ohne Eintrag gelten für Name und Farben die Vorgaben
-(`docs/140 §6d`).
+(`docs/140 §6d`). Und die Unterschrift der Mails steht seitdem mit Leerzeile
+und `-- `, wie ein Mailprogramm sie erkennt (`docs/140 §6e`).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -6983,6 +6985,19 @@ stand bei der Anweisung zum Schritt.
 
 Wer eine Anweisung berichtigt, schreibt den ganzen Schritt neu und sagt, dass
 der alte nicht mehr gilt.
+
+**Und an der Quelle einer Testmail stand eine Beobachtung, aus der eine
+Behebung wurde** (`docs/140 §6e`). Die Unterschrift klebte ohne Leerzeile am
+letzten Satz, obwohl ihre Vorlage eine hatte. Laravel schneidet jeder
+gerenderten Ansicht den Leerraum am Anfang ab (`ltrim(ob_get_clean())` in
+`PhpEngine`), auch einer eingebundenen.
+
+> **Eine Leerzeile am Anfang einer eingebundenen Vorlage kommt nie an —
+> Laravel kürzt jede gerenderte Ansicht vorn.**
+
+Sie steht deshalb in der einbindenden Vorlage. Die Trennzeile `-- ` steht als
+Ausgabe da, weil `.editorconfig` Leerzeichen am Zeilenende entfernt;
+`MailSignatureTest` hält beides an der gerenderten Mail.
 
 ---
 

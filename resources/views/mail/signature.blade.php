@@ -14,9 +14,20 @@
 
     `$brand` kommt aus dem View-Composer für `mail.*`; keine Vorlage muss ihn
     durchreichen, und keine kann ihn vergessen.
---}}
 
---
+    **Die Trennzeile ist `-- `, mit Leerzeichen** (RFC 3676 §4.3), entschieden
+    am 3. Oktober 2026 (`docs/140 §7`). Erst daran erkennt ein Mailprogramm die
+    Unterschrift: Es setzt sie ab und lässt sie beim Antworten weg. Sie steht als
+    Ausgabe da und nicht als Text, weil `.editorconfig` Leerzeichen am Zeilenende
+    entfernt, und mit ihnen das eine, auf das es ankommt.
+
+    **Die Leerzeile davor steht in der einbindenden Vorlage und nicht hier.**
+    Laravel schneidet jeder gerenderten Ansicht den Leerraum am Anfang ab
+    (`ltrim(ob_get_clean())` in `PhpEngine`), auch einer eingebundenen. Die
+    Leerzeile, die hier bis dahin vor der Trennzeile stand, kam deshalb in keiner
+    Mail an. `MailSignatureTest` hält beides.
+--}}
+{!! '-- ' !!}
 {!! $brand->name !!}
 @if ($brand->footer)
 {!! $brand->footer !!}

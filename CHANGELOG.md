@@ -33794,3 +33794,27 @@ Vorgaben des Servers. Im Bruchskript stehen 13 neue Eingriffe, und alle 38 an
 den berührten Dateien beissen. Was vor `0.9.0-rc.12` gespeichert wurde, trägt
 die Vorgabe noch als Wert; das Formular zeigt es trotzdem leer, und beim
 nächsten Speichern wird daraus keine Angabe.
+
+### Die Unterschrift der Mails ist eine für ein Mailprogramm — und ihre Leerzeile kam nie an
+
+**Beobachtet am 3. Oktober 2026 an der Quelle der Testmail aus dem Lauf für
+B6** (`docs/140 §6e`). Die Unterschrift stand ohne Leerzeile unmittelbar unter
+dem letzten Satz, und ihre Trennzeile war `--`. Nach RFC 3676 §4.3 lautet sie
+`-- `, mit Leerzeichen; erst daran setzt ein Mailprogramm die Unterschrift ab
+und lässt sie beim Antworten weg.
+
+**Die Leerzeile stand in der Vorlage der Unterschrift und kam nie an.**
+Laravel schneidet jeder gerenderten Ansicht den Leerraum am Anfang ab
+(`ltrim(ob_get_clean())` in `PhpEngine`), auch einer, die mit `@include`
+eingebunden ist.
+
+> **Eine Leerzeile am Anfang einer eingebundenen Vorlage kommt nie an —
+> Laravel kürzt jede gerenderte Ansicht vorn.**
+
+Entschieden hat der Betreiber am selben Tag, gebaut ist es für
+`0.9.0-rc.12`. Die Leerzeile steht jetzt in den drei einbindenden Vorlagen.
+Die Trennzeile steht als Ausgabe `{!! '-- ' !!}` da, weil `.editorconfig`
+Leerzeichen am Zeilenende entfernt. `MailSignatureTest` hält beides: an der
+Wirkung über alle drei Mails und an jeder Vorlage, die die Unterschrift
+einbindet. Im Bruchskript stehen sechs neue Eingriffe, und alle 18 an den
+berührten Dateien und an den Wächtern der Mails beissen.

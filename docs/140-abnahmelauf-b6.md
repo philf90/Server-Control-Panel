@@ -26,10 +26,11 @@ sechs Befunde mit `0.9.0-rc.11` (§6a).
 **Gefahren am 3. Oktober 2026 gegen `0.9.0-rc.11`** (§7): Block 1 und **alle
 neun Punkte erfüllt**, Punkt 7 im zweiten Anlauf. Zwei Befunde am Prüfling
 kamen aus dem Lauf und ein dritter beim Bauen des zweiten; gebaut sind sie für
-`0.9.0-rc.12` (§6b, §6c), dazu ein Wunsch des Betreibers (§6d). Drei Befunde
-an der Vorschrift sind beim Fahren berichtigt, in §3 Punkt 3 und Punkt 7, und
-Punkt 8 ist ergänzt. Es stehen aus: der Nachlauf gegen `rc.12` und die
-Abnahme.
+`0.9.0-rc.12` (§6b, §6c), dazu ein Wunsch des Betreibers (§6d) und die
+Unterschrift der Mails (§6e). Drei Befunde an der Vorschrift sind beim Fahren
+berichtigt, in §3 Punkt 3 und Punkt 7, und Punkt 8 ist ergänzt. Es stehen aus:
+der Nachlauf gegen `rc.12` und danach die Abnahme, so entschieden vom
+Betreiber.
 
 **Neu ist ein Snippet für die Konsole** (§3). Es liest auf der Anmeldeseite
 und auf jeder Seite des Panels, was von der Marke ankommt: den Titel im
@@ -1331,6 +1332,70 @@ unterscheiden.
   `Vorgabe, gemessen 8,15:1 auf #ede8e0 (der Tönung einer Warnung)`, dunkel
   `Vorgabe, gemessen 6,27:1 auf #1d302f (der Tönung einer Erfolgsmeldung)`.
 
+## §6e · Eine Beobachtung aus dem Lauf: die Unterschrift der Mails
+
+Gefunden am 3. Oktober 2026 an der Quelle der zweiten Testmail aus Punkt 6
+(§7, Beobachtung 2). Die Unterschrift stand so da:
+
+```
+Protokoll des Panels nach: Dort steht, wer sie ausgel=
+=C3=B6st hat.
+--
+Muster Hosting
+```
+
+Zwei Dinge fehlten, und beide sind für ein Mailprogramm der Unterschied
+zwischen Unterschrift und Text:
+
+- **Die Trennzeile lautet `-- `, mit Leerzeichen** (RFC 3676 §4.3). Ohne das
+  Leerzeichen setzen Mailprogramme die Unterschrift nicht ab und lassen sie
+  beim Antworten im Zitat.
+- **Die Leerzeile davor kam nie an.** `resources/views/mail/signature.blade.php`
+  hatte eine, aber Laravel schneidet jeder gerenderten Ansicht den Leerraum am
+  Anfang ab (`ltrim(ob_get_clean())` in `PhpEngine`), auch einer
+  eingebundenen. Im Container gerendert begann die Unterschrift mit `--`, und
+  in allen drei Mails stand sie direkt unter der letzten Zeile.
+
+> **Eine Leerzeile am Anfang einer eingebundenen Vorlage kommt nie an —
+> Laravel kürzt jede gerenderte Ansicht vorn.**
+
+**Entschieden vom Betreiber am selben Tag: beides mit `0.9.0-rc.12`.** Ich
+hatte das Leerzeichen allein zuerst nicht bauen wollen; mit der fehlenden
+Leerzeile ist der Unterschied in jeder Mail zu sehen.
+
+### Gebaut für `0.9.0-rc.12`
+
+- Die Trennzeile steht als Ausgabe da, `{!! '-- ' !!}`, und nicht als Text.
+  `.editorconfig` entfernt Leerzeichen am Zeilenende, und mit ihnen das eine,
+  auf das es ankommt.
+- Die Leerzeile steht in den drei einbindenden Vorlagen, unmittelbar vor
+  `@include('mail.signature')`.
+- `MailSignatureTest` hält beides. An der Wirkung: Jede der drei Mails trägt
+  genau eine Zeile `-- `, davor eine leere und danach den Namen der Marke, und
+  keine Zeile `--`. An der Vorlage: Jede Vorlage, die die Unterschrift
+  einbindet, lässt davor eine Zeile frei, auch die einer Mail, die es noch
+  nicht gibt. Gegen den Stand von vorher sind beide Fälle rot.
+- Im Bruchskript sechs neue Eingriffe. Gefahren mit allen Eingriffen an den
+  berührten Dateien und an den Wächtern der Mails: 18 von 18 beissen.
+
+### Nachgemessen
+
+Im Container gerendert, mit der Marke aus dem Lauf, das Ende jeder der drei
+Mails. In JSON ist das Leerzeichen am Ende der Trennzeile zu sehen:
+
+```
+Probe: "…ausgelöst hat.\n\n-- \nMuster Hosting\nBetrieben von der Muster Hosting GmbH · Musterweg 1 · 12345 Musterstadt\n"
+Kunde: "…darüber liegt.\n\n-- \nMuster Hosting\nBetrieben von der Muster Hosting GmbH · Musterweg 1 · 12345 Musterstadt\n"
+Betreiber: "…erzeugt keine Nachricht.\n\n-- \nMuster Hosting\nBetrieben von der Muster Hosting GmbH · Musterweg 1 · 12345 Musterstadt\n"
+```
+
+### Für den Nachlauf
+
+Die Quelle einer Testmail gegen `rc.12`: vor der Trennzeile eine leere Zeile,
+und die Trennzeile ist `-- `. In der Quelle steht das Leerzeichen am
+Zeilenende und ist nicht zu sehen; gelesen wird es deshalb am Mailprogramm,
+das die Unterschrift absetzt, oder in der Quelle mit markiertem Text.
+
 ## §7 · Protokoll
 
 Gefahren am 3. Oktober 2026 auf `cloudsrv24` gegen `0.9.0-rc.11`, vom Morgen
@@ -1350,7 +1415,8 @@ im zweiten Anlauf, mit berichtigter Reihenfolge und berichtigter Gegenprobe
 beim Bauen des zweiten, und alle drei sind für `0.9.0-rc.12` gebaut (§6b,
 §6c). Drei stecken in der Vorschrift und sind beim Fahren berichtigt, zwei in
 meinem Prüfstand im Container. Nach Punkt 9 kam ein Wunsch des Betreibers
-dazu, ebenfalls gebaut (§6d).
+dazu, ebenfalls gebaut (§6d), und aus Beobachtung 2 ist nach dem Lauf eine
+Behebung geworden (§6e).
 
 ### Block 1 vor dem Lauf
 
@@ -1661,7 +1727,8 @@ Container belegt habe, und keine Zahl auf dem Server.
    auch eine eingebundene. Die Quelle oben zeigt es: Auf „… ausgelöst hat."
    folgt unmittelbar `--`, und im Container gerendert beginnt die Vorlage der
    Unterschrift mit `--`. In allen drei Mailvorlagen steht sie direkt unter
-   der letzten Zeile. Kein Kriterium dieses Laufs.
+   der letzten Zeile. Kein Kriterium dieses Laufs; gebaut ist es trotzdem,
+   entschieden vom Betreiber am selben Tag (§6e).
 3. **Die Zeit im Rumpf steht ohne Zone.** `Date:` sagt `15:39:54 +0000`, der
    Rumpf „am 2026-10-03 17:39:54", dieselbe Sekunde in der Anzeigezone des
    Panels. Die Zone nennt er nicht. Kein Kriterium dieses Laufs.
@@ -1723,7 +1790,9 @@ Schrift in Pfirsich, und daraus kamen die Befunde 2 und 3.
 
 - **Der Nachlauf gegen `0.9.0-rc.12`**, ausgeschrieben vor dem Fahren. Er
   sieht §6b an der Fuge bei 390 px nach, §6c an den vier Erwartungen aus „Für
-  den Lauf heisst das" und an Schrift und Zeichen in Mint, und §6d an Punkt 9
+  den Lauf heisst das" und an Schrift und Zeichen in Mint, §6d an Punkt 9
   ohne Abschreiben, an der Ablage mit `null` und an den Hinweisen mit der
-  Vorgabe.
-- **Die Abnahme spricht der Betreiber aus** (§5).
+  Vorgabe, und §6e an der Quelle einer Testmail.
+- **Danach die Abnahme**, die der Betreiber ausspricht (§5). Entschieden hat
+  er am 3. Oktober, dass sie nach dem Nachlauf kommt, wie bei B4: Abgenommen
+  wird, was ausgeliefert ist.

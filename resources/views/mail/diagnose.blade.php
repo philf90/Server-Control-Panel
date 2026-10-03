@@ -30,4 +30,5 @@ später wieder, meldet sich das Panel erneut. Gemeldet wird, was mehrere
 Läufe hintereinander dasteht: zwei Nächte bei den nächtlichen Prüfungen,
 drei Läufe im Abstand von fünf Minuten bei der Belegung der Dateisysteme.
 Ein Zustand, der sich vorher wieder einrenkt, erzeugt keine Nachricht.
+
 @include('mail.signature')

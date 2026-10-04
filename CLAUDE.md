@@ -20,9 +20,10 @@ abgenommen — die Schwelle aus A7, die in B1 fehlte, gebaut am 27. September
 ist bewusst nicht hergestellt worden, entschieden vom Betreiber: Der Lauf bei
 95 % hat Befund, Meldung und Rückweg belegt. Die drei Befunde an der Mail des
 Betreibers sind danach behoben und mit `0.9.0-rc.5` ausgeliefert; auf dem Server
-gesehen hat sie noch niemand. **B4 ist am 1. Oktober 2026 abgenommen**, B3
-und B5 bis B8 sind gebaut und nicht abgenommen. Der Lauf für B3 ist `docs/138`, ausgeschrieben am 28. September, und er hat vor
-dem Fahren einen Befund am Prüfling gebracht (Abschnitt weiter unten) — behoben
+gesehen hat sie noch niemand. **B4 ist am 1. Oktober 2026 abgenommen und B6
+am 4. Oktober**, B3, B5, B7 und B8 sind gebaut und nicht abgenommen. Der Lauf
+für B3 ist `docs/138`, ausgeschrieben am 28. September, und er hat vor dem
+Fahren einen Befund am Prüfling gebracht (Abschnitt weiter unten) — behoben
 am selben Tag, ausgeliefert mit `0.9.0-rc.7` und am Abend auf `cloudsrv24`
 gesehen. **Teil 1 ist am 30. September durch** (`docs/138 §7`); Teil 2 misst
 am 21. und 22. sowie am 28. und 29. Oktober. Der Lauf für B4 ist `docs/139`.
@@ -41,14 +42,16 @@ fielen sechs Befunde am Prüfling heraus. Der Betreiber hat sie am selben Tag
 entschieden, und behoben sind sie mit `0.9.0-rc.11` (`docs/140 §6a`, Abschnitt
 weiter unten). Gefahren ist er am 3. Oktober gegen `rc.11`: **Block 1 und
 alle neun Punkte erfüllt**, Punkt 7 im zweiten Anlauf; das Protokoll ist
-`docs/140 §7`. Abgenommen wird B6 nach dem Nachlauf gegen `rc.12`
-(`docs/140 §8`, ausgeschrieben vor dem Fahren), so entschieden vom Betreiber.
-Für `rc.12` gebaut sind zwei Befunde aus dem Lauf: zwei Formulare ohne Abstand
-(`docs/140 §6b`) sowie Schrift und Zeichen in der Farbe der Marke, samt einer
-Prüfung beim Speichern, die die Tönungen rechnet (`docs/140 §6c`). Dazu ein
-Wunsch des Betreibers: Ohne Eintrag gelten für Name und Farben die Vorgaben
-(`docs/140 §6d`). Und die Unterschrift der Mails steht seitdem mit Leerzeile
-und `-- `, wie ein Mailprogramm sie erkennt (`docs/140 §6e`).
+`docs/140 §7`. Mit `0.9.0-rc.12` ausgeliefert sind zwei Befunde aus dem Lauf:
+zwei Formulare ohne Abstand (`docs/140 §6b`) sowie Schrift und Zeichen in der
+Farbe der Marke, samt einer Prüfung beim Speichern, die die Tönungen rechnet
+(`docs/140 §6c`). Dazu ein Wunsch des Betreibers: Ohne Eintrag gelten für
+Name und Farben die Vorgaben (`docs/140 §6d`). Und die Unterschrift der Mails
+steht seitdem mit Leerzeile und `-- `, wie ein Mailprogramm sie erkennt
+(`docs/140 §6e`). Der Nachlauf gegen `rc.12` ist am 3. und 4. Oktober
+gefahren: **N0 bis N7 erfüllt**, am Prüfling kein Befund (`docs/140 §8`).
+Danach hat der Betreiber **B6 am 4. Oktober 2026 abgenommen** (Abschnitt
+weiter unten).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -6998,6 +7001,63 @@ gerenderten Ansicht den Leerraum am Anfang ab (`ltrim(ob_get_clean())` in
 Sie steht deshalb in der einbindenden Vorlage. Die Trennzeile `-- ` steht als
 Ausgabe da, weil `.editorconfig` Leerzeichen am Zeilenende entfernt;
 `MailSignatureTest` hält beides an der gerenderten Mail.
+
+---
+
+## Der Nachlauf zu B6 und die Abnahme — 4. Oktober 2026
+
+**B6 ist abgenommen**, ausgesprochen vom Betreiber nach dem Nachlauf gegen
+`0.9.0-rc.12` (`docs/140 §8`). N0 bis N7 sind erfüllt, und am Prüfling hat er
+keinen Befund gefunden. Die Felder zeigen die Vorgabe als Platzhalter, ein
+Speichern ohne Änderung legt keine Angabe ab, und die Prüfung rechnet die
+Tönungen. Schrift und Zeichen der Anmeldeseite stehen in der Farbe der Marke,
+und die Quelle der Testmail endet mit Leerzeile und `--=20`. Drei Dinge
+betreffen die Vorschrift und den Ablauf.
+
+**Die Erwartung an die Quelle einer Mail war an der gerenderten gemessen.**
+`docs/140 §6e` sagte, das Leerzeichen hinter `--` sei in der Quelle nicht zu
+sehen. Die Mails gehen als quoted-printable hinaus, und dort steht ein
+Leerzeichen am Zeilenende als `=20` (RFC 2045 §6.7). Gefunden vor N6 an der
+Quelle, die der Mailer im Container erzeugt; auf dem Server stand sie genau so
+da.
+
+> **Eine Messung an der gerenderten Mail sagt, was drinsteht — wie es in der
+> Quelle steht, entscheidet die Kodierung dazwischen.**
+
+**Zwischen N0 und N1 lag ein Tag, und darin ein Probelauf.** Der Betreiber
+hatte die neue Fassung ausprobiert: die Marke mit Logo, das Logo entfernt,
+zurück auf die Vorgaben. Damit war die Abschrift aus Punkt 9 fort, die N1 und
+N2 voraussetzen, und N1 hätte sich über einer leeren Ablage wie erfüllt
+gelesen. Aufgefallen ist es am Datum von `branding/`. Ohne Logo fasst das
+Panel das Verzeichnis nicht an, und es trug eine Zeit vier Minuten vor dem
+Speichern. Das Zugriffsprotokoll und das Protokoll des Panels haben die Kette
+danach Sekunde für Sekunde belegt.
+
+> **Ein Prüfstand, an dem zwischen zwei Schritten jemand arbeitet, ist beim
+> zweiten ein anderer — erkennen lässt sich das an einer Zeile, deren Wert
+> vorher feststand.**
+
+**Und eine schreibende Zeile lief, wo eine lesende gemeint war.** Die
+Wiederholung stellte die Abschrift mit `srvpanel tinker` wieder her, und im
+ersten Anlauf lief diese Zeile nach dem Speichern noch einmal. Die Ablage
+zeigte danach wieder die Abschrift. Getrennt hat es ihr Zeitstempel: Er bewegt
+sich nur, wenn sich der Wert ändert (im Container in beide Richtungen
+gemessen), und er stand sieben Sekunden nach dem Speichern. Das Speichern hatte
+die Abschrift also durch `null` ersetzt — sonst hätte sich der Wert danach
+nicht mehr ändern können —, und die Zeile hat sie zurückgeschrieben.
+
+> **Eine Zeile, die schreibt, liegt in der Geschichte der Shell neben denen,
+> die lesen — und Pfeil hoch holt die, die zuletzt lief.**
+
+> **Ein Zeitstempel, der sich nur bei einem geänderten Wert bewegt, trennt
+> „gespeichert und überschrieben" von „nie gespeichert".**
+
+Wer einen Prüfstand mit einer schreibenden Zeile herstellt, gibt sie in einem
+eigenen Block und sagt dazu, dass sie schreibt. In `docs/140 §8` steht sie
+seitdem so.
+
+**Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B5, B7 und
+B8**, für die es noch keinen Lauf gibt.
 
 ---
 

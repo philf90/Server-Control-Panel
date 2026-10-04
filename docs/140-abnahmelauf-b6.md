@@ -28,9 +28,11 @@ neun Punkte erfüllt**, Punkt 7 im zweiten Anlauf. Zwei Befunde am Prüfling
 kamen aus dem Lauf und ein dritter beim Bauen des zweiten; gebaut sind sie für
 `0.9.0-rc.12` (§6b, §6c), dazu ein Wunsch des Betreibers (§6d) und die
 Unterschrift der Mails (§6e). Drei Befunde an der Vorschrift sind beim Fahren
-berichtigt, in §3 Punkt 3 und Punkt 7, und Punkt 8 ist ergänzt. Es stehen aus:
-der Nachlauf gegen `rc.12` (§8) und danach die Abnahme, so entschieden vom
-Betreiber.
+berichtigt, in §3 Punkt 3 und Punkt 7, und Punkt 8 ist ergänzt.
+
+**Der Nachlauf gegen `0.9.0-rc.12` ist am 3. und 4. Oktober gefahren** (§8,
+Protokoll): N0 bis N7 erfüllt, am Prüfling kein Befund. **B6 ist am
+4. Oktober 2026 abgenommen**, ausgesprochen vom Betreiber.
 
 **Neu ist ein Snippet für die Konsole** (§3). Es liest auf der Anmeldeseite
 und auf jeder Seite des Panels, was von der Marke ankommt: den Titel im
@@ -1396,6 +1398,17 @@ und die Trennzeile ist `-- `. In der Quelle steht das Leerzeichen am
 Zeilenende und ist nicht zu sehen; gelesen wird es deshalb am Mailprogramm,
 das die Unterschrift absetzt, oder in der Quelle mit markiertem Text.
 
+**Berichtigt am 4. Oktober, vor N6.** Der letzte Satz stimmt für diese Mails
+nicht. Alle drei tragen Umlaute und gehen deshalb quoted-printable kodiert
+hinaus, und in dieser Kodierung darf ein Leerzeichen nicht am Ende einer Zeile
+stehen (RFC 2045 §6.7): Es steht dort als `=20`. Die Trennzeile ist in der
+Quelle also sichtbar, als `--=20`. Gemessen im Container über den Mailer, an
+der Quelle, die hinausgeht, und auf dem Server an der Quelle der Testmail
+gesehen (§8, Protokoll N6). Gemessen war hier vorher nur die gerenderte Mail.
+
+> **Eine Messung an der gerenderten Mail sagt, was drinsteht — wie es in der
+> Quelle steht, entscheidet die Kodierung dazwischen.**
+
 ## §7 · Protokoll
 
 Gefahren am 3. Oktober 2026 auf `cloudsrv24` gegen `0.9.0-rc.11`, vom Morgen
@@ -1797,6 +1810,9 @@ Schrift in Pfirsich, und daraus kamen die Befunde 2 und 3.
   er am 3. Oktober, dass sie nach dem Nachlauf kommt, wie bei B4: Abgenommen
   wird, was ausgeliefert ist.
 
+**Beides ist erledigt.** Der Nachlauf ist am 3. und 4. Oktober gefahren, und
+der Betreiber hat B6 am 4. Oktober abgenommen (§8, Protokoll).
+
 ## §8 · Der Nachlauf gegen `0.9.0-rc.12`
 
 Ausgeschrieben am 3. Oktober 2026, vor dem Fahren. Er sieht nach, was `rc.12`
@@ -1858,6 +1874,48 @@ Dann in die Konsole, einmal bei 1440 px und frisch geladen noch einmal bei
 **Erwartet:** `Fuge zwischen den Formularen: 30 px · Formulare 2 · Breite 1440 px`
 und `… 26 px · Formulare 2 · Breite 390 px`. Unter `rc.11` stand dort 0 px.
 Dazu ein Bild bei 390 px mit „Speichern" und „Name und Fusszeile".
+
+**Ergänzt am 4. Oktober, beim Fahren** (Protokoll unten). N1 und N2 setzen
+voraus, dass die Abschrift aus Punkt 9 noch in der Ablage steht. Wer zwischen
+N0 und N1 die Marke speichert, ersetzt sie, und N1 sieht leere Felder über
+`null`. Der Fall der Abschrift ist dann nicht gesehen. Wiederhergestellt wird
+sie mit genau dem Wert aus N0, über denselben Weg, den `Settings::saveBrand()`
+nimmt — `updateOrCreate` durch den Cast `encrypted:array`:
+
+```bash
+srvpanel tinker --execute='App\Models\Setting::query()->updateOrCreate(["key" => "brand"], ["value" => ["name" => "SrvPanel", "accent_light" => "#3730a3", "accent_dark" => "#ff7fec", "footer" => "", "logo" => null]]); echo json_encode(App\Models\Setting::query()->where("key", "brand")->first()?->value, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES), PHP_EOL;'
+```
+
+Diese Zeile **schreibt**. Sie gehört vor N1 und nicht hinter das Speichern
+in N2; dort nähme sie zurück, was N2 messen soll.
+
+Gelesen werden die Felder seitdem als Text, mit einer Zeile vor der Fuge.
+Auf einem Bild ist „leer, mit grauer Vorgabe" schwer von einem Wert zu
+unterscheiden:
+
+```js
+// B6 · docs/140 §8 N1: was in den Feldern steht und was nur grau dasteht, dazu die Fuge.
+(() => {
+  const feld = (t) => [...document.querySelectorAll('label.field')].find((l) => l.querySelector('span')?.textContent.trim() === t)?.querySelector('input, textarea')
+  const hinweis = (t) => feld(t)?.closest('label')?.nextElementSibling?.textContent.replace(/\s+/g, ' ').trim() ?? '—'
+  const zeile = (t) => { const f = feld(t); return f ? `wert „${f.value}" · platzhalter „${f.placeholder}" · required ${f.required}` : 'fehlt' }
+  const block = [...document.head.querySelectorAll('style')].some((s) => s.textContent.includes('--accent:'))
+  console.log([
+    `Felder · ${location.pathname} · Breite ${innerWidth} px`,
+    `Name   : ${zeile('Name des Panels')}`, `  Hinweis: ${hinweis('Name des Panels')}`,
+    `Fuss   : ${zeile('Fusszeile der Anmeldeseite')}`,
+    `Hell   : ${zeile('Akzent im hellen Thema')}`, `  Hinweis: ${hinweis('Akzent im hellen Thema')}`,
+    `Dunkel : ${zeile('Akzent im dunklen Thema')}`, `  Hinweis: ${hinweis('Akzent im dunklen Thema')}`,
+    `Reiter : ${document.title} · Markenblock im Kopf: ${block ? 'ja' : 'nein'}`,
+  ].join('\n'))
+})();
+(() => { const f = [...document.querySelectorAll('main form.form')]; const a = f[0]?.getBoundingClientRect(), b = f[1]?.getBoundingClientRect(); console.log(`Fuge zwischen den Formularen: ${a && b ? Math.round(b.top - a.bottom) : '—'} px · Formulare ${f.length} · Breite ${innerWidth} px`) })()
+```
+
+Im Container gegen die echte Seite geprüft, mit einer Gegenprobe: Ein eigener
+Name in der Ablage steht als `wert „Muster Hosting"` da und nicht als
+Platzhalter. Das Semikolon hinter der ersten Klammer ist nötig; ohne es ruft
+die Konsole das Ergebnis der ersten als Funktion auf.
 
 ### N2 — Speichern ohne Änderung legt keine Angabe ab (§6d)
 
@@ -2000,6 +2058,24 @@ Dann auf `/settings/mail` die Testmail verschicken und die Quelle ansehen.
 **Erwartet:** vor der Trennzeile eine leere Zeile. In einem Mailprogramm, das
 Unterschriften erkennt, ist die Unterschrift abgesetzt, in Thunderbird grau.
 
+**Berichtigt am 4. Oktober, vor dem Fahren von N6** (§6e). Die Quelle zeigt
+das Leerzeichen doch: Die Mail ist quoted-printable kodiert, und dort steht es
+als `=20`. Erwartet wird deshalb am Ende des Textteils wörtlich, im Container
+über den Mailer an der Quelle gemessen, die hinausgeht:
+
+```
+Protokoll des Panels nach: Dort steht, wer sie ausgel=
+=C3=B6st hat.
+
+--=20
+Muster Hosting
+Betrieben von der Muster Hosting =
+GmbH =C2=B7 Musterweg 1 =C2=B7 12345 Musterstadt
+```
+
+`=C2=B7` ist der Mittelpunkt, ein `=` am Zeilenende ein Umbruch der Kodierung.
+Unter `rc.11` stand `=C3=B6st hat.` und unmittelbar darunter `--`.
+
 ### N7 — Zurück, ohne abzuschreiben (§6d)
 
 Auf `/settings/general` Name, Fusszeile und beide Farben **leeren**, „Marke
@@ -2020,3 +2096,272 @@ und keine `<style>`-Zeile.
 N0 bis N7 wie erwartet. Steht eine Zeile anders da, ist die Behebung dahinter
 nicht angekommen, und der Punkt ist nicht erfüllt. Danach spricht der
 Betreiber die Abnahme von B6 aus.
+
+### Protokoll — gefahren am 3. und 4. Oktober 2026 gegen `0.9.0-rc.12`
+
+**Vorbedingung:** Der Tag `v0.9.0-rc.12` steht auf `4116f47b`, dem Merge von
+PR #284, gesetzt vom Betreiber am Abend des 3. Oktober. N0 lief am späten
+Abend des 3. Oktober, N1 bis N7 am 4. Oktober zwischen 19:46 und 20:55 Uhr.
+Gefahren in Chrome mit der Geräteleiste „Responsive" bei 1440 × 900 px, das
+Panel im dunklen Thema des Kontos, die Anmeldeseite im privaten Fenster und
+dort im hellen Thema, der Vorgabe des Servers für Seiten ohne Konto. Die
+Uhrzeiten stammen von der Seite selbst und aus den Protokollen des Servers,
+die Ausgaben stehen wörtlich da.
+
+#### N0 — erfüllt
+
+```
+0.9.0-rc.12
+{"name":"SrvPanel","accent_light":"#3730a3","accent_dark":"#ff7fec","footer":"","logo":null}
+Absender: SrvPanel <panel@cloudsrv24.de>
+total 8
+drwxr-x--- 2 srvpanel srvpanel 4096 Okt  3 20:00 .
+drwx------ 5 srvpanel srvpanel 4096 Okt  3 15:32 ..
+Panel: https://cloudsrv24.de:8443
+<title inertia>SrvPanel</title>
+Logo-Route: 404
+{"name":"SrvPanel","accent_light":"#3730a3","accent_dark":"#ff7fec","footer":"","logo":null}
+```
+
+Zeile für Zeile wie erwartet. Es gilt die Vorgabe, eine `<style>`-Zeile gibt
+es nicht, `branding/` ist leer seit dem Entfernen in Punkt 8, und in der
+Ablage steht die Abschrift aus Punkt 9.
+
+#### Zwischen N0 und N1: ein Probelauf, gefunden an einer vorhergesagten Zeile
+
+N1 und das erste N2 standen da wie erwartet, um 19:50 und um 19:53 Uhr. In
+der Ausgabe von N2 trug `branding/` aber „Okt 4 19:49" statt „Okt 3 20:00",
+vier Minuten vor dem Speichern. Ohne Logo fasst das Panel das Verzeichnis
+nicht an; das tun nur `Logo::store()` und `Logo::forget()`, und `forget()`
+ändert ohne Datei nichts. Ein Nachtrag las die genaue Zeit mit `stat`, das
+Protokoll des Panels und das Zugriffsprotokoll ohne `GET`:
+
+| Uhrzeit | Protokoll `settings.branding` | Zugriffsprotokoll |
+|---|---|---|
+| 19:46:58 und :59 | | `POST /login 302`, `POST /two-factor 302` |
+| 19:48:55 | „Muster Hosting" | `POST /settings/branding 409`, `GET /branding/logo?v=904eae8051dd7024 200` |
+| 19:49:47 | „Muster Hosting" | `POST /settings/branding 409` |
+| 19:49:55 | „SrvPanel" | `POST /settings/branding 409` |
+| 19:53:09 | „SrvPanel" | `POST /settings/branding 409` — das erste N2 |
+
+`904eae8051dd7024` ist die Prüfsumme von `b6-logo-a.png` (xxh3, im Repo
+nachgerechnet), und `stat` gibt für `branding/` 19:49:47.027, die Sekunde des
+zweiten Speicherns. Der Betreiber hatte vor N1 die neue Fassung ausprobiert:
+die Marke mit Logo A, das Logo wieder entfernt, zurück auf die Vorgaben.
+**Ein Befund am Prüfling ist das nicht.** Schon das erste Speichern hatte aber
+die Abschrift ersetzt. N1 sah leere Felder über `null`, und der Fall, um den es
+in N1 und N2 geht, war nicht gesehen.
+
+#### N1 und N2 — erfüllt, im zweiten Anlauf mit der Abschrift
+
+Wiederhergestellt ist die Abschrift mit der Zeile aus N1 („Ergänzt"). Im
+ersten Anlauf zeigte die Ablage am Ende wieder die Abschrift und nicht `null`,
+und im Terminal stand die schreibende Zeile dreimal. Getrennt hat es der
+Zeitstempel der Ablage, denn er bewegt sich nur, wenn sich der Wert ändert
+(im Container in beide Richtungen gemessen): gespeichert um 20:07:07, die
+Ablage zuletzt geändert um 20:07:14. Das Speichern hatte die Abschrift also in
+`null` verwandelt — sonst hätte sich der Wert sieben Sekunden später nicht
+ändern können —, und eine schreibende Zeile danach hat sie zurückgeschrieben.
+
+Im zweiten Anlauf stand die Abschrift seit 20:07:14 in der Ablage. Um
+20:12:09, vor dem Speichern:
+
+```
+Felder · /settings/general · Breite 1440 px
+Name   : wert „" · platzhalter „SrvPanel" · required false
+  Hinweis: Steht im Reiter des Browsers und neben dem Zeichen — solange kein Logo hinterlegt ist. Ohne Eintrag gilt „SrvPanel".
+Fuss   : wert „" · platzhalter „" · required false
+Hell   : wert „" · platzhalter „#3730a3" · required false
+  Hinweis: Vorgabe, gemessen 8,15:1 auf #ede8e0 (der Tönung einer Warnung) — verlangt sind 4,5:1. Der Akzent trägt auch Schrift.
+Dunkel : wert „" · platzhalter „#ff7fec" · required false
+  Hinweis: Vorgabe, gemessen 6,27:1 auf #1d302f (der Tönung einer Erfolgsmeldung). Diese Farbe gilt auch auf der Anmeldeseite — sie trägt in beiden Themes einen dunklen Grund.
+Reiter : Allgemein · SrvPanel · Markenblock im Kopf: nein
+Fuge zwischen den Formularen: 30 px · Formulare 2 · Breite 1440 px
+```
+
+Um 20:12:43 stand „Die Marke ist gespeichert." da, die Seite hatte ganz neu
+geladen, und die Felder zeigten dieselben Zeilen. Danach die Ablage:
+
+```
+{"name":null,"accent_light":null,"accent_dark":null,"footer":"","logo":null}
+```
+
+Bei 390 px gab der erste Anlauf `Fuge zwischen den Formularen: 26 px · Formulare 2 · Breite 390 px`,
+und das Bild zeigt Luft zwischen „Speichern" und „Name und Fusszeile". Block 1
+blieb in N2, wie er war.
+
+#### N3 — erfüllt, um 20:00:52
+
+Oben stand:
+
+```
+Das Formular wurde nicht gespeichert.
+Diese Farbe erreicht auf #ede8e0 (der Tönung einer Warnung) nur 3,31:1. Der Akzent trägt auch Schrift; verlangt sind 4,5:1.
+```
+
+Die Ablage blieb bei `null`.
+
+#### N4 — erfüllt, gespeichert um 20:20
+
+Die Werte aus §2, kein Logo. Danach in den Feldern die Hinweise
+`Gemessen 5,13:1 auf #ede8e0 (der Tönung einer Warnung) — verlangt sind 4,5:1. Der Akzent trägt auch Schrift. Ohne Eintrag gilt die Vorgabe.`
+und
+`Gemessen 8,59:1 auf #213433 (ihrer eigenen Tönung, wie in einem aktiven Knopf). … Ohne Eintrag gilt die Vorgabe.`,
+der Reiter „Allgemein · Muster Hosting", ein Markenblock im Kopf und die Fuge
+mit 30 px. Das Snippet aus §3 im dunklen Thema, Zeile für Zeile wie vorab im
+Container:
+
+```
+b6Messen · 1. Oktober 2026 · /settings/general · Breite 1440 px
+Marke laut Seite: Name „Muster Hosting" · Fusszeile „Betrieben von der Muster Hosting GmbH · Musterweg 1 · 12345 Musterstadt" · Logo —
+Markenblock: 4 Regeln, 19 Zuweisungen, davon keine Marke: 0
+  :root, :root[data-theme="light"] → #0b6e4f · :root[data-theme="dark"] → #6ee7b7 · .rail, .topbar → #6ee7b7 · .signin → #6ee7b7
+Titel im Reiter: Allgemein · Muster Hosting
+Leiste: kein Logo · Zeichen ja · Name „Muster Hosting"
+Ladebeleg: Grund der Leiste #1a0b2e (erwartet #1a0b2e)
+Farben, wie sie wirken:
+  light  Wurzel #0b6e4f  Hauptknopf #0b6e4f  Anmeldeseite —  Leiste #6ee7b7  aktiver Menüpunkt #6ee7b7
+  dark   Wurzel #6ee7b7  Hauptknopf #6ee7b7  Anmeldeseite —  Leiste #6ee7b7  aktiver Menüpunkt #6ee7b7
+Gegenprobe, Markenblock abgeschaltet:
+  light  Wurzel #3730a3  Hauptknopf #3730a3  Anmeldeseite —  Leiste #ffb7a5  aktiver Menüpunkt #ffb7a5
+  dark   Wurzel #ff7fec  Hauptknopf #ff7fec  Anmeldeseite —  Leiste #ffb7a5  aktiver Menüpunkt #ffb7a5
+Urteil: was die Seite über die Marke sagt, kommt an
+Thema der Seite zurück auf: dark
+```
+
+```
+Schrift und Zeichen · /settings/general · Thema dark
+  Leiste: Name #ffffff · Balken oben #6ee7b7 · Balken unten #ffffff
+Gegenprobe, Markenblock abgeschaltet:
+  Leiste: Name #ffffff · Balken oben #ff7fec · Balken unten #ffffff
+```
+
+Block 2 mit dem Vergleich: die Marke mit `"logo":null`, `branding/` leer und
+weiter „Okt 4 19:49", `sha256sum` mit `No such file or directory`,
+`<title inertia>Muster Hosting</title>`, der Markenblock, `"logo":null` in den
+Daten der Seite, die Route mit `HTTP/2 404`, `content-type: text/html; charset=utf-8`,
+`cache-control: no-cache, private` und `x-content-type-options: nosniff`, und
+zuletzt `Markenblock wie §8: ja`.
+
+#### N5 — erfüllt, im privaten Fenster
+
+```
+b6Messen · 1. Oktober 2026 · /login · Breite 1440 px
+Marke laut Seite: Name „Muster Hosting" · Fusszeile „Betrieben von der Muster Hosting GmbH · Musterweg 1 · 12345 Musterstadt" · Logo —
+Markenblock: 4 Regeln, 19 Zuweisungen, davon keine Marke: 0
+  :root, :root[data-theme="light"] → #0b6e4f · :root[data-theme="dark"] → #6ee7b7 · .rail, .topbar → #6ee7b7 · .signin → #6ee7b7
+Titel im Reiter: Anmeldung · Muster Hosting
+Anmeldeseite: kein Logo · Zeichen ja · Name „Muster Hosting"
+Fusszeilen: „Betrieben von der Muster Hosting GmbH · Musterweg 1 · 12345 Musterstadt" · „0.9.0-rc.12"
+Ladebeleg: Grund der Maske #1a0b2e (erwartet #1a0b2e)
+Farben, wie sie wirken:
+  light  Wurzel #0b6e4f  Hauptknopf #6ee7b7  Anmeldeseite #6ee7b7  Leiste —  aktiver Menüpunkt —
+  dark   Wurzel #6ee7b7  Hauptknopf #6ee7b7  Anmeldeseite #6ee7b7  Leiste —  aktiver Menüpunkt —
+Gegenprobe, Markenblock abgeschaltet:
+  light  Wurzel #3730a3  Hauptknopf #ffb7a5  Anmeldeseite #ffb7a5  Leiste —  aktiver Menüpunkt —
+  dark   Wurzel #ff7fec  Hauptknopf #ffb7a5  Anmeldeseite #ffb7a5  Leiste —  aktiver Menüpunkt —
+Urteil: was die Seite über die Marke sagt, kommt an
+Thema der Seite zurück auf: light
+```
+
+```
+Schrift und Zeichen · /login · Thema light
+  Anmeldeseite: Name #6ee7b7 · Balken oben #6ee7b7 · Balken unten #6ee7b7 · „Angemeldet bleiben" #6ee7b7
+Gegenprobe, Markenblock abgeschaltet:
+  Anmeldeseite: Name #ffb7a5 · Balken oben #ff7fec · Balken unten #ffb7a5 · „Angemeldet bleiben" #ffb7a5
+```
+
+Die Gegenprobe ist der Stand von `rc.11` mit Marke. Am Bild stehen Name,
+Zeichen, „Angemeldet bleiben" und der Knopf in Mint.
+
+#### N6 — erfüllt, die Testmail um 20:49
+
+Der Server rechnete:
+
+```
+"ausgelöst hat.\n\n-- \nMuster Hosting\nBetrieben von der Muster Hosting GmbH · Musterweg 1 · 12345 Musterstadt\n"
+```
+
+Die Quelle der verschickten Testmail, mit `Content-Transfer-Encoding: quoted-printable`,
+dem Betreff „Muster Hosting — Testmail" und einer DKIM-Signatur für
+`cloudsrv24.de`, endet Zeile für Zeile wie vorab gemessen:
+
+```
+Protokoll des Panels nach: Dort steht, wer sie ausgel=
+=C3=B6st hat.
+
+--=20
+Muster Hosting
+Betrieben von der Muster Hosting =
+GmbH =C2=B7 Musterweg 1 =C2=B7 12345 Musterstadt
+```
+
+Der Absendername „SrvPanel" kommt aus `/settings/mail` und nicht aus der Marke
+(§0 Punkt 7). Kein Befund.
+
+#### N7 — erfüllt
+
+Alle vier Felder geleert und gespeichert. Danach die Felder wie in N1, `wert „"`
+mit den Platzhaltern und „Vorgabe, gemessen …", kein Markenblock, die Fuge mit
+30 px, und die Knöpfe im dunklen Thema wieder in Pink. Auf dem Server:
+
+```
+0.9.0-rc.12
+{"name":"SrvPanel","accent_light":"#3730a3","accent_dark":"#ff7fec","footer":"","logo":null}
+Absender: SrvPanel <panel@cloudsrv24.de>
+total 8
+drwxr-x--- 2 srvpanel srvpanel 4096 Okt  4 19:49 .
+drwx------ 5 srvpanel srvpanel 4096 Okt  3 15:32 ..
+Panel: https://cloudsrv24.de:8443
+<title inertia>SrvPanel</title>
+Logo-Route: 404
+{"name":null,"accent_light":null,"accent_dark":null,"footer":"","logo":null}
+```
+
+Punkt 9 unter `rc.11` musste die Vorgaben abschreiben. N7 hat die Felder nur
+geleert, und abgelegt ist keine Angabe. Auf `cloudsrv24` steht damit keine
+Abschrift mehr in der Ablage; der Rest aus §6d („Was offen bleibt") betrifft
+nur noch einen Server, auf dem unter `rc.11` gespeichert wurde und unter
+`rc.12` noch nicht.
+
+#### Was der Nachlauf über sich selbst gelernt hat
+
+Am Prüfling hat er keinen Befund gefunden. Drei Dinge betreffen die Vorschrift
+und den Ablauf.
+
+**Eine Erwartung an die Quelle einer Mail war an der gerenderten Mail
+gemessen.** §6e sagte, das Leerzeichen hinter `--` sei in der Quelle nicht zu
+sehen. Vor N6 im Container an der Quelle nachgemessen, die hinausgeht, steht es
+dort als `=20`, und auf dem Server stand es genau so da.
+
+> **Eine Messung an der gerenderten Mail sagt, was drinsteht — wie es in der
+> Quelle steht, entscheidet die Kodierung dazwischen.**
+
+**Eine Vorbedingung über Nacht.** Zwischen N0 und N1 lag ein Tag, und darin
+ein Probelauf an genau dem Gegenstand, den N1 voraussetzt. Gefunden hat ihn
+keine Frage danach, sondern eine Zeile, deren Wert vorher feststand: das Datum
+von `branding/`. Ohne sie wäre N1 als erfüllt durchgegangen, über einer
+Ablage, die den Fall gar nicht mehr enthielt.
+
+> **Ein Prüfstand, an dem zwischen zwei Schritten jemand arbeitet, ist beim
+> zweiten ein anderer — erkennen lässt sich das an einer Zeile, deren Wert
+> vorher feststand.**
+
+**Eine schreibende Zeile neben lesenden.** Im ersten Anlauf der Wiederholung
+lief die Zeile, die die Abschrift wiederherstellt, nach dem Speichern noch
+einmal und nahm zurück, was gemessen werden sollte.
+
+> **Eine Zeile, die schreibt, liegt in der Geschichte der Shell neben denen,
+> die lesen — und Pfeil hoch holt die, die zuletzt lief.**
+
+> **Ein Zeitstempel, der sich nur bei einem geänderten Wert bewegt, trennt
+> „gespeichert und überschrieben" von „nie gespeichert".**
+
+Alle übrigen Zeilen haben getroffen, auch die im dunklen Thema, die vorab im
+Container nachgemessen waren, weil das Panel des Betreibers dunkel steht.
+
+#### Die Abnahme
+
+**B6 ist am 4. Oktober 2026 abgenommen**, ausgesprochen vom Betreiber auf Grund
+des Laufs gegen `rc.11` (§7) und dieses Nachlaufs. N0 bis N7 sind erfüllt, N1
+und N2 mit der Abschrift aus Punkt 9.

@@ -33818,3 +33818,34 @@ Leerzeichen am Zeilenende entfernt. `MailSignatureTest` hält beides: an der
 Wirkung über alle drei Mails und an jeder Vorlage, die die Unterschrift
 einbindet. Im Bruchskript stehen sechs neue Eingriffe, und alle 18 an den
 berührten Dateien und an den Wächtern der Mails beissen.
+
+### B6 ist abgenommen — und in der Quelle der Mail steht die Unterschrift als `--=20`
+
+**B6, Nachlauf** (`docs/140 §8`): Am 3. und 4. Oktober gegen `0.9.0-rc.12`,
+N0 bis N7 erfüllt und am Prüfling kein Befund. Die Felder auf „Allgemein"
+zeigen die Vorgabe als Platzhalter, ein Speichern ohne Änderung legt keine
+Angabe ab, und die Prüfung beim Speichern rechnet die Tönungen. Auf der
+Anmeldeseite stehen Schrift und Zeichen in der Farbe der Marke, und die
+Testmail endet mit Leerzeile und Trennzeile. Danach hat der Betreiber B6 am
+4. Oktober abgenommen.
+
+**Die Erwartung an die Quelle der Mail war an der gerenderten gemessen.**
+`docs/140 §6e` sagte, das Leerzeichen hinter `--` sei in der Quelle nicht zu
+sehen. Die Mails gehen als quoted-printable hinaus, und dort steht ein
+Leerzeichen am Zeilenende als `=20` (RFC 2045 §6.7). Berichtigt vor N6, an der
+Quelle, die der Mailer im Container erzeugt; auf dem Server stand die Zeile
+genau so da.
+
+> **Eine Messung an der gerenderten Mail sagt, was drinsteht — wie es in der
+> Quelle steht, entscheidet die Kodierung dazwischen.**
+
+**Zwischen N0 und N1 lag ein Probelauf.** Der Betreiber hatte die neue Fassung
+ausprobiert und dabei die Abschrift aus Punkt 9 ersetzt, die N1 und N2
+voraussetzen. Aufgefallen ist es am Datum von `branding/`, das ohne Logo
+stillstehen sollte. N1 und N2 sind mit wiederhergestellter Abschrift ein
+zweites Mal gefahren. Im ersten Anlauf davon lief die schreibende Zeile nach
+dem Speichern noch einmal, und getrennt hat es der Zeitstempel der Ablage: Er
+bewegt sich nur, wenn sich der Wert ändert.
+
+> **Ein Zeitstempel, der sich nur bei einem geänderten Wert bewegt, trennt
+> „gespeichert und überschrieben" von „nie gespeichert".**

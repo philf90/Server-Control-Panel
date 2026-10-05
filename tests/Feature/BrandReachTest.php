@@ -539,7 +539,7 @@ final class BrandReachTest extends TestCase
 
         Mail::fake();
         Mail::to('kunde@example.org')->send(new QuotaWarning('p1000', [
-            ['label' => 'Der belegte Platz liegt über dem Kontingent des Plans.', 'detail' => '1.024 MB von 500 MB'],
+            ['reason' => 'disk_over', 'label' => 'Der Speicherplatz ist ausgeschöpft.', 'detail' => '500 MB von 500 MB'],
         ]));
 
         Mail::assertSent(QuotaWarning::class, static function (QuotaWarning $mail): bool {
@@ -563,7 +563,7 @@ final class BrandReachTest extends TestCase
 
         $betreffe = [
             (new TestMessage('Erika Muster', 'heute'))->envelope()->subject,
-            (new QuotaWarning('p1000', []))->envelope()->subject,
+            (new QuotaWarning('p1000', [['reason' => 'traffic_over', 'label' => 'l', 'detail' => 'd']]))->envelope()->subject,
             (new DiagnoseReport([['label' => 'l', 'subject' => 's', 'detail' => 'd', 'since' => 'x']]))->envelope()->subject,
         ];
 

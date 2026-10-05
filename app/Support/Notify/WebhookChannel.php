@@ -59,6 +59,18 @@ final class WebhookChannel implements ResolvingChannel
     }
 
     /**
+     * Das weiss nur der Agent.
+     *
+     * Das Ziel steht dort und nirgends sonst — ein Merker im Panel wäre eine
+     * zweite Wahrheit neben der des Agenten, und die zweite ist die, die
+     * veraltet.
+     */
+    public function knownUsable(): ?bool
+    {
+        return null;
+    }
+
+    /**
      * Gebündelt wird nach dem **Gegenstand** und nicht nach dem Empfänger.
      *
      * Es gibt nur einen Empfänger — ein Ziel je Server —, also trüge eine

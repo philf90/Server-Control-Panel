@@ -113,9 +113,11 @@ enum FindingCheck: string
      * wäre die zweite Fassung derselben Regel.
      *
      * **Und der Betreiber sieht es dadurch, wie es zugesagt war.**
-     * {@see Quota::TrafficGb} trägt seit P1 den Hinweis
+     * {@see Quota::TrafficGb} trug seit P1 den Hinweis
      * *„Die Überschreitung erscheint in der Übersicht"*. Bis B5 löste das
-     * niemand ein.
+     * niemand ein — und B5 löste es auf der Seite „Diagnose" ein und nicht in
+     * der Übersicht. Seit dem 5. Oktober 2026 nennt der Hinweis die Seite, auf
+     * der es steht (`docs/141 §0`).
      *
      * > **Eine Zusage im Hinweistext ist eine Zusage.**
      */
@@ -571,18 +573,29 @@ enum FindingCheck: string
              */
             self::QuotaExceeded => [
                 /*
-                 * **`warn` und nicht `fail`, und das steht schon geschrieben.**
-                 * {@see \App\Support\Plans\Quota::TrafficGb} sagt es für den
-                 * Verkehr wörtlich: „Gemessen, nicht erzwungen." Für Platz und
-                 * Datenbanken gilt dasselbe — die Quota des Dateisystems ist
-                 * eine andere Wand, und ob sie steht, fragt `quota.state`.
+                 * **`warn` und nicht `fail`.** Datenbanken und Traffic werden
+                 * gemessen und nicht erzwungen ({@see \App\Support\Plans\Quota::hint()});
+                 * über der Grenze ist dort nichts kaputt, jemand ist über eine
+                 * vereinbarte Grenze.
                  *
-                 * Ein `fail` hiesse: hier ist etwas kaputt. Kaputt ist nichts;
-                 * jemand ist über eine vereinbarte Grenze.
+                 * **Der Platz ist die Ausnahme, und sie steht im Satz und nicht
+                 * im Rang.** Ihn erzwingt die Dateisystem-Quota: Ist er
+                 * ausgeschöpft, scheitern die Schreibzugriffe der Website. Das
+                 * ist ein Schaden beim Kunden und keiner am Server — die
+                 * Diagnose des Betreibers bleibt deshalb bei `warn`, und die
+                 * Mail sagt dem Kunden, was er davon merkt.
+                 *
+                 * Hier stand bis zum 5. Oktober 2026, für den Platz gelte
+                 * „dasselbe" wie für den Traffic — gemessen, nicht erzwungen.
+                 * Der Satz ging bis in die Kundenmail (`docs/141 §0`).
                  */
+                'disk_near_limit' => [
+                    'state' => FindingState::Warn,
+                    'text' => 'Der Speicherplatz ist fast ausgeschöpft. Ist er voll, lassen sich keine Dateien mehr schreiben.',
+                ],
                 'disk_over' => [
                     'state' => FindingState::Warn,
-                    'text' => 'Der belegte Platz liegt über dem Kontingent des Plans.',
+                    'text' => 'Der Speicherplatz ist ausgeschöpft. Neue Dateien lassen sich nicht schreiben, bis Platz frei wird.',
                 ],
                 'databases_over' => [
                     'state' => FindingState::Warn,
@@ -590,7 +603,7 @@ enum FindingCheck: string
                 ],
                 'traffic_over' => [
                     'state' => FindingState::Warn,
-                    'text' => 'Der Verkehr dieses Monats liegt über dem Kontingent.',
+                    'text' => 'Der Traffic dieses Monats liegt über dem Kontingent.',
                 ],
 
                 /*
@@ -609,7 +622,7 @@ enum FindingCheck: string
                  */
                 'traffic_unknown' => [
                     'state' => FindingState::Unknown,
-                    'text' => 'Der Verkehr dieses Monats ist nicht zu beurteilen — die Zeitzone des Servers ist nicht lesbar.',
+                    'text' => 'Der Traffic dieses Monats ist nicht zu beurteilen — die Zeitzone des Servers ist nicht lesbar.',
                 ],
             ],
 

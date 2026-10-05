@@ -7,8 +7,10 @@ namespace App\Http\Controllers;
 use App\Models\Finding;
 use App\Support\Diagnose\RunLog;
 use App\Support\Diagnose\SettingsRunLog;
+use App\Support\Notify\Notices;
 use App\Support\Settings\Settings;
 use App\Support\Time\Clock;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -40,14 +42,14 @@ use Inertia\Response;
  */
 final class DiagnoseController extends Controller
 {
-    public function show(RunLog $runs, Settings $settings): Response
+    public function show(RunLog $runs, Settings $settings, Notices $notices): Response
     {
         // **`operate-server` und nicht der Kontotyp.** Dieselbe Policy, die
         // `/logs` bewacht — eine zweite Fassung wäre die, die veraltet.
         $wortlaut = Gate::allows('operate-server');
 
         return Inertia::render('Diagnose/Index', [
-            'findings' => fn (): array => $this->findings($wortlaut),
+            'findings' => fn (): array => $this->findings($wortlaut, $notices),
 
             /*
              * **Wann zuletzt gemessen wurde, kommt nicht aus den Befunden.**
@@ -100,11 +102,18 @@ final class DiagnoseController extends Controller
      *
      * @return list<array<string, mixed>>
      */
-    private function findings(bool $wortlaut): array
+    private function findings(bool $wortlaut, Notices $notices): array
     {
         $zeilen = [];
 
-        foreach (Finding::query()->orderBy('check')->orderBy('subject')->get() as $finding) {
+        $befunde = Finding::query()->with('notifications')->orderBy('check')->orderBy('subject')->get();
+
+        // Ob und wie jeder gemeldet ist (`docs/141 §0` Befund 5). Die Regel
+        // steht in `Notices` und nicht hier: Der Lauf meldet danach, und die
+        // Seite zeigt, wonach er meldet.
+        $meldungen = $notices->deliveries($befunde, Carbon::now());
+
+        foreach ($befunde as $finding) {
             $check = $finding->check;
             $state = $finding->state();
 
@@ -127,6 +136,7 @@ final class DiagnoseController extends Controller
                 // (Punkt 8 des Abnahmekriteriums).
                 'first_seen_at' => Clock::display($finding->first_seen_at),
                 'measured_at' => Clock::display($finding->measured_at),
+                'notice' => $meldungen[$finding->id],
             ];
 
             if ($wortlaut) {

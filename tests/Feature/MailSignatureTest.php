@@ -56,7 +56,7 @@ final class MailSignatureTest extends TestCase
 
         $texte = [
             'Betreiber' => (new DiagnoseReport([['label' => 'Ein Befund.', 'subject' => 'web-1', 'detail' => 'Detail', 'since' => '03.10.2026 17:00']]))->render(),
-            'Kunde' => (new QuotaWarning('kunde-web', [['label' => 'Der Verkehr liegt über dem Kontingent.', 'detail' => '12 GB > 10 GB']]))->render(),
+            'Kunde' => (new QuotaWarning('kunde-web', [['reason' => 'traffic_over', 'label' => 'Der Traffic dieses Monats liegt über dem Kontingent.', 'detail' => '12 GB von 10 GB in diesem Monat']]))->render(),
             'Probe' => (new TestMessage('Administrator', '2026-10-03 17:39:54'))->render(),
         ];
 

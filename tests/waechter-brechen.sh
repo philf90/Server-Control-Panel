@@ -32964,9 +32964,9 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
 s = p.read_text()
-alt = '$this->tenancy->withoutRestriction(function () use ($measuredAt, &$findings): void {'
+alt = '$this->tenancy->withoutRestriction(function () use ($measuredAt, $vorher, &$findings): void {'
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, '(function () use ($measuredAt, &$findings): void {', 1))
+p.write_text(s.replace(alt, '(function () use ($measuredAt, $vorher, &$findings): void {', 1))
 PY
 griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "Klammer nicht geloest" &&
 pruefe "Klammer nicht geloest" \
@@ -32983,9 +32983,9 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
 s = p.read_text()
-alt = '|| (float) $limit <= 0.0'
+alt = '&& (float) $limit > 0.0'
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, '|| (float) $limit < 0.0', 1))
+p.write_text(s.replace(alt, '&& (float) $limit >= 0.0', 1))
 PY
 griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "Null als Grenze" &&
 pruefe "Null als Grenze" \
@@ -33011,12 +33011,12 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
 s = p.read_text()
-alt = 'if ($used === null || ! is_numeric($limit) || (float) $limit <= 0.0) {'
+alt = 'if ($used === null || $grenze === null) {'
 assert s.count(alt) == 1
-neu = ('if (! is_numeric($limit) || (float) $limit <= 0.0) {'
+neu = ('if ($grenze === null) {'
        "\n            return null;\n        }\n\n"
        '        if ($used === null) {'
-       "\n            return [0.0, (float) $limit];\n        }\n\n"
+       "\n            return ['reason' => 'disk_over', 'detail' => 'nicht gemessen'];\n        }\n\n"
        '        if (false) {')
 p.write_text(s.replace(alt, neu, 1))
 PY
@@ -33165,9 +33165,9 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/Notices.php')
 s = p.read_text()
-alt = '->filter(static fn (Finding $f): bool => $f->state() !== FindingState::Unknown)'
+alt = 'if ($finding->state() === FindingState::Unknown) {'
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, '->filter(static fn (Finding $f): bool => true)', 1))
+p.write_text(s.replace(alt, 'if (false) {', 1))
 PY
 griff_datei app/Support/Notify/Notices.php "Unbeurteiltes an den Kunden" &&
 pruefe "Unbeurteiltes an den Kunden" \
@@ -33263,16 +33263,16 @@ echo "── ChannelReachTest: ein gebauter Kanal steht nicht auf der Seite ─�
 #
 # So entsteht ein toter Eintrag wirklich: Der Kanal meldet, und die Seite, auf
 # der „zuletzt erfolgreich zugestellt" steht, kennt ihn nicht.
-vorher_datei resources/js/Pages/Settings/Notices.vue
+vorher_datei resources/js/channels.ts
 python3 - <<'PY'
 import pathlib
-p = pathlib.Path('resources/js/Pages/Settings/Notices.vue')
+p = pathlib.Path('resources/js/channels.ts')
 s = p.read_text()
 alt = '  webhook: {'
 assert s.count(alt) == 1
 p.write_text(s.replace(alt, '  webhook_alt: {', 1))
 PY
-griff_datei resources/js/Pages/Settings/Notices.vue "Kanal fehlt auf der Seite" &&
+griff_datei resources/js/channels.ts "Kanal fehlt auf der Seite" &&
 pruefe "Kanal fehlt auf der Seite" \
   ChannelReachTest::test_every_implementation_stands_on_the_page failed
 wiederherstellen
@@ -39333,9 +39333,9 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('resources/views/mail/quota.blade.php')
 s = p.read_text(encoding='utf-8')
-alt = "darüber liegt.\n\n@include('mail.signature')\n"
+alt = "{!! $paragraphs !!}\n\n@include('mail.signature')\n"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-p.write_text(s.replace(alt, "darüber liegt.\n@include('mail.signature')\n", 1), encoding='utf-8')
+p.write_text(s.replace(alt, "{!! $paragraphs !!}\n@include('mail.signature')\n", 1), encoding='utf-8')
 PY
 griff_datei resources/views/mail/quota.blade.php "Kundenmail ohne Leerzeile" &&
 pruefe "Kundenmail ohne Leerzeile" \
@@ -39401,6 +39401,507 @@ pruefe "Leser ohne Einbindung" \
   MailSignatureTest::test_every_view_that_includes_the_signature_leaves_a_line_before_it failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MailSignatureTest passed
+
+echo
+echo "── QuotaOverrunTest: der Platz an seiner Grenze gilt als frei ──"
+#
+# Die Quota setzt weiche und harte Grenze auf denselben Wert; ein voller Platz
+# steht auf ihr und nie darueber. Wer nach „darueber" fragt, meldet ihn nie
+# (docs/141 §0 Befund 3).
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text(encoding='utf-8')
+alt = 'if ($used >= $grenze) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'if ($used > $grenze) {', 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "Platz an der Grenze frei" &&
+pruefe "Platz an der Grenze frei" \
+  QuotaOverrunTest::test_disk_at_its_quota_is_exhausted failed
+wiederherstellen
+
+echo
+echo "── QuotaOverrunTest: die Vorwarnung beginnt erst ueber 95 % ──"
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text(encoding='utf-8')
+alt = 'if ($prozent >= self::DISK_WARN_PERCENT || '
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'if ($prozent > self::DISK_WARN_PERCENT || ', 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "Vorwarnung erst ueber 95 %" &&
+pruefe "Vorwarnung erst ueber 95 %" \
+  QuotaOverrunTest::test_disk_near_its_quota_warns_from_95_percent failed
+wiederherstellen
+
+echo
+echo "── QuotaOverrunTest: der Anteil wird gerundet statt abgerundet ──"
+#
+# Dann stuende „100,0 %" neben „fast ausgeschoepft".
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text(encoding='utf-8')
+alt = "number_format(floor($prozent * 10) / 10, 1, ',', '.')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "number_format($prozent, 1, ',', '.')", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "Anteil gerundet" &&
+pruefe "Anteil gerundet" \
+  QuotaOverrunTest::test_the_warning_never_reads_a_full_hundred failed
+wiederherstellen
+
+echo
+echo "── QuotaOverrunTest: die Vorwarnung hat keinen Rueckweg ──"
+#
+# Ohne ihn meldet ein Platz, der um 95 % pendelt, nach jedem Durchgang neu —
+# und das ist eine Mail an den Kunden.
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text(encoding='utf-8')
+alt = ' || ($vorher && $prozent >= self::DISK_RELEASE_PERCENT)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "Vorwarnung ohne Rueckweg" &&
+pruefe "Vorwarnung ohne Rueckweg" \
+  QuotaOverrunTest::test_the_warning_holds_until_below_90_percent failed
+wiederherstellen
+
+echo
+echo "── QuotaOverrunTest: das Gedaechtnis haelt jede Warnung fest ──"
+#
+# Die Gegenrichtung zum Eingriff darueber: Zwischen 90 und 95 % beginnt keine
+# Warnung, wenn der vorige Lauf keine hatte.
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text(encoding='utf-8')
+alt = 'in_array($name, $vorher, true)'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'true', 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "Gedaechtnis immer gesetzt" &&
+pruefe "Gedaechtnis immer gesetzt" \
+  QuotaOverrunTest::test_the_warning_holds_until_below_90_percent failed
+wiederherstellen
+
+echo
+echo "── QuotaOverrunTest: das Gedaechtnis liest fremde Gruende ──"
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text(encoding='utf-8')
+alt = "            ->whereIn('reason', ['disk_near_limit', 'disk_over'])\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "Gedaechtnis liest fremde Gruende" &&
+pruefe "Gedaechtnis liest fremde Gruende" \
+  QuotaOverrunTest::test_only_the_disk_remembers_the_disk failed
+wiederherstellen
+
+echo
+echo "── QuotaOverrunTest: das Gedaechtnis kennt den vollen Platz nicht ──"
+vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
+s = p.read_text(encoding='utf-8')
+alt = "->whereIn('reason', ['disk_near_limit', 'disk_over'])"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "->whereIn('reason', ['disk_near_limit'])", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "voller Platz ohne Gedaechtnis" &&
+pruefe "voller Platz ohne Gedaechtnis" \
+  QuotaOverrunTest::test_an_exhausted_disk_falls_back_to_the_warning failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaOverrunTest passed
+
+echo
+echo "── QuotaWarningTest: ein Grund hat keine Ueberschrift ──"
+#
+# headline() hat kein default; ohne diesen Fall wuerfe der Nachtlauf.
+vorher_datei app/Mail/QuotaWarning.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/QuotaWarning.php')
+s = p.read_text(encoding='utf-8')
+alt = "            'disk_near_limit' => 'Speicherplatz fast ausgeschöpft',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '', 1), encoding='utf-8')
+PY
+griff_datei app/Mail/QuotaWarning.php "Grund ohne Ueberschrift" &&
+pruefe "Grund ohne Ueberschrift" \
+  QuotaWarningTest::test_every_reason_a_customer_can_get_has_a_headline failed
+wiederherstellen
+
+echo
+echo "── QuotaWarningTest: der Satz eines Befundes bricht nicht ──"
+vorher_datei app/Mail/QuotaWarning.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/QuotaWarning.php')
+s = p.read_text(encoding='utf-8')
+alt = "foreach (self::wrap($overrun['label'], self::WIDTH - 2) as $i => $teil) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "foreach ([$overrun['label']] as $i => $teil) {", 1), encoding='utf-8')
+PY
+griff_datei app/Mail/QuotaWarning.php "Satz ungebrochen" &&
+pruefe "Satz ungebrochen" \
+  QuotaWarningTest::test_no_line_is_longer_than_77_characters failed
+wiederherstellen
+
+echo
+echo "── QuotaWarningTest: der Wert steht wieder hinter dem Punkt ──"
+#
+# Die Zeile vom 5. Oktober 2026: „…Kontingent.: 3 MB von 1 MB".
+vorher_datei app/Mail/QuotaWarning.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/QuotaWarning.php')
+s = p.read_text(encoding='utf-8')
+alt = "foreach (self::wrap($overrun['label'], self::WIDTH - 2) as $i => $teil) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "foreach (self::wrap($overrun['label'].': '.$overrun['detail'], self::WIDTH - 2) as $i => $teil) {", 1), encoding='utf-8')
+PY
+griff_datei app/Mail/QuotaWarning.php "Wert hinter dem Punkt" &&
+pruefe "Wert hinter dem Punkt" \
+  QuotaWarningTest::test_no_sentence_ends_in_a_colon_after_its_full_stop failed
+wiederherstellen
+
+echo
+echo "── QuotaWarningTest: gemessen und nicht erzwungen steht in jeder Mail ──"
+#
+# Der Satz vom 5. Oktober 2026 — fuer den Speicherplatz falsch, denn ihn
+# erzwingt die Dateisystem-Quota.
+vorher_datei app/Mail/QuotaWarning.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/QuotaWarning.php')
+s = p.read_text(encoding='utf-8')
+alt = 'if ($datenbanken || $traffic) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'if (true) {', 1), encoding='utf-8')
+PY
+griff_datei app/Mail/QuotaWarning.php "Erzwingen-Absatz in jeder Mail" &&
+pruefe "Erzwingen-Absatz in jeder Mail" \
+  QuotaWarningTest::test_the_paragraphs_follow_the_quotas_in_the_mail failed
+wiederherstellen
+
+echo
+echo "── QuotaWarningTest: die Abrechnung des Traffics steht in jeder Mail ──"
+vorher_datei app/Mail/QuotaWarning.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/QuotaWarning.php')
+s = p.read_text(encoding='utf-8')
+alt = 'if ($traffic) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'if (true) {', 1), encoding='utf-8')
+PY
+griff_datei app/Mail/QuotaWarning.php "Abrechnung in jeder Mail" &&
+pruefe "Abrechnung in jeder Mail" \
+  QuotaWarningTest::test_the_paragraphs_follow_the_quotas_in_the_mail failed
+wiederherstellen
+
+echo
+echo "── QuotaWarningTest: der Rueckweg steht auch beim vollen Platz ──"
+vorher_datei app/Mail/QuotaWarning.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/QuotaWarning.php')
+s = p.read_text(encoding='utf-8')
+alt = "if (in_array('disk_near_limit', $gruende, true)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'if (true) {', 1), encoding='utf-8')
+PY
+griff_datei app/Mail/QuotaWarning.php "Rueckweg beim vollen Platz" &&
+pruefe "Rueckweg beim vollen Platz" \
+  QuotaWarningTest::test_the_paragraphs_follow_the_quotas_in_the_mail failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaWarningTest passed
+
+echo
+echo "── QuotaRecipientTest: die Mail geht an jedes Konto des Kunden ──"
+#
+# Auch an den Zusatzbenutzer, dem das Abonnement nicht zugewiesen ist —
+# der Stand bis zum 5. Oktober 2026 (docs/141 §0 Befund 4).
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text(encoding='utf-8')
+alt = 'static fn (Account $konto): bool => $konto->mayAccessSubscription($abo),'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'static fn (Account $konto): bool => true,', 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/MailChannel.php "Mail an jedes Konto" &&
+pruefe "Mail an jedes Konto" \
+  QuotaRecipientTest::test_who_sees_the_subscription_gets_the_mail_and_nobody_else failed
+wiederherstellen
+
+echo
+echo "── QuotaRecipientTest: eine Mail an alle Empfaenger ──"
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text(encoding='utf-8')
+alt = """        foreach ($empfaenger as $adresse) {
+            if ($this->send(new QuotaWarning($subscription, $zeilen), [$adresse]) === Delivery::Sent) {
+                $angekommen++;
+            }
+        }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = """        if ($this->send(new QuotaWarning($subscription, $zeilen), $empfaenger) === Delivery::Sent) {
+            $angekommen++;
+        }
+"""
+p.write_text(s.replace(alt, neu, 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/MailChannel.php "eine Mail an alle" &&
+pruefe "eine Mail an alle" \
+  QuotaRecipientTest::test_every_recipient_gets_a_mail_of_their_own failed
+wiederherstellen
+
+echo
+echo "── QuotaRecipientTest: eine Instanz fuer alle Empfaenger ──"
+#
+# Eine Mailable sammelt Empfaenger; dieselbe Instanz zweimal verschickt geht
+# beim zweiten Mal an beide.
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text(encoding='utf-8')
+alt = '$this->send(new QuotaWarning($subscription, $zeilen), [$adresse])'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+s = s.replace(alt, '$this->send($nachricht, [$adresse])', 1)
+alt = '        $angekommen = 0;\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, alt + '        $nachricht = new QuotaWarning($subscription, $zeilen);\n', 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/MailChannel.php "eine Instanz fuer alle" &&
+pruefe "eine Instanz fuer alle" \
+  QuotaRecipientTest::test_every_recipient_gets_a_mail_of_their_own failed
+wiederherstellen
+
+echo
+echo "── QuotaRecipientTest: ein abgewiesener Empfaenger haelt alle fest ──"
+#
+# Dann bekaeme jeder andere dieselbe Mail jede Nacht wieder.
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text(encoding='utf-8')
+alt = 'return $angekommen > 0 ? Delivery::Sent : Delivery::Failed;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'return $angekommen === count($empfaenger) ? Delivery::Sent : Delivery::Failed;', 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/MailChannel.php "ein Abweisender haelt alle fest" &&
+pruefe "ein Abweisender haelt alle fest" \
+  QuotaRecipientTest::test_one_arrival_books_the_finding failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaRecipientTest passed
+
+echo
+echo "── DiagnosePageTest: die Seite fragt den Agenten nach dem Meldeziel ──"
+#
+# Ob das Ziel eingerichtet ist, weiss nur der Agent, und die Seite fragt ihn
+# nicht. Das Doppel im Fall wirft beim ersten Fragen.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text(encoding='utf-8')
+alt = '$eingerichtet[$channel->key()] = $channel->knownUsable() === true;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '$eingerichtet[$channel->key()] = $channel->usable();', 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/Notices.php "Seite fragt den Agenten" &&
+pruefe "Seite fragt den Agenten" \
+  DiagnosePageTest::test_each_finding_says_whether_and_when_it_was_reported failed
+wiederherstellen
+
+echo
+echo "── DiagnosePageTest: das Meldeziel antwortet fuer die Seite ueber den Agenten ──"
+vorher_datei app/Support/Notify/WebhookChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/WebhookChannel.php')
+s = p.read_text(encoding='utf-8')
+alt = """    public function knownUsable(): ?bool
+    {
+        return null;
+    }"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, """    public function knownUsable(): ?bool
+    {
+        return $this->usable();
+    }""", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/WebhookChannel.php "Meldeziel fragt den Agenten" &&
+pruefe "Meldeziel fragt den Agenten" \
+  DiagnosePageTest::test_each_finding_says_whether_and_when_it_was_reported failed
+wiederherstellen
+
+echo
+echo "── DiagnosePageTest: ein nicht beurteilter Befund wartet auf einen Kanal ──"
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text(encoding='utf-8')
+alt = '} elseif ($bekannt && $ab !== null) {'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, '} elseif ($bekannt) {', 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/Notices.php "Unbeurteiltes wartet" &&
+pruefe "Unbeurteiltes wartet" \
+  DiagnosePageTest::test_each_finding_says_whether_and_when_it_was_reported failed
+wiederherstellen
+
+echo
+echo "── DiagnosePageTest: die Faelligkeit kennt keine Haltezeit ──"
+#
+# Seite und Lauf fragen dieselbe Stelle; eine Faelligkeit ohne Haltezeit
+# zeigte die Seite und meldete der Lauf.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text(encoding='utf-8')
+alt = 'return $finding->first_seen_at->copy()->addMinutes(self::holdMinutes($finding->check));'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, 'return $finding->first_seen_at->copy();', 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/Notices.php "Faelligkeit ohne Haltezeit" &&
+pruefe "Faelligkeit ohne Haltezeit" \
+  DiagnosePageTest::test_each_finding_says_whether_and_when_it_was_reported failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
+
+echo
+echo "── DiagnoseViewTest: ein Zeitpunkt der Meldung bricht am Bindestrich ──"
+vorher_datei resources/js/Pages/Diagnose/Index.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Diagnose/Index.vue')
+s = p.read_text(encoding='utf-8')
+alt = """.moment {
+  white-space: nowrap;
+}"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, """.moment {
+  font-weight: inherit;
+}""", 1), encoding='utf-8')
+PY
+griff_datei resources/js/Pages/Diagnose/Index.vue "Zeitpunkt bricht" &&
+pruefe "Zeitpunkt bricht" \
+  DiagnoseViewTest::test_the_reporting_stands_in_the_finding_cell failed
+wiederherstellen
+
+echo
+echo "── DiagnoseViewTest: die Meldung faellt aus der Zelle ──"
+vorher_datei resources/js/Pages/Diagnose/Index.vue
+python3 - <<'PY'
+import pathlib, re
+p = pathlib.Path('resources/js/Pages/Diagnose/Index.vue')
+s = p.read_text(encoding='utf-8')
+muster = re.compile(r'\n *<p class="quiet deliveries">.*?</p>', re.S)
+assert len(muster.findall(s)) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(muster.sub('', s, count=1), encoding='utf-8')
+PY
+griff_datei resources/js/Pages/Diagnose/Index.vue "Meldung faellt aus der Zelle" &&
+pruefe "Meldung faellt aus der Zelle" \
+  DiagnoseViewTest::test_the_reporting_stands_in_the_finding_cell failed
+wiederherstellen
+
+echo
+echo "── DiagnoseViewTest: die Meldung bekommt eine sechste Spalte ──"
+#
+# Mit kurzen Orten rollte die Tabelle dann bei 1440 px um 248 px.
+vorher_datei resources/js/Pages/Diagnose/Index.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Diagnose/Index.vue')
+s = p.read_text(encoding='utf-8')
+alt = '                <th>Steht seit</th>\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, alt + '                <th>Gemeldet</th>\n', 1), encoding='utf-8')
+PY
+griff_datei resources/js/Pages/Diagnose/Index.vue "sechste Spalte" &&
+pruefe "sechste Spalte" \
+  DiagnoseViewTest::test_the_reporting_stands_in_the_finding_cell failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseViewTest passed
+
+echo
+echo "── ChannelReachTest: eine Seite fuehrt ihre eigene Ablage der Kanaele ──"
+vorher_datei resources/js/Pages/Diagnose/Index.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Pages/Diagnose/Index.vue')
+s = p.read_text(encoding='utf-8')
+alt = "import { channelName } from '../../channels'\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, alt + "const KANAELE: Record<string, string> = { mail: 'Mail' }\n", 1), encoding='utf-8')
+PY
+griff_datei resources/js/Pages/Diagnose/Index.vue "eigene Ablage der Kanaele" &&
+pruefe "eigene Ablage der Kanaele" \
+  ChannelReachTest::test_no_page_keeps_its_own_list_of_channels failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ChannelReachTest passed
+
+echo
+echo "── QuotaHintTest: der Hinweis am Traffic nennt wieder die Uebersicht ──"
+#
+# Der Satz seit P1, woertlich (docs/141 §0 Befund 6).
+vorher_datei app/Support/Plans/Quota.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Plans/Quota.php')
+s = p.read_text(encoding='utf-8')
+alt = "'Gemessen, nicht erzwungen. Eine Überschreitung meldet das Panel unter „Diagnose\" und dem Kunden per Mail; gesperrt wird nichts.'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "'Gemessen, nicht erzwungen. Die Überschreitung erscheint in der Übersicht und löst keine Sperre aus.'", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Plans/Quota.php "Hinweis nennt keine Seite" &&
+pruefe "Hinweis nennt keine Seite" \
+  QuotaHintTest::test_the_page_a_hint_names_shows_the_overrun failed
+wiederherstellen
+
+echo
+echo "── QuotaHintTest: der Hinweis nennt eine Seite, auf der nichts steht ──"
+#
+# „Übersicht" heisst ein Menüpunkt — ein Waechter ueber den Namen allein liesse
+# den Satz durch. Gefragt wird deshalb die Seite.
+vorher_datei app/Support/Plans/Quota.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Plans/Quota.php')
+s = p.read_text(encoding='utf-8')
+alt = "Eine Überschreitung meldet das Panel unter „Diagnose\" und dem Kunden per Mail; gesperrt wird nichts."
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "Eine Überschreitung steht unter „Übersicht\"; gesperrt wird nichts.", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Plans/Quota.php "Seite ohne die Ueberschreitung" &&
+pruefe "Seite ohne die Ueberschreitung" \
+  QuotaHintTest::test_the_page_a_hint_names_shows_the_overrun failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaHintTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

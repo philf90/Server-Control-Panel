@@ -34,7 +34,15 @@ use Tests\TestCase;
  */
 final class ChannelReachTest extends TestCase
 {
-    private const SEITE = 'resources/js/Pages/Settings/Notices.vue';
+    /**
+     * Wo die Seiten die Kanäle herhaben.
+     *
+     * **Eine Datei und nicht die Einstellungsseite.** Bis zum 5. Oktober 2026
+     * stand die Ablage in `Pages/Settings/Notices.vue`; seitdem nennt auch
+     * „Diagnose" den Kanal neben jedem Befund (`docs/141 §0` Befund 5), und
+     * beide lesen dieselbe Datei.
+     */
+    private const SEITE = 'resources/js/channels.ts';
 
     /** Ohne Doppel fragte der Webhook-Kanal beim Bauen den echten Agenten. */
     protected function setUp(): void
@@ -94,6 +102,38 @@ final class ChannelReachTest extends TestCase
         self::assertGreaterThanOrEqual(2, count($this->aufDerSeite()));
         self::assertContains('mail', $this->gebaut());
         self::assertContains('webhook', $this->gebaut());
+    }
+
+    /**
+     * Und keine Seite führt eine eigene Ablage.
+     *
+     * Zwei Fassungen derselben Namen liefen beim nächsten Kanal auseinander —
+     * und die Fassung, die dieser Wächter nicht liest, wäre die, die veraltet.
+     */
+    public function test_no_page_keeps_its_own_list_of_channels(): void
+    {
+        $basis = dirname(__DIR__, 2).'/resources/js';
+        $eigene = [];
+        $gelesen = 0;
+
+        $dateien = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($basis, \FilesystemIterator::SKIP_DOTS));
+
+        /** @var \SplFileInfo $datei */
+        foreach ($dateien as $datei) {
+            if (! in_array($datei->getExtension(), ['vue', 'ts'], true)) {
+                continue;
+            }
+
+            $gelesen++;
+            $pfad = substr($datei->getPathname(), strlen(dirname(__DIR__, 2)) + 1);
+
+            if ($pfad !== self::SEITE && str_contains((string) file_get_contents($datei->getPathname()), 'const KANAELE')) {
+                $eigene[] = $pfad;
+            }
+        }
+
+        self::assertGreaterThan(50, $gelesen, 'Es sind kaum Dateien gelesen worden — dann prüft dieser Fall nichts.');
+        self::assertSame([], $eigene, 'Diese Dateien führen eine eigene Ablage der Kanäle statt '.self::SEITE.'.');
     }
 
     /**

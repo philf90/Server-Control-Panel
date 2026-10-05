@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Plans;
 
 use App\Models\Subscription;
+use App\Support\Diagnose\Checks\QuotaOverrun;
 use SrvPanel\Agent\PhpVersions;
 
 /**
@@ -136,16 +137,25 @@ enum Quota: string
      * Steht im Formular unter dem Feld. Ein Betreiber, der „Traffic" einträgt,
      * soll wissen, dass die Zahl gemessen und nicht durchgesetzt wird — sonst
      * hält er eine Warnschwelle für eine Sperre.
+     *
+     * **Und wo er davon liest.** Beim Traffic stand bis zum 5. Oktober 2026
+     * „erscheint in der Übersicht"; erschienen ist die Überschreitung seit B5
+     * unter „Diagnose" und in einer Mail an den Kunden (`docs/141 §0`). Die
+     * Schwelle des Speicherplatzes kommt aus {@see QuotaOverrun} und steht
+     * nicht ein zweites Mal als Zahl hier.
      */
     public function hint(): string
     {
         return match ($this) {
-            self::DiskMb => 'Erzwungen über die Dateisystem-Quota des Systembenutzers. Ist sie erreicht, schlagen Schreibzugriffe fehl.',
-            self::TrafficGb => 'Gemessen, nicht erzwungen. Die Überschreitung erscheint in der Übersicht und löst keine Sperre aus.',
+            self::DiskMb => sprintf(
+                'Erzwungen über die Dateisystem-Quota des Systembenutzers. Ist sie erreicht, schlagen Schreibzugriffe fehl. Ab %d %% meldet das Panel es unter „Diagnose" und dem Kunden per Mail.',
+                QuotaOverrun::DISK_WARN_PERCENT,
+            ),
+            self::TrafficGb => 'Gemessen, nicht erzwungen. Eine Überschreitung meldet das Panel unter „Diagnose" und dem Kunden per Mail; gesperrt wird nichts.',
             self::Domains => 'Zählt Haupt- und Addon-Domains. Aliasse zählen nicht mit.',
             self::Subdomains => 'Über alle Domains des Abonnements zusammen.',
             self::Databases => 'Über beide Datenbanksysteme zusammen. Der zugehörige Zugang zählt nicht getrennt.',
-            self::DatabaseMb => 'Über alle Datenbanken des Abonnements zusammen, in beiden Systemen. Gemessen, nicht erzwungen — keiner der beiden Server kennt eine Obergrenze je Datenbank, und ihre Daten liegen ausserhalb der Dateisystem-Quota.',
+            self::DatabaseMb => 'Über alle Datenbanken des Abonnements zusammen, in beiden Systemen. Gemessen, nicht erzwungen — keiner der beiden Server kennt eine Obergrenze je Datenbank, und ihre Daten liegen ausserhalb der Dateisystem-Quota. Eine Überschreitung meldet das Panel unter „Diagnose" und dem Kunden per Mail.',
             self::FtpAccounts => 'Zusätzliche FTP-Konten. Der Systembenutzer des Abonnements zählt nicht mit.',
             /*
              * **Hier stand „Einträge in der Crontab des Systembenutzers", und

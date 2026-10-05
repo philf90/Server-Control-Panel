@@ -15,7 +15,9 @@ use App\Support\Plans\Quota;
 use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Time\Clock;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
@@ -26,10 +28,9 @@ use Throwable;
  * ## Wer gemeint ist, folgt aus dem Befund
  *
  * `quota.exceeded` ist die eine Prüfung, deren Gegenstand einem Kunden gehört:
- * Sie misst **sein** Abonnement, und der Satz dazu steht seit P1 in
- * {@see Quota::TrafficGb} — *„Die Überschreitung erscheint
- * in der Übersicht."* Die übrigen siebzehn messen den Server, und der gehört
- * dem Betreiber.
+ * Sie misst **sein** Abonnement, und der Hinweis dazu steht seit P1 in
+ * {@see Quota::TrafficGb}. Die übrigen siebzehn messen den Server, und der
+ * gehört dem Betreiber.
  *
  * > **Ein Kanal, der alles an alle trägt, hat keinen Empfänger, sondern eine
  * > Verteilerliste.**
@@ -52,6 +53,21 @@ use Throwable;
  * Ein Konto, das sich nicht anmelden darf, bekommt auch keine Auskunft über
  * den Server — und das gilt für beide Empfänger, nicht nur für den einen.
  * {@see self::addressesOf()} ist die eine Stelle, an der das steht.
+ *
+ * ## Über ein Abonnement erfährt, wer es sieht — und jeder für sich
+ *
+ * **Bis zum 5. Oktober 2026 ging die Kundenmail an jedes aktive Konto des
+ * Kunden, alle in einer Zeile `To`** (`docs/141 §0`). Damit las ein
+ * Zusatzbenutzer, dem das Abonnement gar nicht zugewiesen ist, von dessen
+ * Kontingenten — eine Auskunft, die ihm das Panel auf jeder Seite verweigert
+ * —, und jeder Empfänger las die Adressen der anderen. Entschieden hat der
+ * Betreiber am selben Tag: **wer das Abonnement sieht, je eine Mail.** Gefragt
+ * wird dafür {@see Account::mayAccessSubscription()}, dieselbe Frage, die jede
+ * Seite des Abonnements stellt; eine zweite Fassung davon hier wäre die, die
+ * beim nächsten Rechtemodell nicht mitgeht.
+ *
+ * > **Eine Mail, die einer Seite nachfolgt, fragt dieselbe Policy wie die
+ * > Seite — sonst sagt sie, was die Seite verweigert.**
  */
 final class MailChannel implements Channel
 {
@@ -100,6 +116,12 @@ final class MailChannel implements Channel
         return $this->settings->mail()->usable();
     }
 
+    /** Das Relay steht in den Einstellungen — das Panel weiss es selbst. */
+    public function knownUsable(): ?bool
+    {
+        return $this->usable();
+    }
+
     public function batchKey(FindingCheck $check, string $subject): string
     {
         return $check === FindingCheck::QuotaExceeded
@@ -118,7 +140,18 @@ final class MailChannel implements Channel
     }
 
     /**
-     * An den Kunden: eine Nachricht je Abonnement.
+     * An den Kunden: eine Nachricht je Abonnement und Empfänger.
+     *
+     * **Je Empfänger eine eigene Nachricht und eine eigene Instanz.** Eine
+     * Mailable sammelt Empfänger: `Mail::to()` hängt sie über `setAddress()`
+     * an, statt sie zu ersetzen — dieselbe Instanz zweimal verschickt ginge
+     * beim zweiten Mal an beide.
+     *
+     * **Angekommen ist sie, wenn sie bei einem angekommen ist.** Eine Adresse,
+     * die das Relay dauerhaft abweist, liesse den Befund sonst fällig, und
+     * jeder andere Empfänger bekäme dieselbe Mail jede Nacht wieder. Fällig
+     * bleibt sie, wenn **keiner** sie bekommen hat — dann trägt der Weg nicht,
+     * und der nächste Lauf versucht es für alle.
      *
      * @param  non-empty-list<Finding>  $findings
      */
@@ -130,7 +163,16 @@ final class MailChannel implements Channel
             return Delivery::WithoutRecipient;
         }
 
-        return $this->send(new QuotaWarning($subscription, self::overruns($findings)), $empfaenger);
+        $zeilen = self::overruns($findings);
+        $angekommen = 0;
+
+        foreach ($empfaenger as $adresse) {
+            if ($this->send(new QuotaWarning($subscription, $zeilen), [$adresse]) === Delivery::Sent) {
+                $angekommen++;
+            }
+        }
+
+        return $angekommen > 0 ? Delivery::Sent : Delivery::Failed;
     }
 
     /**
@@ -178,12 +220,18 @@ final class MailChannel implements Channel
      * einer zweiten Liste hier: Was der Betreiber auf der Diagnoseseite liest,
      * liest der Kunde in seiner Mail.
      *
-     * @param  list<Finding>  $findings
-     * @return list<array{label: string, detail: string}>
+     * **Der Grund reist mit**, weil die Mail aus ihm ihren Betreff und ihre
+     * Absätze baut: „fast ausgeschöpft" und „überschritten" sind zwei
+     * Auskünfte, und ein Absatz über den Traffic gehört nur in eine Mail, in
+     * der es um Traffic geht.
+     *
+     * @param  non-empty-list<Finding>  $findings
+     * @return non-empty-list<array{reason: string, label: string, detail: string}>
      */
     private static function overruns(array $findings): array
     {
         return array_map(static fn (Finding $f): array => [
+            'reason' => $f->reason,
             'label' => $f->check->sentence($f->reason),
             'detail' => (string) ($f->detail ?? '—'),
         ], $findings);
@@ -221,7 +269,9 @@ final class MailChannel implements Channel
      *
      * **An die Konten des Kunden und nicht an eine Adresse am Abonnement** —
      * eine solche gibt es nicht, und sie zu erfinden hiesse, eine zweite
-     * Wahrheit neben `accounts.email` zu pflegen.
+     * Wahrheit neben `accounts.email` zu pflegen. **Und von denen an die, die
+     * das Abonnement sehen** (Kopf der Klasse): die Kundenkonten und die
+     * Zusatzbenutzer, denen es zugewiesen ist.
      *
      * @return list<string>
      */
@@ -230,7 +280,14 @@ final class MailChannel implements Channel
         return $this->withoutClamp(static function () use ($subscription): array {
             $abo = Subscription::query()->where('name', $subscription)->first();
 
-            return self::addressesOf($abo?->customer?->accounts());
+            if ($abo === null) {
+                return [];
+            }
+
+            return self::addressesOf(
+                $abo->customer?->accounts(),
+                static fn (Account $konto): bool => $konto->mayAccessSubscription($abo),
+            );
         });
     }
 
@@ -259,24 +316,33 @@ final class MailChannel implements Channel
      * Mal an einer der beiden Stellen zu vergessen.
      *
      * @param  Builder<Account>|Relation<Account, *, *>|null  $konten
+     * @param  (Closure(Account): bool)|null  $darf  ob ein Konto diese Auskunft bekommen darf
      * @return list<string>
      */
-    private static function addressesOf(mixed $konten): array
+    private static function addressesOf(mixed $konten, ?Closure $darf = null): array
     {
         if ($konten === null) {
             return [];
         }
 
-        /** @var list<string> $adressen */
-        $adressen = $konten
+        /** @var Collection<int, Account> $gefunden */
+        $gefunden = $konten
             ->where('status', AccountStatus::Active->value)
             ->whereNotNull('email')
             ->orderBy('id')
-            ->pluck('email')
-            ->map(static fn (mixed $mail): string => (string) $mail)
-            ->all();
+            ->get();
 
-        return array_values(array_filter($adressen, static fn (string $mail): bool => $mail !== ''));
+        $adressen = [];
+
+        foreach ($gefunden as $konto) {
+            $mail = (string) $konto->email;
+
+            if ($mail !== '' && ($darf === null || $darf($konto))) {
+                $adressen[] = $mail;
+            }
+        }
+
+        return $adressen;
     }
 
     /**

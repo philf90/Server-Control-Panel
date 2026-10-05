@@ -7,6 +7,7 @@ namespace App\Support\Diagnose\Checks;
 use App\Enums\DailyMetric;
 use App\Enums\FindingCheck;
 use App\Enums\SubscriptionStatus;
+use App\Models\Finding;
 use App\Models\Subscription;
 use App\Models\SubscriptionMetric;
 use App\Support\Cron\ServerZone;
@@ -15,6 +16,7 @@ use App\Support\Diagnose\FindingLog;
 use App\Support\Plans\Quota;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Support\Carbon;
+use SrvPanel\Agent\DiskQuota;
 
 /**
  * Liegt ein Abonnement über einem seiner Kontingente — `quota.exceeded` (B5).
@@ -29,6 +31,33 @@ use Illuminate\Support\Carbon;
  *
  * > **Ein Kontingent, das beim Anlegen geprüft wird, braucht keine Überwachung
  * > — es braucht seine Prüfung.**
+ *
+ * ## Der Platz wird nicht überschritten, sondern erreicht
+ *
+ * **Bis zum 5. Oktober 2026 stand hier, auch der Platz sei überschreitbar**,
+ * und die Prüfung fragte nach „darüber". Das ist er nicht: Die
+ * Dateisystem-Quota setzt weiche und harte Grenze auf denselben Wert
+ * ({@see DiskQuota::apply()}), und `repquota` zählt in
+ * ganzen MB abgerundet. Der Verbrauch erreicht die Grenze also höchstens.
+ * Gemeldet wurde deshalb nur, wenn jemand ein Kontingent **unter** den
+ * Verbrauch herabsetzte, und nie, wenn ein Kunde seinen Platz füllte — also
+ * genau dann nicht, wenn die Schreibzugriffe seiner Website zu scheitern
+ * beginnen (`docs/141 §0`).
+ *
+ * > **Ein Kontingent, das erzwungen wird, wird nicht überschritten — es wird
+ * > erreicht, und die Meldung gehört davor.**
+ *
+ * Entschieden hat der Betreiber am 5. Oktober 2026: **ab 95 % „fast
+ * ausgeschöpft", entwarnt unter 90 %**, dieselben Zahlen wie bei „Platte
+ * voll" für den Server. An der Grenze selbst steht `disk_over`, „ausgeschöpft"
+ * — ab hier scheitert jeder Schreibzugriff, und das ist eine andere Auskunft
+ * als die Vorwarnung. Die beiden schliessen einander aus; die Rückkehr unter
+ * 90 % hängt an den eigenen Befunden vom vorigen Lauf, wie in
+ * {@see DiskSpace}.
+ *
+ * > **Eine Haltezeit ohne Rückweg macht aus einem Wert, der an der Grenze
+ * > pendelt, einen, der nie meldet** — oder einen, der jede zweite Nacht
+ * > meldet, und das ist bei einer Mail an den Kunden schlimmer.
  *
  * ## `null` heisst „nicht gemessen" und nicht „null belegt"
  *
@@ -80,8 +109,14 @@ final class QuotaOverrun implements Check
      * @var array<string, list<string>>
      */
     public const REASONS = [
-        'quota.exceeded' => ['disk_over', 'databases_over', 'traffic_over', 'traffic_unknown'],
+        'quota.exceeded' => ['disk_near_limit', 'disk_over', 'databases_over', 'traffic_over', 'traffic_unknown'],
     ];
+
+    /** Ab hier ist der Platz eines Abonnements fast ausgeschöpft (Betreiber, 5. Oktober 2026). */
+    public const DISK_WARN_PERCENT = 95;
+
+    /** Erst darunter geht die Vorwarnung wieder — der Rückweg. */
+    public const DISK_RELEASE_PERCENT = 90;
 
     public function __construct(private readonly Tenancy $tenancy) {}
 
@@ -110,11 +145,23 @@ final class QuotaOverrun implements Check
         /** @var list<array{subject: string, reason: string, detail: string}> $findings */
         $findings = [];
 
-        $this->tenancy->withoutRestriction(function () use ($measuredAt, &$findings): void {
+        /*
+         * **Das Gedächtnis des Rückwegs sind die eigenen Zeilen vom letzten
+         * Lauf** — und nur die des Platzes. Keine Prüfung liest, was eine
+         * andere geschrieben hat; dieselbe Regel wie in {@see DiskSpace}.
+         */
+        $vorher = Finding::query()
+            ->where('check', FindingCheck::QuotaExceeded->value)
+            ->whereIn('reason', ['disk_near_limit', 'disk_over'])
+            ->pluck('subject')
+            ->map(static fn (mixed $s): string => (string) $s)
+            ->all();
+
+        $this->tenancy->withoutRestriction(function () use ($measuredAt, $vorher, &$findings): void {
             foreach ($this->subscriptions() as $subscription) {
                 $name = (string) $subscription->name;
 
-                foreach ($this->overruns($subscription, $measuredAt) as $finding) {
+                foreach ($this->overruns($subscription, $measuredAt, in_array($name, $vorher, true)) as $finding) {
                     $findings[] = ['subject' => $name] + $finding;
                 }
             }
@@ -128,20 +175,20 @@ final class QuotaOverrun implements Check
      *
      * @return list<array{reason: string, detail: string}>
      */
-    private function overruns(Subscription $subscription, Carbon $measuredAt): array
+    private function overruns(Subscription $subscription, Carbon $measuredAt, bool $platzVorher): array
     {
         $out = [];
 
-        $platte = $this->over($subscription->disk_used_mb, $subscription->quota(Quota::DiskMb->value));
+        $platte = self::disk($subscription->disk_used_mb, $subscription->quota(Quota::DiskMb->value), $platzVorher);
 
         if ($platte !== null) {
-            $out[] = ['reason' => 'disk_over', 'detail' => $this->megabytes(...$platte)];
+            $out[] = $platte;
         }
 
         $datenbanken = $this->over($subscription->databaseUsedMb(), $subscription->quota(Quota::DatabaseMb->value));
 
         if ($datenbanken !== null) {
-            $out[] = ['reason' => 'databases_over', 'detail' => $this->megabytes(...$datenbanken)];
+            $out[] = ['reason' => 'databases_over', 'detail' => self::megabytes(...$datenbanken)];
         }
 
         $gesendet = $this->trafficThisMonth($subscription, $measuredAt);
@@ -174,25 +221,79 @@ final class QuotaOverrun implements Check
     }
 
     /**
+     * Der Platz: ausgeschöpft, fast ausgeschöpft oder nichts.
+     *
+     * **An der Grenze und nicht erst darüber**, weil die Quota den Verbrauch
+     * dort anhält (siehe Kopf). `null` bei jeder Unklarheit, aus denselben
+     * Gründen wie {@see self::over()}: kein Messwert ist nicht „0 belegt", und
+     * eine Grenze von 0 ist keine ({@see self::limit()}).
+     *
+     * @param  bool  $vorher  stand für dieses Abonnement im vorigen Lauf ein Befund zum Platz?
+     * @return array{reason: string, detail: string}|null
+     */
+    public static function disk(?int $used, mixed $limit, bool $vorher): ?array
+    {
+        $grenze = self::limit($limit);
+
+        if ($used === null || $grenze === null) {
+            return null;
+        }
+
+        $prozent = $used / $grenze * 100;
+
+        if ($used >= $grenze) {
+            return ['reason' => 'disk_over', 'detail' => self::megabytes((float) $used, $grenze)];
+        }
+
+        if ($prozent >= self::DISK_WARN_PERCENT || ($vorher && $prozent >= self::DISK_RELEASE_PERCENT)) {
+            return ['reason' => 'disk_near_limit', 'detail' => sprintf(
+                '%s (%s %%)',
+                self::megabytes((float) $used, $grenze),
+                number_format(floor($prozent * 10) / 10, 1, ',', '.'),
+            )];
+        }
+
+        return null;
+    }
+
+    /**
      * Liegt ein gemessener Wert über seiner Grenze?
      *
-     * `null` bei **jeder** Unklarheit: kein Messwert, keine Grenze, oder eine
-     * Grenze von 0 oder weniger. Eine Grenze von 0 heisst im Katalog
-     * „unbegrenzt" oder „nicht angeboten" (siehe `Quota::allowsUnlimited()`);
-     * gegen sie zu vergleichen machte aus jedem Kunden einen Überschreiter.
+     * `null` bei **jeder** Unklarheit: kein Messwert oder keine Grenze
+     * ({@see self::limit()}).
      *
      * @return array{0: float, 1: float}|null gemessen und Grenze
      */
     private function over(int|float|null $used, mixed $limit): ?array
     {
-        if ($used === null || ! is_numeric($limit) || (float) $limit <= 0.0) {
+        $grenze = self::limit($limit);
+
+        if ($grenze === null || $used === null) {
             return null;
         }
 
-        return (float) $used > (float) $limit ? [(float) $used, (float) $limit] : null;
+        return (float) $used > $grenze ? [(float) $used, $grenze] : null;
     }
 
-    private function megabytes(float $used, float $limit): string
+    /**
+     * Die Grenze eines Kontingents — `null`, wenn es keine ist.
+     *
+     * Keine Grenze ist ein fehlender Wert und eine von 0 oder weniger: Sie
+     * heisst im Katalog „unbegrenzt" oder „nicht angeboten" (siehe
+     * `Quota::allowsUnlimited()`), und gegen sie zu vergleichen machte aus
+     * jedem Kunden einen Überschreiter.
+     *
+     * **Eine Stelle für den Platz und für die gemessenen Kontingente.** Seit
+     * dem 5. Oktober 2026 fragen das zwei Methoden. Beim Bauen stand dieselbe
+     * Bedingung in beiden wörtlich da; gefunden hat es das Bruchskript, dessen
+     * Eingriff sie nicht mehr eindeutig fand.
+     */
+    private static function limit(mixed $limit): ?float
+    {
+        return is_numeric($limit) && (float) $limit > 0.0 ? (float) $limit : null;
+    }
+
+    private static function megabytes(float $used, float $limit): string
     {
         return sprintf(
             '%s MB von %s MB',

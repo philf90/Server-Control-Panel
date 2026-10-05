@@ -109,6 +109,142 @@ final class QuotaOverrunTest extends TestCase
     }
 
     /**
+     * **An der Grenze ist der Platz ausgeschöpft — nicht erst darüber.**
+     *
+     * Der Fall, den es vor dem 5. Oktober 2026 nicht gab (`docs/141 §0`
+     * Befund 3): Die Dateisystem-Quota setzt weiche und harte Grenze auf
+     * denselben Wert, und `repquota` rundet auf ganze MB ab. Ein voller Platz
+     * steht deshalb **auf** seiner Grenze, und die alte Frage nach „darüber"
+     * meldete ihn nie.
+     */
+    public function test_disk_at_its_quota_is_exhausted(): void
+    {
+        $this->abonnement(['disk_used_mb' => 500, 'quota_overrides' => ['disk_mb' => 500]]);
+        $this->fahre(Carbon::parse('2026-10-05 03:00:00'));
+
+        self::assertSame(['disk_over'], $this->reasons(),
+            'Ein Platz auf seiner Grenze ist voll — ab hier scheitert jeder Schreibzugriff.');
+        self::assertSame('500 MB von 500 MB', Finding::query()->firstOrFail()->detail);
+    }
+
+    /**
+     * Ab 95 % warnt die Prüfung — und darunter nicht.
+     *
+     * Entschieden hat der Betreiber am 5. Oktober 2026: dieselbe Schwelle wie
+     * bei „Platte voll" für den Server. **Beide Seiten der Schwelle in einem
+     * Fall**, weil ein Wächter, der nur die eine misst, auch eine Prüfung
+     * durchliesse, die immer oder nie warnt.
+     */
+    public function test_disk_near_its_quota_warns_from_95_percent(): void
+    {
+        $abo = $this->abonnement(['disk_used_mb' => 474, 'quota_overrides' => ['disk_mb' => 500]]);
+        $this->fahre(Carbon::parse('2026-10-05 03:00:00'));
+
+        self::assertSame([], $this->reasons(), '474 von 500 MB sind 94,8 % — darunter warnt nichts.');
+
+        $this->belegt($abo, 475);
+        $this->fahre(Carbon::parse('2026-10-06 03:00:00'));
+
+        self::assertSame(['disk_near_limit'], $this->reasons(), '475 von 500 MB sind genau 95 %.');
+        self::assertSame('475 MB von 500 MB (95,0 %)', Finding::query()->firstOrFail()->detail);
+    }
+
+    /**
+     * „Fast ausgeschöpft" sagt nie 100 %.
+     *
+     * Der Anteil wird **abgerundet** und nicht gerundet: 3.999 von 4.000 MB
+     * sind 99,975 %, und gerundet stünde „100,0 %" neben „fast" — ein Satz,
+     * der sich selbst widerspricht.
+     */
+    public function test_the_warning_never_reads_a_full_hundred(): void
+    {
+        $this->abonnement(['disk_used_mb' => 3999, 'quota_overrides' => ['disk_mb' => 4000]]);
+        $this->fahre(Carbon::parse('2026-10-05 03:00:00'));
+
+        self::assertSame(['disk_near_limit'], $this->reasons());
+        self::assertSame('3.999 MB von 4.000 MB (99,9 %)', Finding::query()->firstOrFail()->detail);
+    }
+
+    /**
+     * **Der Rückweg liegt unter 90 % und nicht unter 95 %.**
+     *
+     * Ohne ihn meldete ein Platz, der um die Schwelle pendelt, nach jedem
+     * Durchgang darüber neu — und das ist eine Mail an den Kunden. Gefahren
+     * über vier Läufe: Warnung, Halt über der Rückkehrschwelle, Entwarnung
+     * darunter, und danach **keine** Warnung zwischen 90 und 95 %, weil es dann
+     * keinen Befund vom vorigen Lauf gibt.
+     */
+    public function test_the_warning_holds_until_below_90_percent(): void
+    {
+        $abo = $this->abonnement(['disk_used_mb' => 480, 'quota_overrides' => ['disk_mb' => 500]]);
+
+        $this->fahre(Carbon::parse('2026-10-05 03:00:00'));
+        self::assertSame(['disk_near_limit'], $this->reasons(), '96 % — die Warnung beginnt.');
+
+        $this->belegt($abo, 452);
+        $this->fahre(Carbon::parse('2026-10-06 03:00:00'));
+        self::assertSame(['disk_near_limit'], $this->reasons(), '90,4 % — die Warnung hält.');
+
+        $this->belegt($abo, 449);
+        $this->fahre(Carbon::parse('2026-10-07 03:00:00'));
+        self::assertSame([], $this->reasons(), '89,8 % — die Warnung endet.');
+
+        $this->belegt($abo, 460);
+        $this->fahre(Carbon::parse('2026-10-08 03:00:00'));
+        self::assertSame([], $this->reasons(), '92 % ohne Befund vom vorigen Lauf — darunter beginnt keine Warnung.');
+    }
+
+    /**
+     * Ein ausgeschöpfter Platz, der wieder etwas frei hat, ist fast ausgeschöpft.
+     *
+     * Das Gedächtnis des Rückwegs sind **beide** Gründe des Platzes: Wer von
+     * 100 % auf 92 % fällt, liegt noch über der Rückkehrschwelle.
+     */
+    public function test_an_exhausted_disk_falls_back_to_the_warning(): void
+    {
+        $abo = $this->abonnement(['disk_used_mb' => 500, 'quota_overrides' => ['disk_mb' => 500]]);
+        $this->fahre(Carbon::parse('2026-10-05 03:00:00'));
+        self::assertSame(['disk_over'], $this->reasons());
+
+        $this->belegt($abo, 460);
+        $this->fahre(Carbon::parse('2026-10-06 03:00:00'));
+
+        self::assertSame(['disk_near_limit'], $this->reasons());
+    }
+
+    /**
+     * Und das Gedächtnis kennt nur den Platz.
+     *
+     * Ein Befund über die Datenbanken desselben Abonnements ist kein Grund, den
+     * Platz unter 95 % weiter zu warnen. Gefragt wird nach den eigenen Zeilen
+     * und nach den Gründen des Platzes — die Regel aus `DiskSpace`, dass keine
+     * Prüfung liest, was eine andere geschrieben hat, eine Ebene tiefer.
+     *
+     * **Zwei Läufe und nicht einer.** Das Gedächtnis ist der vorige Lauf; im
+     * ersten ist es leer, und ein Fall über einen einzigen Lauf bliebe grün,
+     * gleich welche Gründe es läse.
+     */
+    public function test_only_the_disk_remembers_the_disk(): void
+    {
+        $abo = $this->abonnement(['disk_used_mb' => 460, 'quota_overrides' => ['disk_mb' => 500, 'database_mb' => 100]]);
+
+        app(Tenancy::class)->withoutRestriction(static function () use ($abo): void {
+            Database::factory()->create([
+                'subscription_id' => $abo->id,
+                'size_bytes' => 300 * 1024 * 1024,
+            ]);
+        });
+
+        $this->fahre(Carbon::parse('2026-10-05 03:00:00'));
+        self::assertSame(['databases_over'], $this->reasons());
+
+        $this->fahre(Carbon::parse('2026-10-06 03:00:00'));
+
+        self::assertSame(['databases_over'], $this->reasons(),
+            '92 % Platz ohne eigenen Befund vom vorigen Lauf — der Befund über die Datenbanken zählt nicht als Gedächtnis.');
+    }
+
+    /**
      * Ein ungemessener Wert ist kein Befund.
      *
      * Der Rückfall auf 0 wäre die bequemere von zwei falschen Auskünften: Er
@@ -239,6 +375,17 @@ final class QuotaOverrunTest extends TestCase
         self::assertSame([], $this->reasons(),
             'Was der Lauf nicht mehr nennt, ist behoben — und mit der Zeile geht die Erinnerung an '
             .'die Zustellung.');
+    }
+
+    /**
+     * Den gemessenen Platz setzen — mit `forceFill()`, aus dem Grund, der in
+     * {@see self::test_a_resolved_overrun_disappears()} steht.
+     */
+    private function belegt(Subscription $abo, int $mb): void
+    {
+        app(Tenancy::class)->withoutRestriction(static function () use ($abo, $mb): void {
+            $abo->forceFill(['disk_used_mb' => $mb])->save();
+        });
     }
 
     private function traffic(Subscription $abo, string $day, int $value, ?DailyMetric $metric = null): void

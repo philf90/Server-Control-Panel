@@ -12,6 +12,7 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use LogicException;
 
 /**
  * Die Meldung an den Kunden über die Kontingente eines Abonnements (B5,
@@ -99,9 +100,10 @@ final class QuotaWarning extends Mailable
     /**
      * Die Überschrift eines Grundes — für den Betreff.
      *
-     * **Ohne `default`, mit Absicht.** Ein neuer Grund in {@see QuotaOverrun}
-     * ohne Überschrift wirft hier, statt still „Kontingent" zu schreiben;
-     * `QuotaWarningTest` fährt jeden Grund aus `QuotaOverrun::REASONS` durch.
+     * **Der Rückfall wirft, mit Absicht.** Ein neuer Grund in
+     * {@see QuotaOverrun} ohne Überschrift fällt hier auf, statt still
+     * „Kontingent" zu schreiben; `QuotaWarningTest` fährt jeden Grund aus
+     * `QuotaOverrun::REASONS` durch, damit es nicht erst im Nachtlauf wirft.
      */
     public static function headline(string $reason): string
     {
@@ -110,6 +112,7 @@ final class QuotaWarning extends Mailable
             'disk_over' => 'Speicherplatz ausgeschöpft',
             'databases_over' => 'Datenbankgröße überschritten',
             'traffic_over' => 'Traffic überschritten',
+            default => throw new LogicException(sprintf('Für den Grund „%s" gibt es keine Überschrift.', $reason)),
         };
     }
 

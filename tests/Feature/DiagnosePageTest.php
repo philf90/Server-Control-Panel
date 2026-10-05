@@ -13,6 +13,7 @@ use App\Support\Notify\Channels;
 use App\Support\Notify\NotifyTarget;
 use App\Support\Settings\MailSettings;
 use App\Support\Settings\Settings;
+use App\Support\Time\Clock;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use LogicException;
@@ -187,10 +188,16 @@ final class DiagnosePageTest extends TestCase
      * Meldeziels wirft beim ersten Fragen; ob das Ziel eingerichtet ist, weiss
      * nur der Agent, und `open` nennt deshalb den Mailversand und nie das
      * Meldeziel.
+     *
+     * **Gemessen in einer Zone mit Versatz.** In UTC sähe eine fehlende
+     * Umrechnung wie eine gelungene aus — und ohne eigene Zone galt die, die
+     * ein früherer Test in `Clock` zurückgelassen hatte: Im vollen Lauf stand
+     * hier `05:00:12`, einzeln `03:00:12`.
      */
     public function test_each_finding_says_whether_and_when_it_was_reported(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-10-06 12:00:00', 'UTC'));
+        Clock::store('Europe/Berlin');
 
         $this->app?->instance(NotifyTarget::class, new class implements NotifyTarget
         {
@@ -236,21 +243,22 @@ final class DiagnosePageTest extends TestCase
 
         $je = array_column($zeilen, 'notice', 'subject');
 
-        self::assertSame([['channel' => 'mail', 'at' => '2026-10-06 03:00:12']], $je['gemeldet.invalid']['sent']);
+        self::assertSame([['channel' => 'mail', 'at' => '2026-10-06 05:00:12']], $je['gemeldet.invalid']['sent'], 'Gebucht um 03:00:12 UTC, angezeigt in der eingestellten Zone.');
         self::assertSame([], $je['gemeldet.invalid']['open'], 'Gemeldet ist gemeldet, und vom Meldeziel weiss die Seite nichts.');
 
         self::assertSame([], $je['offen.invalid']['sent']);
         self::assertSame(['mail'], $je['offen.invalid']['open']);
         self::assertTrue($je['offen.invalid']['due']);
-        self::assertSame('2026-10-05 23:00:00', $je['offen.invalid']['due_at'], 'Fällig nach zwanzig Stunden — dieselbe Regel, nach der der Lauf meldet.');
+        self::assertSame('2026-10-06 01:00:00', $je['offen.invalid']['due_at'], 'Fällig nach zwanzig Stunden — dieselbe Regel, nach der der Lauf meldet.');
 
         self::assertFalse($je['nginx.service']['due'], 'Neun Stunden alt — noch nicht fällig.');
-        self::assertSame('2026-10-06 23:00:00', $je['nginx.service']['due_at']);
+        self::assertSame('2026-10-07 01:00:00', $je['nginx.service']['due_at']);
 
         self::assertNull($je['unbeurteilt.invalid']['due_at'], 'Nicht beurteilt wird nie gemeldet.');
         self::assertSame([], $je['unbeurteilt.invalid']['open']);
 
         Carbon::setTestNow();
+        Clock::forget();
     }
 
     /** Der Zeitpunkt eines Laufs ist der der Befunde und nicht der des Schreibens. */

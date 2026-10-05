@@ -117,7 +117,7 @@ final class MailChannel implements Channel
     }
 
     /** Das Relay steht in den Einstellungen — das Panel weiss es selbst. */
-    public function knownUsable(): ?bool
+    public function knownUsable(): bool
     {
         return $this->usable();
     }

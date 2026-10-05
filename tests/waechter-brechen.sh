@@ -39530,7 +39530,7 @@ pruefe "  … zurückgesetzt wieder grün" QuotaOverrunTest passed
 echo
 echo "── QuotaWarningTest: ein Grund hat keine Ueberschrift ──"
 #
-# headline() hat kein default; ohne diesen Fall wuerfe der Nachtlauf.
+# Der Rueckfall von headline() wirft; ohne diesen Fall wuerfe der Nachtlauf.
 vorher_datei app/Mail/QuotaWarning.php
 python3 - <<'PY'
 import pathlib
@@ -39544,6 +39544,23 @@ griff_datei app/Mail/QuotaWarning.php "Grund ohne Ueberschrift" &&
 pruefe "Grund ohne Ueberschrift" \
   QuotaWarningTest::test_every_reason_a_customer_can_get_has_a_headline failed
 wiederherstellen
+
+echo
+echo "── QuotaWarningTest: der Rueckfall schreibt still „Kontingent\" ──"
+vorher_datei app/Mail/QuotaWarning.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/QuotaWarning.php')
+s = p.read_text(encoding='utf-8')
+alt = "            default => throw new LogicException(sprintf('Für den Grund „%s\" gibt es keine Überschrift.', $reason)),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "            default => 'Kontingent',\n", 1), encoding='utf-8')
+PY
+griff_datei app/Mail/QuotaWarning.php "Rueckfall Kontingent" &&
+pruefe "Rueckfall Kontingent" \
+  QuotaWarningTest::test_a_reason_without_a_headline_throws failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaWarningTest passed
 
 echo
 echo "── QuotaWarningTest: der Satz eines Befundes bricht nicht ──"
@@ -39902,6 +39919,26 @@ pruefe "Seite ohne die Ueberschreitung" \
   QuotaHintTest::test_the_page_a_hint_names_shows_the_overrun failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" QuotaHintTest passed
+
+echo
+echo "── DiagnosePageTest: der Zeitpunkt einer Meldung steht in UTC da ──"
+#
+# Gebucht wird in UTC, gezeigt in der eingestellten Zone. Der Fall misst in
+# Europe/Berlin; in UTC saehe eine fehlende Umrechnung wie eine gelungene aus.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text(encoding='utf-8')
+alt = "'at' => (string) Clock::display($gebucht[$key])"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "'at' => $gebucht[$key]->format('Y-m-d H:i:s')", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/Notices.php "Meldung in UTC" &&
+pruefe "Meldung in UTC" \
+  DiagnosePageTest::test_each_finding_says_whether_and_when_it_was_reported failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

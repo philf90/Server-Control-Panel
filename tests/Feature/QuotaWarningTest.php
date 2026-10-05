@@ -9,6 +9,7 @@ use App\Enums\FindingState;
 use App\Mail\QuotaWarning;
 use App\Support\Diagnose\Checks\QuotaOverrun;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use LogicException;
 use Tests\TestCase;
 
 /**
@@ -94,9 +95,9 @@ final class QuotaWarningTest extends TestCase
     /**
      * Jeder Grund, der ankommen kann, hat eine Überschrift.
      *
-     * `headline()` trägt kein `default`, mit Absicht: Ein neuer Grund ohne
-     * Überschrift wirft dort, statt still „Kontingent" zu schreiben. Ohne diesen
-     * Fall würfe er erst im Nachtlauf.
+     * Der Rückfall von `headline()` wirft, mit Absicht: Ein neuer Grund ohne
+     * Überschrift fällt dort auf, statt still „Kontingent" zu schreiben. Ohne
+     * diesen Fall würfe er erst im Nachtlauf.
      */
     public function test_every_reason_a_customer_can_get_has_a_headline(): void
     {
@@ -105,6 +106,19 @@ final class QuotaWarningTest extends TestCase
 
             self::assertStringContainsString(QuotaWarning::headline($grund).': p1000', $betreff, $grund);
         }
+    }
+
+    /**
+     * Ein Grund ohne Überschrift wirft und bekommt kein „Kontingent".
+     *
+     * Der Fall darüber hält den Betreff an `headline()` selbst — ein Rückfall,
+     * der still etwas zurückgäbe, liesse ihn grün.
+     */
+    public function test_a_reason_without_a_headline_throws(): void
+    {
+        $this->expectException(LogicException::class);
+
+        QuotaWarning::headline('erfunden');
     }
 
     /**

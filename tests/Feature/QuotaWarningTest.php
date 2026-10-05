@@ -22,7 +22,7 @@ use Tests\TestCase;
  *
  *     - Die Datenbanken dieses Abonnements liegen zusammen über ihrem Kontingent.: 3 MB von 1 MB
  *
- * Ein Doppelpunkt hinter dem Punkt, 89 Zeichen, und darunter ein Absatz, der
+ * Ein Doppelpunkt hinter dem Punkt, 90 Zeichen, und darunter ein Absatz, der
  * für jedes Kontingent dasselbe sagte: „gemessen und nicht erzwungen — es wird
  * nichts abgeschaltet und nichts gesperrt". Für den Speicherplatz ist das
  * falsch, denn ihn erzwingt die Dateisystem-Quota. Der Absatz über die

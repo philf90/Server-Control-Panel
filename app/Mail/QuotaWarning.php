@@ -53,7 +53,7 @@ use LogicException;
  *
  * Der Satz eines Befundes stand in derselben Zeile wie sein Wert, mit einem
  * Doppelpunkt hinter seinem Punkt („Kontingent.: 3 MB von 1 MB"), und kam auf
- * 89 Zeichen. Gebrochen wird hier und nicht in der Vorlage, nach Zeichen und
+ * 90 Zeichen. Gebrochen wird hier und nicht in der Vorlage, nach Zeichen und
  * nicht nach Bytes: `wordwrap()` zählt Bytes, und ein Umlaut ist zwei davon.
  */
 final class QuotaWarning extends Mailable

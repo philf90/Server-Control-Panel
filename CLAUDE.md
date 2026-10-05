@@ -51,7 +51,11 @@ steht seitdem mit Leerzeile und `-- `, wie ein Mailprogramm sie erkennt
 (`docs/140 §6e`). Der Nachlauf gegen `rc.12` ist am 3. und 4. Oktober
 gefahren: **N0 bis N7 erfüllt**, am Prüfling kein Befund (`docs/140 §8`).
 Danach hat der Betreiber **B6 am 4. Oktober 2026 abgenommen** (Abschnitt
-weiter unten).
+weiter unten). Der Lauf für B5 ist `docs/141`, ausgeschrieben am 5. Oktober
+vor dem Fahren. Beim Vorabmessen fielen sechs Befunde am Prüfling heraus und
+beim Ausschreiben ein siebter; der Betreiber hat die vier Fragen dazu am
+selben Tag entschieden, und gebaut ist alles für `0.9.0-rc.13`
+(`docs/141 §6a`, Abschnitt weiter unten).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -7057,7 +7061,93 @@ eigenen Block und sagt dazu, dass sie schreibt. In `docs/140 §8` steht sie
 seitdem so.
 
 **Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B5, B7 und
-B8**, für die es noch keinen Lauf gibt.
+B8.** Für B7 und B8 gibt es noch keinen Lauf; der für B5 ist seit dem
+5. Oktober `docs/141` (Abschnitt unten).
+
+---
+
+## Der Abnahmelauf für B5 — sieben Befunde vor dem Fahren — 5. Oktober 2026
+
+`docs/141` ist ausgeschrieben, vor dem Fahren und in zwei Tagen zu fahren:
+Das Kriterium hängt an der Haltezeit von zwanzig Stunden. Beim Vorabmessen
+im Container fielen sechs Befunde am Prüfling heraus, an einer Mail, die
+durch den echten Mailkanal ging. Die Wächter von B5 waren grün. Der
+Betreiber hat die vier Fragen dazu am selben Tag entschieden, alle wie
+vorgeschlagen (`docs/141 §6`), und gebaut ist alles für `0.9.0-rc.13`.
+
+**Der teuerste Befund betraf das Kriterium selbst.** Die Dateisystem-Quota
+setzt weiche und harte Grenze auf denselben Wert, und `repquota` zählt in
+ganzen MB, abgerundet. Der Platz erreicht das Kontingent also höchstens, und
+die Prüfung fragte nach „darüber": Gemeldet wurde nur, wenn der Betreiber ein
+Kontingent unter den Verbrauch setzte, nie, wenn ein Kunde seinen Platz füllte.
+
+> **Ein Kontingent, das erzwungen wird, wird nicht überschritten — es wird
+> erreicht, und die Meldung gehört davor.**
+
+**Der siebte kam aus meiner eigenen Behebung, beim Ausschreiben.** Für den
+Platz gab es danach zwei Gründe, „fast ausgeschöpft" ab 95 % und
+„ausgeschöpft" an der Grenze, und sie schlossen einander aus. Ein voller Platz
+löste die Vorwarnung ab, das Meldeziel bekam „erledigt", während die Website
+nicht mehr schreiben konnte, und nach dem Freiräumen kam die Vorwarnung als
+neuer Befund mit einer zweiten Mail. Das Vorbild stand im Repo: Bei „Platte
+voll" sind Warnung und Störung zwei Befunde mit je eigenem Rückweg.
+
+> **Ein Befund, den ein schwererer ablöst, ist nicht erledigt — und wer ihn
+> dabei schliesst, meldet eine Entwarnung für einen Zustand, der schlimmer
+> geworden ist.**
+
+**Und die erste Fassung des Laufs wäre am ersten Speichern gescheitert.** Sie
+rechnete mit einem Kontingent von 40 MB, weil 5 % davon zwei ganze MB sind;
+das Formular nimmt für den Speicherplatz nichts unter 64 MB
+(`Quota::minimum()`). Gefunden hat es das Nachlesen der Grenzen vor dem
+Ausschreiben der Erwartungen.
+
+> **Ein Prüfkörper, der durch ein Formular muss, wird gegen die Regeln des
+> Formulars gemessen — und nicht gegen die Rechnung, die ihn bequem macht.**
+
+**Drei Dinge gelten über B5 hinaus.**
+
+**Eine Mailable sammelt Empfänger.** `Mail::to()` hängt sie über
+`setAddress()` an, statt sie zu ersetzen; dieselbe Instanz zweimal verschickt
+ginge beim zweiten Mal an beide. Wer je Empfänger eine Mail will, baut je
+Empfänger eine Instanz. Und wer misst, ob eine abgewiesene Adresse die anderen
+aufhält, braucht einen Transport, der wirklich abweist — `Mail::fake()` kann
+nicht scheitern.
+
+**Eine Spalte, die bei kurzen Werten passt, rollt bei langen.** Die Zustellung
+stand im ersten Wurf in einer sechsten Spalte auf „Diagnose"; gemessen rollte
+die Tabelle bei 1440 px um 248 px und mit langen Orten um 408. Sie steht jetzt
+in der Zelle des Befundes. Und **Chromium bricht nach einem Bindestrich**:
+„2026-10-" stand am Zeilenende und die Uhrzeit darunter, bis der Zeitpunkt
+`nowrap` bekam.
+
+**Ein Befund, den keine Oberfläche herstellen kann, ist ein schlafender.**
+Die Mail ging an jedes aktive Konto des Kunden, auch an Zusatzbenutzer ohne
+Zuweisung. Auf `cloudsrv24` ist das nicht herzustellen, denn kein Formular legt
+einen Zusatzbenutzer oder ein zweites Kundenkonto an. Gemessen ist die
+Behebung deshalb im Container, und `docs/141 §4` sagt es.
+
+**Und der volle Testlauf hat gefunden, was die Auswahl nicht fand.**
+`DiagnosePageTest` war einzeln grün und im vollen Lauf rot: `Clock` merkt sich
+die Zone in einer statischen Eigenschaft, `RefreshDatabase` setzt sie nicht
+zurück, und ein früherer Test hatte `Europe/Berlin` hinterlassen. Ein Test,
+der eine angezeigte Zeit misst, setzt seine Zone selbst, und zwar eine mit
+Versatz — in UTC sähe eine fehlende Umrechnung wie eine gelungene aus.
+
+> **Ein Test, dessen Ergebnis davon abhängt, was vor ihm lief, misst die
+> Reihenfolge mit — und einzeln gefahren ist er grün.**
+
+Dazu eine Zahl, die an drei Stellen falsch stand: Die alte Zeile der Mail war
+90 Zeichen lang und nicht 89, nachgezählt beim Ausschreiben.
+
+> **Eine Zahl in einer Erwartung, die man nicht gezählt hat, ist eine
+> Vermutung mit Anspruch.**
+
+**Der Lauf selbst ist im Container vorab gefahren**, mit den echten Teilen
+gegen eine eigene SQLite-Datenbank: alle neun Punkte, jede Erwartung in
+`docs/141 §3` eine Zeile daraus. Nicht vorab gefahren ist, was nur der Server
+hat — die erzwungene Quota, `systemctl`, das Journal, der Webhook und das
+Postfach.
 
 ---
 

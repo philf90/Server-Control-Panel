@@ -33849,3 +33849,98 @@ bewegt sich nur, wenn sich der Wert ändert.
 
 > **Ein Zeitstempel, der sich nur bei einem geänderten Wert bewegt, trennt
 > „gespeichert und überschrieben" von „nie gespeichert".**
+
+### Der Abnahmelauf für B5 steht ausgeschrieben — und beim Speicherplatz kam die Mail nie, wenn sie gebraucht wurde
+
+**Der Abnahmelauf für B5 ist `docs/141`**, ausgeschrieben am 5. Oktober vor dem
+Fahren und in zwei Tagen zu fahren, weil das Kriterium an der Haltezeit von
+zwanzig Stunden hängt. Er stellt am Prüfstand `p6-abnahme.invalid` zwei
+Befunde mit demselben Zeitpunkt her: einen Speicherplatz bei genau 95 % eines
+Kontingents von 80 MB und Datenbanken über einem Kontingent von 1 MB. Danach
+misst er die eine Mail, die Zustellung auf „Diagnose", den Lauf, der keine
+zweite schickt, und den vollen Platz.
+
+**Beim Vorabmessen im Container fielen sechs Befunde am Prüfling heraus**, an
+einer Mail, die durch den echten Mailkanal ging. Die Wächter von B5 waren
+grün.
+
+Der teuerste: **Beim Speicherplatz kam die Mail nie, wenn sie gebraucht
+wurde.** Die Dateisystem-Quota setzt weiche und harte Grenze auf denselben
+Wert, und `repquota` zählt in ganzen MB, abgerundet; der Verbrauch erreicht
+das Kontingent also höchstens. Die Prüfung fragte nach „darüber" und meldete
+nur, wenn der Betreiber ein Kontingent unter den Verbrauch setzte, und nie,
+wenn ein Kunde seinen Platz füllte.
+
+> **Ein Kontingent, das erzwungen wird, wird nicht überschritten — es wird
+> erreicht, und die Meldung gehört davor.**
+
+Die übrigen fünf: Satz und Wert standen in einer Zeile mit „.:" dazwischen, 90
+Zeichen lang. Ein Absatz sagte für den Platz „nicht erzwungen", und der über
+die Abrechnung des Traffics stand in jeder Mail. Die Mail ging an jedes aktive
+Konto des Kunden, auch an Zusatzbenutzer ohne Zuweisung, alle in einer Zeile
+`To`. Welche Mail angekommen war, sah der Betreiber nicht. Und der Hinweis am
+Traffic-Kontingent nannte „Übersicht" statt „Diagnose".
+
+> **Eine Mail, die einen Satz für alle Fälle hat, hat ihn für einen davon
+> falsch.**
+
+**Und die erste Fassung des Laufs wäre am ersten Speichern gescheitert.** Sie
+rechnete mit einem Kontingent von 40 MB; das Formular nimmt für den
+Speicherplatz nichts unter 64 MB (`Quota::minimum()`).
+
+> **Ein Prüfkörper, der durch ein Formular muss, wird gegen die Regeln des
+> Formulars gemessen — und nicht gegen die Rechnung, die ihn bequem macht.**
+
+### B5 ist behoben — eine Mail an die, die das Abonnement sehen, und auf „Diagnose" steht, wann sie ankam
+
+**Entschieden am 5. Oktober 2026, alle vier Fragen wie vorgeschlagen**
+(`docs/141 §6`), und gebaut für `0.9.0-rc.13`.
+
+**Der Platz warnt ab 95 % und entwarnt unter 90 %**, dieselben Zahlen wie bei
+„Platte voll" für den Server. Das Gedächtnis des Rückwegs sind die eigenen
+Befunde vom vorigen Lauf. An der Grenze steht zusätzlich „ausgeschöpft".
+
+**Und die beiden werden getrennt entschieden** (`docs/141 §0` Befund 7, beim
+Ausschreiben des Laufs gefunden). Im ersten Wurf schlossen sie einander aus:
+Ein voller Platz löste die Vorwarnung ab, das Meldeziel bekam für sie
+„erledigt", während die Website nicht mehr schreiben konnte, und wer danach
+Platz freiräumte, bekam die Vorwarnung als neuen Befund und eine zweite Mail.
+Jetzt stehen auf der Grenze beide da, wie Warnung und Störung bei „Platte
+voll", und die Mail nennt dort nur „ausgeschöpft".
+
+> **Ein Befund, den ein schwererer ablöst, ist nicht erledigt — und wer ihn
+> dabei schliesst, meldet eine Entwarnung für einen Zustand, der schlimmer
+> geworden ist.**
+
+**Die Mail geht an die Konten, die das Abonnement sehen, und jeder bekommt
+seine eigene.** `Mail::to()` hängt Empfänger an, statt sie zu ersetzen;
+dieselbe Instanz zweimal verschickt ginge beim zweiten Mal an beide. Angekommen
+ist die Mail, wenn sie bei einem angekommen ist. `QuotaRecipientTest` misst das
+mit einem Transport, der eine Adresse wirklich abweist.
+
+**Auf „Diagnose" steht unter jedem Befund, über welchen Kanal er wann gemeldet
+wurde**, wann er gemeldet wird oder seit wann er fällig ist. Die Fälligkeit
+kommt aus derselben Stelle, nach der der Lauf meldet, und die Seite fragt den
+Agenten nicht. Im ersten Wurf stand das in einer sechsten Spalte; gemessen
+rollte die Tabelle damit bei 1440 px um 248 px, mit langen Orten um 408.
+
+> **Eine Spalte, die bei kurzen Werten passt, rollt bei langen — und welche
+> auf dem Server stehen, entscheidet der Bestand.**
+
+**Der Text der Mail** steht in Zeilen unter 78 Zeichen, mit Satz und Wert
+untereinander, und die Absätze stehen je Kontingent. Die Hinweise an den drei
+gemessenen Kontingenten nennen „Diagnose"; `QuotaHintTest` fragt die Seite,
+die ein Hinweis nennt, durch die Tür.
+
+**Der volle Testlauf hat zwei Fehler gefunden, die die Auswahl nicht fand.**
+`ClassNameTest` kannte drei neue Klassen nicht, und `DiagnosePageTest`
+erwartete die Zeit einer Buchung in UTC: Einzeln war er grün, im vollen Lauf
+stand dort die Zeit in Europe/Berlin, die ein früherer Test in der Uhr
+zurückgelassen hatte. Er setzt seine Zone jetzt selbst, mit Versatz.
+
+> **Ein Test, dessen Ergebnis davon abhängt, was vor ihm lief, misst die
+> Reihenfolge mit — und einzeln gefahren ist er grün.**
+
+**Brüche:** 27 neu und sechs auf ihre neuen Anker gezogen, zwei neu nach dem
+vollen Testlauf, drei neu und zwei nachgezogen für Befund 7. Die Auswahl über
+die berührten Dateien: 93 Prüfungen, alle beissen.

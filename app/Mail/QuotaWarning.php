@@ -39,6 +39,16 @@ use LogicException;
  * **Sie fordert nicht zum Handeln auf und droht nicht.** Sie sagt, was der
  * Kunde merkt, und nicht, was er tun soll.
  *
+ * ## Auf der Grenze nennt sie „ausgeschöpft" und nicht beides
+ *
+ * Dort stehen zwei Befunde, die Vorwarnung und „ausgeschöpft"
+ * ({@see QuotaOverrun::disk()}). Kommen beide in derselben Mail an — der Platz
+ * ist zwischen zwei Nachtläufen von unter 95 % bis an die Grenze gewachsen —,
+ * nennt sie nur den schwereren: „fast ausgeschöpft" neben „ausgeschöpft"
+ * widerspräche sich, und wer liest, dass sein Platz voll ist, braucht die
+ * Vorwarnung nicht. Gebucht werden trotzdem beide; die Vorwarnung ist in der
+ * Meldung enthalten, und später kommt für sie keine zweite.
+ *
  * ## Und die Zeilen bleiben unter 78 Zeichen
  *
  * Der Satz eines Befundes stand in derselben Zeile wie sein Wert, mit einem
@@ -54,14 +64,42 @@ final class QuotaWarning extends Mailable
     /** Wie lang eine Zeile höchstens wird — unter 78, damit kein Klient umbricht. */
     public const WIDTH = 76;
 
+    /** @var non-empty-list<array{reason: string, label: string, detail: string}> */
+    private readonly array $overruns;
+
     /**
      * @param  string  $subscription  der Name des Abonnements
      * @param  non-empty-list<array{reason: string, label: string, detail: string}>  $overruns
      */
     public function __construct(
         private readonly string $subscription,
-        private readonly array $overruns,
-    ) {}
+        array $overruns,
+    ) {
+        $this->overruns = self::shown($overruns);
+    }
+
+    /**
+     * Was die Mail nennt: „ausgeschöpft" ohne „fast ausgeschöpft" daneben.
+     *
+     * Der Grund steht im Kopf dieser Klasse. Die Liste ist danach nie leer —
+     * gestrichen wird die Vorwarnung nur, wenn „ausgeschöpft" bleibt.
+     *
+     * @param  non-empty-list<array{reason: string, label: string, detail: string}>  $overruns
+     * @return non-empty-list<array{reason: string, label: string, detail: string}>
+     */
+    public static function shown(array $overruns): array
+    {
+        if (! in_array('disk_over', array_column($overruns, 'reason'), true)) {
+            return $overruns;
+        }
+
+        $gezeigt = array_values(array_filter(
+            $overruns,
+            static fn (array $o): bool => $o['reason'] !== 'disk_near_limit',
+        ));
+
+        return $gezeigt === [] ? $overruns : $gezeigt;
+    }
 
     public function envelope(): Envelope
     {

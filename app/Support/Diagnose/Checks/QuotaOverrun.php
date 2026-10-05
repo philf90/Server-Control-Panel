@@ -49,11 +49,23 @@ use SrvPanel\Agent\DiskQuota;
  *
  * Entschieden hat der Betreiber am 5. Oktober 2026: **ab 95 % „fast
  * ausgeschöpft", entwarnt unter 90 %**, dieselben Zahlen wie bei „Platte
- * voll" für den Server. An der Grenze selbst steht `disk_over`, „ausgeschöpft"
- * — ab hier scheitert jeder Schreibzugriff, und das ist eine andere Auskunft
- * als die Vorwarnung. Die beiden schliessen einander aus; die Rückkehr unter
- * 90 % hängt an den eigenen Befunden vom vorigen Lauf, wie in
- * {@see DiskSpace}.
+ * voll" für den Server. An der Grenze steht zusätzlich `disk_over`,
+ * „ausgeschöpft" — ab hier scheitert jeder Schreibzugriff, und das ist eine
+ * andere Auskunft als die Vorwarnung. Die Rückkehr unter 90 % hängt an den
+ * eigenen Befunden vom vorigen Lauf, wie in {@see DiskSpace}.
+ *
+ * **Und die beiden werden getrennt entschieden, wie dort.** Auf der Grenze
+ * stehen beide da; fällt der Platz wieder auf 92 %, geht „ausgeschöpft", und
+ * die Vorwarnung bleibt mit ihrem `first_seen_at`. Beim Bauen schlossen sie
+ * einander aus, und das hat das Ausschreiben des Abnahmelaufs gefunden
+ * (`docs/141 §0` Befund 7): Ein voller Platz entwarnte die Vorwarnung. Das
+ * Meldeziel bekam „erledigt" in dem Augenblick, in dem die Website nicht
+ * mehr schreiben konnte, und wer danach Platz freiräumte, bekam die
+ * Vorwarnung als neuen Befund und nach der Haltezeit eine zweite Mail.
+ *
+ * > **Ein Befund, den ein schwererer ablöst, ist nicht erledigt — und wer ihn
+ * > dabei schliesst, meldet eine Entwarnung für einen Zustand, der schlimmer
+ * > geworden ist.**
  *
  * > **Eine Haltezeit ohne Rückweg macht aus einem Wert, der an der Grenze
  * > pendelt, einen, der nie meldet** — oder einen, der jede zweite Nacht
@@ -147,12 +159,14 @@ final class QuotaOverrun implements Check
 
         /*
          * **Das Gedächtnis des Rückwegs sind die eigenen Zeilen vom letzten
-         * Lauf** — und nur die des Platzes. Keine Prüfung liest, was eine
+         * Lauf** — und nur die der Vorwarnung. Keine Prüfung liest, was eine
          * andere geschrieben hat; dieselbe Regel wie in {@see DiskSpace}.
+         * „Ausgeschöpft" braucht kein Gedächtnis: Auf der Grenze steht die
+         * Vorwarnung immer daneben.
          */
         $vorher = Finding::query()
             ->where('check', FindingCheck::QuotaExceeded->value)
-            ->whereIn('reason', ['disk_near_limit', 'disk_over'])
+            ->where('reason', 'disk_near_limit')
             ->pluck('subject')
             ->map(static fn (mixed $s): string => (string) $s)
             ->all();
@@ -177,13 +191,7 @@ final class QuotaOverrun implements Check
      */
     private function overruns(Subscription $subscription, Carbon $measuredAt, bool $platzVorher): array
     {
-        $out = [];
-
-        $platte = self::disk($subscription->disk_used_mb, $subscription->quota(Quota::DiskMb->value), $platzVorher);
-
-        if ($platte !== null) {
-            $out[] = $platte;
-        }
+        $out = self::disk($subscription->disk_used_mb, $subscription->quota(Quota::DiskMb->value), $platzVorher);
 
         $datenbanken = $this->over($subscription->databaseUsedMb(), $subscription->quota(Quota::DatabaseMb->value));
 
@@ -221,39 +229,42 @@ final class QuotaOverrun implements Check
     }
 
     /**
-     * Der Platz: ausgeschöpft, fast ausgeschöpft oder nichts.
+     * Der Platz: fast ausgeschöpft, dazu ausgeschöpft — oder nichts.
      *
-     * **An der Grenze und nicht erst darüber**, weil die Quota den Verbrauch
-     * dort anhält (siehe Kopf). `null` bei jeder Unklarheit, aus denselben
-     * Gründen wie {@see self::over()}: kein Messwert ist nicht „0 belegt", und
-     * eine Grenze von 0 ist keine ({@see self::limit()}).
+     * **Getrennt entschieden** (siehe Kopf): Die Vorwarnung hat ihre Schwelle
+     * und ihren Rückweg, „ausgeschöpft" steht **an der Grenze und nicht erst
+     * darüber**, weil die Quota den Verbrauch dort anhält. Auf der Grenze
+     * stehen also beide da. Leer bei jeder Unklarheit, aus denselben Gründen
+     * wie {@see self::over()}: kein Messwert ist nicht „0 belegt", und eine
+     * Grenze von 0 ist keine ({@see self::limit()}).
      *
-     * @param  bool  $vorher  stand für dieses Abonnement im vorigen Lauf ein Befund zum Platz?
-     * @return array{reason: string, detail: string}|null
+     * @param  bool  $vorher  stand für dieses Abonnement im vorigen Lauf die Vorwarnung?
+     * @return list<array{reason: string, detail: string}>
      */
-    public static function disk(?int $used, mixed $limit, bool $vorher): ?array
+    public static function disk(?int $used, mixed $limit, bool $vorher): array
     {
         $grenze = self::limit($limit);
 
         if ($used === null || $grenze === null) {
-            return null;
+            return [];
         }
 
         $prozent = $used / $grenze * 100;
-
-        if ($used >= $grenze) {
-            return ['reason' => 'disk_over', 'detail' => self::megabytes((float) $used, $grenze)];
-        }
+        $out = [];
 
         if ($prozent >= self::DISK_WARN_PERCENT || ($vorher && $prozent >= self::DISK_RELEASE_PERCENT)) {
-            return ['reason' => 'disk_near_limit', 'detail' => sprintf(
+            $out[] = ['reason' => 'disk_near_limit', 'detail' => sprintf(
                 '%s (%s %%)',
                 self::megabytes((float) $used, $grenze),
                 number_format(floor($prozent * 10) / 10, 1, ',', '.'),
             )];
         }
 
-        return null;
+        if ($used >= $grenze) {
+            $out[] = ['reason' => 'disk_over', 'detail' => self::megabytes((float) $used, $grenze)];
+        }
+
+        return $out;
     }
 
     /**

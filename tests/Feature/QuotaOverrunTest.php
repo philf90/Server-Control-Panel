@@ -80,6 +80,17 @@ final class QuotaOverrunTest extends TestCase
             ->all();
     }
 
+    /** Der Wert neben einem Grund — auf der Grenze stehen zwei Befunde. */
+    private function detail(string $reason, string $subject = 'p1000'): ?string
+    {
+        return Finding::query()
+            ->where('check', FindingCheck::QuotaExceeded->value)
+            ->where('subject', $subject)
+            ->where('reason', $reason)
+            ->firstOrFail()
+            ->detail;
+    }
+
     /** @param array<string, mixed> $attributes */
     private function abonnement(array $attributes): Subscription
     {
@@ -93,8 +104,8 @@ final class QuotaOverrunTest extends TestCase
         $this->abonnement(['disk_used_mb' => 1024, 'quota_overrides' => ['disk_mb' => 500]]);
         $this->fahre(Carbon::parse('2026-09-22 03:00:00'));
 
-        self::assertSame(['disk_over'], $this->reasons());
-        self::assertSame('1.024 MB von 500 MB', Finding::query()->firstOrFail()->detail,
+        self::assertSame(['disk_near_limit', 'disk_over'], $this->reasons());
+        self::assertSame('1.024 MB von 500 MB', $this->detail('disk_over'),
             'Der gemessene Wert und seine Grenze stehen daneben — ohne sie ist der Befund eine '
             .'Behauptung, die der Kunde nicht nachrechnen kann.');
     }
@@ -122,9 +133,9 @@ final class QuotaOverrunTest extends TestCase
         $this->abonnement(['disk_used_mb' => 500, 'quota_overrides' => ['disk_mb' => 500]]);
         $this->fahre(Carbon::parse('2026-10-05 03:00:00'));
 
-        self::assertSame(['disk_over'], $this->reasons(),
-            'Ein Platz auf seiner Grenze ist voll — ab hier scheitert jeder Schreibzugriff.');
-        self::assertSame('500 MB von 500 MB', Finding::query()->firstOrFail()->detail);
+        self::assertSame(['disk_near_limit', 'disk_over'], $this->reasons(),
+            'Ein Platz auf seiner Grenze ist voll — ab hier scheitert jeder Schreibzugriff, und die Vorwarnung steht daneben.');
+        self::assertSame('500 MB von 500 MB', $this->detail('disk_over'));
     }
 
     /**
@@ -150,11 +161,12 @@ final class QuotaOverrunTest extends TestCase
     }
 
     /**
-     * „Fast ausgeschöpft" sagt nie 100 %.
+     * Unter der Grenze sagt „fast ausgeschöpft" nie 100 %.
      *
      * Der Anteil wird **abgerundet** und nicht gerundet: 3.999 von 4.000 MB
      * sind 99,975 %, und gerundet stünde „100,0 %" neben „fast" — ein Satz,
-     * der sich selbst widerspricht.
+     * der sich selbst widerspricht. Auf der Grenze steht „ausgeschöpft"
+     * daneben, und in der Mail nur das (`QuotaWarning::shown()`).
      */
     public function test_the_warning_never_reads_a_full_hundred(): void
     {
@@ -195,21 +207,37 @@ final class QuotaOverrunTest extends TestCase
     }
 
     /**
-     * Ein ausgeschöpfter Platz, der wieder etwas frei hat, ist fast ausgeschöpft.
+     * **Ein voller Platz entwarnt seine Vorwarnung nicht.**
      *
-     * Das Gedächtnis des Rückwegs sind **beide** Gründe des Platzes: Wer von
-     * 100 % auf 92 % fällt, liegt noch über der Rückkehrschwelle.
+     * Getrennt entschieden wie in `DiskSpace`: Auf der Grenze stehen beide
+     * Befunde da, und fällt der Platz wieder auf 92 %, geht nur
+     * „ausgeschöpft". Die Vorwarnung behält dabei ihr `first_seen_at` — sie
+     * ist gemeldet und wird es nicht noch einmal.
+     *
+     * Beim Bauen schlossen die beiden einander aus (`docs/141 §0` Befund 7).
+     * Das Meldeziel bekam „erledigt" für die Vorwarnung in dem Augenblick, in
+     * dem der Platz voll war, und nach dem Freiräumen begann sie neu — mit
+     * einer zweiten Mail an den Kunden. **Drei Läufe und nicht zwei:** Ob die
+     * Vorwarnung den vollen Platz überdauert, zeigt erst der Lauf danach.
      */
-    public function test_an_exhausted_disk_falls_back_to_the_warning(): void
+    public function test_a_full_disk_keeps_its_warning(): void
     {
-        $abo = $this->abonnement(['disk_used_mb' => 500, 'quota_overrides' => ['disk_mb' => 500]]);
+        $abo = $this->abonnement(['disk_used_mb' => 480, 'quota_overrides' => ['disk_mb' => 500]]);
         $this->fahre(Carbon::parse('2026-10-05 03:00:00'));
-        self::assertSame(['disk_over'], $this->reasons());
+        self::assertSame(['disk_near_limit'], $this->reasons(), '96 % — die Vorwarnung beginnt.');
+
+        $this->belegt($abo, 500);
+        $this->fahre(Carbon::parse('2026-10-06 03:00:00'));
+        self::assertSame(['disk_near_limit', 'disk_over'], $this->reasons(), 'Voll — die Vorwarnung bleibt neben „ausgeschöpft".');
 
         $this->belegt($abo, 460);
-        $this->fahre(Carbon::parse('2026-10-06 03:00:00'));
+        $this->fahre(Carbon::parse('2026-10-07 03:00:00'));
+        self::assertSame(['disk_near_limit'], $this->reasons(), '92 % — „ausgeschöpft" geht, die Vorwarnung bleibt.');
 
-        self::assertSame(['disk_near_limit'], $this->reasons());
+        $vorwarnung = Finding::query()->where('reason', 'disk_near_limit')->firstOrFail();
+
+        self::assertSame('2026-10-05 03:00:00', $vorwarnung->first_seen_at->toDateTimeString(),
+            'Die Vorwarnung steht seit dem ersten Lauf da. Begänne sie neu, käme nach der Haltezeit eine zweite Mail.');
     }
 
     /**
@@ -354,7 +382,7 @@ final class QuotaOverrunTest extends TestCase
     {
         $abo = $this->abonnement(['disk_used_mb' => 1024, 'quota_overrides' => ['disk_mb' => 500]]);
         $this->fahre(Carbon::parse('2026-09-22 03:00:00'));
-        self::assertSame(['disk_over'], $this->reasons());
+        self::assertSame(['disk_near_limit', 'disk_over'], $this->reasons());
 
         /*
          * **`forceFill()` und nicht `update()`.** `disk_used_mb` steht nicht in

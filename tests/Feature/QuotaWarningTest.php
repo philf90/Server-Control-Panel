@@ -140,6 +140,33 @@ final class QuotaWarningTest extends TestCase
     }
 
     /**
+     * Auf der Grenze nennt die Mail „ausgeschöpft" und nicht beides.
+     *
+     * Dort stehen zwei Befunde ({@see QuotaOverrun::disk()}), und kommen sie
+     * in derselben Mail an, widerspräche „fast ausgeschöpft" dem Satz daneben.
+     * **Beide Richtungen:** Ohne „ausgeschöpft" bleibt die Vorwarnung stehen,
+     * neben den Datenbanken ebenso — gestrichen wird sie nur von dem einen
+     * Befund, der sie enthält.
+     */
+    public function test_a_full_disk_is_named_alone(): void
+    {
+        $fast = FindingCheck::QuotaExceeded->sentence('disk_near_limit');
+        $voll = FindingCheck::QuotaExceeded->sentence('disk_over');
+
+        $beide = $this->mail(['disk_near_limit', 'disk_over', 'databases_over']);
+        $text = self::fliesstext($beide->render());
+
+        self::assertStringContainsString('Speicherplatz ausgeschöpft und Datenbankgröße überschritten: p1000', (string) $beide->envelope()->subject);
+        self::assertStringContainsString($voll, $text);
+        self::assertStringNotContainsString($fast, $text);
+        self::assertStringNotContainsString('Die Warnung endet', $text, 'Ein voller Platz endet nicht unter 90 % — er ist voll.');
+
+        $ohne = self::fliesstext($this->mail(['disk_near_limit', 'databases_over'])->render());
+
+        self::assertStringContainsString($fast, $ohne, 'Ohne „ausgeschöpft" bleibt die Vorwarnung in der Mail.');
+    }
+
+    /**
      * Keine Zeile ist länger als 77 Zeichen.
      *
      * Gezählt nach Zeichen und nicht nach Bytes: Ein Umlaut ist in UTF-8 zwei

@@ -33014,9 +33014,9 @@ s = p.read_text()
 alt = 'if ($used === null || $grenze === null) {'
 assert s.count(alt) == 1
 neu = ('if ($grenze === null) {'
-       "\n            return null;\n        }\n\n"
+       "\n            return [];\n        }\n\n"
        '        if ($used === null) {'
-       "\n            return ['reason' => 'disk_over', 'detail' => 'nicht gemessen'];\n        }\n\n"
+       "\n            return [['reason' => 'disk_over', 'detail' => 'nicht gemessen']];\n        }\n\n"
        '        if (false) {')
 p.write_text(s.replace(alt, neu, 1))
 PY
@@ -39501,7 +39501,7 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
 s = p.read_text(encoding='utf-8')
-alt = "            ->whereIn('reason', ['disk_near_limit', 'disk_over'])\n"
+alt = "            ->where('reason', 'disk_near_limit')\n"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 p.write_text(s.replace(alt, '', 1), encoding='utf-8')
 PY
@@ -39511,19 +39511,23 @@ pruefe "Gedaechtnis liest fremde Gruende" \
 wiederherstellen
 
 echo
-echo "── QuotaOverrunTest: das Gedaechtnis kennt den vollen Platz nicht ──"
+echo "── QuotaOverrunTest: der volle Platz entwarnt seine Vorwarnung ──"
+#
+# docs/141 §0 Befund 7: Schliessen die beiden einander aus, bekommt das
+# Meldeziel „erledigt" fuer die Vorwarnung, waehrend der Platz voll ist, und
+# nach dem Freiraeumen beginnt sie neu — mit einer zweiten Mail.
 vorher_datei app/Support/Diagnose/Checks/QuotaOverrun.php
 python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Diagnose/Checks/QuotaOverrun.php')
 s = p.read_text(encoding='utf-8')
-alt = "->whereIn('reason', ['disk_near_limit', 'disk_over'])"
+alt = "        if ($used >= $grenze) {\n            $out[] = ['reason' => 'disk_over'"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-p.write_text(s.replace(alt, "->whereIn('reason', ['disk_near_limit'])", 1), encoding='utf-8')
+p.write_text(s.replace(alt, "        if ($used >= $grenze) {\n            $out = [];\n            $out[] = ['reason' => 'disk_over'", 1), encoding='utf-8')
 PY
-griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "voller Platz ohne Gedaechtnis" &&
-pruefe "voller Platz ohne Gedaechtnis" \
-  QuotaOverrunTest::test_an_exhausted_disk_falls_back_to_the_warning failed
+griff_datei app/Support/Diagnose/Checks/QuotaOverrun.php "voller Platz entwarnt" &&
+pruefe "voller Platz entwarnt" \
+  QuotaOverrunTest::test_a_full_disk_keeps_its_warning failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" QuotaOverrunTest passed
 
@@ -39559,6 +39563,41 @@ PY
 griff_datei app/Mail/QuotaWarning.php "Rueckfall Kontingent" &&
 pruefe "Rueckfall Kontingent" \
   QuotaWarningTest::test_a_reason_without_a_headline_throws failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaWarningTest passed
+
+echo
+echo "── QuotaWarningTest: die Mail nennt auf der Grenze beides ──"
+#
+# „fast ausgeschoepft" neben „ausgeschoepft" widerspraeche sich (Befund 7).
+vorher_datei app/Mail/QuotaWarning.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/QuotaWarning.php')
+s = p.read_text(encoding='utf-8')
+alt = "        if (! in_array('disk_over', array_column($overruns, 'reason'), true)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "        if (true) {", 1), encoding='utf-8')
+PY
+griff_datei app/Mail/QuotaWarning.php "Mail nennt beides" &&
+pruefe "Mail nennt beides" \
+  QuotaWarningTest::test_a_full_disk_is_named_alone failed
+wiederherstellen
+
+echo
+echo "── QuotaWarningTest: die Vorwarnung faellt auch ohne „ausgeschoepft\" weg ──"
+vorher_datei app/Mail/QuotaWarning.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/QuotaWarning.php')
+s = p.read_text(encoding='utf-8')
+alt = "        if (! in_array('disk_over', array_column($overruns, 'reason'), true)) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "        if (false) {", 1), encoding='utf-8')
+PY
+griff_datei app/Mail/QuotaWarning.php "Vorwarnung faellt immer weg" &&
+pruefe "Vorwarnung faellt immer weg" \
+  QuotaWarningTest::test_a_full_disk_is_named_alone failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" QuotaWarningTest passed
 

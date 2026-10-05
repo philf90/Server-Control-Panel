@@ -1,22 +1,15 @@
-{{-- Reiner Text. Zeilen unter 78 Zeichen, damit kein Klient umbricht, wo er will. --}}
+{{--
+    Reiner Text. Gebrochen wird in QuotaWarning und nicht hier — nach Zeichen,
+    unter 78, damit kein Klient umbricht, wo er will. Bis zum 5. Oktober 2026
+    stand der Satz eines Befundes hier in derselben Zeile wie sein Wert und kam
+    auf 90 Zeichen (docs/141 §0).
+--}}
 Guten Tag,
 
-für Ihr Abonnement {!! $subscription !!} ist ein Kontingent überschritten:
+{!! $intro !!}
 
-@foreach ($overruns as $overrun)
-- {!! $overrun['label'] !!}: {!! $overrun['detail'] !!}
-@endforeach
+{!! $lines !!}
 
-Diese Kontingente werden gemessen und nicht erzwungen — es wird nichts
-abgeschaltet und nichts gesperrt. Die Zahlen stehen mit ihrem Verlauf der
-letzten dreissig Tage auf der Seite Ihres Abonnements im Panel.
-
-Beim Verkehr zählt diese Zahl, was der Webserver protokolliert hat. Die
-Abrechnung Ihres Anbieters kann höher liegen: Er zählt TCP, TLS und
-Wiederholungen mit.
-
-Sie bekommen diese Nachricht einmal je Überschreitung. Sinkt der Wert wieder
-unter das Kontingent, meldet sich das Panel erst wieder, wenn es erneut
-darüber liegt.
+{!! $paragraphs !!}
 
 @include('mail.signature')

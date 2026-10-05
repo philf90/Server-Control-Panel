@@ -123,6 +123,34 @@ final class DiagnoseViewTest extends TestCase
         $this->assertMatchesRegularExpression('/\.detail\s*\{[^}]*overflow-wrap:\s*anywhere/s', $quelle);
     }
 
+    /**
+     * **Ob ein Befund gemeldet ist, steht in seiner Zelle** (`docs/141 §0`
+     * Befund 5) — und ein Zeitpunkt darin bricht nicht.
+     *
+     * In der Zelle „Befund" und nicht in einer sechsten Spalte, und das ist
+     * gemessen: Mit kurzen Orten ist die Tabelle bei 1440 px genau so breit wie
+     * ihr Behälter; eine Spalte mehr liess sie um 248 px rollen. Und Chromium
+     * bricht nach einem Bindestrich — „2026-10-" am Zeilenende neben „05
+     * 00:29:12" darunter war der erste Wurf.
+     */
+    public function test_the_reporting_stands_in_the_finding_cell(): void
+    {
+        $vorlage = $this->vorlage();
+        $anfang = strpos($vorlage, '<td data-column="Befund"');
+        $this->assertIsInt($anfang, 'Die Zelle „Befund" ist nicht gefunden worden.');
+
+        $ende = strpos($vorlage, '</td>', $anfang);
+        $this->assertIsInt($ende);
+
+        $this->assertStringContainsString('gemeldet(zeile.notice)', substr($vorlage, $anfang, $ende - $anfang),
+            'Die Zelle „Befund" sagt nicht mehr, ob der Befund gemeldet ist.');
+        $this->assertSame(5, substr_count($vorlage, '<th>'), 'Die Tabelle hat eine Spalte mehr — bei 1440 px rollt sie dann.');
+
+        $this->assertMatchesRegularExpression('/\.moment\s*\{[^}]*white-space:\s*nowrap/s', $this->quelle(),
+            'Ein Zeitpunkt bricht am Bindestrich.');
+        $this->assertStringContainsString('<span v-if="z.at" class="moment">', $vorlage);
+    }
+
     /** Und die Seite misst nichts selbst — sie liest, was der Nachtlauf hinterlassen hat. */
     public function test_the_page_asks_nothing(): void
     {

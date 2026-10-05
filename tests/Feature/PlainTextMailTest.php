@@ -121,7 +121,7 @@ final class PlainTextMailTest extends TestCase
 
         $texte = [
             'Betreiber' => (new DiagnoseReport([$befund]))->render(),
-            'Kunde' => (new QuotaWarning('abo & co', [['label' => 'Der Verkehr liegt über dem Kontingent.', 'detail' => '"12 GB" > 10 GB']]))->render(),
+            'Kunde' => (new QuotaWarning('abo & co', [['reason' => 'traffic_over', 'label' => 'Der Traffic dieses Monats liegt über dem Kontingent.', 'detail' => '"12 GB" > 10 GB']]))->render(),
             'Probe' => (new TestMessage("O'Brien & <Admin>", '27.09.2026 21:00'))->render(),
         ];
 

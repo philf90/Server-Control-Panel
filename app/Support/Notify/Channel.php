@@ -67,6 +67,24 @@ interface Channel
     public function usable(): bool;
 
     /**
+     * Ist dieser Kanal eingerichtet — **soweit das Panel es weiss, ohne den
+     * Agenten zu fragen**?
+     *
+     * `null` heisst „das weiss nur der Agent". Gebraucht wird die Frage von
+     * der Seite „Diagnose", die neben jedem Befund zeigt, ob er gemeldet ist
+     * (`docs/141 §0` Befund 5). Die Seite fragt den Agenten nicht — sie liest,
+     * was die Läufe hinterlassen haben —, und {@see usable} täte es beim
+     * Webhook: Dessen Ziel liegt im Agenten und nirgends sonst.
+     *
+     * **Zwei Umsetzungen, zwei verschiedene Antworten**, und das ist der
+     * Unterschied zu `carries()`, das hier bis zum 24. September stand: Der
+     * Mailversand antwortet aus den Einstellungen, der Webhook mit `null`. Eine
+     * Seite, die für einen Kanal mit `null` „noch nicht zugestellt" schriebe,
+     * behauptete einen Weg, von dem sie nicht weiss, ob es ihn gibt.
+     */
+    public function knownUsable(): ?bool;
+
+    /**
      * Nach welchem Schlüssel dieser Kanal seine Meldungen bündelt.
      *
      * **Die Bündelung folgt dem Empfänger und nicht dem Gegenstand.** Ein

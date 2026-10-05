@@ -161,6 +161,89 @@ final class Notices
     }
 
     /**
+     * Ab wann ein Befund gemeldet wird — `null`, wenn nie.
+     *
+     * **Eine Stelle für den Lauf und für die Seite.** {@see self::due()} fragt
+     * hier, ob ein Befund fällig ist, und die Seite „Diagnose" fragt hier, ab
+     * wann. Stünde die Regel zweimal da, zeigte die Seite eine Fälligkeit, nach
+     * der der Lauf nicht handelt.
+     *
+     * `Unknown` wird nicht gemeldet; der Grund steht an {@see self::due()}.
+     */
+    public static function dueAt(Finding $finding): ?Carbon
+    {
+        if ($finding->state() === FindingState::Unknown) {
+            return null;
+        }
+
+        return $finding->first_seen_at->copy()->addMinutes(self::holdMinutes($finding->check));
+    }
+
+    /**
+     * Ob und wie diese Befunde gemeldet sind — für die Seite „Diagnose".
+     *
+     * Entschieden hat der Betreiber am 5. Oktober 2026 (`docs/141 §0`
+     * Befund 5): Neben jedem Befund steht, über welchen Kanal er wann gemeldet
+     * wurde, oder dass er fällig ist und noch nicht zugestellt. Bis dahin gab
+     * es nur „zuletzt erfolgreich zugestellt" je Kanal, und welche Meldung das
+     * war, sagte es nicht.
+     *
+     * **`open` nennt nur Kanäle, von denen das Panel weiss, dass sie
+     * eingerichtet sind** ({@see Channel::knownUsable()}). Die Seite fragt den
+     * Agenten nicht, und beim Webhook wüsste nur er es. Was ein Kanal gebucht
+     * hat, steht trotzdem da — eine Buchung ist eine Tatsache und keine
+     * Vermutung über die Einrichtung.
+     *
+     * **Warum etwas nicht ankam, steht hier nicht**, aus dem Grund, der an
+     * {@see FindingNotification} steht: Eine Fehlerspalte je Befund und Kanal
+     * wäre ein Protokoll, das niemand bestellt hat.
+     *
+     * @param  iterable<Finding>  $findings  mit geladenen `notifications`
+     * @return array<int, array{sent: list<array{channel: string, at: string}>, open: list<string>, due_at: string|null, due: bool}>
+     */
+    public function deliveries(iterable $findings, Carbon $now): array
+    {
+        $eingerichtet = [];
+
+        foreach ($this->channels->all() as $channel) {
+            $eingerichtet[$channel->key()] = $channel->knownUsable() === true;
+        }
+
+        $zeilen = [];
+
+        foreach ($findings as $finding) {
+            $gebucht = [];
+
+            foreach ($finding->notifications as $buchung) {
+                $gebucht[$buchung->channel] = $buchung->notified_at;
+            }
+
+            $ab = self::dueAt($finding);
+            $sent = [];
+            $open = [];
+
+            foreach ($eingerichtet as $key => $bekannt) {
+                if (array_key_exists($key, $gebucht)) {
+                    $sent[] = ['channel' => $key, 'at' => (string) Clock::display($gebucht[$key])];
+                } elseif ($bekannt && $ab !== null) {
+                    // Offen ist nur, was gemeldet werden wird — ein nicht
+                    // beurteilter Befund wartet auf keinen Kanal.
+                    $open[] = $key;
+                }
+            }
+
+            $zeilen[$finding->id] = [
+                'sent' => $sent,
+                'open' => $open,
+                'due_at' => Clock::display($ab),
+                'due' => $ab !== null && $ab->lte($now),
+            ];
+        }
+
+        return $zeilen;
+    }
+
+    /**
      * Ein Kanal, ein Durchgang.
      *
      * @param  list<FindingCheck>  $only
@@ -325,8 +408,7 @@ final class Notices
             ->orderBy('subject')
             ->orderBy('reason')
             ->get()
-            ->filter(static fn (Finding $f): bool => $f->first_seen_at->lte($now->copy()->subMinutes(self::holdMinutes($f->check))))
-            ->filter(static fn (Finding $f): bool => $f->state() !== FindingState::Unknown)
+            ->filter(static fn (Finding $f): bool => self::dueAt($f)?->lte($now) === true)
             ->values();
     }
 

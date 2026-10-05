@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
 import { counted } from '../../Composables/useCounted'
+import { channelName } from '../../channels'
 
 /**
  * Ein Befund, wie ihn der Nachtlauf hinterlassen hat.
@@ -27,6 +28,21 @@ type Finding = {
   first_seen_at: string | null
   measured_at: string | null
   detail?: string | null
+
+  /**
+   * Ob und wie der Befund gemeldet ist (`docs/141 §0` Befund 5).
+   *
+   * `open` nennt nur Kanäle, von denen das Panel ohne Rückfrage weiss, dass
+   * sie eingerichtet sind — beim Meldeziel weiss es nur der Agent, und diese
+   * Seite fragt ihn nicht. `due_at` ist `null`, wenn der Befund nie gemeldet
+   * wird: `unknown` sagt etwas über die Messung und nicht über einen Zustand.
+   */
+  notice: {
+    sent: { channel: string, at: string }[]
+    open: string[]
+    due_at: string | null
+    due: boolean
+  }
 }
 
 const props = defineProps<{
@@ -61,6 +77,41 @@ const hinsehen = computed(() => props.findings.filter((f) => f.state === 'warn')
  * die Seite Entwarnung für etwas, das niemand angesehen hat.
  */
 const gemessen = computed(() => props.ran_at !== null)
+
+/**
+ * Ob und wie ein Befund gemeldet ist — eine Zeile je Kanal.
+ *
+ * **Entschieden hat der Betreiber am 5. Oktober 2026** (`docs/141 §0`
+ * Befund 5): Neben jedem Befund steht, über welchen Kanal er wann gemeldet
+ * wurde, oder dass er fällig ist und noch nicht zugestellt. Bis dahin sagte
+ * nur „zuletzt erfolgreich zugestellt" je Kanal etwas — und welche Meldung das
+ * war, sagte es nicht.
+ *
+ * **In der Zelle „Befund" und nicht in einer eigenen Spalte**, und das ist
+ * gemessen: Mit kurzen Orten ist die Tabelle bei 1440 px genau 1140 px breit
+ * und rollt nicht; eine sechste Spalte machte 1388 px daraus. Unter dem
+ * Wortlaut hält sie der Deckel der Zelle, und die Tabelle wird höher statt
+ * breiter.
+ *
+ * **Die Fälle kommen aus `Notices` und werden hier nur in Sätze gesetzt.** Ab
+ * wann ein Befund fällig ist, rechnet der Server mit derselben Regel, nach der
+ * der Lauf meldet; eine Rechnung hier wäre die zweite Fassung, und die zeigte
+ * eine Fälligkeit, nach der niemand handelt.
+ */
+type Meldezeile = { vor: string, at: string | null, nach: string }
+
+function gemeldet(n: Finding['notice']): Meldezeile[] {
+  if (n.due_at === null) return [{ vor: 'Wird nicht gemeldet.', at: null, nach: '' }]
+  if (!n.due) return [{ vor: 'Gemeldet wird ab ', at: n.due_at, nach: '.' }]
+
+  const zeilen: Meldezeile[] = n.sent.map((s) => ({ vor: `Gemeldet über ${channelName(s.channel)}: `, at: s.at, nach: '' }))
+
+  for (const key of n.open) {
+    zeilen.push({ vor: `${channelName(key)}: noch nicht zugestellt, fällig seit `, at: n.due_at, nach: '.' })
+  }
+
+  return zeilen.length > 0 ? zeilen : [{ vor: 'Nicht zugestellt, fällig seit ', at: n.due_at, nach: '.' }]
+}
 
 /**
  * Die Notiz am Bereich — **drei Läufe, drei Zeitpunkte**.
@@ -199,6 +250,19 @@ const notiz = computed<string | undefined>(() => {
                     Fassungen (`docs/98 §11`).
                   -->
                   <pre v-if="zeile.detail" class="output detail">{{ zeile.detail }}</pre>
+
+                  <!--
+                    **Ein Absatz in der Zelle und die Zeilen darin.** Die Zelle
+                    ist bei 390 px eine Flexbox und bekommt damit ein Kind mehr
+                    und nicht eines je Kanal.
+
+                    **Der Zeitpunkt bricht nicht.** Chromium bricht nach dem
+                    Bindestrich, und „2026-10-" am Zeilenende neben „05
+                    00:29:12" darunter war der erste Wurf dieser Zeile.
+                  -->
+                  <p class="quiet deliveries">
+                    <span v-for="(z, i) in gemeldet(zeile.notice)" :key="i" class="delivery">{{ z.vor }}<span v-if="z.at" class="moment">{{ z.at }}</span>{{ z.nach }}</span>
+                  </p>
                 </td>
 
                 <td data-column="Steht seit">
@@ -210,11 +274,24 @@ const notiz = computed<string | undefined>(() => {
         </div>
 
         <!--
-          Dem Administrator sagen, dass es mehr gibt und wo es liegt. Eine
+          **Ein Absatz und nicht zwei.** Der Bereich setzt keinen Abstand
+          zwischen seine Kinder, und zwei Absätze untereinander klebten.
+
+          Was „noch nicht zugestellt" heisst, steht hier und nicht in jeder
+          Zelle: Warum etwas nicht ankam, hält das Panel nicht fest (Kopf von
+          `FindingNotification`), und eine Zelle, die es zu wissen vorgäbe,
+          behauptete einen Grund.
+
+          Und dem Administrator sagen, dass es mehr gibt und wo es liegt. Eine
           fehlende Spalte ohne Erklärung liest sich wie ein Fehler.
         -->
-        <p v-if="!verbatim && findings.length > 0" class="quiet">
-          Den ungekürzten Wortlaut der Werkzeuge sieht der Betreiber.
+        <p v-if="findings.length > 0" class="quiet">
+          Gemeldet wird ein Befund beim ersten Lauf nach seiner Haltezeit. „Noch nicht
+          zugestellt" heisst: Dieser Lauf kommt noch, die Meldung kam nicht an, oder es gab
+          niemanden, dem zuzustellen war — etwa einen Kunden ohne Konto mit Adresse. Jeder
+          weitere Lauf versucht es wieder. Beim Meldeziel steht nur, was angekommen ist: Ob es
+          eingerichtet ist, weiss allein der Agent, und diese Seite fragt ihn nicht.
+          <template v-if="!verbatim">Den ungekürzten Wortlaut der Werkzeuge sieht der Betreiber.</template>
         </p>
       </Section>
     </div>
@@ -293,5 +370,27 @@ const notiz = computed<string | undefined>(() => {
  */
 .finding {
   max-width: 38ch;
+}
+
+/*
+ * **Die Meldung steht unter dem Wortlaut, mit dessen Abstand**, damit Satz,
+ * Wortlaut und Meldung als drei Teile zu lesen sind und nicht als ein Absatz.
+ * Jeder Kanal hat seine Zeile.
+ */
+.deliveries {
+  margin: 8px 0 0;
+}
+
+.delivery {
+  display: block;
+}
+
+/*
+ * **Ein Zeitpunkt in einer Zeile.** `nowrap` ist hier eine Zusage über eine
+ * feste Länge und nicht über einen Bestand: `Clock::display()` schreibt immer
+ * neunzehn Zeichen. Die Zeile bricht weiter zwischen den Wörtern davor.
+ */
+.moment {
+  white-space: nowrap;
 }
 </style>

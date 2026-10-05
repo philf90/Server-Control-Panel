@@ -288,6 +288,7 @@ srvpanel tinker --execute='
   foreach ($offen as $f) printf("  %s · %s · %s · fällig ab %s\n", $f->check->value, $f->subject, $f->reason, App\Support\Time\Clock::display(App\Support\Notify\Notices::dueAt($f)));
 '
 printf 'Gerät: %s · p1139 belegt %s KiB, hart %s KiB\n' "${D:-KEINES}" "$(belegt)" "$(hart)"
+printf 'Nachtlauf: Streuung %s, Genauigkeit %s\n' "$(systemctl show -p RandomizedDelayUSec --value srvpanel-diagnose.timer)" "$(systemctl show -p AccuracyUSec --value srvpanel-diagnose.timer)"
 ls -la /var/www/vhosts/p6-abnahme.invalid/tmp/ | grep -c 'b5-'
 befunde
 ```
@@ -305,6 +306,7 @@ Marke: <Name> · Relay eingerichtet: ja
 Ziel des Webhooks: {"host":"<domain des Empfängers>","provider":"generic",…,"signed":true}
 Befunde, die noch eine Mail bekommen: 0
 Gerät: /dev/<…> · p1139 belegt <um 3000> KiB, hart 5242880 KiB
+Nachtlauf: Streuung 1h, Genauigkeit 1min
 0
 Platz laut Panel: 3 MB, gemessen <Zeit>
 Befunde zu p6-abnahme.invalid: 0
@@ -327,7 +329,11 @@ Entwarnungen, die noch ausstehen: 0
   Ausgangsbestand, und wenn sie in einen Lauf unten fallen, zählt die Zeile
   `mail: N Nachricht(en)` sie mit. Sie werden abgeschrieben. Entscheidend für
   die Punkte ist dann `befunde` und nicht die Zahl.
-- **Die `0` unter der Gerätezeile** zählt Dateien `b5-*` in `tmp/`; eine `1`
+- **`Nachtlauf: Streuung 1h, Genauigkeit 1min`** trägt die Grenze für T0 in
+  §2. Steht dort mehr, liegt die Grenze um so viel später. Steht dort nichts,
+  stimmt ein Name nicht: `systemctl show` druckt für eine Eigenschaft, die es
+  nicht gibt, nichts.
+- **Die `0` unter diesen Zeilen** zählt Dateien `b5-*` in `tmp/`; eine `1`
   wäre der Rest eines abgebrochenen Laufs.
 
 **Gegenprobe des Empfängers**, wie in `docs/137 §2` — sie schreibt eine Zeile
@@ -350,18 +356,27 @@ printf 'Empfängerprotokoll: %s -> %s Zeile(n)\n' "$ZEILEN" "$(wc -l < "$LOG")"
 
 | Teil | Wann | Was |
 |---|---|---|
-| 1 | Tag 1, **T0 nicht vor 05:00** | §1, Prüfkörper anlegen, Punkte 1 und 2 |
-| — | die Nacht dazwischen | der Nachtlauf zwischen 00:00 und 01:00 meldet **nichts** |
+| 1 | Tag 1, **T0 nicht vor 05:05** | §1, Prüfkörper anlegen, Punkte 1 und 2 |
+| — | die Nacht dazwischen | der Nachtlauf zwischen 00:00 und 01:01 meldet **nichts** |
 | 2 | Tag 2, ab T0 + 20 h | Punkte 3 bis 6 |
 | 3 | Tag 2, danach | Punkte 7 bis 9, Rückweg |
 
 **T0 ist der Lauf von Punkt 2**, und an ihm hängt alles danach. Der
 Nachtlauf (`srvpanel-diagnose.timer`, `OnCalendar=daily`,
-`RandomizedDelaySec=1h`) feuert zwischen 00:00 und 01:00. Liegt T0 nach 05:00,
-liegt T0 + 20 h nach 01:00 am Tag 2, und der Nachtlauf kommt sicher **vor**
-der Haltezeit. Das ist Punkt 3: Er belegt, dass die Mail nicht früher kommt.
-Ein T0 um 04:00 machte aus dem Nachtlauf den meldenden, und Punkt 3 hätte
-nichts zu messen.
+`RandomizedDelaySec=1h`) wird zwischen 00:00 und 01:00 fällig und feuert bis
+zu einer Minute danach: Die Unit setzt kein `AccuracySec`, und mit der Vorgabe
+von einer Minute legt systemd den Lauf irgendwo in diese Minute. Der Nachtlauf
+feuert also spätestens um 01:01; Block 0 liest beide Werte auf dem Server.
+Liegt T0 nach 05:05, liegt T0 + 20 h nach 01:05 am Tag 2, und der Nachtlauf
+kommt sicher **vor** der Haltezeit. Das ist Punkt 3: Er belegt, dass die Mail
+nicht früher kommt. Ein T0 um 04:00 machte aus dem Nachtlauf den meldenden,
+und Punkt 3 hätte nichts zu messen.
+
+Die erste Fassung dieses Abschnitts nannte 05:00 und rechnete ohne die Minute.
+Gefunden hat es das Nachlesen der Unit-Datei vor dem Fahren.
+
+> **Eine Streuung sagt, wann ein Zeitgeber fällig wird — wann er feuert, sagt
+> erst die Genauigkeit daneben.**
 
 **Zwischen Teil 1 und Teil 2 wird `p6-abnahme.invalid` nicht angefasst** — kein
 Hochladen, kein Löschen, keine Änderung am Abonnement.
@@ -556,7 +571,7 @@ journalctl -u srvpanel-diagnose.service --since '<Tag 2> 00:00' --until '<Tag 2>
 befunde
 ```
 
-**Erwartet:** ein Lauf zwischen 00:00 und 01:00, darin
+**Erwartet:** ein Lauf zwischen 00:00 und 01:01, darin
 `mail: 0 Nachricht(en) über 0 Befund(e).` und
 `webhook: 0 Nachricht(en) über 0 Befund(e).`. In `befunde` beide Befunde mit
 `seit <T0>` wie gestern, `zuletzt <Zeit des Nachtlaufs>` und **ohne** Zeile
@@ -815,6 +830,11 @@ vorgeschlagen:**
 Abgelehnt waren damit: „Erst, wenn er voll ist" und „So lassen" (Befund 3),
 „Nur die Kundenkonten" und „So lassen" (Befund 4), „Wie gebaut, je Kanal"
 (Befund 5).
+
+**Im Wortlaut steht „fast ausgeschöpft" und nicht „fast erreicht"**, wie es in
+der Frage hiess. Die Stufe an der Grenze heisst „ausgeschöpft", und die
+Vorwarnung trägt dasselbe Wort; gemeint ist dasselbe. Wer „fast erreicht"
+will, sagt es vor der Freigabe.
 
 **Befund 7 kam nach den vier Fragen und ist nicht gefragt worden.** Gebaut ist
 er nach der Entscheidung zu „Platte voll" vom 27. September (`docs/136`):

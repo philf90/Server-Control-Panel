@@ -33891,6 +33891,16 @@ Speicherplatz nichts unter 64 MB (`Quota::minimum()`).
 > **Ein Prüfkörper, der durch ein Formular muss, wird gegen die Regeln des
 > Formulars gemessen — und nicht gegen die Rechnung, die ihn bequem macht.**
 
+**Und eine Zeitgrenze war um eine Minute zu knapp**, gefunden beim Nachlesen
+der Unit vor dem Fahren. Der Lauf verlangte T0 nicht vor 05:00, damit der
+Nachtlauf sicher vor dem Ende der Haltezeit kommt. `srvpanel-diagnose.timer`
+wird zwischen 00:00 und 01:00 fällig, setzt aber kein `AccuracySec`, und mit
+der Vorgabe von einer Minute feuert er bis 01:01. Die Grenze ist jetzt 05:05,
+und Block 0 liest beide Werte auf dem Server.
+
+> **Eine Streuung sagt, wann ein Zeitgeber fällig wird — wann er feuert, sagt
+> erst die Genauigkeit daneben.**
+
 ### B5 ist behoben — eine Mail an die, die das Abonnement sehen, und auf „Diagnose" steht, wann sie ankam
 
 **Entschieden am 5. Oktober 2026, alle vier Fragen wie vorgeschlagen**

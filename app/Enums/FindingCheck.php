@@ -279,6 +279,9 @@ enum FindingCheck: string
     /**
      * Die Gründe, die diese Prüfung kennt — Schlüssel und Satz.
      *
+     * Das sind die Gründe, die sie heute ausspricht. Gelesen werden daneben
+     * die abgelösten aus {@see self::retired()}; geschrieben werden sie nie.
+     *
      * **Der Satz ist unsere Formulierung und nicht die des Werkzeugs.** Genau
      * darauf beruht Frage 5 aus `docs/98 §9`: Der Administrator sieht
      * `subject` und diesen Satz, der ungekürzte Wortlaut des Werkzeugs bleibt
@@ -820,15 +823,100 @@ enum FindingCheck: string
     }
 
     /**
+     * Gründe, die eine frühere Fassung unter diesem Schlüssel geschrieben hat
+     * und die keine Prüfung mehr ausspricht.
+     *
+     * **Gelesen werden sie noch, geschrieben nie.** Eine Zeile von vorher
+     * steht nach dem Update in `findings`, bis der erste Lauf sie ersetzt, und
+     * ihre Entwarnung in `finding_resolutions`, bis sie angekommen ist. Wer
+     * sie dann nach Urteil oder Satz fragt, bekäme ohne diese Liste eine
+     * Ausnahme: die Seite „Diagnose" einen 500er und der Meldelauf einen
+     * Abbruch, nachts.
+     *
+     * **Und die Zeile wird nicht umgezogen.** Unter dem alten Schlüssel hat
+     * der Webhook den Vorfall aufgemacht, und sein Empfänger ordnet die
+     * Entwarnung über genau diese Angaben zu
+     * (`WebhookChannel::deliverResolved()`). Ein Umzug liesse den alten
+     * Vorfall für immer offen und schickte die Entwarnung unter einem
+     * Schlüssel, den der Empfänger nie gesehen hat. So schliesst der erste
+     * Lauf nach dem Update den alten Vorfall mit seinem eigenen Satz, und der
+     * neue Schlüssel meldet sich nach seiner Haltezeit.
+     *
+     * > **Ein Grund, den es nicht mehr gibt, steht nach dem Update noch in der
+     * > Tabelle — und wer ihn fragt, wirft.**
+     *
+     * Die Liste bleibt, solange ein Server von einer Fassung vor der Ablösung
+     * kommen kann; ein Update darf Fassungen überspringen.
+     *
+     * @return array<string, array{state: FindingState, text: string}>
+     */
+    public function retired(): array
+    {
+        return match ($this) {
+            /*
+             * Bis B9 (`docs/142`) war die Laufzeit ein Grund dieser Prüfung.
+             * Urteil und Satz sind die von damals, wörtlich: Was beim Melden
+             * dastand, steht beim Entwarnen wieder da.
+             */
+            self::TlsFile => [
+                'expiring' => [
+                    'state' => FindingState::Warn,
+                    'text' => 'Das Zertifikat läuft demnächst ab.',
+                ],
+                'expired' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Das Zertifikat ist abgelaufen.',
+                ],
+            ],
+            default => [],
+        };
+    }
+
+    /**
+     * Was eine Zeile dieser Prüfung tragen kann: die Gründe, die sie
+     * ausspricht, und die abgelösten.
+     *
+     * @return array<string, array{state: FindingState, text: string}>
+     */
+    public function known(): array
+    {
+        return $this->reasons() + $this->retired();
+    }
+
+    /**
+     * Wirft, wenn diese Prüfung den Grund nicht ausspricht — für den
+     * Schreibweg.
+     *
+     * **Nicht {@see self::state()}.** Das liest auch die abgelösten Gründe,
+     * und ein Grund, den eine frühere Fassung schrieb, wird gelesen und nie
+     * wieder geschrieben. Ein Schreiber, der ihn trotzdem benutzt, ist ein
+     * Programmierfehler, und der fällt hier auf und nicht in einer Zeile, die
+     * aussieht wie eine von vorher.
+     */
+    public function assertSpoken(string $reason): void
+    {
+        if (! isset($this->reasons()[$reason])) {
+            throw new \InvalidArgumentException(sprintf(
+                'Die Prüfung %s spricht den Grund "%s" nicht aus.',
+                $this->value,
+                $reason,
+            ));
+        }
+    }
+
+    /**
      * Das Urteil zu einem Grund — die einzige Stelle, die es fällt.
      *
      * Ein Grund, den diese Prüfung nicht kennt, ist ein Programmierfehler und
      * keine Eingabe: Er kommt nie von aussen, sondern immer aus dem Code, der
      * den Befund anlegt. `DiagnoseCatalogTest` hält beide Richtungen.
+     *
+     * Gefragt wird {@see self::known()}: Eine Zeile mit einem abgelösten Grund
+     * hat ein Urteil, solange sie dasteht.
      */
     public function state(string $reason): FindingState
     {
-        $known = $this->reasons();
+        $known = $this->known();
 
         if (! isset($known[$reason])) {
             throw new \InvalidArgumentException(sprintf(
@@ -841,10 +929,10 @@ enum FindingCheck: string
         return $known[$reason]['state'];
     }
 
-    /** Der Satz zu einem Grund, in unserer Formulierung. */
+    /** Der Satz zu einem Grund, in unserer Formulierung — auch zu einem abgelösten. */
     public function sentence(string $reason): string
     {
-        $known = $this->reasons();
+        $known = $this->known();
 
         if (! isset($known[$reason])) {
             throw new \InvalidArgumentException(sprintf(

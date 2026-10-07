@@ -57,10 +57,11 @@ final class FindingLog
         $seen = [];
 
         foreach ($findings as $finding) {
-            // Wirft, wenn die Prüfung den Grund nicht kennt. Das ist ein
+            // Wirft, wenn die Prüfung den Grund nicht ausspricht. Das ist ein
             // Programmierfehler und keine Eingabe — der Grund kommt aus dem
-            // Code, der den Befund anlegt, und nie von aussen.
-            $check->state($finding['reason']);
+            // Code, der den Befund anlegt, und nie von aussen. Nicht state():
+            // Das liest auch abgelöste Gründe, und die schreibt niemand mehr.
+            $check->assertSpoken($finding['reason']);
 
             $this->record($check, $finding['subject'], $finding['reason'], $finding['detail'] ?? null, $measuredAt);
             $seen[] = $finding['subject'].'|'.$finding['reason'];

@@ -23612,7 +23612,7 @@ vorher_datei app/Support/Diagnose/FindingLog.php
 python3 - <<'PY2'
 p = 'app/Support/Diagnose/FindingLog.php'
 s = open(p, encoding='utf-8').read()
-alt = """            $check->state($finding['reason']);\n"""
+alt = """            $check->assertSpoken($finding['reason']);\n"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
 PY2
@@ -40615,6 +40615,90 @@ pruefe "juengste Sicherung fehlt" \
   DiagnoseRunTest::test_the_catalogue_names_every_check_that_exists failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
+
+echo
+echo "── RetiredReasonTest: das Urteil vergisst die Gruende von vor B9 ──"
+#
+# Eine Zeile von vorher steht nach dem Update noch in `findings`. Fragt die
+# Seite nach ihrem Urteil und kennt es nicht, gibt sie einen 500er.
+vorher_datei app/Enums/FindingCheck.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Enums/FindingCheck.php')
+s = p.read_text(encoding='utf-8')
+alt = "    public function state(string $reason): FindingState\n    {\n        $known = $this->known();\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "    public function state(string $reason): FindingState\n    {\n        $known = $this->reasons();\n", 1), encoding='utf-8')
+PY
+griff_datei app/Enums/FindingCheck.php "Urteil ohne abgeloeste Gruende" &&
+pruefe "Urteil ohne abgeloeste Gruende" \
+  RetiredReasonTest::test_the_diagnose_page_still_shows_an_old_row failed
+wiederherstellen
+
+echo
+echo "── RetiredReasonTest: der Satz vergisst die Gruende von vor B9 ──"
+#
+# Die Entwarnung fuer den alten Vorfall traegt seinen Satz. Kennt ihn niemand
+# mehr, bricht der Meldelauf ab, nachts.
+vorher_datei app/Enums/FindingCheck.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Enums/FindingCheck.php')
+s = p.read_text(encoding='utf-8')
+alt = "    public function sentence(string $reason): string\n    {\n        $known = $this->known();\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "    public function sentence(string $reason): string\n    {\n        $known = $this->reasons();\n", 1), encoding='utf-8')
+PY
+griff_datei app/Enums/FindingCheck.php "Satz ohne abgeloeste Gruende" &&
+pruefe "Satz ohne abgeloeste Gruende" \
+  RetiredReasonTest::test_the_first_run_after_the_update_closes_the_old_incident_under_its_own_key failed
+wiederherstellen
+
+echo
+echo "── RetiredReasonTest: der Schreibweg nimmt einen abgeloesten Grund ──"
+#
+# Gelesen wird ein abgeloester Grund, geschrieben nie. Fragt der Schreibweg das
+# Urteil statt der ausgesprochenen Gruende, kommt er wieder durch.
+vorher_datei app/Support/Diagnose/FindingLog.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/FindingLog.php')
+s = p.read_text(encoding='utf-8')
+alt = "            $check->assertSpoken($finding['reason']);\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "            $check->state($finding['reason']);\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/FindingLog.php "abgeloester Grund geschrieben" &&
+pruefe "abgeloester Grund geschrieben" \
+  RetiredReasonTest::test_a_retired_reason_is_never_written_again failed
+wiederherstellen
+
+echo
+echo "── DiagnoseBadgeTest: ein abgeloester Grund urteilt anders als ein lebender ──"
+#
+# Das Abzeichen filtert ueber den Grundnamen allein. Hiesse `expired` unter
+# `tls.file` ruhig und unter `tls.expiry` laut, zaehlte es kein abgelaufenes
+# Zertifikat mehr.
+vorher_datei app/Enums/FindingCheck.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Enums/FindingCheck.php')
+s = p.read_text(encoding='utf-8')
+alt = """                'expired' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Das Zertifikat ist abgelaufen.',
+                ],
+            ],
+            default => [],
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, alt.replace('FindingState::Fail', 'FindingState::Unknown'), 1), encoding='utf-8')
+PY
+griff_datei app/Enums/FindingCheck.php "abgeloester Grund ruhig" &&
+pruefe "abgeloester Grund ruhig" \
+  DiagnoseBadgeTest::test_no_reason_name_is_both_loud_and_quiet failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RetiredReasonTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

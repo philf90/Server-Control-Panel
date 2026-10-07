@@ -34029,3 +34029,18 @@ Gegen die neuen Fassungen gefahren: `npm ci` nimmt die Sperrdatei an,
 `npm run build` laufen durch, und `concurrently` quotet mit dem neuen
 `shell-quote` ein Argument mit Leerzeichen und eines mit Apostroph richtig.
 Die Sperrdatei von `main` gibt bei `npm audit` weiterhin rc=1.
+
+### B5 ist abgenommen — und `0.9.0-rc.14` ist auf dem Server nachgesehen
+
+**B5 ist am 7. Oktober 2026 abgenommen**, ausgesprochen vom Betreiber nach dem
+Lauf und dem Nachlauf gegen `0.9.0-rc.13` (`docs/141 §7`). Offen bleibt
+Beobachtung 1: Ob das Panel sagen soll, wohin die Meldungen an den Kunden
+gehen, entscheidet der Betreiber.
+
+**`0.9.0-rc.14` bringt die drei angehobenen npm-Pakete aus dem Eintrag
+darüber**, und auf `cloudsrv24` ist nachgesehen, was davon ankommt. Das ist
+allein die Vue-Laufzeit im Bündel: Auf dem Server liegt `app-KKiiyVwK.js` mit
+553195 Bytes und Vue 3.5.43, Name und Grösse wie im Container gebaut, und die
+beiden Stylesheets tragen dieselben Namen wie unter `rc.13`. Vite bildet die
+Namen aus dem Inhalt; das ausgelieferte Bündel ist also das, das vor der
+Freigabe gegen `rc.13` verglichen wurde.

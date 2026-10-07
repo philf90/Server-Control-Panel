@@ -20,8 +20,9 @@ abgenommen — die Schwelle aus A7, die in B1 fehlte, gebaut am 27. September
 ist bewusst nicht hergestellt worden, entschieden vom Betreiber: Der Lauf bei
 95 % hat Befund, Meldung und Rückweg belegt. Die drei Befunde an der Mail des
 Betreibers sind danach behoben und mit `0.9.0-rc.5` ausgeliefert; auf dem Server
-gesehen hat sie noch niemand. **B4 ist am 1. Oktober 2026 abgenommen und B6
-am 4. Oktober**, B3, B5, B7 und B8 sind gebaut und nicht abgenommen. Der Lauf
+gesehen hat sie noch niemand. **B4 ist am 1. Oktober 2026 abgenommen, B6 am
+4. Oktober und B5 am 7. Oktober**; B3, B7 und B8 sind gebaut und nicht
+abgenommen. Der Lauf
 für B3 ist `docs/138`, ausgeschrieben am 28. September, und er hat vor dem
 Fahren einen Befund am Prüfling gebracht (Abschnitt weiter unten) — behoben
 am selben Tag, ausgeliefert mit `0.9.0-rc.7` und am Abend auf `cloudsrv24`
@@ -59,7 +60,8 @@ selben Tag entschieden, und gebaut ist alles für `0.9.0-rc.13`
 6. Oktober gegen `rc.13`: **alle neun Punkte erfüllt**, Punkt 7 im zweiten
 Anlauf. Den Empfang im Postfach hat ein Nachlauf am 6. und 7. Oktober
 gemessen, weil hinter der Adresse des Kunden eine Attrappe stand. Am Prüfling
-kam kein Befund heraus (`docs/141 §7`); abgenommen ist B5 noch nicht.
+kam kein Befund heraus (`docs/141 §7`). **Danach hat der Betreiber B5 am
+7. Oktober 2026 abgenommen** (Abschnitt weiter unten).
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -7064,10 +7066,10 @@ Wer einen Prüfstand mit einer schreibenden Zeile herstellt, gibt sie in einem
 eigenen Block und sagt dazu, dass sie schreibt. In `docs/140 §8` steht sie
 seitdem so.
 
-**Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B5, B7 und
-B8.** Für B7 und B8 gibt es noch keinen Lauf; der für B5 ist seit dem
-5. Oktober `docs/141` und am 7. Oktober samt Nachlauf gefahren (Abschnitte
-unten).
+**Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B7 und
+B8.** Für B7 und B8 gibt es noch keinen Lauf. Der Lauf für B5 ist seit dem
+5. Oktober `docs/141`, gefahren samt Nachlauf bis zum 7. Oktober, und an
+diesem Tag ist B5 abgenommen (Abschnitte unten).
 
 ---
 
@@ -7156,7 +7158,7 @@ Postfach.
 
 ---
 
-## Der Lauf für B5 — gefahren vom 5. bis 7. Oktober 2026
+## Der Lauf für B5 und die Abnahme — 5. bis 7. Oktober 2026
 
 Auf `cloudsrv24` gegen `0.9.0-rc.13`: **alle neun Punkte aus `docs/141`
 erfüllt**, Punkt 7 im zweiten Anlauf, und am Prüfling kein Befund. Den Empfang
@@ -7164,8 +7166,8 @@ im Postfach hat ein Nachlauf gemessen (N1 bis N4), weil hinter der
 Anmeldeadresse des Kunden eine Attrappe stand: Nach zwanzig Stunden kam genau
 eine Mail, in `An` nur die eine Adresse, der Text Wort für Wort wie gebaut,
 und ein zweiter Lauf schickte keine weitere. Das Protokoll ist
-`docs/141 §7`. **Abgenommen ist B5 noch nicht**; das spricht der Betreiber
-aus.
+`docs/141 §7`. **Danach hat der Betreiber B5 am 7. Oktober 2026
+abgenommen.**
 
 **Fünf Befunde, alle an der Vorschrift, am Prüfstand oder an meinen
 Werkzeugen.** Zwei davon haben etwas gekostet. Der eine einen Anlauf an

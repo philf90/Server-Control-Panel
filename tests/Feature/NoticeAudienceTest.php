@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\FindingCheck;
+use App\Mail\CustomerNotice;
 use App\Mail\DiagnoseReport;
-use App\Mail\QuotaWarning;
 use App\Models\Account;
 use App\Models\Customer;
+use App\Models\Domain;
 use App\Models\Finding;
 use App\Models\Subscription;
 use App\Support\Diagnose\FindingLog;
@@ -49,8 +50,16 @@ use Tests\TestCase;
  *
  * Ob eine **neue** Prüfung dem Kunden oder dem Betreiber gehört, hängt daran,
  * wessen Gegenstand sie misst — das ist ein Urteil und keine Eigenschaft des
- * Quelltextes. {@see self::test_exactly_one_check_belongs_to_the_customer()}
- * hält deshalb nur die Zahl: Wer sie ändert, entscheidet.
+ * Quelltextes. {@see self::test_exactly_these_checks_belong_to_the_customer()}
+ * hält deshalb nur die Liste: Wer sie ändert, entscheidet.
+ *
+ * ## Und seit B9 drei Prüfungen beim Kunden
+ *
+ * Entschieden vom Betreiber am 7. Oktober 2026 (`docs/142 §6`, Frage 1): Die
+ * Laufzeit eines Zertifikats und die jüngste Sicherung gehen an den Kunden und
+ * **nur** an ihn. Gemessen wird hier die Tabelle aus `docs/142 §4` durch den
+ * echten Meldelauf — und für das Zertifikat beide Hälften derselben Prüfung,
+ * weil die Grenze zwischen Kunde und Betreiber mitten durch sie geht.
  */
 final class NoticeAudienceTest extends TestCase
 {
@@ -93,14 +102,21 @@ final class NoticeAudienceTest extends TestCase
         ));
     }
 
-    /** Ein Abonnement mit einem Kundenkonto, das eine Adresse hat. */
+    /**
+     * Ein Abonnement mit einem Kundenkonto, das eine Adresse hat — und einer
+     * Domain `<name>.example`, denn ein Zertifikat nennt seine Domain und
+     * nicht sein Abonnement.
+     */
     private function abonnement(string $name = 'p1000', string $mail = 'kunde@example.org'): Subscription
     {
         return app(Tenancy::class)->withoutRestriction(static function () use ($name, $mail): Subscription {
             $kunde = Customer::factory()->create();
             Account::factory()->customer($kunde)->create(['email' => $mail]);
 
-            return Subscription::factory()->create(['name' => $name, 'customer_id' => $kunde->id]);
+            $abo = Subscription::factory()->create(['name' => $name, 'customer_id' => $kunde->id]);
+            Domain::factory()->create(['subscription_id' => $abo->id, 'name' => $name.'.example']);
+
+            return $abo;
         });
     }
 
@@ -159,9 +175,9 @@ final class NoticeAudienceTest extends TestCase
         $bilanz = $this->zweiNaechte(FindingCheck::QuotaExceeded, [['subject' => 'p1000', 'reason' => 'disk_over']]);
 
         self::assertSame(1, $bilanz['mail']['sent']);
-        Mail::assertSent(QuotaWarning::class, static fn (QuotaWarning $m): bool => $m->hasTo('kunde@example.org'));
+        Mail::assertSent(CustomerNotice::class, static fn (CustomerNotice $m): bool => $m->hasTo('kunde@example.org'));
         Mail::assertNotSent(DiagnoseReport::class);
-        Mail::assertNotSent(QuotaWarning::class, static fn (QuotaWarning $m): bool => $m->hasTo('betreiber@example.org'));
+        Mail::assertNotSent(CustomerNotice::class, static fn (CustomerNotice $m): bool => $m->hasTo('betreiber@example.org'));
     }
 
     public function test_a_server_finding_goes_to_the_operator_and_not_to_the_customer(): void
@@ -174,7 +190,7 @@ final class NoticeAudienceTest extends TestCase
 
         self::assertSame(1, $bilanz['mail']['sent']);
         Mail::assertSent(DiagnoseReport::class, static fn (DiagnoseReport $m): bool => $m->hasTo('betreiber@example.org'));
-        Mail::assertNotSent(QuotaWarning::class);
+        Mail::assertNotSent(CustomerNotice::class);
         Mail::assertNotSent(DiagnoseReport::class, static fn (DiagnoseReport $m): bool => $m->hasTo('kunde@example.org'));
     }
 
@@ -244,9 +260,9 @@ final class NoticeAudienceTest extends TestCase
         ]);
 
         self::assertSame(2, $bilanz['mail']['sent']);
-        Mail::assertSent(QuotaWarning::class, 2);
-        Mail::assertSent(QuotaWarning::class, static fn (QuotaWarning $m): bool => $m->hasTo('eins@example.org'));
-        Mail::assertSent(QuotaWarning::class, static fn (QuotaWarning $m): bool => $m->hasTo('zwei@example.org'));
+        Mail::assertSent(CustomerNotice::class, 2);
+        Mail::assertSent(CustomerNotice::class, static fn (CustomerNotice $m): bool => $m->hasTo('eins@example.org'));
+        Mail::assertSent(CustomerNotice::class, static fn (CustomerNotice $m): bool => $m->hasTo('zwei@example.org'));
     }
 
     /**
@@ -315,41 +331,137 @@ final class NoticeAudienceTest extends TestCase
     }
 
     /**
-     * Genau **eine** Prüfung gehört dem Kunden.
+     * Genau **diese drei** Prüfungen gehören dem Kunden.
      *
-     * **Gemessen über den ganzen Katalog und nicht gegen eine Liste hier.**
-     * Gefragt wird der Kanal selbst: Welche der achtzehn Prüfungen bündelt er
-     * unter einem Abonnement, welche unter dem Betreiber? Eine Liste im Test
-     * wäre die zweite Fassung derselben Zuordnung.
+     * **Gemessen über den ganzen Katalog.** Gefragt wird der Kanal selbst:
+     * Welche Prüfungen bündelt er unter einem Abonnement, welche unter dem
+     * Betreiber? Der Gegenstand kommt aus der Art, die die Prüfung selbst
+     * nennt ({@see FindingCheck::subjectLabel()}) — eine Domain des
+     * Abonnements, wo sie eine Domain misst, sonst das Abonnement.
      *
-     * **Und die Zahl ist ein Halt und kein Befund.** Wer eine neunzehnte
-     * Prüfung baut, die einem Kunden gehört, macht diesen Fall rot — und das
-     * ist der Augenblick, in dem jemand entscheidet, wer sie bekommt. Ein
-     * Wächter kann das nicht wissen: Es hängt daran, wessen Gegenstand sie
-     * misst.
+     * **Und die Liste ist ein Halt und kein Befund.** Wer eine Prüfung baut,
+     * die einem Kunden gehört, macht diesen Fall rot — und das ist der
+     * Augenblick, in dem jemand entscheidet, wer sie bekommt. Ein Wächter kann
+     * das nicht wissen: Es hängt daran, wessen Gegenstand sie misst. Bis zum
+     * 7. Oktober 2026 stand hier eine; B9 hat zwei dazugenommen.
      */
-    public function test_exactly_one_check_belongs_to_the_customer(): void
+    public function test_exactly_these_checks_belong_to_the_customer(): void
     {
+        $this->abonnement();
         $kanal = app(MailChannel::class);
 
         $betreiber = [];
         $kunden = [];
 
         foreach (FindingCheck::cases() as $check) {
-            $schluessel = $kanal->batchKey($check, 'p1000');
+            $gegenstand = $check->subjectLabel() === 'Domain' ? 'p1000.example' : 'p1000';
+            $schluessel = $kanal->batchKey($check, $gegenstand);
 
-            if (str_contains($schluessel, 'p1000')) {
+            if (str_contains($schluessel, 'p1000') && ! str_contains($schluessel, 'p1000.example')) {
                 $kunden[] = $check->value;
             } else {
                 $betreiber[] = $check->value;
             }
         }
 
-        self::assertSame([FindingCheck::QuotaExceeded->value], $kunden,
-            'Nur `quota.exceeded` misst den Gegenstand eines Kunden — alles andere misst den Server.');
+        sort($kunden);
+
+        self::assertSame(['backup.latest', 'quota.exceeded', 'tls.expiry'], $kunden,
+            'Den Gegenstand eines Kunden messen Kontingent, Laufzeit des Zertifikats und jüngste Sicherung — alles andere misst den Server.');
 
         self::assertGreaterThanOrEqual(17, count($betreiber),
             'Es sind kaum Prüfungen gefunden worden — dann prüft dieser Fall nichts.');
+        self::assertContains('tls.file', $betreiber,
+            'Ein fehlendes Zertifikat und eines mit falschem Namen liegen am Server — die Mail dazu bekommt der Betreiber.');
+    }
+
+    /**
+     * Die Laufzeit eines Zertifikats geht an den Kunden, gebündelt nach dem
+     * Abonnement seiner Domain.
+     *
+     * **Die Gegenrichtung steht im selben Fall:** Dieselbe Domain mit einem
+     * Zertifikat, das ihren Namen nicht deckt, ist ein Befund am Server, und
+     * den bekommt der Betreiber. Die Grenze geht mitten durch eine Prüfung.
+     */
+    public function test_a_certificate_expiry_goes_to_the_customer_and_its_file_to_the_operator(): void
+    {
+        $this->ziel(ScriptedNotifyTarget::empty());
+        $this->abonnement();
+        $this->betreiber();
+
+        $erste = Carbon::parse('2026-09-24 03:00:00');
+        $zweite = $erste->copy()->addHours(Notices::HOLD_HOURS + 3);
+
+        foreach ([$erste, $zweite] as $at) {
+            $this->lauf(FindingCheck::TlsExpiry, [['subject' => 'p1000.example', 'reason' => 'expiring']], $at);
+            $this->lauf(FindingCheck::TlsFile, [['subject' => 'p1000.example', 'reason' => 'name_mismatch']], $at);
+        }
+
+        $bilanz = $this->notices()->send($zweite);
+
+        self::assertSame(2, $bilanz['mail']['sent'], 'Eine Mail an den Kunden, eine an den Betreiber.');
+        Mail::assertSent(CustomerNotice::class, 1);
+        Mail::assertSent(CustomerNotice::class, static fn (CustomerNotice $m): bool => $m->hasTo('kunde@example.org')
+            && str_ends_with((string) $m->envelope()->subject, 'Zertifikat läuft ab: p1000'));
+        Mail::assertNotSent(CustomerNotice::class, static fn (CustomerNotice $m): bool => $m->hasTo('betreiber@example.org'));
+        Mail::assertSent(DiagnoseReport::class, static fn (DiagnoseReport $m): bool => $m->hasTo('betreiber@example.org')
+            && str_contains($m->render(), 'deckt den Namen dieser Domain nicht')
+            && ! str_contains($m->render(), 'läuft demnächst ab'));
+    }
+
+    /**
+     * Eine gescheiterte Sicherung geht an den Kunden — in der ersten Nacht,
+     * die sie sieht (`docs/142 §6`, Frage 3), und nicht an den Betreiber.
+     */
+    public function test_a_failed_backup_goes_to_the_customer_in_the_first_night(): void
+    {
+        $this->ziel(ScriptedNotifyTarget::empty());
+        $this->abonnement();
+        $this->betreiber();
+
+        $nacht = Carbon::parse('2026-10-08 00:40:00');
+        $this->lauf(FindingCheck::BackupLatest, [['subject' => 'p1000', 'reason' => 'failed']], $nacht);
+
+        $bilanz = $this->notices()->send($nacht);
+
+        self::assertSame(1, $bilanz['mail']['sent']);
+        Mail::assertSent(CustomerNotice::class, static fn (CustomerNotice $m): bool => $m->hasTo('kunde@example.org')
+            && str_ends_with((string) $m->envelope()->subject, 'Sicherung fehlgeschlagen: p1000'));
+        Mail::assertNotSent(DiagnoseReport::class);
+    }
+
+    /**
+     * Drei Arten in einer Nacht sind **eine** Mail an den Kunden.
+     *
+     * Ein Kunde, dessen Platz voll ist, dessen Zertifikat abläuft und dessen
+     * Sicherung scheitert, bekommt eine Mail mit drei Abschnitten und nicht
+     * drei Mails (`docs/142 §4`) — die Bündelung folgt dem Abonnement und
+     * nicht der Art.
+     */
+    public function test_three_kinds_in_one_night_are_one_mail(): void
+    {
+        $this->ziel(ScriptedNotifyTarget::empty());
+        $this->abonnement();
+
+        $erste = Carbon::parse('2026-09-24 03:00:00');
+        $zweite = $erste->copy()->addHours(Notices::HOLD_HOURS + 3);
+
+        foreach ([$erste, $zweite] as $at) {
+            $this->lauf(FindingCheck::QuotaExceeded, [['subject' => 'p1000', 'reason' => 'disk_over']], $at);
+            $this->lauf(FindingCheck::TlsExpiry, [['subject' => 'p1000.example', 'reason' => 'expiring']], $at);
+        }
+
+        $this->lauf(FindingCheck::BackupLatest, [['subject' => 'p1000', 'reason' => 'failed']], $zweite);
+
+        $bilanz = $this->notices()->send($zweite);
+
+        self::assertSame(1, $bilanz['mail']['sent'], 'Drei Arten, eine Nachricht.');
+        self::assertSame(3, $bilanz['mail']['findings']);
+        Mail::assertSent(CustomerNotice::class, 1);
+        Mail::assertSent(CustomerNotice::class, static fn (CustomerNotice $m): bool => str_ends_with(
+            (string) $m->envelope()->subject,
+            'Speicherplatz ausgeschöpft, Zertifikat läuft ab und Sicherung fehlgeschlagen: p1000',
+        ));
     }
 
     /**

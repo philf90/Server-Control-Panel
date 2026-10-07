@@ -12,7 +12,8 @@ use App\Models\FindingResolution;
  * Ein Weg, auf dem eine Meldung den Server verlässt — B1, `docs/129 §7`.
  *
  * **Es gibt zwei.** {@see MailChannel} schreibt über das Relay des Betreibers —
- * an den **Kunden**, wenn der Befund sein Kontingent betrifft, und sonst an den
+ * an den **Kunden**, wenn der Befund sein Abonnement betrifft (Kontingent, die
+ * Laufzeit eines Zertifikats, die jüngste Sicherung), und sonst an den
  * **Betreiber**. {@see WebhookChannel} meldet an ein Ziel je Server, das allein
  * dem Betreiber gehört.
  *
@@ -90,7 +91,7 @@ interface Channel
      * **Die Bündelung folgt dem Empfänger und nicht dem Gegenstand.** Ein
      * Kunde, der Platz **und** Verkehr überzieht, bekommt eine Nachricht mit
      * zwei Zeilen und nicht zwei Nachrichten — und ein Betreiber, dessen
-     * Server in einer Nacht einen toten Dienst und ein ablaufendes Zertifikat
+     * Server in einer Nacht einen toten Dienst und ein fehlendes Zertifikat
      * hat, ebenso. Nach `subject` gebündelt wären das zwei Mails, und das
      * Abnahmekriterium sagt „genau eine".
      *

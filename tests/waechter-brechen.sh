@@ -24513,15 +24513,12 @@ vorher_datei app/Support/Diagnose/Checks/Certificates.php
 python3 - <<'PY2'
 p = 'app/Support/Diagnose/Checks/Certificates.php'
 s = open(p, encoding='utf-8').read()
-alt = """            if ($verdict !== null) {
-                $file[] = ['subject' => $row['name']] + $verdict;
-
+alt = """            if ($verdict !== null || $zeit !== []) {
                 continue;
-            }"""
+            }
+"""
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, """            if ($verdict !== null) {
-                $file[] = ['subject' => $row['name']] + $verdict;
-            }""", 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "", 1))
 PY2
 griff_datei app/Support/Diagnose/Checks/Certificates.php "Leitung immer gefragt" &&
 pruefe "Leitung immer gefragt" \
@@ -33559,11 +33556,11 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/MailChannel.php')
 s = p.read_text()
-alt = """        return $erster->check === FindingCheck::QuotaExceeded
-            ? $this->toCustomer($erster->subject, $findings)
+alt = """        return in_array($erster->check, self::CUSTOMER, true)
+            ? $this->toCustomer($this->facts->subscriptionOf($erster->check, $erster->subject) ?? '', $findings)
             : $this->toOperator($findings);"""
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, '        return $this->toCustomer($erster->subject, $findings);', 1))
+p.write_text(s.replace(alt, "        return $this->toCustomer($this->facts->subscriptionOf($erster->check, $erster->subject) ?? '', $findings);", 1))
 PY
 griff_datei app/Support/Notify/MailChannel.php "Serverbefund an den Kunden" &&
 pruefe "Serverbefund an den Kunden" \
@@ -33579,11 +33576,13 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/MailChannel.php')
 s = p.read_text()
-alt = """        return $check === FindingCheck::QuotaExceeded
-            ? self::SUBSCRIPTION.$subject
-            : self::OPERATOR;"""
+alt = """        if (! in_array($check, self::CUSTOMER, true)) {
+            return self::OPERATOR;
+        }"""
 assert s.count(alt) == 1
-p.write_text(s.replace(alt, '        return self::SUBSCRIPTION.$subject;', 1))
+p.write_text(s.replace(alt, """        if (! in_array($check, self::CUSTOMER, true)) {
+            return self::OPERATOR.$subject;
+        }""", 1))
 PY
 griff_datei app/Support/Notify/MailChannel.php "eine Mail je Gegenstand" &&
 pruefe "eine Mail je Gegenstand" \
@@ -33599,14 +33598,14 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/MailChannel.php')
 s = p.read_text()
-alt = 'return $check === FindingCheck::QuotaExceeded'
+alt = 'public const CUSTOMER = [FindingCheck::QuotaExceeded, FindingCheck::TlsExpiry, FindingCheck::BackupLatest];'
 assert s.count(alt) == 1
-neu = 'return in_array($check, [FindingCheck::QuotaExceeded, FindingCheck::TlsFile], true)'
+neu = 'public const CUSTOMER = [FindingCheck::QuotaExceeded, FindingCheck::TlsExpiry, FindingCheck::BackupLatest, FindingCheck::TlsFile];'
 p.write_text(s.replace(alt, neu, 1))
 PY
 griff_datei app/Support/Notify/MailChannel.php "Serverpruefung als Kundensache" &&
 pruefe "Serverpruefung als Kundensache" \
-  NoticeAudienceTest::test_exactly_one_check_belongs_to_the_customer failed
+  NoticeAudienceTest::test_exactly_these_checks_belong_to_the_customer failed
 wiederherstellen
 
 echo "── NoticeAudienceTest: der Webhook fasst alles in eine Meldung ──"
@@ -34297,16 +34296,16 @@ echo "── BrandReachTest: die Fusszeile faellt aus der Mail ──"
 # Das Abnahmekriterium verlangt sie in einer verschickten Mail. Eine Vorlage,
 # die die Unterschrift vergisst, faellt niemandem auf — die Mail sieht
 # vollstaendig aus.
-vorher_datei resources/views/mail/quota.blade.php
+vorher_datei resources/views/mail/customer.blade.php
 python3 - <<'PY'
 import pathlib
-p = pathlib.Path('resources/views/mail/quota.blade.php')
+p = pathlib.Path('resources/views/mail/customer.blade.php')
 s = p.read_text()
 alt = "@include('mail.signature')"
 assert s.count(alt) == 1
 p.write_text(s.replace(alt, '', 1))
 PY
-griff_datei resources/views/mail/quota.blade.php "Fusszeile faellt aus der Mail" &&
+griff_datei resources/views/mail/customer.blade.php "Fusszeile faellt aus der Mail" &&
 pruefe "Fusszeile faellt aus der Mail" \
   BrandReachTest::test_a_sent_mail_carries_name_and_footer failed
 wiederherstellen
@@ -39328,16 +39327,16 @@ echo
 echo "── MailSignatureTest: die Kundenmail bindet die Unterschrift ohne Leerzeile ein ──"
 #
 # Gemessen an der Vorlage.
-vorher_datei resources/views/mail/quota.blade.php
+vorher_datei resources/views/mail/customer.blade.php
 python3 - <<'PY'
 import pathlib
-p = pathlib.Path('resources/views/mail/quota.blade.php')
+p = pathlib.Path('resources/views/mail/customer.blade.php')
 s = p.read_text(encoding='utf-8')
-alt = "{!! $paragraphs !!}\n\n@include('mail.signature')\n"
+alt = "{!! $body !!}\n\n@include('mail.signature')\n"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-p.write_text(s.replace(alt, "{!! $paragraphs !!}\n@include('mail.signature')\n", 1), encoding='utf-8')
+p.write_text(s.replace(alt, "{!! $body !!}\n@include('mail.signature')\n", 1), encoding='utf-8')
 PY
-griff_datei resources/views/mail/quota.blade.php "Kundenmail ohne Leerzeile" &&
+griff_datei resources/views/mail/customer.blade.php "Kundenmail ohne Leerzeile" &&
 pruefe "Kundenmail ohne Leerzeile" \
   MailSignatureTest::test_every_view_that_includes_the_signature_leaves_a_line_before_it failed
 wiederherstellen
@@ -39532,160 +39531,160 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" QuotaOverrunTest passed
 
 echo
-echo "── QuotaWarningTest: ein Grund hat keine Ueberschrift ──"
+echo "── QuotaNoticeTest: ein Grund hat keine Ueberschrift ──"
 #
 # Der Rueckfall von headline() wirft; ohne diesen Fall wuerfe der Nachtlauf.
-vorher_datei app/Mail/QuotaWarning.php
+vorher_datei app/Mail/Notice/QuotaSection.php
 python3 - <<'PY'
 import pathlib
-p = pathlib.Path('app/Mail/QuotaWarning.php')
+p = pathlib.Path('app/Mail/Notice/QuotaSection.php')
 s = p.read_text(encoding='utf-8')
 alt = "            'disk_near_limit' => 'Speicherplatz fast ausgeschöpft',\n"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 p.write_text(s.replace(alt, '', 1), encoding='utf-8')
 PY
-griff_datei app/Mail/QuotaWarning.php "Grund ohne Ueberschrift" &&
+griff_datei app/Mail/Notice/QuotaSection.php "Grund ohne Ueberschrift" &&
 pruefe "Grund ohne Ueberschrift" \
-  QuotaWarningTest::test_every_reason_a_customer_can_get_has_a_headline failed
+  QuotaNoticeTest::test_every_reason_a_customer_can_get_has_a_headline failed
 wiederherstellen
 
 echo
-echo "── QuotaWarningTest: der Rueckfall schreibt still „Kontingent\" ──"
-vorher_datei app/Mail/QuotaWarning.php
+echo "── QuotaNoticeTest: der Rueckfall schreibt still „Kontingent\" ──"
+vorher_datei app/Mail/Notice/QuotaSection.php
 python3 - <<'PY'
 import pathlib
-p = pathlib.Path('app/Mail/QuotaWarning.php')
+p = pathlib.Path('app/Mail/Notice/QuotaSection.php')
 s = p.read_text(encoding='utf-8')
 alt = "            default => throw new LogicException(sprintf('Für den Grund „%s\" gibt es keine Überschrift.', $reason)),\n"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 p.write_text(s.replace(alt, "            default => 'Kontingent',\n", 1), encoding='utf-8')
 PY
-griff_datei app/Mail/QuotaWarning.php "Rueckfall Kontingent" &&
+griff_datei app/Mail/Notice/QuotaSection.php "Rueckfall Kontingent" &&
 pruefe "Rueckfall Kontingent" \
-  QuotaWarningTest::test_a_reason_without_a_headline_throws failed
+  QuotaNoticeTest::test_a_reason_without_a_headline_throws failed
 wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" QuotaWarningTest passed
+pruefe "  … zurückgesetzt wieder grün" QuotaNoticeTest passed
 
 echo
-echo "── QuotaWarningTest: die Mail nennt auf der Grenze beides ──"
+echo "── QuotaNoticeTest: die Mail nennt auf der Grenze beides ──"
 #
 # „fast ausgeschoepft" neben „ausgeschoepft" widerspraeche sich (Befund 7).
-vorher_datei app/Mail/QuotaWarning.php
+vorher_datei app/Mail/Notice/QuotaSection.php
 python3 - <<'PY'
 import pathlib
-p = pathlib.Path('app/Mail/QuotaWarning.php')
+p = pathlib.Path('app/Mail/Notice/QuotaSection.php')
 s = p.read_text(encoding='utf-8')
 alt = "        if (! in_array('disk_over', array_column($overruns, 'reason'), true)) {"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 p.write_text(s.replace(alt, "        if (true) {", 1), encoding='utf-8')
 PY
-griff_datei app/Mail/QuotaWarning.php "Mail nennt beides" &&
+griff_datei app/Mail/Notice/QuotaSection.php "Mail nennt beides" &&
 pruefe "Mail nennt beides" \
-  QuotaWarningTest::test_a_full_disk_is_named_alone failed
+  QuotaNoticeTest::test_a_full_disk_is_named_alone failed
 wiederherstellen
 
 echo
-echo "── QuotaWarningTest: die Vorwarnung faellt auch ohne „ausgeschoepft\" weg ──"
-vorher_datei app/Mail/QuotaWarning.php
+echo "── QuotaNoticeTest: die Vorwarnung faellt auch ohne „ausgeschoepft\" weg ──"
+vorher_datei app/Mail/Notice/QuotaSection.php
 python3 - <<'PY'
 import pathlib
-p = pathlib.Path('app/Mail/QuotaWarning.php')
+p = pathlib.Path('app/Mail/Notice/QuotaSection.php')
 s = p.read_text(encoding='utf-8')
 alt = "        if (! in_array('disk_over', array_column($overruns, 'reason'), true)) {"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 p.write_text(s.replace(alt, "        if (false) {", 1), encoding='utf-8')
 PY
-griff_datei app/Mail/QuotaWarning.php "Vorwarnung faellt immer weg" &&
+griff_datei app/Mail/Notice/QuotaSection.php "Vorwarnung faellt immer weg" &&
 pruefe "Vorwarnung faellt immer weg" \
-  QuotaWarningTest::test_a_full_disk_is_named_alone failed
+  QuotaNoticeTest::test_a_full_disk_is_named_alone failed
 wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" QuotaWarningTest passed
+pruefe "  … zurückgesetzt wieder grün" QuotaNoticeTest passed
 
 echo
-echo "── QuotaWarningTest: der Satz eines Befundes bricht nicht ──"
-vorher_datei app/Mail/QuotaWarning.php
+echo "── QuotaNoticeTest: der Satz eines Befundes bricht nicht ──"
+vorher_datei app/Mail/Notice/QuotaSection.php
 python3 - <<'PY'
 import pathlib
-p = pathlib.Path('app/Mail/QuotaWarning.php')
+p = pathlib.Path('app/Mail/Notice/QuotaSection.php')
 s = p.read_text(encoding='utf-8')
 alt = "foreach (self::wrap($overrun['label'], self::WIDTH - 2) as $i => $teil) {"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 p.write_text(s.replace(alt, "foreach ([$overrun['label']] as $i => $teil) {", 1), encoding='utf-8')
 PY
-griff_datei app/Mail/QuotaWarning.php "Satz ungebrochen" &&
+griff_datei app/Mail/Notice/QuotaSection.php "Satz ungebrochen" &&
 pruefe "Satz ungebrochen" \
-  QuotaWarningTest::test_no_line_is_longer_than_77_characters failed
+  QuotaNoticeTest::test_no_line_is_longer_than_77_characters failed
 wiederherstellen
 
 echo
-echo "── QuotaWarningTest: der Wert steht wieder hinter dem Punkt ──"
+echo "── QuotaNoticeTest: der Wert steht wieder hinter dem Punkt ──"
 #
 # Die Zeile vom 5. Oktober 2026: „…Kontingent.: 3 MB von 1 MB".
-vorher_datei app/Mail/QuotaWarning.php
+vorher_datei app/Mail/Notice/QuotaSection.php
 python3 - <<'PY'
 import pathlib
-p = pathlib.Path('app/Mail/QuotaWarning.php')
+p = pathlib.Path('app/Mail/Notice/QuotaSection.php')
 s = p.read_text(encoding='utf-8')
 alt = "foreach (self::wrap($overrun['label'], self::WIDTH - 2) as $i => $teil) {"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 p.write_text(s.replace(alt, "foreach (self::wrap($overrun['label'].': '.$overrun['detail'], self::WIDTH - 2) as $i => $teil) {", 1), encoding='utf-8')
 PY
-griff_datei app/Mail/QuotaWarning.php "Wert hinter dem Punkt" &&
+griff_datei app/Mail/Notice/QuotaSection.php "Wert hinter dem Punkt" &&
 pruefe "Wert hinter dem Punkt" \
-  QuotaWarningTest::test_no_sentence_ends_in_a_colon_after_its_full_stop failed
+  QuotaNoticeTest::test_no_sentence_ends_in_a_colon_after_its_full_stop failed
 wiederherstellen
 
 echo
-echo "── QuotaWarningTest: gemessen und nicht erzwungen steht in jeder Mail ──"
+echo "── QuotaNoticeTest: gemessen und nicht erzwungen steht in jeder Mail ──"
 #
 # Der Satz vom 5. Oktober 2026 — fuer den Speicherplatz falsch, denn ihn
 # erzwingt die Dateisystem-Quota.
-vorher_datei app/Mail/QuotaWarning.php
+vorher_datei app/Mail/Notice/QuotaSection.php
 python3 - <<'PY'
 import pathlib
-p = pathlib.Path('app/Mail/QuotaWarning.php')
+p = pathlib.Path('app/Mail/Notice/QuotaSection.php')
 s = p.read_text(encoding='utf-8')
 alt = 'if ($datenbanken || $traffic) {'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 p.write_text(s.replace(alt, 'if (true) {', 1), encoding='utf-8')
 PY
-griff_datei app/Mail/QuotaWarning.php "Erzwingen-Absatz in jeder Mail" &&
+griff_datei app/Mail/Notice/QuotaSection.php "Erzwingen-Absatz in jeder Mail" &&
 pruefe "Erzwingen-Absatz in jeder Mail" \
-  QuotaWarningTest::test_the_paragraphs_follow_the_quotas_in_the_mail failed
+  QuotaNoticeTest::test_the_paragraphs_follow_the_quotas_in_the_mail failed
 wiederherstellen
 
 echo
-echo "── QuotaWarningTest: die Abrechnung des Traffics steht in jeder Mail ──"
-vorher_datei app/Mail/QuotaWarning.php
+echo "── QuotaNoticeTest: die Abrechnung des Traffics steht in jeder Mail ──"
+vorher_datei app/Mail/Notice/QuotaSection.php
 python3 - <<'PY'
 import pathlib
-p = pathlib.Path('app/Mail/QuotaWarning.php')
+p = pathlib.Path('app/Mail/Notice/QuotaSection.php')
 s = p.read_text(encoding='utf-8')
 alt = 'if ($traffic) {'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 p.write_text(s.replace(alt, 'if (true) {', 1), encoding='utf-8')
 PY
-griff_datei app/Mail/QuotaWarning.php "Abrechnung in jeder Mail" &&
+griff_datei app/Mail/Notice/QuotaSection.php "Abrechnung in jeder Mail" &&
 pruefe "Abrechnung in jeder Mail" \
-  QuotaWarningTest::test_the_paragraphs_follow_the_quotas_in_the_mail failed
+  QuotaNoticeTest::test_the_paragraphs_follow_the_quotas_in_the_mail failed
 wiederherstellen
 
 echo
-echo "── QuotaWarningTest: der Rueckweg steht auch beim vollen Platz ──"
-vorher_datei app/Mail/QuotaWarning.php
+echo "── QuotaNoticeTest: der Rueckweg steht auch beim vollen Platz ──"
+vorher_datei app/Mail/Notice/QuotaSection.php
 python3 - <<'PY'
 import pathlib
-p = pathlib.Path('app/Mail/QuotaWarning.php')
+p = pathlib.Path('app/Mail/Notice/QuotaSection.php')
 s = p.read_text(encoding='utf-8')
 alt = "if (in_array('disk_near_limit', $gruende, true)) {"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 p.write_text(s.replace(alt, 'if (true) {', 1), encoding='utf-8')
 PY
-griff_datei app/Mail/QuotaWarning.php "Rueckweg beim vollen Platz" &&
+griff_datei app/Mail/Notice/QuotaSection.php "Rueckweg beim vollen Platz" &&
 pruefe "Rueckweg beim vollen Platz" \
-  QuotaWarningTest::test_the_paragraphs_follow_the_quotas_in_the_mail failed
+  QuotaNoticeTest::test_the_paragraphs_follow_the_quotas_in_the_mail failed
 wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" QuotaWarningTest passed
+pruefe "  … zurückgesetzt wieder grün" QuotaNoticeTest passed
 
 echo
 echo "── QuotaRecipientTest: die Mail geht an jedes Konto des Kunden ──"
@@ -39714,13 +39713,13 @@ import pathlib
 p = pathlib.Path('app/Support/Notify/MailChannel.php')
 s = p.read_text(encoding='utf-8')
 alt = """        foreach ($empfaenger as $adresse) {
-            if ($this->send(new QuotaWarning($subscription, $zeilen), [$adresse]) === Delivery::Sent) {
+            if ($this->send(new CustomerNotice($subscription, $abschnitte), [$adresse]) === Delivery::Sent) {
                 $angekommen++;
             }
         }
 """
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-neu = """        if ($this->send(new QuotaWarning($subscription, $zeilen), $empfaenger) === Delivery::Sent) {
+neu = """        if ($this->send(new CustomerNotice($subscription, $abschnitte), $empfaenger) === Delivery::Sent) {
             $angekommen++;
         }
 """
@@ -39741,12 +39740,12 @@ python3 - <<'PY'
 import pathlib
 p = pathlib.Path('app/Support/Notify/MailChannel.php')
 s = p.read_text(encoding='utf-8')
-alt = '$this->send(new QuotaWarning($subscription, $zeilen), [$adresse])'
+alt = '$this->send(new CustomerNotice($subscription, $abschnitte), [$adresse])'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 s = s.replace(alt, '$this->send($nachricht, [$adresse])', 1)
 alt = '        $angekommen = 0;\n'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-p.write_text(s.replace(alt, alt + '        $nachricht = new QuotaWarning($subscription, $zeilen);\n', 1), encoding='utf-8')
+p.write_text(s.replace(alt, alt + '        $nachricht = new CustomerNotice($subscription, $abschnitte);\n', 1), encoding='utf-8')
 PY
 griff_datei app/Support/Notify/MailChannel.php "eine Instanz fuer alle" &&
 pruefe "eine Instanz fuer alle" \
@@ -39978,6 +39977,644 @@ pruefe "Meldung in UTC" \
   DiagnosePageTest::test_each_finding_says_whether_and_when_it_was_reported failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DiagnosePageTest passed
+
+echo
+echo "── CertificateVerdictTest: nur die Datei haelt die Leitung auf ──"
+#
+# Seit B9 hat ein abgelaufenes Zertifikat keinen Befund an der Datei, sondern
+# zwei an der Zeit. Wer nur die Datei fragt, fragt danach wieder die Leitung.
+vorher_datei app/Support/Diagnose/Checks/Certificates.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/Certificates.php')
+s = p.read_text(encoding='utf-8')
+alt = "            if ($verdict !== null || $zeit !== []) {\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "            if ($verdict !== null) {\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/Certificates.php "nur die Datei haelt auf" &&
+pruefe "nur die Datei haelt auf" \
+  CertificateVerdictTest::test_the_wire_is_not_asked_when_the_file_is_already_a_finding failed
+wiederherstellen
+
+echo
+echo "── CertificateVerdictTest: nur die Zeit haelt die Leitung auf ──"
+vorher_datei app/Support/Diagnose/Checks/Certificates.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/Certificates.php')
+s = p.read_text(encoding='utf-8')
+alt = "            if ($verdict !== null || $zeit !== []) {\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "            if ($zeit !== []) {\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/Certificates.php "nur die Zeit haelt auf" &&
+pruefe "nur die Zeit haelt auf" \
+  CertificateVerdictTest::test_the_wire_is_not_asked_when_the_file_is_already_a_finding failed
+wiederherstellen
+
+echo
+echo "── CertificateVerdictTest: Let's Encrypt mit der Schwelle des hochgeladenen ──"
+#
+# Dann meldete etwa jede zwoelfte gelungene Erneuerung ein ablaufendes
+# Zertifikat (docs/142 §3 M1).
+vorher_datei app/Support/Diagnose/Checks/Certificates.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/Certificates.php')
+s = p.read_text(encoding='utf-8')
+alt = "self::expiringDays($row['renewed'])"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "self::expiringDays(false)", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/Certificates.php "Schwelle des hochgeladenen" &&
+pruefe "Schwelle des hochgeladenen" \
+  CertificateVerdictTest::test_lets_encrypt_is_warned_two_nights_after_its_renewal_is_due failed
+wiederherstellen
+
+echo
+echo "── CertificateVerdictTest: abgelaufen loest die Warnung ab ──"
+#
+# Befund 3 aus docs/142 §2: Der Webhook bekam fuer „laeuft demnaechst ab"
+# eine Entwarnung in dem Augenblick, in dem es schlimmer wurde.
+vorher_datei app/Support/Diagnose/Checks/Certificates.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/Certificates.php')
+s = p.read_text(encoding='utf-8')
+alt = "        if ($validTo <= $now->getTimestamp() + $days * 86400) {\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "        if ($validTo > $now->getTimestamp() && $validTo <= $now->getTimestamp() + $days * 86400) {\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/Certificates.php "abgelaufen loest ab" &&
+pruefe "abgelaufen loest ab" \
+  CertificateVerdictTest::test_an_expired_certificate_keeps_its_warning failed
+wiederherstellen
+
+echo
+echo "── CertificateVerdictTest: der falsche Name verdeckt die Laufzeit ──"
+vorher_datei app/Support/Diagnose/Checks/Certificates.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/Certificates.php')
+s = p.read_text(encoding='utf-8')
+alt = "            $zeit = self::expiry($info, $now, self::expiringDays($row['renewed']));\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "            $zeit = $verdict === null ? self::expiry($info, $now, self::expiringDays($row['renewed'])) : [];\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/Certificates.php "Name verdeckt Laufzeit" &&
+pruefe "Name verdeckt Laufzeit" \
+  CertificateVerdictTest::test_a_name_mismatch_does_not_hide_the_expiry failed
+wiederherstellen
+
+echo
+echo "── CertificateVerdictTest: ohne Datei eine Laufzeit ──"
+#
+# Ohne Datei steht kein Zeitpunkt da; gerechnet wuerde mit null, und der
+# Befund nennte den 1. Januar 1970.
+vorher_datei app/Support/Diagnose/Checks/Certificates.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/Certificates.php')
+s = p.read_text(encoding='utf-8')
+alt = """        if ($info === null || ($info['present'] ?? false) !== true) {
+            // Ohne Datei keine Zeit — das sagt `missing` an der Datei.
+            return [];
+        }
+"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/Certificates.php "Laufzeit ohne Datei" &&
+pruefe "Laufzeit ohne Datei" \
+  CertificateVerdictTest::test_a_certificate_that_is_gone_is_missing_and_carries_the_reason failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateVerdictTest passed
+
+echo
+echo "── CertificateCadenceTest: eine Nacht Abstand ──"
+#
+# Die Diagnose laeuft dann noch vor dem ersten Versuch, der nach der
+# Faelligkeit kommt — die gelungene Erneuerung steht einmal als Befund da.
+vorher_datei app/Support/Diagnose/Checks/Certificates.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/Certificates.php')
+s = p.read_text(encoding='utf-8')
+alt = "    public const RENEWAL_NIGHTS = 2;\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "    public const RENEWAL_NIGHTS = 1;\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/Certificates.php "eine Nacht Abstand" &&
+pruefe "eine Nacht Abstand" \
+  CertificateCadenceTest::test_a_healthy_renewal_is_installed_before_the_warning_begins failed
+wiederherstellen
+
+echo
+echo "── CertificateCadenceTest: drei Naechte Abstand ──"
+#
+# Jede Nacht zu viel nimmt dem Kunden eine, in der er von einer scheiternden
+# Erneuerung erfaehrt.
+vorher_datei app/Support/Diagnose/Checks/Certificates.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/Certificates.php')
+s = p.read_text(encoding='utf-8')
+alt = "    public const RENEWAL_NIGHTS = 2;\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "    public const RENEWAL_NIGHTS = 3;\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/Certificates.php "drei Naechte Abstand" &&
+pruefe "drei Naechte Abstand" \
+  CertificateCadenceTest::test_the_warning_waits_no_night_longer_than_it_has_to failed
+wiederherstellen
+
+echo
+echo "── CertificateCadenceTest: die Erneuerung streut ueber einen Tag ──"
+#
+# Gelesen wird die Unit und nicht eine Zahl im Test: Wer den Zeitgeber
+# verstellt, soll erfahren, dass die Schwelle mitgehen muss.
+vorher_datei packaging/systemd/srvpanel-tls.timer
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('packaging/systemd/srvpanel-tls.timer')
+s = p.read_text(encoding='utf-8')
+alt = "RandomizedDelaySec=1h\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "RandomizedDelaySec=25h\n", 1), encoding='utf-8')
+PY
+griff_datei packaging/systemd/srvpanel-tls.timer "Erneuerung streut einen Tag" &&
+pruefe "Erneuerung streut einen Tag" \
+  CertificateCadenceTest::test_a_healthy_renewal_is_installed_before_the_warning_begins failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateCadenceTest passed
+
+echo
+echo "── LatestBackupTest: eine laufende Sicherung zaehlt als fertig ──"
+#
+# Dann verschwaende der Befund in jeder Nacht, in der die Diagnose neben einer
+# laufenden Sicherung steht, und kaeme mit neuem „steht seit" zurueck.
+vorher_datei app/Support/Diagnose/Checks/LatestBackups.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/LatestBackups.php')
+s = p.read_text(encoding='utf-8')
+alt = "    public const FINISHED = [BackupStatus::Ready, BackupStatus::Failed, BackupStatus::Removing];\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "    public const FINISHED = [BackupStatus::Ready, BackupStatus::Failed, BackupStatus::Removing, BackupStatus::Pending];\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/LatestBackups.php "laufende zaehlt" &&
+pruefe "laufende zaehlt" \
+  LatestBackupTest::test_a_running_backup_is_passed_over failed
+wiederherstellen
+
+echo
+echo "── LatestBackupTest: eine, die entfernt wird, zaehlt nicht als gelungen ──"
+vorher_datei app/Support/Diagnose/Checks/LatestBackups.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/LatestBackups.php')
+s = p.read_text(encoding='utf-8')
+alt = "    public const FINISHED = [BackupStatus::Ready, BackupStatus::Failed, BackupStatus::Removing];\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "    public const FINISHED = [BackupStatus::Ready, BackupStatus::Failed];\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/LatestBackups.php "Entfernte zaehlt nicht" &&
+pruefe "Entfernte zaehlt nicht" \
+  LatestBackupTest::test_a_backup_being_removed_counts_as_a_success failed
+wiederherstellen
+
+echo
+echo "── LatestBackupTest: ein Plan ohne Sicherungen hat einen Befund ──"
+#
+# Nach einem Planwechsel stuende ein Befund da, den keine Sicherung mehr
+# abloesen kann.
+vorher_datei app/Support/Diagnose/Checks/LatestBackups.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/LatestBackups.php')
+s = p.read_text(encoding='utf-8')
+alt = "                if ($abo->plan?->feature(Feature::Backups) !== true) {\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "                if (false) {\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/LatestBackups.php "Plan ohne Sicherungen" &&
+pruefe "Plan ohne Sicherungen" \
+  LatestBackupTest::test_only_what_can_be_backed_up_is_judged failed
+wiederherstellen
+
+echo
+echo "── LatestBackupTest: ein gesperrtes Abonnement hat einen Befund ──"
+vorher_datei app/Support/Diagnose/Checks/LatestBackups.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/LatestBackups.php')
+s = p.read_text(encoding='utf-8')
+alt = "                ->whereIn('status', SubscriptionStatus::usableValues())\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/LatestBackups.php "gesperrtes Abonnement" &&
+pruefe "gesperrtes Abonnement" \
+  LatestBackupTest::test_only_what_can_be_backed_up_is_judged failed
+wiederherstellen
+
+echo
+echo "── LatestBackupTest: die aelteste statt der juengsten ──"
+vorher_datei app/Support/Diagnose/Checks/LatestBackups.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/LatestBackups.php')
+s = p.read_text(encoding='utf-8')
+alt = "            ->orderByDesc('id')\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "            ->orderBy('id')\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/LatestBackups.php "aelteste statt juengste" &&
+pruefe "aelteste statt juengste" \
+  LatestBackupTest::test_a_younger_success_takes_it_back failed
+wiederherstellen
+
+echo
+echo "── LatestBackupTest: der Zeitpunkt steht ohne Zone ──"
+#
+# Ein Satz, der eine Stunde nennt, bleibt mit seiner Zone wahr, auch wenn
+# jemand die Anzeigezone spaeter umstellt.
+vorher_datei app/Support/Diagnose/Checks/LatestBackups.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Checks/LatestBackups.php')
+s = p.read_text(encoding='utf-8')
+alt = "                Clock::labelAt($erstellt) ?? '',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "                '',\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Checks/LatestBackups.php "Zeitpunkt ohne Zone" &&
+pruefe "Zeitpunkt ohne Zone" \
+  LatestBackupTest::test_a_failed_latest_backup_is_a_finding_with_its_time_and_reason failed
+wiederherstellen
+
+echo
+echo "── LatestBackupTest: die Sicherung mit der Haltezeit der Nacht ──"
+#
+# Dann wuerfelte die Meldung: eine einzelne gescheiterte in 18 % der Faelle
+# (docs/142 §3 M3).
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text(encoding='utf-8')
+alt = "            FindingCheck::BackupLatest => self::BACKUP_HOLD_MINUTES,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/Notices.php "Sicherung mit Haltezeit" &&
+pruefe "Sicherung mit Haltezeit" \
+  LatestBackupTest::test_it_is_due_the_moment_it_is_seen failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" LatestBackupTest passed
+
+echo
+echo "── NoticeAudienceTest: die gescheiterte Sicherung wartet eine Nacht ──"
+#
+# Durch den echten Meldelauf: in der ersten Nacht, die sie sieht.
+vorher_datei app/Support/Notify/Notices.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/Notices.php')
+s = p.read_text(encoding='utf-8')
+alt = "    public const BACKUP_HOLD_MINUTES = 0;\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "    public const BACKUP_HOLD_MINUTES = 1200;\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/Notices.php "Sicherung wartet" &&
+pruefe "Sicherung wartet" \
+  NoticeAudienceTest::test_a_failed_backup_goes_to_the_customer_in_the_first_night failed
+wiederherstellen
+
+echo
+echo "── NoticeAudienceTest: die Laufzeit des Zertifikats geht an den Betreiber ──"
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text(encoding='utf-8')
+alt = "    public const CUSTOMER = [FindingCheck::QuotaExceeded, FindingCheck::TlsExpiry, FindingCheck::BackupLatest];\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "    public const CUSTOMER = [FindingCheck::QuotaExceeded, FindingCheck::BackupLatest];\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/MailChannel.php "Laufzeit an den Betreiber" &&
+pruefe "Laufzeit an den Betreiber" \
+  NoticeAudienceTest::test_a_certificate_expiry_goes_to_the_customer_and_its_file_to_the_operator failed
+wiederherstellen
+
+echo
+echo "── NoticeAudienceTest: ein Zertifikat sucht sein Abonnement nicht ──"
+#
+# Ein Zertifikat nennt seine Domain und nicht sein Abonnement; ohne die Suche
+# gaebe es keinen Empfaenger.
+vorher_datei app/Support/Notify/CustomerFacts.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/CustomerFacts.php')
+s = p.read_text(encoding='utf-8')
+alt = "        if ($check !== FindingCheck::TlsExpiry) {\n            return $subject;\n        }\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "        if (true) {\n            return $subject;\n        }\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/CustomerFacts.php "Abonnement nicht gesucht" &&
+pruefe "Abonnement nicht gesucht" \
+  NoticeAudienceTest::test_a_certificate_expiry_goes_to_the_customer_and_its_file_to_the_operator failed
+wiederherstellen
+
+echo
+echo "── NoticeAudienceTest: eine Kundenmail je Art ──"
+#
+# Drei Mails in derselben Minute sind fuer den Empfaenger genau das, wogegen
+# „genau eine Mail" geschrieben ist.
+vorher_datei app/Support/Notify/MailChannel.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/MailChannel.php')
+s = p.read_text(encoding='utf-8')
+alt = "        return self::SUBSCRIPTION.($this->facts->subscriptionOf($check, $subject) ?? '');\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "        return self::SUBSCRIPTION.$check->value.':'.($this->facts->subscriptionOf($check, $subject) ?? '');\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/MailChannel.php "Kundenmail je Art" &&
+pruefe "Kundenmail je Art" \
+  NoticeAudienceTest::test_three_kinds_in_one_night_are_one_mail failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NoticeAudienceTest passed
+
+echo
+echo "── CustomerNoticeTest: je Domain beide Gruende ──"
+#
+# „laeuft demnaechst ab" neben „ist abgelaufen" widerspraeche sich.
+vorher_datei app/Mail/Notice/CertificateSection.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/Notice/CertificateSection.php')
+s = p.read_text(encoding='utf-8')
+alt = "isset($abgelaufen[$c['domain']])"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "false", 1), encoding='utf-8')
+PY
+griff_datei app/Mail/Notice/CertificateSection.php "beide Gruende je Domain" &&
+pruefe "beide Gruende je Domain" \
+  CustomerNoticeTest::test_an_expired_certificate_is_named_alone failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: eine abgelaufene Domain nimmt der anderen die Warnung ──"
+vorher_datei app/Mail/Notice/CertificateSection.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/Notice/CertificateSection.php')
+s = p.read_text(encoding='utf-8')
+alt = "isset($abgelaufen[$c['domain']])"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "$abgelaufen !== []", 1), encoding='utf-8')
+PY
+griff_datei app/Mail/Notice/CertificateSection.php "andere Domain verliert ihre Warnung" &&
+pruefe "andere Domain verliert ihre Warnung" \
+  CustomerNoticeTest::test_an_expired_certificate_is_named_alone failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: ein Grund des Zertifikats ohne Ueberschrift ──"
+vorher_datei app/Mail/Notice/CertificateSection.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/Notice/CertificateSection.php')
+s = p.read_text(encoding='utf-8')
+alt = "            default => throw new LogicException(sprintf('Für den Grund „%s\" gibt es keine Überschrift.', $reason)),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "            default => 'Zertifikat',\n", 1), encoding='utf-8')
+PY
+griff_datei app/Mail/Notice/CertificateSection.php "Zertifikat ohne Ueberschrift" &&
+pruefe "Zertifikat ohne Ueberschrift" \
+  CustomerNoticeTest::test_every_reason_a_customer_can_get_has_a_headline failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: hochladen, auch wenn der Plan es nicht erlaubt ──"
+vorher_datei app/Mail/Notice/CertificateSection.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/Notice/CertificateSection.php')
+s = p.read_text(encoding='utf-8')
+alt = ".($this->mayUpload\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, ".(true\n", 1), encoding='utf-8')
+PY
+griff_datei app/Mail/Notice/CertificateSection.php "Hochladen ohne Plan" &&
+pruefe "Hochladen ohne Plan" \
+  CustomerNoticeTest::test_what_the_customer_can_do_follows_the_source failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: eine Faelligkeit fuer ein hochgeladenes ──"
+#
+# Ein hochgeladenes Zertifikat erneuert niemand — eine Faelligkeit waere
+# erfunden.
+vorher_datei app/Mail/Notice/CertificateSection.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/Notice/CertificateSection.php')
+s = p.read_text(encoding='utf-8')
+alt = "'Erneuerung fällig seit' => $c['renewed'] ? $c['due_since'] : null,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "'Erneuerung fällig seit' => $c['due_since'],", 1), encoding='utf-8')
+PY
+griff_datei app/Mail/Notice/CertificateSection.php "Faelligkeit fuer hochgeladenes" &&
+pruefe "Faelligkeit fuer hochgeladenes" \
+  CustomerNoticeTest::test_what_the_customer_can_do_follows_the_source failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: von selbst auch ohne Automatik ──"
+vorher_datei app/Mail/Notice/BackupSection.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/Notice/BackupSection.php')
+s = p.read_text(encoding='utf-8')
+alt = "        if ($this->automatic) {\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "        if (true) {\n", 1), encoding='utf-8')
+PY
+griff_datei app/Mail/Notice/BackupSection.php "von selbst ohne Automatik" &&
+pruefe "von selbst ohne Automatik" \
+  CustomerNoticeTest::test_the_backup_section_names_what_is_left failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: die Abschnitte in der Reihenfolge ihres Entstehens ──"
+vorher_datei app/Mail/CustomerNotice.php
+python3 - <<'PY'
+import pathlib, re
+p = pathlib.Path('app/Mail/CustomerNotice.php')
+s = p.read_text(encoding='utf-8')
+alt = re.findall(r'^        usort\(\$sections, .*\n', s, re.M)
+assert len(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt[0], '', 1), encoding='utf-8')
+PY
+griff_datei app/Mail/CustomerNotice.php "Reihenfolge des Entstehens" &&
+pruefe "Reihenfolge des Entstehens" \
+  CustomerNoticeTest::test_the_sections_stand_in_order_and_the_closing_once failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: der Schlusssatz steht je Abschnitt ──"
+vorher_datei app/Mail/CustomerNotice.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/CustomerNotice.php')
+s = p.read_text(encoding='utf-8')
+alt = '            $bloecke[] = implode("\\n", $abschnitt->lines());\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, alt + "            $bloecke[] = 'Sie bekommen diese Nachricht einmal je Zustand.';\n", 1), encoding='utf-8')
+PY
+griff_datei app/Mail/CustomerNotice.php "Schlusssatz je Abschnitt" &&
+pruefe "Schlusssatz je Abschnitt" \
+  CustomerNoticeTest::test_the_sections_stand_in_order_and_the_closing_once failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: die Angaben unter einem Befund brechen nicht ──"
+vorher_datei app/Mail/Concerns/PlainText.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/Concerns/PlainText.php')
+s = p.read_text(encoding='utf-8')
+alt = "            self::wrap($beschriftung.': '.$wert, self::WIDTH - 2),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "            [$beschriftung.': '.$wert],\n", 1), encoding='utf-8')
+PY
+griff_datei app/Mail/Concerns/PlainText.php "Angaben ungebrochen" &&
+pruefe "Angaben ungebrochen" \
+  CustomerNoticeTest::test_no_line_is_longer_than_77_characters failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: eine Pruefung des Kunden ohne Abschnitt ──"
+#
+# Dann wuerfe der Meldelauf erst im Nachtlauf.
+vorher_datei app/Support/Notify/CustomerFacts.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/CustomerFacts.php')
+s = p.read_text(encoding='utf-8')
+alt = "                    FindingCheck::BackupLatest => $this->backup($abo, $befunde[0]),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/CustomerFacts.php "Pruefung ohne Abschnitt" &&
+pruefe "Pruefung ohne Abschnitt" \
+  CustomerNoticeTest::test_every_check_of_the_customer_has_a_section failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: der Tag kommt aus dem Bestand ──"
+#
+# Er ist dann ein anderer als der, den die Pruefung an der Datei beurteilt hat.
+vorher_datei app/Support/Notify/CustomerFacts.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/CustomerFacts.php')
+s = p.read_text(encoding='utf-8')
+alt = "                'valid_to' => self::when($bis) ?? '—',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "                'valid_to' => self::when($zertifikat?->not_after) ?? '—',\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/CustomerFacts.php "Tag aus dem Bestand" &&
+pruefe "Tag aus dem Bestand" \
+  CustomerNoticeTest::test_the_facts_come_from_the_finding_and_the_inventory failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: die Herkunft wird geraten ──"
+vorher_datei app/Support/Notify/CustomerFacts.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/CustomerFacts.php')
+s = p.read_text(encoding='utf-8')
+alt = "                'renewed' => $zertifikat?->source === CertificateSource::Acme,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "                'renewed' => false,\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/CustomerFacts.php "Herkunft geraten" &&
+pruefe "Herkunft geraten" \
+  CustomerNoticeTest::test_the_facts_come_from_the_finding_and_the_inventory failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: ein gelungener Versuch wird als letzter genannt ──"
+vorher_datei app/Support/Notify/CustomerFacts.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/CustomerFacts.php')
+s = p.read_text(encoding='utf-8')
+alt = "        if ($vorgang === null || $vorgang->status !== OperationStatus::Failed) {\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "        if ($vorgang === null) {\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/CustomerFacts.php "gelungener Versuch genannt" &&
+pruefe "gelungener Versuch genannt" \
+  CustomerNoticeTest::test_only_a_failed_last_attempt_is_named failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: der aelteste Versuch statt des letzten ──"
+vorher_datei app/Support/Notify/CustomerFacts.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/CustomerFacts.php')
+s = p.read_text(encoding='utf-8')
+alt = "            ->where('subject_id', $domain->id)\n            ->orderByDesc('id')\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "            ->where('subject_id', $domain->id)\n            ->orderBy('id')\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/CustomerFacts.php "aeltester Versuch" &&
+pruefe "aeltester Versuch" \
+  CustomerNoticeTest::test_only_a_failed_last_attempt_is_named failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: von selbst, auch wenn der Plan nichts aufbewahrt ──"
+vorher_datei app/Support/Notify/CustomerFacts.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Notify/CustomerFacts.php')
+s = p.read_text(encoding='utf-8')
+alt = "            && (int) ($abo?->quota(Quota::Backups->value) ?? 0) > 0;\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, ";\n", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Notify/CustomerFacts.php "von selbst ohne Kontingent" &&
+pruefe "von selbst ohne Kontingent" \
+  CustomerNoticeTest::test_no_promise_without_a_kept_backup failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CustomerNoticeTest passed
+
+echo
+echo "── DiagnoseRunTest: die Pruefung der juengsten Sicherung fehlt im Katalog ──"
+#
+# Eine Pruefung, die niemand faehrt, ist Code ohne Wirkung.
+vorher_datei app/Support/Diagnose/Catalog.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Support/Diagnose/Catalog.php')
+s = p.read_text(encoding='utf-8')
+alt = "        LatestBackups::class,\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "", 1), encoding='utf-8')
+PY
+griff_datei app/Support/Diagnose/Catalog.php "juengste Sicherung fehlt" &&
+pruefe "juengste Sicherung fehlt" \
+  DiagnoseRunTest::test_the_catalogue_names_every_check_that_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DiagnoseRunTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

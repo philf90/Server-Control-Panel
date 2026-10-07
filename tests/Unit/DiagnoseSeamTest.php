@@ -8,6 +8,7 @@ use App\Enums\FindingCheck;
 use App\Support\Diagnose\Checks\Backups;
 use App\Support\Diagnose\Checks\Certificates;
 use App\Support\Diagnose\Checks\DiskSpace;
+use App\Support\Diagnose\Checks\LatestBackups;
 use App\Support\Diagnose\Checks\MaintenanceFlag;
 use App\Support\Diagnose\Checks\MaintenanceWindow;
 use App\Support\Diagnose\Checks\ManagedBlocks;
@@ -166,6 +167,7 @@ final class DiagnoseSeamTest extends TestCase
         'MaintenanceWindow' => MaintenanceWindow::REASONS,
         'MaintenanceFlag' => MaintenanceFlag::REASONS,
         'Backups' => Backups::REASONS,
+        'LatestBackups' => LatestBackups::REASONS,
         'DiskSpace' => DiskSpace::REASONS,
     ];
 

@@ -9,8 +9,9 @@ use Illuminate\Support\Carbon;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Zwei Fragen an ein Zertifikat, und die zweite nur, wenn die erste heil ist
- * (A10 Schritt 5, `docs/98 §3 E`, Frage 3 mit **c** entschieden).
+ * Drei Fragen an ein Zertifikat, und die an die Leitung nur, wenn die beiden
+ * ersten heil sind (A10 Schritt 5, `docs/98 §3 E`, Frage 3 mit **c**
+ * entschieden; B9, `docs/142`).
  *
  * ## Warum die Reihenfolge das Kriterium ist
  *
@@ -39,7 +40,9 @@ final class CertificateVerdictTest extends TestCase
 
     private function now(): Carbon
     {
-        return Carbon::parse('2026-09-02 03:00:00');
+        // In UTC und nicht in der Zone der Maschine: Der Satz der Zeit steht in
+        // UTC, und ein Prüfstand in Berlin läse sonst zwei Stunden daneben.
+        return Carbon::parse('2026-09-02 03:00:00', 'UTC');
     }
 
     /**
@@ -57,10 +60,27 @@ final class CertificateVerdictTest extends TestCase
         ];
     }
 
-    /** @return list<array{name: string, names: list<string>, storage: null|string}> */
-    private function rows(?string $storage = 'kunde.invalid'): array
+    /** @return list<array{name: string, names: list<string>, storage: null|string, renewed: bool}> */
+    private function rows(?string $storage = 'kunde.invalid', bool $renewed = false): array
     {
-        return [['name' => 'kunde.invalid', 'names' => ['kunde.invalid', 'www.kunde.invalid'], 'storage' => $storage]];
+        return [[
+            'name' => 'kunde.invalid',
+            'names' => ['kunde.invalid', 'www.kunde.invalid'],
+            'storage' => $storage,
+            'renewed' => $renewed,
+        ]];
+    }
+
+    /**
+     * Die Gründe der Zeit für ein Zertifikat mit dieser Restlaufzeit.
+     *
+     * @return list<string>
+     */
+    private function zeit(int $sekunden, bool $renewed): array
+    {
+        $info = $this->info(['valid_to' => $this->now()->getTimestamp() + $sekunden]);
+
+        return array_column(Certificates::expiry($info, $this->now(), Certificates::expiringDays($renewed)), 'reason');
     }
 
     public function test_a_healthy_certificate_yields_nothing(): void
@@ -78,33 +98,45 @@ final class CertificateVerdictTest extends TestCase
         );
 
         $this->assertSame([], $verdict['file']);
+        $this->assertSame([], $verdict['expiry']);
         $this->assertSame([], $verdict['wire']);
         $this->assertSame(['kunde.invalid'], $gefragt, 'Die Leitung wurde nicht gefragt — dann prüft dieser Fall die Reihenfolge nicht.');
     }
 
     /**
-     * Die Leitung wird gar nicht erst gefragt, wenn die Datei schon rot ist.
+     * Die Leitung wird gar nicht erst gefragt, wenn Datei oder Zeit schon rot
+     * sind — an beiden Fragen einzeln gemessen.
      *
      * Das Kriterium dieses Wächters: **null** Aufrufe, nicht bloss kein
-     * zusätzlicher Befund.
+     * zusätzlicher Befund. **Beide Fälle stehen hier, weil sie an zwei
+     * Bedingungen hängen:** Ein abgelaufenes Zertifikat hat seit B9 keinen
+     * Befund an der Datei mehr, sondern zwei an der Zeit — wer nur die Datei
+     * fragt, fragt die Leitung danach wieder.
      */
     public function test_the_wire_is_not_asked_when_the_file_is_already_a_finding(): void
     {
-        $gefragt = 0;
-        $verdict = Certificates::judge(
-            $this->rows(),
-            ['kunde.invalid' => $this->info(['valid_to' => $this->now()->getTimestamp() - 3600])],
-            function () use (&$gefragt): string {
-                $gefragt++;
+        $faelle = [
+            'abgelaufen' => [$this->info(['valid_to' => $this->now()->getTimestamp() - 3600]), 'expiry', 'expiring'],
+            'Name nicht gedeckt' => [$this->info(['names' => ['kunde.invalid']]), 'file', 'name_mismatch'],
+        ];
 
-                return self::FP_DATEI;
-            },
-            $this->now(),
-        );
+        foreach ($faelle as $fall => [$info, $frage, $grund]) {
+            $gefragt = 0;
+            $verdict = Certificates::judge(
+                $this->rows(),
+                ['kunde.invalid' => $info],
+                function () use (&$gefragt): string {
+                    $gefragt++;
 
-        $this->assertSame('expired', $verdict['file'][0]['reason']);
-        $this->assertSame([], $verdict['wire']);
-        $this->assertSame(0, $gefragt, 'Zwei Befunde für eine Ursache — genau die Falle aus docs/98 §4.');
+                    return self::FP_DATEI;
+                },
+                $this->now(),
+            );
+
+            $this->assertSame($grund, $verdict[$frage][0]['reason'] ?? null, $fall);
+            $this->assertSame([], $verdict['wire'], $fall);
+            $this->assertSame(0, $gefragt, $fall.': Zwei Befunde für eine Ursache — genau die Falle aus docs/98 §4.');
+        }
     }
 
     public function test_a_certificate_that_is_gone_is_missing_and_carries_the_reason(): void
@@ -118,6 +150,7 @@ final class CertificateVerdictTest extends TestCase
 
         $this->assertSame('missing', $verdict['file'][0]['reason']);
         $this->assertStringContainsString('fullchain.pem', (string) $verdict['file'][0]['detail']);
+        $this->assertSame([], $verdict['expiry'], 'Ohne Datei gibt es keine Laufzeit — ein Satz über sie wäre erfunden.');
     }
 
     /** Ein Name, den das Zertifikat nicht deckt — auch wenn es gültig ist. */
@@ -137,22 +170,89 @@ final class CertificateVerdictTest extends TestCase
     /** Ein Platzhalter deckt genau eine Beschriftung — dieselbe Regel wie im Modell. */
     public function test_a_wildcard_covers_one_label(): void
     {
-        $this->assertNull(Certificates::file(['www.kunde.invalid'], $this->info(['names' => ['*.kunde.invalid']]), $this->now()));
+        $this->assertNull(Certificates::file(['www.kunde.invalid'], $this->info(['names' => ['*.kunde.invalid']])));
 
-        $verdict = Certificates::file(['a.b.kunde.invalid'], $this->info(['names' => ['*.kunde.invalid']]), $this->now());
+        $verdict = Certificates::file(['a.b.kunde.invalid'], $this->info(['names' => ['*.kunde.invalid']]));
         $this->assertSame('name_mismatch', $verdict['reason'] ?? null, 'Ein Platzhalter deckt zwei Beschriftungen — dann ist die Regel doppelt geschrieben.');
     }
 
-    /** Punkt 6 des Abnahmekriteriums: dreissig Tage sind `warn`, abgelaufen ist `fail`. */
+    /**
+     * Punkt 6 des Abnahmekriteriums: dreissig Tage sind `warn` — für ein
+     * Zertifikat, das niemand erneuert.
+     */
     public function test_the_expiring_window_is_thirty_days(): void
     {
         $this->assertSame(30, Certificates::EXPIRING_DAYS);
+        $this->assertSame(30, Certificates::expiringDays(false));
 
-        $knapp = $this->info(['valid_to' => $this->now()->getTimestamp() + 29 * 86400]);
-        $this->assertSame('expiring', Certificates::file(['kunde.invalid'], $knapp, $this->now())['reason'] ?? null);
+        $this->assertSame(['expiring'], $this->zeit(29 * 86400, false));
+        $this->assertSame([], $this->zeit(31 * 86400, false));
+    }
 
-        $weit = $this->info(['valid_to' => $this->now()->getTimestamp() + 31 * 86400]);
-        $this->assertNull(Certificates::file(['kunde.invalid'], $weit, $this->now()));
+    /**
+     * Eines von Let's Encrypt erst zwei Nächte, nachdem seine Erneuerung
+     * fällig wurde (`docs/142 §6`, Frage 2) — und das hängt an der Zeile und
+     * nicht an der Konstante.
+     *
+     * **Durch `judge()` und nicht nur über `expiringDays()`.** Eine Prüfung,
+     * die für jede Zeile die Schwelle des hochgeladenen nähme, rechnete
+     * `expiringDays()` richtig und meldete trotzdem jede gelungene Erneuerung,
+     * die die Diagnose vor sich hat.
+     */
+    public function test_lets_encrypt_is_warned_two_nights_after_its_renewal_is_due(): void
+    {
+        $this->assertSame(28, Certificates::expiringDays(true));
+
+        $this->assertSame([], $this->zeit(29 * 86400, true), 'Neunundzwanzig Tage: Die Erneuerung ist fällig und hat ihre Nächte noch.');
+        $this->assertSame(['expiring'], $this->zeit(27 * 86400, true));
+
+        $info = $this->info(['valid_to' => $this->now()->getTimestamp() + 29 * 86400]);
+        $wire = fn (): string => self::FP_DATEI;
+
+        $this->assertSame([], Certificates::judge($this->rows(renewed: true), ['kunde.invalid' => $info], $wire, $this->now())['expiry'],
+            'Die Zeile sagt „Let\'s Encrypt", und die Prüfung hat trotzdem ab dreissig Tagen gewarnt.');
+        $this->assertSame('expiring', Certificates::judge($this->rows(renewed: false), ['kunde.invalid' => $info], $wire, $this->now())['expiry'][0]['reason'] ?? null,
+            'Ein hochgeladenes Zertifikat wird mit neunundzwanzig Tagen nicht gemeldet — dann ist die Schwelle für beide dieselbe.');
+    }
+
+    /**
+     * Ein abgelaufenes Zertifikat behält „läuft demnächst ab" (`docs/142 §2`,
+     * Befund 3).
+     *
+     * Löste `expired` den anderen ab, verschwände der Befund `expiring` beim
+     * Ablauf, und der Webhook meldete „erledigt" in dem Augenblick, in dem es
+     * schlimmer wird.
+     */
+    public function test_an_expired_certificate_keeps_its_warning(): void
+    {
+        $this->assertSame(['expiring', 'expired'], $this->zeit(-3600, false));
+        $this->assertSame(['expiring', 'expired'], $this->zeit(-3600, true));
+        $this->assertSame(['expiring', 'expired'], $this->zeit(0, false), 'Auf die Sekunde der Ablauf ist abgelaufen.');
+    }
+
+    /**
+     * Ein Zertifikat, das einen Namen nicht deckt und abläuft, sind zwei
+     * Befunde (`docs/142 §2`, Befund 3).
+     *
+     * Bis zum 7. Oktober 2026 hiess es nur `name_mismatch`. Seit B9 geht die
+     * Laufzeit an den Kunden und der Name an den Betreiber — ein Befund, der
+     * den anderen verdeckt, nähme einem von beiden seine Meldung.
+     */
+    public function test_a_name_mismatch_does_not_hide_the_expiry(): void
+    {
+        $verdict = Certificates::judge(
+            $this->rows(),
+            ['kunde.invalid' => $this->info([
+                'names' => ['kunde.invalid'],
+                'valid_to' => $this->now()->getTimestamp() + 10 * 86400,
+            ])],
+            fn (): string => self::FP_DATEI,
+            $this->now(),
+        );
+
+        $this->assertSame(['name_mismatch'], array_column($verdict['file'], 'reason'));
+        $this->assertSame(['expiring'], array_column($verdict['expiry'], 'reason'));
+        $this->assertSame('gültig bis 2026-09-12 03:00 UTC', $verdict['expiry'][0]['detail']);
     }
 
     /** Der Fall, den nur die Leitung fängt. */
@@ -166,6 +266,7 @@ final class CertificateVerdictTest extends TestCase
         );
 
         $this->assertSame([], $verdict['file']);
+        $this->assertSame([], $verdict['expiry']);
         $this->assertSame('not_served', $verdict['wire'][0]['reason']);
         $this->assertStringContainsString(self::FP_ANDERS, (string) $verdict['wire'][0]['detail']);
     }
@@ -199,6 +300,7 @@ final class CertificateVerdictTest extends TestCase
         }, $this->now());
 
         $this->assertSame([], $verdict['file']);
+        $this->assertSame([], $verdict['expiry']);
         $this->assertSame([], $verdict['wire']);
         $this->assertSame(0, $gefragt);
     }

@@ -74,18 +74,22 @@ final class FindingIdentityTest extends TestCase
         $jetzt = Carbon::parse('2026-09-02 03:00:00');
 
         $log->replace(FindingCheck::TlsFile, [
-            ['subject' => 'kunde.de', 'reason' => 'expiring', 'detail' => null],
+            ['subject' => 'kunde.de', 'reason' => 'missing', 'detail' => null],
         ], $jetzt);
 
-        // Aus „läuft demnächst ab" wird „ist abgelaufen". Derselbe Gegenstand,
-        // ein anderer Grund — und damit ein anderer Befund, der ein eigenes
-        // „steht seit" verdient.
+        // Aus „fehlt" wird „deckt den Namen nicht": Jemand hat ein Zertifikat
+        // abgelegt, aber das falsche. Derselbe Gegenstand, ein anderer Grund —
+        // und damit ein anderer Befund, der ein eigenes „steht seit" verdient.
+        //
+        // Hier stand bis zum 7. Oktober 2026 „läuft demnächst ab" gegen „ist
+        // abgelaufen". Die beiden lösen einander seit B9 nicht mehr ab; sie
+        // stehen nebeneinander (`docs/142`, Befund 3).
         $log->replace(FindingCheck::TlsFile, [
-            ['subject' => 'kunde.de', 'reason' => 'expired', 'detail' => null],
+            ['subject' => 'kunde.de', 'reason' => 'name_mismatch', 'detail' => null],
         ], $jetzt->copy()->addDays(12));
 
         $this->assertSame(1, Finding::query()->count(), 'Der alte Befund ist stehengeblieben, obwohl der Lauf ihn nicht mehr genannt hat.');
-        $this->assertSame('expired', Finding::query()->sole()->reason);
+        $this->assertSame('name_mismatch', Finding::query()->sole()->reason);
     }
 
     public function test_what_a_run_no_longer_names_is_gone(): void

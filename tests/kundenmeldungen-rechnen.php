@@ -13,9 +13,14 @@ declare(strict_types=1);
  * Modell ihrer Units unter `packaging/systemd`: `OnCalendar=daily`, die
  * Streuung aus `RandomizedDelaySec`, je Nacht neu gewürfelt
  * (`FixedRandomDelay=no`, gemessen in `docs/909`). Die Regeln kommen aus dem
- * Bestand und nicht aus einer zweiten Fassung hier: {@see Certificates::file()}
+ * Bestand und nicht aus einer zweiten Fassung hier: {@see Certificates::expiry()}
  * entscheidet „läuft demnächst ab", {@see CertificateRenewal::due()} den
  * Zeitpunkt der Erneuerung und {@see Notices::HOLD_HOURS} die Haltezeit.
+ *
+ * **Seit dem Bau von B9 rechnet das Skript gegen den neuen Stand.** Die
+ * Tabellen in `docs/142 §3` sind vom 7. Oktober 2026, vor dem Bau: M1 und M3
+ * kommen genauso heraus, M2 nicht mehr — dort stand der Befund, den B9 behebt.
+ * Die Ausgabe danach steht in `docs/142 §10`.
  *
  * **Die Laufzeit eines Zertifikats ist gemessen**, an einem echten von Let's
  * Encrypt auf `cloudsrv24` (`docs/78`): `notAfter` ist `notBefore` plus
@@ -52,13 +57,12 @@ const VALIDITY = 90 * DAY - 1;
  * Eine gesunde Erneuerung über acht Nächte — wie oft sieht die Diagnose
  * „läuft demnächst ab"?
  *
- * `$lag` verschiebt die Schwelle der Diagnose hinter die der Erneuerung:
- * gemeldet wird dann ab `30 − $lag` Tagen Restlaufzeit. `$broken` lässt die
- * Erneuerung nie gelingen — die Gegenprobe.
+ * `$days` ist die Schwelle der Diagnose: gemeldet wird ab so vielen Tagen
+ * Restlaufzeit. `$broken` lässt die Erneuerung nie gelingen — die Gegenprobe.
  *
  * @return array{twice: int, once: int}
  */
-function renewal(int $tries, int $duration, int $lag, bool $broken): array
+function renewal(int $tries, int $duration, int $days, bool $broken): array
 {
     mt_srand(20261007);
     $twice = 0;
@@ -83,9 +87,8 @@ function renewal(int $tries, int $duration, int $lag, bool $broken): array
             $validTo = $installed !== null && $installed <= $diagnose ? $installed + VALIDITY : $notAfter;
             $info = ['present' => true, 'valid_to' => $validTo, 'names' => ['example.de']];
 
-            // Valid_to <= (jetzt − Versatz) + 30 Tage heisst: gemeldet ab 30 − Versatz.
-            $verdict = Certificates::file(['example.de'], $info, Carbon::createFromTimestamp($diagnose - $lag * DAY));
-            $run = ($verdict['reason'] ?? null) === 'expiring' ? $run + 1 : 0;
+            $verdict = Certificates::expiry($info, Carbon::createFromTimestamp($diagnose), $days);
+            $run = in_array('expiring', array_column($verdict, 'reason'), true) ? $run + 1 : 0;
             $longest = max($longest, $run);
         }
 
@@ -170,30 +173,47 @@ $tries = 200_000;
 
 echo "M1 · Eine Erneuerung von Let's Encrypt gegen die Diagnose ({$tries} Versuche)\n";
 
-foreach ([[5, 0, false], [60, 0, false], [300, 0, false], [60, 1, false], [60, 2, false], [60, 0, true], [60, 2, true]] as [$duration, $lag, $broken]) {
-    $r = renewal($tries, $duration, $lag, $broken);
+// 30 ist die Schwelle vor B9 und die eines hochgeladenen Zertifikats, die
+// gebaute für Let's Encrypt kommt aus der Prüfung selbst.
+$gebaut = Certificates::expiringDays(true);
+
+foreach ([[5, 30, false], [60, 30, false], [300, 30, false], [60, 29, false], [60, $gebaut, false], [60, 30, true], [60, $gebaut, true]] as [$duration, $days, $broken]) {
+    $r = renewal($tries, $duration, $days, $broken);
     printf(
         "  %-10s Dauer %3d s, gemeldet ab %2d Tagen:  zweimal hintereinander %6.2f %%  nur einmal %6.2f %%\n",
         $broken ? 'kaputt' : 'gesund',
         $duration,
-        30 - $lag,
+        $days,
         100 * $r['twice'] / $tries,
         100 * $r['once'] / $tries,
     );
 }
 
-echo "\nM2 · Welchen Grund spricht Certificates::file() wann aus\n";
+echo "\nM2 · Welche Gründe Certificates::file() und expiry() wann aussprechen\n";
 
 $notAfter = Carbon::parse('2026-11-22 11:00:17', 'UTC');
 $info = ['present' => true, 'valid_to' => $notAfter->getTimestamp(), 'names' => ['example.de']];
 
+/** @param  list<array{reason: string, detail: string}>  $befunde */
+$gruende = static fn (array $befunde): string => $befunde === [] ? 'kein Befund' : implode(' + ', array_column($befunde, 'reason'));
+
 foreach (['-35 days', '-29 days', '-1 hour', '+1 hour', '+3 days'] as $shift) {
-    $verdict = Certificates::file(['example.de'], $info, $notAfter->copy()->modify($shift));
-    printf("  %-9s  %s\n", $shift, $verdict === null ? 'kein Befund' : $verdict['reason']);
+    $jetzt = $notAfter->copy()->modify($shift);
+    printf(
+        "  %-9s  hochgeladen: %-18s  Let's Encrypt: %s\n",
+        $shift,
+        $gruende(Certificates::expiry($info, $jetzt, Certificates::expiringDays(false))),
+        $gruende(Certificates::expiry($info, $jetzt, Certificates::expiringDays(true))),
+    );
 }
 
-$verdict = Certificates::file(['example.de', 'www.example.de'], $info, $notAfter->copy()->modify('-10 days'));
-printf("  läuft ab und deckt www.example.de nicht:  %s\n", $verdict['reason'] ?? 'kein Befund');
+$datei = Certificates::file(['example.de', 'www.example.de'], $info);
+$zeit = Certificates::expiry($info, $notAfter->copy()->modify('-10 days'), Certificates::expiringDays(false));
+printf(
+    "  läuft ab und deckt www.example.de nicht:  Datei %s, Zeit %s\n",
+    $datei['reason'] ?? 'kein Befund',
+    $gruende($zeit),
+);
 
 $tries = 100_000;
 $hold = Notices::HOLD_HOURS * 3600;

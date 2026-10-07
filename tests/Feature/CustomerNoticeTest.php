@@ -361,13 +361,26 @@ final class CustomerNoticeTest extends TestCase
      * kein Versuch in der Mail — auch wenn davor einer gescheitert ist. Ein
      * gelungener Satz unter „Letzter Versuch" läse sich wie der Grund, und der
      * ältere gescheiterte wäre eine Auskunft von gestern.
+     *
+     * **Das Zertifikat ist von Let's Encrypt, sonst misst der Fall nichts.**
+     * „Letzter Versuch" steht nur bei einem Zertifikat, das das Panel selbst
+     * erneuert. Im ersten Wurf hatte die Domain gar keines; die Zeile fehlte
+     * dann in jeder Fassung, und beide Eingriffe an der Abfrage blieben grün.
+     * Deshalb steht die Gegenprobe am Ende: Scheitert der nächste Versuch,
+     * steht er da.
      */
     public function test_only_a_failed_last_attempt_is_named(): void
     {
-        $this->abonnement();
+        $abo = $this->abonnement();
 
-        app(Tenancy::class)->withoutRestriction(static function (): void {
+        $domain = app(Tenancy::class)->withoutRestriction(static function () use ($abo): Domain {
             $domain = Domain::query()->where('name', 'p1000.example')->sole();
+
+            $zertifikat = Certificate::factory()->covering(['p1000.example'])->create([
+                'subscription_id' => $abo->id,
+                'source' => CertificateSource::Acme,
+            ]);
+            $domain->forceFill(['certificate_id' => $zertifikat->id])->save();
 
             foreach ([[OperationStatus::Failed, 'Die Prüfdatei war nicht erreichbar.'], [OperationStatus::Succeeded, 'Das Zertifikat ist ausgestellt.']] as [$zustand, $meldung]) {
                 Operation::factory()->create([
@@ -379,14 +392,36 @@ final class CustomerNoticeTest extends TestCase
                     'finished_at' => Carbon::parse('2026-10-25 00:12:00', 'UTC'),
                 ]);
             }
+
+            return $domain;
         });
 
         $befund = FindingFactory::new()->make(['check' => FindingCheck::TlsExpiry, 'subject' => 'p1000.example', 'reason' => 'expiring', 'detail' => 'gültig bis 2026-11-22 11:00 UTC']);
         $text = self::fliesstext((new CustomerNotice('p1000', app(CustomerFacts::class)->sections('p1000', [$befund])))->render());
 
-        self::assertStringContainsString('Gültig bis', $text, 'Der Abschnitt fehlt — dann misst dieser Fall nichts.');
+        self::assertStringContainsString('Erneuerung fällig seit', $text,
+            'Die Zeilen der Erneuerung fehlen — dann kann „Letzter Versuch" gar nicht dastehen, und dieser Fall misst nichts.');
         self::assertStringNotContainsString('Letzter Versuch', $text);
         self::assertStringNotContainsString('ausgestellt', $text);
+        self::assertStringNotContainsString('nicht erreichbar', $text, 'Der ältere Fehlschlag stand statt des letzten Vorgangs da.');
+
+        app(Tenancy::class)->withoutRestriction(static function () use ($domain): void {
+            Operation::factory()->create([
+                'type' => 'acme.certificate.issue',
+                'subject_type' => 'domain',
+                'subject_id' => $domain->id,
+                'status' => OperationStatus::Failed,
+                'message' => 'Die Bestellung wurde abgewiesen.',
+                'finished_at' => Carbon::parse('2026-10-26 00:12:00', 'UTC'),
+            ]);
+        });
+
+        $text = self::fliesstext((new CustomerNotice('p1000', app(CustomerFacts::class)->sections('p1000', [$befund])))->render());
+
+        self::assertStringContainsString('Letzter Versuch', $text,
+            'Dieselbe Domain mit einem gescheiterten letzten Versuch: Fehlt die Zeile hier, sagt ihr Fehlen oben nichts.');
+        self::assertStringContainsString('Die Bestellung wurde abgewiesen.', $text);
+        self::assertStringNotContainsString('nicht erreichbar', $text, 'Der ältere Fehlschlag stand statt des letzten Vorgangs da.');
     }
 
     /**

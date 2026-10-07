@@ -350,21 +350,43 @@ final class NoticeAudienceTest extends TestCase
         $this->abonnement();
         $kanal = app(MailChannel::class);
 
+        /*
+         * **Verglichen und nicht gelesen.** Der Schlüssel ist undurchsichtig
+         * (`Channel::batchKey()`); was er bedeutet, sagt hier allein, mit
+         * welchem anderen er übereinstimmt. Der erste Wurf suchte den Namen
+         * des Abonnements darin und nahm einen Schlüssel mit dem Namen der
+         * Domain davon aus. Eine Prüfung des Servers, die dem Kunden
+         * zugeschlagen war, bündelte damit unter ihrer Domain und galt
+         * trotzdem als eine des Betreibers. Gefunden hat es der Eingriff, der
+         * nicht biss.
+         */
+        $abonnement = $kanal->batchKey(FindingCheck::QuotaExceeded, 'p1000');
+        $server = $kanal->batchKey(self::SERVER, 'srvpanel-worker.service');
+
+        self::assertNotSame($abonnement, $server,
+            'Abonnement und Betreiber bündeln unter demselben Schlüssel — dann trennt dieser Fall nichts.');
+
         $betreiber = [];
         $kunden = [];
+        $weder = [];
 
         foreach (FindingCheck::cases() as $check) {
             $gegenstand = $check->subjectLabel() === 'Domain' ? 'p1000.example' : 'p1000';
             $schluessel = $kanal->batchKey($check, $gegenstand);
 
-            if (str_contains($schluessel, 'p1000') && ! str_contains($schluessel, 'p1000.example')) {
+            if ($schluessel === $abonnement) {
                 $kunden[] = $check->value;
-            } else {
+            } elseif ($schluessel === $server) {
                 $betreiber[] = $check->value;
+            } else {
+                $weder[] = $check->value.' → '.$schluessel;
             }
         }
 
         sort($kunden);
+
+        self::assertSame([], $weder,
+            'Diese Prüfungen bündelt der Kanal weder unter dem Abonnement noch unter dem Betreiber.');
 
         self::assertSame(['backup.latest', 'quota.exceeded', 'tls.expiry'], $kunden,
             'Den Gegenstand eines Kunden messen Kontingent, Laufzeit des Zertifikats und jüngste Sicherung — alles andere misst den Server.');

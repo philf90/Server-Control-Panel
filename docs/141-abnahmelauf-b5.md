@@ -29,7 +29,7 @@ Alle neun Punkte sind erfüllt, Punkt 7 im zweiten Anlauf. Den Empfang im
 Postfach hat erst der Nachlauf gemessen, weil hinter der Anmeldeadresse des
 Kunden eine Attrappe stand. Am Prüfling ist kein Befund herausgefallen. Das
 Protokoll ist §7, und wo die Vorschrift danach berichtigt ist, steht „Berichtigt
-nach dem Lauf".
+nach dem Lauf". **Der Betreiber hat B5 am 7. Oktober 2026 abgenommen.**
 
 **Der Lauf braucht zwei Tage**, weil das Kriterium an der Haltezeit hängt:
 Teil 1 stellt den Zustand her und setzt den Zeitpunkt T0, Teil 2 misst ab
@@ -1570,7 +1570,13 @@ sie brauchte, mit dem Einlesen.
 > **Ein Block, der Werkzeuge voraussetzt, liest sie selbst ein — sonst misst
 > er, was die Sitzung gerade geladen hat.**
 
+### Die Abnahme
+
+**Der Betreiber hat B5 am 7. Oktober 2026 abgenommen**, nach dem Lauf und dem
+Nachlauf. Dazwischen lag die Freigabe `0.9.0-rc.14`. Am Code ändert sie keine
+Datei; im gebauten Bündel steigt allein die Vue-Laufzeit von 3.5.40 auf
+3.5.43, wegen dreier Sicherheitsmeldungen zu npm-Paketen.
+
 ### Was aussteht
 
-- **Die Abnahme**, die der Betreiber ausspricht (§5).
-- **Beobachtung 1**, wenn er sie gebaut haben will.
+- **Beobachtung 1**, wenn der Betreiber sie gebaut haben will.

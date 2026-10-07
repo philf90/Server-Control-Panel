@@ -33954,3 +33954,36 @@ zurückgelassen hatte. Er setzt seine Zone jetzt selbst, mit Versatz.
 **Brüche:** 27 neu und sechs auf ihre neuen Anker gezogen, zwei neu nach dem
 vollen Testlauf, drei neu und zwei nachgezogen für Befund 7. Die Auswahl über
 die berührten Dateien: 93 Prüfungen, alle beissen.
+
+### Der Lauf für B5 ist gefahren — die Mail kam an, und eine Erwartung an die Quota war gerechnet
+
+**Gefahren am 5. und 6. Oktober 2026 auf `cloudsrv24` gegen `0.9.0-rc.13`,
+mit einem Nachlauf am 6. und 7.** Alle neun Punkte aus `docs/141` sind
+erfüllt, Punkt 7 im zweiten Anlauf, und am Prüfling ist kein Befund
+herausgefallen. Das Protokoll ist `docs/141 §7`.
+
+**Die Mail kam an, und zwar einmal.** Nach zwanzig Stunden ging genau eine
+hinaus, der Betreiber sah ihre Zustellung unter dem Befund, und ein zweiter
+Lauf schickte keine weitere. Im Postfach gemessen hat das erst der Nachlauf:
+Hinter der Anmeldeadresse des Kunden stand eine Attrappe auf einer Domain, die
+nicht reserviert ist, und Block 0 hatte sie gekürzt gedruckt. Mit einer
+lesbaren Adresse lag danach genau eine Mail im Postfach, in `An` nur diese
+Adresse, der Text Wort für Wort wie gebaut.
+
+> **Eine Adresse, die man gekürzt bestätigt, hat niemand gelesen.**
+
+**Punkt 7 hat im ersten Anlauf zu früh gemessen.** `dd` hielt an der harten
+Grenze, aber `belegt` zeigte danach den Stand von vorher: ext4 schreibt
+verzögert, und die Quota-Datei, aus der `repquota` und der Agent lesen, kennt
+den Seitenpuffer erst nach dem Zurückschreiben. Belegt hat es eine Summe:
+Dateigrösse plus `belegt` vor dem `sync` ergab auf das KiB die Grenze. Die
+Vorschrift misst jetzt nach dem `sync`.
+
+> **Eine Grenze, die der Kernel am Seitenpuffer erzwingt, steht in der
+> Quota-Datei erst, wenn der Puffer auf der Platte ist.**
+
+**Die fünf Befunde sind in der Vorschrift berichtigt**, jede Stelle mit einem
+Vermerk: Punkt 7 und 8 messen nach dem `sync`, die Reihenfolge auf
+„Diagnose" ist die gemessene, Block 0 meint ausdrücklich die Anmeldeadresse,
+der Weg zur Datenbank ist genannt, und die Werkzeuge liegen als Datei vor,
+weil sie in einer neuen Sitzung fehlten.

@@ -55,7 +55,11 @@ weiter unten). Der Lauf für B5 ist `docs/141`, ausgeschrieben am 5. Oktober
 vor dem Fahren. Beim Vorabmessen fielen sechs Befunde am Prüfling heraus und
 beim Ausschreiben ein siebter; der Betreiber hat die vier Fragen dazu am
 selben Tag entschieden, und gebaut ist alles für `0.9.0-rc.13`
-(`docs/141 §6a`, Abschnitt weiter unten).
+(`docs/141 §6a`, Abschnitt weiter unten). Gefahren ist er am 5. und
+6. Oktober gegen `rc.13`: **alle neun Punkte erfüllt**, Punkt 7 im zweiten
+Anlauf. Den Empfang im Postfach hat ein Nachlauf am 6. und 7. Oktober
+gemessen, weil hinter der Adresse des Kunden eine Attrappe stand. Am Prüfling
+kam kein Befund heraus (`docs/141 §7`); abgenommen ist B5 noch nicht.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -7062,7 +7066,8 @@ seitdem so.
 
 **Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B5, B7 und
 B8.** Für B7 und B8 gibt es noch keinen Lauf; der für B5 ist seit dem
-5. Oktober `docs/141` (Abschnitt unten).
+5. Oktober `docs/141` und am 7. Oktober samt Nachlauf gefahren (Abschnitte
+unten).
 
 ---
 
@@ -7148,6 +7153,69 @@ gegen eine eigene SQLite-Datenbank: alle neun Punkte, jede Erwartung in
 `docs/141 §3` eine Zeile daraus. Nicht vorab gefahren ist, was nur der Server
 hat — die erzwungene Quota, `systemctl`, das Journal, der Webhook und das
 Postfach.
+
+---
+
+## Der Lauf für B5 — gefahren vom 5. bis 7. Oktober 2026
+
+Auf `cloudsrv24` gegen `0.9.0-rc.13`: **alle neun Punkte aus `docs/141`
+erfüllt**, Punkt 7 im zweiten Anlauf, und am Prüfling kein Befund. Den Empfang
+im Postfach hat ein Nachlauf gemessen (N1 bis N4), weil hinter der
+Anmeldeadresse des Kunden eine Attrappe stand: Nach zwanzig Stunden kam genau
+eine Mail, in `An` nur die eine Adresse, der Text Wort für Wort wie gebaut,
+und ein zweiter Lauf schickte keine weitere. Das Protokoll ist
+`docs/141 §7`. **Abgenommen ist B5 noch nicht**; das spricht der Betreiber
+aus.
+
+**Fünf Befunde, alle an der Vorschrift, am Prüfstand oder an meinen
+Werkzeugen.** Zwei davon haben etwas gekostet. Der eine einen Anlauf an
+Punkt 7: `dd` hielt an der harten Grenze, und `belegt` zeigte danach den
+Stand von vorher.
+
+> **Eine Grenze, die der Kernel am Seitenpuffer erzwingt, steht in der
+> Quota-Datei erst, wenn der Puffer auf der Platte ist.**
+
+ext4 schreibt verzögert. Der Kernel rechnet den Puffer beim Reservieren gegen
+die Grenze, die Quota-Datei kennt nur vergebene Blöcke, und `repquota` liest
+die Datei, also auch der Agent. Auf `cloudsrv24` gehen Daten nach 30 Sekunden
+Alter auf die Platte, nachgesehen wird alle fünf (`vm.dirty_expire_centisecs`,
+`vm.dirty_writeback_centisecs`, auf dem Server gelesen). Belegt hat es eine
+Summe: Dateigrösse plus `belegt` vor dem `sync` ergab auf das KiB die Grenze.
+Gemessen wird seitdem nach dem `sync`; `fallocate` vergibt die Blöcke sofort
+und braucht keinen.
+
+> **Was der Container nicht herstellen kann, steht in einer Vorschrift als
+> Vermutung — auch wenn es dort aussieht wie eine Erwartung.**
+
+Die erzwungene Quota steht unter „Diese Umgebung" als ungemessen, und die
+Erwartung `belegt 81920` direkt nach dem `dd` stand trotzdem da, gerechnet
+statt gemessen.
+
+**Der andere hat einen Tag gekostet.** Block 0 druckte die Adresse des Kunden
+gekürzt, damit sie ins Protokoll kann, und `t…@t….de` verbarg eine Attrappe
+auf einer Domain, die nicht reserviert ist. Die Mail aus Punkt 4 ging dorthin.
+
+> **Eine Adresse, die man gekürzt bestätigt, hat niemand gelesen.**
+
+> **Eine Attrappe auf einer Domain, die nicht reserviert ist, ist keine
+> Attrappe — sie ist das Postfach eines Fremden.** Reserviert sind nach
+> RFC 2606 `.test`, `.example`, `.invalid` und `.localhost` sowie die drei
+> `example`-Domains. Ein Testkonto bekommt eine solche Adresse oder eine, die
+> jemand liest.
+
+**Dazu zwei Handgriffe, die der nächste Lauf wieder braucht.** Die Werkzeuge
+eines Laufs gehören in eine Datei unter `/root`, eingelesen von jedem Block,
+der sie braucht: In die Shell eingefügt kamen sie verstümmelt an, und in einer
+neuen Sitzung fehlten sie ganz. Und das Passwort eines Kundenkontos setzt kein
+Kommando, denn `srvpanel admin` weist Kundenkonten mit Absicht ab. Der Weg
+über `srvpanel tinker` steht in `docs/141 §7` unter N1: verdeckt und zweimal
+abgefragt, gegen die Richtlinie geprüft und mit einer Gegenprobe.
+
+**Eine Frage an den Betreiber ist offen.** Die Kundenseite zeigt zwei
+Adressen, die des Vertragspartners und die Anmeldeadressen der Konten, und
+die Kundenmail geht an die zweiten. Der Betreiber hat danach gefragt, nachdem
+er die erste geändert hatte. Ob das Panel sagen soll, wohin Meldungen gehen,
+entscheidet er (`docs/141 §7`, Beobachtung 1).
 
 ---
 
@@ -7519,7 +7587,10 @@ Testen berücksichtigen:
   `usrquota` trägt für die Zustände „keine Quotadatei" und „Datei da, Quota
   aus"; `quotaon` scheitert an `Quota format not supported in kernel`, und ein
   `mkfs.ext4 -O quota` lässt sich nicht einhängen. Die Zustände mit
-  **erzwungener** Quota bleiben hier ungemessen.
+  **erzwungener** Quota bleiben hier ungemessen. Was daran hängt, hat der
+  Lauf für B5 auf `cloudsrv24` gemessen (`docs/141 §7`, Punkt 7): Was ein
+  Kunde schreibt, zählt `repquota` erst nach dem Zurückschreiben, und eine
+  Vorschrift, die direkt danach misst, sieht den Stand von vorher.
 
   Operationen laufen weiter gegen Attrappen, und Vorlagen werden weiter **als
   Text** geprüft (`SiteTemplateTest`, `PhpIsolationTest`): Der Standardschutz

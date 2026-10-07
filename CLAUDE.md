@@ -61,7 +61,11 @@ selben Tag entschieden, und gebaut ist alles für `0.9.0-rc.13`
 Anlauf. Den Empfang im Postfach hat ein Nachlauf am 6. und 7. Oktober
 gemessen, weil hinter der Adresse des Kunden eine Attrappe stand. Am Prüfling
 kam kein Befund heraus (`docs/141 §7`). **Danach hat der Betreiber B5 am
-7. Oktober 2026 abgenommen** (Abschnitt weiter unten).
+7. Oktober 2026 abgenommen** (Abschnitt weiter unten). Am selben Tag hat der
+Betreiber entschieden: Die beiden übrigen Meldungen an den Kunden aus
+`docs/20 §9`, Zertifikat und Sicherung, werden als **B9** gebaut, vor B7 und
+B8. Der Plan ist `docs/142`, die vier Fragen dazu stehen dort in §6. Die
+Dokumentation ist vertagt und steht als offener Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -7067,7 +7071,8 @@ eigenen Block und sagt dazu, dass sie schreibt. In `docs/140 §8` steht sie
 seitdem so.
 
 **Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B7 und
-B8.** Für B7 und B8 gibt es noch keinen Lauf. Der Lauf für B5 ist seit dem
+B8.** Für B7 und B8 gibt es noch keinen Lauf. Seit dem 7. Oktober kommt B9
+dazu, geplant und noch nicht gebaut (`docs/142`). Der Lauf für B5 ist seit dem
 5. Oktober `docs/141`, gefahren samt Nachlauf bis zum 7. Oktober, und an
 diesem Tag ist B5 abgenommen (Abschnitte unten).
 
@@ -7215,10 +7220,64 @@ abgefragt, gegen die Richtlinie geprüft und mit einer Gegenprobe.
 
 **Eine Frage an den Betreiber ist entschieden.** Die Kundenseite zeigt zwei
 Adressen, die des Vertragspartners und die Anmeldeadressen der Konten, und
-die Kundenmail geht an die zweiten. Der Betreiber hat danach gefragt, nachdem
-er die erste geändert hatte. Dass das Panel sagt, wohin Meldungen gehen,
-wird nicht gebaut; so hat er es am 7. Oktober entschieden (`docs/141 §7`,
+die Kundenmail geht an die zweiten. Die Frage kam vom Betreiber, nachdem die
+erste geändert war. Dass das Panel sagt, wohin Meldungen gehen, wird nicht
+gebaut; so hat es der Betreiber am 7. Oktober entschieden (`docs/141 §7`,
 Beobachtung 1).
+
+---
+
+## Der Plan für B9 — 7. Oktober 2026
+
+Nach der Abnahme von B5 hat der Betreiber entschieden: Die beiden übrigen
+Meldungen an den Kunden aus `docs/20 §9`, „Zertifikat läuft ab" und
+„Sicherung fehlgeschlagen", werden gebaut, als eigenes Merkmal **B9** und vor
+B7 und B8. Die Dokumentation, Betreiberhandbuch und Kundenhilfe, ist vertagt
+und steht als offener Punkt da. Der Plan ist **`docs/142`**, geschrieben vor
+jeder Zeile Code; die vier Fragen an den Betreiber stehen in dessen §6.
+
+**Beim Nachlesen fielen drei Befunde heraus, und zwei treffen den Bestand von
+B1.** Der erste: Eine gescheiterte Sicherung erfährt niemand, auch der
+Betreiber nicht. `docs/129 §4` führte den Auslöser mit `Checks\Backups` als
+Quelle. Die Prüfung fragt aber nur fertige Sicherungen und begründet das in
+ihrem Kopf, und `BackupStatus::Failed` wird an einer Stelle geschrieben und an
+keiner gelesen.
+
+> **Ein Auslöser, dessen Quelle niemand nachgelesen hat, steht in einer
+> Tabelle und nirgends sonst.** Zum zweiten Mal in derselben Tabelle, nach
+> „Platte voll".
+
+Der zweite: **Etwa jede zwölfte gelungene Erneuerung von Let's Encrypt meldet
+ein ablaufendes Zertifikat.** Die Diagnose warnt ab 30 Tagen Restlaufzeit, und
+genau dann wird die Erneuerung fällig; beide Zeitgeber würfeln ihre Stunde
+jede Nacht neu. Steht der Befund dadurch in zwei Läufen hintereinander, meldet
+B1. Gerechnet mit den echten Funktionen in `tests/kundenmeldungen-rechnen.php`
+trifft das 8,4 bis 9,6 % der gelungenen Erneuerungen. Bei 28 Tagen trifft es
+keine, und eine Erneuerung, die nie gelingt, wird weiterhin in jedem Versuch
+gemeldet.
+
+> **Eine Warnung, die am selben Tag anschlägt wie ihre Abhilfe, meldet jedes
+> Mal, wenn ihr Zeitgeber zuerst läuft.**
+
+Der dritte: **Die Gründe eines Zertifikats schliessen einander aus.** Beim
+Ablauf löst `expired` den Befund `expiring` ab, und der Webhook bekommt dafür
+`resolved` in dem Augenblick, in dem es schlimmer wird. Das ist Befund 7 aus
+B5, damals für den Platz behoben und nicht als Regel.
+
+**Und die Rechnung zur Sicherung hat die Haltezeit aus B1 für diesen Fall
+umgeworfen.** Mit zwanzig Stunden würde eine einzelne gescheiterte Sicherung
+in 18 % der Fälle gemeldet und zwei hintereinander in 82 %. Ob die Diagnose
+den Befund ein- oder zweimal sieht, entscheidet, ob sie vor oder nach der
+Sicherung läuft.
+
+> **Eine Haltezeit über einem Zustand, den ein anderer Zeitgeber herstellt,
+> zählt nicht die Fehlschläge, sondern wie oft der Ablesende sie antrifft.**
+
+**Die Rechnungen sind gerechnet und nicht gemessen.** Die Zeitgeber sind ein
+Modell ihrer Units, die Regeln die echten Funktionen, und gemessen ist nur die
+Laufzeit eines Zertifikats (`docs/78`). Jede Rechnung hat ihre Gegenprobe:
+Eine Erneuerung, die nie gelingt, wird in jedem Versuch gemeldet, eine
+Sicherung, die nie scheitert, in keinem.
 
 ---
 

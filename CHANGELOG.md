@@ -34044,3 +34044,45 @@ allein die Vue-Laufzeit im Bündel: Auf dem Server liegt `app-KKiiyVwK.js` mit
 beiden Stylesheets tragen dieselben Namen wie unter `rc.13`. Vite bildet die
 Namen aus dem Inhalt; das ausgelieferte Bündel ist also das, das vor der
 Freigabe gegen `rc.13` verglichen wurde.
+
+### B9 ist geplant, die Dokumentation vertagt — und eine gescheiterte Sicherung erfuhr bisher niemand
+
+**Am 7. Oktober 2026 hat der Betreiber entschieden:** Die beiden übrigen
+Meldungen an den Kunden aus `docs/20 §9`, „Zertifikat läuft ab" und „Sicherung
+fehlgeschlagen", werden gebaut, als eigenes Merkmal B9 und vor B7 und B8. Die
+Dokumentation, Betreiberhandbuch und Kundenhilfe in der Oberfläche, ist
+vertagt und steht als offener Punkt für später da. Der Plan ist `docs/142`,
+geschrieben vor jeder Zeile Code; eingetragen ist alles in `docs/129` und in
+`docs/20 §9`.
+
+**Beim Nachlesen am Quelltext fielen drei Befunde heraus.**
+
+- **Eine gescheiterte Sicherung erfährt niemand, auch der Betreiber nicht.**
+  `docs/129 §4` führte den Auslöser unter B1, mit
+  `App\Support\Diagnose\Checks\Backups` als Quelle. Diese Prüfung sieht mit
+  Absicht nur fertige Sicherungen an, und `App\Enums\BackupStatus::Failed` wird
+  an einer Stelle geschrieben und an keiner gelesen.
+- **Etwa jede zwölfte gelungene Erneuerung von Let's Encrypt meldet ein
+  ablaufendes Zertifikat**, heute an den Betreiber. Die Diagnose warnt ab 30
+  Tagen Restlaufzeit, und genau dann wird die Erneuerung fällig; beide
+  Zeitgeber würfeln ihre Stunde jede Nacht neu. Gerechnet mit den echten
+  Funktionen trifft es 8,4 bis 9,6 % der gelungenen Erneuerungen. Mit der
+  Schwelle bei 28 Tagen keine, und eine Erneuerung, die nie gelingt, wird
+  weiterhin jedes Mal gemeldet.
+- **Die Gründe eines Zertifikats schliessen einander aus.** Beim Ablauf löst
+  „abgelaufen" den Befund „läuft demnächst ab" ab, und der Webhook bekommt
+  dafür `resolved` in dem Augenblick, in dem es schlimmer wird. Das ist
+  Befund 7 aus B5, damals für den Platz behoben und nicht als Regel.
+
+**Die Rechnungen stehen als `tests/kundenmeldungen-rechnen.php` im Repo.** Sie
+sind gerechnet und nicht gemessen: Die Zeitgeber sind ein Modell ihrer Units,
+die Regeln die echten Funktionen, und jede Rechnung hat ihre Gegenprobe. Die
+dritte hat für die Sicherung die Haltezeit aus B1 umgeworfen: Mit zwanzig
+Stunden würde eine einzelne gescheiterte Sicherung in 18 % der Fälle gemeldet
+und zwei hintereinander in 82 %, je nachdem, ob die Diagnose vor oder nach der
+Sicherung läuft.
+
+**Vier Fragen an den Betreiber stehen in `docs/142 §6`:** wer die Mails
+bekommt, ab wann ein Zertifikat von Let's Encrypt als ablaufend gilt, wann eine
+gescheiterte Sicherung gemeldet wird und welche Sicherungen dabei zählen.
+Gebaut wird, sobald sie beantwortet sind.

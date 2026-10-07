@@ -61,7 +61,7 @@ Panel lässt sich von aussen ansprechen.
 **Der Zuschnitt ist der von P7b** — Entscheidung des Betreibers vom
 20. September. Nicht eine Stufe mit sieben Punkten und einem Abnahmelauf am
 Ende, sondern **acht benannte Merkmale, jedes mit eigenem Abnahmelauf und
-eigener Freigabe**.
+eigener Freigabe**. Seit dem 7. Oktober 2026 sind es neun (§3, B9).
 
 > **Der Plan nennt die Reihenfolge und kein Enddatum.** P7b hat so elf Merkmale
 > getragen; ein Merkmal, das beim Bauen kippt, hält die anderen nicht auf.
@@ -104,9 +104,17 @@ schon heute mit `rotate 14` aus `WebLogrotate::template()`; daran ändert sich
 nichts. Die 30 Tage gelten den **verdichteten Tageswerten**, und die kosten
 gemessen 32 MiB bei 2000 Abonnements — die Frist ist keine Platzfrage.
 
+**Am 7. Oktober 2026 entschieden**, nach der Abnahme von B5:
+
+| | Frage | Entscheidung |
+|---|---|---|
+| **6** | Die übrigen Meldungen an den Kunden aus `docs/20 §9` — Zertifikat läuft ab, Sicherung fehlgeschlagen | **Werden gebaut**, als eigenes Merkmal **B9** (§3). Der Plan ist `docs/142`; die Fragen dazu stehen dort in §6. |
+| **7** | Die Dokumentation aus `docs/20 §9` — Betreiberhandbuch, Kundenhilfe in der Oberfläche | **Vertagt** und als offener Punkt für später stehengelassen (§11). |
+| **8** | Was danach kommt | **B7 und B8.** |
+
 ---
 
-## §3 · Die acht Merkmale und ihre Reihenfolge
+## §3 · Die Merkmale und ihre Reihenfolge
 
 | | Merkmal | hängt an | Aufwand |
 |---|---|---|---|
@@ -118,6 +126,7 @@ gemessen 32 MiB bei 2000 Abonnements — die Frist ist keine Platzfrage.
 | **B6** | Branding | nichts | 0,5 Woche |
 | **B7** | API v1 mit OpenAPI und Tokens | nichts | 2–3 Wochen |
 | **B8** | Ein Vorgang ohne Weiterleitung | nichts (`docs/92`) | 0,5 Woche |
+| **B9** | Zertifikat und Sicherung an den Kunden — nachgetragen am 7. Oktober 2026 | **B1** und **B5** | 2–3 Tage und zwei Nächte |
 
 **Die Kette ist B2 → B3 → B4**, und sie ist die einzige. Alles andere steht
 für sich und kann jederzeit dazwischen.
@@ -127,6 +136,12 @@ einzige Merkmal ist, dessen Quellen vollständig dastehen: `Checks\Units`,
 `Checks\Certificates`, `Checks\Backups`, die Paketliste aus A1 und die
 Kennzahlen aus `app/Support/Metrics/`. Es baut nichts Neues zu, es schliesst
 die Lücke zwischen „das Panel weiss es" und „jemand erfährt es".
+
+**B9 ist am 7. Oktober 2026 dazugekommen**, und seine Nummer sagt nichts über
+seinen Platz: Es kommt vor B7 und B8, entschieden vom Betreiber (§2,
+Entscheidungen 6 und 8). B5 hat von den drei Meldungen an den Kunden aus
+`docs/20 §9` die Kontingente gebaut, und sein Kriterium fragt nach nichts
+anderem. Die beiden übrigen sind B9, der Plan ist `docs/142`.
 
 **B7 ist das grösste und das unsicherste.** Es steht hinten, nicht weil es
 unwichtig ist, sondern weil sein Zuschnitt erst noch entsteht — und weil ein
@@ -219,6 +234,12 @@ abgenommen und fragt nicht danach. Und der Ringpuffer unter
 Agenten. Entschieden hat der Betreiber am selben Tag: **„Platte voll" wird
 gebaut** (Plan und Messrunde: `docs/136`), **RAM und Load sind
 zurückgestellt**, weil es für keine der beiden eine gemessene Kurve gibt.
+
+**Nachgetragen am 7. Oktober 2026: Auch die Zeile „Sicherung fehlgeschlagen"
+stimmt nicht.** `Checks\Backups` fragt nur fertige Sicherungen und begründet es
+in seinem Kopf; `BackupStatus::Failed` wird an einer Stelle geschrieben und an
+keiner gelesen. Eine gescheiterte Sicherung erfährt damit niemand, auch der
+Betreiber nicht (`docs/142 §2`, Befund 1). Gebaut wird der Auslöser mit B9.
 
 ---
 
@@ -577,10 +598,11 @@ aus **einer** von 58 Seiten alle 58 zu machen.
 | **B6** | Logo, Farbe, Fusszeile und Absenderadresse des Betreibers stehen auf der Anmeldeseite und in einer verschickten Mail. Jede Farbe kommt aus `resources/css/app.css`. **Der Lauf ist `docs/140`**, ausgeschrieben am 1. Oktober vor dem Fahren. Beim Ausschreiben fielen sechs Befunde am Prüfling heraus (`docs/140 §0`). Wörtlich ist das Kriterium nicht erfüllbar: Eine Mail dieses Panels ist reiner Text, und die Absenderadresse steht nur in der Mail (`docs/140 §0` Punkt 7). Wie es gelesen wird und ob die Befunde vor dem Lauf behoben werden, entscheidet der Betreiber (`docs/140 §6`). **Entschieden am selben Tag:** Gelesen wird es so, dass Logo, Farbe und Fusszeile auf der Anmeldeseite stehen und Absenderadresse, Name und Fusszeile in der Mail; Logo und Farbe in einer Mail werden nicht gebaut, weil die Mails seit P2 reiner Text sind. Die sechs Befunde sind mit `0.9.0-rc.11` behoben, und die Leiste nimmt die Farbe mit (`docs/140 §6a`). **Gefahren am 3. Oktober gegen `rc.11`:** Block 1 und alle neun Punkte erfüllt (`docs/140 §7`). Die zwei Befunde daraus, ein Wunsch des Betreibers und die Unterschrift der Mails sind mit `0.9.0-rc.12` ausgeliefert (`docs/140 §6b` bis `§6e`), und der Nachlauf am 3. und 4. Oktober hat sie auf dem Server gezeigt. **B6 ist am 4. Oktober 2026 abgenommen** (`docs/140 §8`). |
 | **B7** | Ein Token eines Kunden liest über `api/v1` genau seine Abonnements — und dasselbe Token an einer fremden ID bekommt `404` und nicht `403`. |
 | **B8** | Ein Vorgang, der aus einer Liste heraus angestossen wird, führt zurück in diese Liste — die vier Fragen aus `docs/92 §4`. |
+| **B9** | **Vorgeschlagen am 7. Oktober 2026** (`docs/142 §5`): Eine Domain, deren hochgeladenes Zertifikat in weniger als dreissig Tagen abläuft, und ein Abonnement, dessen jüngste Sicherung gescheitert ist, bringen dem Kunden je genau eine Mail. Der Betreiber sieht auf „Diagnose", dass sie zugestellt wurden, und eine gelungene Sicherung nimmt den Befund zurück. Entschieden wird es mit den Fragen aus `docs/142 §6`. |
 
 **Und das Kriterium der Stufe bleibt, was `docs/20 §9` sagt:** *ein fremder
 Kunde kann das Panel benutzen, ohne zu fragen — gemessen an einem Durchlauf mit
-einer Person, die das Projekt nicht kennt.* Es steht **nach** B1 bis B8 und
+einer Person, die das Projekt nicht kennt.* Es steht **nach** B1 bis B9 und
 nicht statt ihrer; ein Merkmal nimmt es nicht ab.
 
 ---
@@ -685,3 +707,7 @@ Entscheidung, wenn das Fehlende darin steht (`docs/105`).
 - **Kein Log-Strom auf jeder Seite.** B8 räumt den Umweg auf; der Strom bleibt,
   wo er ist, bis `StreamPageTest` und eine Messung auf dem echten Pool etwas
   anderes sagen.
+- **Keine Dokumentation** — weder Betreiberhandbuch noch Kundenhilfe in der
+  Oberfläche, obwohl `docs/20 §9` beides unter P9 führt. Vertagt am
+  7. Oktober 2026 und als offener Punkt für später stehengelassen
+  (Entscheidung 7): Sie fällt nicht weg, sie hat nur noch keine Stufe.

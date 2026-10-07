@@ -33954,3 +33954,78 @@ zurückgelassen hatte. Er setzt seine Zone jetzt selbst, mit Versatz.
 **Brüche:** 27 neu und sechs auf ihre neuen Anker gezogen, zwei neu nach dem
 vollen Testlauf, drei neu und zwei nachgezogen für Befund 7. Die Auswahl über
 die berührten Dateien: 93 Prüfungen, alle beissen.
+
+### Der Lauf für B5 ist gefahren — die Mail kam an, und eine Erwartung an die Quota war gerechnet
+
+**Gefahren am 5. und 6. Oktober 2026 auf `cloudsrv24` gegen `0.9.0-rc.13`,
+mit einem Nachlauf am 6. und 7.** Alle neun Punkte aus `docs/141` sind
+erfüllt, Punkt 7 im zweiten Anlauf, und am Prüfling ist kein Befund
+herausgefallen. Das Protokoll ist `docs/141 §7`.
+
+**Die Mail kam an, und zwar einmal.** Nach zwanzig Stunden ging genau eine
+hinaus, der Betreiber sah ihre Zustellung unter dem Befund, und ein zweiter
+Lauf schickte keine weitere. Im Postfach gemessen hat das erst der Nachlauf:
+Hinter der Anmeldeadresse des Kunden stand eine Attrappe auf einer Domain, die
+nicht reserviert ist, und Block 0 hatte sie gekürzt gedruckt. Mit einer
+lesbaren Adresse lag danach genau eine Mail im Postfach, in `An` nur diese
+Adresse, der Text Wort für Wort wie gebaut.
+
+> **Eine Adresse, die man gekürzt bestätigt, hat niemand gelesen.**
+
+**Punkt 7 hat im ersten Anlauf zu früh gemessen.** `dd` hielt an der harten
+Grenze, aber `belegt` zeigte danach den Stand von vorher: ext4 schreibt
+verzögert, und die Quota-Datei, aus der `repquota` und der Agent lesen, kennt
+den Seitenpuffer erst nach dem Zurückschreiben. Belegt hat es eine Summe:
+Dateigrösse plus `belegt` vor dem `sync` ergab auf das KiB die Grenze. Die
+Vorschrift misst jetzt nach dem `sync`.
+
+> **Eine Grenze, die der Kernel am Seitenpuffer erzwingt, steht in der
+> Quota-Datei erst, wenn der Puffer auf der Platte ist.**
+
+**Die fünf Befunde sind in der Vorschrift berichtigt**, jede Stelle mit einem
+Vermerk: Punkt 7 und 8 messen nach dem `sync`, die Reihenfolge auf
+„Diagnose" ist die gemessene, Block 0 meint ausdrücklich die Anmeldeadresse,
+der Weg zur Datenbank ist genannt, und die Werkzeuge liegen als Datei vor,
+weil sie in einer neuen Sitzung fehlten.
+
+### Drei npm-Pakete angehoben — und für `shell-quote` braucht es einen Override
+
+**`vue` und `@vue/*` 3.5.40 → 3.5.43, `shell-quote` 1.9.0 → 1.12.0 und
+`source-map-js` 1.2.1 → 1.2.2**, dazu mitgezogen `postcss` 8.5.25 → 8.5.29,
+`nanoid` 3.3.18 → 3.3.20 und `@babel/parser` 7.29.8 → 7.29.9. In #286 war der
+Lauf „Schwachstellen und Lizenzen" am 5. Oktober noch grün. Am 7. Oktober war
+er für #287 rot, einen Beitrag, der nur Dokumente ändert, und zwar an drei
+neuen Meldungen:
+
+- `@vue/server-renderer` unter 3.5.42, hoch (GHSA-g2v6-rqmx-r4w6): eine XSS
+  beim Rendern auf dem Server. Dieses Panel rendert nicht auf dem Server; das
+  Paket kommt nur über `vue` mit.
+- `shell-quote` 1.8.4 bis 1.10.0, kritisch (GHSA-pqg4-j6r4-53mv): Über
+  `quote()` lässt sich ein Befehl unterschieben. Es hängt allein an
+  `concurrently`, also an `composer dev` auf dem Rechner eines Entwicklers.
+- `source-map-js` 1.0.0 bis 1.2.1, hoch (GHSA-68fv-2mgg-jv7q): eine
+  Dienstverweigerung über die Abschnitte einer Quelltextkarte. Es hängt an
+  `postcss`, an Tailwind und am Vue-Übersetzer, also am Bauen, und steht nicht
+  im gebauten Bündel.
+
+**`npm audit fix` allein reicht diesmal nicht.** `concurrently` legt
+`shell-quote` auf genau 1.9.0 fest, in der eingesetzten Fassung 9.2.4 wie in
+der neuesten, 10.0.5. Deshalb steht in `package.json` zum ersten Mal ein
+`overrides`, mit `^1.11.0`; 1.11.0 ist die erste Fassung nach dem betroffenen
+Bereich. Wer `concurrently` anhebt, sieht nach, ob es noch nötig ist.
+
+> **Ein Paket, das seine Abhängigkeit auf eine Fassung festlegt, nimmt
+> `npm audit fix` die Wahl — dann entscheidet `package.json` und nicht die
+> Sperrdatei.**
+
+**Den Namen im npm-Lock hat `npm audit fix` wieder nach dem Verzeichnis
+umgeschrieben**, wie bei den vier Paketen für `0.9.0-rc.9`, und dazu sechs
+gebündelte Einträge unter `@tailwindcss/oxide-wasm32-wasi` angelegt, die mit
+den Meldungen nichts zu tun haben. Beides ist zurückgenommen: Die Sperrdatei
+ändert sich nur an den fünfzehn Einträgen der angehobenen Pakete.
+
+Gegen die neuen Fassungen gefahren: `npm ci` nimmt die Sperrdatei an,
+`npm audit` meldet „found 0 vulnerabilities", `npm run types` und
+`npm run build` laufen durch, und `concurrently` quotet mit dem neuen
+`shell-quote` ein Argument mit Leerzeichen und eines mit Apostroph richtig.
+Die Sperrdatei von `main` gibt bei `npm audit` weiterhin rc=1.

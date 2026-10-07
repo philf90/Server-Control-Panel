@@ -7213,11 +7213,12 @@ Kommando, denn `srvpanel admin` weist Kundenkonten mit Absicht ab. Der Weg
 über `srvpanel tinker` steht in `docs/141 §7` unter N1: verdeckt und zweimal
 abgefragt, gegen die Richtlinie geprüft und mit einer Gegenprobe.
 
-**Eine Frage an den Betreiber ist offen.** Die Kundenseite zeigt zwei
+**Eine Frage an den Betreiber ist entschieden.** Die Kundenseite zeigt zwei
 Adressen, die des Vertragspartners und die Anmeldeadressen der Konten, und
 die Kundenmail geht an die zweiten. Der Betreiber hat danach gefragt, nachdem
-er die erste geändert hatte. Ob das Panel sagen soll, wohin Meldungen gehen,
-entscheidet er (`docs/141 §7`, Beobachtung 1).
+er die erste geändert hatte. Dass das Panel sagt, wohin Meldungen gehen,
+wird nicht gebaut; so hat er es am 7. Oktober entschieden (`docs/141 §7`,
+Beobachtung 1).
 
 ---
 

@@ -34033,9 +34033,9 @@ Die Sperrdatei von `main` gibt bei `npm audit` weiterhin rc=1.
 ### B5 ist abgenommen — und `0.9.0-rc.14` ist auf dem Server nachgesehen
 
 **B5 ist am 7. Oktober 2026 abgenommen**, ausgesprochen vom Betreiber nach dem
-Lauf und dem Nachlauf gegen `0.9.0-rc.13` (`docs/141 §7`). Offen bleibt
-Beobachtung 1: Ob das Panel sagen soll, wohin die Meldungen an den Kunden
-gehen, entscheidet der Betreiber.
+Lauf und dem Nachlauf gegen `0.9.0-rc.13` (`docs/141 §7`). Beobachtung 1
+wird nicht gebaut, so hat es der Betreiber am selben Tag entschieden: Das
+Panel sagt weiterhin nicht eigens, wohin die Meldungen an den Kunden gehen.
 
 **`0.9.0-rc.14` bringt die drei angehobenen npm-Pakete aus dem Eintrag
 darüber**, und auf `cloudsrv24` ist nachgesehen, was davon ankommt. Das ist

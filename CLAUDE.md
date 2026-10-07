@@ -64,8 +64,10 @@ kam kein Befund heraus (`docs/141 §7`). **Danach hat der Betreiber B5 am
 7. Oktober 2026 abgenommen** (Abschnitt weiter unten). Am selben Tag hat der
 Betreiber entschieden: Die beiden übrigen Meldungen an den Kunden aus
 `docs/20 §9`, Zertifikat und Sicherung, werden als **B9** gebaut, vor B7 und
-B8. Der Plan ist `docs/142`, die vier Fragen dazu stehen dort in §6. Die
-Dokumentation ist vertagt und steht als offener Punkt da.
+B8. Der Plan ist `docs/142`; die vier Fragen dort in §6 hat der Betreiber am
+selben Tag entschieden (1b, 2a, 3a, 4a), und **B9 ist am 7. Oktober gebaut**
+(`docs/142 §10`, Abschnitt weiter unten), noch ohne Freigabe und ohne Lauf.
+Die Dokumentation ist vertagt und steht als offener Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -7072,7 +7074,7 @@ seitdem so.
 
 **Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B7 und
 B8.** Für B7 und B8 gibt es noch keinen Lauf. Seit dem 7. Oktober kommt B9
-dazu, geplant und noch nicht gebaut (`docs/142`). Der Lauf für B5 ist seit dem
+dazu, gebaut und noch nicht abgenommen (`docs/142 §10`). Der Lauf für B5 ist seit dem
 5. Oktober `docs/141`, gefahren samt Nachlauf bis zum 7. Oktober, und an
 diesem Tag ist B5 abgenommen (Abschnitte unten).
 
@@ -7278,6 +7280,77 @@ Modell ihrer Units, die Regeln die echten Funktionen, und gemessen ist nur die
 Laufzeit eines Zertifikats (`docs/78`). Jede Rechnung hat ihre Gegenprobe:
 Eine Erneuerung, die nie gelingt, wird in jedem Versuch gemeldet, eine
 Sicherung, die nie scheitert, in keinem.
+
+---
+
+## B9 ist gebaut — 7. Oktober 2026
+
+Der Betreiber hat die vier Fragen aus `docs/142 §6` am selben Tag entschieden:
+**1b, 2a, 3a, 4a**. Die Mail bekommt allein der Kunde, wie bei den
+Kontingenten; der Betreiber sieht beide Meldungen auf „Diagnose" und über den
+Webhook. Gebaut ist B9 danach in einem Zug, an vier Stellen anders als
+entworfen (`docs/142 §10`). Eine Freigabe trägt es noch nicht.
+
+**Die Laufzeit eines Zertifikats ist ein eigener Schlüssel geworden,
+`tls.expiry`, und kein Grund mehr unter `tls.file`.** Der Entwurf wollte den
+Mailkanal nach Prüfung und Grund wählen lassen. Ob die Datei da ist und die
+Namen deckt, ist aber eine Frage an den Server; wie lange sie gilt, eine an die
+Zeit, und nur die zweite geht den Kunden an. Als zwei Schlüssel verschwinden
+auch die beiden Fehler aus Befund 3 des Plans: `expiring` bleibt neben
+`expired` stehen, und ein falscher Name verdeckt die Laufzeit nicht mehr.
+
+> **Zwei Fragen an denselben Gegenstand sind zwei Schlüssel, sobald sie zwei
+> Empfänger haben.**
+
+**Der teuerste Fund war ein Übergang, und die geplante Behebung dafür wäre
+falsch gewesen.** Nach dem Update stehen bis zum ersten Nachtlauf Zeilen
+`tls.file / expiring` und `expired` in der Tabelle, und `FindingCheck::state()`
+warf für einen Grund, den die Prüfung nicht mehr ausspricht: Die Seite
+„Diagnose" gab einen 500er, und der Meldelauf brach an der Entwarnung ab.
+`RetiredReasonTest` zeigt es gegen die Fassung ohne Behebung, an beiden
+Stellen.
+
+> **Ein Grund, den es nicht mehr gibt, steht nach dem Update noch in der
+> Tabelle — und wer ihn fragt, wirft.**
+
+Geplant war eine Migration, die die Zeilen nach `tls.expiry` umzieht. Beim
+Nachlesen von `WebhookChannel::deliverResolved()` fiel sie um: Ein Empfänger,
+der Vorfälle verwaltet, ordnet eine Entwarnung über Gegenstand, Prüfung und
+Grund zu, und der Vorfall unter `tls.file` wäre nie geschlossen worden. Gebaut
+ist `FindingCheck::retired()`: Abgelöste Gründe bleiben lesbar, mit Urteil und
+Satz von damals, und geschrieben werden sie nie. Der Schreibweg fragt dafür
+`assertSpoken()` und nicht mehr `state()`; sonst liesse er sie wieder durch.
+
+> **Wer eine Zeile umzieht, unter deren Schlüssel ein Empfänger einen Vorfall
+> führt, lässt den Vorfall offen.**
+
+**Wer einen Grund umbenennt oder an einen anderen Schlüssel gibt, trägt den
+alten in `retired()` ein.** Ein Update darf Fassungen überspringen, und die
+Zeile von vorher steht da, bis der erste Lauf sie ersetzt.
+
+**Drei Eingriffe bissen im ersten Lauf nicht, und alle drei lagen an meinen
+eigenen Fällen.** Zwei Eingriffe an der Abfrage des letzten Versuchs blieben
+grün, weil ihr Fall an einer Domain ohne Zertifikat von Let's Encrypt prüfte,
+dass „Letzter Versuch" fehlt. Die Zeile steht nur bei einem, das das Panel
+selbst erneuert, und fehlte in jeder Fassung. Der dritte Eingriff traf einen
+Fall, der Prüfungen nach dem Text ihres Bündelschlüssels einteilte und einen
+mit dem Namen einer Domain für einen des Betreibers hielt.
+
+> **Ein Prüfkörper, dem der Zustand fehlt, unter dem eine Zeile überhaupt
+> erscheint, misst ihr Fehlen in jeder Fassung.**
+
+> **Ein undurchsichtiger Schlüssel wird verglichen und nicht gelesen.**
+
+Gefunden hat sie die Auswahl des Bruchskripts über die Dateien des Commits, 217
+Abschnitte, und nicht das Nachdenken beim Schreiben der Fälle. Der berichtigte
+Fall trägt seinen Ladebeleg deshalb in sich: „Erneuerung fällig seit" muss
+dastehen, sonst misst er nichts, und am Ende steht die Gegenprobe, in der der
+Versuch erscheint.
+
+**Vor dem Update auf `cloudsrv24` gehört eine Adresse nachgesehen.** An
+`p6-b.invalid` steht seit dem 21. September `tls.file` mit einem abgelaufenen
+hochgeladenen Zertifikat. Nach dem Update wird daraus in der zweiten Nacht eine
+Mail an die Konten des Abonnements (`docs/142 §10`).
 
 ---
 

@@ -3,8 +3,11 @@
 Geschrieben am 7. Oktober 2026, **nach** dem Nachlesen am Quelltext und drei
 Rechnungen im Container, **vor** jeder Zeile Code. Die Rechnungen stehen als
 `tests/kundenmeldungen-rechnen.php` im Repo; jede Zahl in §3 stammt aus ihrem
-Lauf. Entschieden ist der Auftrag. Die vier Fragen, an denen der Bau hängt,
-stehen in §6.
+Lauf. Entschieden ist der Auftrag. Die vier Fragen, an denen der Bau hing,
+stehen in §6, und **der Betreiber hat sie am selben Tag entschieden: 1b, 2a,
+3a, 4a.** Gebaut ist B9 ebenfalls am 7. Oktober; was dabei anders lief als in
+§4, steht in §10. Der Entwurf darunter bleibt, wie er vor den Antworten
+geschrieben war, und trägt an den betroffenen Stellen einen Vermerk.
 
 ## §1 · Warum es diesen Plan gibt
 
@@ -193,6 +196,11 @@ die Diagnose lief.
 | `backup.latest` · `failed` (neu) | **ja** | **ja** | ja |
 | alle übrigen | nein | ja, wie seit B1 | ja |
 
+**Entschieden ist 1b** (§6): In der Spalte „Betreiber per Mail" steht für beide
+neuen Zeilen „nein", und der Kanal „Kundenmail" entfällt samt der Migration
+darunter. Die Laufzeit ist dabei ein eigener Schlüssel geworden, `tls.expiry`;
+die Tabelle, wie gebaut, steht in §10.
+
 **Dass der Betreiber bei Zertifikat und Sicherung auch eine Mail bekommt, ist
 Frage 1 und der teuerste Teil des Entwurfs.** Heute trägt der Mailkanal einen
 Befund zu genau **einem** Empfänger: `MailChannel::batchKey()` entscheidet nach
@@ -295,6 +303,10 @@ Der Vorschlag für `docs/129 §9`:
 > zurück.
 
 Mit Frage 1a gehört dazu, dass auch der Betreiber eine Mail bekommt.
+**Entschieden ist 1b**; eingetragen in `docs/129 §9` ist deshalb die
+Gegenrichtung: Der Betreiber bekommt dazu keine Mail. Und weil eine Mail je
+Abonnement und Nacht hinausgeht, stehen zwei Zustände desselben Abonnements in
+einer Nacht als zwei Abschnitte in einer Mail.
 
 **Zwei Teile kann ein Lauf von zwei Nächten nicht zeigen**, und sie stehen
 deshalb bei den Wächtern und nicht im Kriterium: dass eine gelingende
@@ -310,22 +322,25 @@ im Container, bevor der Lauf es anweist.
 
 ## §6 · Die Fragen an den Betreiber
 
+**Entschieden am 7. Oktober 2026: 1b, 2a, 3a, 4a.** Bei Frage 1 ist es nicht
+der Vorschlag; bei den drei übrigen ist er es.
+
 1. **Wer bekommt die beiden Meldungen per Mail?**
    - **a. Kunde und Betreiber** — der eigene Kanal „Kundenmail" aus §4.
      *Vorschlag.* Eine gescheiterte Sicherung erfährt heute niemand
      (Befund 1), und die Zertifikatsmails bekommt der Betreiber seit B1.
    - b. Nur der Kunde, wie bei den Kontingenten. Kleiner; der Betreiber
      verlöre die Zertifikatsmails und erführe eine gescheiterte Sicherung nur
-     über Webhook und Seite.
+     über Webhook und Seite. **— entschieden**
 2. **Ab wann gilt ein Zertifikat von Let's Encrypt als „läuft demnächst ab"?**
    - **a. Ab 28 Tagen**, zwei Nächte nachdem seine Erneuerung fällig wurde.
-     *Vorschlag.* Das behebt Befund 2 auch für den Betreiber.
+     *Vorschlag.* Das behebt Befund 2 auch für den Betreiber. **— entschieden**
    - b. Wie heute ab 30 Tagen. Dann meldet etwa jede zwölfte gelungene
      Erneuerung, an den Betreiber und an den Kunden.
 3. **Wann wird eine gescheiterte Sicherung gemeldet?**
    - **a. Im ersten Nachtlauf, der sie sieht**, ohne Haltezeit: jede, die bis
      dahin keine gelungene abgelöst hat, rund einen Tag nach dem Scheitern.
-     *Vorschlag.*
+     *Vorschlag.* **— entschieden**
    - b. Erst wenn zwei hintereinander gescheitert sind — ein eigener Grund,
      ebenfalls ohne Haltezeit. Eine einzelne meldet dann nie, zwei immer.
    - c. Wie alles aus der Nacht nach 20 Stunden. Dann würfelt die Meldung
@@ -334,7 +349,7 @@ im Container, bevor der Lauf es anweist.
    - **a. Die jüngste, gleich wer sie angestossen hat.** *Vorschlag.* Eine
      gelungene von Hand nimmt dann eine gescheiterte aus der Nacht zurück.
      Umgekehrt meldet sich eine gescheiterte von Hand am nächsten Tag, auch
-     wenn der Kunde sie hat scheitern sehen.
+     wenn der Kunde sie hat scheitern sehen. **— entschieden**
    - b. Nur die aus der Nacht. Wer von Hand sichert, sieht das Ergebnis auf der
      Seite. Erkennbar ist die nächtliche an ihrem Vorgang, der keinen
      Handelnden trägt (`BackupActorTest`).
@@ -360,7 +375,7 @@ im Container, bevor der Lauf es anweist.
   Richtungen und durch den echten Meldelauf. Der Ort ist `NoticeAudienceTest`.
 - **Die umgezogene Buchung** (nur mit Frage 1a): Ein gemeldeter
   Kontingentbefund ist nach der Migration über die Kundenmail nicht wieder
-  fällig.
+  fällig. *Entfällt mit 1b; die Wächter, wie gebaut, stehen in §10.*
 - **Die Schwelle für Let's Encrypt** liegt zwei Nächte hinter `LEAD_DAYS`,
   gerechnet aus den Units.
 - **Ablauf und Namen getrennt**, `expiring` neben `expired`, und die Leitung
@@ -378,9 +393,210 @@ im Container, bevor der Lauf es anweist.
 ## §9 · Aufwand und Reihenfolge
 
 Zwei bis drei Tage Bau, davon etwa einer für den Kanal aus Frage 1a, dazu ein
-Abnahmelauf über zwei Nächte. Gebaut wird in dieser Reihenfolge:
+Abnahmelauf über zwei Nächte. *Mit 1b entfiel der Kanal; gebaut ist B9 an
+einem Tag (§10).* Gebaut wird in dieser Reihenfolge:
 
 1. **Zertifikat** — die Befunde 2 und 3, an einer Prüfung, die es gibt.
 2. **Sicherung** — der neue Schlüssel.
 3. **Kanal und Mail.**
 4. **Wächter und Bruchskript**, dann die Freigabe und der Lauf.
+
+## §10 · Gebaut — 7. Oktober 2026
+
+Gebaut am selben Tag wie entschieden, in einem Zug, und an vier Stellen anders
+als in §4 entworfen. **Eine Freigabe trägt es noch nicht, und gefahren ist kein
+Lauf**; das Kriterium steht in `docs/129 §9`.
+
+### Wer was bekommt, wie gebaut
+
+| Befund | Kunde | Betreiber per Mail | Webhook |
+|---|---|---|---|
+| `quota.exceeded` (B5) | ja | nein | ja |
+| `tls.expiry` · `expiring`, `expired` (neu) | **ja** | **nein** | ja |
+| `tls.file` · `missing`, `name_mismatch`; `tls.wire` | nein | ja | ja |
+| `backup.latest` · `failed` (neu) | **ja** | nein | ja |
+| alle übrigen | nein | ja | ja |
+
+Der Betreiber sieht beide Meldungen auf „Diagnose", samt der Zustellung an den
+Kunden, und über den Webhook. Eine Mail bekommt er dazu nicht, auch nicht mehr
+für ein ablaufendes Zertifikat, das er seit B1 per Mail bekam.
+
+Die übrigen drei Antworten: Ein Zertifikat von Let's Encrypt gilt ab 28 Tagen
+Restlaufzeit als ablaufend, ein hochgeladenes wie bisher ab 30 (2a). Eine
+gescheiterte Sicherung meldet der erste Nachtlauf, der sie sieht, ohne
+Haltezeit (3a). Und es zählt die jüngste fertige Sicherung, gleich wer sie
+angestossen hat (4a).
+
+### Was anders lief als entworfen
+
+1. **Die Laufzeit ist ein eigener Schlüssel und kein Grund unter `tls.file`.**
+   §4 wollte den Mailkanal nach Prüfung **und Grund** auswählen lassen. Gebaut
+   ist `tls.expiry` neben `tls.file` und `tls.wire`, und der Kanal wählt wie
+   bisher nach der Prüfung allein (`MailChannel::CUSTOMER`). Befund 3 ist damit
+   an der Wurzel behoben: `expiring` und `expired` stehen unter einem Schlüssel
+   nebeneinander, und ein falscher Name verdeckt die Laufzeit nicht mehr, weil
+   beides zwei Fragen sind.
+
+   > **Zwei Fragen an denselben Gegenstand sind zwei Schlüssel, sobald sie
+   > zwei Empfänger haben.**
+
+2. **Der Satz am Befund bleibt in UTC.** §4 wollte das Datum für beide
+   Empfänger in der Anzeigezone. Die Prüfung rechnet aber ohne Framework —
+   `tests/kundenmeldungen-rechnen.php` fährt sie so —, und die Anzeigezone steht
+   in der Datenbank. Der Satz trägt seine Zone (`gültig bis … UTC`); die Mail an
+   den Kunden liest den Zeitpunkt aus ihm (`Certificates::validUntil()`) und
+   nennt ihn in der Anzeigezone. **Nicht aus `not_after` im Bestand:** Der
+   Befund beurteilt die Datei, und wo Datei und Zeile auseinanderlaufen, nennte
+   die Mail sonst einen anderen Tag als den, über den sie berichtet.
+
+3. **Die Kundenmail heisst `CustomerNotice` und nicht mehr `QuotaWarning`.**
+   Eine je Abonnement, Empfänger und Nacht, wie §4 es wollte, mit einem
+   Abschnitt je Art (`QuotaSection`, `CertificateSection`, `BackupSection`) in
+   fester Reihenfolge. Was nicht im Befund steht, liest `CustomerFacts` beim
+   Zustellen: das Abonnement einer Domain, die Herkunft des Zertifikats, den
+   letzten gescheiterten Versuch am Vorgang `acme.certificate.issue`, die
+   jüngste gelungene Sicherung und ob die nächste von selbst kommt.
+
+4. **Ein Übergang, den §4 nicht kannte, und keine Migration dafür.** Nach dem
+   Update stehen bis zum ersten Nachtlauf Zeilen `tls.file / expiring` und
+   `expired` in der Tabelle, geschrieben von der Fassung davor.
+   `FindingCheck::state()` und `sentence()` warfen für einen Grund, den die
+   Prüfung nicht mehr ausspricht: Die Seite „Diagnose" gab einen 500er, und
+   der Meldelauf brach an der Entwarnung ab. Gemessen mit `RetiredReasonTest`
+   gegen die Fassung ohne die Behebung, an beiden Stellen mit derselben
+   Meldung: *Die Prüfung tls.file kennt den Grund "expired" nicht.*
+
+   Geplant war eine Migration, die die Zeilen nach `tls.expiry` umzieht. **Sie
+   hätte den Webhook falsch zurückgelassen.** Sein Empfänger ordnet eine
+   Entwarnung über Gegenstand, Prüfung und Grund zu
+   (`WebhookChannel::deliverResolved()`). Der Vorfall unter `tls.file` wäre nie
+   geschlossen worden, und die Entwarnung käme später unter einem Schlüssel,
+   den er nie gesehen hat. Gebaut ist deshalb `FindingCheck::retired()`: Die
+   beiden Gründe bleiben unter `tls.file` bekannt, mit Urteil und Satz von
+   damals, und geschrieben werden sie nie, denn der Schreibweg fragt
+   `assertSpoken()` und nicht mehr `state()`. Der erste Nachtlauf nach dem
+   Update schliesst den alten Vorfall mit seinem eigenen Satz, und
+   `tls.expiry` meldet sich nach seiner Haltezeit, also in der zweiten Nacht.
+
+   > **Ein Grund, den es nicht mehr gibt, steht nach dem Update noch in der
+   > Tabelle — und wer ihn fragt, wirft.**
+
+   > **Wer eine Zeile umzieht, unter deren Schlüssel ein Empfänger einen
+   > Vorfall führt, lässt den Vorfall offen.**
+
+### Die Mail, wie sie hinausgeht
+
+Gerendert im Container mit der echten Vorlage gegen eine frisch migrierte
+Datenbank im Speicher, Anzeigezone `Europe/Berlin`; die Angaben sind
+ausgedacht. Die längste Zeile hat 76 Zeichen. Die Trennzeile der Unterschrift
+trägt in der Mail ein Leerzeichen am Ende (`docs/140 §6e`), hier nicht.
+
+    Betreff: SrvPanel — Zertifikat läuft ab und Sicherung fehlgeschlagen: kunde-a
+
+    Guten Tag,
+
+    für Ihr Abonnement kunde-a hat das Panel Folgendes festgestellt:
+
+    - Das Zertifikat läuft demnächst ab.
+      Domain: kunde-a.example
+      Gültig bis: 2026-11-03 12:00 CET (UTC+01:00)
+      Erneuerung fällig seit: 2026-10-04 13:00 CEST (UTC+02:00)
+      Letzter Versuch: 2026-10-08 02:12 CEST (UTC+02:00): Die Prüfdatei war
+      nicht erreichbar.
+
+    Zertifikate von Let’s Encrypt erneuert das Panel selbst, ab 30 Tagen vor dem
+    Ablauf. Auf der Seite der Domain im Panel lässt sich die Bestellung sofort
+    neu anstossen.
+
+    - Die jüngste Sicherung dieses Abonnements ist fehlgeschlagen.
+      Erstellt: 2026-10-07 03:31 CEST (UTC+02:00)
+      Meldung: Zu wenig Platz für die Sicherung
+
+    Die jüngste gelungene Sicherung dieses Abonnements ist vom 2026-10-06 03:28
+    CEST (UTC+02:00).
+
+    Die nächste Sicherung legt das Panel in der kommenden Nacht von selbst an.
+
+    Sie bekommen diese Nachricht einmal je Zustand. Erst wenn er vorbei ist und
+    wieder eintritt, meldet sich das Panel erneut.
+
+    --
+    SrvPanel
+
+Der Abschnitt zum Zertifikat sieht für ein hochgeladenes anders aus: ohne
+„Erneuerung fällig seit" und „Letzter Versuch", und der Absatz sagt, dass das
+Panel es nicht erneuert und ob der Kunde ein neues selbst hochladen darf.
+
+### M2, wie gebaut
+
+`tests/kundenmeldungen-rechnen.php` rechnet M2 seit dem Bau mit
+`Certificates::file()` und `expiry()` und mit beiden Schwellen. Dasselbe
+Zertifikat wie in §3, gültig bis zum 22. November 2026, 11:00:17 UTC:
+
+| Zeitpunkt | hochgeladen | Let's Encrypt |
+|---|---|---|
+| 35 Tage davor | keiner | keiner |
+| 29 Tage davor | `expiring` | keiner |
+| eine Stunde davor | `expiring` | `expiring` |
+| eine Stunde danach | `expiring`, `expired` | `expiring`, `expired` |
+| drei Tage danach | `expiring`, `expired` | `expiring`, `expired` |
+
+Läuft es ab und deckt `www.example.de` nicht, stehen zwei Befunde da: die Datei
+mit `name_mismatch` für den Betreiber, die Zeit mit `expiring` für den Kunden.
+M1 und M3 rechnen unverändert; die Zahlen in §3 stehen.
+
+### Die Wächter
+
+- **Neu:** `CertificateCadenceTest` (die Schwelle liegt zwei Nächte hinter
+  `LEAD_DAYS`, gerechnet aus den Units), `LatestBackupTest`
+  (`backup.latest`), `CustomerNoticeTest` (die Mail, ihre Abschnitte und was
+  `CustomerFacts` liest) und `RetiredReasonTest` (der Übergang, durch die Seite
+  und durch den Meldelauf).
+- **Erweitert:** `CertificateVerdictTest` (Ablauf und Namen getrennt,
+  `expiring` neben `expired`) und `NoticeAudienceTest` (die Tabelle oben durch
+  den echten Meldelauf, beide Hälften des Zertifikats), dazu
+  `NotificationLedgerTest`, `QuotaRecipientTest`, `MailSignatureTest`,
+  `PlainTextMailTest`, `BrandReachTest`, `QuotaOverrunTest`,
+  `FindingIdentityTest`, `DiagnoseCatalogTest` und `DiagnoseSeamTest`.
+  `QuotaWarningTest` heisst `QuotaNoticeTest`.
+- **Im Bruchskript 49 neue Eingriffe**, dazu neue Anker und Namen für die
+  bestehenden, deren Dateien B9 umgebaut hat. Gefahren sind alle Eingriffe in
+  Dateien, die B9 berührt, zuerst 217 Abschnitte, danach die der berichtigten
+  Fälle und des Übergangs. Am Ende beissen alle.
+
+**Drei Eingriffe bissen im ersten Lauf nicht, und alle drei lagen an meinen
+eigenen Fällen.** `NoticeAudienceTest` teilte die Prüfungen nach dem Text ihres
+Schlüssels ein und hielt einen, der den Namen der Domain trug, für einen des
+Betreibers; er vergleicht jetzt, mit welchem Schlüssel einer übereinstimmt.
+Und `CustomerNoticeTest` prüfte, dass „Letzter Versuch" fehlt, an einer Domain
+ohne Zertifikat. Die Zeile steht nur bei einem, das das Panel selbst erneuert,
+und fehlte deshalb in jeder Fassung.
+
+> **Ein Prüfkörper, dem der Zustand fehlt, unter dem eine Zeile überhaupt
+> erscheint, misst ihr Fehlen in jeder Fassung.**
+
+> **Ein undurchsichtiger Schlüssel wird verglichen und nicht gelesen.**
+
+### Was offen bleibt
+
+- **Der Abnahmelauf**, gegen die nächste Freigabe und über zwei Nächte. Das
+  Prüfzertifikat samt Schlüssel erzeugt der Betreiber auf dem Server (§5).
+- **Vor dem Update auf `cloudsrv24` gehören die Empfänger nachgesehen.** Was
+  auf „Diagnose" als `tls.file / expiring` oder `expired` steht, befindet der
+  erste Nachtlauf danach unter `tls.expiry` neu, ein Zertifikat von Let's
+  Encrypt erst ab 28 Tagen. Steht es dann noch da, geht in der zweiten Nacht
+  eine Mail an die Konten seines Abonnements. Seit dem 21. September steht
+  dort `tls.file` an `p6-b.invalid`, dem abgelaufenen hochgeladenen
+  Zertifikat aus A10 (`docs/141 §7`). Wer diese Mail bekommt, ist nicht
+  nachgesehen, und hinter einer Adresse stand im Lauf für B5 eine Attrappe auf
+  einer fremden Domain.
+- **Ein Platzhalterzertifikat nennt keinen letzten Versuch an seinen
+  Unterdomains.** Der Vorgang hängt an der Domain, für die bestellt wurde; eine
+  Unterdomain, die der Platzhalter deckt, bekommt ihren Abschnitt ohne diese
+  Zeile. Er fehlt, er ist nicht falsch.
+- **Mehr als zwanzig fällige Erneuerungen in denselben zwei Nächten.**
+  `CertificateRenewal::PER_RUN` bestellt höchstens zehn je Lauf, und M1 setzt
+  eine Erneuerung je Nacht voraus. Werden mehr fällig, nach einer Übernahme
+  etwa, erneuert das Panel einen Teil erst nach der Schwelle, und dieser Teil
+  kann eine Mail bringen, obwohl die Erneuerung gelingt. Gerechnet ist das
+  nicht.

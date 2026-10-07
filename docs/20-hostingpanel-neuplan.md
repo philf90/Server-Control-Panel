@@ -1397,8 +1397,9 @@ Die vollständige Fassung mit acht Punkten steht in `docs/117 §8`.
 - Benachrichtigungen an Kunden: Kontingent erreicht, Zertifikat läuft ab,
   Sicherung fehlgeschlagen — **die Kontingente sind B5**, abgenommen am
   7. Oktober 2026 (`docs/141`). **Zertifikat und Sicherung sind B9**, am
-  selben Tag vom Betreiber bestellt; der Plan ist `docs/142`. Für die
-  Sicherung gab es bis dahin auch für den Betreiber keinen Auslöser.
+  selben Tag vom Betreiber bestellt und gebaut; der Plan ist `docs/142`, der
+  Bau steht dort in §10. Für die Sicherung gab es bis dahin auch für den
+  Betreiber keinen Auslöser.
 - Branding: Logo, Farben, Fußzeile, Absenderadresse, eigene Panel-Domain
 - ~~Serververwaltung für den Admin~~ — **seit dem 24. August 2026 eine eigene
   Stufe, P7b**, und damit vor P8 statt hier. Der Punkt bleibt als Zeile stehen

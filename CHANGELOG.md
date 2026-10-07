@@ -34086,3 +34086,58 @@ Sicherung läuft.
 bekommt, ab wann ein Zertifikat von Let's Encrypt als ablaufend gilt, wann eine
 gescheiterte Sicherung gemeldet wird und welche Sicherungen dabei zählen.
 Gebaut wird, sobald sie beantwortet sind.
+
+### B9 ist gebaut — die Mail bekommt der Kunde, und eine Zeile von vorher hätte „Diagnose" umgeworfen
+
+**Der Betreiber hat die vier Fragen aus `docs/142 §6` am 7. Oktober 2026
+entschieden: 1b, 2a, 3a, 4a**, und B9 ist am selben Tag gebaut
+(`docs/142 §10`). Eine Freigabe trägt es noch nicht, und gefahren ist kein
+Lauf.
+
+- **Ein ablaufendes Zertifikat und eine gescheiterte Sicherung bringen dem
+  Kunden eine Mail**, wie ein überzogenes Kontingent seit B5, und zwar nur ihm.
+  Der Betreiber sieht beide Befunde auf „Diagnose", samt der Zustellung, und
+  über den Webhook. Eine Mail bekommt er dazu nicht mehr, auch nicht für ein
+  ablaufendes Zertifikat, das er seit B1 per Mail bekam.
+- **Die Laufzeit eines Zertifikats ist ein eigener Schlüssel, `tls.expiry`.**
+  `tls.file` fragt nur noch, ob die Datei da ist und die Namen deckt. Damit
+  bleibt „läuft demnächst ab" neben „abgelaufen" stehen, und der Webhook
+  bekommt beim Ablauf keine Entwarnung mehr für einen Zustand, der schlimmer
+  geworden ist. Ein Zertifikat, das abläuft und einen Namen nicht deckt,
+  bringt zwei Befunde an zwei Empfänger.
+- **Ein Zertifikat von Let's Encrypt gilt ab 28 Tagen als ablaufend**, ein
+  hochgeladenes wie bisher ab 30. Gerechnet meldet dann keine gelungene
+  Erneuerung mehr etwas, vorher etwa jede zwölfte. `CertificateCadenceTest`
+  hält den Abstand an den Units der beiden Zeitgeber.
+- **`backup.latest` meldet die jüngste fertige Sicherung, wenn sie gescheitert
+  ist**, gleich wer sie angestossen hat, im ersten Nachtlauf, der sie sieht.
+  Bis dahin erfuhr das niemand. Eine gelungene nimmt den Befund zurück.
+- **Eine Mail je Abonnement, Empfänger und Nacht**, mit einem Abschnitt je Art.
+  Die Kontingentmail heisst seitdem `App\Mail\CustomerNotice`, und was nicht im
+  Befund steht, liest `App\Support\Notify\CustomerFacts` beim Zustellen: das
+  Datum in der Anzeigezone, ob das Panel das Zertifikat selbst erneuert, den
+  letzten gescheiterten Versuch und die jüngste gelungene Sicherung.
+
+**Ein Übergang hätte die Seite „Diagnose" umgeworfen.** Nach dem Update stehen
+bis zum ersten Nachtlauf Zeilen `tls.file / expiring` und `expired` aus der
+Fassung davor in der Tabelle, und das Panel kannte diese Gründe nicht mehr:
+Die Seite gab einen 500er, und der Meldelauf brach an der Entwarnung ab.
+Geplant war eine Migration, die die Zeilen umzieht. Sie hätte den Vorfall beim
+Empfänger des Webhooks offen gelassen, denn der ordnet eine Entwarnung über
+Gegenstand, Prüfung und Grund zu. Die beiden Gründe bleiben deshalb unter
+`tls.file` lesbar, mit Urteil und Satz von damals, und geschrieben werden sie
+nie (`App\Enums\FindingCheck::retired()`). Der erste Nachtlauf nach dem Update
+schliesst den alten Vorfall unter seinem eigenen Schlüssel; `RetiredReasonTest`
+fährt den Weg durch die Seite und durch den Meldelauf.
+
+**Drei Eingriffe des Bruchskripts bissen im ersten Lauf nicht**, und alle drei
+lagen an meinen eigenen Fällen. Zwei trafen einen Fall, der an einer Domain
+ohne Zertifikat von Let's Encrypt prüfte, dass „Letzter Versuch" fehlt; dort
+steht die Zeile nie. Der dritte traf einen Fall, der die Prüfungen nach dem
+Text ihres Bündelschlüssels einteilte. Beide Fälle sind berichtigt, und jeder
+Eingriff in eine Datei, die B9 berührt, beisst.
+
+**Vor dem Update auf `cloudsrv24`:** An `p6-b.invalid` steht seit dem
+21. September ein abgelaufenes hochgeladenes Zertifikat. Nach dem Update geht
+dafür in der zweiten Nacht eine Mail an die Konten des Abonnements, und wer
+das ist, gehört vorher nachgesehen.

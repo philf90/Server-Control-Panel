@@ -34141,3 +34141,38 @@ Eingriff in eine Datei, die B9 berührt, beisst.
 21. September ein abgelaufenes hochgeladenes Zertifikat. Nach dem Update geht
 dafür in der zweiten Nacht eine Mail an die Konten des Abonnements, und wer
 das ist, gehört vorher nachgesehen.
+
+### Der Abnahmelauf für B9 steht ausgeschrieben — und das Update stellt selbst eine Uhr
+
+**Der Abnahmelauf für B9 ist `docs/143`**, ausgeschrieben am 8. Oktober vor dem
+Fahren, gegen `0.9.0-rc.15` und in zwei Tagen zu fahren. Am Prüfstand
+`p6-abnahme.invalid` lässt er eine Sicherung scheitern und wieder gelingen und
+lädt für eine eigene Subdomain ein Zertifikat hoch, das in zwanzig Tagen
+abläuft. Zwanzig Stunden danach misst er die eine Mail mit beiden Abschnitten,
+den Lauf, der keine zweite schickt, und die Entwarnungen beim Webhook.
+
+**Vorab gefahren ist die ganze Folge im Container**, mit den echten Teilen des
+Panels gegen eine eigene Datenbank und mit den echten Operationen des Agenten
+gegen MariaDB 10.11.14, dieselbe Fassung wie auf dem Server. Am Prüfling ist
+dabei kein Befund herausgefallen; jede Erwartung im Lauf ist eine Zeile daraus.
+
+**Das Update stellt selbst eine Uhr.** An `p6-b.invalid` steht seit dem
+21. September ein abgelaufenes hochgeladenes Zertifikat. Der erste Lauf nach
+dem Update, nachts oder von Hand, befindet es unter `tls.expiry` neu, und
+zwanzig Stunden danach wird dafür eine Mail an die Konten des Abonnements
+fällig. Block 0 liest deren Adressen deshalb vor dem Update, in voller Länge
+und mit der Angabe, ob ihre Domain reserviert ist.
+
+> **Ein Update, das einen Befund neu befindet, stellt eine Uhr — wer die
+> Empfänger erst beim Lauf nachsieht, sieht womöglich nach, wenn sie
+> abgelaufen ist.**
+
+**Die Sicherung scheitert an einer kaputten Sicht** in einer eigenen Datenbank
+des Abonnements. Das kann jeder Kunde herstellen, und zurück geht es mit
+`DROP VIEW`. **Das Prüfzertifikat liegt an einer Subdomain**, weil sich eine
+Domain von einem hochgeladenen Zertifikat nicht lösen lässt. Der Lauf entfernt
+sie am Ende, und `srvpanel tls --prune` räumt das Zertifikat ab.
+
+**Eine Frage an den Betreiber steht in `docs/143 §0`:** Die Mail zu einer
+gescheiterten Sicherung nennt, dass der Dump fehlt, und nicht, warum. Den Grund
+trägt der Vorgang davor. Der Lauf misst `rc.15`, wie es ist.

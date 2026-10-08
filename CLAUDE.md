@@ -66,8 +66,10 @@ Betreiber entschieden: Die beiden übrigen Meldungen an den Kunden aus
 `docs/20 §9`, Zertifikat und Sicherung, werden als **B9** gebaut, vor B7 und
 B8. Der Plan ist `docs/142`; die vier Fragen dort in §6 hat der Betreiber am
 selben Tag entschieden (1b, 2a, 3a, 4a), und **B9 ist am 7. Oktober gebaut**
-(`docs/142 §10`, Abschnitt weiter unten), noch ohne Freigabe und ohne Lauf.
-Die Dokumentation ist vertagt und steht als offener Punkt da.
+(`docs/142 §10`, Abschnitt weiter unten) und am 8. als `0.9.0-rc.15`
+freigegeben. Der Lauf ist `docs/143`, ausgeschrieben am 8. Oktober vor dem
+Fahren (Abschnitt weiter unten). Die Dokumentation ist vertagt und steht als
+offener Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -7074,7 +7076,8 @@ seitdem so.
 
 **Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B7 und
 B8.** Für B7 und B8 gibt es noch keinen Lauf. Seit dem 7. Oktober kommt B9
-dazu, gebaut und noch nicht abgenommen (`docs/142 §10`). Der Lauf für B5 ist seit dem
+dazu, gebaut und noch nicht abgenommen (`docs/142 §10`); sein Lauf ist seit
+dem 8. Oktober `docs/143`. Der Lauf für B5 ist seit dem
 5. Oktober `docs/141`, gefahren samt Nachlauf bis zum 7. Oktober, und an
 diesem Tag ist B5 abgenommen (Abschnitte unten).
 
@@ -7289,7 +7292,8 @@ Der Betreiber hat die vier Fragen aus `docs/142 §6` am selben Tag entschieden:
 **1b, 2a, 3a, 4a**. Die Mail bekommt allein der Kunde, wie bei den
 Kontingenten; der Betreiber sieht beide Meldungen auf „Diagnose" und über den
 Webhook. Gebaut ist B9 danach in einem Zug, an vier Stellen anders als
-entworfen (`docs/142 §10`). Eine Freigabe trägt es noch nicht.
+entworfen (`docs/142 §10`). Freigegeben ist es am 8. Oktober als
+`0.9.0-rc.15`.
 
 **Die Laufzeit eines Zertifikats ist ein eigener Schlüssel geworden,
 `tls.expiry`, und kein Grund mehr unter `tls.file`.** Der Entwurf wollte den
@@ -7351,6 +7355,58 @@ Versuch erscheint.
 `p6-b.invalid` steht seit dem 21. September `tls.file` mit einem abgelaufenen
 hochgeladenen Zertifikat. Nach dem Update wird daraus in der zweiten Nacht eine
 Mail an die Konten des Abonnements (`docs/142 §10`).
+
+---
+
+## Der Abnahmelauf für B9 — 8. Oktober 2026
+
+`docs/143` ist ausgeschrieben, vor dem Fahren und gegen `0.9.0-rc.15`. Er
+braucht zwei Tage und beginnt vor dem Update. Am Prüfstand
+`p6-abnahme.invalid` lässt er eine Sicherung scheitern und wieder gelingen und
+lädt ein Zertifikat hoch, das in zwanzig Tagen abläuft; zwanzig Stunden danach
+misst er die eine Mail mit beiden Abschnitten. **Vorab gefahren ist die ganze
+Folge** im Container, mit den echten Teilen des Panels und den echten
+Operationen des Agenten gegen MariaDB 10.11.14 (`docs/143 §6`). Am Prüfling ist
+dabei kein Befund herausgefallen, an der Vorschrift sieben Punkte
+(`docs/143 §0`).
+
+**Der teuerste Punkt ist die Reihenfolge von Update und Lauf.** An
+`p6-b.invalid` steht seit dem 21. September ein abgelaufenes hochgeladenes
+Zertifikat. Der erste Lauf nach dem Update befindet es unter `tls.expiry` neu,
+ein Nachtlauf oder einer von Hand, und zwanzig Stunden danach wird eine Mail
+an die Konten des Abonnements fällig. Wer sie bekommt, ist nicht nachgesehen,
+und im Lauf für B5 stand hinter einer solchen Adresse eine Attrappe auf einer
+fremden Domain. Block 0 liest die Empfänger deshalb vor dem Update, in voller
+Länge und mit der Angabe, ob ihre Domain reserviert ist.
+
+> **Ein Update, das einen Befund neu befindet, stellt eine Uhr — wer die
+> Empfänger erst beim Lauf nachsieht, sieht womöglich nach, wenn sie
+> abgelaufen ist.**
+
+**Die Sicherung scheitert an einer kaputten Sicht in einer eigenen Datenbank
+des Abonnements.** Das kann jeder Kunde herstellen, und zurück geht es mit
+`DROP VIEW`. `mysqldump` bricht mit Fehler 1356 ab, der Dump liegt nicht, und
+`backup.create` weist die Sicherung ab. Die beiden anderen Wege schieden aus:
+Eine volle Wurzel brächte die Datenbank des Panels in Gefahr (`docs/136 §3`),
+und `chattr +i` am Ablageort ist ein Eingriff am Panel, den kein Kunde machen
+kann.
+
+**Das Prüfzertifikat liegt an einer Subdomain, die der Lauf am Ende wieder
+entfernt.** Von einem hochgeladenen Zertifikat lässt sich eine Domain nur auf
+ein anderes umstellen und nicht lösen. An der Hauptdomain bliebe es stehen, und
+ein Ersatz für ein Jahr brächte elf Monate später eine Mail an den Kunden.
+
+> **Ein Prüfkörper, den man nicht wieder lösen kann, gehört an einen
+> Gegenstand, den man wieder entfernen kann.**
+
+Das Zertifikat räumt danach `srvpanel tls --prune` ab, und zwar vor dem
+nächsten Lauf: Ein Zertifikat ohne Domain meldet die Diagnose dem Betreiber als
+`orphan.row`.
+
+**Eine Frage an den Betreiber steht in `docs/143 §0`:** Die Mail zu einer
+gescheiterten Sicherung nennt, dass der Dump fehlt, und nicht, warum. Den Grund
+trägt der Vorgang davor, `db.dump.create`, und der Kunde sieht ihn unter
+„Vorgänge". Der Lauf misst `rc.15`, wie es ist.
 
 ---
 

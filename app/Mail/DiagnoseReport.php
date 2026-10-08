@@ -19,9 +19,9 @@ use SrvPanel\Agent\Names;
  * „nächtlich": Bis zum 27. September 2026 tat sie es, und die Mail über eine
  * volle Platte kam am Abend (`docs/137 §7`, Befund 1).
  *
- * **Warum eine zweite Vorlage und nicht {@see QuotaWarning} mit anderem Text.**
+ * **Warum eine zweite Vorlage und nicht {@see CustomerNotice} mit anderem Text.**
  * Die beiden haben nicht denselben Empfänger und nicht denselben Gegenstand:
- * Die eine sagt einem Kunden, dass **sein** Kontingent überschritten ist, die
+ * Die eine sagt einem Kunden, was an **seinem** Abonnement los ist, die
  * andere einem Betreiber, dass an **seinem Server** etwas nicht stimmt. Eine
  * Vorlage mit einem Schalter darin wäre zwei Nachrichten in einer Datei, und
  * die seltenere ist die, die beim nächsten Umbau falsch wird.

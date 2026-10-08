@@ -31,6 +31,10 @@ final class DiagnoseCatalogTest extends TestCase
         // schweigen könnte.
         'orphan.row',
 
+        // Ebenso: Zustand und Meldung einer Sicherung stehen in der eigenen
+        // Datenbank, geschrieben vom Ausgang ihres Vorgangs (B9, `docs/142`).
+        'backup.latest',
+
         // Ebenso: Kontingent und gemessener Wert stehen beide in der eigenen
         // Datenbank. Was an dieser Prüfung einzeln ausfallen kann, ist der
         // Verkehr — er braucht die Zone des Servers und hat dafür seinen
@@ -38,6 +42,12 @@ final class DiagnoseCatalogTest extends TestCase
         // „Diese Prüfung ist nicht durchgelaufen" wäre daneben falsch: Platz
         // und Datenbanken sind sehr wohl beurteilt.
         'quota.exceeded',
+
+        // Die Laufzeit steht in derselben Antwort des Agenten wie die Datei.
+        // Fehlt sie, sagt `tls.file / unreachable` es, und die Befunde der
+        // Zeit bleiben ungeprüft stehen — ein zweiter Satz je Domain sagte
+        // dasselbe noch einmal (B9, `docs/142`).
+        'tls.expiry',
 
         // Die einzige Prüfung, die über das Netz geht: Dass der Server nicht
         // antwortet, ist hier der gemessene Zustand und keine ausgefallene

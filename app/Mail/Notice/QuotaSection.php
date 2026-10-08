@@ -2,25 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\Mail;
+namespace App\Mail\Notice;
 
-use App\Support\Brand\MailSubject;
+use App\Mail\Concerns\PlainText;
 use App\Support\Diagnose\Checks\QuotaOverrun;
 use App\Support\Plans\Quota;
-use Illuminate\Bus\Queueable;
-use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Queue\SerializesModels;
 use LogicException;
 
 /**
- * Die Meldung an den Kunden über die Kontingente eines Abonnements (B5,
+ * Was die Mail an den Kunden über die Kontingente eines Abonnements sagt (B5,
  * `docs/129 §9`).
  *
- * **Reiner Text wie bei {@see TestMessage}, und aus demselben Grund.** Diese
- * Nachricht sagt drei Dinge — welches Abonnement, welches Kontingent, wie
- * viel —, und alles daran, was gestaltet wäre, macht sie nur unsicherer.
+ * **Bis B9 war das die ganze Mail** und hiess `QuotaWarning`. Seit Zertifikat
+ * und Sicherung dazugekommen sind (`docs/142`), ist es einer von drei
+ * Abschnitten; Betreff, Anrede und Unterschrift setzt die Mail zusammen.
  *
  * ## Was sie über die Folgen sagt, hängt am Kontingent
  *
@@ -53,28 +48,20 @@ use LogicException;
  *
  * Der Satz eines Befundes stand in derselben Zeile wie sein Wert, mit einem
  * Doppelpunkt hinter seinem Punkt („Kontingent.: 3 MB von 1 MB"), und kam auf
- * 90 Zeichen. Gebrochen wird hier und nicht in der Vorlage, nach Zeichen und
- * nicht nach Bytes: `wordwrap()` zählt Bytes, und ein Umlaut ist zwei davon.
+ * 90 Zeichen. Gebrochen wird in {@see PlainText} und nicht in der Vorlage.
  */
-final class QuotaWarning extends Mailable
+final class QuotaSection implements Section
 {
-    use Queueable;
-    use SerializesModels;
-
-    /** Wie lang eine Zeile höchstens wird — unter 78, damit kein Klient umbricht. */
-    public const WIDTH = 76;
+    use PlainText;
 
     /** @var non-empty-list<array{reason: string, label: string, detail: string}> */
     private readonly array $overruns;
 
     /**
-     * @param  string  $subscription  der Name des Abonnements
      * @param  non-empty-list<array{reason: string, label: string, detail: string}>  $overruns
      */
-    public function __construct(
-        private readonly string $subscription,
-        array $overruns,
-    ) {
+    public function __construct(array $overruns)
+    {
         $this->overruns = self::shown($overruns);
     }
 
@@ -101,46 +88,12 @@ final class QuotaWarning extends Mailable
         return $gezeigt === [] ? $overruns : $gezeigt;
     }
 
-    public function envelope(): Envelope
-    {
-        /*
-         * **Der Betreff sagt, was los ist, und nennt das Abonnement.** Ein
-         * Kunde mit drei Abonnements bekommt sonst drei Mails, die sich im
-         * Betreff nicht unterscheiden — und „Kontingent überschritten" war für
-         * einen Platz, der nur fast voll ist, falsch.
-         */
-        return new Envelope(subject: MailSubject::of(sprintf(
-            '%s: %s',
-            self::listing(array_map(static fn (array $o): string => self::headline($o['reason']), $this->overruns)),
-            $this->subscription,
-        )));
-    }
-
-    public function content(): Content
-    {
-        $gruende = array_column($this->overruns, 'reason');
-
-        /*
-         * **Fertig gebrochene Texte und keine Listen.** Die Vorlage gibt aus,
-         * was hier steht; eine Schleife darin liesse vor der Unterschrift ein
-         * `@endforeach` stehen, wo `MailSignatureTest` die Leerzeile sucht.
-         */
-        return new Content(text: 'mail.quota', with: [
-            'intro' => implode("\n", self::wrap(sprintf(
-                'für Ihr Abonnement %s hat das Panel Folgendes gemessen:',
-                $this->subscription,
-            ), self::WIDTH)),
-            'lines' => implode("\n", $this->lines()),
-            'paragraphs' => implode("\n\n", self::paragraphs($gruende)),
-        ]);
-    }
-
     /**
      * Die Überschrift eines Grundes — für den Betreff.
      *
      * **Der Rückfall wirft, mit Absicht.** Ein neuer Grund in
      * {@see QuotaOverrun} ohne Überschrift fällt hier auf, statt still
-     * „Kontingent" zu schreiben; `QuotaWarningTest` fährt jeden Grund aus
+     * „Kontingent" zu schreiben; `QuotaNoticeTest` fährt jeden Grund aus
      * `QuotaOverrun::REASONS` durch, damit es nicht erst im Nachtlauf wirft.
      */
     public static function headline(string $reason): string
@@ -154,12 +107,17 @@ final class QuotaWarning extends Mailable
         };
     }
 
+    public function headlines(): array
+    {
+        return array_map(static fn (array $o): string => self::headline($o['reason']), $this->overruns);
+    }
+
     /**
      * Die Zeilen der Befunde: der Satz, darunter der gemessene Wert.
      *
-     * @return list<string>
+     * @return non-empty-list<string>
      */
-    private function lines(): array
+    public function lines(): array
     {
         $zeilen = [];
 
@@ -168,12 +126,18 @@ final class QuotaWarning extends Mailable
                 $zeilen[] = ($i === 0 ? '- ' : '  ').$teil;
             }
 
-            foreach (self::wrap('Gemessen: '.$overrun['detail'], self::WIDTH - 2) as $teil) {
-                $zeilen[] = '  '.$teil;
+            foreach (self::detailLines('Gemessen', $overrun['detail']) as $zeile) {
+                $zeilen[] = $zeile;
             }
         }
 
+        /** @var non-empty-list<string> $zeilen */
         return $zeilen;
+    }
+
+    public function paragraphs(): array
+    {
+        return self::consequences(array_column($this->overruns, 'reason'));
     }
 
     /**
@@ -183,7 +147,7 @@ final class QuotaWarning extends Mailable
      * @param  list<string>  $gruende
      * @return list<string> je Absatz ein fertig gebrochener Text
      */
-    public static function paragraphs(array $gruende): array
+    public static function consequences(array $gruende): array
     {
         $absaetze = [];
 
@@ -226,53 +190,6 @@ final class QuotaWarning extends Mailable
         $absaetze[] = 'Die Zahlen stehen mit ihrem Verlauf der letzten dreissig Tage auf der '
             .'Seite Ihres Abonnements im Panel.';
 
-        $absaetze[] = 'Sie bekommen diese Nachricht einmal je Zustand. Erst wenn er vorbei ist '
-            .'und wieder eintritt, meldet sich das Panel erneut.';
-
         return array_map(static fn (string $a): string => implode("\n", self::wrap($a, self::WIDTH)), $absaetze);
-    }
-
-    /**
-     * „A", „A und B", „A, B und C".
-     *
-     * @param  list<string>  $teile
-     */
-    private static function listing(array $teile): string
-    {
-        $letzter = array_pop($teile);
-
-        return $teile === [] ? (string) $letzter : implode(', ', $teile).' und '.$letzter;
-    }
-
-    /**
-     * Einen Text an Wortgrenzen brechen, nach Zeichen gezählt.
-     *
-     * Ein Wort, das allein länger ist als die Zeile — ein langer
-     * Abonnementname —, bleibt ganz: Mitten in einem Namen zu brechen, hiesse,
-     * ihn unkenntlich zu machen.
-     *
-     * @return list<string>
-     */
-    public static function wrap(string $text, int $width): array
-    {
-        $zeilen = [];
-        $zeile = '';
-
-        foreach (preg_split('/\s+/u', trim($text)) ?: [] as $wort) {
-            if ($zeile === '') {
-                $zeile = $wort;
-            } elseif (mb_strlen($zeile.' '.$wort) <= $width) {
-                $zeile .= ' '.$wort;
-            } else {
-                $zeilen[] = $zeile;
-                $zeile = $wort;
-            }
-        }
-
-        if ($zeile !== '') {
-            $zeilen[] = $zeile;
-        }
-
-        return $zeilen;
     }
 }

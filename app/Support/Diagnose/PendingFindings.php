@@ -86,6 +86,9 @@ final class PendingFindings
      * die veraltet. Bekommt eine Prüfung einen neuen Grund mit `unknown`, trägt
      * er sich von selbst ein.
      *
+     * **Mit den abgelösten Gründen** ({@see FindingCheck::retired()}): Gezählt
+     * werden Zeilen, und eine von vor dem Update steht noch da.
+     *
      * @return list<string>
      */
     public static function quietReasons(): array
@@ -93,7 +96,7 @@ final class PendingFindings
         $ruhig = [];
 
         foreach (FindingCheck::cases() as $pruefung) {
-            foreach ($pruefung->reasons() as $grund => $eintrag) {
+            foreach ($pruefung->known() as $grund => $eintrag) {
                 if (! in_array($eintrag['state'], self::AUFFAELLIG, true)) {
                     $ruhig[] = $grund;
                 }
@@ -114,7 +117,7 @@ final class PendingFindings
         $laut = [];
 
         foreach (FindingCheck::cases() as $pruefung) {
-            foreach ($pruefung->reasons() as $grund => $eintrag) {
+            foreach ($pruefung->known() as $grund => $eintrag) {
                 if (in_array($eintrag['state'], self::AUFFAELLIG, true)) {
                     $laut[] = $grund;
                 }

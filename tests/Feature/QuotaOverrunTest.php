@@ -166,7 +166,7 @@ final class QuotaOverrunTest extends TestCase
      * Der Anteil wird **abgerundet** und nicht gerundet: 3.999 von 4.000 MB
      * sind 99,975 %, und gerundet stünde „100,0 %" neben „fast" — ein Satz,
      * der sich selbst widerspricht. Auf der Grenze steht „ausgeschöpft"
-     * daneben, und in der Mail nur das (`QuotaWarning::shown()`).
+     * daneben, und in der Mail nur das (`QuotaSection::shown()`).
      */
     public function test_the_warning_never_reads_a_full_hundred(): void
     {

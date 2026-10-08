@@ -6,7 +6,8 @@ namespace Tests\Feature;
 
 use App\Enums\FindingCheck;
 use App\Enums\FindingState;
-use App\Mail\QuotaWarning;
+use App\Mail\CustomerNotice;
+use App\Mail\Notice\QuotaSection;
 use App\Support\Diagnose\Checks\QuotaOverrun;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use LogicException;
@@ -14,6 +15,11 @@ use Tests\TestCase;
 
 /**
  * Was die Mail an den Kunden über seine Kontingente sagt — B5, `docs/141 §0`.
+ *
+ * **Bis zum 7. Oktober 2026 hiess er nach der Mail `QuotaWarning`**, die
+ * damals nur die Kontingente kannte. Seit B9 sind sie ein Abschnitt von
+ * {@see CustomerNotice} ({@see QuotaSection}), und gemessen wird weiter an der
+ * ganzen Mail, wie der Kunde sie liest.
  *
  * ## Warum es diesen Wächter gibt
  *
@@ -41,7 +47,7 @@ use Tests\TestCase;
  * Richtungen: Wer einen Absatz bekommt, braucht ihn, und wer ihn nicht
  * braucht, bekommt ihn nicht.
  */
-final class QuotaWarningTest extends TestCase
+final class QuotaNoticeTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -56,13 +62,13 @@ final class QuotaWarningTest extends TestCase
      *
      * @param  non-empty-list<string>  $gruende
      */
-    private function mail(array $gruende, string $abo = 'p1000'): QuotaWarning
+    private function mail(array $gruende, string $abo = 'p1000'): CustomerNotice
     {
-        return new QuotaWarning($abo, array_map(static fn (string $grund): array => [
+        return new CustomerNotice($abo, [new QuotaSection(array_map(static fn (string $grund): array => [
             'reason' => $grund,
             'label' => FindingCheck::QuotaExceeded->sentence($grund),
             'detail' => $grund === 'disk_near_limit' ? '19.200 MB von 20.000 MB (96,0 %)' : '3.072 MB von 1.024 MB',
-        ], $gruende));
+        ], $gruende))]);
     }
 
     /** Der Rumpf ohne Zeilenumbrüche — die Absätze sind gebrochen. */
@@ -104,7 +110,7 @@ final class QuotaWarningTest extends TestCase
         foreach (self::meldbar() as $grund) {
             $betreff = (string) $this->mail([$grund])->envelope()->subject;
 
-            self::assertStringContainsString(QuotaWarning::headline($grund).': p1000', $betreff, $grund);
+            self::assertStringContainsString(QuotaSection::headline($grund).': p1000', $betreff, $grund);
         }
     }
 
@@ -118,7 +124,7 @@ final class QuotaWarningTest extends TestCase
     {
         $this->expectException(LogicException::class);
 
-        QuotaWarning::headline('erfunden');
+        QuotaSection::headline('erfunden');
     }
 
     /**

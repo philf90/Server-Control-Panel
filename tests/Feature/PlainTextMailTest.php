@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Mail\CustomerNotice;
 use App\Mail\DiagnoseReport;
-use App\Mail\QuotaWarning;
+use App\Mail\Notice\BackupSection;
+use App\Mail\Notice\CertificateSection;
+use App\Mail\Notice\QuotaSection;
 use App\Mail\TestMessage;
 use App\Support\Settings\BrandSettings;
 use App\Support\Settings\Settings;
@@ -121,7 +124,21 @@ final class PlainTextMailTest extends TestCase
 
         $texte = [
             'Betreiber' => (new DiagnoseReport([$befund]))->render(),
-            'Kunde' => (new QuotaWarning('abo & co', [['reason' => 'traffic_over', 'label' => 'Der Traffic dieses Monats liegt über dem Kontingent.', 'detail' => '"12 GB" > 10 GB']]))->render(),
+            // Alle drei Abschnitte, jeder mit einem Wert von aussen, der eines
+            // der Zeichen trägt: Die Meldung eines Vorgangs ist so fremd wie
+            // ein gemessener Wert.
+            'Kunde' => (new CustomerNotice('abo & co', [
+                new QuotaSection([['reason' => 'traffic_over', 'label' => 'Der Traffic dieses Monats liegt über dem Kontingent.', 'detail' => '"12 GB" > 10 GB']]),
+                new CertificateSection([[
+                    'domain' => "o'brien.example",
+                    'reason' => 'expiring',
+                    'valid_to' => '2026-11-22 12:00 CET (UTC+01:00)',
+                    'renewed' => true,
+                    'due_since' => '2026-10-23 13:00 CEST (UTC+02:00)',
+                    'last_attempt' => '2026-10-25 01:12 CEST: <404> "fort"',
+                ]], false),
+                new BackupSection('failed', '2026-10-07 03:31 CEST (UTC+02:00)', 'Ziel & Quelle: <voll>', null, false),
+            ]))->render(),
             'Probe' => (new TestMessage("O'Brien & <Admin>", '27.09.2026 21:00'))->render(),
         ];
 
@@ -139,6 +156,9 @@ final class PlainTextMailTest extends TestCase
         self::assertStringContainsString('<'.self::ZEICHEN.'>', $texte['Betreiber']);
         self::assertStringContainsString('abo & co', $texte['Kunde']);
         self::assertStringContainsString('"12 GB" > 10 GB', $texte['Kunde']);
+        self::assertStringContainsString("o'brien.example", $texte['Kunde']);
+        self::assertStringContainsString('<404> "fort"', $texte['Kunde']);
+        self::assertStringContainsString('Ziel & Quelle: <voll>', $texte['Kunde']);
         self::assertStringContainsString("O'Brien & <Admin>", $texte['Probe']);
     }
 

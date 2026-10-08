@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Mail\CustomerNotice;
 use App\Mail\DiagnoseReport;
-use App\Mail\QuotaWarning;
+use App\Mail\Notice\BackupSection;
+use App\Mail\Notice\QuotaSection;
 use App\Mail\TestMessage;
 use App\Support\Settings\BrandSettings;
 use App\Support\Settings\Settings;
@@ -56,7 +58,13 @@ final class MailSignatureTest extends TestCase
 
         $texte = [
             'Betreiber' => (new DiagnoseReport([['label' => 'Ein Befund.', 'subject' => 'web-1', 'detail' => 'Detail', 'since' => '03.10.2026 17:00']]))->render(),
-            'Kunde' => (new QuotaWarning('kunde-web', [['reason' => 'traffic_over', 'label' => 'Der Traffic dieses Monats liegt über dem Kontingent.', 'detail' => '12 GB von 10 GB in diesem Monat']]))->render(),
+            // Mit dem Abschnitt, der zuletzt steht: Die Leerzeile vor der
+            // Unterschrift muss nach jedem Abschnitt kommen, nicht nur nach dem
+            // über die Kontingente.
+            'Kunde' => (new CustomerNotice('kunde-web', [
+                new QuotaSection([['reason' => 'traffic_over', 'label' => 'Der Traffic dieses Monats liegt über dem Kontingent.', 'detail' => '12 GB von 10 GB in diesem Monat']]),
+                new BackupSection('failed', '2026-10-07 03:31 CEST (UTC+02:00)', 'Zu wenig Platz für die Sicherung', null, false),
+            ]))->render(),
             'Probe' => (new TestMessage('Administrator', '2026-10-03 17:39:54'))->render(),
         ];
 

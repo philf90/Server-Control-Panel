@@ -54,13 +54,19 @@ use SrvPanel\Agent\Catalog;
  * niemand. Ein Grund ohne Sprecher ist ein toter Eintrag — dieselbe Art, die
  * bei einer Umbenennung entsteht.
  *
+ * Seitdem sind es mehr geworden, jede mit ihrem Grund an ihrem Fall; die
+ * vollständige Liste hält `DiagnoseCatalogTest`, und eine Zahl stünde hier
+ * nur, um zu veralten.
+ *
  * ## Vierzehn Schlüssel für neun Prüfungen
  *
  * `docs/98 §3` gliedert in neun Abschnitte A bis I; die Schlüssel hier sind
  * feiner, weil ein Befund einen Gegenstand braucht und nicht einen Abschnitt.
  * Aus A werden drei (je Prüfer einer), aus B zwei, aus D zwei und aus E zwei —
  * die Frage an die Datei und die an die Leitung sind zwei Fragen
- * (`docs/98 §3 E`, Frage 3).
+ * (`docs/98 §3 E`, Frage 3). **Seit B9 sind es aus E drei** (`docs/142`): Wie
+ * lange ein Zertifikat gilt, ist eine dritte Frage, und sie geht als einzige
+ * den Kunden an.
  */
 enum FindingCheck: string
 {
@@ -88,8 +94,29 @@ enum FindingCheck: string
     /** Hat ein Timer einen nächsten Termin. */
     case UnitSchedule = 'unit.schedule';
 
-    /** Das Zertifikat, wie es auf dem Datenträger liegt. */
+    /** Das Zertifikat, wie es auf dem Datenträger liegt — ob es da ist und die Namen deckt. */
     case TlsFile = 'tls.file';
+
+    /**
+     * Wie lange das Zertifikat einer Domain noch gilt (B9, `docs/142`).
+     *
+     * **Bis zum 7. Oktober 2026 stand das als zwei Gründe unter
+     * {@see self::TlsFile}**, und die Gründe dort schlossen einander aus: Beim
+     * Ablauf löste `expired` den Befund `expiring` ab, und der Webhook bekam
+     * für „läuft demnächst ab" eine Entwarnung in dem Augenblick, in dem es
+     * schlimmer wurde. Und ein Zertifikat, das abläuft und einen Namen nicht
+     * deckt, hiess nur `name_mismatch` (`docs/142 §2`, Befund 3).
+     *
+     * **Zwei Fragen sind zwei Schlüssel.** Ob die Datei da ist und die Namen
+     * deckt, ist eine Frage an den Bestand des Servers; wie lange sie gilt,
+     * eine an die Zeit — und nur die zweite geht den Kunden an. Seit B9 bekommt
+     * er sie per Mail, die erste der Betreiber.
+     *
+     * > **Ein Befund, den ein schwererer ablöst, ist nicht erledigt — und wer
+     * > ihn dabei schliesst, meldet eine Entwarnung für einen Zustand, der
+     * > schlimmer geworden ist.** Zum zweiten Mal nach dem Platz in B5.
+     */
+    case TlsExpiry = 'tls.expiry';
 
     /** Das Zertifikat, wie der Server es ausliefert — mit SNI. */
     case TlsWire = 'tls.wire';
@@ -167,6 +194,22 @@ enum FindingCheck: string
     case BackupFile = 'backup.file';
 
     /**
+     * Die jüngste Sicherung eines Abonnements ist gescheitert (B9, `docs/142`).
+     *
+     * **Bis zum 7. Oktober 2026 erfuhr das niemand**, auch der Betreiber
+     * nicht. {@see self::BackupFile} urteilt über die Bytes **fertiger**
+     * Archive und sieht eine gescheiterte Sicherung mit Absicht nicht an;
+     * `BackupStatus::Failed` wurde geschrieben und nirgends gelesen
+     * (`docs/142 §2`, Befund 1).
+     *
+     * **Ein eigener Schlüssel und kein Grund unter `backup.file`**, weil es
+     * eine andere Frage ist und ein anderer Lauf sie stellt: Diese liest allein
+     * die Datenbank und steht im Nachtlauf der Diagnose, jene liest jedes
+     * Archiv von der Platte und hat ihre eigene Unit.
+     */
+    case BackupLatest = 'backup.latest';
+
+    /**
      * Wie voll ein Dateisystem ist — Platz und Inodes (`docs/136`).
      *
      * **Auch dieser Schlüssel wird in einem eigenen Lauf geschrieben**
@@ -191,6 +234,7 @@ enum FindingCheck: string
             self::UnitState => 'Dienst',
             self::UnitSchedule => 'Nächster Termin eines Timers',
             self::TlsFile => 'Zertifikat auf dem Datenträger',
+            self::TlsExpiry => 'Laufzeit eines Zertifikats',
             self::TlsWire => 'Ausgeliefertes Zertifikat',
             self::QuotaState => 'Speicherkontingent',
             self::QuotaExceeded => 'Überschrittenes Kontingent',
@@ -200,6 +244,7 @@ enum FindingCheck: string
             self::MaintenanceWindow => 'Wartungsmodus',
             self::MaintenanceFlag => 'Schalter des Wartungsmodus',
             self::BackupFile => 'Sicherung',
+            self::BackupLatest => 'Jüngste Sicherung',
             self::DiskSpace => 'Belegung eines Dateisystems',
         };
     }
@@ -215,7 +260,7 @@ enum FindingCheck: string
     {
         return match ($this) {
             self::WebConfig, self::PhpConfig, self::SshConfig, self::BlockIntegrity => 'Datei',
-            self::WebFile, self::TlsFile, self::TlsWire => 'Domain',
+            self::WebFile, self::TlsFile, self::TlsExpiry, self::TlsWire => 'Domain',
             self::PhpFile => 'Datei',
             self::UnitState, self::UnitSchedule => 'Unit',
             self::QuotaState => 'Verzeichnis',
@@ -226,12 +271,16 @@ enum FindingCheck: string
             self::MaintenanceWindow => 'Server',
             self::MaintenanceFlag => 'Datei',
             self::BackupFile => 'Sicherung',
+            self::BackupLatest => 'Abonnement',
             self::DiskSpace => 'Einhängepunkt',
         };
     }
 
     /**
      * Die Gründe, die diese Prüfung kennt — Schlüssel und Satz.
+     *
+     * Das sind die Gründe, die sie heute ausspricht. Gelesen werden daneben
+     * die abgelösten aus {@see self::retired()}; geschrieben werden sie nie.
      *
      * **Der Satz ist unsere Formulierung und nicht die des Werkzeugs.** Genau
      * darauf beruht Frage 5 aus `docs/98 §9`: Der Administrator sieht
@@ -387,19 +436,33 @@ enum FindingCheck: string
                     'state' => FindingState::Fail,
                     'text' => 'Für diese Domain liegt kein Zertifikat.',
                 ],
-                'expired' => [
-                    'state' => FindingState::Fail,
-                    'text' => 'Das Zertifikat ist abgelaufen.',
-                ],
-                'expiring' => [
-                    'state' => FindingState::Warn,
-                    'text' => 'Das Zertifikat läuft demnächst ab.',
-                ],
                 'name_mismatch' => [
                     'state' => FindingState::Fail,
                     'text' => 'Das Zertifikat deckt den Namen dieser Domain nicht.',
                 ],
                 ...$unreachable,
+            ],
+
+            /*
+             * **`expiring` bleibt neben `expired` stehen**, wie die Vorwarnung
+             * des Platzes neben „ausgeschöpft" (`docs/141 §0` Befund 7). Eine
+             * Mail nennt dann nur den schwereren.
+             *
+             * **Kein `unreachable`.** Die Laufzeit kommt aus derselben Antwort
+             * des Agenten wie die Frage an die Datei. Fehlt sie, steht
+             * `tls.file / unreachable` da, und die Befunde hier bleiben
+             * ungeprüft stehen — nicht widerlegt. Ein zweiter Satz „nicht
+             * durchgelaufen" je Domain sagte dasselbe noch einmal.
+             */
+            self::TlsExpiry => [
+                'expiring' => [
+                    'state' => FindingState::Warn,
+                    'text' => 'Das Zertifikat läuft demnächst ab.',
+                ],
+                'expired' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Das Zertifikat ist abgelaufen.',
+                ],
             ],
 
             /*
@@ -693,6 +756,22 @@ enum FindingCheck: string
             ],
 
             /*
+             * **`fail` und nicht `warn`.** Eine Sicherung hat genau eine
+             * Aufgabe, und in dieser Nacht hat sie sie nicht erfüllt —
+             * dieselbe Begründung, mit der `backup.file` durchgehend auf
+             * `fail` steht.
+             *
+             * **Kein `unreachable`.** Die Prüfung liest allein die eigene
+             * Datenbank; es gibt keinen Agenten, der schweigen könnte.
+             */
+            self::BackupLatest => [
+                'failed' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Die jüngste Sicherung dieses Abonnements ist fehlgeschlagen.',
+                ],
+            ],
+
+            /*
              * **Warnung und Störung sind zwei Gründe und nicht einer** (`docs/136
              * §4`). Jeder hat seine Schwelle und seinen Rückweg; wird aus einer
              * Warnung eine Störung, bleibt die Warnung stehen. Andersherum
@@ -744,15 +823,100 @@ enum FindingCheck: string
     }
 
     /**
+     * Gründe, die eine frühere Fassung unter diesem Schlüssel geschrieben hat
+     * und die keine Prüfung mehr ausspricht.
+     *
+     * **Gelesen werden sie noch, geschrieben nie.** Eine Zeile von vorher
+     * steht nach dem Update in `findings`, bis der erste Lauf sie ersetzt, und
+     * ihre Entwarnung in `finding_resolutions`, bis sie angekommen ist. Wer
+     * sie dann nach Urteil oder Satz fragt, bekäme ohne diese Liste eine
+     * Ausnahme: die Seite „Diagnose" einen 500er und der Meldelauf einen
+     * Abbruch, nachts.
+     *
+     * **Und die Zeile wird nicht umgezogen.** Unter dem alten Schlüssel hat
+     * der Webhook den Vorfall aufgemacht, und sein Empfänger ordnet die
+     * Entwarnung über genau diese Angaben zu
+     * (`WebhookChannel::deliverResolved()`). Ein Umzug liesse den alten
+     * Vorfall für immer offen und schickte die Entwarnung unter einem
+     * Schlüssel, den der Empfänger nie gesehen hat. So schliesst der erste
+     * Lauf nach dem Update den alten Vorfall mit seinem eigenen Satz, und der
+     * neue Schlüssel meldet sich nach seiner Haltezeit.
+     *
+     * > **Ein Grund, den es nicht mehr gibt, steht nach dem Update noch in der
+     * > Tabelle — und wer ihn fragt, wirft.**
+     *
+     * Die Liste bleibt, solange ein Server von einer Fassung vor der Ablösung
+     * kommen kann; ein Update darf Fassungen überspringen.
+     *
+     * @return array<string, array{state: FindingState, text: string}>
+     */
+    public function retired(): array
+    {
+        return match ($this) {
+            /*
+             * Bis B9 (`docs/142`) war die Laufzeit ein Grund dieser Prüfung.
+             * Urteil und Satz sind die von damals, wörtlich: Was beim Melden
+             * dastand, steht beim Entwarnen wieder da.
+             */
+            self::TlsFile => [
+                'expiring' => [
+                    'state' => FindingState::Warn,
+                    'text' => 'Das Zertifikat läuft demnächst ab.',
+                ],
+                'expired' => [
+                    'state' => FindingState::Fail,
+                    'text' => 'Das Zertifikat ist abgelaufen.',
+                ],
+            ],
+            default => [],
+        };
+    }
+
+    /**
+     * Was eine Zeile dieser Prüfung tragen kann: die Gründe, die sie
+     * ausspricht, und die abgelösten.
+     *
+     * @return array<string, array{state: FindingState, text: string}>
+     */
+    public function known(): array
+    {
+        return $this->reasons() + $this->retired();
+    }
+
+    /**
+     * Wirft, wenn diese Prüfung den Grund nicht ausspricht — für den
+     * Schreibweg.
+     *
+     * **Nicht {@see self::state()}.** Das liest auch die abgelösten Gründe,
+     * und ein Grund, den eine frühere Fassung schrieb, wird gelesen und nie
+     * wieder geschrieben. Ein Schreiber, der ihn trotzdem benutzt, ist ein
+     * Programmierfehler, und der fällt hier auf und nicht in einer Zeile, die
+     * aussieht wie eine von vorher.
+     */
+    public function assertSpoken(string $reason): void
+    {
+        if (! isset($this->reasons()[$reason])) {
+            throw new \InvalidArgumentException(sprintf(
+                'Die Prüfung %s spricht den Grund "%s" nicht aus.',
+                $this->value,
+                $reason,
+            ));
+        }
+    }
+
+    /**
      * Das Urteil zu einem Grund — die einzige Stelle, die es fällt.
      *
      * Ein Grund, den diese Prüfung nicht kennt, ist ein Programmierfehler und
      * keine Eingabe: Er kommt nie von aussen, sondern immer aus dem Code, der
      * den Befund anlegt. `DiagnoseCatalogTest` hält beide Richtungen.
+     *
+     * Gefragt wird {@see self::known()}: Eine Zeile mit einem abgelösten Grund
+     * hat ein Urteil, solange sie dasteht.
      */
     public function state(string $reason): FindingState
     {
-        $known = $this->reasons();
+        $known = $this->known();
 
         if (! isset($known[$reason])) {
             throw new \InvalidArgumentException(sprintf(
@@ -765,10 +929,10 @@ enum FindingCheck: string
         return $known[$reason]['state'];
     }
 
-    /** Der Satz zu einem Grund, in unserer Formulierung. */
+    /** Der Satz zu einem Grund, in unserer Formulierung — auch zu einem abgelösten. */
     public function sentence(string $reason): string
     {
-        $known = $this->reasons();
+        $known = $this->known();
 
         if (! isset($known[$reason])) {
             throw new \InvalidArgumentException(sprintf(

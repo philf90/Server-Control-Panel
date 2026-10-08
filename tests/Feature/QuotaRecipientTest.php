@@ -6,7 +6,7 @@ namespace Tests\Feature;
 
 use App\Enums\AccountStatus;
 use App\Enums\FindingCheck;
-use App\Mail\QuotaWarning;
+use App\Mail\CustomerNotice;
 use App\Models\Account;
 use App\Models\Customer;
 use App\Models\FindingNotification;
@@ -171,11 +171,11 @@ final class QuotaRecipientTest extends TestCase
         self::assertSame(1, $bilanz['mail']['sent']);
 
         foreach (['kunde@example.org', 'zusatz-dieses@example.org'] as $sieht) {
-            Mail::assertSent(QuotaWarning::class, static fn (QuotaWarning $m): bool => $m->hasTo($sieht));
+            Mail::assertSent(CustomerNotice::class, static fn (CustomerNotice $m): bool => $m->hasTo($sieht));
         }
 
         foreach (['zusatz-anderes@example.org', 'gesperrt@example.org'] as $siehtNicht) {
-            Mail::assertNotSent(QuotaWarning::class, static fn (QuotaWarning $m): bool => $m->hasTo($siehtNicht));
+            Mail::assertNotSent(CustomerNotice::class, static fn (CustomerNotice $m): bool => $m->hasTo($siehtNicht));
         }
     }
 
@@ -187,7 +187,7 @@ final class QuotaRecipientTest extends TestCase
 
         $this->zweiNaechte();
 
-        $mails = Mail::sent(QuotaWarning::class);
+        $mails = Mail::sent(CustomerNotice::class);
 
         self::assertCount(2, $mails, 'Zwei Konten sehen das Abonnement — zwei Mails.');
 

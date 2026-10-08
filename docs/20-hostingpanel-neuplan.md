@@ -1395,7 +1395,11 @@ Die vollständige Fassung mit acht Punkten steht in `docs/117 §8`.
   Signaturschlüssel aus A1. Wer A7 baut, liest die Liste in `docs/80` und nicht
   diese Zeile.
 - Benachrichtigungen an Kunden: Kontingent erreicht, Zertifikat läuft ab,
-  Sicherung fehlgeschlagen
+  Sicherung fehlgeschlagen — **die Kontingente sind B5**, abgenommen am
+  7. Oktober 2026 (`docs/141`). **Zertifikat und Sicherung sind B9**, am
+  selben Tag vom Betreiber bestellt und gebaut; der Plan ist `docs/142`, der
+  Bau steht dort in §10. Für die Sicherung gab es bis dahin auch für den
+  Betreiber keinen Auslöser.
 - Branding: Logo, Farben, Fußzeile, Absenderadresse, eigene Panel-Domain
 - ~~Serververwaltung für den Admin~~ — **seit dem 24. August 2026 eine eigene
   Stufe, P7b**, und damit vor P8 statt hier. Der Punkt bleibt als Zeile stehen
@@ -1419,7 +1423,11 @@ Die vollständige Fassung mit acht Punkten steht in `docs/117 §8`.
 
   **Hierher und nicht früher**, weil das Abnahmekriterium dieser Stufe genau
   der Durchgang ist, in dem so etwas auffällt.
-- Dokumentation: Betreiberhandbuch, Kundenhilfe in der Oberfläche
+- Dokumentation: Betreiberhandbuch, Kundenhilfe in der Oberfläche —
+  **vertagt am 7. Oktober 2026** und als offener Punkt für später
+  stehengelassen, entschieden vom Betreiber. Die Zeile bleibt stehen und nicht
+  als stille Streichung: Gestrichen ist sie nicht, sie hat nur noch keine
+  Stufe.
 
 **Fertig, wenn** ein fremder Kunde das Panel benutzen kann, ohne zu fragen —
 gemessen an einem Durchlauf mit einer Person, die das Projekt nicht kennt.

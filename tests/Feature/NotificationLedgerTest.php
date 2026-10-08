@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\FindingCheck;
-use App\Mail\QuotaWarning;
+use App\Mail\CustomerNotice;
 use App\Models\Account;
 use App\Models\Customer;
 use App\Models\Finding;
@@ -172,7 +172,7 @@ final class NotificationLedgerTest extends TestCase
         $this->lauf('p1000', ['disk_over'], $zweite);
 
         self::assertSame(1, $this->notices()->send($zweite)['mail']['sent']);
-        Mail::assertSent(QuotaWarning::class, 1);
+        Mail::assertSent(CustomerNotice::class, 1);
         self::assertSame(1, $this->gebucht(MailChannel::CHANNEL));
     }
 
@@ -195,7 +195,7 @@ final class NotificationLedgerTest extends TestCase
         $this->lauf('p1000', ['disk_over'], $dritte);
 
         self::assertSame(0, $this->notices()->send($dritte)['mail']['sent']);
-        Mail::assertSent(QuotaWarning::class, 1);
+        Mail::assertSent(CustomerNotice::class, 1);
     }
 
     /**
@@ -235,7 +235,7 @@ final class NotificationLedgerTest extends TestCase
         $this->lauf('p1000', ['disk_over'], $spaeter);
 
         self::assertSame(1, $this->notices()->send($spaeter)['mail']['sent']);
-        Mail::assertSent(QuotaWarning::class, 2);
+        Mail::assertSent(CustomerNotice::class, 2);
     }
 
     /**
@@ -261,7 +261,7 @@ final class NotificationLedgerTest extends TestCase
 
         self::assertSame(1, $bilanz['mail']['sent']);
         self::assertSame(2, $bilanz['mail']['findings']);
-        Mail::assertSent(QuotaWarning::class, 1);
+        Mail::assertSent(CustomerNotice::class, 1);
         self::assertSame(2, $this->gebucht(MailChannel::CHANNEL),
             'Beide Zeilen sind gemeldet — sonst schickte der nächste Lauf eine zweite Mail über '
             .'dieselbe Nachricht.');
@@ -457,7 +457,7 @@ final class NotificationLedgerTest extends TestCase
             'Für den Mailweg ist nichts mehr fällig — sonst bekäme der Kunde dieselbe Mail jede Nacht.');
         self::assertSame(1, $danach['webhook']['findings'],
             'Für den Webhook schon — er hat die Meldung nie bekommen.');
-        Mail::assertSent(QuotaWarning::class, 1);
+        Mail::assertSent(CustomerNotice::class, 1);
     }
 
     /**

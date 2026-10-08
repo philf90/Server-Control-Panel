@@ -110,6 +110,27 @@ final class Notices
      */
     public const DISK_HOLD_MINUTES = 8;
 
+    /**
+     * Die Haltezeit für eine gescheiterte Sicherung — keine (`docs/142 §6`,
+     * Frage 3, entschieden vom Betreiber am 7. Oktober 2026).
+     *
+     * **Gemeldet wird im ersten Nachtlauf, der sie sieht.** Mit den zwanzig
+     * Stunden von oben würfelte die Meldung: Den Befund stellt ein anderer
+     * Zeitgeber her als der, der ihn abliest, und ob die Diagnose ihn ein- oder
+     * zweimal sieht, entscheidet, ob sie vor oder nach der Sicherung läuft.
+     * Gerechnet in `docs/142 §3` M3: Eine einzelne gescheiterte Sicherung
+     * würde in 18 % der Fälle gemeldet, zwei hintereinander in 82 %.
+     *
+     * > **Eine Haltezeit über einem Zustand, den ein anderer Zeitgeber
+     * > herstellt, zählt nicht die Fehlschläge, sondern wie oft der Ablesende
+     * > sie antrifft.**
+     *
+     * **Ohne sie bleibt etwa jede fünfte einzelne ungemeldet, und das zu
+     * Recht:** Dort ist die nächste Sicherung gelungen, bevor die Diagnose
+     * lief, und es fehlt nichts mehr.
+     */
+    public const BACKUP_HOLD_MINUTES = 0;
+
     public function __construct(
         private readonly Settings $settings,
         private readonly Channels $channels,
@@ -156,6 +177,7 @@ final class Notices
     {
         return match ($check) {
             FindingCheck::DiskSpace => self::DISK_HOLD_MINUTES,
+            FindingCheck::BackupLatest => self::BACKUP_HOLD_MINUTES,
             default => self::HOLD_HOURS * 60,
         };
     }

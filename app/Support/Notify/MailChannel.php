@@ -6,8 +6,8 @@ namespace App\Support\Notify;
 
 use App\Enums\AccountStatus;
 use App\Enums\FindingCheck;
+use App\Mail\CustomerNotice;
 use App\Mail\DiagnoseReport;
-use App\Mail\QuotaWarning;
 use App\Models\Account;
 use App\Models\Finding;
 use App\Models\Subscription;
@@ -25,15 +25,26 @@ use Throwable;
 /**
  * Der Weg über das Relay — an den Kunden **und** an den Betreiber.
  *
- * ## Wer gemeint ist, folgt aus dem Befund
+ * ## Wer gemeint ist, folgt aus der Prüfung
  *
- * `quota.exceeded` ist die eine Prüfung, deren Gegenstand einem Kunden gehört:
- * Sie misst **sein** Abonnement, und der Hinweis dazu steht seit P1 in
- * {@see Quota::TrafficGb}. Die übrigen siebzehn messen den Server, und der
- * gehört dem Betreiber.
+ * **Drei Prüfungen gehören dem Kunden** ({@see self::CUSTOMER}):
+ * `quota.exceeded` misst **sein** Abonnement, und der Hinweis dazu steht seit
+ * P1 in {@see Quota::TrafficGb}; seit B9 (`docs/142`) dazu `tls.expiry`, die
+ * Laufzeit des Zertifikats seiner Domain, und `backup.latest`, seine jüngste
+ * Sicherung. Die übrigen messen den Server, und der gehört dem Betreiber.
  *
  * > **Ein Kanal, der alles an alle trägt, hat keinen Empfänger, sondern eine
  * > Verteilerliste.**
+ *
+ * **Und je Prüfung genau ein Empfänger**, entschieden vom Betreiber am
+ * 7. Oktober 2026 (`docs/142 §6`, Frage 1): Die Mail über ein ablaufendes
+ * Zertifikat bekommt seitdem der Kunde und nicht mehr der Betreiber; der
+ * sieht den Befund auf „Diagnose" und über den Webhook. Zwei Empfänger für
+ * eine Prüfung hiessen einen zweiten Kanal, denn gebucht wird je Befund und
+ * Kanal. **Was am Server liegt, bleibt beim Betreiber:** ein fehlendes
+ * Zertifikat, eines mit dem falschen Namen, eines, das der Server nicht
+ * ausliefert — darum heisst die Laufzeit `tls.expiry` und steht nicht als
+ * Grund unter `tls.file`.
  *
  * Bis zum 21. September 2026 trug dieser Kanal **nur** die
  * Kontingentbefunde — B5 hatte keinen zweiten Empfänger, und die übrigen
@@ -94,9 +105,21 @@ final class MailChannel implements Channel
     /** Und das Gegenstück, damit kein Abonnementname zufällig `operator` heisst. */
     private const SUBSCRIPTION = 'subscription:';
 
+    /**
+     * Die Prüfungen, deren Befund dem Kunden gehört — siehe Kopf der Klasse.
+     *
+     * **Eine Liste und kein Vergleich an zwei Stellen.** Bündeln und Zustellen
+     * fragen beide danach; stünde die Antwort zweimal da, bündelte der Kanal
+     * einen Befund für den Kunden und schickte ihn dem Betreiber.
+     *
+     * @var list<FindingCheck>
+     */
+    public const CUSTOMER = [FindingCheck::QuotaExceeded, FindingCheck::TlsExpiry, FindingCheck::BackupLatest];
+
     public function __construct(
         private readonly Tenancy $tenancy,
         private readonly Settings $settings,
+        private readonly CustomerFacts $facts,
     ) {}
 
     public function key(): string
@@ -122,11 +145,22 @@ final class MailChannel implements Channel
         return $this->usable();
     }
 
+    /**
+     * Je Abonnement eine Mail an den Kunden, und alles Übrige in eine an den
+     * Betreiber.
+     *
+     * **Je Abonnement und nicht je Art** (`docs/142 §4`): Ein Kunde, dessen
+     * Platz knapp wird und dessen Sicherung scheitert, bekommt eine Mail mit
+     * zwei Abschnitten. Ein Zertifikat nennt seine Domain und nicht sein
+     * Abonnement — {@see CustomerFacts::subscriptionOf()} sucht es.
+     */
     public function batchKey(FindingCheck $check, string $subject): string
     {
-        return $check === FindingCheck::QuotaExceeded
-            ? self::SUBSCRIPTION.$subject
-            : self::OPERATOR;
+        if (! in_array($check, self::CUSTOMER, true)) {
+            return self::OPERATOR;
+        }
+
+        return self::SUBSCRIPTION.($this->facts->subscriptionOf($check, $subject) ?? '');
     }
 
     /** @param  non-empty-list<Finding>  $findings */
@@ -134,13 +168,14 @@ final class MailChannel implements Channel
     {
         $erster = $findings[0];
 
-        return $erster->check === FindingCheck::QuotaExceeded
-            ? $this->toCustomer($erster->subject, $findings)
+        return in_array($erster->check, self::CUSTOMER, true)
+            ? $this->toCustomer($this->facts->subscriptionOf($erster->check, $erster->subject) ?? '', $findings)
             : $this->toOperator($findings);
     }
 
     /**
-     * An den Kunden: eine Nachricht je Abonnement und Empfänger.
+     * An den Kunden: eine Nachricht je Abonnement und Empfänger — mit einem
+     * Abschnitt je Art von Befund ({@see CustomerFacts::sections()}).
      *
      * **Je Empfänger eine eigene Nachricht und eine eigene Instanz.** Eine
      * Mailable sammelt Empfänger: `Mail::to()` hängt sie über `setAddress()`
@@ -163,11 +198,11 @@ final class MailChannel implements Channel
             return Delivery::WithoutRecipient;
         }
 
-        $zeilen = self::overruns($findings);
+        $abschnitte = $this->facts->sections($subscription, $findings);
         $angekommen = 0;
 
         foreach ($empfaenger as $adresse) {
-            if ($this->send(new QuotaWarning($subscription, $zeilen), [$adresse]) === Delivery::Sent) {
+            if ($this->send(new CustomerNotice($subscription, $abschnitte), [$adresse]) === Delivery::Sent) {
                 $angekommen++;
             }
         }
@@ -199,7 +234,7 @@ final class MailChannel implements Channel
     }
 
     /** @param  list<string>  $empfaenger */
-    private function send(QuotaWarning|DiagnoseReport $nachricht, array $empfaenger): Delivery
+    private function send(CustomerNotice|DiagnoseReport $nachricht, array $empfaenger): Delivery
     {
         try {
             Mail::to($empfaenger)->send($nachricht);
@@ -211,30 +246,6 @@ final class MailChannel implements Channel
         }
 
         return Delivery::Sent;
-    }
-
-    /**
-     * Die Zeilen einer Kundennachricht — Beschriftung und gemessener Wert.
-     *
-     * Die Beschriftung kommt aus {@see FindingCheck::sentence()} und nicht aus
-     * einer zweiten Liste hier: Was der Betreiber auf der Diagnoseseite liest,
-     * liest der Kunde in seiner Mail.
-     *
-     * **Der Grund reist mit**, weil die Mail aus ihm ihren Betreff und ihre
-     * Absätze baut: „fast ausgeschöpft" und „überschritten" sind zwei
-     * Auskünfte, und ein Absatz über den Traffic gehört nur in eine Mail, in
-     * der es um Traffic geht.
-     *
-     * @param  non-empty-list<Finding>  $findings
-     * @return non-empty-list<array{reason: string, label: string, detail: string}>
-     */
-    private static function overruns(array $findings): array
-    {
-        return array_map(static fn (Finding $f): array => [
-            'reason' => $f->reason,
-            'label' => $f->check->sentence($f->reason),
-            'detail' => (string) ($f->detail ?? '—'),
-        ], $findings);
     }
 
     /**

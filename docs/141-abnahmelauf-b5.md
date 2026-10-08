@@ -1504,8 +1504,8 @@ angenommen hat, ist nicht nachgesehen.
    Anmeldeadressen der Konten. Die Mail geht an die zweiten, so entschieden in
    §6, und genau die zeigt Block 0 gekürzt. Gefragt hat der Betreiber am
    6. Oktober, nachdem er die erste geändert hatte. Ob das Panel an der
-   Kundenseite oder in der Mail sagen soll, wohin Meldungen gehen, entscheidet
-   er; gebaut ist nichts.
+   Kundenseite oder in der Mail sagen soll, wohin Meldungen gehen, hat er am
+   7. Oktober entschieden: Es wird nicht gebaut.
 2. **Der Nachtlauf feuerte am 7. Oktober um 00:15:37**, `list-timers` hatte
    am Morgen davor 00:37:22 angekündigt. Beides liegt im Fenster aus §2. Der
    Versatz wird neu gewürfelt, sobald der Zeitgeber neu gesetzt wird
@@ -1579,4 +1579,5 @@ Datei; im gebauten Bündel steigt allein die Vue-Laufzeit von 3.5.40 auf
 
 ### Was aussteht
 
-- **Beobachtung 1**, wenn der Betreiber sie gebaut haben will.
+Nichts mehr. Beobachtung 1 wird nicht gebaut, entschieden vom Betreiber am
+7. Oktober 2026.

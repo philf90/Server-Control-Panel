@@ -9,6 +9,7 @@ use App\Support\Diagnose\Checks\Agent;
 use App\Support\Diagnose\Checks\Backups;
 use App\Support\Diagnose\Checks\Certificates;
 use App\Support\Diagnose\Checks\DiskSpace;
+use App\Support\Diagnose\Checks\LatestBackups;
 use App\Support\Diagnose\Checks\MaintenanceFlag;
 use App\Support\Diagnose\Checks\MaintenanceWindow;
 use App\Support\Diagnose\Checks\ManagedBlocks;
@@ -53,6 +54,7 @@ final class Catalog
         SystemUsers::class,
         Orphans::class,
         QuotaOverrun::class,
+        LatestBackups::class,
         MaintenanceWindow::class,
         MaintenanceFlag::class,
     ];

@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Mail\CustomerNotice;
 use App\Mail\DiagnoseReport;
-use App\Mail\QuotaWarning;
+use App\Mail\Notice\QuotaSection;
 use App\Mail\TestMessage;
 use App\Models\Account;
 use App\Models\Setting;
@@ -538,11 +539,11 @@ final class BrandReachTest extends TestCase
         $this->gespeichert();
 
         Mail::fake();
-        Mail::to('kunde@example.org')->send(new QuotaWarning('p1000', [
+        Mail::to('kunde@example.org')->send(new CustomerNotice('p1000', [new QuotaSection([
             ['reason' => 'disk_over', 'label' => 'Der Speicherplatz ist ausgeschöpft.', 'detail' => '500 MB von 500 MB'],
-        ]));
+        ])]));
 
-        Mail::assertSent(QuotaWarning::class, static function (QuotaWarning $mail): bool {
+        Mail::assertSent(CustomerNotice::class, static function (CustomerNotice $mail): bool {
             $text = $mail->render();
 
             return str_contains($text, 'Hoster GmbH')
@@ -563,7 +564,7 @@ final class BrandReachTest extends TestCase
 
         $betreffe = [
             (new TestMessage('Erika Muster', 'heute'))->envelope()->subject,
-            (new QuotaWarning('p1000', [['reason' => 'traffic_over', 'label' => 'l', 'detail' => 'd']]))->envelope()->subject,
+            (new CustomerNotice('p1000', [new QuotaSection([['reason' => 'traffic_over', 'label' => 'l', 'detail' => 'd']])]))->envelope()->subject,
             (new DiagnoseReport([['label' => 'l', 'subject' => 's', 'detail' => 'd', 'since' => 'x']]))->envelope()->subject,
         ];
 

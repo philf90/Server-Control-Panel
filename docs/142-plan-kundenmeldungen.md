@@ -6,8 +6,9 @@ Rechnungen im Container, **vor** jeder Zeile Code. Die Rechnungen stehen als
 Lauf. Entschieden ist der Auftrag. Die vier Fragen, an denen der Bau hing,
 stehen in §6, und **der Betreiber hat sie am selben Tag entschieden: 1b, 2a,
 3a, 4a.** Gebaut ist B9 ebenfalls am 7. Oktober; was dabei anders lief als in
-§4, steht in §10. Der Entwurf darunter bleibt, wie er vor den Antworten
-geschrieben war, und trägt an den betroffenen Stellen einen Vermerk.
+§4, steht in §10, und der Abnahmelauf ist `docs/143`. Der Entwurf darunter
+bleibt, wie er vor den Antworten geschrieben war, und trägt an den
+betroffenen Stellen einen Vermerk.
 
 ## §1 · Warum es diesen Plan gibt
 
@@ -404,8 +405,9 @@ einem Tag (§10).* Gebaut wird in dieser Reihenfolge:
 ## §10 · Gebaut — 7. Oktober 2026
 
 Gebaut am selben Tag wie entschieden, in einem Zug, und an vier Stellen anders
-als in §4 entworfen. **Eine Freigabe trägt es noch nicht, und gefahren ist kein
-Lauf**; das Kriterium steht in `docs/129 §9`.
+als in §4 entworfen. **Freigegeben ist es seit dem 8. Oktober als
+`0.9.0-rc.15`, gefahren noch nicht:** Der Lauf ist `docs/143`, ausgeschrieben
+vor dem Fahren, und das Kriterium steht in `docs/129 §9`.
 
 ### Wer was bekommt, wie gebaut
 
@@ -579,8 +581,11 @@ und fehlte deshalb in jeder Fassung.
 
 ### Was offen bleibt
 
-- **Der Abnahmelauf**, gegen die nächste Freigabe und über zwei Nächte. Das
-  Prüfzertifikat samt Schlüssel erzeugt der Betreiber auf dem Server (§5).
+- **Der Abnahmelauf** ist `docs/143`, ausgeschrieben am 8. Oktober gegen
+  `0.9.0-rc.15`, über zwei Nächte und noch nicht gefahren. Das
+  Prüfzertifikat samt Schlüssel erzeugt der Betreiber auf dem Server (§5),
+  für eine Subdomain, die der Lauf am Ende wieder entfernt (`docs/143 §0`,
+  Punkt 3).
 - **Vor dem Update auf `cloudsrv24` gehören die Empfänger nachgesehen.** Was
   auf „Diagnose" als `tls.file / expiring` oder `expired` steht, befindet der
   erste Nachtlauf danach unter `tls.expiry` neu, ein Zertifikat von Let's
@@ -589,7 +594,10 @@ und fehlte deshalb in jeder Fassung.
   dort `tls.file` an `p6-b.invalid`, dem abgelaufenen hochgeladenen
   Zertifikat aus A10 (`docs/141 §7`). Wer diese Mail bekommt, ist nicht
   nachgesehen, und hinter einer Adresse stand im Lauf für B5 eine Attrappe auf
-  einer fremden Domain.
+  einer fremden Domain. **Block 0 von `docs/143` liest sie in voller Länge,
+  und zwar vor dem Update:** Aus dem Hinweis ist dort eine Frist geworden,
+  denn der erste Lauf nach dem Update stellt die Uhr, auch einer von Hand
+  (`docs/143 §0`, Punkt 1).
 - **Ein Platzhalterzertifikat nennt keinen letzten Versuch an seinen
   Unterdomains.** Der Vorgang hängt an der Domain, für die bestellt wurde; eine
   Unterdomain, die der Platzhalter deckt, bekommt ihren Abschnitt ohne diese

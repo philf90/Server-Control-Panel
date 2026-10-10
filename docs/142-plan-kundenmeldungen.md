@@ -600,8 +600,10 @@ und fehlte deshalb in jeder Fassung.
   Betreiber entschieden, dass ein Satz dorthin zeigt, statt dass die
   Sicherung den Grund übernimmt. Gebaut für `0.9.0-rc.16`, endet der
   Abschnitt der Sicherung mit einem Satz über den Menüpunkt „Vorgänge"; er
-  steht unter der Mail weiter oben. Offen ist daran nur, dass ihn noch
-  niemand in einer Mail auf dem Server gesehen hat.
+  steht unter der Mail weiter oben. Offen ist daran nichts mehr: Der
+  Nachlauf hat ihn am selben Abend in der Mail an den Kunden auf `cloudsrv24`
+  gesehen, und als Kunde unter „Vorgänge" den Grund, auf den er zeigt
+  (`docs/143 §8`).
 - **Die Empfänger auf `cloudsrv24` sind nachgesehen**, und offen ist daran
   nichts mehr. Block 0 von `docs/143` hat sie am 8. Oktober in voller Länge
   gelesen, beide Postfächer liest der Betreiber, und die Mail „Zertifikat

@@ -26,8 +26,9 @@ gemacht, und 1a war danach nicht mehr herzustellen. Am Prüfling ist kein
 Befund herausgefallen, an der Vorschrift acht. Das Protokoll ist §7, und wo
 die Vorschrift danach berichtigt ist, steht „Berichtigt nach dem Lauf".
 **Der Betreiber hat B9 am 10. Oktober 2026 abgenommen.** Der Satz, der die
-Mail danach auf „Vorgänge" zeigen lässt, kam mit `0.9.0-rc.16`; der Nachlauf,
-der ihn in einer Mail auf dem Server sieht, ist §8.
+Mail danach auf „Vorgänge" zeigen lässt, kam mit `0.9.0-rc.16`. Der Nachlauf
+dazu ist §8, gefahren am selben Abend: N0 bis N6 erfüllt, und der Satz stand
+in der Mail an den Kunden.
 
 **Vorab im Container gemessen** (§6): der Weg, auf dem eine Sicherung scheitert,
 mit den echten Operationen des Agenten gegen MariaDB 10.11.14, dieselbe Fassung
@@ -1787,8 +1788,8 @@ gehört nicht zum Kriterium.
   Dump … liegt nicht", und den Grund, Fehler 1356 an der Sicht, trugen die
   Vorgänge 1067 und 1076 unter „Vorgänge". *Entschieden am selben Tag, nach
   diesem Protokoll:* Ein Satz in der Mail zeigt dorthin, gebaut für
-  `0.9.0-rc.16` (§0, Beobachtung). In einer Mail auf dem Server gesehen hat
-  ihn noch niemand; der Nachlauf dafür ist §8.
+  `0.9.0-rc.16` (§0, Beobachtung). *Gesehen am selben Abend im Nachlauf
+  (§8):* in der Mail an Konto 6 um 20:02, Wort für Wort wie gebaut.
 
 ---
 
@@ -1828,7 +1829,9 @@ sonst der Stand nach Punkt 11 (§7):
 - an `p6-abnahme.invalid` Konto 6 als einziger Empfänger, mit der Adresse vom
   8. Oktober, die der Betreiber liest;
 - `Sicherungen automatisch: nein`. Damit hat die Mail in N4 21 Zeilen; steht
-  dort `ja`, sind es 23;
+  dort `ja` und an `p6-abnahme.invalid` ein Kontingent über null, sind es 23.
+  *Berichtigt nach dem Nachlauf (Befund 1):* Hier stand „steht dort `ja`,
+  sind es 23", ohne das Kontingent;
 - `Befunde insgesamt: 2`, die beiden `tls.expiry` an `p6-b.invalid`, gemeldet
   am 10. Oktober um 00:56:27;
 - als letzte Zeile aus `dpkg.log` das Update auf `0.9.0-rc.16`;
@@ -1961,7 +1964,8 @@ die Umbrüche bleiben, denn beide haben eine feste Breite.
   „Sie bekommen diese Nachricht einmal je Zustand.". Unter `rc.15` hatte
   dieselbe Mail 19 Zeilen (§6).
 - **Die vier Lagen**, im Container gerechnet: ohne Automatik und mit einer
-  gelungenen Sicherung 21 Zeilen, mit Automatik 23, ohne gelungene 20 und 22.
+  gelungenen Sicherung 21 Zeilen, mit Automatik und einem Kontingent über null
+  23, ohne gelungene 20 und 22.
   Die längste Zeile hat in allen vier 76 Zeichen, der Satz 60.
 
 **Im Postfach des Kunden: genau eine Mail**, in „An" nur seine Adresse, der
@@ -2071,3 +2075,207 @@ Zurück bleiben, wie nach dem Lauf, zwei Sicherungen mehr in der Liste von
 - **N5 belegt, was der Satz zusagt.** Fällt er aus, weil die Anmeldung als
   Kunde nicht gelingt, steht das im Protokoll, und N4 bleibt erfüllt.
 - **N6 wird gefahren**, auch wenn davor etwas ausfällt.
+
+### Protokoll — gefahren am 10. Oktober 2026 gegen `0.9.0-rc.16`
+
+**Vorbedingung:** Der Tag `v0.9.0-rc.16` steht auf `c6883be0`, dem Merge von
+PR #291, gesetzt vom Betreiber am Nachmittag; `dpkg.log` verzeichnet das
+Update um 17:05:18. N0 lief um 17:30 vom Telefon, N1 bis N6 zwischen 19:53
+und 20:23 am Rechner, N5 in Chrome bei 1440 × 900 px im privaten Fenster. Die
+Uhrzeiten sind CEST, nur das Meldeziel schreibt UTC. Adressen stehen gekürzt.
+
+**N0 bis N6 sind erfüllt, am Prüfling kein Befund.** Die Mail im Postfach traf
+den Text, den der Container nach N3 mit den Werten dieses Laufs vorgerechnet
+hatte, Wort für Wort und Umbruch für Umbruch. **Damit hat den Satz jemand in
+einer Mail auf dem Server gesehen**, und der offene Punkt aus §7 ist zu. An der
+Vorschrift ein Befund, ohne Folgen für diesen Lauf.
+
+#### N0 — erfüllt
+
+Block 0 lief unter `0.9.0-rc.16`. An `p6-abnahme.invalid` war Konto 6 der
+einzige Empfänger, mit derselben Adresse wie am 8. Oktober, `p…@d….de`.
+`Sicherungen automatisch: nein`, an beiden Abonnements `Kontingent —`
+(Befund 1). `Befunde insgesamt: 2`, die beiden `tls.expiry` an
+`p6-b.invalid`, gemeldet um 00:56:27. Der letzte Lauf war der aus Punkt 11 um
+09:27:47, der nächste Nachtlauf stand auf 00:23:06. `p1139_b9` gab es nicht,
+`/var/tmp/b9-tls` fehlte, und es gab keine ungebrauchten Zertifikate.
+
+N0b las `/opt/srvpanel/releases/0.9.0-rc.16`, die Zeilen 112 und 117 wie
+erwartet und 32 Zeilen beim Empfänger; die Werkzeugdatei fehlte.
+
+#### N1 bis N3 — erfüllt, der Klick um 19:53:56
+
+N1 gab `Werkzeuge: 5 von 5`. Das Echo des Einfügens stand am Ende verstümmelt
+im Terminal; heil war die Datei trotzdem, wie der Vorlauf zu N4 belegt. N2
+zeigte `p1139_b9` und `b9_kaputt` als einzige Sicht. N3:
+
+```
+Vorgang 1086 · web.logrotate.apply   · succeeded · Protokollrotation für p6-abnahme.invalid
+Vorgang 1088 · db.dump.create        · failed    · Die Sicherung ist gescheitert: mysqldump: Couldn't execute 'SHOW FIELDS FROM `b9_kaputt`': View 'p1139_b9.b9_kaputt' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them (1356)
+Vorgang 1089 · backup.create         · failed    · Der Dump p1139-b9-20261010-175356-ef45d3e4 der Datenbank p1139_b9 liegt nicht — die Sicherung wäre ohne ihre Datenbanken und von einer vollständigen nicht zu unterscheiden.
+…
+Sicherung 25 · failed   · erstellt 2026-10-10 19:53:56 · Der Dump p1139-b9-20261010-175356-ef45d3e4 der Datenbank p1139_b9 liegt nicht — …
+Jüngste gelungene: 2026-10-10 09:05:52
+```
+
+Die jüngste gelungene Sicherung war Sicherung 24 aus Punkt 9. Vorgang 1086 hat
+das Update angelegt (Beobachtung 1).
+
+#### N4 — erfüllt, TN = 20:02:13
+
+**Der Vorlauf** las `67 Zeilen · e37b33c2f4523526`, die Prüfsumme der Datei,
+die Block H schreibt. Dazu die beiden Befunde von `p6-b.invalid`, 32 Zeilen
+beim Empfänger und `Keine Befunde zu p6-abnahme.invalid — es gibt keine
+Mail.` Vor dem Lauf gab es die Mail also nicht.
+
+**Der Lauf:**
+
+```
+10 Prüfung(en) gefahren, 2026-10-10 20:02:13.
+  mail: 1 Nachricht(en) über 1 Befund(e).
+  webhook: 1 Nachricht(en) über 1 Befund(e).
+```
+
+`backup.latest` stand mit `seit` gleich `fällig ab` da, 20:02:13, also ohne
+Haltezeit, und mit dem Detail `erstellt 2026-10-10 19:53 CEST (UTC+02:00): Der
+Dump p1139-b9-20261010-175356-ef45d3e4 …`. Die Buchungen über Mail und Webhook
+tragen 20:02:14, eine Sekunde nach dem Lauf (§7, Befund 7). Beim Empfänger
+standen 33 Zeilen, die neue Meldung mit `seit` `2026-10-10T18:02:13+00:00`.
+`kundenmail` druckte den Betreff, `Zeilen: 21 · die längste: 76 Zeichen` und
+den Text unten.
+
+**Im Postfach von Konto 6 stand die Mail** um 20:02, von der
+Absenderadresse des Panels, in „An" nur die Adresse des Kunden:
+
+```
+SrvPanel — Sicherung fehlgeschlagen: p6-abnahme.invalid
+
+Guten Tag,
+
+für Ihr Abonnement p6-abnahme.invalid hat das Panel Folgendes festgestellt:
+
+- Die jüngste Sicherung dieses Abonnements ist fehlgeschlagen.
+  Erstellt: 2026-10-10 19:53 CEST (UTC+02:00)
+  Meldung: Der Dump p1139-b9-20261010-175356-ef45d3e4 der Datenbank p1139_b9
+  liegt nicht — die Sicherung wäre ohne ihre Datenbanken und von einer
+  vollständigen nicht zu unterscheiden.
+
+Die jüngste gelungene Sicherung dieses Abonnements ist vom 2026-10-10 09:05
+CEST (UTC+02:00).
+
+Was genau gescheitert ist, zeigt das Panel unter „Vorgänge".
+
+Sie bekommen diese Nachricht einmal je Zustand. Erst wenn er vorbei ist und
+wieder eintritt, meldet sich das Panel erneut.
+
+--
+SrvPanel
+```
+
+Die Umbrüche stehen an denselben Stellen wie in `kundenmail`. Dass an den
+Betreiber nichts ging, belegt `mail: 1`: Die eine Nachricht ist die an den
+Kunden.
+
+#### N5 — erfüllt, als Konto 6 im privaten Fenster
+
+```
+Seite /operations · als Kunde: ja · Menüpunkt: Vorgänge · Vorgänge insgesamt 96
+  1089 · backup.create / backup.create · fehlgeschlagen · 2026-10-10 19:53:57
+  1088 · db.dump.create / db.dump.create · fehlgeschlagen · 2026-10-10 19:53:57
+  1087 · web.logrotate.apply / web.logrotate.apply · fertig · 2026-10-10 17:05:26
+```
+
+und auf der Nummer 1088:
+
+```
+Seite /operations/1088 · als Kunde: ja · db.dump.create · fehlgeschlagen
+  Hinweis (notice critical): Die Sicherung ist gescheitert: mysqldump: Couldn't execute 'SHOW FIELDS FROM `b9_kaputt`': View 'p1139_b9.b9_kaputt' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them (1356)
+```
+
+**Der Satz hält, was er zusagt.** Unter „Vorgänge" stehen die beiden
+gescheiterten Vorgänge oben und rot, und einen Klick weiter steht der Grund
+Wort für Wort, rot und ganz oben auf der Seite. Auf dem Bild darunter: der
+Brotkrümel `← /subscriptions/140/backups`, der Gegenstand mit der
+Datenbanksicherung `p1139_b9`, „Ausgelöst von: Administrator",
+„Fortschritt 25 %", die Argumente als JSON und „Keine Ausgabe."
+(Beobachtung 2).
+
+Die dritte Zeile ist 1087, ebenfalls ein `web.logrotate.apply` vom Update. Er
+gehört zu einem anderen Abonnement, das Konto 6 sieht; `vorgaenge` fragt nur
+Abonnement 140 und kannte ihn nicht. §8 erwartete dort einen älteren Vorgang,
+und 1086 steht darunter.
+
+#### N6 — erfüllt
+
+Ohne die Sicht gelangen 1090 `db.dump.create` und 1091 `backup.create`, und
+Sicherung 26 war um 20:16:22 `ready`. Erst danach ist `p1139_b9` entfernt
+worden, über 1092 `db.database.remove`, `succeeded`. Der Lauf um 20:22:13:
+
+```
+10 Prüfung(en) gefahren, 2026-10-10 20:22:13.
+  mail: 0 Nachricht(en) über 0 Befund(e).
+  webhook: 0 Nachricht(en) über 0 Befund(e).
+  webhook: 1 Entwarnung(en) verschickt.
+```
+
+`backup.latest` war fort, die beiden Zeilen von `p6-b.invalid` blieben, wie
+sie waren. Beim Empfänger standen 34 Zeilen, die letzte die Entwarnung für
+`backup.latest / failed`. Die Datenbank gibt es nicht mehr, und die
+Werkzeugdatei ist entfernt. Zurück bleiben die Sicherungen 25 und 26, eine
+davon gescheitert, und die Vorgänge 1088 bis 1092.
+
+#### Der Befund
+
+| | wo | was | gefunden | Stand |
+|---|---|---|---|---|
+| 1 | Vorschrift | N0 sagte, mit `Sicherungen automatisch: ja` habe die Mail 23 Zeilen. Der Satz über die nächste Nacht verlangt dazu ein Kontingent über null, und Block 0 zeigte an beiden Abonnements `Kontingent —`. §1 nennt beide Bedingungen, §8 hatte die zweite verloren. Bei `nein` blieb es ohne Folgen | N0 | berichtigt, §8 N0 und N4 |
+
+#### Beobachtungen, keine Befunde
+
+1. **Das Update legt je Abonnement einen Vorgang an.** `srvpanel vhost`
+   schreibt die Rotationsdatei jedes Abonnements bei jedem Update neu
+   (`docs/134`, Befund 3), über `web.logrotate.apply`. Der Kunde sieht diese
+   Vorgänge unter „Vorgänge", mit „Ausgelöst von: System".
+2. **Die Seiten, auf die der Satz zeigt, sind für den Betreiber gebaut.** Der
+   Katalog der Aufgaben kennt `backup.create`, `db.dump.create` und
+   `web.logrotate.apply` nicht. Die Beschriftung fällt deshalb auf den Namen
+   der Operation zurück (`OperationController::row()`), und die Liste zeigt
+   ihn darunter noch einmal als Kennung. Die Seite des Vorgangs trägt ihn als
+   Überschrift, zeigt am gescheiterten Dump „Fortschritt 25 %" und Argumente
+   und Ergebnis als JSON. Den Grund findet der Kunde trotzdem dort, wo der
+   Satz ihn verspricht. Ob Kunden dort Beschriftungen brauchen, ist eine
+   Frage an den Betreiber.
+3. **Das Echo eines langen Einfügens sah verstümmelt aus**, und angekommen war
+   die Datei heil; entschieden hat die Prüfsumme.
+4. **`mariadb` druckt am Terminal einen Kasten**, auch mit `-N` (§7,
+   Beobachtung 4).
+
+#### Was der Nachlauf über sich selbst gelernt hat
+
+**Die Mail war vorgerechnet, bevor sie hinausging.** Nach N3 standen Klick,
+Name des Dumps und jüngste gelungene Sicherung fest, und der Container hat den
+Text mit genau diesen Werten gerechnet. Im Postfach war danach nichts zu
+beurteilen, nur nebeneinanderzulegen.
+
+> **Wo eine Erwartung vor der Messung feststeht, ersetzt das Nebeneinanderlegen
+> das Beurteilen.**
+
+**Ein Echo ist kein Inhalt.** Am Ende von N1 stand das Einfügen verstümmelt im
+Terminal, und `Werkzeuge: 5 von 5` darunter sagt nur, dass fünf Namen
+definiert sind. Ob ihre Rümpfe heil sind, hat erst die Prüfsumme im Vorlauf
+entschieden.
+
+> **Was eine Datei enthält, sagt ihre Prüfsumme und nicht das Echo, mit dem
+> sie entstand.**
+
+**Und eine Bedingung, die an zwei Stellen steht, hat an der zweiten ihre
+Hälfte verloren.** §1 nennt für den Satz über die nächste Nacht Automatik und
+Kontingent, §8 nannte nur die Automatik (Befund 1).
+
+> **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander,
+> und keine von beiden ist der Ort, an dem man nachsieht.**
+
+#### Was aussteht
+
+- **Die Frage aus Beobachtung 2:** ob Kunden unter „Vorgänge" Beschriftungen
+  brauchen, seit die Mail sie dorthin schickt.

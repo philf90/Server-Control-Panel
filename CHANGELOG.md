@@ -34176,3 +34176,81 @@ sie am Ende, und `srvpanel tls --prune` räumt das Zertifikat ab.
 **Eine Frage an den Betreiber steht in `docs/143 §0`:** Die Mail zu einer
 gescheiterten Sicherung nennt, dass der Dump fehlt, und nicht, warum. Den Grund
 trägt der Vorgang davor. Der Lauf misst `rc.15`, wie es ist.
+
+### Der Lauf für B9 ist gefahren — die Mail mit zwei Abschnitten kam an, und die Vorschrift hatte acht Stellen
+
+**Gefahren vom 8. bis 10. Oktober 2026 auf `cloudsrv24` gegen
+`0.9.0-rc.15`.** Alle elf Punkte aus `docs/143` sind erfüllt, Punkt 1 in
+Fall B, und am Prüfling ist kein Befund herausgefallen. Das Protokoll ist
+`docs/143 §7`. Abgenommen ist B9 noch nicht.
+
+**Die Mails kamen an, und jede einmal.** Die gescheiterte Sicherung brachte
+dem Kunden im selben Lauf genau eine Mail, der nächste Lauf keine zweite, und
+eine gelungene Sicherung nahm den Befund zurück. Das Zertifikat wartete seine
+zwanzig Stunden ab und kam dann zusammen mit einer wieder gescheiterten
+Sicherung als eine Mail mit zwei Abschnitten. An den Betreiber ging keine
+Mail, und „Diagnose" zeigte jede Zustellung auf die Sekunde wie gebucht.
+
+**Der Übergang hat getragen.** Den ersten Lauf nach dem Update fuhr der
+Nachtlauf. Er entwarnte die alte Zeile an `p6-b.invalid` unter ihrem alten
+Schlüssel und mit dem alten Satz (`App\Enums\FindingCheck::retired()`). Die
+Mail „Zertifikat abgelaufen" an die Konten von `p6-b.invalid` kam in der Nacht
+danach, mit einem Abschnitt, obwohl `expiring` daneben gebucht ist.
+
+**Die acht Befunde stecken in der Vorschrift**, und jede Stelle ist mit einem
+Vermerk berichtigt. Der teuerste war ein Datum: „seit dem 21. September"
+stand in drei Dokumenten für eine Zeile, die seit dem 14. stand. Am 21. war
+sie gemeldet worden.
+
+> **Seit wann ein Befund gemeldet ist, sagt nicht, seit wann er besteht.**
+
+Drei Blöcke liessen eine Ablesung wiederholen und fuhren im selben Zug den
+Lauf. Die Erwartung an die Länge einer Mail kam aus einem Prüfstand mit einer
+Sicherung, die der Server nicht hatte. Der Begründung der Reihenfolge auf
+„Diagnose" fehlte der Zustand, nach dem
+`App\Http\Controllers\DiagnoseController` zuerst ordnet; abgeschrieben war sie
+aus `docs/141`, und dort ist er nachgetragen. Und Fall B hatte eine Frist, die
+die Vorschrift nicht nannte: Zwanzig Stunden nach dem Nachtlauf hätte jeder
+Lauf von Teil 1 die Mail an `p6-b.invalid` mitgeschickt.
+
+> **Ein Fall, für den die Vorschrift die Zahlen nennt, ist erst beschrieben,
+> wenn auch seine Uhr dasteht.**
+
+**Offen ist die Frage aus `docs/143 §0`:** In beiden Mails zur Sicherung
+stand, dass der Dump fehlt, und nicht, warum. Den Grund, Fehler 1356 an der
+Sicht, trugen nur die Vorgänge davor.
+
+### Die Mail zur Sicherung sagt, wo der Grund steht
+
+**Entschieden am 10. Oktober 2026, nach dem Lauf für B9.** Scheitert der Dump
+einer Datenbank, nennt die Mail an den Kunden, dass er fehlt, und nicht,
+warum; den Grund trägt der Vorgang davor (`docs/143 §0`). Der Betreiber hat
+entschieden, dass ein Satz dorthin zeigt, statt dass die Sicherung den Grund
+übernimmt. Der Abschnitt aus `App\Mail\Notice\BackupSection` endet seitdem in
+jeder Lage mit
+
+    Was genau gescheitert ist, zeigt das Panel unter „Vorgänge".
+
+Der Satz gilt für jeden Grund und bringt keinen Weg mit, der selbst scheitern
+kann. **Gemeint ist der Menüpunkt und nicht der Bereich auf der Seite des
+Abonnements.** Der nennt die letzten zehn Vorgänge, und eine Sicherung legt je
+Datenbank einen an, bevor ihr eigener kommt; vorgeschlagen hatte ich zuerst
+den Bereich.
+
+> **Ein Satz, der auf eine gekürzte Liste zeigt, verspricht, was nach der
+> Kürzung noch dasteht.**
+
+`CustomerNoticeTest` hält den Namen am Menü des Kunden, gelesen in dessen
+Zweig von `PanelLayout.vue`, und dass der Satz mit und ohne Automatik dasteht.
+Vier Eingriffe, jeder einzeln belegt. Jede Mail mit einem Abschnitt der
+Sicherung hat damit zwei Zeilen mehr. Gebaut für `0.9.0-rc.16`; in einer Mail
+auf dem Server gesehen hat den Satz noch niemand.
+
+### B9 ist abgenommen
+
+**B9 ist am 10. Oktober 2026 abgenommen**, ausgesprochen vom Betreiber nach
+dem Lauf gegen `0.9.0-rc.15` (`docs/143 §7`). Der Satz, der in der Mail zur
+Sicherung auf „Vorgänge" zeigt, gehört nicht zum Kriterium; er ist für
+`0.9.0-rc.16` gebaut, und in einer Mail auf dem Server hat ihn noch niemand
+gesehen. Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B7
+und B8. Die Dokumentation bleibt vertagt.

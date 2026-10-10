@@ -605,6 +605,11 @@ Sie ordnet nach Prüfung und Ort und nicht nach dem Grund (`DiagnoseController`)
 die Reihenfolge darunter ist die der Zeilen. Die erste Fassung hatte die von
 `befunde` übernommen, und im Container stand zu diesem Ort nur eine Zeile.
 
+*Nachgetragen am 10. Oktober (`docs/143 §7`, Befund 6):* Vor Prüfung und Ort
+ordnet die Seite nach dem Zustand, Kaputt vor Nicht gemessen vor Auffällig.
+Hier sind beide Zeilen `warn`, und der Satz darüber stimmt für sie; nach ihm
+abgeschrieben, stand er in `docs/143` ohne den Zustand.
+
 ### Punkt 3 — Die Nacht dazwischen meldet nicht
 
 Am Morgen von Tag 2, **vor** T0 + 20 h:

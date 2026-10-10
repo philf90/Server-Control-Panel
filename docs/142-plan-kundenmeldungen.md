@@ -6,8 +6,10 @@ Rechnungen im Container, **vor** jeder Zeile Code. Die Rechnungen stehen als
 Lauf. Entschieden ist der Auftrag. Die vier Fragen, an denen der Bau hing,
 stehen in §6, und **der Betreiber hat sie am selben Tag entschieden: 1b, 2a,
 3a, 4a.** Gebaut ist B9 ebenfalls am 7. Oktober; was dabei anders lief als in
-§4, steht in §10, und der Abnahmelauf ist `docs/143`. Der Entwurf darunter
-bleibt, wie er vor den Antworten geschrieben war, und trägt an den
+§4, steht in §10. Der Abnahmelauf ist `docs/143`, gefahren vom 8. bis
+10. Oktober auf `cloudsrv24`: alle elf Punkte erfüllt, am Prüfling kein
+Befund. **Abgenommen hat der Betreiber B9 am 10. Oktober 2026.** Der Entwurf
+darunter bleibt, wie er vor den Antworten geschrieben war, und trägt an den
 betroffenen Stellen einen Vermerk.
 
 ## §1 · Warum es diesen Plan gibt
@@ -406,8 +408,10 @@ einem Tag (§10).* Gebaut wird in dieser Reihenfolge:
 
 Gebaut am selben Tag wie entschieden, in einem Zug, und an vier Stellen anders
 als in §4 entworfen. **Freigegeben ist es seit dem 8. Oktober als
-`0.9.0-rc.15`, gefahren noch nicht:** Der Lauf ist `docs/143`, ausgeschrieben
-vor dem Fahren, und das Kriterium steht in `docs/129 §9`.
+`0.9.0-rc.15` und gefahren vom 8. bis 10. Oktober:** Der Lauf ist
+`docs/143`, ausgeschrieben vor dem Fahren, und das Kriterium steht in
+`docs/129 §9`. Alle elf Punkte sind erfüllt, am Prüfling ist kein Befund
+herausgefallen, und das Protokoll ist `docs/143 §7`.
 
 ### Wer was bekommt, wie gebaut
 
@@ -529,6 +533,15 @@ Der Abschnitt zum Zertifikat sieht für ein hochgeladenes anders aus: ohne
 „Erneuerung fällig seit" und „Letzter Versuch", und der Absatz sagt, dass das
 Panel es nicht erneuert und ob der Kunde ein neues selbst hochladen darf.
 
+*Ergänzt am 10. Oktober 2026, nach dem Lauf für B9 (`docs/143 §0`,
+Beobachtung):* Gebaut für `0.9.0-rc.16`, endet der Abschnitt der Sicherung in
+jeder Lage mit einem Absatz mehr:
+
+    Was genau gescheitert ist, zeigt das Panel unter „Vorgänge".
+
+Er nennt den Menüpunkt des Kunden, und dass der so heisst, hält
+`CustomerNoticeTest`. Die Mail oben ist die vom 7. Oktober.
+
 ### M2, wie gebaut
 
 `tests/kundenmeldungen-rechnen.php` rechnet M2 seit dem Bau mit
@@ -581,23 +594,21 @@ und fehlte deshalb in jeder Fassung.
 
 ### Was offen bleibt
 
-- **Der Abnahmelauf** ist `docs/143`, ausgeschrieben am 8. Oktober gegen
-  `0.9.0-rc.15`, über zwei Nächte und noch nicht gefahren. Das
-  Prüfzertifikat samt Schlüssel erzeugt der Betreiber auf dem Server (§5),
-  für eine Subdomain, die der Lauf am Ende wieder entfernt (`docs/143 §0`,
-  Punkt 3).
-- **Vor dem Update auf `cloudsrv24` gehören die Empfänger nachgesehen.** Was
-  auf „Diagnose" als `tls.file / expiring` oder `expired` steht, befindet der
-  erste Nachtlauf danach unter `tls.expiry` neu, ein Zertifikat von Let's
-  Encrypt erst ab 28 Tagen. Steht es dann noch da, geht in der zweiten Nacht
-  eine Mail an die Konten seines Abonnements. Seit dem 21. September steht
-  dort `tls.file` an `p6-b.invalid`, dem abgelaufenen hochgeladenen
-  Zertifikat aus A10 (`docs/141 §7`). Wer diese Mail bekommt, ist nicht
-  nachgesehen, und hinter einer Adresse stand im Lauf für B5 eine Attrappe auf
-  einer fremden Domain. **Block 0 von `docs/143` liest sie in voller Länge,
-  und zwar vor dem Update:** Aus dem Hinweis ist dort eine Frist geworden,
-  denn der erste Lauf nach dem Update stellt die Uhr, auch einer von Hand
-  (`docs/143 §0`, Punkt 1).
+- **Der Grund eines gescheiterten Dumps ist entschieden.** Die Mail nennt,
+  dass der Dump fehlt; den Grund trägt der Vorgang davor (`docs/143 §0`,
+  Beobachtung), und der Lauf hat es zweimal gezeigt. Am 10. Oktober hat der
+  Betreiber entschieden, dass ein Satz dorthin zeigt, statt dass die
+  Sicherung den Grund übernimmt. Gebaut für `0.9.0-rc.16`, endet der
+  Abschnitt der Sicherung mit einem Satz über den Menüpunkt „Vorgänge"; er
+  steht unter der Mail weiter oben. Offen ist daran nur, dass ihn noch
+  niemand in einer Mail auf dem Server gesehen hat.
+- **Die Empfänger auf `cloudsrv24` sind nachgesehen**, und offen ist daran
+  nichts mehr. Block 0 von `docs/143` hat sie am 8. Oktober in voller Länge
+  gelesen, beide Postfächer liest der Betreiber, und die Mail „Zertifikat
+  abgelaufen" an `p6-b.invalid` kam in der Nacht auf den 10. Oktober an
+  (`docs/143 §7`, Punkt 6). Hier stand bis dahin, `tls.file` stehe dort
+  seit dem 21. September. An dem Tag ist die Zeile gemeldet worden; sie
+  stand seit dem 14. (`docs/143 §7`, Befund 1).
 - **Ein Platzhalterzertifikat nennt keinen letzten Versuch an seinen
   Unterdomains.** Der Vorgang hängt an der Domain, für die bestellt wurde; eine
   Unterdomain, die der Platzhalter deckt, bekommt ihren Abschnitt ohne diese

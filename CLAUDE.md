@@ -7542,7 +7542,9 @@ der Automatik, und das Menü des Kunden nennt die Liste anders.
 
 **Offen ist, dass den Satz noch niemand in einer Mail auf dem Server gesehen
 hat.** Jede Mail mit einem Abschnitt der Sicherung hat zwei Zeilen mehr; die
-Zahlen in `docs/143` gelten für `rc.15`.
+Zahlen in `docs/143` gelten für `rc.15`. Der Nachlauf gegen `rc.16` ist
+`docs/143 §8`, ausgeschrieben am 10. Oktober vor dem Fahren. Er sieht die Mail
+im Postfach und, als Kunde unter „Vorgänge", den Grund, auf den der Satz zeigt.
 
 ---
 

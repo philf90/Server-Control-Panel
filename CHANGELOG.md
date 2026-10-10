@@ -34272,7 +34272,10 @@ gelungene Sicherung den Befund zurückgenommen, und Datenbank und Werkzeuge sind
 wieder fort.
 
 Ein Befund an der Vorschrift: Sie nannte für den Satz über die nächste Nacht
-nur die Automatik und nicht das Kontingent, das er ebenfalls verlangt. Offen
-ist eine Frage an den Betreiber. Die Seiten, auf die der Satz zeigt, sind für
-den Betreiber gebaut, mit dem Namen der Operation als Beschriftung, und ob
-Kunden dort Beschriftungen brauchen, entscheidet er.
+nur die Automatik und nicht das Kontingent, das er ebenfalls verlangt.
+
+**Die Seiten, auf die der Satz zeigt, bleiben, wie sie sind**, entschieden vom
+Betreiber am selben Abend. Sie sind für den Betreiber gebaut, mit dem Namen der
+Operation als Beschriftung. Der Grund steht trotzdem dort, wo der Satz ihn
+verspricht, und eine Beschriftung hülfe nur, wenn jede Operation, die ein Kunde
+als Vorgang sieht, eine hätte.

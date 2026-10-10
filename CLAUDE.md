@@ -7549,11 +7549,13 @@ wie der Container sie nach dem Klick mit den Werten des Laufs vorgerechnet
 hatte. Als Kunde standen unter „Vorgänge" die beiden gescheiterten Vorgänge
 oben, und einen Klick weiter der Grund, rot und ganz oben auf der Seite.
 
-**Die Seiten, auf die der Satz zeigt, sind für den Betreiber gebaut**, und das
-ist die eine Frage, die der Nachlauf an den Betreiber zurückgibt. Der Katalog
-der Aufgaben kennt `backup.create` und `db.dump.create` nicht, die Liste zeigt
-den Namen der Operation deshalb zweimal, und die Seite des Vorgangs trägt ihn
-als Überschrift, mit „Fortschritt 25 %" an einem gescheiterten Dump.
+**Die Seiten, auf die der Satz zeigt, sind für den Betreiber gebaut, und sie
+bleiben es**, entschieden vom Betreiber am selben Abend. Der Katalog der
+Aufgaben kennt `backup.create` und `db.dump.create` nicht, die Liste zeigt den
+Namen der Operation deshalb zweimal, und die Seite des Vorgangs trägt ihn als
+Überschrift, mit „Fortschritt 25 %" an einem gescheiterten Dump. Der Grund
+steht trotzdem rot und ganz oben, und eine Beschriftung hülfe nur, wenn jede
+Operation, die ein Kunde sieht, eine hätte (`docs/143 §8`, Die Entscheidung).
 
 **Und ein Handgriff aus dem Nachlauf, der jeden langen Block trifft:** Am Ende
 des Einfügens stand die Werkzeugdatei verstümmelt im Terminal, und heil war sie

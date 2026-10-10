@@ -2243,8 +2243,8 @@ davon gescheitert, und die Vorgänge 1088 bis 1092.
    ihn darunter noch einmal als Kennung. Die Seite des Vorgangs trägt ihn als
    Überschrift, zeigt am gescheiterten Dump „Fortschritt 25 %" und Argumente
    und Ergebnis als JSON. Den Grund findet der Kunde trotzdem dort, wo der
-   Satz ihn verspricht. Ob Kunden dort Beschriftungen brauchen, ist eine
-   Frage an den Betreiber.
+   Satz ihn verspricht. Ob Kunden dort Beschriftungen brauchen, hat der
+   Betreiber am selben Abend entschieden: nicht (unten).
 3. **Das Echo eines langen Einfügens sah verstümmelt aus**, und angekommen war
    die Datei heil; entschieden hat die Prüfsumme.
 4. **`mariadb` druckt am Terminal einen Kasten**, auch mit `-N` (§7,
@@ -2275,7 +2275,16 @@ Kontingent, §8 nannte nur die Automatik (Befund 1).
 > **Zwei Zeilen desselben Dokuments über dieselbe Frage laufen auseinander,
 > und keine von beiden ist der Ort, an dem man nachsieht.**
 
-#### Was aussteht
+#### Die Entscheidung
 
-- **Die Frage aus Beobachtung 2:** ob Kunden unter „Vorgänge" Beschriftungen
-  brauchen, seit die Mail sie dorthin schickt.
+**Am 10. Oktober 2026 hat der Betreiber entschieden, an den Seiten unter
+„Vorgänge" nichts zu bauen**, wie vorgeschlagen. Der Grund steht dort, wo der
+Satz ihn verspricht, rot und ganz oben, und die gescheiterten Vorgänge stehen
+oben in der Liste. Wer mit dem Grund etwas anfangen kann, liest auch
+`db.dump.create`; wer es nicht kann, wendet sich ohnehin an seinen Anbieter.
+Eine Beschriftung hülfe nur, wenn jede Operation, die ein Kunde als Vorgang
+sieht, eine hätte. Halb gebaut stünde „Sicherung anlegen" neben
+`web.logrotate.apply`, und welche der 122 Operationen des Agenten Kunden als
+Vorgang sehen, ist nicht gezählt.
+
+Offen ist am Nachlauf damit nichts.

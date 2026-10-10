@@ -20,6 +20,12 @@ gescheiterte Sicherung im ersten Lauf, der sie sieht
 
 **Gefahren wird gegen `0.9.0-rc.15`.**
 
+**Gefahren ist er vom 8. bis 10. Oktober 2026 auf `cloudsrv24`.** Alle elf
+Punkte sind erfüllt, Punkt 1 in Fall B: Den Übergang hat ein Nachtlauf
+gemacht, und 1a war danach nicht mehr herzustellen. Am Prüfling ist kein
+Befund herausgefallen, an der Vorschrift acht. Das Protokoll ist §7, und wo
+die Vorschrift danach berichtigt ist, steht „Berichtigt nach dem Lauf".
+
 **Vorab im Container gemessen** (§6): der Weg, auf dem eine Sicherung scheitert,
 mit den echten Operationen des Agenten gegen MariaDB 10.11.14, dieselbe Fassung
 wie auf `cloudsrv24`; die ganze Folge der Punkte mit den echten Teilen des
@@ -41,14 +47,19 @@ T0 + 20 h die Mail mit beiden Abschnitten und räumt danach ab (§2).
 ### Sieben Punkte an der Vorschrift
 
 1. **Das Update schickt selbst eine Mail an einen Kunden, und dafür läuft ab
-   dem ersten Lauf danach eine Frist.** Seit dem 21. September steht auf
-   „Diagnose" `tls.file / expired` an `p6-b.invalid`: das hochgeladene
-   Wegwerfzertifikat aus A10 (`docs/100 §6`), abgelaufen am 13. September um
-   19:10 UTC. Der erste Lauf nach dem Update, ein Nachtlauf oder einer von
-   Hand, entwarnt die Zeile beim Webhook unter ihrem alten Schlüssel und
-   befindet die Laufzeit neu, als `tls.expiry` mit `expiring` und `expired`.
-   Zwanzig Stunden danach geht an die Konten von `p6-b.invalid` eine Mail
-   „Zertifikat abgelaufen" (`docs/142 §10`, nachgefahren in §6).
+   dem ersten Lauf danach eine Frist.** Seit dem 14. September steht auf
+   „Diagnose" `tls.file / expired` an `p6-b.invalid`, gemeldet am 21. Es ist
+   das hochgeladene Wegwerfzertifikat aus A10 (`docs/100 §6`), abgelaufen am
+   13. September um 19:10 UTC. Der erste Lauf nach dem Update, ein Nachtlauf
+   oder einer von Hand, entwarnt die Zeile beim Webhook unter ihrem alten
+   Schlüssel und befindet die Laufzeit neu, als `tls.expiry` mit `expiring`
+   und `expired`. Zwanzig Stunden danach geht an die Konten von
+   `p6-b.invalid` eine Mail „Zertifikat abgelaufen" (`docs/142 §10`,
+   nachgefahren in §6).
+
+   *Berichtigt nach dem Lauf (§7, Befund 1):* Hier stand „seit dem
+   21. September". An dem Tag ging die Mail hinaus; die Zeile steht seit dem
+   ersten Nachtlauf nach dem Ablauf, dem 14. September um 00:49:42.
 
    Wer sie bekommt, ist nicht nachgesehen, und im Lauf für B5 stand hinter
    einer Anmeldeadresse eine Attrappe auf einer fremden Domain (`docs/141 §7`,
@@ -281,15 +292,31 @@ definiert wird, und auch beim Aufruf schreibt nur `lauf`: Er fährt die
 Diagnose und den Meldelauf wie in der Nacht. Punkt 11 entfernt die Datei
 wieder.
 
-`HAKEN` und `LOG` sind der Empfänger des Webhooks aus `docs/137 §2`, dieselben
-Werte wie in B5.
+`HAKEN` und `LOG` sind der Empfänger des Webhooks: `HAKEN` der Rechner aus der
+Zeile „Ziel des Webhooks" in Block 0, `LOG` die Datei, in die er schreibt.
+Den Pfad misst H0, bevor Block H ihn braucht, und 0b belegt ihn.
+
+*Berichtigt nach dem Lauf (§7, Befund 2):* Die erste Fassung nannte für beide
+„wie in `docs/137 §2`", und dort steht derselbe Platzhalter. Den Pfad nannte
+kein Dokument.
+
+```bash
+# H0 · Wo schreibt der Empfänger hin? — liest nur
+ls -l /var/www/vhosts/*/tmp/haken.log
+wc -l /var/www/vhosts/*/tmp/haken.log
+```
+
+**Erwartet:** genau eine Datei. Auf `cloudsrv24` ist es
+`/var/www/vhosts/p6-b.invalid/tmp/haken.log`, denn `cloudlab24.de` gehört zu
+`p6-b.invalid`. Zeigt H0 keine oder mehrere, läuft Block H erst, wenn
+nachgesehen ist, in welche Datei der Empfänger schreibt.
 
 ```bash
 # H · Werkzeuge als Datei — schreibt /root/b9-werkzeuge.sh und liest sie ein; die Funktionen schreiben nichts
 cat > /root/b9-werkzeuge.sh <<'WERKZEUGE'
 # H · Werkzeuge für docs/143 (B9) — in jeder Sitzung: . /root/b9-werkzeuge.sh
-HAKEN='<domain des Empfängers>'                   # wie in docs/137 §2
-LOG='/var/www/vhosts/<abonnement>/tmp/haken.log'   # wie in docs/137 §2
+HAKEN='cloudlab24.de'                              # Ziel des Webhooks aus Block 0
+LOG='/var/www/vhosts/p6-b.invalid/tmp/haken.log'   # aus H0
 
 # Diagnose und Meldelauf wie in der Nacht — und was beide dabei sagen
 lauf() {
@@ -387,7 +414,8 @@ curl -sS -o /dev/null -m 10 -w '%{http_code}\n' -X POST -d '{"probe":"b9"}' "htt
 printf 'Empfängerprotokoll: %s -> %s Zeile(n)\n' "$ZEILEN" "$(wc -l < "$LOG")"
 ```
 
-**Erwartet:** `204` und eine Zeile mehr.
+**Erwartet:** `204` und eine Zeile mehr. Bleibt die Zahl stehen, schreibt der
+Empfänger in eine andere Datei, und `LOG` ist falsch.
 
 ---
 
@@ -399,7 +427,7 @@ printf 'Empfängerprotokoll: %s -> %s Zeile(n)\n' "$ZEILEN" "$(wc -l < "$LOG")"
 |---|---|---|
 | — | vor dem Update | Block 0; die Empfänger von `p6-b.invalid` nachsehen (§1) |
 | — | das Update auf `0.9.0-rc.15` | danach Block 0 noch einmal, Block H, 0b |
-| 1 | Tag 1, **T0 nicht vor 05:05** | Punkte 1 bis 5 |
+| 1 | Tag 1, **T0 nicht vor 05:05**, in Fall B vor `T1 + 20 h` | Punkte 1 bis 5 |
 | — | die Nacht dazwischen | Punkt 6: der Nachtlauf meldet das Zertifikat nicht |
 | 2 | Tag 2, ab **T0 + 20 h** | Punkte 7 bis 10 |
 | 3 | Tag 2, danach | Punkt 11, der Rückweg |
@@ -422,6 +450,17 @@ Punkt 7 im selben Lauf. Lief das Update früher, kam der Übergang mit einem
 Nachtlauf, und die Mail an `p6-b.invalid` kommt dann womöglich in der Nacht vor
 Teil 2. Punkt 1 liest den Übergang in diesem Fall aus Journal und Empfänger,
 und Punkt 6 und Punkt 7 sagen, wie sich die Zahlen dann ändern.
+
+**In Fall B hat Teil 1 eine Frist.** Zwanzig Stunden nach dem Nachtlauf, der
+den Übergang gemacht hat, ist die Mail an `p6-b.invalid` fällig, und jeder
+Lauf danach schickt sie mit. Der Nachtlauf feuert zwischen 00:00 und 01:01,
+die Frist liegt also zwischen 20:00 und 21:01 desselben Tages. Der letzte
+Lauf von Teil 1, T0, gehört davor; am 9. Oktober war die Frist 20:31:34.
+Liefe ein Lauf von Teil 1 danach, schickte er die Mail an `p6-b.invalid` mit,
+und seine Zeilen `mail:` und `webhook:` stimmten nicht mehr.
+
+*Berichtigt nach dem Lauf (§7, Befund 8):* Die erste Fassung sagte für
+Fall B, wie sich die Zahlen ändern, und nicht, dass daraus eine Frist folgt.
 
 ### Die Prüfkörper
 
@@ -549,16 +588,31 @@ In `haken` die Entwarnung unter dem **alten** Schlüssel mit dem **alten** Satz:
 ```bash
 # 1 (Fall B) · Was der erste Lauf nach dem Update gesagt hat — liest nur
 . /root/b9-werkzeuge.sh
+printf 'Jetzt: %s · Timer zuletzt: %s\n' "$(date '+%F %T')" "$(systemctl show -p LastTriggerUSec --value srvpanel-diagnose.timer)"
 journalctl -u srvpanel-diagnose.service --since '<Zeit des Updates aus Block 0>' --no-pager -o short-iso | grep -E 'gefahren,|Nachricht\(en\)|Entwarnung' | head -n 4
+printf 'Empfängerprotokoll: %s Zeile(n)\n' "$(wc -l < "$LOG")"
 grep '"resolved"' "$LOG" | tail -n 1 | cut -f3- | jq -c '{kind: .event.kind, subject: .event.subject, befunde: [.event.findings[] | [.check, .reason]], satz: [.event.findings[].label]}'
 befunde
+srvpanel tinker --execute='
+  $alle = App\Models\Finding::query()->with("notifications")->orderBy("check")->orderBy("subject")->orderBy("reason")->get();
+  printf("Befunde insgesamt: %d\n", $alle->count());
+  foreach ($alle as $f) printf("  %s · %s · %s · seit %s · fällig ab %s · gemeldet: %s\n", $f->check->value, $f->subject, $f->reason, App\Support\Time\Clock::display($f->first_seen_at), App\Support\Time\Clock::display(App\Support\Notify\Notices::dueAt($f)) ?? "—", $f->notifications->sortBy("channel")->map(fn ($n) => $n->channel." ".App\Support\Time\Clock::display($n->notified_at))->implode(", ") ?: "—");
+'
 ```
 
-**Erwartet:** der erste Lauf nach dem Update mit `10 Prüfung(en)` und
+**Erwartet:** `Timer zuletzt` auf dem Termin aus Block 0, der erste Lauf nach
+dem Update auf derselben Sekunde mit `10 Prüfung(en)` und
 `webhook: 1 Entwarnung(en) verschickt.`, im Protokoll des Empfängers dieselbe
 Zeile wie in Fall A, und in `befunde` die beiden `tls.expiry` mit `seit` gleich
-dem Zeitpunkt dieses Laufs. Die Seite mit der alten Zeile (1a) ist dann nicht
-mehr herzustellen; das gehört ins Protokoll und ist kein Ausfall.
+dem Zeitpunkt dieses Laufs. Er ist T1, und `T1 + 20 h` ist die Frist für
+Teil 1 (§2). Die Seite mit der alten Zeile (1a) ist dann nicht mehr
+herzustellen; das gehört ins Protokoll und ist kein Ausfall.
+
+*Ergänzt nach dem Lauf:* Gefahren ist der Block mit drei Ablesungen mehr als
+in der ersten Fassung, der Zeit des Timers, den Zeilen beim Empfänger und den
+Befunden über den ganzen Server. Die Zeit des Timers trennt einen Nachtlauf
+von einem Lauf von Hand, und die Zählung zeigt, dass der Übergang sonst nichts
+angefasst hat.
 
 > **Was behoben ist, lässt sich nicht mehr kaputt vorführen.**
 
@@ -627,6 +681,11 @@ In `befunde`, über den beiden Zeilen von `p6-b.invalid` aus Punkt 1:
 - **`fällig ab` ist `seit`**: keine Haltezeit (`docs/142 §6`, Frage 3).
 - **`<Klick>` ist die Minute, in der die Zeile der Sicherung entstand**, also
   der Klick auf „Jetzt sichern".
+- *Berichtigt nach dem Lauf (§7, Befund 7):* **Die Buchungen tragen die Zeit
+  des Meldelaufs.** Er ist das zweite `ExecStart` der Unit und ein eigener
+  Prozess nach den Prüfungen; sie stehen deshalb auf `<T2>` oder eine Sekunde
+  danach. Am 9. Oktober war es dieselbe Sekunde, in der Nacht und in Punkt 7
+  die nächste.
 
 In `haken`:
 
@@ -637,7 +696,14 @@ In `haken`:
 `kundenmail p6-abnahme.invalid` druckt den Betreff
 `<Marke> — Sicherung fehlgeschlagen: p6-abnahme.invalid`, `Zeilen: 21` mit dem
 Satz über die nächste Nacht oder `Zeilen: 19` ohne ihn, die längste mit
-`76 Zeichen`, und den Text aus §6, mit den Zeiten dieses Laufs.
+`76 Zeichen`, und den Text aus §6, mit den Zeiten dieses Laufs. **Stand in 2b
+`Jüngste gelungene: keine`**, nennt die Mail statt des Datums „Eine gelungene
+Sicherung dieses Abonnements gibt es nicht.", in einer Zeile statt zwei: dann
+`Zeilen: 20` oder `18`.
+
+*Berichtigt nach dem Lauf (§7, Befund 3):* Die erste Fassung kannte nur 21
+und 19. Der Prüfstand im Container hatte eine gelungene Sicherung aus der
+Nacht davor, `p6-abnahme.invalid` auf dem Server keine.
 
 **Im Postfach des Kunden: genau eine Mail**, in `An` nur seine Adresse, der
 Betreff wie oben und der Text Wort für Wort wie in `kundenmail`. **Im Postfach
@@ -652,7 +718,12 @@ des Betreibers: keine** Mail `… neuer Befund auf …` zu diesem Lauf.
 ```
 
 Die Zeiten sind die Buchungen aus `befunde`, auf die Sekunde; die Reihenfolge
-der Zeilen ist die der Seite (nach Prüfung und Ort, `docs/141 §7`, Befund 2).
+der Zeilen ist die der Seite: erst nach dem Zustand, Kaputt vor Nicht gemessen
+vor Auffällig, dann nach Prüfung und Ort (`DiagnoseController`).
+
+*Berichtigt nach dem Lauf (§7, Befund 6):* Die erste Fassung nannte nur
+Prüfung und Ort, nach `docs/141 §7`, Befund 2; dort hatten beide Zeilen
+denselben Zustand. Die Erwartungen oben stimmten trotzdem.
 
 #### Punkt 3 — Der nächste Lauf schickt keine zweite
 
@@ -679,17 +750,29 @@ mariadb -N p1139_b9 -e "SHOW FULL TABLES" | wc -l
 **Erwartet:** `0`. Dann im Panel noch einmal **„Jetzt sichern"**.
 
 ```bash
-# 4b · Die zweite Sicherung und der Lauf danach — meldet die Entwarnung
+# 4b-1 · Ist die zweite Sicherung fertig? — liest nur
 . /root/b9-werkzeuge.sh
 vorgaenge
+```
+
+**Erwartet:** beide neuen Vorgänge `succeeded`, die Sicherung `ready` und
+`Jüngste gelungene: <Klick>`. Steht noch einer auf `queued` oder `running`,
+wird 4b-1 wiederholt. **Erst dann 4b-2.**
+
+*Berichtigt nach dem Lauf (§7, Befund 4):* Die erste Fassung stellte
+`vorgaenge` und `lauf` in einen Block und sagte, `vorgaenge` sei notfalls zu
+wiederholen. Eingefügt fährt so ein Block den Lauf, bevor jemand die Ablesung
+gelesen hat.
+
+```bash
+# 4b-2 · Der Lauf nach der gelungenen Sicherung — meldet die Entwarnung
+. /root/b9-werkzeuge.sh
 lauf
 befunde
 haken
 ```
 
-**Erwartet:** in `vorgaenge` beide neuen Vorgänge `succeeded`, die Sicherung
-`ready` und `Jüngste gelungene: <Klick>`. Steht noch einer auf `queued` oder
-`running`, wird `vorgaenge` vor dem `lauf` wiederholt. Im Lauf:
+**Erwartet** im Lauf:
 
 ```
 10 Prüfung(en) gefahren, <T3>.
@@ -709,7 +792,8 @@ unverändert. In `haken`:
 
 #### Punkt 5 — T0: ein hochgeladenes Zertifikat, das in zwanzig Tagen abläuft
 
-**Nicht vor 05:05** (§2). Zuerst die Subdomain, im Panel
+**Nicht vor 05:05**, und in Fall B vor `T1 + 20 h` (§2). Zuerst die
+Subdomain, im Panel
 **`/subscriptions/140/domains/create`**: Sorte „Subdomain", Gehört zu
 `p6-abnahme.invalid`, Name `b9.p6-abnahme.invalid`, alles andere wie
 vorgeschlagen. Die Seite zeigt darüber, wie viele Subdomains das Kontingent
@@ -721,10 +805,14 @@ erlaubt.
 vorgaenge
 ```
 
-**Erwartet:** `web.site.apply` `succeeded` für die Subdomain und danach
-`acme.certificate.issue` `failed` mit der Abweisung von Let's Encrypt (§0
-Punkt 3). Steht die Bestellung noch auf `queued` oder `running`, wird
-gewartet; sie endet in Sekunden.
+**Erwartet:** `php.pool.apply` und `web.site.apply` `succeeded` für die
+Subdomain und danach `acme.certificate.issue` `failed` mit der Abweisung von
+Let's Encrypt (§0 Punkt 3). Steht die Bestellung noch auf `queued` oder
+`running`, wird gewartet; sie endet in Sekunden.
+
+*Berichtigt nach dem Lauf (§7, Befund 5):* Die erste Fassung nannte den Pool
+nicht. Eine Subdomain mit PHP legt ihren eigenen an, und nach jedem
+Hochladen schreibt das Panel ihn noch einmal.
 
 ```bash
 # 5b · Schlüssel und Zertifikat für zwanzig Tage, abgelegt für die Subdomain — schreibt /var/tmp/b9-tls und das Zertifikat
@@ -751,17 +839,28 @@ Abgelegt für b9.p6-abnahme.invalid: b9.p6-abnahme.invalid (gültig bis <TT.MM.J
 abgeschrieben: Der Befund nennt sie auf die Minute.
 
 ```bash
-# 5c · T0 — der Lauf nach dem Hochladen
+# 5c-1 · Ist der Server-Block neu geschrieben? — liest nur
 . /root/b9-werkzeuge.sh
 vorgaenge
+```
+
+**Erwartet:** ein neues `php.pool.apply` und ein neues `web.site.apply`, beide
+`succeeded`, und keine neue Bestellung: Das hochgeladene Zertifikat deckt den
+Namen. Steht einer noch auf `queued` oder `running`, wird 5c-1 wiederholt.
+**Erst dann 5c-2.**
+
+*Berichtigt nach dem Lauf (§7, Befunde 4 und 5):* Die erste Fassung stellte
+`vorgaenge` und den Lauf in einen Block und nannte den Pool nicht.
+
+```bash
+# 5c-2 · T0 — der Lauf nach dem Hochladen
+. /root/b9-werkzeuge.sh
 lauf
 befunde
 kundenmail p6-abnahme.invalid
 ```
 
-**Erwartet:** in `vorgaenge` ein neues `web.site.apply` `succeeded`, und keine
-neue Bestellung: Das hochgeladene Zertifikat deckt den Namen. Im Lauf
-`mail: 0 Nachricht(en) über 0 Befund(e).` und
+**Erwartet** im Lauf `mail: 0 Nachricht(en) über 0 Befund(e).` und
 `webhook: 0 Nachricht(en) über 0 Befund(e).`. In `befunde`:
 
 ```
@@ -804,7 +903,12 @@ Subdomain mit `seit <T0>` wie gestern, neuem `zuletzt` und **ohne** Buchung.
 Nacht die Mail an `p6-b.invalid`: `mail: 1 Nachricht(en) über 2 Befund(e).` und
 `webhook: 1 Nachricht(en) über 2 Befund(e).`, und die beiden Zeilen von
 `p6-b.invalid` tragen ihre Buchungen. Die Zeile der Subdomain bleibt trotzdem
-ohne. Was in dieser Mail steht, misst Punkt 7 mit `kundenmail p6-b.invalid`.
+ohne. Was in dieser Mail steht, misst dann schon Punkt 6, mit `haken` und
+`kundenmail p6-b.invalid` nach `befunde`: Ihr Text gehört neben das Postfach,
+solange beide frisch sind.
+
+*Ergänzt nach dem Lauf:* Die erste Fassung liess die Mail erst in Punkt 7
+messen, einen halben Tag nach ihrem Eingang.
 
 ### Teil 2 — ab T0 + 20 h
 
@@ -853,7 +957,7 @@ Kam sie schon in der Nacht (Punkt 6), stehen dort
 `webhook: 2 Nachricht(en) über 2 Befund(e).`.
 
 In `befunde` tragen alle Zeilen eine Buchung über `mail` und `webhook`; die
-beiden aus diesem Lauf auf `<T7>`:
+beiden aus diesem Lauf auf `<T7>` oder eine Sekunde danach, wie in Punkt 2:
 
 ```
   backup.latest p6-abnahme.invalid     failed   seit <T7> · fällig ab <T7> · zuletzt <T7>
@@ -865,6 +969,10 @@ beiden aus diesem Lauf auf `<T7>`:
       gemeldet über mail    <T7>
       gemeldet über webhook <T7>
 ```
+
+*Berichtigt nach dem Lauf (§7, Befund 7):* Die erste Fassung erwartete die
+Buchungen auf `<T7>`. Am 10. Oktober standen sie auf 09:01:18, bei T7 =
+09:01:17.
 
 In `haken 3`, je Gegenstand eine Meldung, gemessen in dieser Reihenfolge:
 
@@ -904,6 +1012,8 @@ Postfach des Betreibers keine** Mail `… neuer Befund auf …` zu diesem Lauf.
   Laufzeit eines Zertifikats · b9.p6-abnahme.invalid · Auffällig → Gemeldet über Mailversand: <T7> / Gemeldet über Meldeziel (Webhook): <T7>
   Laufzeit eines Zertifikats · p6-b.invalid · Auffällig → Gemeldet über Mailversand: <…> / Gemeldet über Meldeziel (Webhook): <…>
 ```
+
+Die Zeiten sind die Buchungen aus `befunde`, auf die Sekunde.
 
 #### Punkt 8 — Der nächste Lauf schickt keine zweite
 
@@ -961,22 +1071,32 @@ srvpanel tls --upload --domain=b9.p6-abnahme.invalid --certificate=/var/tmp/b9-t
 geschrieben.`
 
 ```bash
-# 10b · Liefert der Server das neue aus? Dann der Lauf — meldet die Entwarnung
+# 10b-1 · Liefert der Server das neue aus? — liest nur
 . /root/b9-werkzeuge.sh
 vorgaenge
 openssl s_client -connect 127.0.0.1:443 -servername b9.p6-abnahme.invalid </dev/null 2>/dev/null | openssl x509 -noout -enddate
+```
+
+**Erwartet:** in `vorgaenge` ein neues `php.pool.apply` und ein neues
+`web.site.apply`, beide `succeeded`, und `openssl s_client` zeigt `notAfter=`
+in einem Jahr: Der Server liefert das neue aus. Das ist die Bedingung dafür,
+dass der Lauf keinen Befund `tls.wire` schreibt, denn jetzt hat die Zeit
+keinen mehr, und die Leitung wird gefragt. **Erst dann 10b-2**; sonst wird
+10b-1 wiederholt.
+
+*Berichtigt nach dem Lauf (§7, Befunde 4 und 5):* Die erste Fassung stellte
+die Ablesung und den Lauf in einen Block. Eingefügt fährt er den Lauf auch
+dann, wenn `notAfter` noch in zwanzig Tagen liegt.
+
+```bash
+# 10b-2 · Der Lauf mit dem neuen Zertifikat — meldet die Entwarnung
+. /root/b9-werkzeuge.sh
 lauf
 befunde
 haken
 ```
 
-**Erwartet:** in `vorgaenge` das neue `web.site.apply` `succeeded`, **erst
-dann** weiter. `openssl s_client` zeigt `notAfter=` in einem Jahr: Der Server
-liefert das neue aus. Das ist die Bedingung dafür, dass der Lauf keinen Befund
-`tls.wire` schreibt, denn jetzt hat die Zeit keinen mehr, und die Leitung wird
-gefragt.
-
-Im Lauf `mail: 0 …`, `webhook: 0 …` und
+**Erwartet** im Lauf `mail: 0 …`, `webhook: 0 …` und
 `webhook: 1 Entwarnung(en) verschickt.`. In `befunde` nur noch die beiden
 Zeilen von `p6-b.invalid`. In `haken`:
 
@@ -997,8 +1117,12 @@ Im Panel, in dieser Reihenfolge:
 
 1. **`/subscriptions/140` → Datenbanken:** `p1139_b9` entfernen.
 2. **Die Seite der Domain `b9.p6-abnahme.invalid` → Entfernen**, mit der
-   Rückfrage, die den Pfad nennt. Weiter erst, wenn `vorgaenge` den Vorgang
-   `web.site.remove` als `succeeded` zeigt.
+   Rückfrage, die den Pfad nennt. Weiter erst, wenn `vorgaenge`
+   `web.site.remove` und `php.pool.remove` als `succeeded` zeigt, daneben
+   `db.database.remove` aus Schritt 1.
+
+   *Berichtigt nach dem Lauf (§7, Befund 5):* Die erste Fassung nannte nur
+   `web.site.remove`.
 
 ```bash
 # 11a · Was abgeräumt würde — liest nur
@@ -1293,4 +1417,352 @@ Empfänger des Webhooks und die Postfächer.
 
 ## §7 · Protokoll
 
-Noch nicht gefahren.
+Gefahren vom 8. bis 10. Oktober 2026 auf `cloudsrv24` gegen `0.9.0-rc.15`:
+Block 0, H und 0b am 8. Oktober nach dem Update, Teil 1 am 9., Punkt 6 und
+die Teile 2 und 3 am Vormittag des 10. Was hier steht, ist von den Bildern und
+Ausgaben des Betreibers abgelesen. Die Uhrzeiten sind die der Anzeigezone,
+CEST; nur das Meldeziel schreibt UTC. Adressen stehen gekürzt.
+
+**Alle elf Punkte sind erfüllt**, die Punkte 2 bis 9 darunter, und keiner ist
+als „nicht herstellbar" ausgefallen. **Punkt 1 lief in Fall B:** Zwischen
+Block 0 und Teil 1 lag eine Nacht, und den Übergang hat der Nachtlauf gemacht.
+1a war danach nicht mehr herzustellen, und genau das lässt §5 zu. Die Mail an
+`p6-b.invalid` kam deshalb in der Nacht vor Teil 2, wie §2 es für diesen Fall
+vorsieht.
+
+**Am Prüfling kein Befund.** Jede Zahl, jede Buchung und jede Zeile der drei
+Mails stand vorher in §3 oder §6 oder war vor der Messung angesagt. **Acht
+Befunde an der Vorschrift**; alle sind in dieser Fassung berichtigt, jede
+Stelle mit einem Vermerk.
+
+### Block 0, H und 0b — 8. Oktober
+
+Block 0 lief nach dem Update, das `dpkg.log` um 11:45:30 verzeichnet. Der
+letzte Lauf davor war der Nachtlauf um 00:04:05, noch mit 9 Prüfungen; der
+nächste stand auf den 9. Oktober um 00:31:34.
+
+- **Empfänger der Kundenmail:** an `p6-abnahme.invalid` Konto 6, `p…@d….de`,
+  an `p6-b.invalid` Konto 5, `p…@p….de`. Beide Domains sind nicht reserviert,
+  und beide Postfächer liest der Betreiber, bestätigt in voller Länge. Seine
+  eigene Adresse ist eine dritte.
+- **Hochladen: ja** an beiden Abonnements, **Sicherungen automatisch: nein.**
+  Damit galt die Fassung mit „Sie können es auf der Seite der Domain im Panel
+  hochladen." und ohne den Satz über die nächste Nacht (§6).
+- **Befunde insgesamt: 1**, `tls.file · p6-b.invalid · expired`, **seit
+  2026-09-14 00:49:42**, gemeldet über Mail und Webhook, die Mail am
+  21. September um 22:05:07 (Befund 1). Das Meldeziel ist `cloudlab24.de`,
+  `generic` und signiert.
+- `p1139_b9` gab es nicht, `/var/tmp/b9-tls` fehlte, `Keine ungebrauchten
+  Zertifikate.`, Streuung 1h, Genauigkeit 1min.
+
+**H0** fand genau eine Datei, `/var/www/vhosts/p6-b.invalid/tmp/haken.log`,
+`p1136`, `-rw-r-----`, 23 Zeilen, zuletzt geschrieben am 7. Oktober um 12:43,
+also beim letzten Lauf für B5 (`docs/141 §7`, N4). Seitdem war beim Empfänger
+nichts angekommen. **H** gab `Werkzeuge: 5 von 5`, **0b** `204` und 23 → 24
+Zeilen. Damit war belegt, dass `LOG` die Datei ist, in die der Empfänger
+schreibt (Befund 2).
+
+### Punkt 1 — erfüllt in Fall B, T1 = 2026-10-09 00:31:34
+
+Teil 1 begann am 9. Oktober um 08:47, mit dem Block für Fall B in der
+Fassung, die §3 jetzt zeigt. Der Timer hatte auf die Sekunde zum Termin aus
+Block 0 ausgelöst:
+
+```
+Jetzt: 2026-10-09 08:47:15 · Timer zuletzt: Fri 2026-10-09 00:31:34 CEST
+2026-10-09T00:31:34+02:00 cloudsrv24 php[494605]: 10 Prüfung(en) gefahren, 2026-10-09 00:31:34.
+2026-10-09T00:31:35+02:00 cloudsrv24 php[494629]:   mail: 0 Nachricht(en) über 0 Befund(e).
+2026-10-09T00:31:35+02:00 cloudsrv24 php[494629]:   webhook: 0 Nachricht(en) über 0 Befund(e).
+2026-10-09T00:31:35+02:00 cloudsrv24 php[494629]:   webhook: 1 Entwarnung(en) verschickt.
+Empfängerprotokoll: 25 Zeile(n)
+{"kind":"resolved","subject":"p6-b.invalid","befunde":[["tls.file","expired"]],"satz":["Das Zertifikat ist abgelaufen."]}
+Befunde: 2
+  tls.expiry    p6-b.invalid           expired  seit 2026-10-09 00:31:34 · fällig ab 2026-10-09 20:31:34 · zuletzt 2026-10-09 00:31:34
+      gültig bis 2026-09-13 19:10 UTC
+  tls.expiry    p6-b.invalid           expiring seit 2026-10-09 00:31:34 · fällig ab 2026-10-09 20:31:34 · zuletzt 2026-10-09 00:31:34
+      gültig bis 2026-09-13 19:10 UTC
+Entwarnungen, die noch ausstehen: 0
+Befunde insgesamt: 2
+```
+
+Die Entwarnung trägt den alten Schlüssel und den alten Satz, wie gebaut
+(`FindingCheck::retired()`). **`mail: 0` in diesem ersten Lauf unter `rc.15`**
+sagt mehr, als Punkt 1 fragt: `backup.latest` lief hier zum ersten Mal über
+alle Abonnements, und keines hatte eine gescheiterte jüngste Sicherung; ohne
+Haltezeit wäre ihre Mail sonst in derselben Nacht hinausgegangen. Die 25 Zeilen
+beim Empfänger sind die 23 von vorher, die Probe aus 0b und die Entwarnung.
+
+**1a ist nicht gefahren worden** und war danach nicht mehr herzustellen, denn
+die alte Zeile gibt es nicht mehr. Dass die Seite sie lesen kann, hält
+`RetiredReasonTest`; gesehen hat es auf dem Server niemand.
+
+Die Datenbank `b9` entstand über `/subscriptions/140/databases/create`, und
+zwar ohne Vorgang: `MariaDbDriver` legt sie mit einem Aufruf beim Agenten
+direkt an. Die Abfrage danach gab `p1139_b9`.
+
+### Punkt 2 — erfüllt, T2 = 09:02:05
+
+Die Sicht stand als einzige Zeile in `p1139_b9`. Der Klick um 09:01:12 ergab:
+
+```
+Vorgang 1067 · db.dump.create        · failed    · Die Sicherung ist gescheitert: mysqldump: Couldn't execute 'SHOW FIELDS FROM `b9_kaputt`': View 'p1139_b9.b9_kaputt' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them (1356)
+Vorgang 1068 · backup.create         · failed    · Der Dump p1139-b9-20261009-070112-b2ba980f der Datenbank p1139_b9 liegt nicht — die Sicherung wäre ohne ihre Datenbanken und von einer vollständigen nicht zu unterscheiden.
+Sicherung 21 · failed   · erstellt 2026-10-09 09:01:12 · Der Dump p1139-b9-20261009-070112-b2ba980f der Datenbank p1139_b9 liegt nicht — …
+Jüngste gelungene: keine
+```
+
+Beide Sätze stehen Wort für Wort wie in §6. **`Jüngste gelungene: keine`:**
+Das Abonnement hatte bis dahin keine einzige Sicherung (Befund 3).
+
+Der Lauf um 09:02:05 meldete `mail: 1 Nachricht(en) über 1 Befund(e).` und
+`webhook: 1 Nachricht(en) über 1 Befund(e).`. In `befunde` stand
+`backup.latest · failed` mit `seit` gleich `fällig ab`, 09:02:05, also ohne
+Haltezeit, dazu das Detail `erstellt 2026-10-09 09:01 CEST (UTC+02:00): Der
+Dump …` und die Buchungen über Mail und Webhook um 09:02:05. Beim Empfänger
+standen 26 Zeilen, `seit` war `2026-10-09T07:02:05+00:00`.
+
+`kundenmail p6-abnahme.invalid` druckte `SrvPanel — Sicherung fehlgeschlagen:
+p6-abnahme.invalid` und `Zeilen: 18 · die längste: 76 Zeichen`, mit „Eine
+gelungene Sicherung dieses Abonnements gibt es nicht." an der Stelle des
+Datums. **Im Postfach von Konto 6 lag genau eine Mail**, um 09:02 von der
+Absenderadresse des Panels, in „An" nur die Adresse des Kunden, der Text Wort
+für Wort wie in `kundenmail`. **Im Postfach des Betreibers lag nichts.** Auf
+der Seite:
+
+```
+Seite /diagnose · Befunde 3 · davon an den Orten des Laufs 3
+  Jüngste Sicherung · p6-abnahme.invalid · Kaputt → Gemeldet über Mailversand: 2026-10-09 09:02:05 / Gemeldet über Meldeziel (Webhook): 2026-10-09 09:02:05
+  Laufzeit eines Zertifikats · p6-b.invalid · Kaputt → Gemeldet wird ab 2026-10-09 20:31:34.
+  Laufzeit eines Zertifikats · p6-b.invalid · Auffällig → Gemeldet wird ab 2026-10-09 20:31:34.
+```
+
+### Punkt 3 — erfüllt
+
+Der Lauf um 09:06:50 meldete `mail: 0` und `webhook: 0`; die Buchungen standen
+weiter auf 09:02:05.
+
+### Punkt 4 — erfüllt, T3 = 09:08:32
+
+Ohne die Sicht gelangen die Vorgänge 1069 und 1070, und Sicherung 22 war um
+09:07:44 `ready`. Der Lauf um 09:08:32 meldete `webhook: 1 Entwarnung(en)
+verschickt.` und sonst nichts. `backup.latest` war fort, und beim Empfänger
+standen 27 Zeilen, die letzte die Entwarnung für `backup.latest / failed`.
+**In beiden Postfächern kam seit 09:02 nichts dazu.** Gefahren ist 4b in zwei
+Blöcken: erst `vorgaenge`, bis die Vorgänge fertig waren, dann der Lauf
+(Befund 4).
+
+### Punkt 5 — erfüllt, T0 = 2026-10-09 09:15:43
+
+Die Subdomain brachte die Vorgänge 1071 `php.pool.apply` und 1072
+`web.site.apply`, beide `succeeded`, und 1073 `acme.certificate.issue` mit
+`failed`: „Die Zertifizierungsstelle lehnte ab (rejectedIdentifier). — Invalid
+identifiers requested :: Cannot issue for "b9.p6-abnahme.invalid": Domain name
+does not end with a valid public suffix (TLD)" (Befund 5).
+
+Das Zertifikat entstand auf dem Server mit `notAfter=Oct 29 07:14:59 2026 GMT`
+und wurde abgelegt, „gültig bis 29.10.2026". Danach liefen 1074
+`php.pool.apply` und 1075 `web.site.apply`, ohne neue Bestellung. Der Lauf um
+09:15:43:
+
+```
+10 Prüfung(en) gefahren, 2026-10-09 09:15:43.
+  mail: 0 Nachricht(en) über 0 Befund(e).
+  webhook: 0 Nachricht(en) über 0 Befund(e).
+Befunde: 3
+  tls.expiry    b9.p6-abnahme.invalid  expiring seit 2026-10-09 09:15:43 · fällig ab 2026-10-10 05:15:43 · zuletzt 2026-10-09 09:15:43
+      gültig bis 2026-10-29 07:14 UTC
+  …
+```
+
+An der Subdomain stand nur `expiring`, kein `expired`, kein `tls.file` und kein
+`tls.wire`. `kundenmail` druckte `SrvPanel — Zertifikat läuft ab:
+p6-abnahme.invalid` und `Zeilen: 17 · die längste: 75 Zeichen`, beides am
+Morgen desselben Tages im Container nachgemessen, mit `Gültig bis: 2026-10-29
+08:14 CET (UTC+01:00)`. Die Seite zeigte `p6-b.invalid · Kaputt`, dann
+`b9.p6-abnahme.invalid · Auffällig → Gemeldet wird ab 2026-10-10 05:15:43.` und
+`p6-b.invalid · Auffällig`, in dieser Reihenfolge (Befund 6). Teil 1 war damit
+um 09:16 fertig, über elf Stunden vor der Frist für Fall B (Befund 8).
+
+### Punkt 6 — erfüllt, der Nachtlauf um 00:56:26
+
+```
+2026-10-10T00:56:26+02:00 cloudsrv24 php[560706]: 10 Prüfung(en) gefahren, 2026-10-10 00:56:26.
+2026-10-10T00:56:31+02:00 cloudsrv24 php[560731]:   mail: 1 Nachricht(en) über 2 Befund(e).
+2026-10-10T00:56:31+02:00 cloudsrv24 php[560731]:   webhook: 1 Nachricht(en) über 2 Befund(e).
+```
+
+Genau ein Lauf, und zwar in der Fassung für Fall B: Die beiden Zeilen von
+`p6-b.invalid` waren seit 20:31:34 fällig und tragen ihre Buchungen von
+00:56:27. **Die Zeile der Subdomain blieb ohne Buchung**, mit `zuletzt`
+00:56:26 und fällig erst ab 05:15:43. Beim Empfänger standen 28 Zeilen, die
+letzte eine Meldung für `p6-b.invalid` mit beiden Gründen und `seit` gleich T1
+in UTC.
+
+`kundenmail p6-b.invalid` druckte `SrvPanel — Zertifikat abgelaufen:
+p6-b.invalid` und `Zeilen: 20 · die längste: 75 Zeichen`, Wort für Wort wie in
+§6 für „Hochladen: ja". **Im Postfach von Konto 5 lag genau eine Mail**, um
+00:56, in „An" genau ein Empfänger, Betreff und Text wie in `kundenmail`, die
+festen Umbrüche an denselben Stellen. Der Lauf zählte eine Nachricht; in die
+anderen Postfächer ging also nichts. Nur „abgelaufen" steht da, obwohl
+`expiring` daneben gebucht ist (`CertificateSection::shown()`).
+
+Gelesen ist Punkt 6 mit `haken` und `kundenmail p6-b.invalid` dazu. In Fall B
+kommt die Mail an `p6-b.invalid` in dieser Nacht, und ihr Text gehört neben
+das Postfach, solange beide frisch sind.
+
+### Punkt 7 — erfüllt, T7 = 2026-10-10 09:01:17
+
+Die Sicht entstand neu. Der Klick um 09:00:28 ergab die Vorgänge 1076 und
+1077, beide `failed`, mit dem Dump `p1139-b9-20261010-070028-41a7e8cb`, und
+Sicherung 23. `Jüngste gelungene` blieb 09:07:44 vom Vortag; die Nacht legte
+keine an. Der Lauf:
+
+```
+10 Prüfung(en) gefahren, 2026-10-10 09:01:17.
+  mail: 1 Nachricht(en) über 2 Befund(e).
+  webhook: 2 Nachricht(en) über 2 Befund(e).
+```
+
+**Zwei Zustände desselben Abonnements in einem Lauf, und eine Mail.** In
+`befunde` trugen `backup.latest` und die Subdomain ihre Buchungen von 09:01:18,
+eine Sekunde nach T7 (Befund 7); die beiden Zeilen von `p6-b.invalid` behielten
+00:56:27. Beim Empfänger standen 30 Zeilen, eine Meldung je Gegenstand: zuerst
+`p6-abnahme.invalid` mit `backup.latest / failed` und `seit` gleich T7 in UTC,
+dann `b9.p6-abnahme.invalid` mit `tls.expiry / expiring` und `seit` gleich T0
+in UTC.
+
+`kundenmail p6-abnahme.invalid` druckte `SrvPanel — Zertifikat läuft ab und
+Sicherung fehlgeschlagen: p6-abnahme.invalid` und `Zeilen: 26 · die längste:
+76 Zeichen`: erst das Zertifikat, dann die Sicherung mit „Die jüngste gelungene
+Sicherung dieses Abonnements ist vom 2026-10-09 09:07", der Schlusssatz einmal.
+**Im Postfach von Konto 6 lag genau diese eine Mail**, um 09:01, in „An" nur
+die Adresse des Kunden, Wort für Wort wie in `kundenmail`. An Konto 5 und an
+den Betreiber ging nichts; der Lauf zählte eine Nachricht.
+
+Auf der Seite trug die Karte der Sicherung „Gemeldet über Mailversand:
+2026-10-10 09:01:18" und „Gemeldet über Meldeziel (Webhook): 2026-10-10
+09:01:18", auf die Sekunde wie `befunde`.
+
+### Punkt 8 — erfüllt
+
+Der Lauf um 09:04:50 meldete `mail: 0` und `webhook: 0`. Alle vier Zeilen
+behielten ihre Buchungen.
+
+### Punkt 9 — erfüllt, T9 = 09:06:34
+
+Ohne die Sicht gelangen 1078 und 1079, und Sicherung 24 war um 09:05:52
+`ready`. Der Lauf meldete `webhook: 1 Entwarnung(en) verschickt.`.
+`backup.latest` war fort, und **die Zeile der Subdomain blieb** mit ihren
+Buchungen von 09:01:18. Beim Empfänger standen 31 Zeilen. Eine Mail gab es
+nicht.
+
+### Punkt 10 — erfüllt, T10 = 09:10:33
+
+Das Zertifikat für ein Jahr wurde abgelegt, „gültig bis 10.10.2027". Nach 1080
+`php.pool.apply` und 1081 `web.site.apply` lieferte der Server
+`notAfter=Oct 10 07:09:38 2027 GMT` aus, und erst dann lief der Lauf:
+`webhook: 1 Entwarnung(en) verschickt.`, an der Subdomain nichts mehr, auch
+kein `tls.wire`. Beim Empfänger standen 32 Zeilen, die letzte die Entwarnung
+für `b9.p6-abnahme.invalid` mit „Das Zertifikat läuft demnächst ab.".
+
+### Punkt 11 — erfüllt
+
+Datenbank und Subdomain sind über die Vorgänge 1082 `db.database.remove`,
+1083 `web.site.remove` und 1084 `php.pool.remove` entfernt, alle `succeeded`.
+Der Trockenlauf von `srvpanel tls --prune` nannte wörtlich, was §3 erwartet:
+zwei Zeilen ohne Domain und einen Ablageort. Bestätigt mit `yes` kamen
+`entfernt` und `Aufgeräumt.`. Der Lauf um 09:27:47 meldete nichts, auch keine
+Entwarnung, und übrig blieben die beiden gemeldeten Zeilen von `p6-b.invalid`,
+**auch über den ganzen Server gezählt**. Danach stand `Keine ungebrauchten
+Zertifikate.` da, `0` für `p1139_b9`, und `/var/tmp/b9-tls` und
+`/root/b9-werkzeuge.sh` gibt es nicht mehr. Die Zählung über den ganzen Server
+und `haken` sind in 11c dazugenommen.
+
+Zurück bleibt, was §2 nennt: die Sicherungen 21 bis 24, zwei davon
+gescheitert, die Vorgänge des Laufs und an `p6-b.invalid` die gemeldeten
+`tls.expiry`. Die folgenden Nächte schicken dazu keine Mail mehr.
+
+### Die acht Befunde
+
+| | wo | was | gefunden | Stand |
+|---|---|---|---|---|
+| 1 | Vorschrift | §0 Punkt 1 nannte den 21. September als den Tag, seit dem `tls.file / expired` an `p6-b.invalid` steht. Die Zeile steht seit dem 14. September um 00:49:42; am 21. ist sie gemeldet worden. Dieselbe Angabe stand in `docs/142 §10` und in CLAUDE.md | Block 0 | berichtigt, §0 Punkt 1; nachgezogen in `docs/142 §10` und in CLAUDE.md |
+| 2 | Vorschrift | Block H nannte für `HAKEN` und `LOG` „wie in `docs/137 §2`", und dort stehen dieselben Platzhalter. Den Pfad des Empfängers nannte kein Dokument | vor Block H | mit H0 gemessen; berichtigt, §1 Block H und 0b |
+| 3 | Vorschrift | Punkt 2 kannte 21 und 19 Zeilen. Ohne jede gelungene Sicherung steht „Eine gelungene Sicherung dieses Abonnements gibt es nicht." an der Stelle des Datums, und die Mail hat 18. Der Prüfstand im Container hatte eine Sicherung aus der Nacht davor, der Server keine | 2b, angesagt vor der Messung | berichtigt, §3 Punkt 2 |
+| 4 | Vorschrift | 4b, 5c und 10b stellten `vorgaenge` und `lauf` in einen Block, mit der Anweisung, `vorgaenge` notfalls zu wiederholen. Eingefügt fährt der Block den Lauf, bevor die Vorgänge fertig sind; in 10b schriebe er dann `tls.wire / not_served` | beim Anweisen von 4b | in zwei Blöcken gefahren; berichtigt, §3 Punkte 4, 5 und 10 |
+| 5 | Vorschrift | 5a nannte `web.site.apply` und die Bestellung. Eine Subdomain mit PHP legt auch ihren Pool an, beim Anlegen, nach jedem Hochladen noch einmal, und Punkt 11 entfernt ihn mit `php.pool.remove` | 5a | berichtigt, §3 Punkte 5, 10 und 11 |
+| 6 | Vorschrift | Punkt 2 begründete die Reihenfolge der Seite mit „nach Prüfung und Ort". `DiagnoseController` ordnet zuerst nach dem Zustand, Kaputt vor Auffällig. Die Erwartungen stimmten trotzdem, nur die Begründung nicht | beim Vorbereiten von Punkt 5, im Container nachgemessen | berichtigt, §3 Punkt 2; nachgetragen in `docs/141 §3`, Punkt 2 |
+| 7 | Vorschrift | Die Punkte 2 und 7 erwarteten die Buchungen auf T2 und T7. Sie tragen die Zeit des Meldelaufs, und der ist das zweite `ExecStart` der Unit und ein eigener Prozess: in 2c dieselbe Sekunde, in der Nacht und in 7c eine Sekunde später | Punkt 6, angesagt vor Punkt 7 | berichtigt, §3 Punkte 2 und 7 |
+| 8 | Vorschrift | §2 sagte für Fall B, wie sich die Zahlen der Punkte 6 und 7 ändern, und nicht, dass Teil 1 dann eine Frist hat. Zwanzig Stunden nach dem Nachtlauf ist die Mail an `p6-b.invalid` fällig, und jeder Lauf danach schickt sie mit; hier um 20:31:34 | beim Planen von Teil 1 | berichtigt, §2 und §3 Punkte 1 und 5 |
+
+### Beobachtungen, keine Befunde
+
+1. **Fall B kam aus der Reihenfolge eines Arbeitstages.** Das Update lief am
+   8. Oktober um 11:45, Block 0, H und 0b am selben Tag, Teil 1 erst am
+   nächsten Morgen. §2 rät, das Update vor Teil 1 und nicht in die Nacht davor
+   zu legen; hier lag die Nacht zwischen Block 0 und Punkt 1. Gekostet hat es
+   1a, sonst nichts.
+2. **Die Datenbank entsteht ohne Vorgang und vergeht mit einem.**
+   `MariaDbDriver` legt sie mit einem direkten Aufruf beim Agenten an;
+   entfernt wird sie über `db.database.remove`. `vorgaenge` zeigte deshalb nur
+   das Entfernen.
+3. **Das Bild der Seite zeigt die Karte der Subdomain ohne ihre Buchungen.**
+   Am Telefon lagen die Zeilen „Gemeldet über" unter dem Bildrand, und nach
+   Punkt 10 gibt es die Karte nicht mehr. Die Buchungen von 09:01:18 belegen
+   `befunde` in den Punkten 7 bis 9 und der Empfänger, und die Zeilen kommen
+   aus derselben Zelle wie die der Sicherung, die abgebildet ist.
+4. **`mariadb` druckt am Terminal einen Kasten**, auch mit `-N`; §2 und §3
+   zeigen die Ausgabe ohne ihn. Der Lauf für B5 hatte das schon vermerkt.
+
+### Was der Lauf über sich selbst gelernt hat
+
+**Der Tag einer Meldung stand als Tag des Zustands da.** „Seit dem
+21. September" kam aus der Buchung der Mail, und von dort in drei Dokumente.
+Die Zeile selbst stand seit dem ersten Lauf nach dem Ablauf des Zertifikats,
+dem 14. September; gemeldet wurde sie erst, als es den Meldeweg gab.
+
+> **Seit wann ein Befund gemeldet ist, sagt nicht, seit wann er besteht.**
+
+**Ein Verweis hat eine Lücke weitergereicht.** Block H nannte für den Pfad
+des Empfängers `docs/137 §2`, und dort steht derselbe Platzhalter, in
+`docs/141` auch. Im Lauf für B5 blieb er einmal stehen (`docs/141 §7`,
+Befund 4). Diesmal hat H0 den Pfad gemessen, bevor Block H ihn brauchte, und
+0b hat ihn bestätigt.
+
+> **Ein Verweis auf eine Stelle, an der derselbe Platzhalter steht, ist kein
+> Wert — er reicht die Lücke weiter.**
+
+**Ein Block, der seine Bedingung abliest und im selben Zug weiterfährt, prüft
+sie nicht.** 4b, 5c und 10b sagten, `vorgaenge` sei notfalls zu wiederholen,
+und standen mit dem Lauf in einem Block. In 10b hätte das einen Befund für den
+Betreiber erzeugt, zu Recht, denn der Server lieferte dann noch das alte
+Zertifikat aus.
+
+> **Eine Anweisung, eine Ablesung zu wiederholen, gilt nicht in einem Block,
+> der danach von selbst weiterfährt.**
+
+**Der Prüfstand im Container hatte eine Vorgeschichte, die der Server nicht
+hatte.** Die Erwartung von 21 und 19 Zeilen setzte eine gelungene Sicherung
+voraus, weil der Wegwerf-Test eine aus der Nacht davor angelegt hatte. Ins
+Protokoll kam das nicht als Abweichung, weil `Jüngste gelungene: keine` vor
+dem Lauf abgelesen und die Mail mit 18 Zeilen vorher angesagt war.
+
+> **Ein Prüfstand, dem man eine Vorgeschichte gibt, misst sie mit — eine
+> Erwartung daraus gilt auf dem Server erst, wenn dessen Vorgeschichte
+> abgelesen ist.**
+
+**Und ein zweiter Fall braucht seine eigene Uhr.** §0 Punkt 1 hat aus dem
+Update eine Frist gemacht. Für Fall B nannte §2 die Zahlen und nicht die
+Frist, die daraus für Teil 1 folgt; ausgerechnet ist sie erst beim Planen
+dieses Morgens.
+
+> **Ein Fall, für den die Vorschrift die Zahlen nennt, ist erst beschrieben,
+> wenn auch seine Uhr dasteht.**
+
+### Was aussteht
+
+- **Die Abnahme.** Sie spricht der Betreiber aus.
+- **Die Frage aus §0, Beobachtung:** Die Mail nennt, dass der Dump fehlt, und
+  nicht, warum. Der Lauf hat das zweimal gezeigt; in beiden Mails stand „Der
+  Dump … liegt nicht", und den Grund, Fehler 1356 an der Sicht, trugen die
+  Vorgänge 1067 und 1076 unter „Vorgänge". Entschieden ist die Frage nicht.

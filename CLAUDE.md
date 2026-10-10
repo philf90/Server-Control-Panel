@@ -68,8 +68,10 @@ B8. Der Plan ist `docs/142`; die vier Fragen dort in §6 hat der Betreiber am
 selben Tag entschieden (1b, 2a, 3a, 4a), und **B9 ist am 7. Oktober gebaut**
 (`docs/142 §10`, Abschnitt weiter unten) und am 8. als `0.9.0-rc.15`
 freigegeben. Der Lauf ist `docs/143`, ausgeschrieben am 8. Oktober vor dem
-Fahren (Abschnitt weiter unten). Die Dokumentation ist vertagt und steht als
-offener Punkt da.
+Fahren und **gefahren vom 8. bis 10. Oktober: alle elf Punkte erfüllt**,
+Punkt 1 in Fall B, am Prüfling kein Befund und an der Vorschrift acht
+(`docs/143 §7`, Abschnitt weiter unten). Abgenommen ist B9 noch nicht. Die
+Dokumentation ist vertagt und steht als offener Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -7076,8 +7078,9 @@ seitdem so.
 
 **Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B7 und
 B8.** Für B7 und B8 gibt es noch keinen Lauf. Seit dem 7. Oktober kommt B9
-dazu, gebaut und noch nicht abgenommen (`docs/142 §10`); sein Lauf ist seit
-dem 8. Oktober `docs/143`. Der Lauf für B5 ist seit dem
+dazu, gebaut und noch nicht abgenommen (`docs/142 §10`); sein Lauf ist
+`docs/143`, gefahren vom 8. bis 10. Oktober, und die Abnahme steht aus. Der
+Lauf für B5 ist seit dem
 5. Oktober `docs/141`, gefahren samt Nachlauf bis zum 7. Oktober, und an
 diesem Tag ist B5 abgenommen (Abschnitte unten).
 
@@ -7351,10 +7354,12 @@ Fall trägt seinen Ladebeleg deshalb in sich: „Erneuerung fällig seit" muss
 dastehen, sonst misst er nichts, und am Ende steht die Gegenprobe, in der der
 Versuch erscheint.
 
-**Vor dem Update auf `cloudsrv24` gehört eine Adresse nachgesehen.** An
-`p6-b.invalid` steht seit dem 21. September `tls.file` mit einem abgelaufenen
-hochgeladenen Zertifikat. Nach dem Update wird daraus in der zweiten Nacht eine
-Mail an die Konten des Abonnements (`docs/142 §10`).
+**Vor dem Update auf `cloudsrv24` gehörte eine Adresse nachgesehen.** An
+`p6-b.invalid` stand seit dem 14. September `tls.file` mit einem abgelaufenen
+hochgeladenen Zertifikat, gemeldet am 21. Nach dem Update wurde daraus in der
+zweiten Nacht eine Mail an die Konten des Abonnements (`docs/142 §10`).
+Nachgesehen hat sie Block 0 von `docs/143`, und hier stand bis dahin „seit dem
+21. September" (`docs/143 §7`, Befund 1).
 
 ---
 
@@ -7371,8 +7376,9 @@ dabei kein Befund herausgefallen, an der Vorschrift sieben Punkte
 (`docs/143 §0`).
 
 **Der teuerste Punkt ist die Reihenfolge von Update und Lauf.** An
-`p6-b.invalid` steht seit dem 21. September ein abgelaufenes hochgeladenes
-Zertifikat. Der erste Lauf nach dem Update befindet es unter `tls.expiry` neu,
+`p6-b.invalid` steht seit dem 14. September ein abgelaufenes hochgeladenes
+Zertifikat, gemeldet am 21. Der erste Lauf nach dem Update befindet es unter
+`tls.expiry` neu,
 ein Nachtlauf oder einer von Hand, und zwanzig Stunden danach wird eine Mail
 an die Konten des Abonnements fällig. Wer sie bekommt, ist nicht nachgesehen,
 und im Lauf für B5 stand hinter einer solchen Adresse eine Attrappe auf einer
@@ -7407,6 +7413,100 @@ nächsten Lauf: Ein Zertifikat ohne Domain meldet die Diagnose dem Betreiber als
 gescheiterten Sicherung nennt, dass der Dump fehlt, und nicht, warum. Den Grund
 trägt der Vorgang davor, `db.dump.create`, und der Kunde sieht ihn unter
 „Vorgänge". Der Lauf misst `rc.15`, wie es ist.
+
+---
+
+## Der Lauf für B9 — 8. bis 10. Oktober 2026
+
+Gefahren auf `cloudsrv24` gegen `0.9.0-rc.15`: **alle elf Punkte aus
+`docs/143` erfüllt**, die Punkte 2 bis 9 darunter, und keiner ist als „nicht
+herstellbar" ausgefallen. Punkt 1 lief in Fall B: Zwischen Block 0 und Teil 1
+lag eine Nacht, und den Übergang hat der Nachtlauf gemacht. Die Seite mit der
+alten Zeile (1a) war danach nicht mehr herzustellen, und genau das lässt
+`docs/143 §5` zu. Das Protokoll ist `docs/143 §7`. **Abgenommen ist B9 noch
+nicht**; das spricht der Betreiber aus.
+
+**Am Prüfling kein Befund, an der Vorschrift acht** — dieselbe Lage wie bei
+B5, und aus demselben Grund: Die Vorschrift war vorher ausgeschrieben und im
+Container vorab gefahren, die Werkzeuge lagen als Datei vor. Gemessen ist das
+Kriterium in allen Teilen. Die gescheiterte Sicherung brachte dem Kunden im
+selben Lauf genau eine Mail und der nächste Lauf keine zweite, die gelungene
+nahm den Befund zurück. Das Zertifikat wartete seine zwanzig Stunden ab und
+kam dann mit der wieder gescheiterten Sicherung als **eine Mail mit zwei
+Abschnitten**. Der Betreiber bekam keine Mail, und „Diagnose" zeigte jede
+Zustellung auf die Sekunde wie gebucht.
+
+**Der Übergang hat auf dem Server getragen.** Der erste Nachtlauf unter
+`rc.15` entwarnte die alte Zeile beim Webhook unter ihrem alten Schlüssel und
+mit dem alten Satz, wie `FindingCheck::retired()` es vorsieht. Er meldete
+`mail: 0`, obwohl `backup.latest` dort zum ersten Mal über alle Abonnements
+lief: Keines hatte eine gescheiterte jüngste Sicherung.
+
+**Der teuerste Befund war ein Datum.** „Seit dem 21. September" stand in
+`docs/142`, in `docs/143` und hier, und es war der Tag, an dem die Zeile
+gemeldet wurde. Sie stand seit dem 14., dem ersten Nachtlauf nach dem Ablauf.
+Block 0 hat es gezeigt, weil er `seit` und `gemeldet` getrennt druckt.
+Gekostet hat es nichts, denn die Frist hing am ersten Lauf nach dem Update und
+nicht an diesem Datum.
+
+> **Seit wann ein Befund gemeldet ist, sagt nicht, seit wann er besteht.**
+
+**Zwei Befunde haben eine Lücke aus einem früheren Lauf weitergereicht.**
+Block H nannte für `LOG` „wie in `docs/137 §2`", und dort steht derselbe
+Platzhalter; im Lauf für B5 blieb er einmal stehen. Diesmal hat H0 den Pfad
+gemessen, bevor Block H ihn brauchte. Und die Reihenfolge auf „Diagnose" war
+mit „nach Prüfung und Ort" begründet, abgeschrieben aus `docs/141 §7`.
+`DiagnoseController` ordnet zuerst nach dem Zustand; in B5 hatten beide Zeilen
+denselben, und dort ist es nachgetragen.
+
+> **Ein Verweis auf eine Stelle, an der derselbe Platzhalter steht, ist kein
+> Wert — er reicht die Lücke weiter.**
+
+**Drei Blöcke liessen ablesen und fuhren im selben Zug weiter.** 4b, 5c und
+10b stellten `vorgaenge` und den Lauf in einen Block und sagten, `vorgaenge`
+sei notfalls zu wiederholen. Eingefügt fährt so ein Block den Lauf, bevor
+jemand die Ablesung gelesen hat; in 10b hätte das einen Befund `tls.wire` für
+den Betreiber erzeugt, und zwar zu Recht. Gefahren sind alle drei in zwei
+Blöcken.
+
+> **Eine Anweisung, eine Ablesung zu wiederholen, gilt nicht in einem Block,
+> der danach von selbst weiterfährt.**
+
+Das ist die andere Seite des Satzes aus `docs/123`, je Lage einen Block mit
+Vorbereitung, Absetzen und Lesen: Wo auf einen Vorgang gewartet wird, endet
+der Block.
+
+**Der Prüfstand im Container hatte eine Vorgeschichte, die der Server nicht
+hatte.** Die Erwartung von 21 und 19 Zeilen setzte eine gelungene Sicherung
+voraus, weil der Wegwerf-Test eine aus der Nacht davor angelegt hatte.
+`p6-abnahme.invalid` hatte keine, und die Mail sagte das in einer Zeile statt
+in zwei. Aufgefallen ist es vor der Messung, weil `vorgaenge` `Jüngste
+gelungene: keine` druckte.
+
+> **Ein Prüfstand, dem man eine Vorgeschichte gibt, misst sie mit — eine
+> Erwartung daraus gilt auf dem Server erst, wenn dessen Vorgeschichte
+> abgelesen ist.**
+
+**Und Fall B hatte eine Uhr, die die Vorschrift nicht nannte.** Zwanzig
+Stunden nach dem Nachtlauf, der den Übergang gemacht hat, wird die Mail an
+`p6-b.invalid` fällig, und jeder Lauf von Teil 1 danach hätte sie
+mitgeschickt. `docs/143 §2` nannte für Fall B die Zahlen und nicht die Frist.
+Ausgerechnet ist sie erst beim Planen des Morgens: 20:31:34, und Teil 1 war um
+09:16 durch.
+
+> **Ein Fall, für den die Vorschrift die Zahlen nennt, ist erst beschrieben,
+> wenn auch seine Uhr dasteht.**
+
+**Zwei Beobachtungen am Bestand, keine Befunde.** Eine Datenbank entsteht ohne
+Vorgang, denn `MariaDbDriver` ruft den Agenten direkt; entfernt wird sie mit
+einem, `db.database.remove`. Und eine Subdomain mit PHP legt ihren eigenen
+Pool an und schreibt ihn nach jedem Hochladen eines Zertifikats neu; die
+Vorschrift kannte nur `web.site.apply`.
+
+**Was offen bleibt:** die Abnahme, und die Frage aus `docs/143 §0`, ob die
+Mail den Grund eines gescheiterten Dumps nennt. Der Lauf hat zweimal gezeigt,
+dass sie es nicht tut. In beiden Mails stand „Der Dump … liegt nicht", und
+Fehler 1356 an der Sicht trugen nur die Vorgänge 1067 und 1076.
 
 ---
 

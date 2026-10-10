@@ -165,6 +165,17 @@ soll, ist eine Frage an den Betreiber, und gebaut würde es erst mit einer
 neuen Freigabe. **Dieser Lauf misst `rc.15`, wie er ist**; jede Erwartung in
 §3 nennt den Satz oben.
 
+*Entschieden nach dem Lauf, am 10. Oktober 2026 (§7, Was aussteht):* Die
+Sicherung übernimmt den Grund nicht, die Mail zeigt dorthin. Gebaut für
+`0.9.0-rc.16`, endet ihr Abschnitt mit dem Satz
+
+    Was genau gescheitert ist, zeigt das Panel unter „Vorgänge".
+
+Gemeint ist der Menüpunkt des Kunden. Der Bereich auf der Seite des
+Abonnements nennt nur die letzten zehn Vorgänge, und eine Sicherung legt je
+Datenbank einen an. Jede Mail mit einem Abschnitt der Sicherung hat damit
+zwei Zeilen mehr; die Zahlen in §3 und §6 gelten für `rc.15`.
+
 ---
 
 ## §1 · Die Werkzeuge und die Vorbedingung
@@ -1765,4 +1776,7 @@ dieses Morgens.
 - **Die Frage aus §0, Beobachtung:** Die Mail nennt, dass der Dump fehlt, und
   nicht, warum. Der Lauf hat das zweimal gezeigt; in beiden Mails stand „Der
   Dump … liegt nicht", und den Grund, Fehler 1356 an der Sicht, trugen die
-  Vorgänge 1067 und 1076 unter „Vorgänge". Entschieden ist die Frage nicht.
+  Vorgänge 1067 und 1076 unter „Vorgänge". *Entschieden am selben Tag, nach
+  diesem Protokoll:* Ein Satz in der Mail zeigt dorthin, gebaut für
+  `0.9.0-rc.16` (§0, Beobachtung). In einer Mail auf dem Server gesehen hat
+  ihn noch niemand.

@@ -532,6 +532,15 @@ Der Abschnitt zum Zertifikat sieht für ein hochgeladenes anders aus: ohne
 „Erneuerung fällig seit" und „Letzter Versuch", und der Absatz sagt, dass das
 Panel es nicht erneuert und ob der Kunde ein neues selbst hochladen darf.
 
+*Ergänzt am 10. Oktober 2026, nach dem Lauf für B9 (`docs/143 §0`,
+Beobachtung):* Gebaut für `0.9.0-rc.16`, endet der Abschnitt der Sicherung in
+jeder Lage mit einem Absatz mehr:
+
+    Was genau gescheitert ist, zeigt das Panel unter „Vorgänge".
+
+Er nennt den Menüpunkt des Kunden, und dass der so heisst, hält
+`CustomerNoticeTest`. Die Mail oben ist die vom 7. Oktober.
+
 ### M2, wie gebaut
 
 `tests/kundenmeldungen-rechnen.php` rechnet M2 seit dem Bau mit
@@ -587,10 +596,14 @@ und fehlte deshalb in jeder Fassung.
 - **Die Abnahme.** Der Lauf ist `docs/143`, gefahren vom 8. bis 10. Oktober
   gegen `0.9.0-rc.15`: alle elf Punkte erfüllt, am Prüfling kein Befund, an
   der Vorschrift acht (`docs/143 §7`). Abnehmen muss B9 der Betreiber.
-- **Ob die Mail den Grund eines gescheiterten Dumps nennt.** Sie nennt, dass
-  der Dump fehlt; den Grund trägt der Vorgang davor, und den sieht der Kunde
-  unter „Vorgänge" (`docs/143 §0`, Beobachtung). Der Lauf hat es zweimal
-  gezeigt, entschieden ist es nicht.
+- **Der Grund eines gescheiterten Dumps ist entschieden.** Die Mail nennt,
+  dass der Dump fehlt; den Grund trägt der Vorgang davor (`docs/143 §0`,
+  Beobachtung), und der Lauf hat es zweimal gezeigt. Am 10. Oktober hat der
+  Betreiber entschieden, dass ein Satz dorthin zeigt, statt dass die
+  Sicherung den Grund übernimmt. Gebaut für `0.9.0-rc.16`, endet der
+  Abschnitt der Sicherung mit einem Satz über den Menüpunkt „Vorgänge"; er
+  steht unter der Mail weiter oben. Offen ist daran nur, dass ihn noch
+  niemand in einer Mail auf dem Server gesehen hat.
 - **Die Empfänger auf `cloudsrv24` sind nachgesehen**, und offen ist daran
   nichts mehr. Block 0 von `docs/143` hat sie am 8. Oktober in voller Länge
   gelesen, beide Postfächer liest der Betreiber, und die Mail „Zertifikat

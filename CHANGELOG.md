@@ -34219,3 +34219,29 @@ Lauf von Teil 1 die Mail an `p6-b.invalid` mitgeschickt.
 **Offen ist die Frage aus `docs/143 §0`:** In beiden Mails zur Sicherung
 stand, dass der Dump fehlt, und nicht, warum. Den Grund, Fehler 1356 an der
 Sicht, trugen nur die Vorgänge davor.
+
+### Die Mail zur Sicherung sagt, wo der Grund steht
+
+**Entschieden am 10. Oktober 2026, nach dem Lauf für B9.** Scheitert der Dump
+einer Datenbank, nennt die Mail an den Kunden, dass er fehlt, und nicht,
+warum; den Grund trägt der Vorgang davor (`docs/143 §0`). Der Betreiber hat
+entschieden, dass ein Satz dorthin zeigt, statt dass die Sicherung den Grund
+übernimmt. Der Abschnitt aus `App\Mail\Notice\BackupSection` endet seitdem in
+jeder Lage mit
+
+    Was genau gescheitert ist, zeigt das Panel unter „Vorgänge".
+
+Der Satz gilt für jeden Grund und bringt keinen Weg mit, der selbst scheitern
+kann. **Gemeint ist der Menüpunkt und nicht der Bereich auf der Seite des
+Abonnements.** Der nennt die letzten zehn Vorgänge, und eine Sicherung legt je
+Datenbank einen an, bevor ihr eigener kommt; vorgeschlagen hatte ich zuerst
+den Bereich.
+
+> **Ein Satz, der auf eine gekürzte Liste zeigt, verspricht, was nach der
+> Kürzung noch dasteht.**
+
+`CustomerNoticeTest` hält den Namen am Menü des Kunden, gelesen in dessen
+Zweig von `PanelLayout.vue`, und dass der Satz mit und ohne Automatik dasteht.
+Vier Eingriffe, jeder einzeln belegt. Jede Mail mit einem Abschnitt der
+Sicherung hat damit zwei Zeilen mehr. Gebaut für `0.9.0-rc.16`; in einer Mail
+auf dem Server gesehen hat den Satz noch niemand.

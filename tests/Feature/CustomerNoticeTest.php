@@ -47,7 +47,8 @@ use Tests\TestCase;
  * Prüfung des Kunden einen Abschnitt. Je Domain steht der schwerere Grund.
  * Was der Kunde tun kann, folgt der Herkunft des Zertifikats; was von den
  * Sicherungen noch da ist, steht da, und „kommt von selbst" nur, wenn sie
- * kommt. Keine Zeile ist länger als 77 Zeichen, die Abschnitte stehen in
+ * kommt; wo der Grund steht, nennt die Mail so wie das Menü des Kunden.
+ * Keine Zeile ist länger als 77 Zeichen, die Abschnitte stehen in
  * fester Reihenfolge, und der Satz über „einmal je Zustand" steht einmal.
  *
  * **Und die Angaben kommen aus dem Befund und dem Bestand**, gemessen durch
@@ -240,6 +241,43 @@ final class CustomerNoticeTest extends TestCase
 
         self::assertStringContainsString('Eine gelungene Sicherung dieses Abonnements gibt es nicht.', $ohne);
         self::assertStringNotContainsString('von selbst', $ohne, 'Ohne Automatik kommt keine — die Zusage hielte niemand.');
+    }
+
+    /**
+     * Die Sicherung sagt, wo der Grund steht — unter „Vorgänge", so wie das
+     * Menü des Kunden die Liste nennt, und in jeder Lage.
+     *
+     * **Den Grund eines gescheiterten Dumps trägt der Vorgang davor** und
+     * nicht die Mail (`docs/143 §7`). Entschieden hat der Betreiber am
+     * 10. Oktober 2026, dass ein Satz dorthin zeigt.
+     *
+     * **Der Name kommt aus `PanelLayout.vue`** und nicht aus diesem Test, und
+     * zwar aus dem Zweig des Kunden. Der Betreiber hat einen Menüpunkt mit
+     * derselben Adresse; über die ganze Datei gelesen, bliebe ein umbenannter
+     * Punkt beim Kunden neben dem alten beim Betreiber unbemerkt.
+     */
+    public function test_the_backup_section_points_to_the_operations_as_the_menu_names_them(): void
+    {
+        $layout = (string) file_get_contents(resource_path('js/Layouts/PanelLayout.vue'));
+
+        $anfang = strpos($layout, 'is_admin === false');
+        self::assertNotFalse($anfang, 'Der Zweig des Kunden ist in PanelLayout.vue nicht gefunden worden.');
+
+        $ende = strpos($layout, "\n  return [", $anfang);
+        self::assertNotFalse($ende, 'Das Ende des Zweigs des Kunden ist in PanelLayout.vue nicht gefunden worden.');
+
+        self::assertSame(
+            1,
+            preg_match_all("/\\{\\s*name:\\s*'([^']+)',\\s*href:\\s*'\\/operations'/", substr($layout, $anfang, $ende - $anfang), $eintraege),
+            'Im Menü des Kunden steht für /operations kein Punkt oder mehr als einer.',
+        );
+
+        foreach ([self::sicherung(), self::sicherung(gelungen: null, automatisch: false)] as $abschnitt) {
+            $text = self::fliesstext((new CustomerNotice('p1000', [$abschnitt]))->render());
+
+            self::assertSame(1, preg_match_all('/unter\s+„([^"]+)"/u', $text, $genannt), 'Die Mail sagt nicht, wo der Grund steht.');
+            self::assertSame($eintraege[1][0], $genannt[1][0], 'Die Mail nennt die Liste anders als das Menü des Kunden.');
+        }
     }
 
     /**

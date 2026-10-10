@@ -40449,6 +40449,80 @@ pruefe "von selbst ohne Automatik" \
 wiederherstellen
 
 echo
+echo "── CustomerNoticeTest: die Sicherung sagt nicht, wo der Grund steht ──"
+#
+# Den Grund eines gescheiterten Dumps traegt der Vorgang davor und nicht die
+# Mail (docs/143 §7). Ohne den Satz sucht ihn der Kunde nicht.
+vorher_datei app/Mail/Notice/BackupSection.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/Notice/BackupSection.php')
+s = p.read_text(encoding='utf-8')
+alt = "        $absaetze[] = 'Was genau gescheitert ist, zeigt das Panel unter „Vorgänge\".';\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "", 1), encoding='utf-8')
+PY
+griff_datei app/Mail/Notice/BackupSection.php "kein Hinweis auf Vorgaenge" &&
+pruefe "kein Hinweis auf Vorgaenge" \
+  CustomerNoticeTest::test_the_backup_section_points_to_the_operations_as_the_menu_names_them failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: die Sicherung nennt eine Liste, die es im Menue nicht gibt ──"
+vorher_datei app/Mail/Notice/BackupSection.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/Notice/BackupSection.php')
+s = p.read_text(encoding='utf-8')
+alt = "unter „Vorgänge\".';\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "unter „Verlauf\".';\n", 1), encoding='utf-8')
+PY
+griff_datei app/Mail/Notice/BackupSection.php "Hinweis auf Verlauf" &&
+pruefe "Hinweis auf Verlauf" \
+  CustomerNoticeTest::test_the_backup_section_points_to_the_operations_as_the_menu_names_them failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: der Hinweis auf die Vorgaenge nur mit Automatik ──"
+#
+# Der Satz gilt fuer jeden Grund und steht deshalb immer da. Haengt er an einer
+# Bedingung, fehlt er der Haelfte der Kunden.
+vorher_datei app/Mail/Notice/BackupSection.php
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('app/Mail/Notice/BackupSection.php')
+s = p.read_text(encoding='utf-8')
+alt = "        $absaetze[] = 'Was genau gescheitert ist, zeigt das Panel unter „Vorgänge\".';\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "        if ($this->automatic) {\n    " + alt + "        }\n", 1), encoding='utf-8')
+PY
+griff_datei app/Mail/Notice/BackupSection.php "Hinweis nur mit Automatik" &&
+pruefe "Hinweis nur mit Automatik" \
+  CustomerNoticeTest::test_the_backup_section_points_to_the_operations_as_the_menu_names_them failed
+wiederherstellen
+
+echo
+echo "── CustomerNoticeTest: das Menue des Kunden nennt die Vorgaenge anders ──"
+#
+# Die andere Richtung: Das Menue zieht um, die Mail bleibt stehen. Umbenannt
+# wird nur der Punkt des Kunden; der des Betreibers bleibt, und der Waechter
+# darf ihn nicht statt dessen lesen.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path('resources/js/Layouts/PanelLayout.vue')
+s = p.read_text(encoding='utf-8')
+alt = "        { name: 'Vorgänge', href: '/operations', icon: 'operations' },\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+p.write_text(s.replace(alt, "        { name: 'Verlauf', href: '/operations', icon: 'operations' },\n", 1), encoding='utf-8')
+PY
+griff_datei resources/js/Layouts/PanelLayout.vue "Menue nennt Verlauf" &&
+pruefe "Menue nennt Verlauf" \
+  CustomerNoticeTest::test_the_backup_section_points_to_the_operations_as_the_menu_names_them failed
+wiederherstellen
+
+echo
 echo "── CustomerNoticeTest: die Abschnitte in der Reihenfolge ihres Entstehens ──"
 vorher_datei app/Mail/CustomerNotice.php
 python3 - <<'PY'

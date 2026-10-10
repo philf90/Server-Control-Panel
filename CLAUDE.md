@@ -71,6 +71,8 @@ freigegeben. Der Lauf ist `docs/143`, ausgeschrieben am 8. Oktober vor dem
 Fahren und **gefahren vom 8. bis 10. Oktober: alle elf Punkte erfüllt**,
 Punkt 1 in Fall B, am Prüfling kein Befund und an der Vorschrift acht
 (`docs/143 §7`, Abschnitt weiter unten). Abgenommen ist B9 noch nicht. Die
+Frage aus `docs/143 §0` hat der Betreiber am 10. Oktober entschieden, und
+gebaut ist die Antwort für `0.9.0-rc.16` (Abschnitt weiter unten). Die
 Dokumentation ist vertagt und steht als offener Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
@@ -7503,10 +7505,46 @@ einem, `db.database.remove`. Und eine Subdomain mit PHP legt ihren eigenen
 Pool an und schreibt ihn nach jedem Hochladen eines Zertifikats neu; die
 Vorschrift kannte nur `web.site.apply`.
 
-**Was offen bleibt:** die Abnahme, und die Frage aus `docs/143 §0`, ob die
-Mail den Grund eines gescheiterten Dumps nennt. Der Lauf hat zweimal gezeigt,
-dass sie es nicht tut. In beiden Mails stand „Der Dump … liegt nicht", und
-Fehler 1356 an der Sicht trugen nur die Vorgänge 1067 und 1076.
+**Was offen bleibt: die Abnahme.** Die Frage aus `docs/143 §0`, ob die Mail
+den Grund eines gescheiterten Dumps nennt, hat der Lauf zweimal beantwortet:
+In beiden Mails stand „Der Dump … liegt nicht", und Fehler 1356 an der Sicht
+trugen nur die Vorgänge 1067 und 1076. Entschieden hat der Betreiber am
+selben Tag (Abschnitt darunter).
+
+---
+
+## Der Grund steht unter „Vorgänge" — 10. Oktober 2026
+
+Die Mail an den Kunden übernimmt den Grund eines gescheiterten Dumps nicht,
+sie zeigt dorthin. So hat es der Betreiber nach dem Lauf für B9 entschieden,
+und gebaut ist es für `0.9.0-rc.16`: Der Abschnitt der Sicherung endet in
+jeder Lage mit einem Satz, der auf den Menüpunkt „Vorgänge" zeigt
+(`docs/143 §0`, Beobachtung). Der Satz gilt für jeden Grund, denn eine
+Sicherung wird nur über einen gescheiterten Vorgang zur gescheiterten, und er
+bringt keinen Weg mit, der selbst scheitern kann. Eine Abfrage nach dem
+Vorgang des Dumps brächte einen mit.
+
+**Vorgeschlagen war die Seite des Abonnements, gebaut ist der Menüpunkt.**
+Der Bereich „Vorgänge" dort nennt die letzten zehn, und eine Sicherung legt je
+Datenbank einen Vorgang an, bevor ihr eigener kommt. Ab zehn Datenbanken
+fällt der erste Dump heraus, auch wenn danach nichts mehr geschieht;
+nachgelesen am `SubscriptionController` und an `Backups::create()`. Der
+Menüpunkt nennt alle Vorgänge des Kunden, seitenweise.
+
+> **Ein Satz, der auf eine gekürzte Liste zeigt, verspricht, was nach der
+> Kürzung noch dasteht.**
+
+**Den Namen hält `CustomerNoticeTest` am Menü des Kunden**, wie
+`OperatorMailTest` die Seite „Diagnose" für den Betreiber. Gelesen wird nur
+der Zweig des Kunden in `PanelLayout.vue`: Der Betreiber hat einen Punkt mit
+derselben Adresse, und über die ganze Datei gelesen bliebe ein umbenannter
+Punkt beim Kunden neben dem alten beim Betreiber unbemerkt. Vier Eingriffe,
+jeder einzeln belegt: der Satz fehlt, er nennt eine andere Liste, er hängt an
+der Automatik, und das Menü des Kunden nennt die Liste anders.
+
+**Offen ist, dass den Satz noch niemand in einer Mail auf dem Server gesehen
+hat.** Jede Mail mit einem Abschnitt der Sicherung hat zwei Zeilen mehr; die
+Zahlen in `docs/143` gelten für `rc.15`.
 
 ---
 

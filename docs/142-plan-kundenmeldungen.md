@@ -8,8 +8,9 @@ stehen in §6, und **der Betreiber hat sie am selben Tag entschieden: 1b, 2a,
 3a, 4a.** Gebaut ist B9 ebenfalls am 7. Oktober; was dabei anders lief als in
 §4, steht in §10. Der Abnahmelauf ist `docs/143`, gefahren vom 8. bis
 10. Oktober auf `cloudsrv24`: alle elf Punkte erfüllt, am Prüfling kein
-Befund. Der Entwurf darunter bleibt, wie er vor den Antworten geschrieben
-war, und trägt an den betroffenen Stellen einen Vermerk.
+Befund. **Abgenommen hat der Betreiber B9 am 10. Oktober 2026.** Der Entwurf
+darunter bleibt, wie er vor den Antworten geschrieben war, und trägt an den
+betroffenen Stellen einen Vermerk.
 
 ## §1 · Warum es diesen Plan gibt
 
@@ -593,9 +594,6 @@ und fehlte deshalb in jeder Fassung.
 
 ### Was offen bleibt
 
-- **Die Abnahme.** Der Lauf ist `docs/143`, gefahren vom 8. bis 10. Oktober
-  gegen `0.9.0-rc.15`: alle elf Punkte erfüllt, am Prüfling kein Befund, an
-  der Vorschrift acht (`docs/143 §7`). Abnehmen muss B9 der Betreiber.
 - **Der Grund eines gescheiterten Dumps ist entschieden.** Die Mail nennt,
   dass der Dump fehlt; den Grund trägt der Vorgang davor (`docs/143 §0`,
   Beobachtung), und der Lauf hat es zweimal gezeigt. Am 10. Oktober hat der

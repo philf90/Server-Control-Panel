@@ -25,6 +25,7 @@ Punkte sind erfüllt, Punkt 1 in Fall B: Den Übergang hat ein Nachtlauf
 gemacht, und 1a war danach nicht mehr herzustellen. Am Prüfling ist kein
 Befund herausgefallen, an der Vorschrift acht. Das Protokoll ist §7, und wo
 die Vorschrift danach berichtigt ist, steht „Berichtigt nach dem Lauf".
+**Der Betreiber hat B9 am 10. Oktober 2026 abgenommen.**
 
 **Vorab im Container gemessen** (§6): der Weg, auf dem eine Sicherung scheitert,
 mit den echten Operationen des Agenten gegen MariaDB 10.11.14, dieselbe Fassung
@@ -1770,9 +1771,15 @@ dieses Morgens.
 > **Ein Fall, für den die Vorschrift die Zahlen nennt, ist erst beschrieben,
 > wenn auch seine Uhr dasteht.**
 
+### Die Abnahme
+
+**Der Betreiber hat B9 am 10. Oktober 2026 abgenommen**, nach diesem Lauf
+gegen `0.9.0-rc.15`. Am selben Tag hat er die Frage aus §0 entschieden. Der
+Satz, der in der Mail auf „Vorgänge" zeigt, ist für `0.9.0-rc.16` gebaut und
+gehört nicht zum Kriterium.
+
 ### Was aussteht
 
-- **Die Abnahme.** Sie spricht der Betreiber aus.
 - **Die Frage aus §0, Beobachtung:** Die Mail nennt, dass der Dump fehlt, und
   nicht, warum. Der Lauf hat das zweimal gezeigt; in beiden Mails stand „Der
   Dump … liegt nicht", und den Grund, Fehler 1356 an der Sicht, trugen die

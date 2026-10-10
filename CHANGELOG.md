@@ -34245,3 +34245,12 @@ Zweig von `PanelLayout.vue`, und dass der Satz mit und ohne Automatik dasteht.
 Vier Eingriffe, jeder einzeln belegt. Jede Mail mit einem Abschnitt der
 Sicherung hat damit zwei Zeilen mehr. Gebaut für `0.9.0-rc.16`; in einer Mail
 auf dem Server gesehen hat den Satz noch niemand.
+
+### B9 ist abgenommen
+
+**B9 ist am 10. Oktober 2026 abgenommen**, ausgesprochen vom Betreiber nach
+dem Lauf gegen `0.9.0-rc.15` (`docs/143 §7`). Der Satz, der in der Mail zur
+Sicherung auf „Vorgänge" zeigt, gehört nicht zum Kriterium; er ist für
+`0.9.0-rc.16` gebaut, und in einer Mail auf dem Server hat ihn noch niemand
+gesehen. Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B7
+und B8. Die Dokumentation bleibt vertagt.

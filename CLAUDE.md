@@ -21,8 +21,8 @@ ist bewusst nicht hergestellt worden, entschieden vom Betreiber: Der Lauf bei
 95 % hat Befund, Meldung und Rückweg belegt. Die drei Befunde an der Mail des
 Betreibers sind danach behoben und mit `0.9.0-rc.5` ausgeliefert; auf dem Server
 gesehen hat sie noch niemand. **B4 ist am 1. Oktober 2026 abgenommen, B6 am
-4. Oktober und B5 am 7. Oktober**; B3, B7 und B8 sind gebaut und nicht
-abgenommen. Der Lauf
+4. Oktober, B5 am 7. Oktober und B9 am 10. Oktober**; B3, B7 und B8 sind
+gebaut und nicht abgenommen. Der Lauf
 für B3 ist `docs/138`, ausgeschrieben am 28. September, und er hat vor dem
 Fahren einen Befund am Prüfling gebracht (Abschnitt weiter unten) — behoben
 am selben Tag, ausgeliefert mit `0.9.0-rc.7` und am Abend auf `cloudsrv24`
@@ -70,10 +70,10 @@ selben Tag entschieden (1b, 2a, 3a, 4a), und **B9 ist am 7. Oktober gebaut**
 freigegeben. Der Lauf ist `docs/143`, ausgeschrieben am 8. Oktober vor dem
 Fahren und **gefahren vom 8. bis 10. Oktober: alle elf Punkte erfüllt**,
 Punkt 1 in Fall B, am Prüfling kein Befund und an der Vorschrift acht
-(`docs/143 §7`, Abschnitt weiter unten). Abgenommen ist B9 noch nicht. Die
-Frage aus `docs/143 §0` hat der Betreiber am 10. Oktober entschieden, und
-gebaut ist die Antwort für `0.9.0-rc.16` (Abschnitt weiter unten). Die
-Dokumentation ist vertagt und steht als offener Punkt da.
+(`docs/143 §7`, Abschnitt weiter unten). **Danach hat der Betreiber B9 am
+10. Oktober 2026 abgenommen.** Die Frage aus `docs/143 §0` hat er am selben
+Tag entschieden, und gebaut ist die Antwort für `0.9.0-rc.16` (Abschnitt
+weiter unten). Die Dokumentation ist vertagt und steht als offener Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -7079,10 +7079,9 @@ eigenen Block und sagt dazu, dass sie schreibt. In `docs/140 §8` steht sie
 seitdem so.
 
 **Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B7 und
-B8.** Für B7 und B8 gibt es noch keinen Lauf. Seit dem 7. Oktober kommt B9
-dazu, gebaut und noch nicht abgenommen (`docs/142 §10`); sein Lauf ist
-`docs/143`, gefahren vom 8. bis 10. Oktober, und die Abnahme steht aus. Der
-Lauf für B5 ist seit dem
+B8.** Für B7 und B8 gibt es noch keinen Lauf. B9 ist am 7. Oktober dazugekommen
+und gebaut (`docs/142 §10`); sein Lauf ist `docs/143`, gefahren vom 8. bis
+10. Oktober, und am 10. Oktober ist B9 abgenommen. Der Lauf für B5 ist seit dem
 5. Oktober `docs/141`, gefahren samt Nachlauf bis zum 7. Oktober, und an
 diesem Tag ist B5 abgenommen (Abschnitte unten).
 
@@ -7418,15 +7417,15 @@ trägt der Vorgang davor, `db.dump.create`, und der Kunde sieht ihn unter
 
 ---
 
-## Der Lauf für B9 — 8. bis 10. Oktober 2026
+## Der Lauf für B9 und die Abnahme — 8. bis 10. Oktober 2026
 
 Gefahren auf `cloudsrv24` gegen `0.9.0-rc.15`: **alle elf Punkte aus
 `docs/143` erfüllt**, die Punkte 2 bis 9 darunter, und keiner ist als „nicht
 herstellbar" ausgefallen. Punkt 1 lief in Fall B: Zwischen Block 0 und Teil 1
 lag eine Nacht, und den Übergang hat der Nachtlauf gemacht. Die Seite mit der
 alten Zeile (1a) war danach nicht mehr herzustellen, und genau das lässt
-`docs/143 §5` zu. Das Protokoll ist `docs/143 §7`. **Abgenommen ist B9 noch
-nicht**; das spricht der Betreiber aus.
+`docs/143 §5` zu. Das Protokoll ist `docs/143 §7`. **Danach hat der Betreiber
+B9 am 10. Oktober 2026 abgenommen.**
 
 **Am Prüfling kein Befund, an der Vorschrift acht** — dieselbe Lage wie bei
 B5, und aus demselben Grund: Die Vorschrift war vorher ausgeschrieben und im
@@ -7505,11 +7504,10 @@ einem, `db.database.remove`. Und eine Subdomain mit PHP legt ihren eigenen
 Pool an und schreibt ihn nach jedem Hochladen eines Zertifikats neu; die
 Vorschrift kannte nur `web.site.apply`.
 
-**Was offen bleibt: die Abnahme.** Die Frage aus `docs/143 §0`, ob die Mail
-den Grund eines gescheiterten Dumps nennt, hat der Lauf zweimal beantwortet:
-In beiden Mails stand „Der Dump … liegt nicht", und Fehler 1356 an der Sicht
-trugen nur die Vorgänge 1067 und 1076. Entschieden hat der Betreiber am
-selben Tag (Abschnitt darunter).
+**Die Frage aus `docs/143 §0`**, ob die Mail den Grund eines gescheiterten
+Dumps nennt, hat der Lauf zweimal beantwortet: In beiden Mails stand „Der
+Dump … liegt nicht", und Fehler 1356 an der Sicht trugen nur die Vorgänge 1067
+und 1076. Entschieden hat der Betreiber am selben Tag (Abschnitt darunter).
 
 ---
 

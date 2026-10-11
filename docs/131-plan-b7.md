@@ -199,6 +199,16 @@ lauten Fall misst und den leisen nicht:
 
 Punkt 1 und 3 dürfen nicht ausfallen.
 
+*Nachgetragen am 11. Oktober 2026, beim Ausschreiben des Laufs
+(`docs/144 §0`):* Punkt 2 gibt an der echten Route nicht `200 []`, sondern
+403 — `SubscriptionPolicy::viewAny()` antwortet zuerst, wie §6 seit dem Bau
+sagt. Unterscheidbar bleiben die beiden Fälle trotzdem, an 403 gegen `200 []`.
+Punkt 3 sucht nicht in `access.log`, sondern in den Protokollen des Panels
+(`/var/log/srvpanel/panel-access.log`), denn `api/v1` geht an dessen
+Server-Block. Und seine Gegenprobe schickt ein Merkzeichen im Abfrageteil und
+nicht die Marke — die läge sonst vierzehn Tage in einer Datei, die das Panel
+auf `/logs` vorliest.
+
 ---
 
 ## §8 · Was auf dem Server zu messen bleibt

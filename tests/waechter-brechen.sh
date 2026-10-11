@@ -17027,6 +17027,65 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TickProbeTest passed
 
 echo
+echo "── TickProbeTest: die Probe sieht keine ganze Seite mehr ──"
+#
+# **Ohne diese Zeile ist die Stille nach dem Ende von B8 nicht zu lesen**
+# (`docs/144`). Eine Probe, die nur Teilladungen sieht, schwiege auch dann,
+# wenn die Seite sich nach dem Ende von selbst neu laedt.
+vorher_datei tests/takt-messen.js
+python3 - <<'PY2'
+p = 'tests/takt-messen.js'
+s = open(p, encoding='utf-8').read()
+alt = "if (kopf === 'x-inertia') {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "if (kopf === 'x-inertia-ganz') {", 1))
+PY2
+griff_datei tests/takt-messen.js "die Taktprobe sieht keine ganze Seite" &&
+pruefe "die Taktprobe sieht keine ganze Seite" \
+  TickProbeTest::test_the_probe_also_reports_whole_pages failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TickProbeTest passed
+
+echo
+echo "── TickProbeTest: ein zweites Einsetzen haengt sich wieder ein ──"
+#
+# Ohne die Frage nach der Marke haengt sich die Probe beim zweiten Einsetzen
+# ein zweites Mal ein, und jede Anfrage steht doppelt da — das Bild eines
+# doppelten Takts.
+vorher_datei tests/takt-messen.js
+python3 - <<'PY2'
+p = 'tests/takt-messen.js'
+s = open(p, encoding='utf-8').read()
+alt = "if (window.__taktprobe !== undefined) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "if (window.__taktprobeNie !== undefined) {", 1))
+PY2
+griff_datei tests/takt-messen.js "ein zweites Einsetzen wird nicht abgewiesen" &&
+pruefe "ein zweites Einsetzen wird nicht abgewiesen" \
+  TickProbeTest::test_a_second_insertion_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TickProbeTest passed
+
+echo
+echo "── TickProbeTest: die Probe sieht keinen Strom mehr ──"
+#
+# Ohne diese Zeile liest sich eine Liste ohne Zeile `Strom` wie eine Liste,
+# die keinen oeffnet — auch wenn die Probe gar nicht hinsieht (B8, `docs/144`).
+vorher_datei tests/takt-messen.js
+python3 - <<'PY2'
+p = 'tests/takt-messen.js'
+s = open(p, encoding='utf-8').read()
+alt = "window.EventSource = class extends Strom {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "window.EventSourceNie = class extends Strom {", 1))
+PY2
+griff_datei tests/takt-messen.js "die Taktprobe sieht keinen Strom" &&
+pruefe "die Taktprobe sieht keinen Strom" \
+  TickProbeTest::test_the_probe_also_reports_streams failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TickProbeTest passed
+
+echo
 echo "── ButtonFieldAlignTest: die Ausrichtung wandert in die verengte Regel ──"
 #
 # **Der Fehler, den dieses Repo am 23. August gemacht hat.** Die Ausrichtung

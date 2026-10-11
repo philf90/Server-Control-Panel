@@ -148,4 +148,82 @@ final class TickProbeTest extends TestCase
             ]),
         );
     }
+
+    /**
+     * Die Probe meldet auch ganze Seiten (B8, `docs/144`).
+     *
+     * **Ohne diese Zeile ist eine Stille nach dem Ende nicht zu lesen.** Der
+     * Streifen der laufenden Vorgänge darf nach dem Ende weder nachfragen noch
+     * die Seite von selbst neu laden. Eine Probe, die nur Teilladungen sieht,
+     * schwiege auch dann, wenn die Seite sich neu lädt — und das sähe aus wie
+     * ein Streifen, der richtig aufhört.
+     */
+    public function test_the_probe_also_reports_whole_pages(): void
+    {
+        $code = $this->withoutComments($this->probe());
+
+        $this->assertMatchesRegularExpression(
+            "/===\s*'x-inertia'\s*\)/",
+            $code,
+            'tests/takt-messen.js erkennt eine ganze Seite nicht mehr an `x-inertia` — dann meldet sie nur Teilladungen, und ein Neuladen von selbst bliebe unsichtbar.',
+        );
+        $this->assertStringContainsString(
+            "'Seite bei '",
+            $code,
+            'tests/takt-messen.js erkennt eine ganze Seite, druckt sie aber nicht.',
+        );
+    }
+
+    /**
+     * Die Probe meldet auch Ströme (B8, `docs/144`).
+     *
+     * **Nur die Vorgangsseite darf eine `EventSource` öffnen** — das hält
+     * `StreamPageTest` am Quelltext. Auf dem Server liest es die Probe: Eine
+     * Liste, auf der keine Zeile `Strom` steht, öffnet keinen. Gemessen wird am
+     * Öffnen, weil `performance.getEntriesByType('resource')` einen Strom erst
+     * nach seinem Ende führt (gemessen im Chromium: offen 0, geschlossen 1);
+     * dort stünde während des Messens dieselbe Null wie auf einer Seite ohne
+     * Strom.
+     */
+    public function test_the_probe_also_reports_streams(): void
+    {
+        $code = $this->withoutComments($this->probe());
+
+        $this->assertMatchesRegularExpression(
+            '/window\.EventSource\s*=\s*class\s+extends\s+Strom\b/',
+            $code,
+            'tests/takt-messen.js hängt sich nicht mehr in `EventSource` ein — dann sieht sie keinen Strom, und eine Liste ohne Zeile `Strom` belegte nichts.',
+        );
+        $this->assertStringContainsString(
+            "'Strom bei '",
+            $code,
+            'tests/takt-messen.js hängt sich in `EventSource` ein, druckt das Öffnen aber nicht.',
+        );
+    }
+
+    /**
+     * Ein zweites Einsetzen wird abgewiesen, **bevor** etwas eingehängt ist.
+     *
+     * Ohne Sperre hängte sich die Probe ein zweites Mal ein, und jede Anfrage
+     * stünde doppelt da — genau das Bild eines doppelten Takts, also des
+     * Befundes, den sie finden soll. Gemessen wird die Reihenfolge: Die Frage
+     * nach der Marke steht vor der ersten Zuweisung an `XMLHttpRequest.prototype`
+     * und vor der an `window.EventSource`.
+     */
+    public function test_a_second_insertion_is_refused(): void
+    {
+        $code = $this->withoutComments($this->probe());
+
+        $frage = strpos($code, 'if (window.__taktprobe !== undefined)');
+        $marke = strpos($code, 'window.__taktprobe = ');
+        $haken = strpos($code, 'XMLHttpRequest.prototype.open =');
+        $strom = strpos($code, 'window.EventSource =');
+
+        $this->assertIsInt($haken, 'tests/takt-messen.js hängt sich nicht mehr in `open` ein — dann prüft dieser Fall nichts.');
+        $this->assertIsInt($strom, 'tests/takt-messen.js hängt sich nicht mehr in `EventSource` ein — dann prüft dieser Fall nur die halbe Probe.');
+        $this->assertIsInt($frage, 'tests/takt-messen.js fragt nicht mehr, ob sie schon läuft — ein zweites Einsetzen meldete jede Anfrage doppelt.');
+        $this->assertIsInt($marke, 'tests/takt-messen.js setzt ihre Marke nicht — die Frage danach ginge immer durch.');
+        $this->assertLessThan(min($haken, $strom), $frage, 'Die Frage steht hinter dem Einhängen — dann hängt das zweite Einsetzen sich trotzdem ein.');
+        $this->assertLessThan(min($haken, $strom), $marke, 'Die Marke wird erst nach dem Einhängen gesetzt.');
+    }
 }

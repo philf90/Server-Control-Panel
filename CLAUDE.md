@@ -74,8 +74,11 @@ Punkt 1 in Fall B, am Prüfling kein Befund und an der Vorschrift acht
 10. Oktober 2026 abgenommen.** Die Frage aus `docs/143 §0` hat er am selben
 Tag entschieden, gebaut ist die Antwort für `0.9.0-rc.16`, und der Nachlauf
 hat sie am Abend in einer Mail auf `cloudsrv24` gesehen (`docs/143 §8`,
-Abschnitt weiter unten). Die Dokumentation ist vertagt und steht als offener
-Punkt da.
+Abschnitt weiter unten). Der Lauf für B7 und B8 ist `docs/144`,
+ausgeschrieben am 11. Oktober vor dem Fahren. Beim Ausschreiben fielen vier
+Befunde am Prüfling heraus, und über alle vier entscheidet der Betreiber
+(`docs/144 §0`, Abschnitt weiter unten). Die Dokumentation ist vertagt und
+steht als offener Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -7087,7 +7090,8 @@ eigenen Block und sagt dazu, dass sie schreibt. In `docs/140 §8` steht sie
 seitdem so.
 
 **Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B7 und
-B8.** Für B7 und B8 gibt es noch keinen Lauf. B9 ist am 7. Oktober dazugekommen
+B8.** Für B7 und B8 gab es bis zum 11. Oktober keinen Lauf; seitdem ist er
+`docs/144`, ausgeschrieben und nicht gefahren. B9 ist am 7. Oktober dazugekommen
 und gebaut (`docs/142 §10`); sein Lauf ist `docs/143`, gefahren vom 8. bis
 10. Oktober, und am 10. Oktober ist B9 abgenommen. Der Lauf für B5 ist seit dem
 5. Oktober `docs/141`, gefahren samt Nachlauf bis zum 7. Oktober, und an
@@ -7613,6 +7617,76 @@ die Suite war auf demselben Stand ebenfalls ohne Fehlschlag.
 Gefunden hat die Ursache eine Stichprobe von vierzig Prüfungen, einmal über die
 Suite und einmal mit der Datei gefahren — und nicht das Lesen des Skripts. Dort
 sah jede Prüfung aus wie ein einzelner Testlauf.
+
+---
+
+## Der Abnahmelauf für B7 und B8 — vier Befunde vor dem Fahren — 11. Oktober 2026
+
+`docs/144` ist ausgeschrieben, vor dem Fahren und für beide Merkmale in einem
+Nachmittag. Beide sind seit `0.9.0-rc.1` ausgeliefert, also seit drei Wochen
+auf dem Server, und keines hatte bisher einen Lauf. Beim Vorabmessen im
+Container fielen vier Befunde am Prüfling heraus; über alle vier entscheidet
+der Betreiber (`docs/144 §0`). Die Kriterien berühren sie nicht.
+
+**Der teuerste ist derselbe Fehler wie am 15. August.** `SpecController` liest
+`docs/openapi-v1.yaml`, und `packaging/build.sh` nimmt `docs` nicht mit; auf
+dem Server gibt `/api/v1/openapi.yaml` deshalb 404, sogar mit leerem Text.
+`OpenApiReachTest` hält die Beschreibung in beide Richtungen gegen die Routen —
+im Repo, wo sie liegt. Damals fehlte `lang`, und behoben wurde es mit einem
+Eintrag in der Liste und nicht mit einer Regel.
+
+> **Eine Datei, die ein Wächter im Repo prüft, ist damit noch nicht auf dem
+> Server.**
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+**Der zweite hatte keine Zahl.** Bei 390 px bricht im Streifen der laufenden
+Vorgänge „ansehen" Buchstabe für Buchstabe um, und `tests/bilder-messen.js`
+meldet in allen vier Lagen `dokument = 0`. `.band` ist eine Flexzeile mit
+`overflow-wrap: anywhere`, und der Streifen ist das einzige Band mit drei
+Kindern. Gesehen hat es das Bild der Messung, nicht die Zahl daneben.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+Der Streifen steht nur, solange ein Vorgang läuft oder vor höchstens zwei
+Minuten endete. Im Container bleibt ein Vorgang ohne Warteschlange auf
+„wartet" stehen, und damit lässt sich der Streifen dort beliebig lange
+fotografieren.
+
+**Der dritte ist ein Satz, der zum Zeitpunkt seines Schreibens stimmte.**
+`ProfileController::refuseWhileImpersonating()` begründet, die Oberfläche
+zeige in fremder Sicht kein Formular, und wer ankomme, habe die Anfrage selbst
+gestellt. Die Zugangsmarken kamen danach, ihr Formular steht in fremder Sicht
+da, und der Klick wird als selbst gestellter Versuch protokolliert.
+
+> **Eine Begründung, die ein Formular für abwesend erklärt, gilt für die
+> Formulare, die es gab, als sie geschrieben wurde.**
+
+Der vierte: Eine Marke wird ohne Rückfrage entfernt. Ein SSH-Schlüssel, die
+nächste Verwandte, fragt.
+
+**Die Taktprobe hat drei Dinge dazugelernt**, jedes mit einem Fall in
+`TickProbeTest` und einem Eingriff: Sie meldet ganze Seiten, sie meldet jedes
+Öffnen einer `EventSource`, und sie weist ein zweites Einsetzen ab. Das zweite
+war eine Messung wert: `performance.getEntriesByType('resource')` führt einen
+Strom erst, wenn er zu Ende ist — offen 0, geschlossen 1, gemessen im Chromium
+an einem eigenen kleinen Server. Eine Liste ohne Strom und eine Vorgangsseite
+mit offenem Strom sähen dort gleich aus.
+
+> **Eine Messung über abgeschlossene Anfragen sieht die offene nicht — und ein
+> Strom ist offen, solange er etwas taugt.**
+
+**Und zwei Fallen beim Vorabmessen**, beide an Werkzeugen. `text=Wechseln` ist
+in Playwright eine Teilsuche ohne Gross- und Kleinschreibung und traf die
+Frage „… wechseln?" statt des Knopfes; die Seite danach zeigte die Bereiche
+des Betreibers, und erkannt hat es erst, dass dort zwei Bereiche standen, die
+in fremder Sicht fehlen. Und die Drosselung von `api/v1` zählt je Adresse: 61
+Anfragen kurz nach neun anderen ergaben 51 zu 10 statt 60 zu 1.
+
+> **Ein Zähler je Adresse zählt jede Anfrage dieser Adresse mit — auch die
+> eigene Vorbereitung.**
 
 ---
 

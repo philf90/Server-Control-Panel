@@ -34319,3 +34319,51 @@ der Preis je Prüfung mit der Suite wuchs.
 Die Teilung auf parallele Jobs, gemessen am 15. September und nie entschieden,
 ist damit vom Tisch. Sie hätte die Wanduhr geteilt und den Preis je Prüfung
 stehen lassen.
+
+### Der Abnahmelauf für B7 und B8 steht ausgeschrieben — mit vier Befunden davor
+
+**`docs/144`**, ausgeschrieben am 11. Oktober 2026 vor dem Fahren, für beide
+Merkmale in einem Lauf. Beide sind seit `0.9.0-rc.1` ausgeliefert, keines
+hatte bisher einen Lauf. Vorab im Container gefahren sind jede Route von B7
+durch die echte Wache und der Streifen von B8 im echten Chromium. Dabei fielen
+vier Befunde am Prüfling heraus; über alle vier entscheidet der Betreiber
+(`docs/144 §0`):
+
+- **Die OpenAPI-Beschreibung liegt im Repo und nicht im Paket.**
+  `SpecController` liest `docs/openapi-v1.yaml`, und `packaging/build.sh`
+  nimmt `docs` nicht mit; auf dem Server gibt `/api/v1/openapi.yaml` 404.
+  Derselbe Fall wie `lang` am 15. August.
+- **Bei 390 px bricht im Streifen „ansehen" Buchstabe für Buchstabe um**, bei
+  `dokument = 0`. Ein Vorschlag mit drei Zeilen in `app.css` ist im Container
+  gemessen und nicht gebaut.
+- **In fremder Sicht steht „Marke anlegen" auf „Mein Konto"**, und der Klick
+  endet mit 403 und einer Zeile `denied`, die ihn einen selbst gestellten
+  Versuch nennt.
+- **Eine Marke wird ohne Rückfrage entfernt**; ein SSH-Schlüssel fragt.
+
+An der Vorschrift fielen sieben Punkte heraus. `docs/131 §7` erwartete `200 []`
+für einen Kunden ohne Abonnements, wo die echte Route 403 gibt, und suchte die
+Marke in den Protokollen der Kundendomains statt in dem des Panels. Seine
+Gegenprobe hätte eine gültige Marke in eine Datei geschrieben, die das Panel
+vierzehn Tage aufhebt und vorliest. `docs/131 §7` trägt seitdem einen
+Nachsatz.
+
+### Die Taktprobe sieht ganze Seiten und Ströme
+
+`tests/takt-messen.js` meldet seit dem 11. Oktober 2026 neben Teilladungen
+auch ganze Seiten (`Seite bei …`) und jedes Öffnen einer `EventSource`
+(`Strom bei …`), und ein zweites Einsetzen wird abgewiesen. Für B8 heisst
+„nach dem Ende fragt niemand mehr nach" auch „die Seite lädt sich nicht von
+selbst neu", und ohne eine Zeile für ganze Seiten wären beide nicht zu
+trennen. Ohne die Sperre stünde jede Anfrage doppelt da — das Bild des
+doppelten Takts, den die Probe finden soll.
+
+> **Eine Probe, die sich zweimal einhängt, meldet ihr eigenes Doppel als
+> Doppel des Prüflings.**
+
+Gemessen wird ein Strom an seinem Öffnen und nicht an
+`performance.getEntriesByType('resource')`. Dort steht er erst, wenn er zu
+Ende ist; gemessen im Chromium: offen 0, geschlossen 1.
+
+`TickProbeTest` hält alle drei, jeder Fall mit einem Eingriff im Bruchskript,
+rot und zurück grün belegt.

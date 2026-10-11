@@ -34417,3 +34417,58 @@ einer zu sein.
 
 > **Ein Wächter, der die Erzeuger einer Regel aufzählt, weist die Regel ab,
 > die ein neuer Erzeuger braucht.**
+
+### Jedes Band hat ein x, und die Zugangsmarken heissen API-Tokens
+
+Zwei Wünsche des Betreibers vom Abend des 11. Oktober 2026, beide für
+`0.9.0-rc.17` gebaut und im Container im echten Chromium gemessen
+(`docs/144 §6b`).
+
+**Ein Band lässt sich wegklicken.** Jedes der vier Bänder trägt rechts oben
+ein x — die Ankündigung, der laufende Vorgang, die fremde Sicht und die
+Wartung, dazu die Störung auf den beiden Seiten der Anmeldung. Was danach
+geschieht, hat der Betreiber entschieden:
+
+- **Eine Ankündigung bleibt fort, bis sie sich ändert oder endet**, gemerkt im
+  Browser und je Konto. Ihr Schlüssel trägt einen Fingerabdruck über Rang und
+  Text: Eine geänderte Fassung steht wieder da, ein verschobenes Ende nicht.
+- **Ein Vorgang bleibt ganz fort.** Solange niemand ihn sieht, fragt der
+  Streifen nicht mehr nach — gemessen zwei Nachfragen in sieben Sekunden vor
+  dem x und keine danach.
+- **Die fremde Sicht und die Wartung kommen beim nächsten Seitenwechsel
+  wieder.** Sie melden einen Zustand, und das Band der fremden Sicht trägt den
+  einzigen Rückweg zur Verwaltung.
+
+Das x steht neben dem Band und nicht darin, denn zwei Bänder sind selbst ein
+Verweis, und ein Knopf in einem `<a>` ist kein gültiges HTML. Die Fläche ist
+44 px bei 390 px und 38 bei 1440, das Zeichen hält auf jedem Band 5,09:1 bis
+6,18:1. Was sich nicht mehr zeigen kann, vergisst der Speicher, sonst wüchse
+er mit jedem Vorgang. Sind die Seitendaten abgeschaltet, wirkt das x auf der
+Seite und merkt sich nichts.
+
+**Der Platz für das x kann eine Zeile kosten**, und der Kommentar an
+`.band-item` sagte zuerst das Gegenteil. Gemessen an denselben Bändern mit und
+ohne die Regel, die ihn freihält: Bei 390 px bekamen 2 von 51 Ankündigungen
+eine zweite Zeile, bei 1440 px 3 von 101 — Texte, die in den letzten rund
+20 px einer Zeile enden. Die Klammer auf zwei Zeilen bleibt die Obergrenze.
+
+**Und ein Kommentar in `Overview.vue` hatte die richtige Klammer mit der
+falschen Begründung.** Er sagte, in einem privaten Fenster werfe schon das
+Lesen von `window.localStorage`. Gemessen liest ein Profil, das nichts behält,
+ohne Ausnahme; es wirft erst bei abgeschalteten Seitendaten. Seit dem x läuft
+ein solcher Zugriff im Layout jeder Seite, und `BrowserStorageTest` hält, dass
+jeder in einem `try` steht.
+
+**Aus der Zugangsmarke ist das API-Token geworden** — auf „Mein Konto", in den
+Meldungen beim Anlegen und Entfernen, in den Gründen von `RouteGuard` und in
+der OpenAPI-Beschreibung. Das Fachwort stand in `docs/19 §2` schon unter den
+erlaubten, die Regel dazu aber nicht auf der Liste der verbrauchten Wörter.
+Jetzt steht dort `Zugangsmarke → API-Token`, und `WordChoiceTest` hält es.
+
+`BandDismissTest` und `BrowserStorageTest` sind neu. `OperatorControlTest`
+lässt die Wache als Glied einer `&&`-Bedingung gelten, weil das Wartungsband
+seitdem zwei Bedingungen trägt. Dreizehn neue Eingriffe im Bruchskript, sechs
+bestehende nachgezogen.
+
+> **Ein Kommentar, der „ändert nichts" sagt, braucht die Messung mit und ohne
+> die Regel — eine Messung nur mit ihr sagt nicht, was ohne sie wäre.**

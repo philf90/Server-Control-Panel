@@ -11,11 +11,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Wer die Marke trägt — und was sie erreicht (B7, `docs/131 §4`).
+ * Wer das API-Token trägt — und was es erreicht (B7, `docs/131 §4`).
  *
  * ## Warum es diese Route gibt
  *
- * Ein Klient, der eine Marke einrichtet, will als Erstes wissen, ob sie
+ * Ein Klient, der ein API-Token einrichtet, will als Erstes wissen, ob es
  * überhaupt trägt — und zwar ohne dabei eine Liste abzufragen, die leer sein
  * darf. Genau daran hängt der Fall aus `docs/130` A4: **`200 []` ist von
  * „nichts erreicht" nicht zu unterscheiden.** Diese Route antwortet stattdessen

@@ -129,7 +129,7 @@ final class RouteAuthorizationTest extends TestCase
 
             /*
              * **Die API verlangt ihr Konto über eine andere Wache.**
-             * {@see AuthenticateToken} löst es aus einer Zugangsmarke statt
+             * {@see AuthenticateToken} löst es aus einem API-Token statt
              * aus einer Sitzung; für die Frage „braucht diese Route ein
              * Konto?" ist das dasselbe. Ohne diese Zeile stünde jede
              * api-Route als „öffentlich" da — und die Begründung daneben wäre

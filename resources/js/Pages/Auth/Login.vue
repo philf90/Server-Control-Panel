@@ -5,6 +5,7 @@ import { computed, ref } from 'vue'
 import EyeIcon from '../../Components/EyeIcon.vue'
 import BrandMark from '../../Components/BrandMark.vue'
 import FormErrors from '../../Components/FormErrors.vue'
+import { useDismissedBands, type AnnouncementBand } from '../../Composables/useDismissedBands'
 
 /*
  * Die Anmeldemaske.
@@ -29,9 +30,18 @@ import FormErrors from '../../Components/FormErrors.vue'
  * Version, die niemand ablesen kann, auch niemand meldet.
  */
 
-defineProps<{
-  incidents: { id: number; badge: string; rank: string; body: string }[]
-}>()
+const props = defineProps<{ incidents: AnnouncementBand[] }>()
+
+/*
+ * **Eine Störung lässt sich auch hier wegklicken** (11. Oktober 2026), und
+ * gemerkt wird sie wie im Panel — nur unter `guest`: Vor der Anmeldung gibt es
+ * kein Konto, dem sie gehören könnte. Nach der Anmeldung steht dieselbe
+ * Störung im Panel wieder da, bis das Konto sie selbst wegklickt; denselben
+ * Browser kann vorher jemand anderes benutzt haben.
+ */
+const { visible: visibleIncidents, dismiss: dismissIncident } = useDismissedBands('guest').announcements(
+  () => props.incidents,
+)
 
 const form = useForm({
   email: '',
@@ -81,8 +91,8 @@ function submit(): void {
 
       `BandsHullTest` hält es jetzt.
     -->
-    <div v-if="incidents.length" class="bands">
-      <Bands :items="incidents" />
+    <div v-if="visibleIncidents.length" class="bands">
+      <Bands :items="visibleIncidents" @dismiss="dismissIncident" />
     </div>
 
   <main class="signin">

@@ -115,13 +115,13 @@ class Account extends Authenticatable
     }
 
     /**
-     * Die Zugangsmarken dieses Kontos für `api/v1` (B7).
+     * Die API-Tokens dieses Kontos für `api/v1` (B7).
      *
-     * **Über diese Beziehung wird auch gesucht und nicht nur gelistet.** Eine
-     * Marke hängt an einem Konto und nicht an einem Abonnement; die
-     * Mandantenklammer greift also nicht. Wer eine Marke über ihre Kennung
-     * sucht, tut es über `$konto->apiTokens()` — sonst löscht eine fremde
-     * Kennung die Marke eines fremden Kontos.
+     * **Über diese Beziehung wird auch gesucht und nicht nur gelistet.** Ein
+     * API-Token hängt an einem Konto und nicht an einem Abonnement; die
+     * Mandantenklammer greift also nicht. Wer ein API-Token über seine
+     * Kennung sucht, tut es über `$konto->apiTokens()` — sonst löscht eine
+     * fremde Kennung das API-Token eines fremden Kontos.
      *
      * @return HasMany<ApiToken, $this>
      */

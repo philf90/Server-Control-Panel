@@ -18,15 +18,16 @@ use Tests\Support\WithoutPhpComments;
  *
  * `docs/144 §0` Befund 2, gemessen am 11. Oktober 2026 im Container: Ein
  * Betreiber wechselt über „Anmelden als" in die Sicht eines Kunden, und auf
- * „Mein Konto" stehen die Zugangsmarken mit Formular und „Entfernen". Ein
- * Klick auf „Marke anlegen" gibt 403, und das Protokoll bucht
+ * „Mein Konto" stehen die API-Tokens mit Formular und „Entfernen". Ein
+ * Klick auf „Marke anlegen" — so hiess der Knopf bis zum Abend desselben
+ * Tages — gibt 403, und das Protokoll bucht
  * `api.token.created · denied` am Konto des Betreibers.
  *
  * Die Tür hält, und sie hält zu Recht. Falsch war der Satz daneben, in
  * `ProfileController::refuseWhileImpersonating()`: *„Die Oberfläche zeigt in
  * diesem Zustand kein Formular. Wer hier ankommt, hat die Anfrage selbst
  * gestellt."* Für „Konto" und „Passwort ändern" stimmte er, die Darstellung war
- * gesperrt — die Zugangsmarken kamen mit B7 danach.
+ * gesperrt — die API-Tokens kamen mit B7 danach.
  *
  * > **Eine Begründung, die ein Formular für abwesend erklärt, gilt für die
  * > Formulare, die es gab, als sie geschrieben wurde.**
@@ -262,7 +263,7 @@ final class ImpersonationControlTest extends TestCase
         /*
          * **Die Untergrenze zählt mit.** Gezählt am 11. Oktober 2026: fünf
          * Handlungen in `ProfileController` — Konto, Passwort, Darstellung,
-         * Marke anlegen, Marke entfernen.
+         * API-Token anlegen, API-Token entfernen.
          */
         $this->assertGreaterThanOrEqual(5, count($handlungen),
             'Es werden kaum Handlungen gefunden, die in fremder Sicht abgewiesen werden — dann greift der '.

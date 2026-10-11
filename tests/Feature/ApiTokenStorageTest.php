@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * Der Klartext einer Zugangsmarke steht nirgends in der Ablage (B7).
+ * Der Klartext eines API-Tokens steht nirgends in der Ablage (B7).
  *
  * **Gemessen an der Zeile und nicht an der Absicht.** „Wir speichern nur den
  * Hash" ist ein Satz; dieser Wächter liest die Spalten und sucht den Klartext
@@ -41,7 +41,7 @@ final class ApiTokenStorageTest extends TestCase
             }
 
             self::assertNotSame($plain, $wert, sprintf(
-                'Der Klartext der Marke steht in `api_tokens.%s`.',
+                'Der Klartext des API-Tokens steht in `api_tokens.%s`.',
                 $spalte,
             ));
 
@@ -77,7 +77,7 @@ final class ApiTokenStorageTest extends TestCase
     }
 
     /**
-     * Die Marke trägt ihr Präfix und ihre volle Länge.
+     * Das API-Token trägt sein Präfix und seine volle Länge.
      *
      * Das Präfix ist kein Schmuck: Es macht einen versehentlich
      * veröffentlichten Schlüssel für einen Menschen als solchen erkennbar.
@@ -92,7 +92,7 @@ final class ApiTokenStorageTest extends TestCase
             strlen($plain),
         );
 
-        /* Zwei Marken sind nicht dieselbe. */
+        /* Zwei API-Tokens sind nicht dasselbe. */
         ['plain' => $zweite] = ApiToken::mint($this->konto(), 'Abrechnung');
         self::assertNotSame($plain, $zweite);
     }
@@ -101,7 +101,7 @@ final class ApiTokenStorageTest extends TestCase
      * `last_used_at` wird höchstens einmal je Minute geschrieben.
      *
      * **Beide Richtungen**, denn ein Feld, das nie geschrieben wird,
-     * beantwortet „wird diese Marke noch benutzt?" genauso wenig wie eines,
+     * beantwortet „wird dieses API-Token noch benutzt?" genauso wenig wie eines,
      * das bei jeder Anfrage schreibt — nur fällt das erste nicht auf.
      */
     public function test_usage_is_noted_at_most_once_a_minute(): void

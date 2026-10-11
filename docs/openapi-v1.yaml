@@ -12,7 +12,7 @@ info:
   version: "1.0"
   description: >-
     Lesender Zugang zu den eigenen Abonnements, Domains und Kennzahlen.
-    Die Marke reist im Kopf `Authorization: Bearer …` und niemals im
+    Das API-Token reist im Kopf `Authorization: Bearer …` und niemals im
     Abfrageteil: nginx schreibt die Anfragezeile mitsamt Abfrageteil ins
     Zugriffsprotokoll, und das steht vierzehn Tage lang in einer Datei, die
     das Panel selbst anzeigt.
@@ -31,7 +31,7 @@ components:
       type: http
       scheme: bearer
       description: >-
-        Eine Zugangsmarke aus den Kontoeinstellungen. Sie beginnt mit `srvp_`
+        Ein API-Token aus den Kontoeinstellungen. Es beginnt mit `srvp_`
         und steht genau einmal auf dem Bildschirm — beim Anlegen.
 
   schemas:
@@ -75,8 +75,8 @@ components:
   responses:
     Unauthorized:
       description: >-
-        Keine Marke, eine unbekannte Marke, ein gesperrtes Konto — oder ein
-        Adminkonto. Die vier sind von aussen ununterscheidbar, und das ist
+        Kein API-Token, ein unbekanntes API-Token, ein gesperrtes Konto —
+        oder ein Adminkonto. Die vier sind von aussen ununterscheidbar, und das ist
         Absicht.
     NotFound:
       description: >-
@@ -98,10 +98,10 @@ paths:
 
   /me:
     get:
-      summary: Wer die Marke trägt
+      summary: Wer das API-Token trägt
       responses:
         "200":
-          description: Das Konto hinter der Marke und die Zahl seiner Abonnements.
+          description: Das Konto hinter dem API-Token und die Zahl seiner Abonnements.
           content:
             application/json:
               schema:

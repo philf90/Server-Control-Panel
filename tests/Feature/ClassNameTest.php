@@ -50,7 +50,7 @@ final class ClassNameTest extends TestCase
         'clamped', 'code', 'command', 'comment', 'confirmation', 'content', 'count', 'critical', 'info', 'crumbs', 'cursor', 'danger',
         'deliveries', 'delivery',
         'dependent',
-        'description', 'detail', 'dot',
+        'description', 'detail', 'dismiss', 'dot',
         'place',
         'finding',
         'done', 'editor', 'empty', 'end', 'error', 'explains', 'eye', 'facts', 'failure', 'field', 'file',

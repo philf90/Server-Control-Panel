@@ -7,7 +7,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Die Zugangsmarken für `api/v1` (B7, `docs/131 §3`).
+ * Die API-Tokens für `api/v1` (B7, `docs/131 §3`).
  *
  * ## Gehasht mit `sha256` und nicht mit bcrypt
  *
@@ -28,8 +28,8 @@ use Illuminate\Support\Facades\Schema;
  *
  * Hier geht dieses Repo bewusst den anderen Weg als bei `audit_events`
  * (`docs/901`). Dort ist die Zeile ein **Protokoll**, und was jemand getan
- * hat, darf nicht verschwinden, nur weil sein Konto verschwindet. Eine
- * Zugangsmarke ist kein Protokoll, sondern ein Schlüssel — ohne sein Schloss
+ * hat, darf nicht verschwinden, nur weil sein Konto verschwindet. Ein
+ * API-Token ist kein Protokoll, sondern ein Schlüssel — ohne sein Schloss
  * ist er nichts, und ein Schlüssel, der ein gelöschtes Konto überlebt, ist
  * genau das, was niemand will.
  *
@@ -38,9 +38,9 @@ use Illuminate\Support\Facades\Schema;
  *
  * ## Was hier **nicht** steht
  *
- * Kein Ablaufdatum und keine Fähigkeitenliste je Marke — beides steht in
- * `docs/131 §9` als Entscheidung und nicht als Lücke. Eine Marke kann, was ihr
- * Konto kann; eine zweite Rechteachse wäre die zweite Fassung der Policy.
+ * Kein Ablaufdatum und keine Fähigkeitenliste je Token — beides steht in
+ * `docs/131 §9` als Entscheidung und nicht als Lücke. Ein API-Token kann, was
+ * sein Konto kann; eine zweite Rechteachse wäre die zweite Fassung der Policy.
  */
 return new class extends Migration
 {
@@ -59,8 +59,8 @@ return new class extends Migration
             $table->string('token_hash', 64)->unique();
 
             // **Nur zum Anzeigen.** Die ersten Zeichen des Klartexts, damit
-            // jemand mit drei Marken sagen kann, welche davon in welchem Skript
-            // steckt. Sie allein trägt nichts: Was fehlt, sind die übrigen
+            // jemand mit drei API-Tokens sagen kann, welches davon in welchem
+            // Skript steckt. Sie allein trägt nichts: Was fehlt, sind die übrigen
             // zweiundvierzig.
             $table->string('preview', 12);
 

@@ -202,9 +202,13 @@ const STORAGE_KEY = 'srvpanel.overview.cycle'
  * allein laufen, auf dem Telefon in der Bahn nicht. Ein Wert am Konto wäre für
  * beide derselbe.
  *
- * **Und jeder Zugriff in einem `try`.** In einem privaten Fenster und bei
- * abgeschalteten Seitendaten wirft schon das Lesen — nicht `null`, sondern
- * eine Ausnahme. Ohne die Klammer stünde die Übersicht dort weiß da.
+ * **Und jeder Zugriff in einem `try`.** Bei abgeschalteten Seitendaten wirft
+ * schon das Lesen — nicht `null`, sondern eine Ausnahme (`SecurityError`).
+ * Ohne die Klammer stünde die Übersicht dort weiss da. Hier stand bis zum
+ * 11. Oktober 2026 auch „in einem privaten Fenster"; gemessen im Chromium an
+ * einem Profil, das nichts behält, wie es ein privates Fenster benutzt, liest
+ * es sich ohne Ausnahme (`docs/144 §6b`). `BrowserStorageTest` hält die
+ * Klammer.
  */
 const cycle = ref(gemerkt())
 

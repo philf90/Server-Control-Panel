@@ -3556,8 +3556,8 @@ tr:where(:has(td.multiline)) > td {
 /*
  * **Und beim nächsten Mal steht ein Geheimnis unter seinem Satz.**
  *
- * Die frisch angelegte Zugangsmarke aus B7 steht in einem eigenen Bereich:
- * ein Satz, warum sie nur einmal dasteht, und darunter die Marke selbst als
+ * Das frisch angelegte API-Token aus B7 steht in einem eigenen Bereich: ein
+ * Satz, warum es nur einmal dasteht, und darunter das Token selbst als
  * Kennung. Zwei bündige Blöcke, dieselbe Fuge, ein neuer Name — gemeldet hat
  * es wieder der Wächter und nicht das Auge.
  *
@@ -5951,6 +5951,84 @@ td.text {
   -webkit-line-clamp: 2;
   min-width: 0;
   overflow: hidden;
+}
+
+/*
+ * Ein Band und sein x — gewünscht vom Betreiber am 11. Oktober 2026.
+ *
+ * **Das x steht neben dem Band und nicht darin**, und die Hülle `.band-item`
+ * trägt beides. Zwei der vier Bänder sind selbst ein Verweis — die
+ * Ankündigung und die Wartung —, und ein Knopf in einem `<a>` ist kein
+ * gültiges HTML; ein Klick darauf ginge an den Verweis weiter. Das x liegt
+ * deshalb über der rechten oberen Ecke des Bandes, und das Band hält ihm den
+ * Platz frei.
+ *
+ * **Der Platz reicht bis zum Zeichen und eine Fuge weiter.** Das Zeichen
+ * steht in der Mitte seiner Fläche, und davor bleiben 16 px wie zwischen den
+ * Handgriffen eines Bandes. Im ersten Wurf war der Platz so breit wie die
+ * Fläche des x; gemessen stand „ansehen" damit 11 px vor dem Zeichen und las
+ * sich wie ein Wort damit. Gegenüber dem Polster von 24 px kostet das bei
+ * 390 px 22 px Zeilenbreite, rund drei Zeichen.
+ *
+ * **Das x liegt ausserhalb des Flusses, der Platz dafür nicht.** Ein Text,
+ * der in diesem Stück der Zeile endet — bei 1440 px sind es 19 px —, bekommt
+ * damit eine zweite. Gemessen an denselben Bändern mit und ohne diese Regel
+ * (`docs/144 §6b`): bei 390 px an 51 Längen von 20 bis 70 Zeichen zweimal,
+ * bei 1440 px an 101 Längen von 130 bis 230 Zeichen dreimal, je 41 → 62 px.
+ * Die Klammer auf zwei Zeilen bleibt die Obergrenze, die A14 einer
+ * Ankündigung zusagt.
+ */
+.band-item {
+  position: relative;
+}
+
+.band-item > .band {
+  padding-right: calc(var(--tap) / 2 + 24px);
+}
+
+/*
+ * Das x selbst.
+ *
+ * **Eine Fläche für einen Finger und ein Zeichen von 16 px.** `--tap` ist bei
+ * 390 px 44 px, und ein Ziel, das nur so gross ist wie sein Zeichen, trifft
+ * auf dem Telefon niemand (`docs/24 §2`).
+ *
+ * **Oben und nicht in der Mitte.** Bei einem Band mit zwei Zeilen gehört das x
+ * zur ersten; in der Mitte stünde es zwischen Text und Handgriffen.
+ *
+ * **Ohne Rand und ohne Grund, und das ist eine Ausnahme von `.button`.** Ein
+ * Knopf mit Rahmen auf einem farbigen Band wäre ein vierter Träger neben
+ * Fläche, Rand und Schrift des Ranges. Erkannt wird das x an seinem Zeichen,
+ * und das Zeichen steht deshalb in einer Farbe, die auf jeder Fläche eines
+ * Bandes mindestens 3:1 hält (WCAG 1.4.11) — gemessen in `docs/144 §6b`.
+ */
+.band-dismiss {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.band-dismiss:hover {
+  color: var(--text-strong);
+}
+
+.band-dismiss svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
 /*

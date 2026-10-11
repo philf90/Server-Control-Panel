@@ -14,7 +14,7 @@ use Tests\Support\WithoutPhpComments;
 use Tests\TestCase;
 
 /**
- * Die Marke reist im Kopf `Authorization` und **nie** in der Adresse (B7).
+ * Das API-Token reist im Kopf `Authorization` und **nie** in der Adresse (B7).
  *
  * ## Warum das gemessen und nicht gemeint ist
  *
@@ -30,7 +30,7 @@ use Tests\TestCase;
  *
  * ## Gemessen an der Wirkung **und** am Quelltext
  *
- * Die Wirkung allein reicht nicht: Dieselbe Marke im Abfrageteil gibt heute
+ * Die Wirkung allein reicht nicht: Dasselbe Token im Abfrageteil gibt heute
  * 401, weil die Wache dort nicht hinsieht — und sie gäbe auch dann 401, wenn
  * jemand einen zweiten Leser einbaute, der einen *anderen* Parameternamen
  * liest. Deshalb steht daneben, dass diese Wache genau **eine** Quelle
@@ -42,13 +42,13 @@ final class ApiTokenTransportTest extends TestCase
     use WithoutPhpComments;
 
     /** @return array{kopf: array<string, string>, plain: string} */
-    private function marke(Account $konto): array
+    private function issue(Account $konto): array
     {
-        $marke = ApiToken::mint($konto, 'Abrechnung');
+        $token = ApiToken::mint($konto, 'Abrechnung');
 
         return [
-            'kopf' => ['Authorization' => 'Bearer '.$marke['plain']],
-            'plain' => $marke['plain'],
+            'kopf' => ['Authorization' => 'Bearer '.$token['plain']],
+            'plain' => $token['plain'],
         ];
     }
 
@@ -62,14 +62,14 @@ final class ApiTokenTransportTest extends TestCase
 
     public function test_the_header_carries_the_token(): void
     {
-        ['kopf' => $kopf] = $this->marke($this->kunde());
+        ['kopf' => $kopf] = $this->issue($this->kunde());
 
         $this->withHeaders($kopf)->getJson('/api/v1/me')->assertOk();
     }
 
     public function test_the_query_string_does_not(): void
     {
-        ['plain' => $plain] = $this->marke($this->kunde());
+        ['plain' => $plain] = $this->issue($this->kunde());
 
         $this->getJson('/api/v1/me?token='.$plain)->assertUnauthorized();
     }
@@ -96,7 +96,7 @@ final class ApiTokenTransportTest extends TestCase
      */
     public function test_an_admin_token_is_refused(): void
     {
-        ['kopf' => $adminKopf] = $this->marke(Account::factory()->admin()->create());
+        ['kopf' => $adminKopf] = $this->issue(Account::factory()->admin()->create());
 
         $this->withHeaders($adminKopf)->getJson('/api/v1/me')->assertUnauthorized();
     }
@@ -106,7 +106,7 @@ final class ApiTokenTransportTest extends TestCase
         $konto = $this->kunde();
         $konto->forceFill(['status' => AccountStatus::Disabled])->save();
 
-        ['kopf' => $kopf] = $this->marke($konto);
+        ['kopf' => $kopf] = $this->issue($konto);
 
         $this->withHeaders($kopf)->getJson('/api/v1/me')->assertUnauthorized();
     }
@@ -133,7 +133,7 @@ final class ApiTokenTransportTest extends TestCase
 
         foreach (['->query(', '->input(', '->get(', '->cookie(', '$_GET'] as $verboten) {
             self::assertStringNotContainsString($verboten, $quelle, sprintf(
-                'Die Wache liest die Marke über `%s`. Ein Token, das so reisen kann, steht im '.
+                'Die Wache liest das API-Token über `%s`. Ein Token, das so reisen kann, steht im '.
                 'Zugriffsprotokoll (docs/130 A7).',
                 $verboten,
             ));

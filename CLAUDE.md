@@ -79,7 +79,10 @@ ausgeschrieben am 11. Oktober vor dem Fahren. Beim Ausschreiben fielen vier
 Befunde am Prüfling heraus; der Betreiber hat sie am selben Tag entschieden,
 alle wie vorgeschlagen, und gebaut ist alles für `0.9.0-rc.17`, mit einem
 fünften Befund, der beim Bauen herausfiel (`docs/144 §6a`, Abschnitte weiter
-unten). Die Dokumentation ist vertagt und steht als offener Punkt da.
+unten). Am selben Abend kamen zwei Wünsche des Betreibers dazu, ein x an jedem
+Band und „API-Token" statt „Zugangsmarke"; beide sind für dieselbe Fassung
+gebaut (`docs/144 §6b`, Abschnitt weiter unten). Die Dokumentation ist vertagt
+und steht als offener Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -1525,8 +1528,8 @@ ein Kommentar seit P7b für geschlossen erklärt hat) und `ApiEmptyListTest`
 (jede Route unter `api/` läuft durch die Klammer — gefragt wird der Router, und
 die Gruppe wird dabei aufgelöst; dazu der Fall durch die Tür, denn eine Liste
 ohne Klammer gibt `200 []`, und das meldet niemand) und `ApiTokenTransportTest`
-(die Marke reist im Kopf und nie in der Adresse — gemessen an der Wirkung und
-am Quelltext, denn dieselbe Marke im Abfrageteil gäbe auch dann 401, wenn
+(das API-Token reist im Kopf und nie in der Adresse — gemessen an der Wirkung
+und am Quelltext, denn dasselbe Token im Abfrageteil gäbe auch dann 401, wenn
 jemand einen zweiten Leser mit anderem Namen einbaute) und `OpenApiReachTest`
 (Beschreibung und Routen in beide Richtungen — die zweite ist die, an der ein
 toter Eintrag wirklich entsteht) — und
@@ -1827,7 +1830,14 @@ Seite dort nicht an — die Handlungen kommen aus den Aufrufen von
 `refuseWhileImpersonating()` und nicht aus einer Liste) und `ShippedFileTest`
 (was `app/` über `base_path()` und seine Geschwister liest, liegt unter einem
 Eintrag der Positivliste von `build.sh` — gefragt von der Seite der Leser,
-denn von der Liste aus fehlt nie etwas). Der Bruch selbst steht als
+denn von der Liste aus fehlt nie etwas) und `BandDismissTest` (jedes Band
+steht neben seinem x und keines darin, die fremde Sicht und die Wartung
+kommen beim Seitenwechsel wieder und der Speicher kennt sie nicht, der
+Schlüssel einer Ankündigung deckt jedes Feld, das ihr Band zeigt, und jede
+Hülle fragt die sichtbare Liste, die sie zeigt) und `BrowserStorageTest`
+(jeder Zugriff auf den Speicher des Browsers steht in einem `try` — gezählt
+mit einem Stapel über die Blöcke, und ein Prüfkörper hält, dass die Zählung
+das `try` von seinen Nachbarn trennt). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -7803,6 +7813,71 @@ habe `/api/v1/openapi.yaml` seit `rc.1` 404 gegeben. Gemessen war der 404 im
 Container ohne die Datei; dass sie im Paket fehlte, sagt die Liste. Die
 Kommentare sagen jetzt beides so, und auf dem Server sieht Block 0 von
 `docs/144` nach.
+
+---
+
+## Ein x an jedem Band und das API-Token — 11. Oktober 2026
+
+Zwei Wünsche des Betreibers vom Abend, beide für `0.9.0-rc.17` gebaut
+(`docs/144 §6b`). Ein Band lässt sich wegklicken: Eine Ankündigung bleibt
+fort, bis sie sich ändert, ein Vorgang ganz, gemerkt im Browser je Konto. Die
+fremde Sicht und die Wartung kommen beim nächsten Seitenwechsel wieder. Und
+aus der Zugangsmarke ist das API-Token geworden. Fünf Dinge daraus gelten
+über das x hinaus.
+
+**Die Frage an den Betreiber beschrieb den Bestand falsch.** Die Option, die er
+gewählt hat, lautete „bis zu ihrem Ende" für eine Ankündigung. Beim Bauen fiel
+auf, dass sich Ankündigungen seit dem 6. September ändern lassen, und eine
+geänderte Fassung ist genau das, was jemand sehen soll, der die alte
+weggeklickt hat. Gebaut ist deshalb ein Schlüssel mit Fingerabdruck über das,
+was das Band zeigt, und dem Betreiber ist diese Lesart gesagt worden, bevor
+sie im Commit stand.
+
+> **Eine Antwort gilt für die Frage, die gestellt war. Beschrieb die Frage
+> den Bestand falsch, gehört die Lesart dem Betreiber gesagt und nicht still
+> gebaut.**
+
+**Zwei eigene Kommentare haben etwas behauptet, das niemand gemessen hatte.**
+`Overview.vue` begründete sein `try` damit, dass in einem privaten Fenster
+schon das Lesen von `window.localStorage` werfe. Gemessen liest ein Profil,
+das nichts behält, ohne Ausnahme, und es wirft erst bei abgeschalteten
+Seitendaten. Und an `.band-item` stand, das x ändere die Höhe eines Bandes
+nicht. Das x selbst liegt ausserhalb des Flusses, der Platz, den das Band ihm
+freihält, nicht: Mit und ohne die eine Regel gemessen, bekamen bei 390 px 2
+von 51 Längen eine zweite Zeile, bei 1440 px 3 von 101. Die erste Messung mit
+sechs Ankündigungen hatte keine gefunden.
+
+> **Ein Kommentar, der „ändert nichts" sagt, braucht die Messung mit und ohne
+> die Regel — eine Messung nur mit ihr sagt nicht, was ohne sie wäre.**
+
+> **Und eine Messung an wenigen Längen sagt über die Länge nichts, die genau
+> an der Kante endet.** Gefunden hat den Fall eine Suche über alle Längen in
+> einem Bereich, nicht ein Beispiel mehr.
+
+**Ein Wächter verlangte eine Bedingung wörtlich.** `OperatorControlTest` las
+das Wartungsband als `v-if="maintenance"`, und mit dem x trägt es
+`maintenance && !hiddenUntilNavigation.has('maintenance')`. Die Wache stand
+noch da, und der Wächter meldete sie als fehlend. Er lässt sie seitdem als
+Glied einer `&&`-Bedingung gelten, auf oberster Ebene; ein `||` und eine
+Klammer zählen nicht, weil sie die Wache nicht verlangen.
+
+> **Ein Wächter, der eine Bedingung wörtlich verlangt, hält ihre Schreibweise
+> und nicht die Regel.**
+
+**Die Falle aus `BaseMethodClashTest` zum sechsten Mal.** Die Hilfsmethode
+dafür hiess zuerst `requires()`, eine `final`-Methode von
+`PHPUnit\Framework\TestCase`, und der Lauf starb beim Laden der Klasse. Nach
+`count()`, `configure()`, `for()`, `matches()` und `run()` steht damit fest:
+**Wer in einem Testfall eine Hilfsmethode benennt, sieht vorher in der
+Basisklasse nach — ein kurzes englisches Verb gehört ihr meistens schon.**
+
+**Und eine Regel stand als Grundsatz da und auf keiner Liste.** `docs/19 §2`
+Punkt 2 nennt *Token* seit Langem unter den etablierten Fachwörtern. Drei
+Wochen lang stand trotzdem „Zugangsmarke" auf der Seite, denn `WordChoiceTest`
+liest die Liste in §3 und nicht die Grundsätze darüber.
+
+> **Ein Grundsatz, der auf keiner Liste steht, hält kein Wächter — er hält nur,
+> solange sich jemand an ihn erinnert.**
 
 ---
 

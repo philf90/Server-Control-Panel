@@ -100,7 +100,7 @@ final class SecretsStayOutOfTheQueueTest extends TestCase
         /*
          * **Ein Hash und kein Geheimnis — und trotzdem steht er hier.**
          *
-         * `api_tokens.token_hash` trägt den `sha256` einer Zugangsmarke (B7,
+         * `api_tokens.token_hash` trägt den `sha256` eines API-Tokens (B7,
          * `docs/131 §3`). Der Klartext steht nirgends: Er entsteht in
          * `ApiToken::mint()`, wird einmal angezeigt und vergessen.
          *
@@ -109,7 +109,7 @@ final class SecretsStayOutOfTheQueueTest extends TestCase
          * dieser Wächter stellt. Ein Eintrag mit Grund ist die Antwort; ein
          * stiller Durchlass wäre eine Gewohnheit.
          */
-        'api_tokens.token_hash' => 'Der sha256 einer Zugangsmarke. Der Klartext entsteht in ApiToken::mint(), wird einmal angezeigt und nirgends abgelegt — ohne Arbeitsfaktor, weil 192 Bit aus random_bytes() keine fehlende Entropie ausgleichen müssen (docs/130 A5).',
+        'api_tokens.token_hash' => 'Der sha256 eines API-Tokens. Der Klartext entsteht in ApiToken::mint(), wird einmal angezeigt und nirgends abgelegt — ohne Arbeitsfaktor, weil 192 Bit aus random_bytes() keine fehlende Entropie ausgleichen müssen (docs/130 A5).',
 
         'accounts.password' => 'der Hash des Panelkontos, nicht das Passwort',
         'accounts.two_factor_secret' => 'das TOTP-Geheimnis des Kontos — verschlüsselt abgelegt, und ohne Ablage gäbe es keinen zweiten Faktor',

@@ -35,6 +35,7 @@ import { Link, router } from '@inertiajs/vue3'
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 
 import { formatPercent } from '../percent'
+import BandDismiss from './BandDismiss.vue'
 
 interface RunningOperation {
   id: number
@@ -44,7 +45,16 @@ interface RunningOperation {
   running: boolean
 }
 
+/*
+ * **Hereingegeben werden die sichtbaren Vorgänge, nicht alle.** Ein Vorgang,
+ * den jemand weggeklickt hat, fehlt schon in `items` — `PanelLayout` merkt ihn
+ * sich (`useDismissedBands.ts`). Damit hält er auch keinen Takt am Leben: Wer
+ * ihn weggeklickt hat, wartet nicht mehr auf ihn, und eine Nachfrage alle drei
+ * Sekunden für ein Band, das niemand sieht, kostet den Pool ohne Gegenwert.
+ */
 const props = defineProps<{ items: RunningOperation[] }>()
+
+defineEmits<{ dismiss: [vorgang: RunningOperation] }>()
 
 /**
  * Wie oft nachgefragt wird, solange ein Vorgang läuft.
@@ -120,23 +130,27 @@ function aktualisieren(): void {
 </script>
 
 <template>
-  <div v-for="vorgang in props.items" :key="vorgang.id" class="band" :class="rang(vorgang.status)">
-    <span>
-      <b class="rank">Vorgang {{ vorgang.id }}</b>
-      {{ vorgang.label }} — {{ wort(vorgang.status) }}<template
-        v-if="vorgang.running && vorgang.progress > 0"
-      > · {{ formatPercent(vorgang.progress) }} %</template>
-    </span>
+  <div v-for="vorgang in props.items" :key="vorgang.id" class="band-item">
+    <div class="band" :class="rang(vorgang.status)">
+      <span>
+        <b class="rank">Vorgang {{ vorgang.id }}</b>
+        {{ vorgang.label }} — {{ wort(vorgang.status) }}<template
+          v-if="vorgang.running && vorgang.progress > 0"
+        > · {{ formatPercent(vorgang.progress) }} %</template>
+      </span>
 
-    <!--
-      **Der Knopf steht nur da, wenn er etwas tut.** Solange der Vorgang läuft,
-      ist die Seite nicht veraltet — ein „Aktualisieren", das nichts ändert,
-      erzieht dazu, es zu übersehen, wenn es etwas ändert.
-    -->
-    <button v-if="!vorgang.running" type="button" class="button small" @click="aktualisieren">
-      Seite aktualisieren
-    </button>
+      <!--
+        **Der Knopf steht nur da, wenn er etwas tut.** Solange der Vorgang läuft,
+        ist die Seite nicht veraltet — ein „Aktualisieren", das nichts ändert,
+        erzieht dazu, es zu übersehen, wenn es etwas ändert.
+      -->
+      <button v-if="!vorgang.running" type="button" class="button small" @click="aktualisieren">
+        Seite aktualisieren
+      </button>
 
-    <Link :href="`/operations/${vorgang.id}`" class="link">ansehen</Link>
+      <Link :href="`/operations/${vorgang.id}`" class="link">ansehen</Link>
+    </div>
+
+    <BandDismiss @dismiss="$emit('dismiss', vorgang)" />
   </div>
 </template>

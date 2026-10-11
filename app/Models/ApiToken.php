@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * Eine Zugangsmarke für `api/v1` (B7).
+ * Ein API-Token für `api/v1` (B7).
  *
  * ## Der Klartext steht genau einmal auf dem Bildschirm
  *
@@ -28,8 +28,8 @@ use Illuminate\Support\Carbon;
  * ## Warum hier keine Mandantenklammer steht
  *
  * {@see BelongsToSubscription} klammert auf Abonnements.
- * Eine Marke gehört einem **Konto** und keinem Abonnement — was sie erreicht,
- * entscheidet die Klammer, die {@see Tenancy::forAccount()}
+ * Ein API-Token gehört einem **Konto** und keinem Abonnement — was es
+ * erreicht, entscheidet die Klammer, die {@see Tenancy::forAccount()}
  * aus diesem Konto ableitet, und nicht die Zeile hier. Eine eigene Klammer
  * wäre die zweite Fassung derselben Entscheidung.
  *
@@ -49,7 +49,7 @@ class ApiToken extends Model
     use HasFactory;
 
     /**
-     * Woran man eine Marke dieses Panels erkennt.
+     * Woran man ein API-Token dieses Panels erkennt.
      *
      * **Ein Präfix ist kein Schmuck.** Es macht einen versehentlich
      * veröffentlichten Schlüssel für einen Menschen als solchen erkennbar —
@@ -70,8 +70,8 @@ class ApiToken extends Model
     /**
      * Wie viele Zeichen des Klartexts die Liste später zeigt.
      *
-     * Präfix plus vier Zeichen. Wer drei Marken hat, erkennt daran, welche in
-     * welchem Skript steckt; was fehlt, sind vierundvierzig Hexzeichen, also
+     * Präfix plus vier Zeichen. Wer drei API-Tokens hat, erkennt daran,
+     * welches in welchem Skript steckt; was fehlt, sind vierundvierzig Hexzeichen, also
      * 176 Bit.
      */
     public const PREVIEW_LENGTH = 9;
@@ -84,7 +84,7 @@ class ApiToken extends Model
      * (`agent/src/Ops/PanelProvision.php`), und ein Schreibvorgang je
      * API-Anfrage wäre eine Zeile, die niemand liest, in einer Tabelle, die
      * jede Anfrage sperrt. Eine Minute Auflösung beantwortet die Frage, für
-     * die es das Feld gibt — „wird diese Marke noch benutzt?".
+     * die es das Feld gibt — „wird dieses API-Token noch benutzt?".
      */
     public const USAGE_RESOLUTION_SECONDS = 60;
 
@@ -106,7 +106,7 @@ class ApiToken extends Model
     }
 
     /**
-     * Der Hash, unter dem eine Marke abgelegt ist.
+     * Der Hash, unter dem ein API-Token abgelegt ist.
      *
      * **Eine Stelle und nicht zwei.** Das Anlegen und die Wache müssen
      * dieselbe Rechnung machen; zwei Aufrufe von `hash()` an zwei Orten wären
@@ -119,7 +119,7 @@ class ApiToken extends Model
     }
 
     /**
-     * Eine neue Marke anlegen — und ihren Klartext **einmal** herausgeben.
+     * Ein neues API-Token anlegen — und seinen Klartext **einmal** herausgeben.
      *
      * @return array{token: ApiToken, plain: string}
      */
@@ -138,7 +138,7 @@ class ApiToken extends Model
     }
 
     /**
-     * Festhalten, dass die Marke benutzt wurde — höchstens einmal je Minute.
+     * Festhalten, dass das API-Token benutzt wurde — höchstens einmal je Minute.
      *
      * Gibt zurück, ob wirklich geschrieben wurde. Das ist kein Beiwerk: Ein
      * Wächter über „schreibt nicht bei jeder Anfrage" braucht eine Antwort,

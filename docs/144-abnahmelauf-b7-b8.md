@@ -27,8 +27,10 @@ eine Zeile daraus oder sagt, warum nicht.
 sieben Punkte an der Vorschrift und am Messmittel. Der Betreiber hat die vier
 am selben Tag entschieden, alle wie vorgeschlagen, und behoben sind sie für
 `0.9.0-rc.17` — zusammen mit einem fünften, der beim Beheben herausfiel
-(§6a). Die Kriterien berühren sie nicht. **Gefahren wird gegen die Freigabe,
-die die Behebungen trägt**; Block 0, A4, A7, A8 und B8 zeigen sie.
+(§6a). Die Kriterien berühren sie nicht. Am selben Abend kamen zwei Wünsche
+des Betreibers dazu: **Jedes Band hat ein x, und die Zugangsmarken heissen
+API-Tokens** (§6b). **Gefahren wird gegen die Freigabe, die all das trägt**;
+Block 0, A4, A7, A8, B8 und B9 zeigen es.
 
 **Der Lauf braucht einen Nachmittag.** Teil A (B7) läuft auf dem Server und in
 einem privaten Fenster, Teil B (B8) im Browser des Betreibers am Schreibtisch,
@@ -226,7 +228,7 @@ den Behebungen, und Block 0, A4, A7, A8 und B8 zeigen sie.
 
 ## §1 · Die Werkzeuge und die Vorbedingung
 
-### Block 0 — Fassung, Kennungen, Marken
+### Block 0 — Fassung, Kennungen, API-Tokens
 
 Liest nur und schreibt zwei Dateien unter `/root`: die Ausgabe und die fünf
 Kennungen für Teil A. `srvpanel tinker` läuft nach `setpriv` nicht als root und
@@ -234,7 +236,7 @@ kann dort nicht schreiben; die Kennungen gehen deshalb über die Ausgabe in die
 Datei.
 
 ```bash
-# 0 · Fassung, Kennungen für Konto 6, Marken, Drosselung — liest nur; schreibt /root/b78-block0.txt und /root/b78-kennungen.sh
+# 0 · Fassung, Kennungen für Konto 6, API-Tokens, Drosselung — liest nur; schreibt /root/b78-block0.txt und /root/b78-kennungen.sh
 srvpanel version
 KONTO=6 srvpanel tinker --execute='
 $konto = App\Models\Account::query()->find((int) getenv("KONTO"));
@@ -257,7 +259,7 @@ app(App\Support\Tenancy\Tenancy::class)->withoutRestriction(function () use ($ko
   $ed = $eigeneDomains->firstWhere("subscription_id", $ea?->id);
   foreach (["EA" => $ea?->id, "FA" => $fremde->first()?->id, "ED" => $ed?->id, "FD" => $fremdeDomains->first()?->id, "NA" => $na] as $name => $wert) printf("%s=%s\n", $name, $wert ?? "");
   $m = App\Models\ApiToken::query()->orderBy("id")->get();
-  printf("Zugangsmarken: %d%s\n", $m->count(), $m->isEmpty() ? "" : " — ".$m->map(fn ($t) => "Konto ".$t->account_id." ".$t->name)->implode(", "));
+  printf("API-Tokens: %d%s\n", $m->count(), $m->isEmpty() ? "" : " — ".$m->map(fn ($t) => "Konto ".$t->account_id." ".$t->name)->implode(", "));
   printf("Kunden ohne Abonnement: %d\n", App\Models\Customer::query()->whereDoesntHave("subscriptions")->count());
 });
 printf("Cache: %s · Drosselung api/v1: %d je Minute\n", config("cache.default"), App\Providers\SrvPanelServiceProvider::API_PER_MINUTE);
@@ -284,7 +286,7 @@ FA=<…>
 ED=54
 FD=<…>
 NA=999999
-Zugangsmarken: 0
+API-Tokens: 0
 Kunden ohne Abonnement: <z>
 Cache: database · Drosselung api/v1: 60 je Minute
 Kennungen in der Datei: 5 von 5
@@ -303,8 +305,8 @@ active
   die erste ist, sagt Block 0.
 - **„fremde Abonnements" ist nicht 0.** Sonst gäbe es keinen Prüfkörper für
   „fremd", und A2 mässe nur „gibt es nicht".
-- **`Zugangsmarken: 0`.** Steht dort eine, wird sie abgeschrieben; der Lauf
-  lässt sie stehen.
+- **`API-Tokens: 0`.** Steht dort eins, wird es abgeschrieben; der Lauf
+  lässt es stehen.
 - **„Kunden ohne Abonnement"** wird abgeschrieben. Nach A3 ist es einer mehr,
   nach A9 wieder dieselbe Zahl.
 - **`Cache: database`** trägt A5: Die Drosselung zählt in der Datenbank.
@@ -317,9 +319,9 @@ active
 **Als Datei, wie seit B5** (`docs/141 §1`): Der Block schreibt
 `/root/b78-werkzeuge.sh` und liest sie ein; in einer neuen Sitzung genügt
 `. /root/b78-werkzeuge.sh`. `api`, `liste` und `drossel` sprechen über die
-Leitung des Servers mit dem Panel, so wie ein Programm von aussen; `marken`,
+Leitung des Servers mit dem Panel, so wie ein Programm von aussen; `tokens`,
 `vorgaenge` und `spur` lesen. Geschrieben wird von keiner — jede Anfrage
-berührt nur den Zähler der Drosselung und `last_used_at` der Marke.
+berührt nur den Zähler der Drosselung und `last_used_at` des API-Tokens.
 
 ```bash
 # H · Werkzeuge als Datei — schreibt /root/b78-werkzeuge.sh und liest sie ein; die Funktionen schreiben nichts
@@ -333,13 +335,13 @@ C=(curl -sk --noproxy '*' --resolve "$H:$P:127.0.0.1" -H 'Accept: application/js
 # FA/FD fremde, NA eine, die es nicht gibt.
 [ -f /root/b78-kennungen.sh ] && . /root/b78-kennungen.sh
 
-# Eine Anfrage an api/v1: Status, Art und der Anfang der Antwort. Die Marke kommt
+# Eine Anfrage an api/v1: Status, Art und der Anfang der Antwort. Das Token kommt
 # aus einer Variablen und steht damit weder im Befehl noch in der Geschichte.
-#   api "$T" /api/v1/me      — mit Marke
-#   api ''   /api/v1/me      — ohne Marke
+#   api "$T" /api/v1/me      — mit Token
+#   api ''   /api/v1/me      — ohne Token
 api() {
-  local marke="$1" pfad="$2" kopf=()
-  [ -n "$marke" ] && kopf=(-H "Authorization: Bearer $marke")
+  local token="$1" pfad="$2" kopf=()
+  [ -n "$token" ] && kopf=(-H "Authorization: Bearer $token")
   "${C[@]}" "${kopf[@]}" -o /tmp/b78-antwort -w '%{http_code} · %{content_type} · ' "$U$pfad"
   head -c 240 /tmp/b78-antwort | tr '\n' ' '; echo
   rm -f /tmp/b78-antwort
@@ -347,28 +349,28 @@ api() {
 
 # Eine Liste aus api/v1: der Status, dann je Eintrag Kennung und Name
 liste() {
-  local marke="$1" pfad="$2"
-  "${C[@]}" -H "Authorization: Bearer $marke" -o /tmp/b78-antwort -w 'Status %{http_code}\n' "$U$pfad"
+  local token="$1" pfad="$2"
+  "${C[@]}" -H "Authorization: Bearer $token" -o /tmp/b78-antwort -w 'Status %{http_code}\n' "$U$pfad"
   jq -r '.data[]? | "  \(.id) · \(.name)"' /tmp/b78-antwort
   rm -f /tmp/b78-antwort
 }
 
 # n Anfragen hintereinander an /api/v1/me: je Status die Zahl und was eine im Mittel kostet
 drossel() {
-  local marke="$1" n="${2:-61}" i
+  local token="$1" n="${2:-61}" i
   for i in $(seq 1 "$n"); do
-    "${C[@]}" -H "Authorization: Bearer $marke" -o /dev/null -w '%{http_code} %{time_total}\n' "$U/api/v1/me"
+    "${C[@]}" -H "Authorization: Bearer $token" -o /dev/null -w '%{http_code} %{time_total}\n' "$U/api/v1/me"
   done > /tmp/b78-drossel
   awk '{n[$1]++; t[$1]+=$2} END {for (s in n) printf "  %s: %d Anfragen, im Mittel %.0f ms\n", s, n[s], 1000*t[s]/n[s]}' /tmp/b78-drossel | sort
   rm -f /tmp/b78-drossel
 }
 
-# Die Zugangsmarken in der Ablage: wem, wie sie heissen, ihr Anfang — misst nichts
-marken() {
+# Die API-Tokens in der Ablage: wem, wie sie heissen, ihr Anfang — misst nichts
+tokens() {
   srvpanel tinker --execute='
     $m = App\Models\ApiToken::query()->orderBy("id")->get();
-    printf("Zugangsmarken: %d\n", $m->count());
-    foreach ($m as $t) printf("  Marke %d · Konto %d · %s · %s… · zuletzt benutzt %s · angelegt %s\n", $t->id, $t->account_id, $t->name, $t->preview, App\Support\Time\Clock::display($t->last_used_at) ?? "nie", App\Support\Time\Clock::display($t->created_at));
+    printf("API-Tokens: %d\n", $m->count());
+    foreach ($m as $t) printf("  Token %d · Konto %d · %s · %s… · zuletzt benutzt %s · angelegt %s\n", $t->id, $t->account_id, $t->name, $t->preview, App\Support\Time\Clock::display($t->last_used_at) ?? "nie", App\Support\Time\Clock::display($t->created_at));
   '
 }
 
@@ -393,14 +395,14 @@ spur() {
 }
 WERKZEUGE
 . /root/b78-werkzeuge.sh
-printf 'Werkzeuge: %s von 6 · %s Zeilen · %s\n' "$(declare -F | awk '{print $3}' | grep -cxE 'api|liste|drossel|marken|vorgaenge|spur')" "$(wc -l < /root/b78-werkzeuge.sh)" "$(sha256sum /root/b78-werkzeuge.sh | cut -c1-16)"
+printf 'Werkzeuge: %s von 6 · %s Zeilen · %s\n' "$(declare -F | awk '{print $3}' | grep -cxE 'api|liste|drossel|tokens|vorgaenge|spur')" "$(wc -l < /root/b78-werkzeuge.sh)" "$(sha256sum /root/b78-werkzeuge.sh | cut -c1-16)"
 printf 'Panel: %s · EA=%s FA=%s ED=%s FD=%s NA=%s\n' "$U" "$EA" "$FA" "$ED" "$FD" "$NA"
 ```
 
 **Erwartet:**
 
 ```
-Werkzeuge: 6 von 6 · 67 Zeilen · 7090a2e6deb3ead4
+Werkzeuge: 6 von 6 · 67 Zeilen · 8b56817a615927a6
 Panel: https://<Rechnername>:<Port> · EA=140 FA=<…> ED=54 FD=<…> NA=999999
 ```
 
@@ -411,11 +413,11 @@ gegangen, und der Block wird wiederholt.
 > **Was eine Datei enthält, sagt ihre Prüfsumme und nicht das Echo, mit dem sie
 > entstand.**
 
-- **Die Marken stehen nur in der Sitzung**, in der sie eingelesen wurden, und
-  ihr Klartext nur einmal auf der Seite. Geht die Sitzung verloren, entfernt
-  das Konto die Marke und legt eine neue an.
+- **Die API-Tokens stehen nur in der Sitzung**, in der sie eingelesen wurden,
+  und ihr Klartext nur einmal auf der Seite. Geht die Sitzung verloren,
+  entfernt das Konto das Token und legt ein neues an.
 - **`spur` druckt den Wert nicht**, nur seinen Anfang und seine Länge — auch
-  das Protokoll dieses Laufs bekommt keine Marke.
+  das Protokoll dieses Laufs bekommt kein Token.
 
 ### Die Taktprobe für Teil B
 
@@ -429,7 +431,7 @@ denn Inertia lädt dabei das Dokument nicht neu.
 
 ## §2 · Prüfkörper und Reihenfolge
 
-- **Die Marke von Konto 6**, `b7-abnahme`, angelegt in A1 und entfernt in A7.
+- **Das API-Token von Konto 6**, `b7-abnahme`, angelegt in A1 und entfernt in A7.
 - **Ein Wegwerfkunde „B7 Leer"** ohne Abonnement, angelegt in A3, in A8 der
   Kunde, in dessen Sicht der Betreiber wechselt, und zurückgezogen in A9.
   Vertrags- und Anmeldeadresse `b7-leer@b7.invalid`, reserviert nach
@@ -443,7 +445,7 @@ denn Inertia lädt dabei das Dokument nicht neu.
   Rotationsdateien neu, wie jedes Update, und reiht je Abonnement einen Vorgang
   ohne Konto ein.
 
-**Reihenfolge:** Block 0, Block H, Teil A von A0 bis A9, Teil B von B0 bis B8.
+**Reihenfolge:** Block 0, Block H, Teil A von A0 bis A9, Teil B von B0 bis B9.
 
 **Private Fenster eines Browsers teilen sich ihre Cookies.** Konto 6 und
 B7 Leer melden sich deshalb nacheinander im selben privaten Fenster an, nicht
@@ -462,33 +464,34 @@ Meldung gibt.
 START=$(date '+%F %T'); echo "Beginn: $START"
 ```
 
-`START` braucht A6 für das Journal. Gesetzt wird er **vor** dem Anlegen der
-Marke, damit jede Zeile, die dabei entsteht, im Fenster liegt.
+`START` braucht A6 für das Journal. Gesetzt wird er **vor** dem Anlegen des
+API-Tokens, damit jede Zeile, die dabei entsteht, im Fenster liegt.
 
-### A1 — Die Marke
+### A1 — Das API-Token
 
 Im privaten Fenster als Konto 6 anmelden, „Mein Konto", Bereich
-„Zugangsmarken": Bezeichnung `b7-abnahme`, **„Marke anlegen"**. Oben steht
-danach „Die neue Zugangsmarke" mit dem Klartext, darunter die Liste:
+„API-Tokens": Bezeichnung `b7-abnahme`, **„API-Token anlegen"**. Oben steht
+danach *„Das API-Token ist angelegt. Es steht genau einmal hier."* und der
+Bereich „Das neue API-Token" mit dem Klartext, darunter die Liste:
 `b7-abnahme`, Anfang `srvp_…`, „Zuletzt benutzt" `nie`. Den Klartext kopieren.
 
 ```bash
-# A1 · Die Marke in die Shell — liest sie verdeckt ein; schreibt nichts
-read -rs -p 'Marke: ' T; echo
+# A1 · Das API-Token in die Shell — liest es verdeckt ein; schreibt nichts
+read -rs -p 'API-Token: ' T; echo
 printf 'Anfang %s… · %d Zeichen\n' "${T:0:9}" "${#T}"
-marken
+tokens
 ```
 
 **Erwartet:**
 
 ```
 Anfang srvp_<4 Zeichen>… · 53 Zeichen
-Zugangsmarken: 1
-  Marke <n> · Konto 6 · b7-abnahme · srvp_<4 Zeichen>… · zuletzt benutzt nie · angelegt <jetzt>
+API-Tokens: 1
+  Token <n> · Konto 6 · b7-abnahme · srvp_<4 Zeichen>… · zuletzt benutzt nie · angelegt <jetzt>
 ```
 
 Der Anfang ist derselbe wie in der Spalte „Anfang" auf der Seite und in
-`marken`. 53 Zeichen sind `srvp_` und 48 Hexziffern.
+`tokens`. 53 Zeichen sind `srvp_` und 48 Hexziffern.
 
 ### A2 — Punkt 1: genau die eigenen; fremd und erfunden sind gleich
 
@@ -543,12 +546,12 @@ Status 200
 Im Hauptfenster: Kunden, **„Kunde anlegen"**. Vorname `B7`, Nachname `Leer`,
 E-Mail und Anmeldeadresse `b7-leer@b7.invalid`, „Passwort erzeugen" und das
 Passwort notieren, „Anlegen". Im privaten Fenster: als Konto 6 abmelden, als
-`b7-leer@b7.invalid` anmelden, „Mein Konto", Bezeichnung `b7-leer`, „Marke
-anlegen", den Klartext kopieren.
+`b7-leer@b7.invalid` anmelden, „Mein Konto", Bezeichnung `b7-leer`,
+„API-Token anlegen", den Klartext kopieren.
 
 ```bash
-# A3 · Punkt 2 — die Marke eines Kunden ohne Abonnement; liest nur
-read -rs -p 'Marke von B7 Leer: ' T2; echo
+# A3 · Punkt 2 — das API-Token eines Kunden ohne Abonnement; liest nur
+read -rs -p 'API-Token von B7 Leer: ' T2; echo
 printf 'Anfang %s… · %d Zeichen\n' "${T2:0:9}" "${#T2}"
 api "$T2" /api/v1/me
 api "$T2" /api/v1/subscriptions
@@ -567,16 +570,16 @@ Anfang srvp_<4 Zeichen>… · 53 Zeichen
 ```
 
 - **`/me` mit `subscriptions: 0` ist der Ladebeleg.** Ohne ihn wäre das 403
-  nicht von einer abgewiesenen Marke zu trennen — die gäbe 401.
+  nicht von einem abgewiesenen Token zu trennen — das gäbe 401.
 - **403 und nicht `200 []`** (§0, Punkt 1 an der Vorschrift): Eine Route ohne
   Klammer gäbe `200 []`, der leere Kunde bekommt 403. Die beiden Fälle sind
   unterscheidbar, und das ist der Punkt.
 - **Das Abonnement von Konto 6 ist für ihn fremd**, 404 wie in A2.
 
-### A4 — Ohne Marke, mit einer erfundenen, und die Beschreibung
+### A4 — Ohne Token, mit einem erfundenen, und die Beschreibung
 
 ```bash
-# A4 · Ohne Marke, eine erfundene, und die Beschreibung ohne Marke — liest nur
+# A4 · Ohne Token, ein erfundenes, und die Beschreibung ohne Token — liest nur
 api '' /api/v1/me
 api 'srvp_000000000000000000000000000000000000000000000000' /api/v1/me
 api '' /api/v1/openapi.yaml
@@ -625,7 +628,7 @@ retry-after: <s>
 - **Die Kopfzeilen** schreibt HTTP/2 klein und HTTP/1.1 gross
   (`X-RateLimit-Limit`); `grep -i` findet beide.
 - **Die beiden Mittelwerte** schreibt das Protokoll ab: `<x>` ist eine ganze
-  Anfrage samt Marke, `<y>` eine, die schon an der Drosselung endet. Im
+  Anfrage samt Token, `<y>` eine, die schon an der Drosselung endet. Im
   Container waren es 14 und 9 ms.
 
 ```bash
@@ -648,13 +651,13 @@ gezählt` belegt, dass sie es getan hat, `danach 0`, dass der Schlüssel fort
 ist. Im Container mit SQLite: 2,645 ms; derselbe Lauf mit dem Speicher im
 Arbeitsspeicher 0,026 ms.
 
-### A6 — Punkt 3: Die Marke steht in keinem Protokoll
+### A6 — Punkt 3: Das API-Token steht in keinem Protokoll
 
 **Darf nicht ausfallen.** Läuft nach A2 bis A5, damit jede Anfrage dieses
 Laufs im Fenster liegt.
 
 ```bash
-# A6 · Punkt 3 — die Marke in keinem Protokoll, der Abfrageteil schon; liest nur
+# A6 · Punkt 3 — das API-Token in keinem Protokoll, der Abfrageteil schon; liest nur
 PROBE="b7-gegenprobe-$(date +%s)"
 api "$T" "/api/v1/me?b7=$PROBE"
 spur "$PROBE" "$START"
@@ -680,7 +683,7 @@ Gesucht: srvp_<4 Zeichen>… (53 Zeichen), seit <START>
   Journal seit <START>: 0
 ```
 
-**Erfüllt, wenn** beide Marken überall 0 ergeben **und** das Merkzeichen in
+**Erfüllt, wenn** beide API-Tokens überall 0 ergeben **und** das Merkzeichen in
 `panel-access.log` 1. Ohne die 1 wäre die 0 keine Messung: Sie sagte nur, dass
 `spur` in diesen Dateien nichts findet.
 
@@ -695,54 +698,54 @@ heute und nicht mehr `nie`.
 
 ```bash
 # A7a · Was die Ablage dazu sagt — liest nur
-marken
+tokens
 ```
 
 **Erwartet:** die Zeile `b7-abnahme` mit derselben Zeit wie auf der Seite.
 Geschrieben wird sie höchstens einmal je Minute
 (`ApiToken::USAGE_RESOLUTION_SECONDS`); auf die Sekunde gleich mit der letzten
-Anfrage muss sie deshalb nicht sein. Die Marke von B7 Leer steht ebenfalls da.
+Anfrage muss sie deshalb nicht sein. Das API-Token von B7 Leer steht ebenfalls da.
 
 Dann in der Zeile `b7-abnahme` **„Entfernen"**. Oben steht danach die
-Rückfrage (Befund 3, §6a): *Die Zugangsmarke „b7-abnahme“ entfernen?*, darunter
-*Jedes Programm, das sie benutzt, bekommt danach 401.*, mit den Knöpfen
+Rückfrage (Befund 3, §6a): *Das API-Token „b7-abnahme“ entfernen?*, darunter
+*Jedes Programm, das es benutzt, bekommt danach 401.*, mit den Knöpfen
 „Entfernen" in Rot und „Abbrechen". Zuerst **„Abbrechen"**:
 
 ```bash
 # A7b · Nach „Abbrechen" — liest nur
 api "$T" /api/v1/me
-marken
+tokens
 ```
 
 **Erwartet:** für `/me` dieselbe Zeile wie in A2, und in der Ablage beide
-Marken:
+API-Tokens:
 
 ```
-Zugangsmarken: 2
-  Marke <n> · Konto 6 · b7-abnahme · srvp_<4 Zeichen>… · zuletzt benutzt <Zeit> · angelegt <Zeit>
-  Marke <n> · Konto <id> · b7-leer · srvp_<4 Zeichen>… · zuletzt benutzt <Zeit> · angelegt <Zeit>
+API-Tokens: 2
+  Token <n> · Konto 6 · b7-abnahme · srvp_<4 Zeichen>… · zuletzt benutzt <Zeit> · angelegt <Zeit>
+  Token <n> · Konto <id> · b7-leer · srvp_<4 Zeichen>… · zuletzt benutzt <Zeit> · angelegt <Zeit>
 ```
 
 Die Frage ist zu, und auf der Seite steht keine Meldung. Dann noch einmal
 **„Entfernen"** in der Zeile und in der Rückfrage **„Entfernen"**. Oben steht
-„Die Zugangsmarke ist entfernt.", und die Zeile ist fort.
+„Das API-Token ist entfernt.", und die Zeile ist fort.
 
 ```bash
-# A7c · Die entfernte Marke an der Tür — liest nur
+# A7c · Das entfernte API-Token an der Tür — liest nur
 api "$T" /api/v1/me
-marken
+tokens
 ```
 
 **Erwartet:**
 
 ```
 401 · application/json · {"message":"Unauthenticated."}
-Zugangsmarken: 1
-  Marke <n> · Konto <id> · b7-leer · srvp_<4 Zeichen>… · zuletzt benutzt <Zeit> · angelegt <Zeit>
+API-Tokens: 1
+  Token <n> · Konto <id> · b7-leer · srvp_<4 Zeichen>… · zuletzt benutzt <Zeit> · angelegt <Zeit>
 ```
 
 Und im Hauptfenster, als Betreiber: „Mein Konto" hat **keinen** Bereich
-„Zugangsmarken". Ein Adminkonto bekommt keine Marke (`docs/131 §9`), und für
+„API-Tokens". Ein Adminkonto bekommt kein API-Token (`docs/131 §9`), und für
 ein Adminkonto steht dort `null` und keine leere Liste.
 
 ### A8 — Die fremde Sicht
@@ -750,24 +753,31 @@ ein Adminkonto steht dort `null` und keine leere Liste.
 Im Hauptfenster: Kunden, in der Zeile von **B7 Leer** „Anmelden als",
 „Wechseln". Dann „Mein Konto" — **nur ansehen, nichts anklicken.**
 
-**B7 Leer und nicht der Kunde von Konto 6:** Dessen Marke ist seit A7 fort,
-und an einer leeren Liste wäre nicht zu sehen, ob sie in fremder Sicht
-dasteht. Die Marke `b7-leer` gibt es bis A9.
+**B7 Leer und nicht der Kunde von Konto 6:** Dessen API-Token ist seit A7
+fort, und an einer leeren Liste wäre nicht zu sehen, ob sie in fremder Sicht
+dasteht. Das API-Token `b7-leer` gibt es bis A9.
 
 **Erwartet** (Befund 2, §6a): die Bereiche „Darstellung", „Sicherheit" und
-„Zugangsmarken"; „Konto" und „Passwort ändern" fehlen, und die drei Knöpfe
-der Darstellung sind gesperrt. In „Zugangsmarken" steht die Liste mit der
-Zeile `b7-leer` und ihrer Zeit unter „Zuletzt benutzt" — und kein Formular,
-kein „Marke anlegen" und kein „Entfernen". Dazu in die Konsole:
+„API-Tokens"; „Konto" und „Passwort ändern" fehlen, und die drei Knöpfe der
+Darstellung sind gesperrt. In „API-Tokens" steht die Liste mit der Zeile
+`b7-leer` und ihrer Zeit unter „Zuletzt benutzt" — und kein Formular, kein
+„API-Token anlegen" und kein „Entfernen". Dazu in die Konsole:
 
 ```js
-(() => { const s = [...document.querySelectorAll('section, .section')].find((x) => x.querySelector('h2')?.textContent.trim() === 'Zugangsmarken'); return s ? `Formulare ${s.querySelectorAll('form').length} · Spalten ${s.querySelectorAll('thead th').length} · Zeilen ${s.querySelectorAll('tbody tr').length} · Knöpfe [${[...s.querySelectorAll('button')].map((b) => b.innerText.trim()).join(', ')}]` : 'kein Bereich Zugangsmarken' })()
+(() => { const s = [...document.querySelectorAll('section, .section')].find((x) => x.querySelector('h2')?.textContent.trim() === 'API-Tokens'); return s ? `Formulare ${s.querySelectorAll('form').length} · Spalten ${s.querySelectorAll('thead th').length} · Zeilen ${s.querySelectorAll('tbody tr').length} · Knöpfe [${[...s.querySelectorAll('button')].map((b) => b.innerText.trim()).join(', ')}]` : 'kein Bereich API-Tokens' })()
 ```
 
 **Erwartet:** `Formulare 0 · Spalten 4 · Zeilen 1 · Knöpfe []`. Dieselbe Zeile
 in der eigenen Sicht eines Kunden gibt im Container `Formulare 1 · Spalten 5 ·
-Zeilen 1 · Knöpfe [Marke anlegen, Entfernen]`; unter `rc.16` stand das auch in
-fremder Sicht da.
+Zeilen 1 · Knöpfe [API-Token anlegen, Entfernen]`; unter `rc.16` stand das, mit
+„Marke anlegen", auch in fremder Sicht da.
+
+**Dann das x am Band der fremden Sicht** (§6b): Das Band „Sie arbeiten in der
+Sicht dieses Kunden." trägt rechts oben ein x. Ein Klick blendet es aus, und
+mit ihm „Zurück zur Verwaltung". Danach in der Leiste „Mein Konto" anklicken:
+Das Band steht wieder da — weggeklickt ist es nur bis zum nächsten
+Seitenwechsel, entschieden vom Betreiber. Im Container gemessen: nach dem x
+`0` Knöpfe „Zurück zur Verwaltung", nach dem Klick in der Leiste `1`.
 
 Danach oben im Band **„Zurück zur Verwaltung"**.
 
@@ -778,33 +788,33 @@ bestätigen. Kunden werden nicht gelöscht, sondern zurückgezogen; die Nummer
 bleibt vergeben, und das sagt die Rückfrage auch. Danach:
 
 ```bash
-# A9a · Die Marke eines zurückgezogenen Kunden — liest nur
+# A9a · Das API-Token eines zurückgezogenen Kunden — liest nur
 api "$T2" /api/v1/me
-marken
+tokens
 ```
 
 **Erwartet:**
 
 ```
 401 · application/json · {"message":"Unauthenticated."}
-Zugangsmarken: 1
-  Marke <n> · Konto <id> · b7-leer · …
+API-Tokens: 1
+  Token <n> · Konto <id> · b7-leer · …
 ```
 
-Die Marke gilt nicht mehr, und ihre Zeile steht noch da (Beobachtung in §0).
-Sie geht ausdrücklich:
+Das API-Token gilt nicht mehr, und seine Zeile steht noch da (Beobachtung in
+§0). Es geht ausdrücklich:
 
 ```bash
-# A9b · Die Marke des Wegwerfkunden entfernen — schreibt: löscht genau diese eine Zeile in api_tokens
+# A9b · Das API-Token des Wegwerfkunden entfernen — schreibt: löscht genau diese eine Zeile in api_tokens
 srvpanel tinker --execute='
   $n = App\Models\ApiToken::query()->whereHas("account", fn ($k) => $k->where("email", "b7-leer@b7.invalid"))->delete();
   printf("entfernt: %d\n", $n);
 '
-marken
+tokens
 unset T T2
 ```
 
-**Erwartet:** `entfernt: 1` und `Zugangsmarken: 0` — dieselbe Zahl wie in
+**Erwartet:** `entfernt: 1` und `API-Tokens: 0` — dieselbe Zahl wie in
 Block 0.
 
 ---
@@ -1012,16 +1022,58 @@ Grund (Befund 5, §6a).
 Unter `rc.16` stand „ansehen" bei einem fertigen Vorgang im Container in sechs
 Zeilen bei 146 px, und der fertige Vorgang hatte keinen Grund.
 
+### B9 — Das x am Vorgang (darf ausfallen)
+
+Die Gerätesicht aus B8 wieder aus, `/updates` **neu laden** und die Probe
+einfügen, einmal. **„Jetzt nachsehen"**, „Nachsehen", und sobald der Streifen
+steht, **rechts oben im Streifen das x**.
+
+**Erwartet:**
+
+- **Der Streifen ist fort**, und mit ihm die Hülle, wenn kein anderes Band
+  dasteht.
+- **Nach dem Klick kommt keine Zeile `Nachladen — runningOperations` mehr**,
+  auch solange der Vorgang noch läuft. Der Takt fragt nur für Vorgänge nach,
+  die jemand sieht.
+
+Dann über das Menü zu **„Kunden"**, danach die Seite **ganz neu laden**, und
+in die Konsole:
+
+```js
+Object.keys(localStorage).filter((k) => k.startsWith('srvpanel.bands.')).map((k) => k + ' = ' + localStorage.getItem(k)).join('\n') || 'nichts gemerkt'
+```
+
+**Erwartet:** auf beiden Seiten kein Streifen, und
+
+```
+srvpanel.bands.account.<Kennung des Betreibers> = ["operation:<n>"]
+```
+
+mit `<n>` dem Vorgang, den `vorgaenge 1` als jüngsten zeigt. Steht in der
+Liste mehr, hat in diesem Browser vorher schon jemand Bänder weggeklickt.
+
+**Zwei Minuten nach seinem Ende** — die Zeit steht in `vorgaenge` unter
+„fertig" — über das Menü auf eine Seite wechseln und dieselbe Zeile noch
+einmal einfügen. **Erwartet:** `operation:<n>` steht nicht mehr da, und ohne
+andere Einträge heisst die Antwort `nichts gemerkt`. Ein Vorgang, der nicht
+mehr in den Streifen kommen kann, wird vergessen; sonst wüchse der Speicher
+mit jedem.
+
+Im Container gemessen (§6b): vor dem x zwei Nachfragen in sieben Sekunden,
+danach null, auch nach dem Wechsel; nach dem vollen Neuladen weiter fort; ein
+zweiter Vorgang desselben Kontos steht trotzdem da; eine Minute nach dem Ende
+bleibt der Schlüssel, nach drei Minuten ist er fort.
+
 ---
 
 ## §5 · Was dieser Lauf ausdrücklich nicht prüft
 
-- **Die Marke im Abfrageteil.** Sie schriebe eine gültige Marke ins Protokoll
-  (§0, Punkt 3 an der Vorschrift). Dass die Wache dort nicht liest, hält
-  `ApiTokenTransportTest` an der Wirkung; im Container gab dieselbe Marke im
-  Abfrageteil 401.
-- **Eine Marke an einem Adminkonto.** Die Oberfläche legt keine an. Dass die
-  Wache eine bestehende abweist, hält `AuthenticateToken` und sein Wächter; im
+- **Das API-Token im Abfrageteil.** Es schriebe ein gültiges Token ins
+  Protokoll (§0, Punkt 3 an der Vorschrift). Dass die Wache dort nicht liest,
+  hält `ApiTokenTransportTest` an der Wirkung; im Container gab dasselbe Token
+  im Abfrageteil 401.
+- **Ein API-Token an einem Adminkonto.** Die Oberfläche legt keins an. Dass
+  die Wache ein bestehendes abweist, hält `AuthenticateToken` und sein Wächter; im
   Container gab sie 401.
 - **Zusatzbenutzer.** Kein Formular legt einen an (`docs/141 §4`).
 - **Eine Route ohne Klammer.** Es gibt keine, und herstellen lässt sie sich
@@ -1039,14 +1091,14 @@ Zeilen bei 146 px, und der fertige Vorgang hatte keinen Grund.
 - **A2 und A6 tragen das Kriterium von B7** und dürfen nicht ausfallen.
 - **B1 und B3 tragen das Kriterium von B8** und dürfen nicht ausfallen.
 - **A3 und B2 sind die beiden dazugelegten Punkte**; sie werden gefahren.
-- **A5, A5b, B7 und B8 dürfen ausfallen.** Sie beantworten Fragen aus
+- **A5, A5b, B7, B8 und B9 dürfen ausfallen.** Sie beantworten Fragen aus
   `docs/131 §8` und `docs/132 §5` oder zeigen die Behebungen der Befunde 1
-  und 5 auf dem Server.
+  und 5 und das x der Bänder auf dem Server.
 - **Block 0, A4, A7 und A8 zeigen die Behebungen der Befunde 2 bis 4** (§6a).
   Gemessen sind sie im Container; auf dem Server hat sie noch niemand
   gesehen.
 - **A9 wird gefahren**, auch wenn ein Punkt davor ausfällt. Ein Kunde ohne
-  Abonnement mit einer Marke ist ein Rest und kein Prüfkörper.
+  Abonnement mit einem API-Token ist ein Rest und kein Prüfkörper.
 
 ---
 
@@ -1250,6 +1302,248 @@ Zwölf Eingriffe im Bruchskript, jeder einzeln rot und zurück grün belegt: vie
 an `BandHandleTest`, zwei an `RankReachTest`, drei an
 `ImpersonationControlTest`, einer an `DangerRankTest` und zwei an
 `ShippedFileTest`.
+
+---
+
+## §6b · Das x und das API-Token — 11. Oktober 2026
+
+Am Abend nach §6a kamen zwei Wünsche des Betreibers, beide für denselben
+Zweig: *„Ein Band soll sich wegklicken lassen. Dafür ist ein ‚x' in jedem Band
+erforderlich."* Und: *„Der Begriff Zugangsmarke ist nicht sehr zugänglich und
+entspricht auch keinem verwendeten technischen Begriff. Es sollte sich API
+oder API Token wiederfinden."* Gebaut ist beides für `0.9.0-rc.17`, gemessen
+im Container gegen dieselbe SQLite-Datenbank unter `artisan serve` wie §6a,
+im echten Chromium. Auf dem Server sehen es A8 und B9 nach.
+
+### Was das x tut
+
+Zwei Fragen hat der Betreiber am selben Abend entschieden, beide wie
+vorgeschlagen:
+
+| Band | weggeklickt, bis … | gemerkt |
+|---|---|---|
+| Ankündigung | sie sich ändert oder endet | im Browser, je Konto |
+| laufender Vorgang | immer — er kommt nicht wieder | im Browser, je Konto |
+| fremde Sicht | zum nächsten Seitenwechsel | nirgends |
+| Wartung | zum nächsten Seitenwechsel | nirgends |
+
+**Eine Ankündigung kommt wieder, wenn sich ändert, was ihr Band zeigt.** In der
+Frage stand „bis zu ihrem Ende". Beim Bauen fiel auf, dass sich eine
+Ankündigung seit dem 6. September ändern lässt, und eine geänderte Fassung ist
+genau das, was jemand sehen soll, der die alte weggeklickt hat. Ihr Schlüssel
+trägt deshalb einen Fingerabdruck über Rang und Text (`announcementKey()` in
+`useDismissedBands.ts`). Ein geändertes Ende der Sichtbarkeit lässt das Band,
+wie es ist, und holt es nicht zurück. Dem Betreiber ist diese Lesart beim
+Bauen gesagt worden.
+
+**Die fremde Sicht und die Wartung melden einen Zustand**, und das Band der
+fremden Sicht trägt den einzigen Rückweg zur Verwaltung (`docs/20 §6.3`:
+„Rückweg jederzeit"). Beide kommen beim nächsten Seitenwechsel wieder. Den
+Zustand hält `PanelLayout` selbst und nicht der Speicher. Ein Nachladen auf
+derselben Seite, auch ein partielles, lässt sie weggeklickt, ein Klick im
+Menü bringt sie zurück (B10 bis B12, B17 bis B19).
+
+**Gemerkt wird je Konto**, unter `srvpanel.bands.account.<Kennung>`: Der
+Betreiber und die fremde Sicht, die er gerade hält, teilen sich einen Browser.
+Auf den beiden Seiten der Anmeldung lässt sich die Störung auch wegklicken,
+gemerkt unter `guest`. **Und vergessen wird, was es nicht mehr gibt** — die
+Schlüssel einer Ankündigung, die geendet hat oder geändert wurde, und eines
+Vorgangs, der aus dem Streifen gefallen ist. Sonst wüchse der Speicher mit
+jedem Vorgang.
+
+### Die Gestaltung
+
+**Das x steht neben dem Band und nicht darin.** Zwei der vier Bänder sind
+selbst ein Verweis, die Ankündigung und die Wartung, und ein Knopf in einem
+`<a>` ist kein gültiges HTML. Die Hülle `.band-item` trägt beides, und das x
+liegt über der rechten oberen Ecke des Bandes: eine Fläche von `--tap` (44 px
+bei 390, 38 bei 1440), darin ein Zeichen von 16 px, ohne Rand und ohne Grund.
+
+**Das Band hält ihm den Platz frei, bis zum Zeichen und eine Fuge weiter**:
+46 px bei 390 und 43 bei 1440 statt 24. Im ersten Wurf war der Platz so breit
+wie die Fläche, und bei 1440 px stand „ansehen" damit 11 px vor dem Zeichen
+und las sich wie ein Wort damit; jetzt sind es 16 px wie zwischen den
+Handgriffen eines Bandes.
+
+Gemessen beim Betreiber auf `/subscriptions`, mit einer Wartung, einer Störung,
+einer Ankündigung von 289 Zeichen und drei Vorgängen (wartet, fehlgeschlagen,
+fertig), in vier Lagen:
+
+```
+                    390 px            1440 px
+Wartung             104 px            41 px
+Störung              62 px            41 px
+Ankündigung          62 px            62 px
+Vorgang wartet       99 px            41 px
+Vorgang fehlgeschl. 122 px            48 px
+Vorgang fertig      122 px            48 px
+x                   44 × 44, oben 0 rechts 0      38 × 38, oben 0 rechts 0
+Inhalt → Zeichen    16 px             16 px
+dokument            0 · Gegenprobe 200/200 · schiebt 0, in allen vier Lagen
+Zeichen in Ruhe     5,09:1 bis 6,18:1 auf dem gemischten Grund jedes Bandes
+beim Überfahren     12,91:1 bis 16,96:1
+```
+
+Die Grenze eines Bedienelements verlangt 3:1 (WCAG 1.4.11), und das x wird an
+seinem Zeichen erkannt; deshalb steht es in `--text-muted` und beim Überfahren
+in `--text-strong`. Die Vorgänge haben dieselben Höhen wie vor dem x (B8,
+§6a).
+
+**Der freigehaltene Platz kann eine Zeile kosten**, und das stand zuerst
+andersherum im Kommentar an `.band-item`. Gemessen an denselben Bändern mit
+und ohne die eine Regel, die den Platz freihält:
+
+```
+390 px   6 Ankündigungen von 24 bis 289 Zeichen, Wartung, Vorgang    gleich 8 · anders 0
+390 px   51 Ankündigungen von 20 bis 70 Zeichen                      gleich 51 · anders 2 (39 und 40 Zeichen: 41 → 62 px)
+1440 px  101 Ankündigungen von 130 bis 230 Zeichen                   gleich 100 · anders 3 (182 bis 184 Zeichen: 41 → 62 px)
+```
+
+Ein Text, der in den letzten 22 px einer Zeile endet (bei 1440 px 19 px),
+bekommt damit eine zweite. Die Klammer auf zwei Zeilen bleibt die Obergrenze,
+die A14 einer Ankündigung zusagt.
+
+> **Ein Kommentar, der „ändert nichts" sagt, braucht die Messung mit und ohne
+> die Regel — eine Messung nur mit ihr sagt nicht, was ohne sie wäre.**
+
+**Oben und nicht in der Mitte.** Bei einem Band mit zwei Zeilen gehört das x
+zur ersten. Bei einem einzeiligen Vorgang mit Knopf, 48 px hoch bei 1440 px,
+steht das Zeichen dadurch rund 5 px über der Mitte der Zeile; das bleibt so.
+
+### Das Verhalten
+
+Gemessen mit demselben Bestand, in einem Lauf und in dieser Reihenfolge:
+
+```
+B0  Ausgang                         Wartung | Störung | Info | Vorgang 8 | Vorgang 6 | Vorgang 5 · Speicher: null
+B1  Info weggeklickt                ohne Info · ["announcement:7:5e337606"]
+B2  Seitenwechsel /customers        ohne Info · Speicher gleich
+B3  volles Neuladen                 ohne Info · Speicher gleich
+B4  Ende der Sichtbarkeit geändert  ohne Info · Speicher gleich
+B5  Text geändert                   Info wieder da · Speicher: null
+B6  Takt mit wartendem Vorgang      7 s: 2 Nachfragen
+B7  laufenden Vorgang weggeklickt   ohne Vorgang 8 · ["operation:8"]
+B8  Takt ohne sichtbaren            7 s: 0 Nachfragen
+B9  partielles Nachladen            ohne Vorgang 8 · Speicher gleich
+B10 Wartung weggeklickt             ohne Wartung · Speicher gleich
+B11 router.reload()                 ohne Wartung
+B12 Seitenwechsel                   Wartung wieder da
+B13 alles weggeklickt               Hüllen .bands: 0
+B14 Seitenwechsel                   Bänder: Wartung · Hüllen: 1
+B15 Vorschau auf /announcements     offen 1 · nach dem x 0 · Speicher gleich
+B16 fremde Sicht                    Sie arbeiten in der Sicht … | Störung | Info | Vorgang 9 · Speicher Konto 2: null
+B17 fremde Sicht weggeklickt        Rückweg da: 0
+B18 router.reload()                 Rückweg da: 0
+B19 Klick in der Leiste             Rückweg da: 1 · Speicher Konto 2: null
+B20 zurück                          Verwaltung · /customers
+G1  Anmeldeseite                    Bänder: Störung · Zugriff: ok
+G2  weggeklickt                     Hüllen: 0 · ["announcement:8:d71e29cd"] unter guest
+G3  Neuladen                        weiter fort
+G4  angemeldet im selben Browser    alle sechs Bänder — der Gast merkt nicht für das Konto
+S1  Seitendaten gesperrt            Zugriff: SecurityError · Bänder: Störung
+S2  weggeklickt                     fort, Hüllen: 0
+S3  Neuladen                        Störung wieder da
+Seitenfehler                        keine, im Panel, als Gast und mit gesperrten Seitendaten
+```
+
+Und für B9 dieses Laufs, eigens gemessen:
+
+```
+V0 vorher           Vorgang 8 — wartet · Takt 7 s: 2 · nichts gemerkt
+V1 nach dem x       Bänder: — · Hüllen: 0 · Takt 7 s: 0 · srvpanel.bands.account.1 = ["operation:8"]
+V2 Menü „Kunden"    Bänder: — · Takt 7 s: 0
+V3 volles Neuladen  Bänder: — · srvpanel.bands.account.1 = ["operation:8"]
+V4 zweiter Vorgang  Vorgang 9 — wartet
+V5 fertig vor 1 min Bänder: — · srvpanel.bands.account.1 = ["operation:8"]
+V6 fertig vor 3 min Bänder: — · nichts gemerkt
+```
+
+**Die Vorschau auf `/announcements` hat ihr x auch** und schliesst damit die
+Vorschau; gemerkt wird dort nichts (B15).
+
+### Ein Satz, der nicht stimmte
+
+Der Kommentar in `Overview.vue`, der den Speicher des Browsers seit dem Takt
+der Übersicht in einem `try` liest, begründete das so: In einem privaten
+Fenster werfe schon das Lesen von `window.localStorage`. Gemessen im Chromium
+liest ein Profil, das nichts behält, ohne Ausnahme — `Zugriff: ok`. Es wirft
+erst bei abgeschalteten Seitendaten, `SecurityError` (S1). Die Klammer war
+richtig, die Begründung nicht.
+
+> **Ein Satz, der eine Begründung nennt, die niemand gemessen hat, ist auch
+> dann falsch, wenn der Handgriff daneben richtig ist.**
+
+Seit dem x läuft ein solcher Zugriff im Layout **jeder** Seite. Ohne die
+Klammer stünde dort jede Seite weiss da, und zwar genau bei dem, der seine
+Seitendaten mit Absicht abgeschaltet hat. `BrowserStorageTest` hält deshalb,
+dass jeder Zugriff in einem `try` steht.
+
+### API-Token statt Zugangsmarke
+
+Das Fachwort stand die ganze Zeit in `docs/19 §2` Punkt 2: *Token* ist dort
+unter den etablierten englischen Fachwörtern genannt. Die Regel, die es
+verlangte, stand nicht auf der Liste der verbrauchten Wörter, und kein Lauf
+hat es gesehen. Jetzt steht `Zugangsmarke → API-Token` in `docs/19 §3`, und
+`WordChoiceTest` hält es für Vorlagen, Skripte der Seiten und die
+Zeichenketten unter `app/`. *Marke* allein bleibt erlaubt: Es heisst in diesem
+Panel auch die Marke des Betreibers und eine Zustandsmarke.
+
+Umgestellt sind die Profilseite, die drei Meldungen von
+`ProfileController`, die Gründe in `RouteGuard`, die Beschreibung unter
+`docs/openapi-v1.yaml`, die Kommentare und die Tests. Die Bezeichner waren
+schon englisch und bleiben. Gemessen im echten Panel:
+
+```
+eigene Sicht · Bereiche: Konto, Passwort ändern, Darstellung, Sicherheit, API-Tokens
+eigene Sicht · Zeile:    Formulare 1 · Spalten 5 · Zeilen 1 · Knöpfe [API-Token anlegen, Entfernen]
+nach dem Anlegen:        Das API-Token ist angelegt. Es steht genau einmal hier.
+                         Bereich „Das neue API-Token" · srvp_<48 Hexziffern>
+Rückfrage:               Das API-Token „messung-api-token" entfernen? ¶ Jedes Programm, das es benutzt, bekommt danach 401.
+nach dem Entfernen:      Das API-Token ist entfernt.
+Betreiber:               kein Bereich API-Tokens
+fremde Sicht · Zeile:    Formulare 0 · Spalten 4 · Zeilen 1 · Knöpfe []
+fremde Sicht · x:        „Ausblenden" · danach Rückweg 0 · nach „Mein Konto" in der Leiste 1
+```
+
+**§0, §6a und §7 behalten das alte Wort**, wo sie zitieren, was die Seite
+damals sagte. Die Anweisungen von §1 bis §6 sprechen vom API-Token.
+
+### Die Wächter
+
+- **`BandDismissTest`**, fünf Fälle: Jedes Band steht neben seinem x in einer
+  `.band-item`, kein x steht in einem Band, einem Verweis oder einem Knopf,
+  die fremde Sicht und die Wartung kommen zurück und der Speicher kennt sie
+  nicht, der Schlüssel einer Ankündigung deckt jedes Feld, das ihr Band
+  zeigt, und jede Hülle fragt die sichtbare Liste, die sie zeigt.
+- **`BrowserStorageTest`**, zwei Fälle: Jeder Zugriff auf den Speicher des
+  Browsers steht in einem `try`, und die Zählung der Blöcke trennt das `try`
+  von seinen Nachbarn.
+- **`OperatorControlTest`** lässt die Wache jetzt als Glied einer
+  `&&`-Bedingung gelten, auch in `v-else-if`; ein `||` und eine Klammer
+  zählen nicht. Das Wartungsband steht seitdem hinter
+  `maintenance && !hiddenUntilNavigation.has('maintenance')`, und der Wächter
+  verlangte vorher wörtlich `v-if="maintenance"`.
+- **`MaintenanceBandTest`** liest das Band in seiner Hülle und hält, dass die
+  Hülle aller Bänder seine Bedingung mitfragt.
+- **`WordChoiceTest`** führt das Paar, **`ClassNameTest`** das Wort `dismiss`.
+
+**Und die Falle aus `BaseMethodClashTest` zum sechsten Mal.** Die Hilfsmethode
+für die `&&`-Bedingung hiess im ersten Wurf `requires()`, und das ist eine
+`final`-Methode von `PHPUnit\Framework\TestCase`. Der Lauf starb beim Laden
+der Klasse mit einem fatalen Fehler, bevor ein Test lief.
+
+> **Eine Regel, an die man sich erinnern muss, ist keine Regel, sondern eine
+> Gewohnheit.**
+
+### Die Brüche
+
+Dreizehn Eingriffe im Bruchskript: sieben an `BandDismissTest`, zwei an
+`BrowserStorageTest`, einer an `OperatorControlTest` (ein `||` als `&&`
+gelesen) und drei an `WordChoiceTest`, je einer in einer Vorlage, in einem
+Skript und in einer Meldung von `ProfileController`. Sechs bestehende
+Eingriffe hatten ihren Anker in einer der umgebauten Stellen und sind
+nachgezogen: die Hülle der Anmeldeseite, der Verweis der Ankündigung, zwei an
+der Wartung, das Formular und der Knopf „Entfernen" der API-Tokens.
 
 ---
 

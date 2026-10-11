@@ -424,8 +424,8 @@ final class DangerRankTest extends TestCase
      *
      * **Ein Verweis mit Methode fragt nicht.** Inertias `<Link method="delete">`
      * schickt beim Klick ab; davor lässt sich keine Rückfrage stellen. Bis zum
-     * 11. Oktober 2026 stand genau einer in diesem Panel — „Entfernen" an einer
-     * Zugangsmarke (`docs/144 §0` Befund 3) —, rot und ohne Rückfrage, während
+     * 11. Oktober 2026 stand genau einer in diesem Panel — „Entfernen" an einem
+     * API-Token (`docs/144 §0` Befund 3) —, rot und ohne Rückfrage, während
      * jeder andere Löschknopf über `ask()` ging, auch der eines SSH-Schlüssels.
      *
      * **Und dieser Wächter sah ihn nicht.** Er liest `<button>`-Tags, und der

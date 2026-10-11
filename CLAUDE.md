@@ -4548,7 +4548,9 @@ Testlauf und nicht der Eingriff (0,45 s im August, 0,68 s im langsamsten
 gemessenen Lauf), und gegen den langsamsten Wert gerechnet trug die alte Grenze
 von dreissig noch **vier Tage**. Dass die Grenze drängte, lag nicht an der
 verlorenen Zeit: **Ein abgeschnittener Lauf liest sich als roter**, und der
-Nächste sucht dann am Skript statt an der Grenze.
+Nächste sucht dann am Skript statt an der Grenze. *Seit dem 11. Oktober 2026
+steht sie wieder auf dreissig, gerechnet gegen den Preis je Prüfung nach der
+Behebung; der Abschnitt dazu steht weiter unten.*
 
 **Und die Eingriffszahl war um eins zu hoch**, weil die Messvorschrift ihren
 eigenen Zähler mitzählte: `grep -c 'vorher_datei'` trifft auch die Zeile, die
@@ -4573,6 +4575,10 @@ ergeben sich 421, 423, 560 und **1075** Prüfungen — das letzte Viertel trägt
 
 > **Eine Teilung, die die Abschnitte zählt statt der Arbeit, ist gleichmässig in
 > einer Grösse, auf die es nicht ankommt.**
+
+*Seit dem 11. Oktober 2026 ist die Teilung vom Tisch.* Zu lang war der Lauf
+nicht, weil er in einem Job lief, sondern weil jede Prüfung die ganze Suite
+lud (Abschnitt weiter unten).
 
 **Und der Rückbau selbst hat eine Falle gefunden.** `.claude/` stand für den
 Skill in `$BAEUME`. Löscht man die einzige Datei darunter und lässt den Eintrag
@@ -7564,6 +7570,49 @@ trotzdem. Entschieden hat eine Prüfsumme im Vorlauf, gerechnet im Container
 
 > **Was eine Datei enthält, sagt ihre Prüfsumme und nicht das Echo, mit dem
 > sie entstand.**
+
+---
+
+## Der Bruchlauf lud für jede Prüfung die ganze Suite — 11. Oktober 2026
+
+Gefragt hat der Betreiber nach der Dauer. Am 10. Oktober brauchte der
+Wächterlauf 46 und 49 Minuten bei einer Grenze von sechzig. Gemessen lag es
+nicht an der Zahl der Prüfungen, sondern an ihrem Preis: Jede Prüfung lief über
+`phpunit.xml`. PHPUnit lud alle 527 Testdateien, rief jeden Datenlieferanten
+und baute 4028 Fälle, bevor der Filter einen davon nahm. An 40 zufällig
+gezogenen Prüfungen waren es 23,6 s über die Suite und 8,4 s mit der Datei.
+
+> **Ein Aufruf, der das Ganze lädt, um ein Stück zu fahren, wird mit dem Ganzen
+> teurer — und das Ganze wächst mit jedem Stück.**
+
+Der Preis wuchs damit von beiden Seiten: Jeder neue Wächter machte jede Prüfung
+teurer, und jeder neue Eingriff brachte Prüfungen dazu. `pruefe` gibt PHPUnit
+seitdem die Datei der Klasse mit, die der Filter nennt, gesucht an denselben
+zwei Orten, an denen `BreakScriptTest` jedes Ziel nachsieht. Gemessen in der
+CI auf demselben Stand: **13 Minuten 20 Sekunden statt 46,5**, 0,24 s je
+Prüfung statt 0,83, und jede Prüfung wie erwartet.
+
+**Die Hochrechnung vom 15. September hat das nicht gesehen.** Sie rechnete den
+Preis je Prüfung als feste Grösse, sagte zwei Monate voraus und hielt knapp
+vier Wochen.
+
+> **Eine Hochrechnung über eine Grösse, die selbst wächst, rechnet mit dem Wert
+> von heute und wird von dem von morgen überholt.**
+
+Die Grenze steht seitdem auf dreissig Minuten, gerechnet wie damals, nur gegen
+den neuen Preis; die Rechnung steht in `waechter.yml`. Die Teilung auf
+parallele Jobs ist vom Tisch: Sie hätte die Wanduhr geteilt und den Preis je
+Prüfung stehen lassen.
+
+**Ein Filter trifft seitdem nur seine eigene Klasse.** Über die Suite war er
+ein Ausdruck über jeden Testnamen, und `IconTest` traf auch `NavIconTest` und
+`ActionIconTest`. Die Urteile sind dieselben geblieben: Der volle Lauf im
+Container meldete alle 3360 Prüfungen wie erwartet, und der Lauf in der CI über
+die Suite war auf demselben Stand ebenfalls ohne Fehlschlag.
+
+Gefunden hat die Ursache eine Stichprobe von vierzig Prüfungen, einmal über die
+Suite und einmal mit der Datei gefahren — und nicht das Lesen des Skripts. Dort
+sah jede Prüfung aus wie ein einzelner Testlauf.
 
 ---
 

@@ -34279,3 +34279,43 @@ Betreiber am selben Abend. Sie sind für den Betreiber gebaut, mit dem Namen der
 Operation als Beschriftung. Der Grund steht trotzdem dort, wo der Satz ihn
 verspricht, und eine Beschriftung hülfe nur, wenn jede Operation, die ein Kunde
 als Vorgang sieht, eine hätte.
+
+### Der Bruchlauf lud für jede Prüfung die ganze Suite
+
+Gefragt hat der Betreiber nach der Dauer. Der Wächterlauf brauchte am
+10. Oktober 46 und 49 Minuten bei einer Grenze von sechzig. Jede Prüfung lief
+über `phpunit.xml`: PHPUnit lud alle 527 Testdateien, rief jeden
+Datenlieferanten und baute 4028 Fälle, bevor der Filter einen davon nahm.
+Gemessen an 40 zufällig gezogenen Prüfungen waren es 23,6 s über die Suite und
+8,4 s mit der Datei. Der Preis wuchs damit von beiden Seiten: Jeder neue
+Wächter machte jede Prüfung teurer, und jeder neue Eingriff brachte Prüfungen
+dazu.
+
+> **Ein Aufruf, der das Ganze lädt, um ein Stück zu fahren, wird mit dem Ganzen
+> teurer — und das Ganze wächst mit jedem Stück.**
+
+`pruefe` in `tests/waechter-brechen.sh` gibt PHPUnit seitdem die Datei der
+Klasse mit, die der Filter nennt. Gesucht wird sie an denselben zwei Orten, an
+denen `BreakScriptTest` jedes Ziel nachsieht, und findet sich keine, läuft die
+Suite wie vorher. `BreakScriptTest::test_every_check_hands_phpunit_the_file_of_its_case`
+hält die Form. In der CI auf demselben Stand dauert der Schritt **13 Minuten
+20 Sekunden statt 46,5**, also 0,24 s je Prüfung statt 0,83, und jede der 3360
+Prüfungen kam wie erwartet.
+
+**Ein Filter trifft seitdem nur seine eigene Klasse.** Über die Suite war er
+ein Ausdruck über jeden Testnamen: `IconTest` traf auch `NavIconTest` und
+`ActionIconTest`, `CommandReachTest` auch `DbCommandReachTest`. Die Urteile
+sind dieselben geblieben.
+
+**Die Grenze in `waechter.yml` steht wieder auf dreissig Minuten**, gerechnet
+wie am 15. September, nur gegen den neuen Preis: Mit dem langsamsten Lauf vom
+September gerechnet tragen dreissig Minuten rund 70 Tage. Die Rechnung von
+damals sagte für sechzig Minuten zwei Monate und hielt knapp vier Wochen, weil
+der Preis je Prüfung mit der Suite wuchs.
+
+> **Eine Hochrechnung über eine Grösse, die selbst wächst, rechnet mit dem Wert
+> von heute und wird von dem von morgen überholt.**
+
+Die Teilung auf parallele Jobs, gemessen am 15. September und nie entschieden,
+ist damit vom Tisch. Sie hätte die Wanduhr geteilt und den Preis je Prüfung
+stehen lassen.

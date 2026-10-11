@@ -1453,9 +1453,12 @@ onBeforeUnmount(() => {
     transform: none;
   }
 
-  .band {
-    flex-wrap: wrap;
-  }
+  /*
+   * Hier stand bis zum 11. Oktober 2026 `.band { flex-wrap: wrap; }`. Es
+   * erreichte nur das Band der fremden Sicht und nicht die Vorgänge aus
+   * `OperationBand.vue`; die Regel steht seitdem in `app.css` unter `.band`,
+   * für jede Breite und jedes Band.
+   */
 
   /*
    * Die sichere Fläche trägt die **Hülle** und nicht mehr das erste Band.

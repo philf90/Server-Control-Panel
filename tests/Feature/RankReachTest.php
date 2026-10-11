@@ -94,10 +94,24 @@ final class RankReachTest extends TestCase
      *
      * Gefunden hat der Wächter dabei trotzdem etwas Echtes: `.band.ok` hatte
      * nach dem Umbau wirklich keinen Erzeuger mehr und ist fort.
+     *
+     * **Und am 21. September bekam sie einen, den dieser Wächter nicht
+     * kannte.** B8 setzt im Streifen der laufenden Vorgänge `ok` für einen
+     * gelungenen Vorgang (`rang()` in `OperationBand.vue`). Die Regel kam nicht
+     * zurück, und hätte sie jemand geschrieben, hätte dieser Fall sie als tot
+     * abgewiesen. Drei Wochen lang stand ein fertiger Vorgang ohne Grund und
+     * ohne Farbe da (`docs/144 §6a`). Die Erzeuger zählen seitdem `rang()` mit.
+     *
+     * > **Ein Wächter, der die Erzeuger einer Regel aufzählt, weist die Regel
+     * > ab, die ein neuer Erzeuger braucht.**
      */
     public function test_every_band_rule_belongs_to_a_rank(): void
     {
-        $erzeugt = array_unique(array_merge($this->announcementRanks(), $this->woertlicheBandKlassen()));
+        $erzeugt = array_unique(array_merge(
+            $this->announcementRanks(),
+            $this->operationBandRanks(),
+            $this->woertlicheBandKlassen(),
+        ));
         $css = $this->css();
 
         preg_match_all('/^\.band\.([a-z-]+)\s*\{/m', $css, $treffer);
@@ -114,14 +128,76 @@ final class RankReachTest extends TestCase
                 $erzeugt,
                 sprintf(
                     'app.css hat eine Regel `.band.%s`, und niemand erzeugt diese Klasse.'."\n".
-                    'Erzeuger sind AnnouncementCategory::badge() über Bands.vue und die wörtlichen '.
-                    '`class="band …"` in den Vorlagen. So entsteht ein toter Eintrag wirklich: Bei einer '.
+                    'Erzeuger sind AnnouncementCategory::badge() über Bands.vue, rang() in '.
+                    'OperationBand.vue und die wörtlichen `class="band …"` in den Vorlagen. Wer einen '.
+                    'vierten baut, trägt ihn hier ein. So entsteht ein toter Eintrag wirklich: Bei einer '.
                     'Umbenennung trägt man den neuen Namen nach, die andere Richtung ist wieder grün, '.
                     'und der alte bleibt liegen.',
                     $rang,
                 ),
             );
         }
+    }
+
+    /**
+     * Jeder Rang des Streifens der laufenden Vorgänge hat seine Regel.
+     *
+     * Dieselbe Frage wie für die Ankündigungen, an einem zweiten Erzeuger:
+     * `OperationBand.vue` setzt `:class="rang(vorgang.status)"`, also einen
+     * **Ausdruck**, den `ClassReachTest` nicht auflösen kann. Ohne diesen Fall
+     * stand `ok` drei Wochen ohne Regel da — gemessen am 11. Oktober 2026 mit
+     * dem Grund `rgba(0, 0, 0, 0)` und der Schriftfarbe der Seite.
+     */
+    public function test_every_rank_of_the_operation_band_has_a_rule(): void
+    {
+        $raenge = $this->operationBandRanks();
+        $css = $this->css();
+
+        $this->assertGreaterThan(
+            2,
+            count($raenge),
+            'Aus rang() in OperationBand.vue kommen kaum Ränge — dann prüft dieser Test nichts, '.
+            'und der Ausdruck, der sie liest, greift ins Leere.',
+        );
+
+        foreach ($raenge as $rang) {
+            $this->assertMatchesRule(
+                $css,
+                'band',
+                $rang,
+                sprintf(
+                    'rang() in OperationBand.vue gibt „%s" zurück, und app.css hat keine Regel `.band.%s`.'."\n".
+                    'Ein Vorgang in diesem Zustand steht dann ohne Grund und in der Schriftfarbe der Seite im '.
+                    'Streifen — sichtbar nur zwei Minuten lang und nur für den, der ihn ausgelöst hat.',
+                    $rang,
+                    $rang,
+                ),
+            );
+        }
+    }
+
+    /**
+     * Die Rückgabewerte von `rang()` in `OperationBand.vue`.
+     *
+     * Gelesen wird der Rumpf der Funktion bis zur schliessenden Klammer am
+     * Zeilenanfang und darin jedes `return '…'` — die Funktion ist eine Kette
+     * von Bedingungen, und jede gibt eine Zeichenkette zurück.
+     *
+     * @return list<string>
+     */
+    private function operationBandRanks(): array
+    {
+        $quelle = (string) file_get_contents(
+            dirname(__DIR__, 2).'/resources/js/Components/OperationBand.vue',
+        );
+
+        if (preg_match('/function\s+rang\s*\([^)]*\)\s*:\s*string\s*\{(.*?)\n\}/s', $quelle, $rumpf) !== 1) {
+            return [];
+        }
+
+        preg_match_all("/return\s+'([a-z-]+)'/", $rumpf[1], $treffer);
+
+        return array_values(array_unique($treffer[1]));
     }
 
     /**

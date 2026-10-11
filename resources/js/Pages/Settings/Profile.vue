@@ -8,13 +8,14 @@
  * Formulare statt eines — ein gemeinsames „Speichern" über beidem hiesse, dass
  * ein Tippfehler im Namen einen Passwortwechsel mitschleppt.
  */
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
 import PasswordFields from '../../Components/PasswordFields.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import FormErrors from '../../Components/FormErrors.vue'
+import { useConfirmation } from '../../Composables/useConfirmation'
 
 declare global {
   interface Window {
@@ -106,6 +107,28 @@ const frischeMarke = computed(
 
 function markeAnlegen(): void {
   marke.post('/settings/tokens', { onSuccess: () => marke.reset() })
+}
+
+const { ask } = useConfirmation()
+
+/*
+ * **Mit Rückfrage, wie beim SSH-Schlüssel** (`docs/144 §0` Befund 3).
+ *
+ * Bis zum 11. Oktober 2026 stand hier ein `<Link method="delete">` — der
+ * einzige dieses Panels, und er schickte die Anfrage beim Klick ab, ohne dass
+ * jemand fragen konnte. Zurückholen lässt sich eine Marke nicht, ihr Klartext
+ * ist nirgends abgelegt. Wer sich verklickt, legt eine neue an und trägt sie in
+ * jedem Programm neu ein; ein SSH-Schlüssel, dieselbe Art Ding, fragt seit P6.
+ *
+ * Kein `confirm()`: Safari darf die Dialoge einer Seite abschalten, und danach
+ * tut der Knopf wortlos nichts. `BrowserDialogTest` besteht darauf.
+ */
+function markeEntfernen(eintrag: { id: number; name: string }): void {
+  ask(
+    `Die Zugangsmarke „${eintrag.name}“ entfernen?\n\nJedes Programm, das sie benutzt, bekommt danach 401.`,
+    'Entfernen',
+    () => router.delete(`/settings/tokens/${eintrag.id}`, { preserveScroll: true }),
+  )
 }
 
 function saveTheme(wahl: 'dark' | 'light' | null): void {
@@ -295,7 +318,18 @@ function savePassword(): void {
           Was dort steht, landet im Zugriffsprotokoll.
         </p>
 
-        <form class="form" @submit.prevent="markeAnlegen">
+        <!--
+          **In fremder Sicht nur die Liste** (`docs/144 §0` Befund 2,
+          entschieden vom Betreiber am 11. Oktober 2026). Wer einem Kunden
+          hilft, sieht, ob es eine Marke gibt und wann sie zuletzt benutzt
+          wurde; anlegen und entfernen kann er sie nicht, denn der Server weist
+          beides in fremder Sicht ab. Bis dahin standen Formular und
+          „Entfernen" da, und ein Klick endete mit 403 und einem Eintrag im
+          Protokoll, der ihn einen selbst gestellten Versuch nannte.
+          `ImpersonationControlTest` hält das für jede Handlung, die
+          `ProfileController` in fremder Sicht abweist.
+        -->
+        <form v-if="!props.impersonating" class="form" @submit.prevent="markeAnlegen">
           <label class="field">
             <span>Bezeichnung</span>
             <input v-model="marke.name" type="text" name="name" maxlength="64" required>
@@ -315,7 +349,7 @@ function savePassword(): void {
               <th>Anfang</th>
               <th>Zuletzt benutzt</th>
               <th>Angelegt</th>
-              <th></th>
+              <th v-if="!props.impersonating"></th>
             </tr>
           </thead>
           <tbody>
@@ -324,14 +358,8 @@ function savePassword(): void {
               <td data-column="Anfang" class="ident">{{ eintrag.preview }}…</td>
               <td data-column="Zuletzt benutzt">{{ eintrag.last_used_at ?? 'nie' }}</td>
               <td data-column="Angelegt">{{ eintrag.created_at ?? '—' }}</td>
-              <td class="right">
-                <Link
-                  :href="`/settings/tokens/${eintrag.id}`"
-                  method="delete"
-                  as="button"
-                  type="button"
-                  class="button small danger"
-                >Entfernen</Link>
+              <td v-if="!props.impersonating" class="right">
+                <button type="button" class="button small danger" @click="markeEntfernen(eintrag)">Entfernen</button>
               </td>
             </tr>
           </tbody>

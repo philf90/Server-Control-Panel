@@ -5727,6 +5727,22 @@ td.text {
  */
 .band {
   display: flex;
+
+  /*
+   * **Die Zeile darf umbrechen, und zwar hier und nicht im Layout.** Bis zum
+   * 11. Oktober 2026 stand `flex-wrap: wrap` im `<style scoped>` von
+   * `PanelLayout` und erreichte nur das Band, das in dessen eigener Vorlage
+   * steht — die fremde Sicht. Der Streifen der Vorgänge kommt aus einer
+   * Kindkomponente mit mehreren Wurzeln, und die trägt das Merkmal der
+   * gescopten Regel nicht. Gemessen bei 390 px (`docs/144 §0` Befund 1): Das
+   * Band der fremden Sicht brach um, die Vorgänge nicht — dort schrumpfte
+   * „ansehen" auf ein Zeichen Breite und stand in sechs Zeilen, bei einem
+   * fehlgeschlagenen Vorgang in sieben, und das Band war 167 px hoch.
+   *
+   * > **Eine gescopte Regel erreicht die Wurzel einer Kindkomponente nur, wenn
+   * > sie eine hat — bei mehreren Wurzeln erreicht sie keine.**
+   */
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -5820,6 +5836,60 @@ td.text {
   color: var(--info);
   background: var(--info-surface);
   border-color: var(--info);
+}
+
+/*
+ * Ein fertiger Vorgang im Streifen der laufenden Vorgänge (B8).
+ *
+ * **Den Rang gab es, die Regel nicht.** `OperationBand.vue` setzt für einen
+ * gelungenen Vorgang `ok`, denselben Ausdruck wie die Vorgangsseite, und
+ * `docs/132` schreibt es so vor. Bis zum 11. Oktober 2026 stand hier keine
+ * Regel dafür: Das Band hatte keinen Grund, die Schrift trug die Farbe der
+ * Seite, und der Rand die der Schrift. Gemessen hat es die Vorabmessung zu
+ * `docs/144`, gesehen hat es niemand — das Bild war auf den Umbruch hin
+ * angesehen worden.
+ *
+ * > **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage —
+ * > und verdeckt alles, was daneben steht.**
+ *
+ * `ClassReachTest` konnte es nicht sehen, weil die Klasse als Ausdruck kommt
+ * (`:class="rang(vorgang.status)"`), und `RankReachTest` kannte `rang()` nicht
+ * als Erzeuger. Er hatte diese Regel im September als tot gemeldet, als
+ * niemand sie erzeugte, und B8 kam danach. Seitdem hält er auch die
+ * Rückgabewerte von `rang()` gegen diese Regeln, in beide Richtungen.
+ *
+ * > **Ein Wächter, der die Erzeuger einer Regel aufzählt, weist die Regel ab,
+ * > die ein neuer Erzeuger braucht.**
+ */
+.band.ok {
+  color: var(--ok);
+  background: var(--ok-surface);
+  border-color: var(--ok);
+}
+
+/*
+ * **Die Handgriffe eines Bandes schrumpfen nicht, und der erste schiebt sie
+ * nach rechts.**
+ *
+ * `overflow-wrap: anywhere` erlaubt jedem Flexkind, bis auf ein Zeichen
+ * Breite zu schrumpfen — für den Text ist das gewollt, für „ansehen" nicht.
+ * Ohne `flex: none` gab der Verweis die Breite her, während der Knopf daneben
+ * seine behielt.
+ *
+ * Der erste Handgriff nach dem Text trägt den Abstand nach links, damit er und
+ * alles danach rechts steht — auch dann, wenn er in eine eigene Zeile bricht.
+ * Mit `space-between` allein stünde ein einzelner Handgriff dort links unter
+ * dem Text, und bei 1440 px stand „Seite aktualisieren" in der Mitte des
+ * Bandes.
+ */
+.band > .button,
+.band > .link {
+  flex: none;
+}
+
+.band > span + .button,
+.band > span + .link {
+  margin-left: auto;
 }
 
 /*

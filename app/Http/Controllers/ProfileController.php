@@ -331,8 +331,18 @@ final class ProfileController extends Controller
      * Versuch protokollieren.
      *
      * Protokolliert, weil ein Versuch an dieser Stelle keine Ungeschicklichkeit
-     * ist: Die Oberfläche zeigt in diesem Zustand kein Formular. Wer hier
-     * ankommt, hat die Anfrage selbst gestellt.
+     * ist: Die Oberfläche bietet in diesem Zustand keine dieser Handlungen an.
+     * Wer hier ankommt, hat die Anfrage selbst gestellt.
+     *
+     * **Bis zum 11. Oktober 2026 stimmte der Satz für die Zugangsmarken nicht**
+     * (`docs/144 §0` Befund 2). Formular und „Entfernen" standen in fremder
+     * Sicht da, und ein Klick darauf wurde hier als selbst gestellter Versuch
+     * gebucht. Geschrieben war der Satz für die Formulare, die es gab, als er
+     * entstand; die Marken kamen mit B7 danach. `ImpersonationControlTest`
+     * hält ihn seitdem für jede Handlung, die hier abgewiesen wird.
+     *
+     * > **Eine Begründung, die ein Formular für abwesend erklärt, gilt für die
+     * > Formulare, die es gab, als sie geschrieben wurde.**
      */
     private function refuseWhileImpersonating(Request $request, Audit $audit, string $action): void
     {

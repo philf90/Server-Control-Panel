@@ -40869,6 +40869,241 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RetiredReasonTest passed
 
 echo
+echo "── BandHandleTest: ein Band bricht nicht mehr um ──"
+#
+# docs/144 §0 Befund 1: Ohne Umbruch schrumpft bei 390 px, was schrumpfen
+# darf, und mit overflow-wrap: anywhere darf das jedes Kind bis auf ein
+# Zeichen. "ansehen" stand im Streifen der Vorgaenge in sechs Zeilen.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '  flex-wrap: wrap;\n  align-items: center;\n  justify-content: space-between;\n  gap: 16px;\n  padding: 10px 24px;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace('  flex-wrap: wrap;\n', ''), 1))
+PY2
+griff_datei resources/css/app.css "ein Band bricht nicht um" &&
+pruefe "ein Band bricht nicht um" \
+  BandHandleTest::test_a_band_may_wrap failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandHandleTest passed
+
+echo
+echo "── BandHandleTest: ein Handgriff im Band schrumpft wieder ──"
+#
+# Die zweite Haelfte desselben Befunds: Das Band darf umbrechen, aber der
+# Verweis gibt seine Breite her, bevor die Zeile bricht.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.band > .button,\n.band > .link {\n  flex: none;\n}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace('flex: none;', 'flex: 0 1 auto;'), 1))
+PY2
+griff_datei resources/css/app.css "ein Handgriff schrumpft" &&
+pruefe "ein Handgriff schrumpft" \
+  BandHandleTest::test_a_handle_in_a_band_does_not_shrink failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandHandleTest passed
+
+echo
+echo "── BandHandleTest: der erste Handgriff bleibt links ──"
+#
+# Mit space-between allein steht ein einzelner Handgriff in einer
+# umgebrochenen Zeile links unter dem Text, und bei 1440 px stand
+# "Seite aktualisieren" in der Mitte des Bandes.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.band > span + .button,\n.band > span + .link {\n  margin-left: auto;\n}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace('margin-left: auto;', 'margin-left: 0;'), 1))
+PY2
+griff_datei resources/css/app.css "der erste Handgriff bleibt links" &&
+pruefe "der erste Handgriff bleibt links" \
+  BandHandleTest::test_the_first_handle_after_the_text_goes_right failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandHandleTest passed
+
+echo
+echo "── BandHandleTest: das Layout bricht seine Baender wieder selbst um ──"
+#
+# So stand es bis zum 11. Oktober 2026: flex-wrap im style scoped von
+# PanelLayout, und es erreichte nur das Band der fremden Sicht.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = '  .rail.open {\n    transform: none;\n  }\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt + '\n  .band {\n    flex-wrap: wrap;\n  }\n', 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "gescopter Umbruch im Layout" &&
+pruefe "gescopter Umbruch im Layout" \
+  BandHandleTest::test_no_template_wraps_a_band_on_its_own failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandHandleTest passed
+
+echo
+echo "── RankReachTest: ein fertiger Vorgang verliert seinen Rang ──"
+#
+# Der fuenfte Befund aus docs/144 §6a: rang() in OperationBand.vue setzt ok,
+# und app.css hatte keine Regel dafuer. Der Vorgang stand ohne Grund und in
+# der Schriftfarbe der Seite im Streifen.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.band.ok {\n  color: var(--ok);\n  background: var(--ok-surface);\n  border-color: var(--ok);\n}\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/css/app.css "fertiger Vorgang ohne Rang" &&
+pruefe "fertiger Vorgang ohne Rang" \
+  RankReachTest::test_every_rank_of_the_operation_band_has_a_rule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RankReachTest passed
+
+echo
+echo "── RankReachTest: der Streifen setzt einen Rang ohne Regel ──"
+#
+# Dieselbe Frage von der anderen Seite: Der Erzeuger bekommt einen Rang dazu,
+# den app.css nicht kennt. So waere der Fall entstanden, wenn B8 ok nicht von
+# der Vorgangsseite uebernommen, sondern erfunden haette.
+vorher_datei resources/js/Components/OperationBand.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/OperationBand.vue'
+s = open(p, encoding='utf-8').read()
+alt = "  return 'info'\n}"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "  return 'neutral'\n}", 1))
+PY2
+griff_datei resources/js/Components/OperationBand.vue "Rang ohne Regel" &&
+pruefe "Rang ohne Regel" \
+  RankReachTest::test_every_rank_of_the_operation_band_has_a_rule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RankReachTest passed
+
+echo
+echo "── ImpersonationControlTest: das Formular der Marken steht in fremder Sicht ──"
+#
+# docs/144 §0 Befund 2: Ein Klick auf "Marke anlegen" in fremder Sicht endete
+# mit 403 und einem Eintrag, der ihn einen selbst gestellten Versuch nannte.
+vorher_datei resources/js/Pages/Settings/Profile.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Profile.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<form v-if="!props.impersonating" class="form" @submit.prevent="markeAnlegen">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<form class="form" @submit.prevent="markeAnlegen">', 1))
+PY2
+griff_datei resources/js/Pages/Settings/Profile.vue "Formular in fremder Sicht" &&
+pruefe "Formular in fremder Sicht" \
+  ImpersonationControlTest::test_every_refused_action_is_withheld_in_foreign_view failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ImpersonationControlTest passed
+
+echo
+echo "── ImpersonationControlTest: Entfernen steht in fremder Sicht ──"
+#
+# Die zweite Handlung derselben Liste. Ein Waechter, der nur das Formular
+# kennte, liesse diese Zelle stehen.
+vorher_datei resources/js/Pages/Settings/Profile.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Profile.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<td v-if="!props.impersonating" class="right">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<td class="right">', 1))
+PY2
+griff_datei resources/js/Pages/Settings/Profile.vue "Entfernen in fremder Sicht" &&
+pruefe "Entfernen in fremder Sicht" \
+  ImpersonationControlTest::test_every_refused_action_is_withheld_in_foreign_view failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ImpersonationControlTest passed
+
+echo
+echo "── ImpersonationControlTest: die Darstellung ist in fremder Sicht nicht gesperrt ──"
+#
+# Die dritte Form, in der eine Seite eine Handlung zurueckhaelt: gesperrt und
+# nicht verborgen. Der Waechter muss sie kennen, sonst meldete er die
+# Darstellung, die richtig gebaut ist.
+vorher_datei resources/js/Pages/Settings/Profile.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Profile.vue'
+s = open(p, encoding='utf-8').read()
+alt = ':disabled="darstellung.processing || props.impersonating"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, ':disabled="darstellung.processing"', 1))
+PY2
+griff_datei resources/js/Pages/Settings/Profile.vue "Darstellung in fremder Sicht" &&
+pruefe "Darstellung in fremder Sicht" \
+  ImpersonationControlTest::test_every_refused_action_is_withheld_in_foreign_view failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ImpersonationControlTest passed
+
+echo
+echo "── DangerRankTest: ein Verweis entfernt wieder ohne Frage ──"
+#
+# docs/144 §0 Befund 3: Ein Link mit method="delete" schickt beim Klick ab,
+# und davor laesst sich nicht fragen. Dieser Waechter las nur button-Tags und
+# sah ihn nicht.
+vorher_datei resources/js/Pages/Settings/Profile.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Profile.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<button type="button" class="button small danger" @click="markeEntfernen(eintrag)">Entfernen</button>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '<Link href="/settings/tokens" method="delete" as="button" type="button" class="button small danger">Entfernen</Link>'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Settings/Profile.vue "Verweis mit Methode" &&
+pruefe "Verweis mit Methode" \
+  DangerRankTest::test_no_link_sends_a_request_of_its_own failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DangerRankTest passed
+
+echo
+echo "── ShippedFileTest: die Beschreibung von v1 faellt aus dem Paket ──"
+#
+# docs/144 §0 Befund 4: Seit 0.9.0-rc.1 fehlte die Beschreibung im Paket,
+# weil build.sh docs nicht mitnahm; ohne sie gibt /api/v1/openapi.yaml 404.
+vorher_datei packaging/build.sh
+python3 - <<'PY2'
+p = 'packaging/build.sh'
+s = open(p, encoding='utf-8').read()
+alt = ' docs/openapi-v1.yaml lang '
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, ' lang ', 1))
+PY2
+griff_datei packaging/build.sh "Beschreibung nicht im Paket" &&
+pruefe "Beschreibung nicht im Paket" \
+  ShippedFileTest::test_every_file_the_app_reads_is_shipped failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ShippedFileTest passed
+
+echo
+echo "── ShippedFileTest: die Anwendung liest eine Datei, die es nicht gibt ──"
+#
+# Die andere Richtung derselben Frage: Ein umbenannter Pfad liegt unter
+# keinem Eintrag und im Repo nirgends. Ohne die Pruefung auf das Dasein haette
+# ein Eintrag "docs" alles gedeckt, auch eine Datei, die fehlt.
+vorher_datei app/Http/Controllers/Api/SpecController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/Api/SpecController.php'
+s = open(p, encoding='utf-8').read()
+alt = "public const PATH = 'docs/openapi-v1.yaml';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "public const PATH = 'docs/openapi-v2.yaml';", 1))
+PY2
+griff_datei app/Http/Controllers/Api/SpecController.php "eine Datei, die es nicht gibt" &&
+pruefe "eine Datei, die es nicht gibt" \
+  ShippedFileTest::test_every_file_the_app_reads_is_shipped failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ShippedFileTest passed
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

@@ -34378,3 +34378,42 @@ Ende ist; gemessen im Chromium: offen 0, geschlossen 1.
 
 `TickProbeTest` hält alle drei, jeder Fall mit einem Eingriff im Bruchskript,
 rot und zurück grün belegt.
+
+### Die vier Befunde vor dem Lauf für B7 und B8 sind behoben — und ein fertiger Vorgang hatte keinen Rang
+
+Der Betreiber hat die vier Fragen aus `docs/144 §0` am 11. Oktober 2026
+entschieden, alle wie vorgeschlagen. Gebaut ist alles für `0.9.0-rc.17`; die
+Messungen vorher und nachher stehen in `docs/144 §6a`.
+
+- **Der Streifen der laufenden Vorgänge bricht bei 390 px um**, statt
+  „ansehen" Buchstabe für Buchstabe zu stapeln. `.band` darf seitdem in
+  `app.css` umbrechen, bei jeder Breite; Knöpfe und Verweise darin schrumpfen
+  nicht, und der erste nach dem Text steht rechts. Ein fertiger Vorgang ist
+  bei 390 px 122 px hoch statt 146, „ansehen" steht in einer Zeile statt in
+  sechs. Das Umbrechen stand bis dahin im `<style scoped>` von `PanelLayout`
+  und erreichte die Vorgänge nicht: `OperationBand.vue` hat mehrere Wurzeln,
+  und eine gescopte Regel erreicht dann keine davon.
+- **Ein fertiger Vorgang hat wieder einen Rang.** `.band.ok` fehlte seit B8,
+  und das Band stand ohne Grund in der Schriftfarbe der Seite. Am 9. September
+  hatte `RankReachTest` die Regel als tot gemeldet, als niemand sie erzeugte;
+  `rang()` in `OperationBand.vue` kannte er nicht, und jetzt kennt er es.
+- **In fremder Sicht stehen die Zugangsmarken als Liste da**, ohne Formular
+  und ohne „Entfernen". Wer einem Kunden hilft, sieht, ob es eine Marke gibt
+  und wann sie zuletzt benutzt wurde. Bis dahin endete ein Klick auf „Marke
+  anlegen" mit 403 und einer Zeile `denied`, die ihn einen selbst gestellten
+  Versuch nannte.
+- **Eine Marke wird erst nach einer Rückfrage entfernt**, wie ein
+  SSH-Schlüssel.
+- **Die OpenAPI-Beschreibung liegt im Paket.** `docs/openapi-v1.yaml` steht in
+  der Positivliste von `packaging/build.sh`; seit `0.9.0-rc.1` fehlte sie dort,
+  und ohne sie gibt `/api/v1/openapi.yaml` 404.
+
+Drei neue Wächter und zwei erweiterte, mit zwölf Eingriffen im Bruchskript:
+`BandHandleTest`, `ImpersonationControlTest` und `ShippedFileTest` sind neu.
+`RankReachTest` zählt `rang()` als Erzeuger, und `DangerRankTest` verlangt,
+dass kein `<Link>` eine Anfrage ausser GET schickt. Er las bis dahin nur
+`<button>`, und der Verweis an der Marke sah aus wie ein roter Knopf, ohne
+einer zu sein.
+
+> **Ein Wächter, der die Erzeuger einer Regel aufzählt, weist die Regel ab,
+> die ein neuer Erzeuger braucht.**

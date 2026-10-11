@@ -24,10 +24,11 @@ mit Marken aus dem echten Formular, gegen eine eigene SQLite-Datenbank unter
 eine Zeile daraus oder sagt, warum nicht.
 
 **Beim Ausschreiben sind vier Befunde am Prüfling herausgefallen** (§0) und
-sieben Punkte an der Vorschrift und am Messmittel. Über die vier entscheidet
-der Betreiber (§0, die Fragen). Die Kriterien berühren sie nicht: Gefahren
-werden kann gegen `rc.16`. Wird vorher behoben, wird gegen die Freigabe
-gefahren, die die Behebung trägt, und die Punkte, die sie zeigen, laufen mit.
+sieben Punkte an der Vorschrift und am Messmittel. Der Betreiber hat die vier
+am selben Tag entschieden, alle wie vorgeschlagen, und behoben sind sie für
+`0.9.0-rc.17` — zusammen mit einem fünften, der beim Beheben herausfiel
+(§6a). Die Kriterien berühren sie nicht. **Gefahren wird gegen die Freigabe,
+die die Behebungen trägt**; Block 0, A4, A7, A8 und B8 zeigen sie.
 
 **Der Lauf braucht einen Nachmittag.** Teil A (B7) läuft auf dem Server und in
 einem privaten Fenster, Teil B (B8) im Browser des Betreibers am Schreibtisch,
@@ -126,10 +127,11 @@ mit offener Konsole. Zwischen beiden muss keine Zeit vergehen.
 | **3** | Entfernen ohne Rückfrage | **a** — eine Rückfrage wie beim SSH-Schlüssel. b — lassen. |
 | **4** | Die Beschreibung im Paket | **a** — `docs/openapi-v1.yaml` kommt in die Positivliste von `build.sh`, und ein Wächter hält, dass jede Datei, die `app/` über `base_path()` liest, unter einem Teil liegt, den das Paket mitnimmt. b — lassen. |
 
-**Was die Antworten am Lauf ändern:** Wird vorher behoben, wird gegen die
-Freigabe gefahren, die die Behebung trägt, und A4, A7, A8 und B8 zeigen sie.
-Wird danach oder gar nicht behoben, zeigen dieselben Punkte unter `rc.16` die
-Befunde, und das Protokoll hält sie fest.
+**Entschieden am 11. Oktober 2026: 1a, 2a, 3a und 4a**, alle wie
+vorgeschlagen. Gebaut ist alles für `0.9.0-rc.17`; was dabei anders lief als
+im Vorschlag und wie es gemessen ist, steht in §6a. Die Befunde oben stehen so
+da, wie sie vor dem Bau gemessen waren. Gefahren wird gegen die Freigabe mit
+den Behebungen, und Block 0, A4, A7, A8 und B8 zeigen sie.
 
 ### Sieben Punkte an der Vorschrift und am Messmittel
 
@@ -263,14 +265,14 @@ printf("Cache: %s · Drosselung api/v1: %d je Minute\n", config("cache.default")
 grep -E '^(EA|FA|ED|FD|NA)=[0-9]+$' /root/b78-block0.txt > /root/b78-kennungen.sh
 printf 'Kennungen in der Datei: %s von 5\n' "$(wc -l < /root/b78-kennungen.sh)"
 printf 'Zugriffsprotokoll des Panels: %s Zeilen · jq: %s\n' "$(wc -l < /var/log/srvpanel/panel-access.log)" "$(command -v jq || echo FEHLT)"
-ls -d /opt/srvpanel/current/docs 2>&1
+ls /opt/srvpanel/current/docs 2>&1
 systemctl is-active srvpanel-worker.service srvpanel-agentd.service
 ```
 
 **Erwartet**, Zeile für Zeile:
 
 ```
-0.9.0-rc.16
+0.9.0-rc.17
 Konto 6 · customer · active · Kunde <k>
   eigene Abonnements: <n> — 140 p6-abnahme.invalid (active)[, …]
   eigene Domains: <m> — 54 p6-abnahme.invalid[, …]
@@ -287,11 +289,14 @@ Kunden ohne Abonnement: <z>
 Cache: database · Drosselung api/v1: 60 je Minute
 Kennungen in der Datei: 5 von 5
 Zugriffsprotokoll des Panels: <n> Zeilen · jq: /usr/bin/jq
-ls: cannot access '/opt/srvpanel/current/docs': No such file or directory
+openapi-v1.yaml
 active
 active
 ```
 
+- **`0.9.0-rc.17`** ist die Freigabe mit den Behebungen aus §6a. Steht dort
+  eine ältere, gelten für A4, A7, A8 und B8 die Befunde aus §0 und nicht die
+  Erwartungen hier; gefahren wird gegen die neue.
 - **`EA=140` und `ED=54`** sind das Abonnement des Prüfstands und seine
   Hauptdomain, wie in `docs/143`. Die erste fremde Kennung ist die kleinste,
   die nicht dem Kunden von Konto 6 gehört. `137 p6-b.invalid` ist eine; ob sie
@@ -303,8 +308,9 @@ active
 - **„Kunden ohne Abonnement"** wird abgeschrieben. Nach A3 ist es einer mehr,
   nach A9 wieder dieselbe Zahl.
 - **`Cache: database`** trägt A5: Die Drosselung zählt in der Datenbank.
-- **`No such file or directory`** unter `docs` ist Befund 4 auf dem Server.
-  Trägt die Freigabe die Behebung, steht dort der Pfad.
+- **`openapi-v1.yaml`** unter `docs`, und nur sie, ist die Behebung von
+  Befund 4 auf dem Server (§6a). Unter `rc.16` stand dort `No such file or
+  directory`; das Verzeichnis gab es im Paket nicht.
 
 ### Block H — die Werkzeuge
 
@@ -424,12 +430,12 @@ denn Inertia lädt dabei das Dokument nicht neu.
 ## §2 · Prüfkörper und Reihenfolge
 
 - **Die Marke von Konto 6**, `b7-abnahme`, angelegt in A1 und entfernt in A7.
-- **Ein Wegwerfkunde „B7 Leer"** ohne Abonnement, angelegt in A3 und
-  zurückgezogen in A9. Vertrags- und Anmeldeadresse `b7-leer@b7.invalid`,
-  reserviert nach RFC 2606; eine Mail ginge an niemanden, und das Anlegen
-  verschickt keine (gelesen am `CustomerController`). Zurück bleibt sein
-  Grabstein mit einer verbrauchten Kundennummer, wie bei jedem zurückgezogenen
-  Kunden.
+- **Ein Wegwerfkunde „B7 Leer"** ohne Abonnement, angelegt in A3, in A8 der
+  Kunde, in dessen Sicht der Betreiber wechselt, und zurückgezogen in A9.
+  Vertrags- und Anmeldeadresse `b7-leer@b7.invalid`, reserviert nach
+  RFC 2606; eine Mail ginge an niemanden, und das Anlegen verschickt keine
+  (gelesen am `CustomerController`). Zurück bleibt sein Grabstein mit einer
+  verbrauchten Kundennummer, wie bei jedem zurückgezogenen Kunden.
 - **Drei Paketauffrischungen** aus `/updates` in Teil B, mit B8 vier. Und **eine Sicherung**
   von `p6-abnahme.invalid`, wenn B7 gefahren wird; die Aufbewahrung nimmt sie
   in der Nacht mit wie jede andere.
@@ -576,22 +582,18 @@ api 'srvp_000000000000000000000000000000000000000000000000' /api/v1/me
 api '' /api/v1/openapi.yaml
 ```
 
-**Erwartet** unter `rc.16`:
+**Erwartet:**
 
 ```
 401 · application/json · {"message":"Unauthenticated."}
 401 · application/json · {"message":"Unauthenticated."}
-404 · application/json · {     "message": "" }
-```
-
-Die dritte Zeile ist Befund 4: Die Beschreibung liegt nicht im Paket. Trägt
-die Freigabe die Behebung, steht dort
-
-```
 200 · application/yaml; charset=utf-8 · # Die Beschreibung von API v1 (B7, `docs/131 §5`). # # **Von Hand gepflegt, und gegen die Routen gehalten.** `OpenApiReachTest` # prüft beide Richtungen: Jede
 ```
 
-— im Container gemessen, Zeichen für Zeichen.
+Die dritte Zeile ist die Behebung von Befund 4 (§6a), im Container gemessen,
+Zeichen für Zeichen. Unter `rc.16` stand dort
+`404 · application/json · {     "message": "" }`: Die Beschreibung lag nicht im
+Paket, und die Antwort hatte nicht einmal einen Text.
 
 ### A5 — Die Drosselung, und was sie kostet
 
@@ -701,12 +703,32 @@ Geschrieben wird sie höchstens einmal je Minute
 (`ApiToken::USAGE_RESOLUTION_SECONDS`); auf die Sekunde gleich mit der letzten
 Anfrage muss sie deshalb nicht sein. Die Marke von B7 Leer steht ebenfalls da.
 
-Dann in der Zeile `b7-abnahme` **„Entfernen"**. Unter `rc.16` entfernt der
-Klick ohne Rückfrage (Befund 3); trägt die Freigabe die Behebung, kommt
-zuerst die Frage.
+Dann in der Zeile `b7-abnahme` **„Entfernen"**. Oben steht danach die
+Rückfrage (Befund 3, §6a): *Die Zugangsmarke „b7-abnahme“ entfernen?*, darunter
+*Jedes Programm, das sie benutzt, bekommt danach 401.*, mit den Knöpfen
+„Entfernen" in Rot und „Abbrechen". Zuerst **„Abbrechen"**:
 
 ```bash
-# A7b · Die entfernte Marke an der Tür — liest nur
+# A7b · Nach „Abbrechen" — liest nur
+api "$T" /api/v1/me
+marken
+```
+
+**Erwartet:** für `/me` dieselbe Zeile wie in A2, und in der Ablage beide
+Marken:
+
+```
+Zugangsmarken: 2
+  Marke <n> · Konto 6 · b7-abnahme · srvp_<4 Zeichen>… · zuletzt benutzt <Zeit> · angelegt <Zeit>
+  Marke <n> · Konto <id> · b7-leer · srvp_<4 Zeichen>… · zuletzt benutzt <Zeit> · angelegt <Zeit>
+```
+
+Die Frage ist zu, und auf der Seite steht keine Meldung. Dann noch einmal
+**„Entfernen"** in der Zeile und in der Rückfrage **„Entfernen"**. Oben steht
+„Die Zugangsmarke ist entfernt.", und die Zeile ist fort.
+
+```bash
+# A7c · Die entfernte Marke an der Tür — liest nur
 api "$T" /api/v1/me
 marken
 ```
@@ -725,17 +747,29 @@ ein Adminkonto steht dort `null` und keine leere Liste.
 
 ### A8 — Die fremde Sicht
 
-Im Hauptfenster: Kunden, in der Zeile von `p6-abnahme.invalid` **„Anmelden
-als"**, „Wechseln". Dann „Mein Konto" — **nur ansehen, nichts anklicken.**
+Im Hauptfenster: Kunden, in der Zeile von **B7 Leer** „Anmelden als",
+„Wechseln". Dann „Mein Konto" — **nur ansehen, nichts anklicken.**
 
-**Erwartet unter `rc.16`** (Befund 2): Die Bereiche „Darstellung",
-„Sicherheit" und „Zugangsmarken", in „Zugangsmarken" das Formular mit „Marke
-anlegen". „Konto" und „Passwort ändern" fehlen. Ein Klick auf „Marke anlegen"
-gäbe 403 und eine Zeile `denied` im Protokoll; gemessen ist das im Container,
-und hier wird er nicht gefahren.
+**B7 Leer und nicht der Kunde von Konto 6:** Dessen Marke ist seit A7 fort,
+und an einer leeren Liste wäre nicht zu sehen, ob sie in fremder Sicht
+dasteht. Die Marke `b7-leer` gibt es bis A9.
 
-**Trägt die Freigabe die Behebung**, steht dort, was die Antwort auf Frage 2
-bestimmt hat. Danach oben im Band **„Zurück zur Verwaltung"**.
+**Erwartet** (Befund 2, §6a): die Bereiche „Darstellung", „Sicherheit" und
+„Zugangsmarken"; „Konto" und „Passwort ändern" fehlen, und die drei Knöpfe
+der Darstellung sind gesperrt. In „Zugangsmarken" steht die Liste mit der
+Zeile `b7-leer` und ihrer Zeit unter „Zuletzt benutzt" — und kein Formular,
+kein „Marke anlegen" und kein „Entfernen". Dazu in die Konsole:
+
+```js
+(() => { const s = [...document.querySelectorAll('section, .section')].find((x) => x.querySelector('h2')?.textContent.trim() === 'Zugangsmarken'); return s ? `Formulare ${s.querySelectorAll('form').length} · Spalten ${s.querySelectorAll('thead th').length} · Zeilen ${s.querySelectorAll('tbody tr').length} · Knöpfe [${[...s.querySelectorAll('button')].map((b) => b.innerText.trim()).join(', ')}]` : 'kein Bereich Zugangsmarken' })()
+```
+
+**Erwartet:** `Formulare 0 · Spalten 4 · Zeilen 1 · Knöpfe []`. Dieselbe Zeile
+in der eigenen Sicht eines Kunden gibt im Container `Formulare 1 · Spalten 5 ·
+Zeilen 1 · Knöpfe [Marke anlegen, Entfernen]`; unter `rc.16` stand das auch in
+fremder Sicht da.
+
+Danach oben im Band **„Zurück zur Verwaltung"**.
 
 ### A9 — Abräumen: der Wegwerfkunde
 
@@ -967,10 +1001,16 @@ dazu:
 [...document.querySelectorAll('.bands .band')].map((b) => { const v = b.querySelector('.link'); return Math.round(b.getBoundingClientRect().height) + ' px · ansehen ' + (v ? Math.round(v.getBoundingClientRect().height / parseFloat(getComputedStyle(v).lineHeight)) : 0) + ' Zeile(n)' }).join('\n')
 ```
 
-**Erwartet unter `rc.16`** (Befund 1): `dokument = 0`, Gegenprobe 200/200, und
-bei einem fertigen Vorgang „ansehen" auf **mehr als einer** Zeile. Wie viele,
-hängt an der Schrift des Rechners (CLAUDE.md, „Diese Umgebung"); im Container
-waren es sechs bei 146 px. **Trägt die Freigabe die Behebung**: eine Zeile.
+**Erwartet** (Befund 1, §6a): `dokument = 0`, Gegenprobe 200/200, und bei
+jedem Vorgang „ansehen" in **einer** Zeile. Die Handgriffe stehen rechts unter
+dem Text, bei einem fertigen Vorgang „Seite aktualisieren" und „ansehen"
+nebeneinander. Im Container ist ein fertiger Vorgang so 122 px hoch und ein
+wartender 99 px; die Höhe hängt an der Schrift des Rechners (CLAUDE.md, „Diese
+Umgebung"), die eine Zeile nicht. Und ein fertiger Vorgang steht auf grünem
+Grund (Befund 5, §6a).
+
+Unter `rc.16` stand „ansehen" bei einem fertigen Vorgang im Container in sechs
+Zeilen bei 146 px, und der fertige Vorgang hatte keinen Grund.
 
 ---
 
@@ -1000,11 +1040,216 @@ waren es sechs bei 146 px. **Trägt die Freigabe die Behebung**: eine Zeile.
 - **B1 und B3 tragen das Kriterium von B8** und dürfen nicht ausfallen.
 - **A3 und B2 sind die beiden dazugelegten Punkte**; sie werden gefahren.
 - **A5, A5b, B7 und B8 dürfen ausfallen.** Sie beantworten Fragen aus
-  `docs/131 §8` und `docs/132 §5` oder zeigen Befund 1 auf dem Server.
-- **A4, A7 und A8 zeigen die Befunde 2 bis 4** — unter `rc.16` die Befunde,
-  mit der Behebung die Behebung.
+  `docs/131 §8` und `docs/132 §5` oder zeigen die Behebungen der Befunde 1
+  und 5 auf dem Server.
+- **Block 0, A4, A7 und A8 zeigen die Behebungen der Befunde 2 bis 4** (§6a).
+  Gemessen sind sie im Container; auf dem Server hat sie noch niemand
+  gesehen.
 - **A9 wird gefahren**, auch wenn ein Punkt davor ausfällt. Ein Kunde ohne
   Abonnement mit einer Marke ist ein Rest und kein Prüfkörper.
+
+---
+
+## §6a · Behoben am 11. Oktober 2026
+
+Der Betreiber hat die vier Fragen aus §0 am selben Tag entschieden, alle wie
+vorgeschlagen: **1a, 2a, 3a und 4a**. Gebaut ist alles für `0.9.0-rc.17`, und
+beim Bauen fiel ein fünfter Befund heraus. Gemessen ist jede Behebung im
+Container, vorher und nachher, gegen eine eigene SQLite-Datenbank unter
+`artisan serve` und im echten Chromium. Auf dem Server gesehen hat sie noch
+niemand; das tun Block 0, A4, A7, A8 und B8.
+
+### Befund 1 — der Streifen bei 390 px
+
+Gebaut sind die drei Zeilen aus dem Vorschlag und eine vierte:
+
+```css
+.band { flex-wrap: wrap; }
+.band > .button, .band > .link { flex: none; }
+.band > span + .button, .band > span + .link { margin-left: auto; }
+```
+
+**Die vierte nimmt den Rest aus dem Vorschlag mit.** Dort trug nur der Knopf
+den Abstand nach links, und beim wartenden Vorgang, der keinen Knopf hat,
+rutschte „ansehen" bei 390 px links unter den Text. Jetzt trägt ihn der erste
+Handgriff nach dem Text, gleich welcher es ist.
+
+**Und das Umbrechen steht jetzt in `app.css` und nicht mehr im Layout.**
+`PanelLayout` hatte `.band { flex-wrap: wrap; }` unter 720 px in seinem
+`<style scoped>`, und das erreichte nur die Bänder aus seiner eigenen Vorlage:
+die fremde Sicht und die Wartung. Die Ankündigungen kommen aus `Bands.vue`,
+die Vorgänge aus `OperationBand.vue`, beide mit mehreren Wurzeln, und eine
+Kindkomponente mit mehreren Wurzeln trägt das Merkmal der gescopten Regel
+nicht. Gemessen als Kunde auf `/subscriptions`, mit zwei Ankündigungen und
+einem wartenden Vorgang:
+
+```
+.bands (PanelLayout): data-v-e3b6d303
+  a.band.critical: —
+  a.band.info: —
+  div.band.info: —
+```
+
+> **Eine gescopte Regel erreicht die Wurzel einer Kindkomponente nur, wenn sie
+> eine hat — bei mehreren Wurzeln erreicht sie keine.**
+
+`ScopedReachTest` war mit der Regel zufrieden, und zu Recht: Sie traf ein
+Element ihrer eigenen Vorlage, das Band der fremden Sicht. Dass sie die
+Vorgänge verfehlte, kann er nicht sehen.
+
+Gemessen mit `tests/bilder-messen.js` und je Band mit Höhe, Lage der Kinder
+und Kontrast. Als Betreiber mit drei Vorgängen — einem wartenden, einem
+fertigen und einem fehlgeschlagenen —, zwei Ankündigungen und der Wartung,
+dazu als Betreiber in fremder Sicht; jedes in hell und dunkel:
+
+| Lage | vorher | nachher |
+|---|---|---|
+| 390 px, wartender Vorgang | 83 px, „ansehen" in 2 Zeilen | 99 px, 1 Zeile, rechts unter dem Text |
+| 390 px, fertiger Vorgang | 146 px, „ansehen" in 6 Zeilen | 122 px, 1 Zeile |
+| 390 px, fehlgeschlagener Vorgang | 167 px, „ansehen" in 7 Zeilen | 122 px, 1 Zeile |
+| 390 px, fremde Sicht | 143 px, „Zurück zur Verwaltung" links unter dem Text | 143 px, rechts unter dem Text |
+| 1440 px, fertiger und fehlgeschlagener Vorgang | 48 px, „Seite aktualisieren" bei x = 751 und 786 | 48 px, bei x = 1139, neben „ansehen" |
+| Ankündigungen und Wartung | 104, 62 und 62 px bei 390, je 41 bei 1440 | unverändert |
+
+In allen sechzehn Lagen, vorher wie nachher, `dokument = 0`, Gegenprobe
+200/200 und `schiebt = 0`. Die Zahl hat den Befund nie gesehen; die Höhe und
+die Zeilen sehen ihn.
+
+`BandHandleTest` hält vier Dinge: dass `.band` umbrechen darf, dass jeder
+Handgriff eines Bandes `flex: none` hat, dass der erste nach dem Text nach
+rechts geht, und dass keine Vorlage das Umbrechen in ihrem eigenen Stilblock
+ein zweites Mal hat. Die Handgriffe liest er aus den Vorlagen und nicht aus
+einer Liste; ein neues Band mit einem neuen Handgriff macht ihn rot, bevor
+jemand es bei 390 px gesehen hat.
+
+### Befund 5 — ein fertiger Vorgang hatte keinen Rang
+
+Herausgefallen beim Messen von Befund 1, an den Zeilen, die je Band Grund und
+Kontrast drucken: Das Band eines fertigen Vorgangs stand auf
+`rgba(0, 0, 0, 0)`, in der Schriftfarbe der Seite. `OperationBand.vue` setzt
+für einen gelungenen Vorgang `ok`, und `app.css` kannte `.band.info`,
+`.band.warn` und `.band.critical`, aber kein `.band.ok`. So stand es seit B8
+da, seit `0.9.0-rc.1`.
+
+**Auf den Bildern der Vorabmessung war es zu sehen** (§7): ein Band ohne
+Fläche neben zwei getönten. Angesehen waren sie auf den Umbruch hin.
+
+> **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+> verdeckt alles, was daneben steht.**
+
+`ClassReachTest` konnte es nicht sehen, weil die Klasse als Ausdruck kommt
+(`:class="rang(vorgang.status)"`). Und `RankReachTest` kannte `rang()` nicht
+als Erzeuger. Am 9. September hatte seine Gegenrichtung `.band.ok` als tot
+gemeldet, weil damals niemand die Klasse erzeugte, und die Regel ist gegangen
+(Commit `6cf5c2a7`). B8 kam am 21. September; die Regel kam nicht zurück, und
+hätte sie jemand geschrieben, hätte derselbe Fall sie abgewiesen.
+
+> **Ein Wächter, der die Erzeuger einer Regel aufzählt, weist die Regel ab,
+> die ein neuer Erzeuger braucht.**
+
+Gebaut ist `.band.ok` wie die anderen drei Ränge, mit Schrift, Grund und Rand
+aus `--ok` und `--ok-surface` — Zeile für Zeile die Regel, die am 9. September
+ging. Gemessen gegen den getönten Grund:
+
+| | hell | dunkel |
+|---|---|---|
+| Text | 5,38:1 | 7,24:1 |
+| „ansehen" | 8,57:1 | 6,71:1 |
+
+`RankReachTest` liest seitdem die Rückgabewerte von `rang()` als dritten
+Erzeuger und verlangt für jeden eine Regel `.band.<Rang>`; die Gegenrichtung
+kennt ihn ebenfalls.
+
+### Befund 2 — die Zugangsmarken in fremder Sicht
+
+Gebaut wie vorgeschlagen: In fremder Sicht steht die Liste, Formular und
+„Entfernen" nicht. Die Spalte des Knopfes fällt mit, Kopf und Zelle. Der Satz
+in `ProfileController::refuseWhileImpersonating()` ist berichtigt und nennt
+den Befund. Gemessen als Betreiber in der Sicht von Kunde Eins, mit der
+Konsolenzeile aus A8 und mit derselben Zeile als Kunde selbst:
+
+```
+fremde Sicht · Bereiche: Darstellung, Sicherheit, Zugangsmarken
+fremde Sicht · Zeile:    Formulare 0 · Spalten 4 · Zeilen 1 · Knöpfe []
+fremde Sicht · Darstellung: System (gesperrt), Hell (gesperrt), Dunkel (gesperrt)
+eigene Sicht · Bereiche: Konto, Passwort ändern, Darstellung, Sicherheit, Zugangsmarken
+eigene Sicht · Zeile:    Formulare 1 · Spalten 5 · Zeilen 1 · Knöpfe [Marke anlegen, Entfernen]
+```
+
+Bei 390 und 1440 px dazu `dokument = 0` und Gegenprobe 200/200, und das
+Protokoll bekam in fremder Sicht keine Zeile.
+
+`ImpersonationControlTest` hält es für jede Handlung, die ein Controller in
+fremder Sicht abweist. Die Handlungen liest er aus den Aufrufen von
+`refuseWhileImpersonating()`, ihre Pfade aus `routes/web.php`; auf der Seite
+desselben Controllers sucht er jedes Bedienelement, das diese Anfrage schickt,
+und verlangt, dass es in fremder Sicht fehlt oder gesperrt ist. Heute sind es
+fünf Handlungen: Marke anlegen und entfernen, Konto, Darstellung und Passwort.
+Die Darstellung bleibt sichtbar und gesperrt, wie bisher; das ist eine
+Entscheidung, und der Wächter lässt beides zu.
+
+> **Eine Begründung, die ein Formular für abwesend erklärt, gilt für die
+> Formulare, die es gab, als sie geschrieben wurde.** Ein Wächter, der sie aus
+> dem Controller liest, gilt für jede spätere.
+
+### Befund 3 — Entfernen mit Rückfrage
+
+Gebaut wie vorgeschlagen, über `ask()` wie beim SSH-Schlüssel. Gemessen als
+Kunde Eins bei 390 px an einer Marke `probe-entfernen`:
+
+```
+Rückfrage: Die Zugangsmarke „probe-entfernen“ entfernen? Jedes Programm, das sie benutzt, bekommt danach 401.
+Knöpfe: Entfernen [button danger] · Abbrechen [button]
+bei 390 px mit offener Frage: dokument=0 · gegenprobe=200/200 · schiebt=0
+nach „Abbrechen": 0 Fragen offen · Marken: vorab-k1, probe-entfernen
+nach „Entfernen": Die Zugangsmarke ist entfernt. · Marken: vorab-k1
+Protokoll seitdem: api.token.removed · success · Konto 2
+```
+
+Der Knopf war der einzige `<Link method="delete">` dieses Panels, und
+`DangerRankTest` sah ihn nicht: Er liest `<button>`-Tags, und der Verweis trug
+`as="button"` und die Klassen eines roten Knopfes, ohne einer zu sein.
+
+> **Ein Wächter, der den Knopf an seinem Tag erkennt, sieht keinen, der nur so
+> aussieht.**
+
+Ein neuer Fall dort verlangt, dass kein `<Link>` eine Anfrage ausser GET
+schickt. Eine Handlung geht über einen Knopf, und der fragt, wenn sie etwas
+kostet.
+
+### Befund 4 — die Beschreibung im Paket
+
+Gebaut wie vorgeschlagen: `docs/openapi-v1.yaml` steht in der Positivliste
+von `packaging/build.sh`, als Datei und nicht als Verzeichnis. Unter `docs`
+liegen die Dokumente für Entwickler, und das Panel liest genau eine Datei
+davon. Gemessen ist die Schleife der Positivliste, alt und neu, gegen ein
+eigenes Ziel im Scratchpad und ohne `vendor`:
+
+```
+alt · 13 Teile · Dateien unter docs/: 0 · docs/openapi-v1.yaml: fehlt
+neu · 14 Teile · Dateien unter docs/: 1 · docs/openapi-v1.yaml: da · 6885 B · sha256 ac0f75d7b663983c
+im Repo:                                 6885 B · sha256 ac0f75d7b663983c
+```
+
+`nfpm` packt den Baum als Ganzes nach `/opt/srvpanel/releases/<Fassung>`, und
+`base_path()` zeigt auf dem Server dorthin. Block 0 sieht nach.
+
+`ShippedFileTest` hält es als Regel und nicht als Eintrag: Jeder Pfad, den
+`app/` über `base_path()` und seine Geschwister liest, gibt es im Repo, und er
+liegt unter einem Eintrag der Positivliste. Was sich nicht auflösen lässt, ist
+ein Befund und kein Übergehen. Heute liest `app/` genau eine solche Datei.
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.** Am 15. August war es
+> `lang`, behoben mit einem Eintrag und einem Wächter über genau dieses
+> Verzeichnis.
+
+### Die Brüche
+
+Zwölf Eingriffe im Bruchskript, jeder einzeln rot und zurück grün belegt: vier
+an `BandHandleTest`, zwei an `RankReachTest`, drei an
+`ImpersonationControlTest`, einer an `DangerRankTest` und zwei an
+`ShippedFileTest`.
 
 ---
 

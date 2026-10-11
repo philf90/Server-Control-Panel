@@ -76,9 +76,10 @@ Tag entschieden, gebaut ist die Antwort für `0.9.0-rc.16`, und der Nachlauf
 hat sie am Abend in einer Mail auf `cloudsrv24` gesehen (`docs/143 §8`,
 Abschnitt weiter unten). Der Lauf für B7 und B8 ist `docs/144`,
 ausgeschrieben am 11. Oktober vor dem Fahren. Beim Ausschreiben fielen vier
-Befunde am Prüfling heraus, und über alle vier entscheidet der Betreiber
-(`docs/144 §0`, Abschnitt weiter unten). Die Dokumentation ist vertagt und
-steht als offener Punkt da.
+Befunde am Prüfling heraus; der Betreiber hat sie am selben Tag entschieden,
+alle wie vorgeschlagen, und gebaut ist alles für `0.9.0-rc.17`, mit einem
+fünften Befund, der beim Bauen herausfiel (`docs/144 §6a`, Abschnitte weiter
+unten). Die Dokumentation ist vertagt und steht als offener Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -1816,7 +1817,17 @@ Kachel) und `ScopedReachTest` (eine gescopte Regel trifft ein Element ihrer
 eigenen Vorlage — gefragt an einem Baum aus der Vorlage und mit einem
 XPath-Ausdruck aus dem Selektor, denn `.row b` ist eine Frage an einen Baum und
 an keine Zeichenkette; was erst die Laufzeit entscheidet, fällt vorher weg, und
-ein Selektor, den er nicht übersetzen kann, ist ein Befund). Der Bruch selbst steht als
+ein Selektor, den er nicht übersetzen kann, ist ein Befund) und `BandHandleTest`
+(ein Band darf umbrechen, und seine Handgriffe schrumpfen nicht — die
+Handgriffe kommen aus den Vorlagen, und keine Vorlage hat das Umbrechen in
+ihrem eigenen Stilblock, weil eine gescopte Regel die Bänder einer
+Kindkomponente mit mehreren Wurzeln nicht erreicht) und
+`ImpersonationControlTest` (was der Server in fremder Sicht abweist, bietet die
+Seite dort nicht an — die Handlungen kommen aus den Aufrufen von
+`refuseWhileImpersonating()` und nicht aus einer Liste) und `ShippedFileTest`
+(was `app/` über `base_path()` und seine Geschwister liest, liegt unter einem
+Eintrag der Positivliste von `build.sh` — gefragt von der Seite der Leser,
+denn von der Liste aus fehlt nie etwas). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -7640,12 +7651,14 @@ sah jede Prüfung aus wie ein einzelner Testlauf.
 `docs/144` ist ausgeschrieben, vor dem Fahren und für beide Merkmale in einem
 Nachmittag. Beide sind seit `0.9.0-rc.1` ausgeliefert, also seit drei Wochen
 auf dem Server, und keines hatte bisher einen Lauf. Beim Vorabmessen im
-Container fielen vier Befunde am Prüfling heraus; über alle vier entscheidet
-der Betreiber (`docs/144 §0`). Die Kriterien berühren sie nicht.
+Container fielen vier Befunde am Prüfling heraus (`docs/144 §0`), und der
+Betreiber hat sie am selben Tag entschieden (Abschnitt darunter). Die
+Kriterien berühren sie nicht.
 
 **Der teuerste ist derselbe Fehler wie am 15. August.** `SpecController` liest
 `docs/openapi-v1.yaml`, und `packaging/build.sh` nimmt `docs` nicht mit; auf
-dem Server gibt `/api/v1/openapi.yaml` deshalb 404, sogar mit leerem Text.
+dem Server fehlt die Datei deshalb, und ohne sie gibt `/api/v1/openapi.yaml`
+404, im Container gemessen sogar mit leerem Text.
 `OpenApiReachTest` hält die Beschreibung in beide Richtungen gegen die Routen —
 im Repo, wo sie liegt. Damals fehlte `lang`, und behoben wurde es mit einem
 Eintrag in der Liste und nicht mit einer Regel.
@@ -7702,6 +7715,94 @@ Anfragen kurz nach neun anderen ergaben 51 zu 10 statt 60 zu 1.
 
 > **Ein Zähler je Adresse zählt jede Anfrage dieser Adresse mit — auch die
 > eigene Vorbereitung.**
+
+---
+
+## Die vier Befunde vor dem Lauf für B7 und B8 sind behoben — 11. Oktober 2026
+
+Der Betreiber hat alle vier am selben Tag entschieden, wie vorgeschlagen (1a,
+2a, 3a, 4a), und gebaut ist alles für `0.9.0-rc.17` (`docs/144 §6a`). Beim
+Bauen fiel ein fünfter Befund heraus. Vier Sätze daraus gelten über B7 und B8
+hinaus.
+
+**Der erste ist eine Grenze von `<style scoped>`, und sie hat die Ursache von
+Befund 1 versteckt.** `PanelLayout` liess `.band` unter 720 px umbrechen, in
+seinem eigenen Stilblock. Das erreichte die Bänder aus seiner eigenen Vorlage,
+die fremde Sicht und die Wartung, und nicht die Ankündigungen und die
+Vorgänge: `Bands.vue` und `OperationBand.vue` haben mehrere Wurzeln, und Vue
+gibt das Merkmal einer gescopten Regel nur an die Wurzel einer Kindkomponente
+weiter, wenn sie genau eine hat. Gemessen: Die Hülle `.bands` trägt
+`data-v-e3b6d303`, kein Band darin.
+
+> **Eine gescopte Regel erreicht die Wurzel einer Kindkomponente nur, wenn sie
+> eine hat — bei mehreren Wurzeln erreicht sie keine.**
+
+Das ist die Schwester des Satzes vom 1. Oktober über den Schriftzug der
+Leiste: Dort zog das Ziel in eine Kindkomponente um, hier stand es von Anfang
+an dort. `ScopedReachTest` war diesmal zu Recht zufrieden, denn die Regel traf
+ein Element ihrer eigenen Vorlage — was sie daneben verfehlt, kann er nicht
+sehen. Die Regel steht seitdem in `app.css` für jedes Band, und
+`BandHandleTest` hält, dass keine Vorlage sie ein zweites Mal hat.
+
+**Der zweite ist ein Wächter, der eine gebrauchte Regel abgewiesen hätte.**
+Ein fertiger Vorgang stand drei Wochen ohne Rang im Streifen: `rang()` in
+`OperationBand.vue` gibt `ok`, und `app.css` hatte kein `.band.ok`. Am
+9. September hatte `RankReachTest` genau diese Regel als tot gemeldet, weil
+damals niemand die Klasse erzeugte. B8 kam am 21. September, und weil `rang()`
+ein Ausdruck ist, sah `ClassReachTest` den neuen Erzeuger nicht.
+
+> **Ein Wächter, der die Erzeuger einer Regel aufzählt, weist die Regel ab,
+> die ein neuer Erzeuger braucht.**
+
+Die Erzeuger zählen seitdem `rang()` mit, und wer einen vierten baut, liest in
+der Fehlermeldung, wo er ihn einträgt. Gefunden hat den Befund keine Prüfung,
+sondern die Zeilen, die beim Messen von Befund 1 je Band Grund und Kontrast
+druckten. Auf den Bildern der Vorabmessung stand er schon, und die waren auf
+den Umbruch hin angesehen worden.
+
+> **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+> verdeckt alles, was daneben steht.**
+
+**Der dritte ist ein Wächter, der einen Knopf an seinem Tag erkannte.**
+`DangerRankTest` hält, dass ein roter Knopf fragt und ein fragender Knopf rot
+ist, und las dafür `<button>`. „Entfernen" an einer Zugangsmarke war ein
+`<Link method="delete" as="button">` mit den Klassen eines roten Knopfes: Es
+sah aus wie einer und war für den Wächter keiner.
+
+> **Ein Wächter, der den Knopf an seinem Tag erkennt, sieht keinen, der nur so
+> aussieht.**
+
+Ein Fall verlangt seitdem, dass kein `<Link>` eine Anfrage ausser GET
+schickt. Ein Verweis mit Methode schickt beim Klick ab, und davor lässt sich
+nicht fragen.
+
+**Der vierte ist die Regel, die am 15. August ein Eintrag geblieben war.**
+Damals fehlte `lang` in der Positivliste von `build.sh`, behoben mit einem
+Eintrag und einem Wächter über genau dieses Verzeichnis. Für die
+OpenAPI-Beschreibung fehlte derselbe Eintrag seit `0.9.0-rc.1`, und die Liste
+überspringt still, was es nicht gibt. Von der Liste aus gesehen fehlte also
+nichts.
+
+> **Ein Wächter über eine Positivliste fragt von der Seite der Leser — von der
+> Liste aus gesehen fehlt nie etwas, das nie darin stand.**
+
+`ShippedFileTest` geht deshalb von `app/` aus: Jeder Pfad, den eine Klasse
+über `base_path()` und seine Geschwister liest, liegt unter einem Eintrag der
+Liste, und was sich nicht auflösen lässt, ist ein Befund.
+
+**Und die Begründung aus Befund 2 hängt jetzt nicht mehr an ihrem Datum.**
+`ImpersonationControlTest` liest die Handlungen, die ein Controller in fremder
+Sicht abweist, aus den Aufrufen von `refuseWhileImpersonating()` und sucht auf
+der Seite jedes Bedienelement, das eine davon schickt. Eine neue Handlung, die
+die Tür abweist und die Seite anbietet, macht ihn rot — vor dem Betreiber, der
+in fremder Sicht auf den Knopf drückt.
+
+**Und eine Behauptung in meinen eigenen Kommentaren war ungemessen.** Die
+Kommentare, die ich zu Befund 4 geschrieben hatte, sagten, auf `cloudsrv24`
+habe `/api/v1/openapi.yaml` seit `rc.1` 404 gegeben. Gemessen war der 404 im
+Container ohne die Datei; dass sie im Paket fehlte, sagt die Liste. Die
+Kommentare sagen jetzt beides so, und auf dem Server sieht Block 0 von
+`docs/144` nach.
 
 ---
 

@@ -7,9 +7,10 @@ name: Wächter brechen
 # 1. Das Skript **ändert Dateien** im Arbeitsbaum und stellt sie über git wieder
 #    her. In einem Lauf, der nebenher ein Paket baut, wäre das ein Wettlauf um
 #    denselben Baum.
-# 2. Es fährt die Testsuite einmal je Eingriff — **1335 Eingriffe, 2466 Läufe**
-#    (gemessen am 15. September 2026; im August waren es 376 und 623). In
-#    `ci.yml` hinge das an einem Job, der ohnehin schon die ganze Suite fährt.
+# 2. Es fährt PHPUnit einmal je Prüfung — **1951 Eingriffe, 3360 Prüfungen**
+#    am 11. Oktober 2026 (am 15. September 1335 und 2466, im August 376 und
+#    623). In `ci.yml` hinge das an einem Job, der ohnehin schon die ganze
+#    Suite fährt.
 #
 # **Und warum es ihn überhaupt gibt.** CLAUDE.md verlangt: „Ein Wächter, der nie
 # rot war, ist kein Wächter." Das Skript stand seit dem Optik-Rework im Repo und
@@ -39,9 +40,13 @@ on:
   # > **Eine Entscheidung überlebt ihre Begründung — und wer nur die Begründung
   # > nachliest, hält sie für widerlegt.**
   #
-  # Was den Preis wieder senken würde, wäre eine Teilung auf parallele Jobs —
-  # rund sechs Minuten Wanduhr. Entschieden ist das **nicht**; der Stand der
-  # Messungen dazu steht im `CHANGELOG.md` zum 15. September 2026.
+  # **Gesenkt hat den Preis am 11. Oktober 2026 keine Teilung, sondern eine
+  # Zeile in `pruefe`.** Bis dahin lud jede Prüfung die ganze Suite — 527
+  # Dateien, 4028 Fälle —, um einen davon zu fahren; am 10. Oktober dauerte der
+  # Lauf 46 bis 49 Minuten. Seitdem bekommt PHPUnit die Datei des Falls, und
+  # derselbe Stand braucht 13 Minuten. Die Teilung auf parallele Jobs hätte die
+  # Wanduhr geteilt und den Preis je Prüfung stehen lassen; sie ist damit vom
+  # Tisch.
   #
   # Entschieden hat es ein Befund: Am 13. August meldete der Wochenlauf drei
   # Prüfungen ohne Biss, und alle drei hingen an einem Umbau vom 11. — zwei Tage
@@ -71,41 +76,49 @@ jobs:
     name: Jede Regel absichtlich brechen
     runs-on: ubuntu-latest
 
-    # **Gemessen am 15. September 2026**, über 50 Läufe mit Ergebnis seit dem
-    # 31. August: Median **22,5 min**, kürzester 13,0, längster **28,0** — bei
-    # rund 1340 Eingriffen und 2470 Testläufen.
+    # **Gemessen am 11. Oktober 2026** in der CI, zweimal an denselben 3360
+    # Prüfungen: Lauf 38115760774 auf `255969ea` brauchte für den Schritt
+    # `tests/waechter-brechen.sh` **13 min 20 s**, Lauf 38117644671 auf
+    # `824affdc` eine halbe Stunde später **19 min 27 s** — 0,24 und 0,35 s je
+    # Prüfung. Derselbe Stand brauchte am Tag davor über die Suite 46,5 Minuten,
+    # 0,83 s je Prüfung. Am 15. September waren es 22,5 Minuten im Median über
+    # 50 Läufe, bei 2466 Prüfungen.
     #
-    # **Hier stand „376 Eingriffe, gemessen 4:40, dreissig ist das Sechsfache".**
-    # Beide Zahlen waren vom 14. August und sind seitdem nie nachgezogen worden;
-    # aus dem Sechsfachen war das **1,07-fache des längsten Laufs** geworden,
-    # ohne dass es jemand gemerkt hätte.
+    # **Hier stand „sechzig, und die Zahl ist gerechnet und nicht gegriffen"**,
+    # gerechnet gegen 0,68 s je Prüfung im langsamsten Lauf, und die Rechnung
+    # sagte zwei Monate. Getragen hat die Grenze knapp vier Wochen: Der Preis je
+    # Prüfung wuchs nicht nur mit der Zahl der Prüfungen, sondern mit der Suite,
+    # die jede von ihnen lud. Am 10. Oktober standen 49 von 60 Minuten.
     #
-    # > **Eine Zahl im Kommentar altert mit dem Code, den sie zählt, und nichts
-    # > meldet es.**
+    # > **Eine Hochrechnung über eine Grösse, die selbst wächst, rechnet mit dem
+    # > Wert von heute und wird von dem von morgen überholt.**
     #
-    # **Sechzig, und die Zahl ist gerechnet und nicht gegriffen.** Was skaliert,
-    # ist der Testlauf und nicht der Eingriff: 0,45 s im August, 0,52 s im
-    # Median heute, **0,68 s im langsamsten** gemessenen Lauf. Das Skript wächst
-    # um rund 24 Eingriffe und damit 44 Testläufe am Tag (982 → 1335 in fünfzehn
-    # Tagen). Gegen den langsamsten Wert gerechnet trug die alte Grenze noch
-    # **vier Tage**; sechzig Minuten tragen rund **zwei Monate**.
+    # **Am selben Morgen stand hier zuerst dreissig.** Gerechnet war das aus dem
+    # ersten Lauf allein, als wäre er ein mittlerer, mit dem 1,31-fachen für den
+    # langsamsten: 17,4 Minuten. Der zweite Lauf brauchte 19,5. Wie weit zwei
+    # Läufe derselben Arbeit auseinanderliegen, steht in den Schritten der
+    # früheren: Zwei Läufe, die binnen drei Stunden starten, liegen im Median um
+    # das 1,12-fache auseinander, in jedem zwanzigsten Paar um mehr als das
+    # 1,57-fache und höchstens um das 1,72-fache — 80 Paare aus 221 Läufen seit
+    # August, alle noch über die Suite. Die beiden von heute liegen mit dem
+    # 1,46-fachen darin.
     #
-    # **Warum nicht mehr und nicht weniger.** Neunzig trügen vier Monate und
-    # wären keine Grenze mehr, die etwas bedeutet — der Satz von damals gilt
-    # unverändert, nur die Zahl darunter nicht. Fünfundvierzig trügen einen
-    # Monat, also kaum länger, als das Nachziehen selbst wieder kostet.
+    # > **Ein einzelner Lauf sagt nicht, ob er ein schneller war — wer ihn als
+    # > Mitte nimmt, rechnet mit seinem Glück.**
+    #
+    # **Vierzig, gerechnet gegen den langsamsten Fall.** Das 1,72-fache des
+    # schnellen Laufs sind 22,9 Minuten, 0,41 s je Prüfung. Das Skript wuchs vom
+    # 15. September bis zum 11. Oktober um 894 Prüfungen, 34 am Tag, und die
+    # kosten in diesem Fall 14 Sekunden am Tag. Vierzig Minuten tragen damit
+    # **rund 73 Tage** — die Spanne von zwei Monaten, die der Satz vom September
+    # für richtig hielt. Dreissig trügen einen Monat, sechzig fünf. Seit jede
+    # Prüfung ihre eigene Datei lädt, wächst ihr Preis nicht mehr mit der Suite;
+    # die Rechnung vom September hatte genau das gegen sich.
     #
     # **Und warum die Grenze überhaupt drängt**, ist nicht die verlorene Zeit,
     # sondern dass ein abgeschnittener Lauf sich als roter liest — der Nächste
     # sucht dann am Skript statt an der Grenze.
-    #
-    # Die eigentliche Antwort wäre eine Teilung auf parallele Jobs: Wanduhr
-    # rund sechs Minuten, CI-Minuten +5 %, und die Grenze trüge ein halbes Jahr.
-    # Sie ist **nicht entschieden** — sie ist ein Umbau an dem Werkzeug, das die
-    # Wächter dieses Repos prüft. Ihre Vorbedingung ist am 15. September gemessen
-    # und steht im `CHANGELOG.md` zu diesem Tag: Derselbe Stand ganz und in vier
-    # Teilen gefahren ergibt dieselbe Befundliste, Zeile für Zeile.
-    timeout-minutes: 60
+    timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v4

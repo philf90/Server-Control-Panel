@@ -99,16 +99,21 @@ final class MaintenanceBandTest extends TestCase
      *
      * Ohne das `v-if` rendert es für jeden, dem der Wert fehlt, einen leeren
      * Streifen mit einem Verweis, der einen 403 einbringt.
+     *
+     * **Seit dem 11. Oktober 2026 steht das `v-if` an der Hülle aus Band und
+     * x**, und es trägt ein zweites Glied: Weggeklickt ist das Band bis zum
+     * nächsten Seitenwechsel fort. Der Wert bleibt das erste Glied einer
+     * Und-Verknüpfung; ein Oder liesse das Band ohne ihn stehen.
      */
     public function test_the_band_sits_behind_the_shared_value(): void
     {
         $vorlage = $this->withoutMarkupComments((string) file_get_contents(self::LAYOUT));
 
-        $this->assertMatchesRegularExpression(
-            '/<Link\s+v-if="maintenance"\s+href="\/maintenance"/',
-            $vorlage,
+        $this->assertSame(
+            1,
+            preg_match('/<div\s+v-if="(maintenance(?: && [^"|]*)?)"\s+class="band-item">\s*<Link\s+href="\/maintenance"/', $vorlage, $band),
             implode("\n", [
-                'Das Wartungsband steht nicht hinter `v-if="maintenance"`.',
+                'Das Wartungsband steht nicht hinter `v-if="maintenance"` oder `v-if="maintenance && …"`.',
                 '',
                 'Der geteilte Wert ist `null`, wenn der Betrachter ihn nicht haben darf —',
                 'ohne die Bedingung steht ein Verweis auf `/maintenance` in der Hülle jeder',
@@ -116,11 +121,17 @@ final class MaintenanceBandTest extends TestCase
             ]),
         );
 
+        $this->assertSame(
+            1,
+            preg_match('/<div\s+v-if="([^"]*)"\s+class="bands"/', $vorlage, $huelle),
+            'Die Hülle `.bands` steht nicht mehr hinter einem `v-if` — dann misst dieser Fall nichts.',
+        );
+
         $this->assertStringContainsString(
-            'announcements.length || maintenance',
-            $vorlage,
+            (string) preg_replace('/\s+/', ' ', $band[1]),
+            (string) preg_replace('/\s+/', ' ', $huelle[1]),
             implode("\n", [
-                'Die Hülle `.bands` kennt das Wartungsband nicht in ihrer Bedingung.',
+                'Die Hülle `.bands` fragt nicht dieselbe Bedingung wie das Wartungsband.',
                 '',
                 'Dann steht bei laufender Wartung ohne Ankündigung und ohne Impersonation',
                 'eine Hülle ohne Inhalt — oder gar keine, und das Band fällt weg.',

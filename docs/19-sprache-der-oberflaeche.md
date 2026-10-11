@@ -140,6 +140,7 @@ hingesehen hat. Ein Dokument ohne Prüfung ist eine Absichtserklärung.
 | wegräumen | **entfernen** | Docker-Bestand |
 | geglückt | **erfolgreich** | Vorgangszustand |
 | Platte | **Datenträger** | Übersicht, Dateimanager, Compose-Prüfer |
+| Zugangsmarke | **API-Token** | Profilseite, Meldungen beim Anlegen und Entfernen, OpenAPI-Beschreibung |
 
 Nicht auf der Liste, aber in derselben Durchsicht ersetzt — sie sind als Muster
 zu allgemein, um sie mechanisch zu verbieten:
@@ -152,6 +153,11 @@ zu allgemein, um sie mechanisch zu verbieten:
 - **Strom** → *Stream*, wo es der SSE-Kanal ist.
 - **Protokoll** für Container-Logs → *Logs*. Für das Audit bleibt es
   *Protokoll*: Dort ist es kein Log, sondern ein Nachweis.
+- **Marke** für ein Token von `api/v1` → *API-Token* (11. Oktober 2026, auf
+  Wunsch des Betreibers). Mechanisch verboten ist nur *Zugangsmarke*: *Marke*
+  allein heisst in diesem Panel auch die Marke des Betreibers (B6) und eine
+  Zustandsmarke. Das Fachwort stand die ganze Zeit in §2 Punkt 2 — die Regel,
+  die es verlangte, stand nicht auf der Liste, und kein Lauf hat es gesehen.
 
 ## 3a. Keine Emoji
 

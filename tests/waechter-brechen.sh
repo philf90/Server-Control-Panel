@@ -408,8 +408,43 @@ pruefe() {
   #
   # > **Ein Eingriff, den ein Zwischenspeicher des Prueflings nicht sieht,
   # > misst nicht — und ob er ihn sieht, entscheidet die Uhr.**
+  #
+  # **Und PHPUnit bekommt die Datei des Falls mit, nicht die ganze Suite.**
+  # Bis zum 11. Oktober 2026 lief jede Pruefung ueber `phpunit.xml`: PHPUnit
+  # lud alle 527 Testdateien, rief jeden Datenlieferanten und baute 4028
+  # Faelle, bevor der Filter einen davon nahm. Gemessen an 40 zufaellig
+  # gezogenen Pruefungen: 23,6 s ueber die Suite, 8,4 s mit der Datei — hier
+  # rund 340 ms je Pruefung nur fuers Laden. In der CI waren es 0,83 s je
+  # Pruefung, 3360 Pruefungen, 46 Minuten.
+  #
+  # **Und dieser Preis wuchs von beiden Seiten.** Jeder neue Waechter machte
+  # jede Pruefung teurer, und jeder neue Eingriff brachte Pruefungen dazu.
+  # `waechter.yml` hat am 15. September die eine Haelfte gemessen („was
+  # skaliert, ist der Testlauf") und die Ursache nicht gefragt.
+  #
+  # > **Ein Aufruf, der das Ganze laedt, um ein Stueck zu fahren, wird mit dem
+  # > Ganzen teurer — und das Ganze waechst mit jedem Stueck.**
+  #
+  # Der Filter nennt eine Klasse, und die Klasse nennt eine Datei: oberste
+  # Ebene von `tests/Unit` oder `tests/Feature`, dieselben Orte, an denen
+  # `BreakScriptTest` jedes Ziel nachsieht. Zwei Dateien desselben Namens
+  # (`RootElementTest`) gehen beide mit. Findet sich keine, laeuft die Suite
+  # wie vorher, und ein vertippter Name endet weiter als „kein Test".
+  #
+  # **Damit trifft ein Filter nur noch seine eigene Klasse.** Ueber die Suite
+  # war er ein Ausdruck ueber jeden Testnamen: `IconTest` traf auch
+  # `NavIconTest` und `ActionIconTest`, `TeardownTest` zwei weitere,
+  # `CommandReachTest` auch `DbCommandReachTest`. Ein Biss aus der Nachbarklasse
+  # haette dort als Biss des genannten Waechters gegolten.
+  local klasse="${filter%%::*}" dateien=() ordner
+  for ordner in tests/Unit tests/Feature; do
+    if [ -f "$ordner/$klasse.php" ]; then
+      dateien+=("$ordner/$klasse.php")
+    fi
+  done
+
   rm -f storage/framework/views/*.php
-  roh=$(./vendor/bin/phpunit --filter "$filter" --do-not-cache-result 2>&1)
+  roh=$(./vendor/bin/phpunit --filter "$filter" --do-not-cache-result "${dateien[@]}" 2>&1)
 
   case "$roh" in
     *'No tests executed'*|*'No tests found'*) ergebnis='kein Test' ;;
@@ -16992,6 +17027,65 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TickProbeTest passed
 
 echo
+echo "── TickProbeTest: die Probe sieht keine ganze Seite mehr ──"
+#
+# **Ohne diese Zeile ist die Stille nach dem Ende von B8 nicht zu lesen**
+# (`docs/144`). Eine Probe, die nur Teilladungen sieht, schwiege auch dann,
+# wenn die Seite sich nach dem Ende von selbst neu laedt.
+vorher_datei tests/takt-messen.js
+python3 - <<'PY2'
+p = 'tests/takt-messen.js'
+s = open(p, encoding='utf-8').read()
+alt = "if (kopf === 'x-inertia') {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "if (kopf === 'x-inertia-ganz') {", 1))
+PY2
+griff_datei tests/takt-messen.js "die Taktprobe sieht keine ganze Seite" &&
+pruefe "die Taktprobe sieht keine ganze Seite" \
+  TickProbeTest::test_the_probe_also_reports_whole_pages failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TickProbeTest passed
+
+echo
+echo "── TickProbeTest: ein zweites Einsetzen haengt sich wieder ein ──"
+#
+# Ohne die Frage nach der Marke haengt sich die Probe beim zweiten Einsetzen
+# ein zweites Mal ein, und jede Anfrage steht doppelt da — das Bild eines
+# doppelten Takts.
+vorher_datei tests/takt-messen.js
+python3 - <<'PY2'
+p = 'tests/takt-messen.js'
+s = open(p, encoding='utf-8').read()
+alt = "if (window.__taktprobe !== undefined) {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "if (window.__taktprobeNie !== undefined) {", 1))
+PY2
+griff_datei tests/takt-messen.js "ein zweites Einsetzen wird nicht abgewiesen" &&
+pruefe "ein zweites Einsetzen wird nicht abgewiesen" \
+  TickProbeTest::test_a_second_insertion_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TickProbeTest passed
+
+echo
+echo "── TickProbeTest: die Probe sieht keinen Strom mehr ──"
+#
+# Ohne diese Zeile liest sich eine Liste ohne Zeile `Strom` wie eine Liste,
+# die keinen oeffnet — auch wenn die Probe gar nicht hinsieht (B8, `docs/144`).
+vorher_datei tests/takt-messen.js
+python3 - <<'PY2'
+p = 'tests/takt-messen.js'
+s = open(p, encoding='utf-8').read()
+alt = "window.EventSource = class extends Strom {"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "window.EventSourceNie = class extends Strom {", 1))
+PY2
+griff_datei tests/takt-messen.js "die Taktprobe sieht keinen Strom" &&
+pruefe "die Taktprobe sieht keinen Strom" \
+  TickProbeTest::test_the_probe_also_reports_streams failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TickProbeTest passed
+
+echo
 echo "── ButtonFieldAlignTest: die Ausrichtung wandert in die verengte Regel ──"
 #
 # **Der Fehler, den dieses Repo am 23. August gemacht hat.** Die Ausrichtung
@@ -26504,9 +26598,9 @@ vorher_datei resources/js/Pages/Auth/Login.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Auth/Login.vue'
 s = open(p, encoding='utf-8').read()
-alt = '    <div v-if="incidents.length" class="bands">\n      <Bands :items="incidents" />\n    </div>'
+alt = '    <div v-if="visibleIncidents.length" class="bands">\n      <Bands :items="visibleIncidents" @dismiss="dismissIncident" />\n    </div>'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '    <Bands :items="incidents" />', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '    <Bands :items="visibleIncidents" @dismiss="dismissIncident" />', 1))
 PY2
 griff_datei resources/js/Pages/Auth/Login.vue "Hülle fehlt auf der Anmeldeseite" &&
 pruefe "Hülle fehlt auf der Anmeldeseite" \
@@ -26597,9 +26691,9 @@ vorher_datei resources/js/Components/Bands.vue
 python3 - <<'PY2'
 p = 'resources/js/Components/Bands.vue'
 s = open(p, encoding='utf-8').read()
-alt = '  <Link\n    v-for'
+alt = '<Link class="band" :class="hinweis.badge"'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '  <div\n    v-for', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<div class="band" :class="hinweis.badge"', 1))
 PY2
 griff_datei resources/js/Components/Bands.vue "kein Verweis am Band" &&
 pruefe "kein Verweis am Band" \
@@ -29214,9 +29308,9 @@ vorher_datei resources/js/Layouts/PanelLayout.vue
 python3 - <<'PY2'
 p = 'resources/js/Layouts/PanelLayout.vue'
 s = open(p, encoding='utf-8').read()
-alt = '<Link v-if="maintenance" href="/maintenance" class="band warn">'
+alt = '<div v-if="maintenance && !hiddenUntilNavigation.has(\'maintenance\')" class="band-item">'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '<Link href="/maintenance" class="band warn">', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<div v-if="!hiddenUntilNavigation.has(\'maintenance\')" class="band-item">', 1))
 PY2
 griff_datei resources/js/Layouts/PanelLayout.vue "Band ohne v-if" &&
 pruefe "Band ohne v-if" \
@@ -29233,9 +29327,9 @@ vorher_datei resources/js/Layouts/PanelLayout.vue
 python3 - <<'PY2'
 p = 'resources/js/Layouts/PanelLayout.vue'
 s = open(p, encoding='utf-8').read()
-alt = '<Link v-if="maintenance" href="/maintenance" class="band warn">'
+alt = '<div v-if="maintenance && !hiddenUntilNavigation.has(\'maintenance\')" class="band-item">'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '<Link href="/maintenance" class="band warn">', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<div v-if="!hiddenUntilNavigation.has(\'maintenance\')" class="band-item">', 1))
 PY2
 griff_datei resources/js/Layouts/PanelLayout.vue "Verweis ohne Wächter in der Hülle" &&
 pruefe "Verweis ohne Wächter in der Hülle" \
@@ -40774,6 +40868,494 @@ pruefe "abgeloester Grund ruhig" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RetiredReasonTest passed
 
+echo
+echo "── BandHandleTest: ein Band bricht nicht mehr um ──"
+#
+# docs/144 §0 Befund 1: Ohne Umbruch schrumpft bei 390 px, was schrumpfen
+# darf, und mit overflow-wrap: anywhere darf das jedes Kind bis auf ein
+# Zeichen. "ansehen" stand im Streifen der Vorgaenge in sechs Zeilen.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '  flex-wrap: wrap;\n  align-items: center;\n  justify-content: space-between;\n  gap: 16px;\n  padding: 10px 24px;'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace('  flex-wrap: wrap;\n', ''), 1))
+PY2
+griff_datei resources/css/app.css "ein Band bricht nicht um" &&
+pruefe "ein Band bricht nicht um" \
+  BandHandleTest::test_a_band_may_wrap failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandHandleTest passed
+
+echo
+echo "── BandHandleTest: ein Handgriff im Band schrumpft wieder ──"
+#
+# Die zweite Haelfte desselben Befunds: Das Band darf umbrechen, aber der
+# Verweis gibt seine Breite her, bevor die Zeile bricht.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.band > .button,\n.band > .link {\n  flex: none;\n}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace('flex: none;', 'flex: 0 1 auto;'), 1))
+PY2
+griff_datei resources/css/app.css "ein Handgriff schrumpft" &&
+pruefe "ein Handgriff schrumpft" \
+  BandHandleTest::test_a_handle_in_a_band_does_not_shrink failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandHandleTest passed
+
+echo
+echo "── BandHandleTest: der erste Handgriff bleibt links ──"
+#
+# Mit space-between allein steht ein einzelner Handgriff in einer
+# umgebrochenen Zeile links unter dem Text, und bei 1440 px stand
+# "Seite aktualisieren" in der Mitte des Bandes.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.band > span + .button,\n.band > span + .link {\n  margin-left: auto;\n}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace('margin-left: auto;', 'margin-left: 0;'), 1))
+PY2
+griff_datei resources/css/app.css "der erste Handgriff bleibt links" &&
+pruefe "der erste Handgriff bleibt links" \
+  BandHandleTest::test_the_first_handle_after_the_text_goes_right failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandHandleTest passed
+
+echo
+echo "── BandHandleTest: das Layout bricht seine Baender wieder selbst um ──"
+#
+# So stand es bis zum 11. Oktober 2026: flex-wrap im style scoped von
+# PanelLayout, und es erreichte nur das Band der fremden Sicht.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = '  .rail.open {\n    transform: none;\n  }\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt + '\n  .band {\n    flex-wrap: wrap;\n  }\n', 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "gescopter Umbruch im Layout" &&
+pruefe "gescopter Umbruch im Layout" \
+  BandHandleTest::test_no_template_wraps_a_band_on_its_own failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandHandleTest passed
+
+echo
+echo "── RankReachTest: ein fertiger Vorgang verliert seinen Rang ──"
+#
+# Der fuenfte Befund aus docs/144 §6a: rang() in OperationBand.vue setzt ok,
+# und app.css hatte keine Regel dafuer. Der Vorgang stand ohne Grund und in
+# der Schriftfarbe der Seite im Streifen.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.band.ok {\n  color: var(--ok);\n  background: var(--ok-surface);\n  border-color: var(--ok);\n}\n'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/css/app.css "fertiger Vorgang ohne Rang" &&
+pruefe "fertiger Vorgang ohne Rang" \
+  RankReachTest::test_every_rank_of_the_operation_band_has_a_rule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RankReachTest passed
+
+echo
+echo "── RankReachTest: der Streifen setzt einen Rang ohne Regel ──"
+#
+# Dieselbe Frage von der anderen Seite: Der Erzeuger bekommt einen Rang dazu,
+# den app.css nicht kennt. So waere der Fall entstanden, wenn B8 ok nicht von
+# der Vorgangsseite uebernommen, sondern erfunden haette.
+vorher_datei resources/js/Components/OperationBand.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/OperationBand.vue'
+s = open(p, encoding='utf-8').read()
+alt = "  return 'info'\n}"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "  return 'neutral'\n}", 1))
+PY2
+griff_datei resources/js/Components/OperationBand.vue "Rang ohne Regel" &&
+pruefe "Rang ohne Regel" \
+  RankReachTest::test_every_rank_of_the_operation_band_has_a_rule failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RankReachTest passed
+
+echo
+echo "── ImpersonationControlTest: das Formular der API-Tokens steht in fremder Sicht ──"
+#
+# docs/144 §0 Befund 2: Ein Klick auf "Marke anlegen" (seit dem Abend desselben
+# Tages "API-Token anlegen") in fremder Sicht endete mit 403 und einem Eintrag,
+# der ihn einen selbst gestellten Versuch nannte.
+vorher_datei resources/js/Pages/Settings/Profile.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Profile.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<form v-if="!props.impersonating" class="form" @submit.prevent="createToken">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<form class="form" @submit.prevent="createToken">', 1))
+PY2
+griff_datei resources/js/Pages/Settings/Profile.vue "Formular in fremder Sicht" &&
+pruefe "Formular in fremder Sicht" \
+  ImpersonationControlTest::test_every_refused_action_is_withheld_in_foreign_view failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ImpersonationControlTest passed
+
+echo
+echo "── ImpersonationControlTest: Entfernen steht in fremder Sicht ──"
+#
+# Die zweite Handlung derselben Liste. Ein Waechter, der nur das Formular
+# kennte, liesse diese Zelle stehen.
+vorher_datei resources/js/Pages/Settings/Profile.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Profile.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<td v-if="!props.impersonating" class="right">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<td class="right">', 1))
+PY2
+griff_datei resources/js/Pages/Settings/Profile.vue "Entfernen in fremder Sicht" &&
+pruefe "Entfernen in fremder Sicht" \
+  ImpersonationControlTest::test_every_refused_action_is_withheld_in_foreign_view failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ImpersonationControlTest passed
+
+echo
+echo "── ImpersonationControlTest: die Darstellung ist in fremder Sicht nicht gesperrt ──"
+#
+# Die dritte Form, in der eine Seite eine Handlung zurueckhaelt: gesperrt und
+# nicht verborgen. Der Waechter muss sie kennen, sonst meldete er die
+# Darstellung, die richtig gebaut ist.
+vorher_datei resources/js/Pages/Settings/Profile.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Profile.vue'
+s = open(p, encoding='utf-8').read()
+alt = ':disabled="darstellung.processing || props.impersonating"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, ':disabled="darstellung.processing"', 1))
+PY2
+griff_datei resources/js/Pages/Settings/Profile.vue "Darstellung in fremder Sicht" &&
+pruefe "Darstellung in fremder Sicht" \
+  ImpersonationControlTest::test_every_refused_action_is_withheld_in_foreign_view failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ImpersonationControlTest passed
+
+echo
+echo "── DangerRankTest: ein Verweis entfernt wieder ohne Frage ──"
+#
+# docs/144 §0 Befund 3: Ein Link mit method="delete" schickt beim Klick ab,
+# und davor laesst sich nicht fragen. Dieser Waechter las nur button-Tags und
+# sah ihn nicht.
+vorher_datei resources/js/Pages/Settings/Profile.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Profile.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<button type="button" class="button small danger" @click="removeToken(eintrag)">Entfernen</button>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '<Link href="/settings/tokens" method="delete" as="button" type="button" class="button small danger">Entfernen</Link>'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Pages/Settings/Profile.vue "Verweis mit Methode" &&
+pruefe "Verweis mit Methode" \
+  DangerRankTest::test_no_link_sends_a_request_of_its_own failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DangerRankTest passed
+
+echo
+echo "── ShippedFileTest: die Beschreibung von v1 faellt aus dem Paket ──"
+#
+# docs/144 §0 Befund 4: Seit 0.9.0-rc.1 fehlte die Beschreibung im Paket,
+# weil build.sh docs nicht mitnahm; ohne sie gibt /api/v1/openapi.yaml 404.
+vorher_datei packaging/build.sh
+python3 - <<'PY2'
+p = 'packaging/build.sh'
+s = open(p, encoding='utf-8').read()
+alt = ' docs/openapi-v1.yaml lang '
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, ' lang ', 1))
+PY2
+griff_datei packaging/build.sh "Beschreibung nicht im Paket" &&
+pruefe "Beschreibung nicht im Paket" \
+  ShippedFileTest::test_every_file_the_app_reads_is_shipped failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ShippedFileTest passed
+
+echo
+echo "── ShippedFileTest: die Anwendung liest eine Datei, die es nicht gibt ──"
+#
+# Die andere Richtung derselben Frage: Ein umbenannter Pfad liegt unter
+# keinem Eintrag und im Repo nirgends. Ohne die Pruefung auf das Dasein haette
+# ein Eintrag "docs" alles gedeckt, auch eine Datei, die fehlt.
+vorher_datei app/Http/Controllers/Api/SpecController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/Api/SpecController.php'
+s = open(p, encoding='utf-8').read()
+alt = "public const PATH = 'docs/openapi-v1.yaml';"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "public const PATH = 'docs/openapi-v2.yaml';", 1))
+PY2
+griff_datei app/Http/Controllers/Api/SpecController.php "eine Datei, die es nicht gibt" &&
+pruefe "eine Datei, die es nicht gibt" \
+  ShippedFileTest::test_every_file_the_app_reads_is_shipped failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ShippedFileTest passed
+echo
+echo "── BandDismissTest: das Vorgangsband verliert sein x ──"
+#
+# Jedes Band laesst sich wegklicken (11. Oktober 2026). Ein Band ohne x neben
+# sich ist genau das, was der Betreiber als stoerend gemeldet hat.
+vorher_datei resources/js/Components/OperationBand.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/OperationBand.vue'
+s = open(p, encoding='utf-8').read()
+alt = '\n\n    <BandDismiss @dismiss="$emit(\'dismiss\', vorgang)" />'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei resources/js/Components/OperationBand.vue "Vorgang ohne x" &&
+pruefe "Vorgang ohne x" \
+  BandDismissTest::test_every_band_sits_beside_its_x failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandDismissTest passed
+
+echo
+echo "── BandDismissTest: das x rutscht in den Verweis der Ankuendigung ──"
+#
+# Ein Knopf in einem <a> ist kein gueltiges HTML, und ein Klick darauf ginge an
+# den Verweis weiter: Statt das Band zu verbergen, oeffnete er die Leseseite.
+vorher_datei resources/js/Components/Bands.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/Bands.vue'
+s = open(p, encoding='utf-8').read()
+alt = '    </Link>\n\n    <BandDismiss @dismiss="$emit(\'dismiss\', hinweis)" />'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = '      <BandDismiss @dismiss="$emit(\'dismiss\', hinweis)" />\n    </Link>'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Components/Bands.vue "x im Verweis" &&
+pruefe "x im Verweis" \
+  BandDismissTest::test_the_x_is_never_inside_a_band_or_a_link failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandDismissTest passed
+
+echo
+echo "── BandDismissTest: das Wartungsband kommt nach dem Seitenwechsel nicht wieder ──"
+#
+# Entschieden vom Betreiber: Die Wartung kommt beim naechsten Seitenwechsel
+# wieder, weil sie einen Zustand meldet. Ohne die Frage an
+# hiddenUntilNavigation bliebe das x wirkungslos stehen.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<div v-if="maintenance && !hiddenUntilNavigation.has(\'maintenance\')" class="band-item">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<div v-if="maintenance" class="band-item">', 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Wartung ohne hiddenUntilNavigation" &&
+pruefe "Wartung ohne hiddenUntilNavigation" \
+  BandDismissTest::test_the_state_bands_come_back_and_the_store_never_keeps_them failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandDismissTest passed
+
+echo
+echo "── BandDismissTest: der Speicher merkt sich die fremde Sicht ──"
+#
+# Die andere Seite derselben Entscheidung: Merkte sich der Browser das Band der
+# fremden Sicht, waere der Rueckweg zur Verwaltung bis zum Abmelden fort.
+vorher_datei resources/js/Composables/useDismissedBands.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/useDismissedBands.ts'
+s = open(p, encoding='utf-8').read()
+alt = '|operation:[1-9][0-9]*)$/'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '|operation:[1-9][0-9]*|impersonation:[a-z]+)$/', 1))
+PY2
+griff_datei resources/js/Composables/useDismissedBands.ts "Speicher mit fremder Sicht" &&
+pruefe "Speicher mit fremder Sicht" \
+  BandDismissTest::test_the_state_bands_come_back_and_the_store_never_keeps_them failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandDismissTest passed
+
+echo
+echo "── BandDismissTest: der Abdruck einer Ankuendigung vergisst ihren Text ──"
+#
+# "Bis es sich aendert" heisst: bis sich aendert, was man gesehen hat. Ohne den
+# Text im Abdruck bliebe eine geaenderte Ankuendigung bei jedem verborgen, der
+# die alte Fassung weggeklickt hat.
+vorher_datei resources/js/Composables/useDismissedBands.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/useDismissedBands.ts'
+s = open(p, encoding='utf-8').read()
+alt = '${hinweis.badge}\\n${hinweis.rank}\\n${hinweis.body}'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '${hinweis.badge}\\n${hinweis.rank}', 1))
+PY2
+griff_datei resources/js/Composables/useDismissedBands.ts "Abdruck ohne Text" &&
+pruefe "Abdruck ohne Text" \
+  BandDismissTest::test_the_key_of_an_announcement_covers_what_its_band_shows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandDismissTest passed
+
+echo
+echo "── BandDismissTest: die Huelle der Anmeldeseite fragt die ganze Liste ──"
+#
+# Ist die einzige Stoerung weggeklickt, stuende sonst eine leere Huelle da —
+# ein Streifen Polster ueber dem Formular, ohne Band darin.
+vorher_datei resources/js/Pages/Auth/Login.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Auth/Login.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<div v-if="visibleIncidents.length" class="bands">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<div v-if="incidents.length" class="bands">', 1))
+PY2
+griff_datei resources/js/Pages/Auth/Login.vue "Huelle fragt die ganze Liste" &&
+pruefe "Huelle fragt die ganze Liste" \
+  BandDismissTest::test_the_hull_asks_the_visible_list_it_shows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandDismissTest passed
+
+echo
+echo "── BandDismissTest: der Streifen zeigt alle laufenden Vorgaenge ──"
+#
+# Bekommt der Streifen die ganze Liste, kommt jeder weggeklickte Vorgang beim
+# naechsten Takt zurueck — und der Takt laeuft fuer Baender, die niemand sehen will.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<OperationBand :items="visibleOperations"'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '<OperationBand :items="runningOperations"', 1))
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Streifen mit ganzer Liste" &&
+pruefe "Streifen mit ganzer Liste" \
+  BandDismissTest::test_the_hull_asks_the_visible_list_it_shows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BandDismissTest passed
+
+echo
+echo "── BrowserStorageTest: das Lesen der Baender steht vor dem try ──"
+#
+# Bei abgeschalteten Seitendaten wirft schon das Lesen (SecurityError, gemessen
+# im Chromium). Der Speicher laeuft im Layout jeder Seite.
+vorher_datei resources/js/Composables/useDismissedBands.ts
+python3 - <<'PY2'
+p = 'resources/js/Composables/useDismissedBands.ts'
+s = open(p, encoding='utf-8').read()
+alt = "  try {\n    const raw: unknown = JSON.parse(window.localStorage.getItem(storageKey(owner)) ?? '[]')\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "  const raw: unknown = JSON.parse(window.localStorage.getItem(storageKey(owner)) ?? '[]')\n  try {\n"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei resources/js/Composables/useDismissedBands.ts "Lesen vor dem try" &&
+pruefe "Lesen vor dem try" \
+  BrowserStorageTest::test_every_storage_access_sits_inside_a_try failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BrowserStorageTest passed
+
+echo
+echo "── BrowserStorageTest: ein catch zaehlt als Klammer ──"
+#
+# Ein Zugriff im catch ist der Zugriff, der wirft, nachdem schon der im try
+# geworfen hat. Die Zaehlung muss try von seinen Nachbarn trennen.
+vorher_datei tests/Unit/BrowserStorageTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/BrowserStorageTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "preg_match('/\\btry\\s*$/', "
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "preg_match('/\\b(?:try|catch)\\s*$/', ", 1))
+PY2
+griff_datei tests/Unit/BrowserStorageTest.php "catch als Klammer" &&
+pruefe "catch als Klammer" \
+  BrowserStorageTest::test_the_block_count_tells_try_from_its_neighbours failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BrowserStorageTest passed
+
+echo
+echo "── OperatorControlTest: ein Oder schuetzt wie ein Und ──"
+#
+# Seit dem x steht das Wartungsband hinter "maintenance && …". Ein Oder, das
+# als Und gelesen wird, liesse einen Knopf durch, den der Betrachter nicht
+# druecken darf: "maintenance || x" zeigt ihn auch ohne den Wert.
+vorher_datei tests/Unit/OperatorControlTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/OperatorControlTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "substr($ausdruck, $i, 2) === '||') {\n                return false;\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = "substr($ausdruck, $i, 2) === '||') {\n                $glieder[] = '';\n                $i++;\n\n                continue;\n"
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei tests/Unit/OperatorControlTest.php "Oder als Und" &&
+pruefe "Oder als Und" \
+  OperatorControlTest::test_a_guard_counts_as_a_conjunct_and_not_as_a_disjunct failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperatorControlTest passed
+
+echo
+echo "── WordChoiceTest: der Bereich heisst wieder Zugangsmarken ──"
+#
+# Das Fachwort stand die ganze Zeit in docs/19 §2 Punkt 2, nur nicht auf der
+# Liste der verbrauchten Woerter — und kein Lauf hat es gesehen.
+vorher_datei resources/js/Pages/Settings/Profile.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Profile.vue'
+s = open(p, encoding='utf-8').read()
+alt = 'title="API-Tokens">'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, 'title="Zugangsmarken">', 1))
+PY2
+griff_datei resources/js/Pages/Settings/Profile.vue "Zugangsmarken im Titel" &&
+pruefe "Zugangsmarken im Titel" \
+  WordChoiceTest::test_no_vue_template_uses_a_spent_word failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WordChoiceTest passed
+
+echo
+echo "── WordChoiceTest: die Rueckfrage nennt wieder die Zugangsmarke ──"
+#
+# Die Rueckfrage steht im Skriptblock und in keiner Vorlage. Ein Waechter, der
+# nur Vorlagen liest, saehe sie nicht.
+vorher_datei resources/js/Pages/Settings/Profile.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Profile.vue'
+s = open(p, encoding='utf-8').read()
+alt = '`Das API-Token „${eintrag.name}“ entfernen?'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '`Die Zugangsmarke „${eintrag.name}“ entfernen?', 1))
+PY2
+griff_datei resources/js/Pages/Settings/Profile.vue "Zugangsmarke in der Rueckfrage" &&
+pruefe "Zugangsmarke in der Rueckfrage" \
+  WordChoiceTest::test_no_vue_script_string_uses_a_spent_word failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WordChoiceTest passed
+
+echo
+echo "── WordChoiceTest: die Meldung des Servers nennt wieder die Zugangsmarke ──"
+#
+# Der dritte Leser derselben Liste: die Zeichenketten unter app/. Die Meldung
+# nach dem Anlegen steht im Controller und erreicht die Seite ueber die Sitzung.
+vorher_datei app/Http/Controllers/ProfileController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/ProfileController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'Das API-Token ist entfernt.'"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'Die Zugangsmarke ist entfernt.'", 1))
+PY2
+griff_datei app/Http/Controllers/ProfileController.php "Zugangsmarke in der Meldung" &&
+pruefe "Zugangsmarke in der Meldung" \
+  WordChoiceTest::test_no_displayed_php_string_uses_a_spent_word failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WordChoiceTest passed
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

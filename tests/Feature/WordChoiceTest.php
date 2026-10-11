@@ -62,6 +62,7 @@ final class WordChoiceTest extends TestCase
             'wegräumen' => 'entfernen',
             'geglückt' => 'erfolgreich',
             'Platte' => 'Datenträger',
+            'Zugangsmarke' => 'API-Token',
         ];
 
         $cases = [];

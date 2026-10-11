@@ -8,13 +8,14 @@
  * Formulare statt eines — ein gemeinsames „Speichern" über beidem hiesse, dass
  * ein Tippfehler im Namen einen Passwortwechsel mitschleppt.
  */
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
 import PasswordFields from '../../Components/PasswordFields.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import FormErrors from '../../Components/FormErrors.vue'
+import { useConfirmation } from '../../Composables/useConfirmation'
 
 declare global {
   interface Window {
@@ -44,7 +45,7 @@ const props = defineProps<{
 
   /*
    * **`null` für einen Administrator und keine leere Liste.** Er bekommt
-   * keine Marke, und eine leere Liste läse sich wie „noch keine angelegt" —
+   * kein API-Token, und eine leere Liste läse sich wie „noch keins angelegt" —
    * also wie eine Einladung.
    */
   apiTokens:
@@ -94,18 +95,41 @@ const themes: { wert: 'dark' | 'light' | null; name: string }[] = [
 
 const darstellung = useForm<{ theme: 'dark' | 'light' | null }>({ theme: props.profile.theme })
 
-const marke = useForm({ name: '' })
+const tokenForm = useForm({ name: '' })
 
 /*
- * Der Klartext einer frisch angelegten Marke. Er kommt über den
+ * Der Klartext eines frisch angelegten API-Tokens. Er kommt über den
  * Flash-Kanal und steht genau einmal da — abgelegt ist nur sein `sha256`.
  */
-const frischeMarke = computed(
+const freshToken = computed(
   () => (page.props.flash as Record<string, string | null> | undefined)?.apiToken ?? null,
 )
 
-function markeAnlegen(): void {
-  marke.post('/settings/tokens', { onSuccess: () => marke.reset() })
+function createToken(): void {
+  tokenForm.post('/settings/tokens', { onSuccess: () => tokenForm.reset() })
+}
+
+const { ask } = useConfirmation()
+
+/*
+ * **Mit Rückfrage, wie beim SSH-Schlüssel** (`docs/144 §0` Befund 3).
+ *
+ * Bis zum 11. Oktober 2026 stand hier ein `<Link method="delete">` — der
+ * einzige dieses Panels, und er schickte die Anfrage beim Klick ab, ohne dass
+ * jemand fragen konnte. Zurückholen lässt sich ein API-Token nicht, sein
+ * Klartext ist nirgends abgelegt. Wer sich verklickt, legt ein neues an und
+ * trägt es in jedem Programm neu ein; ein SSH-Schlüssel, dieselbe Art Ding,
+ * fragt seit P6.
+ *
+ * Kein `confirm()`: Safari darf die Dialoge einer Seite abschalten, und danach
+ * tut der Knopf wortlos nichts. `BrowserDialogTest` besteht darauf.
+ */
+function removeToken(eintrag: { id: number; name: string }): void {
+  ask(
+    `Das API-Token „${eintrag.name}“ entfernen?\n\nJedes Programm, das es benutzt, bekommt danach 401.`,
+    'Entfernen',
+    () => router.delete(`/settings/tokens/${eintrag.id}`, { preserveScroll: true }),
+  )
 }
 
 function saveTheme(wahl: 'dark' | 'light' | null): void {
@@ -267,9 +291,11 @@ function savePassword(): void {
       </Section>
 
       <!--
-        Die Zugangsmarken für `api/v1` (B7).
+        Die API-Tokens für `api/v1` (B7). Bis zum 11. Oktober 2026 hiessen
+        sie hier „Zugangsmarken" — ein Wort, das nur dieses Panel kannte;
+        `docs/19 §2` nennt Token ausdrücklich als das Fachwort.
 
-        **Hier und nicht auf einer eigenen Seite.** Eine Marke gehört einem
+        **Hier und nicht auf einer eigenen Seite.** Ein API-Token gehört einem
         Konto, und das Konto hat schon eine Seite; ein neunter Punkt in der
         Gruppe „Einstellungen" wäre derselbe Befund wie bei B6.
       -->
@@ -279,31 +305,42 @@ function savePassword(): void {
         Aussage über den Vorgang und nicht über ein Feld (`docs/19 §6.3`);
         dieselbe Form wie bei den Wiederherstellungscodes des zweiten Faktors.
       -->
-      <Section v-if="frischeMarke" title="Die neue Zugangsmarke" full>
+      <Section v-if="freshToken" title="Das neue API-Token" full>
         <p class="quiet">
-          Sie steht genau einmal hier. Abgelegt ist nur ihr Hash — ein zweites
+          Es steht genau einmal hier. Abgelegt ist nur sein Hash — ein zweites
           Anzeigen gibt es nicht.
         </p>
-        <p class="ident">{{ frischeMarke }}</p>
+        <p class="ident">{{ freshToken }}</p>
       </Section>
 
-      <Section v-if="props.apiTokens !== null" title="Zugangsmarken">
+      <Section v-if="props.apiTokens !== null" title="API-Tokens">
         <p class="quiet">
-          Eine Marke liest über <span class="ident">api/v1</span> genau das, was dieses Konto
-          auch auf den Seiten sieht. Sie reist im Kopf
+          Ein API-Token liest über <span class="ident">api/v1</span> genau das, was dieses Konto
+          auch auf den Seiten sieht. Es reist im Kopf
           <span class="ident">Authorization: Bearer …</span> und gehört nicht in eine Adresse:
           Was dort steht, landet im Zugriffsprotokoll.
         </p>
 
-        <form class="form" @submit.prevent="markeAnlegen">
+        <!--
+          **In fremder Sicht nur die Liste** (`docs/144 §0` Befund 2,
+          entschieden vom Betreiber am 11. Oktober 2026). Wer einem Kunden
+          hilft, sieht, ob es ein API-Token gibt und wann es zuletzt benutzt
+          wurde; anlegen und entfernen kann er sie nicht, denn der Server weist
+          beides in fremder Sicht ab. Bis dahin standen Formular und
+          „Entfernen" da, und ein Klick endete mit 403 und einem Eintrag im
+          Protokoll, der ihn einen selbst gestellten Versuch nannte.
+          `ImpersonationControlTest` hält das für jede Handlung, die
+          `ProfileController` in fremder Sicht abweist.
+        -->
+        <form v-if="!props.impersonating" class="form" @submit.prevent="createToken">
           <label class="field">
             <span>Bezeichnung</span>
-            <input v-model="marke.name" type="text" name="name" maxlength="64" required>
+            <input v-model="tokenForm.name" type="text" name="name" maxlength="64" required>
           </label>
 
           <div class="button-row">
-            <button type="submit" class="button primary" :disabled="marke.processing">
-              {{ marke.processing ? 'Einen Moment …' : 'Marke anlegen' }}
+            <button type="submit" class="button primary" :disabled="tokenForm.processing">
+              {{ tokenForm.processing ? 'Einen Moment …' : 'API-Token anlegen' }}
             </button>
           </div>
         </form>
@@ -315,7 +352,7 @@ function savePassword(): void {
               <th>Anfang</th>
               <th>Zuletzt benutzt</th>
               <th>Angelegt</th>
-              <th></th>
+              <th v-if="!props.impersonating"></th>
             </tr>
           </thead>
           <tbody>
@@ -324,14 +361,8 @@ function savePassword(): void {
               <td data-column="Anfang" class="ident">{{ eintrag.preview }}…</td>
               <td data-column="Zuletzt benutzt">{{ eintrag.last_used_at ?? 'nie' }}</td>
               <td data-column="Angelegt">{{ eintrag.created_at ?? '—' }}</td>
-              <td class="right">
-                <Link
-                  :href="`/settings/tokens/${eintrag.id}`"
-                  method="delete"
-                  as="button"
-                  type="button"
-                  class="button small danger"
-                >Entfernen</Link>
+              <td v-if="!props.impersonating" class="right">
+                <button type="button" class="button small danger" @click="removeToken(eintrag)">Entfernen</button>
               </td>
             </tr>
           </tbody>

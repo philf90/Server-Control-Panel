@@ -21,15 +21,15 @@ use Tests\TestCase;
  * Vor dieser Stufe hatte dieses Panel **keine einzige** `throttle`-Middleware
  * (gemessen, `docs/130 §1`); `LoginThrottle` ist handgebaut und bedient genau
  * die Anmeldung. Eine Schnittstelle, die ein Skript bedient, bremst zweierlei:
- * das Durchprobieren von Marken und einen Klienten, der in einer Schleife
- * hängt.
+ * das Durchprobieren von API-Tokens und einen Klienten, der in einer
+ * Schleife hängt.
  *
  * ## Und sie steht **vor** der Wache
  *
- * Sonst kostet jeder Versuch mit einer erfundenen Marke einen
+ * Sonst kostet jeder Versuch mit einem erfundenen Token einen
  * Datenbankzugriff. Der Preis dafür ist der Schlüssel: An dieser Stelle gibt
  * es noch kein Konto, gezählt wird die Adresse. Was das nicht kann — zwei
- * Marken hinter derselben Adresse trennen —, steht in `docs/131 §9`.
+ * API-Tokens hinter derselben Adresse trennen —, steht in `docs/131 §9`.
  *
  * > **Ein Schlüssel, der einen Wert nennt, den es an dieser Stelle nicht gibt,
  * > ist keine Einschränkung, sondern eine Zusage ohne Gegenstand.**

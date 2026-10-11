@@ -23,10 +23,11 @@
 import { Link, router, usePage } from '@inertiajs/vue3'
 import Confirmation from '../Components/Confirmation.vue'
 import Bands from '../Components/Bands.vue'
+import BandDismiss from '../Components/BandDismiss.vue'
 import OperationBand from '../Components/OperationBand.vue'
 import BrandMark from '../Components/BrandMark.vue'
 import NavIcon from '../Components/NavIcon.vue'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 /*
  * **Als `flashMeldung` und nicht als `announcement`.** Beides heisst in diesem
  * Panel etwas anderes: `announcement()` ist die grüne Erfolgsmeldung eines
@@ -35,13 +36,14 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
  * um ein `s` unterscheiden und nichts miteinander zu tun haben.
  */
 import { announcement as flashMeldung } from '../Composables/useAnnounce'
+import { useDismissedBands } from '../Composables/useDismissedBands'
 
 defineProps<{ title: string; subline?: string }>()
 
 const page = usePage()
 const source = computed(() => page.props.source as { url: string; version: string })
 const account = computed(
-  () => page.props.account as { name: string; is_admin: boolean; has_active_subscription: boolean } | null,
+  () => page.props.account as { id: number; name: string; is_admin: boolean; has_active_subscription: boolean } | null,
 )
 const impersonation = computed(() => page.props.impersonation as { active: boolean; admin: string } | null)
 
@@ -99,6 +101,37 @@ const runningOperations = computed(
       running: boolean
     }[],
 )
+
+/*
+ * **Jedes Band lässt sich wegklicken** — gewünscht und entschieden vom
+ * Betreiber am 11. Oktober 2026, in zwei Fassungen.
+ *
+ * Ankündigungen und Vorgänge bleiben fort, bis sie sich ändern: gemerkt im
+ * Browser, je Konto (`useDismissedBands.ts`). Die Hülle bekommt deshalb schon
+ * die sichtbaren Listen und nicht alle — sonst stünde sie leer da, wenn alles
+ * weggeklickt ist, und der Streifen hielte seinen Takt für Vorgänge, die
+ * niemand mehr sieht.
+ *
+ * Die fremde Sicht und die Wartung kommen beim nächsten Seitenwechsel wieder.
+ * Beide melden einen Zustand, und das Band der fremden Sicht trägt den
+ * einzigen Rückweg zur Verwaltung (`docs/20 §6.3`: „Rückweg jederzeit"). Dafür
+ * genügt der Zustand dieser Komponente: Inertia legt das Layout bei jedem
+ * Seitenwechsel neu an, und ein Nachladen auf derselben Seite lässt es stehen.
+ *
+ * > **Ein Band, das einen Zustand meldet, darf aus dem Blick — aber nicht aus
+ * > dem Gedächtnis der Seite, die als Nächstes kommt.**
+ */
+const dismissed = useDismissedBands(account.value ? `account.${account.value.id}` : null)
+
+const { visible: visibleAnnouncements, dismiss: dismissAnnouncement } = dismissed.announcements(
+  () => announcements.value,
+)
+
+const { visible: visibleOperations, dismiss: dismissOperation } = dismissed.operations(
+  () => runningOperations.value,
+)
+
+const hiddenUntilNavigation = reactive(new Set<'impersonation' | 'maintenance'>())
 
 /*
  * Die Zahl der aktualisierbaren Pakete fürs Abzeichen am Menüpunkt (`docs/907`).
@@ -815,20 +848,33 @@ onBeforeUnmount(() => {
 <template>
   <div class="frame">
     <!--
-      Das Band aus §6.3. Es steht über allem, ist nicht wegklickbar und trägt
-      den Rückweg bei sich — ein Wechsel, aus dem man suchen muss, ist einer,
-      den jemand vergisst.
+      Das Band aus §6.3. Es steht über allem und trägt den Rückweg bei sich —
+      ein Wechsel, aus dem man suchen muss, ist einer, den jemand vergisst.
+
+      **Bis zum 11. Oktober 2026 stand hier „nicht wegklickbar".** Seitdem hat
+      jedes Band ein x, auf Wunsch des Betreibers; dieses kommt beim nächsten
+      Seitenwechsel wieder, entschieden am selben Tag. Damit ist der Rückweg nie
+      länger als einen Klick fort.
     -->
     <div
-      v-if="impersonation?.active || announcements.length || maintenance || runningOperations.length"
+      v-if="
+        (impersonation?.active && !hiddenUntilNavigation.has('impersonation')) ||
+          visibleAnnouncements.length ||
+          (maintenance && !hiddenUntilNavigation.has('maintenance')) ||
+          visibleOperations.length
+      "
       class="bands"
     >
-      <div v-if="impersonation?.active" class="band warn">
-        <span>
-          Sie arbeiten in der Sicht dieses Kunden.
-          Angemeldet als <b>{{ account?.name }}</b>, gewechselt von <b>{{ impersonation.admin }}</b>.
-        </span>
-        <button type="button" class="button small" @click="stopImpersonation">Zurück zur Verwaltung</button>
+      <div v-if="impersonation?.active && !hiddenUntilNavigation.has('impersonation')" class="band-item">
+        <div class="band warn">
+          <span>
+            Sie arbeiten in der Sicht dieses Kunden.
+            Angemeldet als <b>{{ account?.name }}</b>, gewechselt von <b>{{ impersonation.admin }}</b>.
+          </span>
+          <button type="button" class="button small" @click="stopImpersonation">Zurück zur Verwaltung</button>
+        </div>
+
+        <BandDismiss @dismiss="hiddenUntilNavigation.add('impersonation')" />
       </div>
 
       <!--
@@ -851,43 +897,47 @@ onBeforeUnmount(() => {
         wiederholt ein abgelaufenes Versprechen — es schwiege in genau dem
         Augenblick, für den es gebaut ist.
       -->
-      <Link v-if="maintenance" href="/maintenance" class="band warn">
-        <!--
-          **Ohne `clamped`, und das ist gemessen.** Bei 390 px schnitt die
-          Zweizeilen-Klammer den Satz nach „Seit 2026-09-11 18:35 Uhr (UTC…" ab
-          — also vor der Auskunft, für die es das Band gibt, und mitten in einer
-          Zeitangabe, der damit ihre Zone fehlt.
+      <div v-if="maintenance && !hiddenUntilNavigation.has('maintenance')" class="band-item">
+        <Link href="/maintenance" class="band warn">
+          <!--
+            **Ohne `clamped`, und das ist gemessen.** Bei 390 px schnitt die
+            Zweizeilen-Klammer den Satz nach „Seit 2026-09-11 18:35 Uhr (UTC…" ab
+            — also vor der Auskunft, für die es das Band gibt, und mitten in einer
+            Zeitangabe, der damit ihre Zone fehlt.
 
-          > **Eine Klammer über zwei Zeilen schneidet das Ende ab — und das Ende
-          > war hier das, was den Streifen rechtfertigt.**
+            > **Eine Klammer über zwei Zeilen schneidet das Ende ab — und das Ende
+            > war hier das, was den Streifen rechtfertigt.**
 
-          Für eine Ankündigung ist sie richtig: Deren Text schreibt der
-          Betreiber, er hat keine Obergrenze, und der volle Wortlaut steht auf
-          `/announcements`. Dieser Satz ist **unserer**, seine Teile sind zwei
-          Zeitangaben und eine Zone, und länger als vier Zeilen kann er nicht
-          werden.
+            Für eine Ankündigung ist sie richtig: Deren Text schreibt der
+            Betreiber, er hat keine Obergrenze, und der volle Wortlaut steht auf
+            `/announcements`. Dieser Satz ist **unserer**, seine Teile sind zwei
+            Zeitangaben und eine Zone, und länger als vier Zeilen kann er nicht
+            werden.
 
-          **Und die Reihenfolge trägt mit:** Die überschrittene Endzeit steht
-          vorn, weil sie der Grund ist, aus dem jemand jetzt hinsieht.
-        -->
-        <span>
-          <b class="rank">Wartung</b>
-          <template v-if="maintenance.overdue">
-            Die angekündigte Endzeit ist seit {{ maintenance.until }} Uhr ({{ maintenance.until_zone }}) vorbei.
-            Alle Kundenwebsites antworten mit 503<template v-if="maintenance.since">, seit {{ maintenance.since }} Uhr ({{ maintenance.since_zone }})</template>.
-          </template>
-          <template v-else>
-            Alle Kundenwebsites antworten mit 503<template v-if="maintenance.since"> — seit {{ maintenance.since }} Uhr ({{ maintenance.since_zone }})</template><template v-if="maintenance.until">, voraussichtlich bis {{ maintenance.until }} Uhr ({{ maintenance.until_zone }})</template>.
-          </template>
-        </span>
-      </Link>
+            **Und die Reihenfolge trägt mit:** Die überschrittene Endzeit steht
+            vorn, weil sie der Grund ist, aus dem jemand jetzt hinsieht.
+          -->
+          <span>
+            <b class="rank">Wartung</b>
+            <template v-if="maintenance.overdue">
+              Die angekündigte Endzeit ist seit {{ maintenance.until }} Uhr ({{ maintenance.until_zone }}) vorbei.
+              Alle Kundenwebsites antworten mit 503<template v-if="maintenance.since">, seit {{ maintenance.since }} Uhr ({{ maintenance.since_zone }})</template>.
+            </template>
+            <template v-else>
+              Alle Kundenwebsites antworten mit 503<template v-if="maintenance.since"> — seit {{ maintenance.since }} Uhr ({{ maintenance.since_zone }})</template><template v-if="maintenance.until">, voraussichtlich bis {{ maintenance.until }} Uhr ({{ maintenance.until_zone }})</template>.
+            </template>
+          </span>
+        </Link>
+
+        <BandDismiss @dismiss="hiddenUntilNavigation.add('maintenance')" />
+      </div>
 
       <!--
         Die Ankündigungen des Betreibers (A14). Dringendste zuerst — die
         Reihenfolge macht das Modell und nicht die Seite, damit sie nicht in
         zwei Fassungen auseinanderläuft.
       -->
-      <Bands :items="announcements" />
+      <Bands :items="visibleAnnouncements" @dismiss="dismissAnnouncement" />
 
       <!--
         Die laufenden Vorgänge (B8). **Zuletzt in der Hülle**, und das ist eine
@@ -895,7 +945,7 @@ onBeforeUnmount(() => {
         eine Impersonation gelten für den ganzen Server; ein Vorgang gehört
         dem, der ihn gerade abgesetzt hat.
       -->
-      <OperationBand :items="runningOperations" />
+      <OperationBand :items="visibleOperations" @dismiss="dismissOperation" />
     </div>
 
     <!--
@@ -1453,9 +1503,12 @@ onBeforeUnmount(() => {
     transform: none;
   }
 
-  .band {
-    flex-wrap: wrap;
-  }
+  /*
+   * Hier stand bis zum 11. Oktober 2026 `.band { flex-wrap: wrap; }`. Es
+   * erreichte nur das Band der fremden Sicht und nicht die Vorgänge aus
+   * `OperationBand.vue`; die Regel steht seitdem in `app.css` unter `.band`,
+   * für jede Breite und jedes Band.
+   */
 
   /*
    * Die sichere Fläche trägt die **Hülle** und nicht mehr das erste Band.

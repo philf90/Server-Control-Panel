@@ -12,10 +12,20 @@
  * Fehler wie ein Hexwert (`CLAUDE.md`).
  */
 import { Link } from '@inertiajs/vue3'
+import BandDismiss from './BandDismiss.vue'
+import type { AnnouncementBand } from '../Composables/useDismissedBands'
 
-defineProps<{
-  items: { id: number; badge: string; rank: string; body: string }[]
-}>()
+defineProps<{ items: AnnouncementBand[] }>()
+
+/*
+ * **Das x meldet nur, welche Ankündigung weggeklickt wurde.** Ob sie danach
+ * fort bleibt und wo das gemerkt wird, entscheidet die Seite, die die Liste
+ * hält — im Panel `PanelLayout`, vor der Anmeldung die beiden Seiten der
+ * Anmeldung, auf `/announcements` die Vorschau selbst. Sie geben schon die
+ * gefilterte Liste herein, damit die Hülle darum weiss, ob noch etwas
+ * dasteht.
+ */
+defineEmits<{ dismiss: [hinweis: AnnouncementBand] }>()
 </script>
 
 <template>
@@ -32,19 +42,17 @@ defineProps<{
 
     Die Fläche selbst kostet nichts und ist nie abgeschnitten.
   -->
-  <Link
-    v-for="hinweis in items"
-    :key="hinweis.id"
-    class="band"
-    :class="hinweis.badge"
-    :href="`/announcements/${hinweis.id}`"
-  >
-    <!--
-      **Das Rangwort steht im Textfluss und nicht daneben.** Als eigenes
-      Flexkind bricht es bei 390 px in eine eigene Zeile und kostet 21 px je
-      Band — drei Ankündigungen 264 px statt der 195, die `docs/81 §2.3q` M8
-      als Budget gemessen hat.
-    -->
-    <span class="clamped"><b class="rank">{{ hinweis.rank }}</b> {{ hinweis.body }}</span>
-  </Link>
+  <div v-for="hinweis in items" :key="hinweis.id" class="band-item">
+    <Link class="band" :class="hinweis.badge" :href="`/announcements/${hinweis.id}`">
+      <!--
+        **Das Rangwort steht im Textfluss und nicht daneben.** Als eigenes
+        Flexkind bricht es bei 390 px in eine eigene Zeile und kostet 21 px je
+        Band — drei Ankündigungen 264 px statt der 195, die `docs/81 §2.3q` M8
+        als Budget gemessen hat.
+      -->
+      <span class="clamped"><b class="rank">{{ hinweis.rank }}</b> {{ hinweis.body }}</span>
+    </Link>
+
+    <BandDismiss @dismiss="$emit('dismiss', hinweis)" />
+  </div>
 </template>

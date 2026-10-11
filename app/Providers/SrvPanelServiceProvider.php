@@ -180,8 +180,8 @@ final class SrvPanelServiceProvider extends ServiceProvider
      * Wie viele API-Anfragen je Minute und Adresse durchkommen.
      *
      * Sechzig ist eine Anfrage je Sekunde — mehr, als ein lesender Klient
-     * braucht, und wenig genug, dass das Durchprobieren von Marken keinen
-     * Sinn ergibt: Bei 192 Bit Zufall hilft auch eine Milliarde Versuche
+     * braucht, und wenig genug, dass das Durchprobieren von API-Tokens
+     * keinen Sinn ergibt: Bei 192 Bit Zufall hilft auch eine Milliarde Versuche
      * nicht, und sechzig je Minute machen daraus eine Zahl, die niemand mehr
      * aufschreibt.
      */
@@ -198,7 +198,7 @@ final class SrvPanelServiceProvider extends ServiceProvider
          * bedient, braucht eine — und zwar dort, wo sie **vor** dem
          * Datenbankzugriff greift.
          *
-         * **Gezählt wird die Adresse und nicht die Marke.** `ThrottleRequests`
+         * **Gezählt wird die Adresse und nicht das Token.** `ThrottleRequests`
          * läuft als Erstes in der Gruppe, also bevor {@see AuthenticateToken}
          * ein Konto aufgelöst hat — `$request->user()` ist dort immer `null`,
          * und ein Schlüssel, der so tut, als wäre er es nicht, wäre eine
@@ -208,9 +208,9 @@ final class SrvPanelServiceProvider extends ServiceProvider
          * > nicht gibt, ist keine Einschränkung, sondern eine Zusage ohne
          * > Gegenstand.**
          *
-         * Damit bremst sie zweierlei: das Durchprobieren von Marken und einen
-         * Klienten, der in einer Schleife hängt. Was sie **nicht** kann, ist
-         * zwei Marken hinter derselben Adresse auseinanderhalten; das steht in
+         * Damit bremst sie zweierlei: das Durchprobieren von API-Tokens und
+         * einen Klienten, der in einer Schleife hängt. Was sie **nicht** kann,
+         * ist zwei API-Tokens hinter derselben Adresse auseinanderhalten; das steht in
          * `docs/131 §9` als Entscheidung und nicht als Lücke.
          */
         RateLimiter::for('api', static fn (Request $request): Limit => Limit::perMinute(self::API_PER_MINUTE)

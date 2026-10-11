@@ -420,6 +420,65 @@ final class DangerRankTest extends TestCase
     }
 
     /**
+     * Und kein `<Link>` schickt eine Anfrage ausser GET.
+     *
+     * **Ein Verweis mit Methode fragt nicht.** Inertias `<Link method="delete">`
+     * schickt beim Klick ab; davor lässt sich keine Rückfrage stellen. Bis zum
+     * 11. Oktober 2026 stand genau einer in diesem Panel — „Entfernen" an einem
+     * API-Token (`docs/144 §0` Befund 3) —, rot und ohne Rückfrage, während
+     * jeder andere Löschknopf über `ask()` ging, auch der eines SSH-Schlüssels.
+     *
+     * **Und dieser Wächter sah ihn nicht.** Er liest `<button>`-Tags, und der
+     * Verweis trug `as="button"` und `class="button small danger"`: das
+     * Aussehen eines roten Knopfes ohne seinen Tag. Weder geprüft noch gezählt.
+     *
+     * > **Ein Wächter, der den Knopf an seinem Tag erkennt, sieht keinen, der
+     * > nur so aussieht.**
+     *
+     * Gelesen wird der Vorlagenblock ohne seine Kommentare: Ein Kommentar, der
+     * die entfernte Zeile zitiert, stellte sie sonst für diesen Fall wieder her,
+     * und der Skriptblock der Profilseite tut genau das.
+     */
+    public function test_no_link_sends_a_request_of_its_own(): void
+    {
+        $verweise = 0;
+        $mitMethode = [];
+
+        foreach ($this->templates() as $pfad) {
+            $quelle = (string) file_get_contents($pfad);
+            $vorlage = preg_match('/^<template\b.*^<\/template>/ms', $quelle, $block) === 1 ? $block[0] : '';
+            $vorlage = (string) preg_replace('/<!--.*?-->/s', '', $vorlage);
+
+            preg_match_all('/<Link\b((?:[^<>"\']|"[^"]*"|\'[^\']*\')*)>/s', $vorlage, $tags);
+
+            foreach ($tags[1] as $attribute) {
+                $verweise++;
+
+                if (preg_match('/\s:?method="(?!get")/', $attribute) === 1) {
+                    $mitMethode[] = substr($pfad, strlen(dirname(__DIR__, 2)) + 1);
+                }
+            }
+        }
+
+        /*
+         * **Die Untergrenze zählt mit.** Gezählt am 11. Oktober 2026: über
+         * hundert `<Link>` in den Vorlagen. Findet der Ausdruck keine, ist das
+         * leere Ergebnis darunter kein Befund, sondern eine Messung, die nicht
+         * stattgefunden hat.
+         */
+        $this->assertGreaterThan(50, $verweise,
+            'Es werden kaum `<Link>` in den Vorlagen gefunden — dann greift der Ausdruck ins Leere.');
+
+        $this->assertSame([], $mitMethode, sprintf(
+            "Hier schickt ein `<Link>` eine Anfrage ausser GET:\n  %s\n\n".
+            'Ein Verweis mit Methode schickt beim Klick ab, und davor lässt sich nicht fragen. Eine '.
+            'Handlung geht über einen Knopf, dessen `@click` eine Funktion ruft — und die fragt über '.
+            '`ask()`, wenn die Handlung etwas kostet (useConfirmation.ts).',
+            implode("\n  ", array_unique($mitMethode)),
+        ));
+    }
+
+    /**
      * Und die Knöpfe, die dieser Wächter nicht sieht, sind gezählt.
      *
      * Ein `type="submit"` löst über das Formular aus und nicht über `@click`;

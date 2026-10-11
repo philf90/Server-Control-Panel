@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Die Wache von `api/v1` — ein Konto aus einer Zugangsmarke (B7).
+ * Die Wache von `api/v1` — ein Konto aus einem API-Token (B7).
  *
  * ## Nur aus dem Kopf `Authorization`, nie aus der Adresse
  *
@@ -35,13 +35,13 @@ use Symfony\Component\HttpFoundation\Response;
  * ## Ein Adminkonto kommt hier nicht durch
  *
  * {@see Tenancy::forAccount()} ruft für einen Admin
- * `allowAll()`. Eine Marke an einem Adminkonto wäre damit ein Bearer-Token
- * **ohne Klammer** über den ganzen Server — ohne zweiten Faktor und ohne die
+ * `allowAll()`. Ein API-Token an einem Adminkonto wäre damit ein
+ * Bearer-Token **ohne Klammer** über den ganzen Server — ohne zweiten Faktor und ohne die
  * Netzbeschränkung aus A9, die beide an der Sitzung hängen.
  *
- * Gefragt wird **hier** und nicht nur dort, wo eine Marke entsteht: Ein Konto
- * kann seinen Typ wechseln, und die Marke trüge dann eine Zusage, die niemand
- * mehr gemacht hat.
+ * Gefragt wird **hier** und nicht nur dort, wo ein API-Token entsteht: Ein
+ * Konto kann seinen Typ wechseln, und das Token trüge dann eine Zusage, die
+ * niemand mehr gemacht hat.
  *
  * > **Eine Prüfung beim Anlegen gilt für den Zustand beim Anlegen.**
  *
@@ -49,7 +49,7 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Ein gesperrtes oder zurückgezogenes Konto kommt nicht herein. Auf dem
  * Sitzungsweg tut das {@see EnforceAccountAccess} — hier steht dieselbe Frage,
- * weil eine Marke keine Sitzung hat, die man beenden könnte.
+ * weil ein API-Token keine Sitzung hat, die man beenden könnte.
  */
 final class AuthenticateToken
 {

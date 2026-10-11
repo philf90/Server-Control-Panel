@@ -61,32 +61,32 @@ final class ProfileController extends Controller
             'impersonating' => $this->impersonating($request),
 
             /*
-             * **Die Zugangsmarken (B7).** Sie stehen hier und nicht auf einer
-             * eigenen Seite: Eine Marke gehört einem Konto, und das Konto hat
-             * schon eine Seite. Ein neunter Punkt in der Gruppe
+             * **Die API-Tokens (B7).** Sie stehen hier und nicht auf einer
+             * eigenen Seite: Ein API-Token gehört einem Konto, und das Konto
+             * hat schon eine Seite. Ein neunter Punkt in der Gruppe
              * „Einstellungen" wäre ausserdem derselbe Befund wie bei B6 —
              * `NavGroupTest` besteht darauf, dass eine Gruppe dort trennt, wo
              * auch die Route trennt.
              *
              * **Für einen Administrator steht hier `null` und keine leere
-             * Liste.** Er bekommt keine Marke: `forAccount()` ruft für ihn
-             * `allowAll()`, und eine Marke wäre ein Bearer-Token ohne Klammer
-             * über den ganzen Server. Eine leere Liste läse sich wie „noch
-             * keine angelegt" — also wie eine Einladung.
+             * Liste.** Er bekommt kein API-Token: `forAccount()` ruft für ihn
+             * `allowAll()`, und sein Token wäre eines ohne Klammer über den
+             * ganzen Server. Eine leere Liste läse sich wie „noch keins
+             * angelegt" — also wie eine Einladung.
              */
             'apiTokens' => $account->type->isAdmin() ? null : $account->apiTokens()->get()
-                ->map(fn (ApiToken $marke): array => [
-                    'id' => $marke->id,
-                    'name' => $marke->name,
-                    'preview' => $marke->preview,
-                    'last_used_at' => Clock::display($marke->last_used_at),
-                    'created_at' => Clock::display($marke->created_at),
+                ->map(fn (ApiToken $apiToken): array => [
+                    'id' => $apiToken->id,
+                    'name' => $apiToken->name,
+                    'preview' => $apiToken->preview,
+                    'last_used_at' => Clock::display($apiToken->last_used_at),
+                    'created_at' => Clock::display($apiToken->created_at),
                 ])->all(),
         ]);
     }
 
     /**
-     * Eine Marke anlegen — und ihren Klartext **einmal** zeigen.
+     * Ein API-Token anlegen — und seinen Klartext **einmal** zeigen.
      *
      * Er reist über die Sitzung zurück auf die Seite und wird nirgends
      * abgelegt; was in der Tabelle steht, ist sein `sha256`.
@@ -110,22 +110,22 @@ final class ProfileController extends Controller
             'name' => 'Bezeichnung',
         ]);
 
-        ['token' => $marke, 'plain' => $klartext] = ApiToken::mint($account, trim($data['name']));
+        ['token' => $apiToken, 'plain' => $klartext] = ApiToken::mint($account, trim($data['name']));
 
-        $audit->success('api.token.created', $account, ['name' => $marke->name]);
+        $audit->success('api.token.created', $account, ['name' => $apiToken->name]);
 
         return to_route('profile')
-            ->with('success', 'Die Zugangsmarke ist angelegt. Sie steht genau einmal hier.')
+            ->with('success', 'Das API-Token ist angelegt. Es steht genau einmal hier.')
             ->with('apiToken', $klartext);
     }
 
     /**
-     * Eine Marke entfernen.
+     * Ein API-Token entfernen.
      *
      * **Gesucht wird über die Beziehung und nicht über die Kennung allein.**
      * `ApiToken` hängt an einem Konto und nicht an einem Abonnement — die
      * Mandantenklammer greift hier nicht, und ein `findOrFail($id)` löschte
-     * die Marke eines fremden Kontos. Derselbe Satz wie bei den Sitzungen aus
+     * das API-Token eines fremden Kontos. Derselbe Satz wie bei den Sitzungen aus
      * A9: gesucht wird über **Konto und Kennung**.
      */
     public function destroyToken(Request $request, string $token, Audit $audit): RedirectResponse
@@ -134,27 +134,27 @@ final class ProfileController extends Controller
         $this->refuseWhileImpersonating($request, $audit, 'api.token.removed');
         $this->refuseForAdmins($account);
 
-        $marke = $account->apiTokens()->findOrFail((int) $token);
-        $name = $marke->name;
-        $marke->delete();
+        $apiToken = $account->apiTokens()->findOrFail((int) $token);
+        $name = $apiToken->name;
+        $apiToken->delete();
 
         $audit->success('api.token.removed', $account, ['name' => $name]);
 
-        return to_route('profile')->with('success', 'Die Zugangsmarke ist entfernt.');
+        return to_route('profile')->with('success', 'Das API-Token ist entfernt.');
     }
 
     /**
-     * Ein Adminkonto bekommt keine Marke.
+     * Ein Adminkonto bekommt kein API-Token.
      *
      * Gefragt wird an der Tür **und** in der Wache
      * ({@see AuthenticateToken}). Das sind nicht zwei
      * Fassungen derselben Regel, sondern zwei Zeitpunkte: Hier geht es darum,
-     * dass gar keine entsteht; dort darum, dass eine bestehende nicht trägt,
+     * dass gar keins entsteht; dort darum, dass ein bestehendes nicht trägt,
      * wenn ein Konto seinen Typ wechselt.
      */
     private function refuseForAdmins(Account $account): void
     {
-        abort_if($account->type->isAdmin(), 403, 'Ein Adminkonto bekommt keine Zugangsmarke.');
+        abort_if($account->type->isAdmin(), 403, 'Ein Adminkonto bekommt kein API-Token.');
     }
 
     public function update(Request $request, Audit $audit): RedirectResponse
@@ -331,8 +331,18 @@ final class ProfileController extends Controller
      * Versuch protokollieren.
      *
      * Protokolliert, weil ein Versuch an dieser Stelle keine Ungeschicklichkeit
-     * ist: Die Oberfläche zeigt in diesem Zustand kein Formular. Wer hier
-     * ankommt, hat die Anfrage selbst gestellt.
+     * ist: Die Oberfläche bietet in diesem Zustand keine dieser Handlungen an.
+     * Wer hier ankommt, hat die Anfrage selbst gestellt.
+     *
+     * **Bis zum 11. Oktober 2026 stimmte der Satz für die API-Tokens nicht**
+     * (`docs/144 §0` Befund 2). Formular und „Entfernen" standen in fremder
+     * Sicht da, und ein Klick darauf wurde hier als selbst gestellter Versuch
+     * gebucht. Geschrieben war der Satz für die Formulare, die es gab, als er
+     * entstand; die API-Tokens kamen mit B7 danach. `ImpersonationControlTest`
+     * hält ihn seitdem für jede Handlung, die hier abgewiesen wird.
+     *
+     * > **Eine Begründung, die ein Formular für abwesend erklärt, gilt für die
+     * > Formulare, die es gab, als sie geschrieben wurde.**
      */
     private function refuseWhileImpersonating(Request $request, Audit $audit, string $action): void
     {

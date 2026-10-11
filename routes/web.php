@@ -1368,12 +1368,12 @@ Route::middleware('auth')->group(function (): void {
         ->name('profile.password');
 
     /*
-     * **Die Zugangsmarken für `api/v1`** (B7, `docs/131 §3`).
+     * **Die API-Tokens für `api/v1`** (B7, `docs/131 §3`).
      *
-     * Dieselbe Schranke wie beim Konto daneben und aus demselben Grund: Eine
-     * Marke gehört dem angemeldeten Konto, und eine Kennung aus der Anfrage
+     * Dieselbe Schranke wie beim Konto daneben und aus demselben Grund: Ein
+     * API-Token gehört dem angemeldeten Konto, und eine Kennung aus der Anfrage
      * entscheidet nichts — gesucht wird über `$request->user()->apiTokens()`.
-     * Ein Adminkonto wird im Controller abgewiesen; es bekommt keine Marke,
+     * Ein Adminkonto wird im Controller abgewiesen; es bekommt kein API-Token,
      * weil `forAccount()` für ihn `allowAll()` ruft.
      */
     Route::post('/settings/tokens', [ProfileController::class, 'storeToken'])

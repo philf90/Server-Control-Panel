@@ -39,8 +39,18 @@ mkdir -p "${STAGE}"
 #
 # > **Eine Datei, die ein Wächter im Repo prüft, ist damit noch nicht auf dem
 # > Server.**
+#
+# **Und `docs/openapi-v1.yaml` steht hier seit dem 11. Oktober 2026, aus
+# demselben Grund.** `SpecController` liefert sie unter `/api/v1/openapi.yaml`
+# aus, `OpenApiReachTest` hält sie im Repo gegen die Routen — und im Paket lag
+# sie seit `0.9.0-rc.1` nicht. Ohne die Datei gibt die Adresse 404, sogar mit
+# leerem Text, gemessen im Container (`docs/144 §0` Befund 4). Eine Datei und
+# nicht das Verzeichnis: Unter `docs` liegen die Dokumente für Entwickler, und
+# das Panel liest genau eine Datei davon. `ShippedFileTest` hält seitdem jede
+# Datei, die `app/` über `base_path()` und seine Geschwister liest, gegen diese
+# Liste.
 for part in \
-    agent app bootstrap config database lang public resources/views routes vendor artisan composer.json composer.lock
+    agent app bootstrap config database docs/openapi-v1.yaml lang public resources/views routes vendor artisan composer.json composer.lock
 do
     if [ -e "${part}" ]; then
         mkdir -p "${STAGE}/$(dirname "${part}")"

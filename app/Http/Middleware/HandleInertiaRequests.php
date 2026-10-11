@@ -165,6 +165,16 @@ final class HandleInertiaRequests extends Middleware
             // 2FA-Geheimnis wären zwar über $hidden ausgenommen, aber die
             // nächste Spalte ist es nicht.
             'account' => fn (): ?array => $account instanceof Account ? [
+                /*
+                 * **Die Kennung, damit der Browser je Konto merken kann.**
+                 * Weggeklickte Bänder stehen im Speicher des Browsers, und
+                 * den teilen sich mehrere Konten — der Betreiber und die fremde
+                 * Sicht, die er gerade hält, zum Beispiel
+                 * (`useDismissedBands.ts`). Die Anmeldeadresse wäre die andere
+                 * Wahl gewesen; sie lässt sich ändern, und der Schlüssel mit
+                 * der alten bliebe danach als Rest im Browser liegen.
+                 */
+                'id' => (int) $account->id,
                 'name' => $account->name,
                 'email' => $account->email,
                 'type' => $account->type->value,
@@ -416,7 +426,7 @@ final class HandleInertiaRequests extends Middleware
                 'recoveryCodes' => fn () => $request->session()->get('recoveryCodes'),
 
                 /*
-                 * **Der Klartext einer frisch angelegten Zugangsmarke (B7).**
+                 * **Der Klartext eines frisch angelegten API-Tokens (B7).**
                  * Er steht genau einmal auf dem Bildschirm und nirgends in der
                  * Ablage — derselbe Weg wie bei den Wiederherstellungscodes
                  * daneben und aus demselben Grund: Was man wiederzeigen kann,

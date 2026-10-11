@@ -178,8 +178,13 @@ function entfernen(id: number): void {
               -->
               <tr v-if="vorschau === zeile.id">
                 <td class="preview" colspan="6" data-column="Vorschau">
+                  <!--
+                    Das x der Vorschau schliesst die Vorschau und merkt sich
+                    nichts. Sie zeigt, wie das Band aussehen wird; wer es hier
+                    wegklickt, hat es angesehen und nicht für sich ausgeblendet.
+                  -->
                   <div class="bands">
-                    <Bands :items="[zeile]" />
+                    <Bands :items="[zeile]" @dismiss="vorschau = null" />
                   </div>
                 </td>
               </tr>

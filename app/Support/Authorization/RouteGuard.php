@@ -55,11 +55,11 @@ final class RouteGuard
              */
             'POST settings/tokens' => [
                 'kind' => self::AUTHENTICATED,
-                'reason' => 'Eine Zugangsmarke für api/v1 anlegen. Sie gehört dem angemeldeten Konto; eine Kennung aus der Anfrage gibt es nicht, und eine Policy hätte kein Objekt. Ein Adminkonto wird im Controller abgewiesen — es bekommt keine Marke, weil forAccount() für ihn allowAll() ruft.',
+                'reason' => 'Ein API-Token für api/v1 anlegen. Es gehört dem angemeldeten Konto; eine Kennung aus der Anfrage gibt es nicht, und eine Policy hätte kein Objekt. Ein Adminkonto wird im Controller abgewiesen — es bekommt kein API-Token, weil forAccount() für ihn allowAll() ruft.',
             ],
             'DELETE settings/tokens/{token}' => [
                 'kind' => self::AUTHENTICATED,
-                'reason' => 'Eine eigene Zugangsmarke entfernen. Gesucht wird über Konto und Kennung, nicht über die Kennung allein — ApiToken hängt an einem Konto und nicht an einem Abonnement, die Mandantenklammer greift hier also nicht. Derselbe Satz wie bei den Sitzungen aus A9.',
+                'reason' => 'Ein eigenes API-Token entfernen. Gesucht wird über Konto und Kennung, nicht über die Kennung allein — ApiToken hängt an einem Konto und nicht an einem Abonnement, die Mandantenklammer greift hier also nicht. Derselbe Satz wie bei den Sitzungen aus A9.',
             ],
 
             'GET api/v1/openapi.yaml' => [
@@ -68,7 +68,7 @@ final class RouteGuard
             ],
             'GET api/v1/me' => [
                 'kind' => self::AUTHENTICATED,
-                'reason' => 'Wer die Zugangsmarke trägt, und wie viele Abonnements sie erreicht. Eine Policy hätte hier kein Objekt: Der Gegenstand ist das anfragende Konto selbst, und den Kontozustand hat die Wache schon gefragt. Die Zahl steht bewusst neben dem Namen — eine leere Liste sagt nicht, ob gefragt wurde, eine Null neben einem Namen schon (docs/130 A4).',
+                'reason' => 'Wer das API-Token trägt, und wie viele Abonnements es erreicht. Eine Policy hätte hier kein Objekt: Der Gegenstand ist das anfragende Konto selbst, und den Kontozustand hat die Wache schon gefragt. Die Zahl steht bewusst neben dem Namen — eine leere Liste sagt nicht, ob gefragt wurde, eine Null neben einem Namen schon (docs/130 A4).',
             ],
 
             'GET login' => [

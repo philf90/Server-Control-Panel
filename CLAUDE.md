@@ -74,8 +74,15 @@ Punkt 1 in Fall B, am Prüfling kein Befund und an der Vorschrift acht
 10. Oktober 2026 abgenommen.** Die Frage aus `docs/143 §0` hat er am selben
 Tag entschieden, gebaut ist die Antwort für `0.9.0-rc.16`, und der Nachlauf
 hat sie am Abend in einer Mail auf `cloudsrv24` gesehen (`docs/143 §8`,
-Abschnitt weiter unten). Die Dokumentation ist vertagt und steht als offener
-Punkt da.
+Abschnitt weiter unten). Der Lauf für B7 und B8 ist `docs/144`,
+ausgeschrieben am 11. Oktober vor dem Fahren. Beim Ausschreiben fielen vier
+Befunde am Prüfling heraus; der Betreiber hat sie am selben Tag entschieden,
+alle wie vorgeschlagen, und gebaut ist alles für `0.9.0-rc.17`, mit einem
+fünften Befund, der beim Bauen herausfiel (`docs/144 §6a`, Abschnitte weiter
+unten). Am selben Vormittag kamen zwei Wünsche des Betreibers dazu, ein x an
+jedem Band und „API-Token" statt „Zugangsmarke"; beide sind für dieselbe
+Fassung gebaut (`docs/144 §6b`, Abschnitt weiter unten). Die Dokumentation ist
+vertagt und steht als offener Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -1521,8 +1528,8 @@ ein Kommentar seit P7b für geschlossen erklärt hat) und `ApiEmptyListTest`
 (jede Route unter `api/` läuft durch die Klammer — gefragt wird der Router, und
 die Gruppe wird dabei aufgelöst; dazu der Fall durch die Tür, denn eine Liste
 ohne Klammer gibt `200 []`, und das meldet niemand) und `ApiTokenTransportTest`
-(die Marke reist im Kopf und nie in der Adresse — gemessen an der Wirkung und
-am Quelltext, denn dieselbe Marke im Abfrageteil gäbe auch dann 401, wenn
+(das API-Token reist im Kopf und nie in der Adresse — gemessen an der Wirkung
+und am Quelltext, denn dasselbe Token im Abfrageteil gäbe auch dann 401, wenn
 jemand einen zweiten Leser mit anderem Namen einbaute) und `OpenApiReachTest`
 (Beschreibung und Routen in beide Richtungen — die zweite ist die, an der ein
 toter Eintrag wirklich entsteht) — und
@@ -1813,7 +1820,24 @@ Kachel) und `ScopedReachTest` (eine gescopte Regel trifft ein Element ihrer
 eigenen Vorlage — gefragt an einem Baum aus der Vorlage und mit einem
 XPath-Ausdruck aus dem Selektor, denn `.row b` ist eine Frage an einen Baum und
 an keine Zeichenkette; was erst die Laufzeit entscheidet, fällt vorher weg, und
-ein Selektor, den er nicht übersetzen kann, ist ein Befund). Der Bruch selbst steht als
+ein Selektor, den er nicht übersetzen kann, ist ein Befund) und `BandHandleTest`
+(ein Band darf umbrechen, und seine Handgriffe schrumpfen nicht — die
+Handgriffe kommen aus den Vorlagen, und keine Vorlage hat das Umbrechen in
+ihrem eigenen Stilblock, weil eine gescopte Regel die Bänder einer
+Kindkomponente mit mehreren Wurzeln nicht erreicht) und
+`ImpersonationControlTest` (was der Server in fremder Sicht abweist, bietet die
+Seite dort nicht an — die Handlungen kommen aus den Aufrufen von
+`refuseWhileImpersonating()` und nicht aus einer Liste) und `ShippedFileTest`
+(was `app/` über `base_path()` und seine Geschwister liest, liegt unter einem
+Eintrag der Positivliste von `build.sh` — gefragt von der Seite der Leser,
+denn von der Liste aus fehlt nie etwas) und `BandDismissTest` (jedes Band
+steht neben seinem x und keines darin, die fremde Sicht und die Wartung
+kommen beim Seitenwechsel wieder und der Speicher kennt sie nicht, der
+Schlüssel einer Ankündigung deckt jedes Feld, das ihr Band zeigt, und jede
+Hülle fragt die sichtbare Liste, die sie zeigt) und `BrowserStorageTest`
+(jeder Zugriff auf den Speicher des Browsers steht in einem `try` — gezählt
+mit einem Stapel über die Blöcke, und ein Prüfkörper hält, dass die Zählung
+das `try` von seinen Nachbarn trennt). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -4548,7 +4572,10 @@ Testlauf und nicht der Eingriff (0,45 s im August, 0,68 s im langsamsten
 gemessenen Lauf), und gegen den langsamsten Wert gerechnet trug die alte Grenze
 von dreissig noch **vier Tage**. Dass die Grenze drängte, lag nicht an der
 verlorenen Zeit: **Ein abgeschnittener Lauf liest sich als roter**, und der
-Nächste sucht dann am Skript statt an der Grenze.
+Nächste sucht dann am Skript statt an der Grenze. *Seit dem 11. Oktober 2026
+steht sie auf vierzig, gerechnet gegen den Preis je Prüfung nach der Behebung
+und gegen die gemessene Streuung zweier Läufe; der Abschnitt dazu steht weiter
+unten.*
 
 **Und die Eingriffszahl war um eins zu hoch**, weil die Messvorschrift ihren
 eigenen Zähler mitzählte: `grep -c 'vorher_datei'` trifft auch die Zeile, die
@@ -4573,6 +4600,10 @@ ergeben sich 421, 423, 560 und **1075** Prüfungen — das letzte Viertel trägt
 
 > **Eine Teilung, die die Abschnitte zählt statt der Arbeit, ist gleichmässig in
 > einer Grösse, auf die es nicht ankommt.**
+
+*Seit dem 11. Oktober 2026 ist die Teilung vom Tisch.* Zu lang war der Lauf
+nicht, weil er in einem Job lief, sondern weil jede Prüfung die ganze Suite
+lud (Abschnitt weiter unten).
 
 **Und der Rückbau selbst hat eine Falle gefunden.** `.claude/` stand für den
 Skill in `$BAEUME`. Löscht man die einzige Datei darunter und lässt den Eintrag
@@ -7081,7 +7112,8 @@ eigenen Block und sagt dazu, dass sie schreibt. In `docs/140 §8` steht sie
 seitdem so.
 
 **Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B7 und
-B8.** Für B7 und B8 gibt es noch keinen Lauf. B9 ist am 7. Oktober dazugekommen
+B8.** Für B7 und B8 gab es bis zum 11. Oktober keinen Lauf; seitdem ist er
+`docs/144`, ausgeschrieben und nicht gefahren. B9 ist am 7. Oktober dazugekommen
 und gebaut (`docs/142 §10`); sein Lauf ist `docs/143`, gefahren vom 8. bis
 10. Oktober, und am 10. Oktober ist B9 abgenommen. Der Lauf für B5 ist seit dem
 5. Oktober `docs/141`, gefahren samt Nachlauf bis zum 7. Oktober, und an
@@ -7564,6 +7596,288 @@ trotzdem. Entschieden hat eine Prüfsumme im Vorlauf, gerechnet im Container
 
 > **Was eine Datei enthält, sagt ihre Prüfsumme und nicht das Echo, mit dem
 > sie entstand.**
+
+---
+
+## Der Bruchlauf lud für jede Prüfung die ganze Suite — 11. Oktober 2026
+
+Gefragt hat der Betreiber nach der Dauer. Am 10. Oktober brauchte der
+Wächterlauf 46 und 49 Minuten bei einer Grenze von sechzig. Gemessen lag es
+nicht an der Zahl der Prüfungen, sondern an ihrem Preis: Jede Prüfung lief über
+`phpunit.xml`. PHPUnit lud alle 527 Testdateien, rief jeden Datenlieferanten
+und baute 4028 Fälle, bevor der Filter einen davon nahm. An 40 zufällig
+gezogenen Prüfungen waren es 23,6 s über die Suite und 8,4 s mit der Datei.
+
+> **Ein Aufruf, der das Ganze lädt, um ein Stück zu fahren, wird mit dem Ganzen
+> teurer — und das Ganze wächst mit jedem Stück.**
+
+Der Preis wuchs damit von beiden Seiten: Jeder neue Wächter machte jede Prüfung
+teurer, und jeder neue Eingriff brachte Prüfungen dazu. `pruefe` gibt PHPUnit
+seitdem die Datei der Klasse mit, die der Filter nennt, gesucht an denselben
+zwei Orten, an denen `BreakScriptTest` jedes Ziel nachsieht. Gemessen in der
+CI auf demselben Stand: **13 Minuten 20 Sekunden statt 46,5**, 0,24 s je
+Prüfung statt 0,83, und jede Prüfung wie erwartet.
+
+**Die Hochrechnung vom 15. September hat das nicht gesehen.** Sie rechnete den
+Preis je Prüfung als feste Grösse, sagte zwei Monate voraus und hielt knapp
+vier Wochen.
+
+> **Eine Hochrechnung über eine Grösse, die selbst wächst, rechnet mit dem Wert
+> von heute und wird von dem von morgen überholt.**
+
+Die Grenze steht seitdem auf vierzig Minuten; die Rechnung steht in
+`waechter.yml`. Die Teilung auf parallele Jobs ist vom Tisch: Sie hätte die
+Wanduhr geteilt und den Preis je Prüfung stehen lassen.
+
+**Am selben Morgen stand die Grenze zuerst auf dreissig, und die Rechnung dafür
+nahm den einen Lauf als mittleren.** Mit dem 1,31-fachen für den langsamsten
+kam sie auf 17,4 Minuten; ein zweiter Lauf auf demselben Stand brauchte 19
+Minuten 27 Sekunden. Wie weit zwei Läufe derselben Arbeit auseinanderliegen,
+stand in den Schritten der früheren Läufe: Zwei, die binnen drei Stunden
+starten, liegen im Median um das 1,12-fache auseinander und höchstens um das
+1,72-fache, gemessen an 80 Paaren aus 221 Läufen. Gegen das 1,72-fache des
+schnellen Laufs tragen dreissig Minuten einen Monat, vierzig rund 73 Tage.
+
+> **Ein einzelner Lauf sagt nicht, ob er ein schneller war — wer ihn als Mitte
+> nimmt, rechnet mit seinem Glück.**
+
+Der Kommentar in `waechter.yml` hatte es selbst gesagt: „ob er ein mittlerer
+oder ein schneller war, sagt er nicht". Gerechnet wurde trotzdem mit der Mitte.
+
+**Ein Filter trifft seitdem nur seine eigene Klasse.** Über die Suite war er
+ein Ausdruck über jeden Testnamen, und `IconTest` traf auch `NavIconTest` und
+`ActionIconTest`. Die Urteile sind dieselben geblieben: Der volle Lauf im
+Container meldete alle 3360 Prüfungen wie erwartet, und der Lauf in der CI über
+die Suite war auf demselben Stand ebenfalls ohne Fehlschlag.
+
+Gefunden hat die Ursache eine Stichprobe von vierzig Prüfungen, einmal über die
+Suite und einmal mit der Datei gefahren — und nicht das Lesen des Skripts. Dort
+sah jede Prüfung aus wie ein einzelner Testlauf.
+
+---
+
+## Der Abnahmelauf für B7 und B8 — vier Befunde vor dem Fahren — 11. Oktober 2026
+
+`docs/144` ist ausgeschrieben, vor dem Fahren und für beide Merkmale in einem
+Nachmittag. Beide sind seit `0.9.0-rc.1` ausgeliefert, also seit drei Wochen
+auf dem Server, und keines hatte bisher einen Lauf. Beim Vorabmessen im
+Container fielen vier Befunde am Prüfling heraus (`docs/144 §0`), und der
+Betreiber hat sie am selben Tag entschieden (Abschnitt darunter). Die
+Kriterien berühren sie nicht.
+
+**Der teuerste ist derselbe Fehler wie am 15. August.** `SpecController` liest
+`docs/openapi-v1.yaml`, und `packaging/build.sh` nimmt `docs` nicht mit; auf
+dem Server fehlt die Datei deshalb, und ohne sie gibt `/api/v1/openapi.yaml`
+404, im Container gemessen sogar mit leerem Text.
+`OpenApiReachTest` hält die Beschreibung in beide Richtungen gegen die Routen —
+im Repo, wo sie liegt. Damals fehlte `lang`, und behoben wurde es mit einem
+Eintrag in der Liste und nicht mit einer Regel.
+
+> **Eine Datei, die ein Wächter im Repo prüft, ist damit noch nicht auf dem
+> Server.**
+
+> **Ein Fehler, den man an einer Stelle behoben hat, ist beim nächsten Merkmal
+> wieder da, wenn die Behebung nicht die Regel wurde.**
+
+**Der zweite hatte keine Zahl.** Bei 390 px bricht im Streifen der laufenden
+Vorgänge „ansehen" Buchstabe für Buchstabe um, und `tests/bilder-messen.js`
+meldet in allen vier Lagen `dokument = 0`. `.band` ist eine Flexzeile mit
+`overflow-wrap: anywhere`, und der Streifen ist das einzige Band mit drei
+Kindern. Gesehen hat es das Bild der Messung, nicht die Zahl daneben.
+
+> **Ein Fehler, der nichts überlaufen lässt, hat keine Zahl — nur einen
+> Betrachter.**
+
+Der Streifen steht nur, solange ein Vorgang läuft oder vor höchstens zwei
+Minuten endete. Im Container bleibt ein Vorgang ohne Warteschlange auf
+„wartet" stehen, und damit lässt sich der Streifen dort beliebig lange
+fotografieren.
+
+**Der dritte ist ein Satz, der zum Zeitpunkt seines Schreibens stimmte.**
+`ProfileController::refuseWhileImpersonating()` begründet, die Oberfläche
+zeige in fremder Sicht kein Formular, und wer ankomme, habe die Anfrage selbst
+gestellt. Die Zugangsmarken kamen danach, ihr Formular steht in fremder Sicht
+da, und der Klick wird als selbst gestellter Versuch protokolliert.
+
+> **Eine Begründung, die ein Formular für abwesend erklärt, gilt für die
+> Formulare, die es gab, als sie geschrieben wurde.**
+
+Der vierte: Eine Marke wird ohne Rückfrage entfernt. Ein SSH-Schlüssel, die
+nächste Verwandte, fragt.
+
+**Die Taktprobe hat drei Dinge dazugelernt**, jedes mit einem Fall in
+`TickProbeTest` und einem Eingriff: Sie meldet ganze Seiten, sie meldet jedes
+Öffnen einer `EventSource`, und sie weist ein zweites Einsetzen ab. Das zweite
+war eine Messung wert: `performance.getEntriesByType('resource')` führt einen
+Strom erst, wenn er zu Ende ist — offen 0, geschlossen 1, gemessen im Chromium
+an einem eigenen kleinen Server. Eine Liste ohne Strom und eine Vorgangsseite
+mit offenem Strom sähen dort gleich aus.
+
+> **Eine Messung über abgeschlossene Anfragen sieht die offene nicht — und ein
+> Strom ist offen, solange er etwas taugt.**
+
+**Und zwei Fallen beim Vorabmessen**, beide an Werkzeugen. `text=Wechseln` ist
+in Playwright eine Teilsuche ohne Gross- und Kleinschreibung und traf die
+Frage „… wechseln?" statt des Knopfes; die Seite danach zeigte die Bereiche
+des Betreibers, und erkannt hat es erst, dass dort zwei Bereiche standen, die
+in fremder Sicht fehlen. Und die Drosselung von `api/v1` zählt je Adresse: 61
+Anfragen kurz nach neun anderen ergaben 51 zu 10 statt 60 zu 1.
+
+> **Ein Zähler je Adresse zählt jede Anfrage dieser Adresse mit — auch die
+> eigene Vorbereitung.**
+
+---
+
+## Die vier Befunde vor dem Lauf für B7 und B8 sind behoben — 11. Oktober 2026
+
+Der Betreiber hat alle vier am selben Tag entschieden, wie vorgeschlagen (1a,
+2a, 3a, 4a), und gebaut ist alles für `0.9.0-rc.17` (`docs/144 §6a`). Beim
+Bauen fiel ein fünfter Befund heraus. Vier Sätze daraus gelten über B7 und B8
+hinaus.
+
+**Der erste ist eine Grenze von `<style scoped>`, und sie hat die Ursache von
+Befund 1 versteckt.** `PanelLayout` liess `.band` unter 720 px umbrechen, in
+seinem eigenen Stilblock. Das erreichte die Bänder aus seiner eigenen Vorlage,
+die fremde Sicht und die Wartung, und nicht die Ankündigungen und die
+Vorgänge: `Bands.vue` und `OperationBand.vue` haben mehrere Wurzeln, und Vue
+gibt das Merkmal einer gescopten Regel nur an die Wurzel einer Kindkomponente
+weiter, wenn sie genau eine hat. Gemessen: Die Hülle `.bands` trägt
+`data-v-e3b6d303`, kein Band darin.
+
+> **Eine gescopte Regel erreicht die Wurzel einer Kindkomponente nur, wenn sie
+> eine hat — bei mehreren Wurzeln erreicht sie keine.**
+
+Das ist die Schwester des Satzes vom 1. Oktober über den Schriftzug der
+Leiste: Dort zog das Ziel in eine Kindkomponente um, hier stand es von Anfang
+an dort. `ScopedReachTest` war diesmal zu Recht zufrieden, denn die Regel traf
+ein Element ihrer eigenen Vorlage — was sie daneben verfehlt, kann er nicht
+sehen. Die Regel steht seitdem in `app.css` für jedes Band, und
+`BandHandleTest` hält, dass keine Vorlage sie ein zweites Mal hat.
+
+**Der zweite ist ein Wächter, der eine gebrauchte Regel abgewiesen hätte.**
+Ein fertiger Vorgang stand drei Wochen ohne Rang im Streifen: `rang()` in
+`OperationBand.vue` gibt `ok`, und `app.css` hatte kein `.band.ok`. Am
+9. September hatte `RankReachTest` genau diese Regel als tot gemeldet, weil
+damals niemand die Klasse erzeugte. B8 kam am 21. September, und weil `rang()`
+ein Ausdruck ist, sah `ClassReachTest` den neuen Erzeuger nicht.
+
+> **Ein Wächter, der die Erzeuger einer Regel aufzählt, weist die Regel ab,
+> die ein neuer Erzeuger braucht.**
+
+Die Erzeuger zählen seitdem `rang()` mit, und wer einen vierten baut, liest in
+der Fehlermeldung, wo er ihn einträgt. Gefunden hat den Befund keine Prüfung,
+sondern die Zeilen, die beim Messen von Befund 1 je Band Grund und Kontrast
+druckten. Auf den Bildern der Vorabmessung stand er schon, und die waren auf
+den Umbruch hin angesehen worden.
+
+> **Ein Bild, das man auf eine Frage hin ansieht, beantwortet die Frage — und
+> verdeckt alles, was daneben steht.**
+
+**Der dritte ist ein Wächter, der einen Knopf an seinem Tag erkannte.**
+`DangerRankTest` hält, dass ein roter Knopf fragt und ein fragender Knopf rot
+ist, und las dafür `<button>`. „Entfernen" an einer Zugangsmarke war ein
+`<Link method="delete" as="button">` mit den Klassen eines roten Knopfes: Es
+sah aus wie einer und war für den Wächter keiner.
+
+> **Ein Wächter, der den Knopf an seinem Tag erkennt, sieht keinen, der nur so
+> aussieht.**
+
+Ein Fall verlangt seitdem, dass kein `<Link>` eine Anfrage ausser GET
+schickt. Ein Verweis mit Methode schickt beim Klick ab, und davor lässt sich
+nicht fragen.
+
+**Der vierte ist die Regel, die am 15. August ein Eintrag geblieben war.**
+Damals fehlte `lang` in der Positivliste von `build.sh`, behoben mit einem
+Eintrag und einem Wächter über genau dieses Verzeichnis. Für die
+OpenAPI-Beschreibung fehlte derselbe Eintrag seit `0.9.0-rc.1`, und die Liste
+überspringt still, was es nicht gibt. Von der Liste aus gesehen fehlte also
+nichts.
+
+> **Ein Wächter über eine Positivliste fragt von der Seite der Leser — von der
+> Liste aus gesehen fehlt nie etwas, das nie darin stand.**
+
+`ShippedFileTest` geht deshalb von `app/` aus: Jeder Pfad, den eine Klasse
+über `base_path()` und seine Geschwister liest, liegt unter einem Eintrag der
+Liste, und was sich nicht auflösen lässt, ist ein Befund.
+
+**Und die Begründung aus Befund 2 hängt jetzt nicht mehr an ihrem Datum.**
+`ImpersonationControlTest` liest die Handlungen, die ein Controller in fremder
+Sicht abweist, aus den Aufrufen von `refuseWhileImpersonating()` und sucht auf
+der Seite jedes Bedienelement, das eine davon schickt. Eine neue Handlung, die
+die Tür abweist und die Seite anbietet, macht ihn rot — vor dem Betreiber, der
+in fremder Sicht auf den Knopf drückt.
+
+**Und eine Behauptung in meinen eigenen Kommentaren war ungemessen.** Die
+Kommentare, die ich zu Befund 4 geschrieben hatte, sagten, auf `cloudsrv24`
+habe `/api/v1/openapi.yaml` seit `rc.1` 404 gegeben. Gemessen war der 404 im
+Container ohne die Datei; dass sie im Paket fehlte, sagt die Liste. Die
+Kommentare sagen jetzt beides so, und auf dem Server sieht Block 0 von
+`docs/144` nach.
+
+---
+
+## Ein x an jedem Band und das API-Token — 11. Oktober 2026
+
+Zwei Wünsche des Betreibers vom Vormittag, beide für `0.9.0-rc.17` gebaut
+(`docs/144 §6b`). Ein Band lässt sich wegklicken: Eine Ankündigung bleibt
+fort, bis sie sich ändert, ein Vorgang ganz, gemerkt im Browser je Konto. Die
+fremde Sicht und die Wartung kommen beim nächsten Seitenwechsel wieder. Und
+aus der Zugangsmarke ist das API-Token geworden. Fünf Dinge daraus gelten
+über das x hinaus.
+
+**Die Frage an den Betreiber beschrieb den Bestand falsch.** Die Option, die er
+gewählt hat, lautete „bis zu ihrem Ende" für eine Ankündigung. Beim Bauen fiel
+auf, dass sich Ankündigungen seit dem 6. September ändern lassen, und eine
+geänderte Fassung ist genau das, was jemand sehen soll, der die alte
+weggeklickt hat. Gebaut ist deshalb ein Schlüssel mit Fingerabdruck über das,
+was das Band zeigt, und dem Betreiber ist diese Lesart gesagt worden, bevor
+sie im Commit stand.
+
+> **Eine Antwort gilt für die Frage, die gestellt war. Beschrieb die Frage
+> den Bestand falsch, gehört die Lesart dem Betreiber gesagt und nicht still
+> gebaut.**
+
+**Zwei eigene Kommentare haben etwas behauptet, das niemand gemessen hatte.**
+`Overview.vue` begründete sein `try` damit, dass in einem privaten Fenster
+schon das Lesen von `window.localStorage` werfe. Gemessen liest ein Profil,
+das nichts behält, ohne Ausnahme, und es wirft erst bei abgeschalteten
+Seitendaten. Und an `.band-item` stand, das x ändere die Höhe eines Bandes
+nicht. Das x selbst liegt ausserhalb des Flusses, der Platz, den das Band ihm
+freihält, nicht: Mit und ohne die eine Regel gemessen, bekamen bei 390 px 2
+von 51 Längen eine zweite Zeile, bei 1440 px 3 von 101. Die erste Messung mit
+sechs Ankündigungen hatte keine gefunden.
+
+> **Ein Kommentar, der „ändert nichts" sagt, braucht die Messung mit und ohne
+> die Regel — eine Messung nur mit ihr sagt nicht, was ohne sie wäre.**
+
+> **Und eine Messung an wenigen Längen sagt über die Länge nichts, die genau
+> an der Kante endet.** Gefunden hat den Fall eine Suche über alle Längen in
+> einem Bereich, nicht ein Beispiel mehr.
+
+**Ein Wächter verlangte eine Bedingung wörtlich.** `OperatorControlTest` las
+das Wartungsband als `v-if="maintenance"`, und mit dem x trägt es
+`maintenance && !hiddenUntilNavigation.has('maintenance')`. Die Wache stand
+noch da, und der Wächter meldete sie als fehlend. Er lässt sie seitdem als
+Glied einer `&&`-Bedingung gelten, auf oberster Ebene; ein `||` und eine
+Klammer zählen nicht, weil sie die Wache nicht verlangen.
+
+> **Ein Wächter, der eine Bedingung wörtlich verlangt, hält ihre Schreibweise
+> und nicht die Regel.**
+
+**Die Falle aus `BaseMethodClashTest` zum sechsten Mal.** Die Hilfsmethode
+dafür hiess zuerst `requires()`, eine `final`-Methode von
+`PHPUnit\Framework\TestCase`, und der Lauf starb beim Laden der Klasse. Nach
+`count()`, `configure()`, `for()`, `matches()` und `run()` steht damit fest:
+**Wer in einem Testfall eine Hilfsmethode benennt, sieht vorher in der
+Basisklasse nach — ein kurzes englisches Verb gehört ihr meistens schon.**
+
+**Und eine Regel stand als Grundsatz da und auf keiner Liste.** `docs/19 §2`
+Punkt 2 nennt *Token* seit Langem unter den etablierten Fachwörtern. Drei
+Wochen lang stand trotzdem „Zugangsmarke" auf der Seite, denn `WordChoiceTest`
+liest die Liste in §3 und nicht die Grundsätze darüber.
+
+> **Ein Grundsatz, der auf keiner Liste steht, hält kein Wächter — er hält nur,
+> solange sich jemand an ihn erinnert.**
 
 ---
 

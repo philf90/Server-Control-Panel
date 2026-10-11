@@ -34279,3 +34279,196 @@ Betreiber am selben Abend. Sie sind für den Betreiber gebaut, mit dem Namen der
 Operation als Beschriftung. Der Grund steht trotzdem dort, wo der Satz ihn
 verspricht, und eine Beschriftung hülfe nur, wenn jede Operation, die ein Kunde
 als Vorgang sieht, eine hätte.
+
+### Der Bruchlauf lud für jede Prüfung die ganze Suite
+
+Gefragt hat der Betreiber nach der Dauer. Der Wächterlauf brauchte am
+10. Oktober 46 und 49 Minuten bei einer Grenze von sechzig. Jede Prüfung lief
+über `phpunit.xml`: PHPUnit lud alle 527 Testdateien, rief jeden
+Datenlieferanten und baute 4028 Fälle, bevor der Filter einen davon nahm.
+Gemessen an 40 zufällig gezogenen Prüfungen waren es 23,6 s über die Suite und
+8,4 s mit der Datei. Der Preis wuchs damit von beiden Seiten: Jeder neue
+Wächter machte jede Prüfung teurer, und jeder neue Eingriff brachte Prüfungen
+dazu.
+
+> **Ein Aufruf, der das Ganze lädt, um ein Stück zu fahren, wird mit dem Ganzen
+> teurer — und das Ganze wächst mit jedem Stück.**
+
+`pruefe` in `tests/waechter-brechen.sh` gibt PHPUnit seitdem die Datei der
+Klasse mit, die der Filter nennt. Gesucht wird sie an denselben zwei Orten, an
+denen `BreakScriptTest` jedes Ziel nachsieht, und findet sich keine, läuft die
+Suite wie vorher. `BreakScriptTest::test_every_check_hands_phpunit_the_file_of_its_case`
+hält die Form. In der CI auf demselben Stand dauert der Schritt **13 Minuten
+20 Sekunden statt 46,5**, also 0,24 s je Prüfung statt 0,83, und jede der 3360
+Prüfungen kam wie erwartet.
+
+**Ein Filter trifft seitdem nur seine eigene Klasse.** Über die Suite war er
+ein Ausdruck über jeden Testnamen: `IconTest` traf auch `NavIconTest` und
+`ActionIconTest`, `CommandReachTest` auch `DbCommandReachTest`. Die Urteile
+sind dieselben geblieben.
+
+**Die Grenze in `waechter.yml` steht seitdem auf vierzig Minuten.** Die
+Rechnung vom 15. September sagte für sechzig Minuten zwei Monate und hielt
+knapp vier Wochen, weil der Preis je Prüfung mit der Suite wuchs.
+
+> **Eine Hochrechnung über eine Grösse, die selbst wächst, rechnet mit dem Wert
+> von heute und wird von dem von morgen überholt.**
+
+Am selben Morgen stand dort zuerst dreissig. Gerechnet war das aus dem einen
+Lauf, als wäre er ein mittlerer, mit dem 1,31-fachen für den langsamsten: 17,4
+Minuten und rund 70 Tage. Ein zweiter Lauf auf demselben Stand brauchte
+19 Minuten 27 Sekunden. Wie weit zwei Läufe derselben Arbeit auseinanderliegen,
+steht in den Schritten der früheren: Zwei Läufe, die binnen drei Stunden
+starten, liegen im Median um das 1,12-fache auseinander und höchstens um das
+1,72-fache, gemessen an 80 Paaren aus 221 Läufen. Gegen das 1,72-fache des
+schnellen Laufs gerechnet tragen dreissig Minuten einen Monat und vierzig rund
+73 Tage.
+
+> **Ein einzelner Lauf sagt nicht, ob er ein schneller war — wer ihn als Mitte
+> nimmt, rechnet mit seinem Glück.**
+
+Die Teilung auf parallele Jobs, gemessen am 15. September und nie entschieden,
+ist damit vom Tisch. Sie hätte die Wanduhr geteilt und den Preis je Prüfung
+stehen lassen.
+
+### Der Abnahmelauf für B7 und B8 steht ausgeschrieben — mit vier Befunden davor
+
+**`docs/144`**, ausgeschrieben am 11. Oktober 2026 vor dem Fahren, für beide
+Merkmale in einem Lauf. Beide sind seit `0.9.0-rc.1` ausgeliefert, keines
+hatte bisher einen Lauf. Vorab im Container gefahren sind jede Route von B7
+durch die echte Wache und der Streifen von B8 im echten Chromium. Dabei fielen
+vier Befunde am Prüfling heraus; über alle vier entscheidet der Betreiber
+(`docs/144 §0`):
+
+- **Die OpenAPI-Beschreibung liegt im Repo und nicht im Paket.**
+  `SpecController` liest `docs/openapi-v1.yaml`, und `packaging/build.sh`
+  nimmt `docs` nicht mit; auf dem Server gibt `/api/v1/openapi.yaml` 404.
+  Derselbe Fall wie `lang` am 15. August.
+- **Bei 390 px bricht im Streifen „ansehen" Buchstabe für Buchstabe um**, bei
+  `dokument = 0`. Ein Vorschlag mit drei Zeilen in `app.css` ist im Container
+  gemessen und nicht gebaut.
+- **In fremder Sicht steht „Marke anlegen" auf „Mein Konto"**, und der Klick
+  endet mit 403 und einer Zeile `denied`, die ihn einen selbst gestellten
+  Versuch nennt.
+- **Eine Marke wird ohne Rückfrage entfernt**; ein SSH-Schlüssel fragt.
+
+An der Vorschrift fielen sieben Punkte heraus. `docs/131 §7` erwartete `200 []`
+für einen Kunden ohne Abonnements, wo die echte Route 403 gibt, und suchte die
+Marke in den Protokollen der Kundendomains statt in dem des Panels. Seine
+Gegenprobe hätte eine gültige Marke in eine Datei geschrieben, die das Panel
+vierzehn Tage aufhebt und vorliest. `docs/131 §7` trägt seitdem einen
+Nachsatz.
+
+### Die Taktprobe sieht ganze Seiten und Ströme
+
+`tests/takt-messen.js` meldet seit dem 11. Oktober 2026 neben Teilladungen
+auch ganze Seiten (`Seite bei …`) und jedes Öffnen einer `EventSource`
+(`Strom bei …`), und ein zweites Einsetzen wird abgewiesen. Für B8 heisst
+„nach dem Ende fragt niemand mehr nach" auch „die Seite lädt sich nicht von
+selbst neu", und ohne eine Zeile für ganze Seiten wären beide nicht zu
+trennen. Ohne die Sperre stünde jede Anfrage doppelt da — das Bild des
+doppelten Takts, den die Probe finden soll.
+
+> **Eine Probe, die sich zweimal einhängt, meldet ihr eigenes Doppel als
+> Doppel des Prüflings.**
+
+Gemessen wird ein Strom an seinem Öffnen und nicht an
+`performance.getEntriesByType('resource')`. Dort steht er erst, wenn er zu
+Ende ist; gemessen im Chromium: offen 0, geschlossen 1.
+
+`TickProbeTest` hält alle drei, jeder Fall mit einem Eingriff im Bruchskript,
+rot und zurück grün belegt.
+
+### Die vier Befunde vor dem Lauf für B7 und B8 sind behoben — und ein fertiger Vorgang hatte keinen Rang
+
+Der Betreiber hat die vier Fragen aus `docs/144 §0` am 11. Oktober 2026
+entschieden, alle wie vorgeschlagen. Gebaut ist alles für `0.9.0-rc.17`; die
+Messungen vorher und nachher stehen in `docs/144 §6a`.
+
+- **Der Streifen der laufenden Vorgänge bricht bei 390 px um**, statt
+  „ansehen" Buchstabe für Buchstabe zu stapeln. `.band` darf seitdem in
+  `app.css` umbrechen, bei jeder Breite; Knöpfe und Verweise darin schrumpfen
+  nicht, und der erste nach dem Text steht rechts. Ein fertiger Vorgang ist
+  bei 390 px 122 px hoch statt 146, „ansehen" steht in einer Zeile statt in
+  sechs. Das Umbrechen stand bis dahin im `<style scoped>` von `PanelLayout`
+  und erreichte die Vorgänge nicht: `OperationBand.vue` hat mehrere Wurzeln,
+  und eine gescopte Regel erreicht dann keine davon.
+- **Ein fertiger Vorgang hat wieder einen Rang.** `.band.ok` fehlte seit B8,
+  und das Band stand ohne Grund in der Schriftfarbe der Seite. Am 9. September
+  hatte `RankReachTest` die Regel als tot gemeldet, als niemand sie erzeugte;
+  `rang()` in `OperationBand.vue` kannte er nicht, und jetzt kennt er es.
+- **In fremder Sicht stehen die Zugangsmarken als Liste da**, ohne Formular
+  und ohne „Entfernen". Wer einem Kunden hilft, sieht, ob es eine Marke gibt
+  und wann sie zuletzt benutzt wurde. Bis dahin endete ein Klick auf „Marke
+  anlegen" mit 403 und einer Zeile `denied`, die ihn einen selbst gestellten
+  Versuch nannte.
+- **Eine Marke wird erst nach einer Rückfrage entfernt**, wie ein
+  SSH-Schlüssel.
+- **Die OpenAPI-Beschreibung liegt im Paket.** `docs/openapi-v1.yaml` steht in
+  der Positivliste von `packaging/build.sh`; seit `0.9.0-rc.1` fehlte sie dort,
+  und ohne sie gibt `/api/v1/openapi.yaml` 404.
+
+Drei neue Wächter und zwei erweiterte, mit zwölf Eingriffen im Bruchskript:
+`BandHandleTest`, `ImpersonationControlTest` und `ShippedFileTest` sind neu.
+`RankReachTest` zählt `rang()` als Erzeuger, und `DangerRankTest` verlangt,
+dass kein `<Link>` eine Anfrage ausser GET schickt. Er las bis dahin nur
+`<button>`, und der Verweis an der Marke sah aus wie ein roter Knopf, ohne
+einer zu sein.
+
+> **Ein Wächter, der die Erzeuger einer Regel aufzählt, weist die Regel ab,
+> die ein neuer Erzeuger braucht.**
+
+### Jedes Band hat ein x, und die Zugangsmarken heissen API-Tokens
+
+Zwei Wünsche des Betreibers vom Vormittag des 11. Oktober 2026, beide für
+`0.9.0-rc.17` gebaut und im Container im echten Chromium gemessen
+(`docs/144 §6b`).
+
+**Ein Band lässt sich wegklicken.** Jedes der vier Bänder trägt rechts oben
+ein x — die Ankündigung, der laufende Vorgang, die fremde Sicht und die
+Wartung, dazu die Störung auf den beiden Seiten der Anmeldung. Was danach
+geschieht, hat der Betreiber entschieden:
+
+- **Eine Ankündigung bleibt fort, bis sie sich ändert oder endet**, gemerkt im
+  Browser und je Konto. Ihr Schlüssel trägt einen Fingerabdruck über Rang und
+  Text: Eine geänderte Fassung steht wieder da, ein verschobenes Ende nicht.
+- **Ein Vorgang bleibt ganz fort.** Solange niemand ihn sieht, fragt der
+  Streifen nicht mehr nach — gemessen zwei Nachfragen in sieben Sekunden vor
+  dem x und keine danach.
+- **Die fremde Sicht und die Wartung kommen beim nächsten Seitenwechsel
+  wieder.** Sie melden einen Zustand, und das Band der fremden Sicht trägt den
+  einzigen Rückweg zur Verwaltung.
+
+Das x steht neben dem Band und nicht darin, denn zwei Bänder sind selbst ein
+Verweis, und ein Knopf in einem `<a>` ist kein gültiges HTML. Die Fläche ist
+44 px bei 390 px und 38 bei 1440, das Zeichen hält auf jedem Band 5,09:1 bis
+6,18:1. Was sich nicht mehr zeigen kann, vergisst der Speicher, sonst wüchse
+er mit jedem Vorgang. Sind die Seitendaten abgeschaltet, wirkt das x auf der
+Seite und merkt sich nichts.
+
+**Der Platz für das x kann eine Zeile kosten**, und der Kommentar an
+`.band-item` sagte zuerst das Gegenteil. Gemessen an denselben Bändern mit und
+ohne die Regel, die ihn freihält: Bei 390 px bekamen 2 von 51 Ankündigungen
+eine zweite Zeile, bei 1440 px 3 von 101 — Texte, die in den letzten rund
+20 px einer Zeile enden. Die Klammer auf zwei Zeilen bleibt die Obergrenze.
+
+**Und ein Kommentar in `Overview.vue` hatte die richtige Klammer mit der
+falschen Begründung.** Er sagte, in einem privaten Fenster werfe schon das
+Lesen von `window.localStorage`. Gemessen liest ein Profil, das nichts behält,
+ohne Ausnahme; es wirft erst bei abgeschalteten Seitendaten. Seit dem x läuft
+ein solcher Zugriff im Layout jeder Seite, und `BrowserStorageTest` hält, dass
+jeder in einem `try` steht.
+
+**Aus der Zugangsmarke ist das API-Token geworden** — auf „Mein Konto", in den
+Meldungen beim Anlegen und Entfernen, in den Gründen von `RouteGuard` und in
+der OpenAPI-Beschreibung. Das Fachwort stand in `docs/19 §2` schon unter den
+erlaubten, die Regel dazu aber nicht auf der Liste der verbrauchten Wörter.
+Jetzt steht dort `Zugangsmarke → API-Token`, und `WordChoiceTest` hält es.
+
+`BandDismissTest` und `BrowserStorageTest` sind neu. `OperatorControlTest`
+lässt die Wache als Glied einer `&&`-Bedingung gelten, weil das Wartungsband
+seitdem zwei Bedingungen trägt. Dreizehn neue Eingriffe im Bruchskript, sechs
+bestehende nachgezogen; im vollen Lauf beissen alle 3416 Prüfungen.
+
+> **Ein Kommentar, der „ändert nichts" sagt, braucht die Messung mit und ohne
+> die Regel — eine Messung nur mit ihr sagt nicht, was ohne sie wäre.**

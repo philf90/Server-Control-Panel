@@ -363,7 +363,7 @@ final class OperatorControlTest extends TestCase
             if ($selbst === '/' || in_array(strtolower($name), $leer, true)) {
                 // Ein Element ohne Inhalt kann nichts umschliessen — aber es
                 // kann selbst der Fund sein, und dann zählt sein eigenes v-if.
-                if ($pos + strlen($roh) > $offset && str_contains($attribute, 'v-if="'.$guard.'"')) {
+                if ($pos + strlen($roh) > $offset && $this->conditionDemands($attribute, $guard)) {
                     return true;
                 }
 
@@ -374,12 +374,67 @@ final class OperatorControlTest extends TestCase
         }
 
         foreach ($stapel as $attribute) {
-            if (str_contains($attribute, 'v-if="'.$guard.'"')) {
+            if ($this->conditionDemands($attribute, $guard)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * Verlangt das `v-if` dieses Elements den Wächter?
+     *
+     * **Auch als Glied einer Und-Verknüpfung, und nur dann.** Seit dem
+     * 11. Oktober 2026 hat jedes Band ein x, und das Wartungsband steht hinter
+     * `v-if="maintenance && !hiddenUntilNavigation.has('maintenance')"`. Es
+     * erscheint weiter nur dort, wo der Wert da ist; ein Wächter, der nur die
+     * blosse Variable kannte, hielt es trotzdem für ungeschützt.
+     *
+     * > **Ein Wächter, der nur die gewohnte Schreibweise kennt, prüft die
+     * > Gewohnheit und nicht die Regel.**
+     *
+     * Ein Oder zählt nicht — `maintenance || x` zeigt das Element auch ohne
+     * den Wert —, und ein Glied in Klammern zählt nicht, denn darin muss nicht
+     * der Wächter allein stehen. `v-else-if` zählt wie `v-if`; so stand es
+     * schon in der Zeichenkette, die hier vorher gesucht wurde. Die Prüfkörper
+     * stehen in {@see self::test_a_guard_counts_as_a_conjunct_and_not_as_a_disjunct()}.
+     */
+    private function conditionDemands(string $attribute, string $guard): bool
+    {
+        if (preg_match('/(?<![\w:@.-])v-(?:else-)?if="([^"]*)"/', $attribute, $treffer) !== 1) {
+            return false;
+        }
+
+        $ausdruck = $treffer[1];
+        $glieder = [''];
+        $tiefe = 0;
+        $zitat = null;
+
+        for ($i = 0, $laenge = strlen($ausdruck); $i < $laenge; $i++) {
+            $zeichen = $ausdruck[$i];
+
+            if ($zitat !== null) {
+                $zitat = $zeichen === $zitat ? null : $zitat;
+            } elseif ($zeichen === "'" || $zeichen === '`') {
+                $zitat = $zeichen;
+            } elseif (str_contains('([{', $zeichen)) {
+                $tiefe++;
+            } elseif (str_contains(')]}', $zeichen)) {
+                $tiefe--;
+            } elseif ($tiefe === 0 && substr($ausdruck, $i, 2) === '||') {
+                return false;
+            } elseif ($tiefe === 0 && substr($ausdruck, $i, 2) === '&&') {
+                $glieder[] = '';
+                $i++;
+
+                continue;
+            }
+
+            $glieder[count($glieder) - 1] .= $zeichen;
+        }
+
+        return in_array($guard, array_map('trim', $glieder), true);
     }
 
     /**
@@ -526,6 +581,47 @@ final class OperatorControlTest extends TestCase
             .'Ein unbekannter Schlüssel ist wortlos `false` — die Seite verliert jeden Knopf, ohne es zu sagen.',
             implode("\n  ", $unbekannt),
         ));
+    }
+
+    /**
+     * Ein Wächter zählt als Glied einer Und-Verknüpfung — nicht als Glied
+     * eines Oder und nicht in Klammern.
+     *
+     * **Gemessen an Prüfkörpern und nicht am Bestand.** Der Bestand trägt
+     * heute genau eine Verknüpfung, das Wartungsband, und ein Fall, der nur
+     * sie misst, sähe die Gegenrichtung nicht: Ein Oder, das als Und gelesen
+     * wird, lässt einen Knopf durch, den der Betrachter nicht drücken darf.
+     */
+    public function test_a_guard_counts_as_a_conjunct_and_not_as_a_disjunct(): void
+    {
+        $faelle = [
+            'maintenance' => true,
+            "maintenance && !hiddenUntilNavigation.has('maintenance')" => true,
+            "!hiddenUntilNavigation.has('maintenance') && maintenance" => true,
+            'maintenance || other' => false,
+            'other || maintenance && more' => false,
+            '!maintenance && other' => false,
+            '(maintenance || other) && more' => false,
+            'maintenanceBand && other' => false,
+            "other && seen('maintenance')" => false,
+        ];
+
+        foreach ($faelle as $bedingung => $erwartet) {
+            $vorlage = '<div v-if="'.$bedingung.'"><Link href="/maintenance">x</Link></div>';
+
+            $this->assertSame(
+                $erwartet,
+                $this->guarded($vorlage, (int) strpos($vorlage, '<Link'), 'maintenance'),
+                sprintf('v-if="%s" — erwartet %s.', $bedingung, $erwartet ? 'geschützt' : 'ungeschützt'),
+            );
+        }
+
+        $vorlage = '<p v-if="other">y</p><div v-else-if="maintenance && more"><Link href="/maintenance">x</Link></div>';
+
+        $this->assertTrue(
+            $this->guarded($vorlage, (int) strpos($vorlage, '<Link'), 'maintenance'),
+            'Ein v-else-if, dessen Glied der Wächter ist, schützt wie ein v-if.',
+        );
     }
 
     public function test_a_control_for_a_stricter_route_sits_behind_its_ability(): void

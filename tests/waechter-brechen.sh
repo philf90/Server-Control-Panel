@@ -408,8 +408,43 @@ pruefe() {
   #
   # > **Ein Eingriff, den ein Zwischenspeicher des Prueflings nicht sieht,
   # > misst nicht — und ob er ihn sieht, entscheidet die Uhr.**
+  #
+  # **Und PHPUnit bekommt die Datei des Falls mit, nicht die ganze Suite.**
+  # Bis zum 11. Oktober 2026 lief jede Pruefung ueber `phpunit.xml`: PHPUnit
+  # lud alle 527 Testdateien, rief jeden Datenlieferanten und baute 4028
+  # Faelle, bevor der Filter einen davon nahm. Gemessen an 40 zufaellig
+  # gezogenen Pruefungen: 23,6 s ueber die Suite, 8,4 s mit der Datei — hier
+  # rund 340 ms je Pruefung nur fuers Laden. In der CI waren es 0,83 s je
+  # Pruefung, 3360 Pruefungen, 46 Minuten.
+  #
+  # **Und dieser Preis wuchs von beiden Seiten.** Jeder neue Waechter machte
+  # jede Pruefung teurer, und jeder neue Eingriff brachte Pruefungen dazu.
+  # `waechter.yml` hat am 15. September die eine Haelfte gemessen („was
+  # skaliert, ist der Testlauf") und die Ursache nicht gefragt.
+  #
+  # > **Ein Aufruf, der das Ganze laedt, um ein Stueck zu fahren, wird mit dem
+  # > Ganzen teurer — und das Ganze waechst mit jedem Stueck.**
+  #
+  # Der Filter nennt eine Klasse, und die Klasse nennt eine Datei: oberste
+  # Ebene von `tests/Unit` oder `tests/Feature`, dieselben Orte, an denen
+  # `BreakScriptTest` jedes Ziel nachsieht. Zwei Dateien desselben Namens
+  # (`RootElementTest`) gehen beide mit. Findet sich keine, laeuft die Suite
+  # wie vorher, und ein vertippter Name endet weiter als „kein Test".
+  #
+  # **Damit trifft ein Filter nur noch seine eigene Klasse.** Ueber die Suite
+  # war er ein Ausdruck ueber jeden Testnamen: `IconTest` traf auch
+  # `NavIconTest` und `ActionIconTest`, `TeardownTest` zwei weitere,
+  # `CommandReachTest` auch `DbCommandReachTest`. Ein Biss aus der Nachbarklasse
+  # haette dort als Biss des genannten Waechters gegolten.
+  local klasse="${filter%%::*}" dateien=() ordner
+  for ordner in tests/Unit tests/Feature; do
+    if [ -f "$ordner/$klasse.php" ]; then
+      dateien+=("$ordner/$klasse.php")
+    fi
+  done
+
   rm -f storage/framework/views/*.php
-  roh=$(./vendor/bin/phpunit --filter "$filter" --do-not-cache-result 2>&1)
+  roh=$(./vendor/bin/phpunit --filter "$filter" --do-not-cache-result "${dateien[@]}" 2>&1)
 
   case "$roh" in
     *'No tests executed'*|*'No tests found'*) ergebnis='kein Test' ;;

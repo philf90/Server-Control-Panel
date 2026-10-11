@@ -706,6 +706,49 @@ final class BreakScriptTest extends TestCase
         $this->assertLessThan($messen, $zeile[0][1], 'Das Abräumen steht hinter dem Testaufruf — dann misst der Aufruf noch die alte Übersetzung.');
     }
 
+    /**
+     * Jede Prüfung gibt PHPUnit die Datei ihres Falls mit.
+     *
+     * **Gemessen am 11. Oktober 2026.** Über `phpunit.xml` lädt PHPUnit alle
+     * 527 Testdateien und baut 4028 Fälle, bevor der Filter einen nimmt — an
+     * 40 zufällig gezogenen Prüfungen 23,6 s gegen 8,4 s mit der Datei. Der
+     * Lauf in der CI stand bei 46 Minuten, und dieser Preis wuchs mit jedem
+     * Wächter **und** mit jedem Eingriff.
+     *
+     * > **Ein Aufruf, der das Ganze lädt, um ein Stück zu fahren, wird mit dem
+     * > Ganzen teurer — und das Ganze wächst mit jedem Stück.**
+     *
+     * Gesucht werden die Orte wie in {@see self::test_every_check_names_a_test_that_exists()}:
+     * oberste Ebene von `tests/Unit` und `tests/Feature`.
+     *
+     * **Der Bruch dazu** steht nicht im Skript — er änderte das Skript selbst.
+     * Von Hand, und so:
+     *
+     *     cp tests/waechter-brechen.sh <sicherung>
+     *     sed -i 's/ "\${dateien\[@\]}" 2>&1)$/ 2>\&1)/' tests/waechter-brechen.sh
+     *     ./vendor/bin/phpunit --filter BreakScriptTest   # muss rot sein
+     *     cp <sicherung> tests/waechter-brechen.sh
+     */
+    public function test_every_check_hands_phpunit_the_file_of_its_case(): void
+    {
+        $skript = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');
+
+        $this->assertSame(1, preg_match('/^pruefe\(\) \{\n(.*?)\n\}\n/sm', $skript, $treffer), implode(' ', [
+            'Die Funktion pruefe ist in tests/waechter-brechen.sh nicht gefunden worden —',
+            'dann prüft dieser Fall nichts.',
+        ]));
+
+        $rumpf = $treffer[1];
+
+        $this->assertMatchesRegularExpression('/^\s*for ordner in tests\/Unit tests\/Feature; do$/m', $rumpf, implode(' ', [
+            'pruefe sucht die Datei des Falls nicht mehr in tests/Unit und tests/Feature.',
+        ]));
+        $this->assertMatchesRegularExpression('/^\s*roh=\$\(\.\/vendor\/bin\/phpunit --filter "\$filter" [^\n]*"\$\{dateien\[@\]\}" 2>&1\)$/m', $rumpf, implode(' ', [
+            'pruefe gibt PHPUnit die Datei des Falls nicht mehr mit.',
+            'Dann lädt jede Prüfung alle Testdateien, und der Lauf wird mit jedem Wächter teurer.',
+        ]));
+    }
+
     public function test_every_embedded_block_is_valid_python(): void
     {
         $script = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');

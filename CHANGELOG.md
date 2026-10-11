@@ -34254,3 +34254,28 @@ Sicherung auf „Vorgänge" zeigt, gehört nicht zum Kriterium; er ist für
 `0.9.0-rc.16` gebaut, und in einer Mail auf dem Server hat ihn noch niemand
 gesehen. Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B7
 und B8. Die Dokumentation bleibt vertagt.
+
+### Der Satz über „Vorgänge" ist auf dem Server gesehen
+
+**Gesehen am 10. Oktober 2026**, im Nachlauf gegen `0.9.0-rc.16` auf
+`cloudsrv24` (`docs/143 §8`): N0 bis N6 erfüllt, am Prüfling kein Befund. Eine
+kaputte Sicht liess die Sicherung von `p6-abnahme.invalid` scheitern, und der
+nächste Lauf schickte dem Kunden genau eine Mail. Sie stand im Postfach Wort für
+Wort und Umbruch für Umbruch so da, wie der Container sie nach dem Klick mit
+den Werten des Laufs vorgerechnet hatte, mit 21 Zeilen statt 19 unter `rc.15`
+und dem Satz als vorletztem Absatz.
+
+**Und der Satz hält, was er zusagt.** Als Kunde angemeldet, standen unter
+„Vorgänge" die beiden gescheiterten Vorgänge oben, und auf der Seite des Dumps
+stand der Grund rot und ganz oben, Fehler 1356 an der Sicht. Danach hat eine
+gelungene Sicherung den Befund zurückgenommen, und Datenbank und Werkzeuge sind
+wieder fort.
+
+Ein Befund an der Vorschrift: Sie nannte für den Satz über die nächste Nacht
+nur die Automatik und nicht das Kontingent, das er ebenfalls verlangt.
+
+**Die Seiten, auf die der Satz zeigt, bleiben, wie sie sind**, entschieden vom
+Betreiber am selben Abend. Sie sind für den Betreiber gebaut, mit dem Namen der
+Operation als Beschriftung. Der Grund steht trotzdem dort, wo der Satz ihn
+verspricht, und eine Beschriftung hülfe nur, wenn jede Operation, die ein Kunde
+als Vorgang sieht, eine hätte.

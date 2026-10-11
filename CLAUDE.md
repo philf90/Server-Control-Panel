@@ -72,8 +72,10 @@ Fahren und **gefahren vom 8. bis 10. Oktober: alle elf Punkte erfüllt**,
 Punkt 1 in Fall B, am Prüfling kein Befund und an der Vorschrift acht
 (`docs/143 §7`, Abschnitt weiter unten). **Danach hat der Betreiber B9 am
 10. Oktober 2026 abgenommen.** Die Frage aus `docs/143 §0` hat er am selben
-Tag entschieden, und gebaut ist die Antwort für `0.9.0-rc.16` (Abschnitt
-weiter unten). Die Dokumentation ist vertagt und steht als offener Punkt da.
+Tag entschieden, gebaut ist die Antwort für `0.9.0-rc.16`, und der Nachlauf
+hat sie am Abend in einer Mail auf `cloudsrv24` gesehen (`docs/143 §8`,
+Abschnitt weiter unten). Die Dokumentation ist vertagt und steht als offener
+Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -7540,9 +7542,28 @@ Punkt beim Kunden neben dem alten beim Betreiber unbemerkt. Vier Eingriffe,
 jeder einzeln belegt: der Satz fehlt, er nennt eine andere Liste, er hängt an
 der Automatik, und das Menü des Kunden nennt die Liste anders.
 
-**Offen ist, dass den Satz noch niemand in einer Mail auf dem Server gesehen
-hat.** Jede Mail mit einem Abschnitt der Sicherung hat zwei Zeilen mehr; die
-Zahlen in `docs/143` gelten für `rc.15`.
+**Gesehen am selben Abend**, im Nachlauf gegen `rc.16` (`docs/143 §8`): N0
+bis N6 erfüllt, am Prüfling kein Befund. Die Mail an den Kunden kam um 20:02,
+mit 21 Zeilen statt 19, und stand Wort für Wort und Umbruch für Umbruch so da,
+wie der Container sie nach dem Klick mit den Werten des Laufs vorgerechnet
+hatte. Als Kunde standen unter „Vorgänge" die beiden gescheiterten Vorgänge
+oben, und einen Klick weiter der Grund, rot und ganz oben auf der Seite.
+
+**Die Seiten, auf die der Satz zeigt, sind für den Betreiber gebaut, und sie
+bleiben es**, entschieden vom Betreiber am selben Abend. Der Katalog der
+Aufgaben kennt `backup.create` und `db.dump.create` nicht, die Liste zeigt den
+Namen der Operation deshalb zweimal, und die Seite des Vorgangs trägt ihn als
+Überschrift, mit „Fortschritt 25 %" an einem gescheiterten Dump. Der Grund
+steht trotzdem rot und ganz oben, und eine Beschriftung hülfe nur, wenn jede
+Operation, die ein Kunde sieht, eine hätte (`docs/143 §8`, Die Entscheidung).
+
+**Und ein Handgriff aus dem Nachlauf, der jeden langen Block trifft:** Am Ende
+des Einfügens stand die Werkzeugdatei verstümmelt im Terminal, und heil war sie
+trotzdem. Entschieden hat eine Prüfsumme im Vorlauf, gerechnet im Container
+über die Datei, die der Block schreibt.
+
+> **Was eine Datei enthält, sagt ihre Prüfsumme und nicht das Echo, mit dem
+> sie entstand.**
 
 ---
 

@@ -4552,8 +4552,9 @@ gemessenen Lauf), und gegen den langsamsten Wert gerechnet trug die alte Grenze
 von dreissig noch **vier Tage**. Dass die Grenze drängte, lag nicht an der
 verlorenen Zeit: **Ein abgeschnittener Lauf liest sich als roter**, und der
 Nächste sucht dann am Skript statt an der Grenze. *Seit dem 11. Oktober 2026
-steht sie wieder auf dreissig, gerechnet gegen den Preis je Prüfung nach der
-Behebung; der Abschnitt dazu steht weiter unten.*
+steht sie auf vierzig, gerechnet gegen den Preis je Prüfung nach der Behebung
+und gegen die gemessene Streuung zweier Läufe; der Abschnitt dazu steht weiter
+unten.*
 
 **Und die Eingriffszahl war um eins zu hoch**, weil die Messvorschrift ihren
 eigenen Zähler mitzählte: `grep -c 'vorher_datei'` trifft auch die Zeile, die
@@ -7603,10 +7604,24 @@ vier Wochen.
 > **Eine Hochrechnung über eine Grösse, die selbst wächst, rechnet mit dem Wert
 > von heute und wird von dem von morgen überholt.**
 
-Die Grenze steht seitdem auf dreissig Minuten, gerechnet wie damals, nur gegen
-den neuen Preis; die Rechnung steht in `waechter.yml`. Die Teilung auf
-parallele Jobs ist vom Tisch: Sie hätte die Wanduhr geteilt und den Preis je
-Prüfung stehen lassen.
+Die Grenze steht seitdem auf vierzig Minuten; die Rechnung steht in
+`waechter.yml`. Die Teilung auf parallele Jobs ist vom Tisch: Sie hätte die
+Wanduhr geteilt und den Preis je Prüfung stehen lassen.
+
+**Am selben Morgen stand die Grenze zuerst auf dreissig, und die Rechnung dafür
+nahm den einen Lauf als mittleren.** Mit dem 1,31-fachen für den langsamsten
+kam sie auf 17,4 Minuten; ein zweiter Lauf auf demselben Stand brauchte 19
+Minuten 27 Sekunden. Wie weit zwei Läufe derselben Arbeit auseinanderliegen,
+stand in den Schritten der früheren Läufe: Zwei, die binnen drei Stunden
+starten, liegen im Median um das 1,12-fache auseinander und höchstens um das
+1,72-fache, gemessen an 80 Paaren aus 221 Läufen. Gegen das 1,72-fache des
+schnellen Laufs tragen dreissig Minuten einen Monat, vierzig rund 73 Tage.
+
+> **Ein einzelner Lauf sagt nicht, ob er ein schneller war — wer ihn als Mitte
+> nimmt, rechnet mit seinem Glück.**
+
+Der Kommentar in `waechter.yml` hatte es selbst gesagt: „ob er ein mittlerer
+oder ein schneller war, sagt er nicht". Gerechnet wurde trotzdem mit der Mitte.
 
 **Ein Filter trifft seitdem nur seine eigene Klasse.** Über die Suite war er
 ein Ausdruck über jeden Testnamen, und `IconTest` traf auch `NavIconTest` und

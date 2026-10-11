@@ -76,11 +76,13 @@ jobs:
     name: Jede Regel absichtlich brechen
     runs-on: ubuntu-latest
 
-    # **Gemessen am 11. Oktober 2026** in der CI, Lauf 38115760774 auf
-    # `255969ea`: der Schritt `tests/waechter-brechen.sh` **13 min 20 s** für
-    # 3360 Prüfungen, also **0,24 s je Prüfung**. Derselbe Stand brauchte am
-    # Tag davor über die Suite 46,5 Minuten, 0,83 s je Prüfung. Am 15. September
-    # waren es 22,5 Minuten im Median über 50 Läufe, bei 2466 Prüfungen.
+    # **Gemessen am 11. Oktober 2026** in der CI, zweimal an denselben 3360
+    # Prüfungen: Lauf 38115760774 auf `255969ea` brauchte für den Schritt
+    # `tests/waechter-brechen.sh` **13 min 20 s**, Lauf 38117644671 auf
+    # `824affdc` eine halbe Stunde später **19 min 27 s** — 0,24 und 0,35 s je
+    # Prüfung. Derselbe Stand brauchte am Tag davor über die Suite 46,5 Minuten,
+    # 0,83 s je Prüfung. Am 15. September waren es 22,5 Minuten im Median über
+    # 50 Läufe, bei 2466 Prüfungen.
     #
     # **Hier stand „sechzig, und die Zahl ist gerechnet und nicht gegriffen"**,
     # gerechnet gegen 0,68 s je Prüfung im langsamsten Lauf, und die Rechnung
@@ -91,23 +93,32 @@ jobs:
     # > **Eine Hochrechnung über eine Grösse, die selbst wächst, rechnet mit dem
     # > Wert von heute und wird von dem von morgen überholt.**
     #
-    # **Dreissig, gerechnet wie damals, nur gegen die neue Grösse.** Seit jede
-    # Prüfung ihre eigene Datei lädt, wächst ihr Preis nicht mehr mit der Suite.
-    # Langsamster gegen mittleren Lauf war im September das 1,31-fache; damit
-    # läge der langsamste Lauf heute bei 17,4 Minuten. Das Skript wuchs vom
-    # 15. September bis zum 11. Oktober um 894 Prüfungen, 34 am Tag, und die
-    # kosten im langsamsten Fall 10,7 Sekunden am Tag. Dreissig Minuten tragen
-    # damit **rund 70 Tage** — die Spanne von zwei Monaten, die der Satz von
-    # damals für richtig hielt. Sechzig trügen fast acht Monate und wären keine
-    # Grenze mehr, die etwas bedeutet; fünfundvierzig trügen fünf.
+    # **Am selben Morgen stand hier zuerst dreissig.** Gerechnet war das aus dem
+    # ersten Lauf allein, als wäre er ein mittlerer, mit dem 1,31-fachen für den
+    # langsamsten: 17,4 Minuten. Der zweite Lauf brauchte 19,5. Wie weit zwei
+    # Läufe derselben Arbeit auseinanderliegen, steht in den Schritten der
+    # früheren: Zwei Läufe, die binnen drei Stunden starten, liegen im Median um
+    # das 1,12-fache auseinander, in jedem zwanzigsten Paar um mehr als das
+    # 1,57-fache und höchstens um das 1,72-fache — 80 Paare aus 221 Läufen seit
+    # August, alle noch über die Suite. Die beiden von heute liegen mit dem
+    # 1,46-fachen darin.
     #
-    # **Gerechnet ist das aus einem Lauf**, und ob er ein mittlerer oder ein
-    # schneller war, sagt er nicht. Der nächste Lauf misst nach.
+    # > **Ein einzelner Lauf sagt nicht, ob er ein schneller war — wer ihn als
+    # > Mitte nimmt, rechnet mit seinem Glück.**
+    #
+    # **Vierzig, gerechnet gegen den langsamsten Fall.** Das 1,72-fache des
+    # schnellen Laufs sind 22,9 Minuten, 0,41 s je Prüfung. Das Skript wuchs vom
+    # 15. September bis zum 11. Oktober um 894 Prüfungen, 34 am Tag, und die
+    # kosten in diesem Fall 14 Sekunden am Tag. Vierzig Minuten tragen damit
+    # **rund 73 Tage** — die Spanne von zwei Monaten, die der Satz vom September
+    # für richtig hielt. Dreissig trügen einen Monat, sechzig fünf. Seit jede
+    # Prüfung ihre eigene Datei lädt, wächst ihr Preis nicht mehr mit der Suite;
+    # die Rechnung vom September hatte genau das gegen sich.
     #
     # **Und warum die Grenze überhaupt drängt**, ist nicht die verlorene Zeit,
     # sondern dass ein abgeschnittener Lauf sich als roter liest — der Nächste
     # sucht dann am Skript statt an der Grenze.
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v4

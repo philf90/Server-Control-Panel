@@ -34307,14 +34307,25 @@ ein Ausdruck über jeden Testnamen: `IconTest` traf auch `NavIconTest` und
 `ActionIconTest`, `CommandReachTest` auch `DbCommandReachTest`. Die Urteile
 sind dieselben geblieben.
 
-**Die Grenze in `waechter.yml` steht wieder auf dreissig Minuten**, gerechnet
-wie am 15. September, nur gegen den neuen Preis: Mit dem langsamsten Lauf vom
-September gerechnet tragen dreissig Minuten rund 70 Tage. Die Rechnung von
-damals sagte für sechzig Minuten zwei Monate und hielt knapp vier Wochen, weil
-der Preis je Prüfung mit der Suite wuchs.
+**Die Grenze in `waechter.yml` steht seitdem auf vierzig Minuten.** Die
+Rechnung vom 15. September sagte für sechzig Minuten zwei Monate und hielt
+knapp vier Wochen, weil der Preis je Prüfung mit der Suite wuchs.
 
 > **Eine Hochrechnung über eine Grösse, die selbst wächst, rechnet mit dem Wert
 > von heute und wird von dem von morgen überholt.**
+
+Am selben Morgen stand dort zuerst dreissig. Gerechnet war das aus dem einen
+Lauf, als wäre er ein mittlerer, mit dem 1,31-fachen für den langsamsten: 17,4
+Minuten und rund 70 Tage. Ein zweiter Lauf auf demselben Stand brauchte
+19 Minuten 27 Sekunden. Wie weit zwei Läufe derselben Arbeit auseinanderliegen,
+steht in den Schritten der früheren: Zwei Läufe, die binnen drei Stunden
+starten, liegen im Median um das 1,12-fache auseinander und höchstens um das
+1,72-fache, gemessen an 80 Paaren aus 221 Läufen. Gegen das 1,72-fache des
+schnellen Laufs gerechnet tragen dreissig Minuten einen Monat und vierzig rund
+73 Tage.
+
+> **Ein einzelner Lauf sagt nicht, ob er ein schneller war — wer ihn als Mitte
+> nimmt, rechnet mit seinem Glück.**
 
 Die Teilung auf parallele Jobs, gemessen am 15. September und nie entschieden,
 ist damit vom Tisch. Sie hätte die Wanduhr geteilt und den Preis je Prüfung

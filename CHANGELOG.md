@@ -34420,7 +34420,7 @@ einer zu sein.
 
 ### Jedes Band hat ein x, und die Zugangsmarken heissen API-Tokens
 
-Zwei Wünsche des Betreibers vom Abend des 11. Oktober 2026, beide für
+Zwei Wünsche des Betreibers vom Vormittag des 11. Oktober 2026, beide für
 `0.9.0-rc.17` gebaut und im Container im echten Chromium gemessen
 (`docs/144 §6b`).
 
@@ -34468,7 +34468,7 @@ Jetzt steht dort `Zugangsmarke → API-Token`, und `WordChoiceTest` hält es.
 `BandDismissTest` und `BrowserStorageTest` sind neu. `OperatorControlTest`
 lässt die Wache als Glied einer `&&`-Bedingung gelten, weil das Wartungsband
 seitdem zwei Bedingungen trägt. Dreizehn neue Eingriffe im Bruchskript, sechs
-bestehende nachgezogen.
+bestehende nachgezogen; im vollen Lauf beissen alle 3416 Prüfungen.
 
 > **Ein Kommentar, der „ändert nichts" sagt, braucht die Messung mit und ohne
 > die Regel — eine Messung nur mit ihr sagt nicht, was ohne sie wäre.**

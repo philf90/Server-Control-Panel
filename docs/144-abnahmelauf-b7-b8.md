@@ -27,10 +27,10 @@ eine Zeile daraus oder sagt, warum nicht.
 sieben Punkte an der Vorschrift und am Messmittel. Der Betreiber hat die vier
 am selben Tag entschieden, alle wie vorgeschlagen, und behoben sind sie für
 `0.9.0-rc.17` — zusammen mit einem fünften, der beim Beheben herausfiel
-(§6a). Die Kriterien berühren sie nicht. Am selben Abend kamen zwei Wünsche
-des Betreibers dazu: **Jedes Band hat ein x, und die Zugangsmarken heissen
-API-Tokens** (§6b). **Gefahren wird gegen die Freigabe, die all das trägt**;
-Block 0, A4, A7, A8, B8 und B9 zeigen es.
+(§6a). Die Kriterien berühren sie nicht. Am selben Vormittag kamen zwei
+Wünsche des Betreibers dazu: **Jedes Band hat ein x, und die Zugangsmarken
+heissen API-Tokens** (§6b). **Gefahren wird gegen die Freigabe, die all das
+trägt**; Block 0, A4, A7, A8, B8 und B9 zeigen es.
 
 **Der Lauf braucht einen Nachmittag.** Teil A (B7) läuft auf dem Server und in
 einem privaten Fenster, Teil B (B8) im Browser des Betreibers am Schreibtisch,
@@ -1307,7 +1307,7 @@ an `BandHandleTest`, zwei an `RankReachTest`, drei an
 
 ## §6b · Das x und das API-Token — 11. Oktober 2026
 
-Am Abend nach §6a kamen zwei Wünsche des Betreibers, beide für denselben
+Am selben Vormittag kamen zwei Wünsche des Betreibers, beide für denselben
 Zweig: *„Ein Band soll sich wegklicken lassen. Dafür ist ein ‚x' in jedem Band
 erforderlich."* Und: *„Der Begriff Zugangsmarke ist nicht sehr zugänglich und
 entspricht auch keinem verwendeten technischen Begriff. Es sollte sich API
@@ -1317,7 +1317,7 @@ im echten Chromium. Auf dem Server sehen es A8 und B9 nach.
 
 ### Was das x tut
 
-Zwei Fragen hat der Betreiber am selben Abend entschieden, beide wie
+Zwei Fragen hat der Betreiber gleich danach entschieden, beide wie
 vorgeschlagen:
 
 | Band | weggeklickt, bis … | gemerkt |
@@ -1544,6 +1544,10 @@ Skript und in einer Meldung von `ProfileController`. Sechs bestehende
 Eingriffe hatten ihren Anker in einer der umgebauten Stellen und sind
 nachgezogen: die Hülle der Anmeldeseite, der Verweis der Ankündigung, zwei an
 der Wartung, das Formular und der Knopf „Entfernen" der API-Tokens.
+
+**Im vollen Lauf über `88d6eb08` beissen alle**: 3416 Prüfungen, jede wie
+erwartet. Über `579f5e03` waren es 3390, und die 26 dazwischen sind die
+dreizehn neuen Eingriffe mit je ihrer Gegenprobe.
 
 ---
 

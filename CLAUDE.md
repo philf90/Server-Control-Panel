@@ -79,10 +79,10 @@ ausgeschrieben am 11. Oktober vor dem Fahren. Beim Ausschreiben fielen vier
 Befunde am Prüfling heraus; der Betreiber hat sie am selben Tag entschieden,
 alle wie vorgeschlagen, und gebaut ist alles für `0.9.0-rc.17`, mit einem
 fünften Befund, der beim Bauen herausfiel (`docs/144 §6a`, Abschnitte weiter
-unten). Am selben Abend kamen zwei Wünsche des Betreibers dazu, ein x an jedem
-Band und „API-Token" statt „Zugangsmarke"; beide sind für dieselbe Fassung
-gebaut (`docs/144 §6b`, Abschnitt weiter unten). Die Dokumentation ist vertagt
-und steht als offener Punkt da.
+unten). Am selben Vormittag kamen zwei Wünsche des Betreibers dazu, ein x an
+jedem Band und „API-Token" statt „Zugangsmarke"; beide sind für dieselbe
+Fassung gebaut (`docs/144 §6b`, Abschnitt weiter unten). Die Dokumentation ist
+vertagt und steht als offener Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -7818,7 +7818,7 @@ Kommentare sagen jetzt beides so, und auf dem Server sieht Block 0 von
 
 ## Ein x an jedem Band und das API-Token — 11. Oktober 2026
 
-Zwei Wünsche des Betreibers vom Abend, beide für `0.9.0-rc.17` gebaut
+Zwei Wünsche des Betreibers vom Vormittag, beide für `0.9.0-rc.17` gebaut
 (`docs/144 §6b`). Ein Band lässt sich wegklicken: Eine Ankündigung bleibt
 fort, bis sie sich ändert, ein Vorgang ganz, gemerkt im Browser je Konto. Die
 fremde Sicht und die Wartung kommen beim nächsten Seitenwechsel wieder. Und

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\Concerns\RefusesWhileImpersonating;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Support\Audit\Audit;
@@ -27,13 +28,27 @@ use SrvPanel\Agent\Totp;
  * **Die Wiederherstellungscodes werden einmal gezeigt.** Danach liegen nur
  * ihre Hashes in der Datenbank — auch das Panel kann sie nicht mehr anzeigen.
  * Das ist der Sinn: Wer die Datenbank liest, soll sie nicht benutzen können.
+ *
+ * **In fremder Sicht weist die Seite ab**, das Anzeigen eingeschlossen
+ * (`docs/144 §8`, entschieden am 11. Oktober 2026). Das angemeldete Konto ist
+ * dann das des Kunden, und bis zum 14. Oktober liess sich der zweite Faktor
+ * dort einschalten: mit einem Geheimnis, das danach in der App des Betreibers
+ * lag, und mit Wiederherstellungscodes, die nur der Betreiber gesehen hat. Bei
+ * der nächsten Anmeldung fehlte dem Kunden ein Code, den er nie hatte, und
+ * abschalten liess es sich nur mit einem Code aus derselben App. Dass schon
+ * die Anzeige abweist, ist Absicht: Ein QR-Code, der sich nicht bestätigen
+ * lässt, ist kein Angebot, sondern eine Falle.
  */
 final class TwoFactorSetupController extends Controller
 {
+    use RefusesWhileImpersonating;
+
     private const PENDING_SECRET = 'two_factor_setup_secret';
 
-    public function show(Request $request): Response
+    public function show(Request $request, Audit $audit): Response
     {
+        $this->refuseWhileImpersonating($request, $audit, 'auth.two_factor.viewed');
+
         $account = $this->account($request);
 
         if ($account->hasTwoFactor()) {
@@ -62,6 +77,8 @@ final class TwoFactorSetupController extends Controller
 
     public function store(Request $request, Audit $audit): RedirectResponse
     {
+        $this->refuseWhileImpersonating($request, $audit, 'auth.two_factor.enabled');
+
         $account = $this->account($request);
 
         if ($account->hasTwoFactor()) {
@@ -109,6 +126,8 @@ final class TwoFactorSetupController extends Controller
      */
     public function destroy(Request $request, Audit $audit): RedirectResponse
     {
+        $this->refuseWhileImpersonating($request, $audit, 'auth.two_factor.disabled');
+
         $account = $this->account($request);
 
         if ($account->isAdmin()) {

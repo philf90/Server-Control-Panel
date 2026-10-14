@@ -36,6 +36,19 @@ trägt**; Block 0, A4, A7, A8, B8 und B9 zeigen es.
 einem privaten Fenster, Teil B (B8) im Browser des Betreibers am Schreibtisch,
 mit offener Konsole. Zwischen beiden muss keine Zeit vergehen.
 
+**Gefahren ist er vom 11. bis 14. Oktober 2026 auf `cloudsrv24` gegen
+`0.9.0-rc.17`.** Die tragenden Punkte A2, A6, B1 und B3 sind erfüllt, die
+dazugelegten A3 und B2 auch. Von B4 ist die zweite Hälfte auf dem Server
+nicht gemessen, entschieden vom Betreiber. Am Prüfling ist ein Befund
+herausgefallen, ausserhalb der Kriterien: Der zweite Faktor lässt sich in
+fremder Sicht einschalten. An der Vorschrift sechs. Das Protokoll ist §8, und
+wo die Vorschrift danach berichtigt ist, steht „Berichtigt nach dem Lauf".
+
+**Die Behebung des zweiten Faktors ist am 14. Oktober gebaut**, für
+`0.9.0-rc.18` und wie entschieden (Variante a). Die Tür weist in fremder Sicht
+ab, „verwalten" fällt dort weg, und ein Wächter fragt von der Seite der Tür.
+Das steht in §9, mit dem Nachlauf, der es auf dem Server zeigt.
+
 ---
 
 ## §0 · Was beim Ausschreiben herausgefallen ist
@@ -438,9 +451,11 @@ denn Inertia lädt dabei das Dokument nicht neu.
   RFC 2606; eine Mail ginge an niemanden, und das Anlegen verschickt keine
   (gelesen am `CustomerController`). Zurück bleibt sein Grabstein mit einer
   verbrauchten Kundennummer, wie bei jedem zurückgezogenen Kunden.
-- **Drei Paketauffrischungen** aus `/updates` in Teil B, mit B8 vier. Und **eine Sicherung**
-  von `p6-abnahme.invalid`, wenn B7 gefahren wird; die Aufbewahrung nimmt sie
-  in der Nacht mit wie jede andere.
+- **Drei Paketauffrischungen** aus `/updates` in Teil B, mit B8 und B9 fünf.
+  Und **eine Sicherung** von `p6-abnahme.invalid`, wenn B7 gefahren wird; die
+  Aufbewahrung nimmt sie in der Nacht mit wie jede andere. *Berichtigt nach
+  dem Lauf (§8, Befund 6 an der Vorschrift):* Hier stand „mit B8 vier"; B9
+  kam mit §6b dazu, und seine Auffrischung fehlte in der Zählung.
 - **`srvpanel vhost`** in B5. Es schreibt den Server-Block des Panels und die
   Rotationsdateien neu, wie jedes Update, und reiht je Abonnement einen Vorgang
   ohne Konto ein.
@@ -783,13 +798,40 @@ Danach oben im Band **„Zurück zur Verwaltung"**.
 
 ### A9 — Abräumen: der Wegwerfkunde
 
-Im Hauptfenster: Kunden, B7 Leer, **„Zurückziehen"**, die Rückfrage
+*Berichtigt nach dem Lauf (§8, Befunde 1 und 2 an der Vorschrift):* Die erste
+Fassung suchte das API-Token in A9b über die Adresse `b7-leer@b7.invalid`. Das
+Zurückziehen gibt diese Adresse frei: Das Konto bleibt stehen, seine Adresse
+wird `NULL`, und die Abfrage hätte `entfernt: 0` gemeldet und das API-Token
+liegen lassen. Gemessen im Container und auf dem Server. Und die erste Fassung
+las nicht davor: Ein leeres `$T2`, etwa nach einer neuen Sitzung, gibt
+ebenfalls 401.
+
+Zuerst, solange B7 Leer noch Kunde ist:
+
+```bash
+# A9 vorher · Gilt das API-Token von B7 Leer, und welchem Konto gehört es? — liest nur
+printf 'Anfang %s… · %d Zeichen\n' "${T2:0:9}" "${#T2}"
+api "$T2" /api/v1/me
+K2=$("${C[@]}" -H "Authorization: Bearer $T2" "$U/api/v1/me" | jq -r '.data.account_id // empty')
+printf 'Konto von B7 Leer: %s\n' "${K2:-—}"
+zaehlen() { K2="$K2" srvpanel tinker --execute='printf("über die Adresse: %d · über das Konto: %d\n", App\Models\ApiToken::query()->whereHas("account", fn ($k) => $k->where("email", "b7-leer@b7.invalid"))->count(), App\Models\ApiToken::query()->where("account_id", (int) getenv("K2"))->count());'; }
+zaehlen
+```
+
+**Erwartet:** `Anfang srvp_<4 Zeichen>… · 53 Zeichen`, `200` mit
+`"subscriptions":0`, `Konto von B7 Leer: <id>` und `über die Adresse: 1 · über
+das Konto: 1`. Steht dort `0 Zeichen` oder `—`, hat die Sitzung das API-Token
+verloren. Dann legt B7 Leer im privaten Fenster ein neues an (§1), und jede
+`1` unten wird eine `2`.
+
+Dann im Hauptfenster: Kunden, B7 Leer, **„Zurückziehen"**, die Rückfrage
 bestätigen. Kunden werden nicht gelöscht, sondern zurückgezogen; die Nummer
 bleibt vergeben, und das sagt die Rückfrage auch. Danach:
 
 ```bash
 # A9a · Das API-Token eines zurückgezogenen Kunden — liest nur
 api "$T2" /api/v1/me
+zaehlen
 tokens
 ```
 
@@ -797,25 +839,29 @@ tokens
 
 ```
 401 · application/json · {"message":"Unauthenticated."}
+über die Adresse: 0 · über das Konto: 1
 API-Tokens: 1
   Token <n> · Konto <id> · b7-leer · …
 ```
 
 Das API-Token gilt nicht mehr, und seine Zeile steht noch da (Beobachtung in
-§0). Es geht ausdrücklich:
+§0). Über die Adresse findet sie niemand mehr, denn die hat das Zurückziehen
+freigegeben. Es geht ausdrücklich, und zwar über das Konto:
 
 ```bash
-# A9b · Das API-Token des Wegwerfkunden entfernen — schreibt: löscht genau diese eine Zeile in api_tokens
-srvpanel tinker --execute='
-  $n = App\Models\ApiToken::query()->whereHas("account", fn ($k) => $k->where("email", "b7-leer@b7.invalid"))->delete();
-  printf("entfernt: %d\n", $n);
+# A9b · Die API-Tokens des Wegwerfkunden entfernen — schreibt: löscht genau die Zeilen seines Kontos in api_tokens
+K2="$K2" srvpanel tinker --execute='
+  $q = App\Models\ApiToken::query()->where("account_id", (int) getenv("K2"));
+  foreach ($q->get() as $t) printf("weg: Token %d · Konto %d · %s\n", $t->id, $t->account_id, $t->name);
+  printf("entfernt: %d\n", $q->delete());
 '
 tokens
-unset T T2
+unset T T2 K2
 ```
 
-**Erwartet:** `entfernt: 1` und `API-Tokens: 0` — dieselbe Zahl wie in
-Block 0.
+**Erwartet:** `weg: Token <n> · Konto <id> · b7-leer`, `entfernt: 1` und
+`API-Tokens: 0` — dieselbe Zahl wie in Block 0. Ist `K2` leer, fragt die
+Abfrage nach Konto 0 und entfernt nichts.
 
 ---
 
@@ -844,9 +890,25 @@ geladen worden.
 
 ### B1 — Punkt 1: aus der Liste heraus, und man bleibt dort
 
+*Berichtigt nach dem Lauf (§8, Befund 3 an der Vorschrift):* Die erste
+Fassung rechnete mit rund 25 Sekunden für die beiden Vorgänge, und das sollte
+die Zeit für B2 sein. Auf `cloudsrv24` brauchte eine Auffrischung 2 bis 4
+Sekunden, und beide waren fertig, bevor der erste Seitenwechsel möglich war.
+Gefahren ist B2 deshalb mit angehaltener Warteschlange, und so steht es jetzt
+hier: Ein wartender Vorgang ist für den Streifen so offen wie ein laufender,
+und er wartet, solange B2 braucht.
+
+```bash
+# B1 vorher · Die Warteschlange anhalten — hält srvpanel-worker an; die Vorgänge bleiben auf „wartet"
+systemctl stop srvpanel-worker
+sleep 2
+systemctl is-active srvpanel-worker
+```
+
+**Erwartet:** `inactive`. Wieder gestartet wird die Schlange in B3.
+
 **Darf nicht ausfallen.** **„Jetzt nachsehen"**, „Nachsehen" — und sofort ein
-zweites Mal. Zwei Vorgänge laufen dann nacheinander, rund 25 Sekunden; das ist
-die Zeit, die B2 braucht.
+zweites Mal. Beide Vorgänge warten dann, bis B3 die Schlange wieder startet.
 
 **Erwartet** in der Konsole, mit den Zeiten der Probe:
 
@@ -863,8 +925,8 @@ und auf der Seite:
 
 - **Die Adresse bleibt `/updates`**, und die Pakettabelle steht darunter.
   `location.pathname` in der Konsole sagt es.
-- **Oben stehen zwei Streifen**, `Vorgang <n> system.packages.refresh — wartet`
-  oder `— läuft`, je mit „ansehen".
+- **Oben stehen zwei Streifen**, `Vorgang <n> system.packages.refresh — wartet`,
+  je mit „ansehen".
 
 Eine Zeile `Seite` je Klick ist das Absenden selbst, und die `Nachladen`-Zeile
 mit `packages` danach die Pakettabelle der Seite, auf die es zurückführt. Eine
@@ -872,8 +934,9 @@ Zeile `Seite bei … — /operations/<n>` stünde dort, wenn der Klick wegführt
 
 ### B2 — Punkt 2: der Streifen überlebt den Seitenwechsel, der Takt läuft einmal
 
-Solange beide Vorgänge laufen, über das Menü **„Kunden"**, dann
-**„Abonnements"**. Danach dort bleiben.
+Solange beide Vorgänge warten, über das Menü **„Kunden"**, dann
+**„Abonnements"**, und auf jeder Seite rund zehn Sekunden bleiben. Danach auf
+„Abonnements" bleiben.
 
 **Erwartet:**
 
@@ -883,7 +946,7 @@ Nachladen bei c + 3,0 — runningOperations
 …
 Seite bei d — /subscriptions
 Nachladen bei d + 3,0 — runningOperations
-…                                            (bis beide fertig sind)
+…                                            (solange beide warten)
 ```
 
 - **Der Streifen steht auf jeder Seite**, mit denselben beiden Vorgängen.
@@ -893,12 +956,22 @@ Nachladen bei d + 3,0 — runningOperations
 - **Die erste Zeile nach einem Wechsel kommt drei Sekunden nach ihm.** Der
   Streifen wird mit der Seite neu aufgebaut, und sein Takt beginnt neu.
 
-Endet der zweite Vorgang, bevor beide Wechsel gemacht sind, wird B1 mit einem
-weiteren Paar wiederholt.
+Mit angehaltener Schlange endet keiner der beiden, bevor B3 sie wieder
+startet. Im Lauf zeigten alle drei Seiten dieselben beiden Streifen mit
+`— wartet`.
 
 ### B3 — Punkt 3: nach dem Ende fragt niemand mehr nach
 
-**Darf nicht ausfallen.** Auf „Abonnements" bleiben, bis beide Streifen
+**Darf nicht ausfallen.** Zuerst die Schlange wieder starten:
+
+```bash
+# B3 vorher · Die Warteschlange wieder starten — startet srvpanel-worker
+systemctl start srvpanel-worker
+sleep 2
+systemctl is-active srvpanel-worker
+```
+
+**Erwartet:** `active`. Dann auf „Abonnements" bleiben, bis beide Streifen
 `— fertig` sagen und „Seite aktualisieren" tragen. Dann **15 Sekunden nichts
 tun**, danach einmal **„Seite aktualisieren"**.
 
@@ -926,16 +999,33 @@ vorgaenge 4
 ```
 
 **Erwartet:** die beiden `system.packages.refresh` mit dem Konto des Betreibers,
-`succeeded`, 100 %, mit Zeiten für angelegt, begonnen und fertig. Die Spanne
-von begonnen bis fertig ist die Laufzeit von heute, nach der `docs/132 §5`
-fragt; `docs/92 §6` nannte am 31. August 12 Sekunden.
+`succeeded`, 100 %, mit Zeiten für angelegt, begonnen und fertig; „begonnen"
+liegt nach dem Start der Schlange. Die Spanne von begonnen bis fertig ist die
+Laufzeit von heute, nach der `docs/132 §5` fragt; `docs/92 §6` nannte am
+31. August 12 Sekunden, am 11. Oktober waren es 2 bis 4 (§8).
 
 ### B4 — Ein Strom nur auf der Vorgangsseite
 
+*Berichtigt nach dem Lauf (§8, Befunde 3 und 4 an der Vorschrift):* Die erste
+Fassung sagte „im Streifen sofort „ansehen", solange der Vorgang läuft". Ein
+Vorgang lief 2 Sekunden, und „ansehen" ist zugleich der Verweis und ein Verb.
+Im Lauf kam der Wechsel auf die Vorgangsseite in drei Durchgängen nicht in der
+Konsole an. Jetzt wartet der Vorgang, bis die Seite offen ist, und der Satz
+sagt „klicken".
+
 Bis hierher steht **keine** Zeile `Strom` in der Konsole — durch `/updates`,
-`/customers` und `/subscriptions`. Dann über das Menü zu „Updates", **„Jetzt
-nachsehen"**, „Nachsehen", und im Streifen sofort **„ansehen"**, solange der
-Vorgang läuft.
+`/customers` und `/subscriptions`. Dann die Schlange anhalten:
+
+```bash
+# B4 vorher · Die Warteschlange anhalten — hält srvpanel-worker an; der Vorgang bleibt auf „wartet"
+systemctl stop srvpanel-worker
+sleep 2
+systemctl is-active srvpanel-worker
+```
+
+Über das Menü zu „Updates", **„Jetzt nachsehen"**, „Nachsehen", und dann
+**auf den Verweis „ansehen" rechts im Streifen klicken**. Die Adresse wechselt
+auf `/operations/<n>`.
 
 **Erwartet:**
 
@@ -948,9 +1038,21 @@ Seite bei i — /operations/<n>
 Strom bei i — /operations/<n>/stream         (genau eine)
 ```
 
-Die Vorgangsseite öffnet ihren Strom nur, solange der Vorgang offen ist. Ist
-er schon fertig, wenn die Seite steht, kommt keine Zeile `Strom`, und B4 wird
-mit einem weiteren Klick wiederholt.
+Die Vorgangsseite öffnet ihren Strom nur, solange der Vorgang offen ist, und
+ein wartender ist offen (`OperationStatus::open()`). Auf ihr fragt der
+Streifen weiter alle 3 Sekunden nach, denn er steht auf jeder Seite; eine
+zweite Zeile `Strom` kommt trotzdem nicht, weil die Nachfragen nur den
+Streifen nachladen. Dann die Schlange wieder starten:
+
+```bash
+# B4 danach · Die Warteschlange wieder starten — startet srvpanel-worker
+systemctl start srvpanel-worker
+sleep 2
+systemctl is-active srvpanel-worker
+```
+
+**Erwartet:** `active`. Die Vorgangsseite springt ohne Neuladen auf „fertig",
+und danach kommt keine Zeile mehr. B5 folgt innerhalb von zwei Minuten.
 
 ### B5 — Ein Vorgang ohne Konto erscheint bei niemandem
 
@@ -985,11 +1087,23 @@ weg.
 
 ### B7 — Der Kunde (darf ausfallen)
 
+*Berichtigt nach dem Lauf (§8, Befunde 3 und 5 an der Vorschrift):* Die erste
+Fassung sagte „zwei Takte im Wechsel". Gemessen laufen sie im Gleichschritt,
+denn beide beginnen mit dem Aufbau der Seite nach dem Absenden. Und eine
+Sicherung von `p6-abnahme.invalid` ist in Sekunden fertig; gefahren ist B7
+deshalb mit angehaltener Schlange. Eine neue Sicherung steht ab dem Klick auf
+„wird erstellt" (`BackupStatus::Pending`), und die Liste fragt dann nach, auch
+solange der Vorgang wartet.
+
 Im privaten Fenster als Konto 6: Abonnement `p6-abnahme.invalid`,
-„Sicherungen", die Probe einfügen, **„Jetzt sichern"**.
+„Sicherungen", die Seite neu laden und die Probe einfügen. Dann die Schlange
+anhalten wie in B4, **„Jetzt sichern"**, rund 15 Sekunden zusehen und
+`location.pathname` in die Konsole. Danach die Schlange wieder starten wie in
+B4 und warten, bis die Sicherung fertig ist.
 
 **Erwartet:** Die Adresse bleibt `/subscriptions/140/backups`, oben steht
-`Vorgang <n> backup.create — …`, und die Probe zeigt **zwei** Takte im Wechsel:
+`Vorgang <n> backup.create — wartet`, und die Probe zeigt **zwei** Takte im
+Gleichschritt:
 
 ```
 Nachladen bei … — backups
@@ -1024,17 +1138,24 @@ Zeilen bei 146 px, und der fertige Vorgang hatte keinen Grund.
 
 ### B9 — Das x am Vorgang (darf ausfallen)
 
+*Berichtigt nach dem Lauf (§8, Befund 3 an der Vorschrift):* „Auch solange
+der Vorgang noch läuft" setzt einen Vorgang voraus, der läuft, und einer lief
+2 Sekunden. Gefahren ist B9 mit angehaltener Schlange und mit zwei Zeitmarken
+in der Konsole, die den Klick einrahmen.
+
 Die Gerätesicht aus B8 wieder aus, `/updates` **neu laden** und die Probe
-einfügen, einmal. **„Jetzt nachsehen"**, „Nachsehen", und sobald der Streifen
-steht, **rechts oben im Streifen das x**.
+einfügen, einmal. Die Schlange anhalten wie in B4. **„Jetzt nachsehen"**,
+„Nachsehen", und sobald der Streifen steht und zwei Nachfragen dastehen,
+**auf das x rechts oben im Streifen klicken**. Gleich danach und 15 Sekunden
+später je eine Zeitmarke in die Konsole: `new Date().toLocaleTimeString()`.
 
 **Erwartet:**
 
 - **Der Streifen ist fort**, und mit ihm die Hülle, wenn kein anderes Band
   dasteht.
-- **Nach dem Klick kommt keine Zeile `Nachladen — runningOperations` mehr**,
-  auch solange der Vorgang noch läuft. Der Takt fragt nur für Vorgänge nach,
-  die jemand sieht.
+- **Zwischen den Zeitmarken steht keine Zeile `Nachladen — runningOperations`**,
+  obwohl der Vorgang weiter wartet. Der Takt fragt nur für Vorgänge nach, die
+  jemand sieht.
 
 Dann über das Menü zu **„Kunden"**, danach die Seite **ganz neu laden**, und
 in die Konsole:
@@ -1051,6 +1172,20 @@ srvpanel.bands.account.<Kennung des Betreibers> = ["operation:<n>"]
 
 mit `<n>` dem Vorgang, den `vorgaenge 1` als jüngsten zeigt. Steht in der
 Liste mehr, hat in diesem Browser vorher schon jemand Bänder weggeklickt.
+
+Dann die Schlange wieder starten:
+
+```bash
+# B9 danach · Die Warteschlange wieder starten — startet srvpanel-worker; dann der jüngste Vorgang
+systemctl start srvpanel-worker
+sleep 5
+systemctl is-active srvpanel-worker
+vorgaenge 1
+```
+
+**Erwartet:** `active` und `Vorgang <n> · system.packages.refresh · Konto
+<Betreiber> · succeeded · 100 %`, „begonnen" nach dem Start. Ohne das x
+stünde der fertige Vorgang jetzt noch zwei Minuten im Streifen.
 
 **Zwei Minuten nach seinem Ende** — die Zeit steht in `vorgaenge` unter
 „fertig" — über das Menü auf eine Seite wechseln und dieselbe Zeile noch
@@ -1708,4 +1843,837 @@ Scratchpad umgebogen: `api`, `liste`, `marken`, `vorgaenge`, `spur` und
 und die Marke mit 0. Block 0 lief gegen dieselbe Datenbank mit Kunde 1 statt
 Konto 6 und schrieb `EA=1 FA=3 ED=1 FD=2 NA=999999`. Die Prüfsumme von Block H
 ist über die Datei gerechnet, die der Block schreibt: 67 Zeilen,
-`7090a2e6deb3ead4`.
+`7090a2e6deb3ead4`. Mit §6b heisst `marken` jetzt `tokens`, und die Datei hat
+seitdem die Prüfsumme `8b56817a615927a6`; so steht sie in §1, und so stand sie
+auf dem Server (§8).
+
+---
+
+## §8 · Protokoll
+
+Gefahren vom 11. bis 14. Oktober 2026 auf `cloudsrv24` gegen `0.9.0-rc.17`.
+Block 0, H und Teil A bis A8 liefen am Mittag des 11. Oktober bis 12:55 Uhr,
+A8 am Schreibtisch und A9 am Abend desselben Tages, B0 bis B6 von 19:58 bis
+20:30 Uhr. B8 und B9 folgten am Morgen des 12. Oktober, B7 am Morgen des 14.
+Was hier steht, ist von den Bildern und Ausgaben des Betreibers abgelesen. Die
+Uhrzeiten sind die der Anzeigezone, CEST, und die Zeiten der Taktprobe stehen
+als Sekunden seit ihrem Einsetzen da. API-Tokens stehen nur mit ihrem Anfang
+da.
+
+**Die tragenden Punkte sind erfüllt, A2 und A6 für B7, B1 und B3 für B8**, und
+die beiden dazugelegten A3 und B2 auch. Block 0, A4, A7 bis A9, B0 und B5 bis
+B9 sind erfüllt, A5 und A5b gemessen. **Von B4 ist eine Hälfte erfüllt:** Über
+die ganze Sitzung öffnete keine Seite ausser der Vorgangsseite einen Strom. Die
+andere Hälfte, genau ein Strom auf der Vorgangsseite, ist auf dem Server nicht
+gemessen; so hat es der Betreiber entschieden, und im Container ist sie
+gemessen. **Die fünf Behebungen aus §6a sind auf dem Server gesehen**, aus
+§6b das x an der fremden Sicht und am Streifen und das Wort „API-Token".
+
+**Am Prüfling ein Befund, ausserhalb der Kriterien:** Der zweite Faktor lässt
+sich in fremder Sicht am Konto des Kunden einschalten. Der Betreiber hat
+Variante a entschieden, und gebaut wird sie nach dem Lauf, für
+`0.9.0-rc.18`. **An der Vorschrift sechs Befunde.** Alle sind in dieser
+Fassung berichtigt, jede Stelle mit einem Vermerk.
+
+### Block 0 und H — 11. Oktober
+
+- **`0.9.0-rc.17`**, `srvpanel-worker` und `srvpanel-agentd` beide `active`.
+- **Konto 6 ist ein Kunde mit zwei Abonnements**, 140 `p6-abnahme.invalid` und
+  141 `p6-nochmaltest`; das zweite hat keine Domain. Das erste fremde
+  Abonnement ist 137 `p6-b.invalid`, die erste fremde Domain 51. In der Datei
+  standen `EA=140 FA=137 ED=54 FD=51 NA=999999`, fünf von fünf.
+- **`API-Tokens: 0`**, `Kunden ohne Abonnement: 0`, `Cache: database ·
+  Drosselung api/v1: 60 je Minute`, `jq` da.
+- **Unter `docs` lag `openapi-v1.yaml`, und nur sie.** Damit ist Befund 4 aus
+  §0 auf dem Server behoben; unter `rc.16` gab es das Verzeichnis im Paket
+  nicht.
+
+Block H gab `Werkzeuge: 6 von 6 · 67 Zeilen · 8b56817a615927a6`, die Prüfsumme
+aus §1. Das Echo beim Einfügen sah zerhackt aus, und die Datei war heil.
+
+### A1 und A2 — Punkt 1, erfüllt
+
+A1 legte Token 1 an, `b7-abnahme` an Konto 6, Anfang `srvp_2c8c…`, 53 Zeichen,
+„zuletzt benutzt" `nie`. Es ist das erste API-Token auf diesem Server.
+
+- **`/me`** gab `200` mit `"account_id":6` und `"subscriptions":2`. Die Liste
+  trug genau `140 · p6-abnahme.invalid` und `141 · p6-nochmaltest`.
+- **Eigene Kennungen:** Abonnement 140 und Domain 54 gaben `200`, die Domains
+  von 140 genau `54 · p6-abnahme.invalid`.
+- **Fremde und erfundene Kennungen:** Die Abonnements 137 und 999999 gaben
+  denselben Satz, `404` mit „No query results for model
+  [App\\Models\\Subscription]", nur mit der eigenen Zahl am Ende. Die Domains
+  von 137 gaben denselben Satz wie das Abonnement 137. Die Domains 51 und
+  999999 gaben `404` mit „… [App\\Models\\Domain]".
+- **Nirgends ein `403`.** Die Kennzahlen von 140 kamen mit `200` und
+  `"retention_days":30`.
+
+### A3 — Punkt 2, erfüllt
+
+Der Wegwerfkunde B7 Leer bekam Konto 12. Sein API-Token, `srvp_1db3…`, 53
+Zeichen, angelegt um 12:37:36, gab an `/me` `200` mit `"subscriptions":0`.
+Die Liste gab `403` und nicht `200 []`; Abonnement 140 und Domain 54 gaben
+`404` wie in A2.
+
+### A4 — erfüllt
+
+Ohne Token und mit einem erfundenen je `401` mit
+`{"message":"Unauthenticated."}`. `/api/v1/openapi.yaml` ohne Token gab
+`200 · application/yaml; charset=utf-8` und den Anfang der Beschreibung.
+Befund 4 ist damit auch an der Tür gesehen.
+
+### A5 und A5b — gemessen
+
+Genau 60 Anfragen mit `200`, im Mittel **25 ms**, und eine mit `429`,
+**17 ms**. Die nächste gab `429` mit Limit 60, Rest 0 und `retry-after: 58`.
+Der Zähler in der Datenbank kostete **1,48 ms** je Anfrage; 100 Versuche
+gezählt, danach 0. Im Container waren es 14 und 9 ms und mit SQLite 2,645 ms.
+Mit MariaDB ist der Zähler schneller, und von einer ganzen Anfrage ist er ein
+kleiner Teil.
+
+### A6 — Punkt 3, erfüllt
+
+`/me` mit dem Merkzeichen im Abfrageteil gab `200` für Konto 6. Dann:
+
+- **Das Merkzeichen** (`b7-gegenp…`, 24 Zeichen) steht in `panel-access.log`
+  einmal und in jeder anderen Datei und im Journal null Mal.
+- **Beide API-Tokens** (`srvp_…`, 53 Zeichen) stehen in keiner Datei und nicht
+  im Journal.
+
+Die 1 beim Merkzeichen belegt, dass `spur` die Dateien liest; erst neben ihr
+sind die Nullen eine Messung.
+
+### A7 — erfüllt, in anderer Reihenfolge
+
+- **A7a:** zwei API-Tokens, `b7-abnahme` zuletzt benutzt um 12:44:21, also mit
+  der Anfrage aus A6, daneben `b7-leer`.
+- **Die Rückfrage stand da, wie in §6a gebaut.** Das Bild zeigt sie im Konto
+  von B7 Leer für `b7-leer`: „Das API-Token „b7-leer" entfernen?", darunter
+  „Jedes Programm, das es benutzt, bekommt danach 401.", „Entfernen" in Rot und
+  „Abbrechen". Damit ist Befund 3 auf dem Server gesehen.
+- **A7b zeigte schon, was A7c erwartet:** `401` für `b7-abnahme` und nur noch
+  `b7-leer`. Die Spur auf dem Server hat den Ablauf geklärt. Entfernt wurde
+  genau einmal, `b7-abnahme`, von Konto 6, um 12:48:03: eine Anfrage
+  `DELETE /settings/tokens/1` mit `303` und eine Zeile `api.token.removed ·
+  success`. Ein `DELETE /settings/tokens/2` gibt es danach nicht. Die
+  Rückfrage für `b7-leer` um 12:50 schickte also nichts, und `b7-leer` stand
+  um 12:55 noch da.
+- **Nach dem Entfernen stand oben „Das API-Token ist entfernt."**, bestätigt
+  vom Betreiber.
+- **Das Konto des Betreibers hat keinen Bereich „API-Tokens".** Abgelesen am
+  Abend vor A9, mit der Zeile aus A8: `kein Bereich API-Tokens`.
+
+Ob vor dem Entfernen von `b7-abnahme` einmal „Abbrechen" gedrückt wurde, sieht
+der Server nicht, denn „Abbrechen" schickt nichts. Gezeigt ist es an der
+Rückfrage für `b7-leer`. Ein Bild vom Telefon um 12:45 zeigt dazu den Bereich
+„API-Tokens" mit den neuen Wörtern: Überschrift, Hinweis, „API-Token anlegen"
+und die Karte von `b7-leer` mit „Entfernen".
+
+### A8 — erfüllt, auf dem Telefon und am Schreibtisch
+
+Auf dem Telefon um 12:55, in der Sicht von B7 Leer:
+
+- **Das Band der fremden Sicht**, „Angemeldet als B7 Leer, gewechselt von
+  Administrator", mit „Zurück zur Verwaltung" und dem x.
+- **Die Bereiche „Darstellung", „Sicherheit" und „API-Tokens".** „Konto" und
+  „Passwort ändern" fehlen, und die drei Knöpfe der Darstellung sind gesperrt.
+- **Unter „API-Tokens" eine Karte**, `b7-leer`, `srvp_1db3…`, zuletzt benutzt
+  12:38:30, angelegt 12:37:36. Kein Formular, kein „API-Token anlegen" und
+  kein „Entfernen". **Damit ist Befund 2 auf dem Server gesehen.**
+- **„Letzte Anmeldung 12:49:57" war eine Anmeldung von B7 Leer** und nicht der
+  Wechsel in seine Sicht. `last_login_at` schreiben nur die Anmeldung und die
+  Abfrage des zweiten Faktors.
+
+Am Schreibtisch am Abend:
+
+```
+Formulare 0 · Spalten 4 · Zeilen 1 · Knöpfe []
+```
+
+Dazu das x am Band der fremden Sicht, mit der Zahl der Knöpfe „Zurück zur
+Verwaltung": `1` vor dem x, `0` nach dem x und `1` nach dem Klick auf „Mein
+Konto" in der Leiste. Das x nimmt den Rückweg mit, und der Seitenwechsel
+bringt beides zurück (§6b).
+
+Auf dem zweiten Bild vom Telefon stand neben „Zweiter Faktor" der Verweis
+„verwalten". Daraus kam der Befund am Prüfling, weiter unten.
+
+### A9 — erfüllt, mit der berichtigten Vorschrift
+
+Die alte Sitzung war fort und mit ihr `$T2`. Gefahren ist A9 in einer neuen
+Sitzung, mit dem Klartext, den der Betreiber noch hatte, und mit dem Block,
+der jetzt in §3 steht. Im Lauf stand darin Konto 12 fest, und so druckte er
+„über Konto 12" statt „über das Konto":
+
+```
+Werkzeuge: 6 von 6 · 67 Zeilen · 8b56817a615927a6
+Anfang srvp_1db3… · 53 Zeichen
+200 · application/json · {"data":{"account_id":12,"name":"B7 Leer","type":"customer","subscriptions":0}}
+über die Adresse: 1 · über Konto 12: 1
+```
+
+„Zuletzt benutzt" von Token 2 sprang dabei von 12:38:30 auf 19:51:08; die
+`200` kam also von genau diesem API-Token. Nach dem Zurückziehen:
+
+```
+401 · application/json · {"message":"Unauthenticated."}
+über die Adresse: 0 · über Konto 12: 1
+```
+
+Die Null zeigt auf dem Server, was der Container vorher gezeigt hatte: Das
+Zurückziehen gibt die Adresse frei, und A9b in der ersten Fassung hätte
+`entfernt: 0` gemeldet (Befund 1). „Zuletzt benutzt" blieb auf 19:51:08; eine
+abgewiesene Anfrage zählt nicht als Benutzung. A9b über das Konto:
+
+```
+weg: Token 2 · Konto 12 · b7-leer
+entfernt: 1
+API-Tokens: 0
+```
+
+Das ist dieselbe Zahl wie in Block 0.
+
+### B0 bis B3 — 11. Oktober, ab 19:58
+
+**B0:** Das zweite Einsetzen wies die Probe ab, „Die Taktprobe läuft schon
+(Stand 2026-10-11) …". Den Stand setzt erst das erste Einsetzen; es lief also
+die Fassung aus §1.
+
+**B1, Punkt 1 — erfüllt.** Die beiden Klicks ergaben `Seite bei 65.1s —
+/updates/refresh` und `Seite bei 67.6s — /updates/refresh`, jede gefolgt von
+`Nachladen — packages,packagesError`. `location.pathname` sagte `'/updates'`,
+die Pakettabelle stand darunter, und oben standen zwei Streifen, Vorgang 1096
+und 1097. `Nachladen — runningOperations` kam bei 68.3 und 71.3 s, genau
+3,0 s auseinander. **Bei 71.3 s waren beide fertig**, spätestens 6,2 s nach
+dem ersten Klick (Befund 3). Beide standen auf grünem Grund, „Seite
+aktualisieren" und „ansehen" nebeneinander: Befund 5 aus §6a, bei 1440 px.
+
+**B2, Punkt 2 — erfüllt, mit angehaltener Schlange.** `inactive`, dann zwei
+Auffrischungen, 1098 und 1099, beide `— wartet`. Von 547.8 bis 571.8 s kam
+alle 3,0 s eine Nachfrage. Nach dem Wechsel zu `/customers` bei 571.9 s kam
+die nächste bei 575.0 s, nach dem Wechsel zu `/subscriptions` bei 590.9 s die
+nächste bei 593.9 s. **Bei 574.8 und 593.0 s steht keine Zeile:** Der alte
+Takt hörte mit dem Wechsel auf, und nirgends liegen zwei Nachfragen enger als
+3 s. Auf allen drei Seiten standen dieselben beiden Streifen mit `— wartet`.
+
+**B3, Punkt 3 — erfüllt.** `active`, und die Nachfrage bei 617.9 s brachte
+„fertig". Danach kam 45 Sekunden lang keine Zeile, und „Seite aktualisieren"
+gab genau eine, `Seite bei 663.3s — /subscriptions`. `vorgaenge 4` zeigte die
+vier Auffrischungen mit Konto 1, `succeeded` und `100 %`. **Eine
+Auffrischung brauchte 2 bis 4 Sekunden**; am 31. August waren es 12
+(`docs/92 §6`). 1098 und 1099 warteten 68 s in der angehaltenen Schlange und
+liefen danach in je 2 s.
+
+**Der erste Durchgang stützt B3.** Nach dem Ende von 1096 und 1097 kam bis zum
+Beginn von B2 bei 537.4 s keine Nachfrage mehr. Dazwischen stehen drei
+Seitenwechsel mit je genau einer Zeile, 98.2 s `/customers`, 99.8 s `/domains`
+und 246.0 s `/subscriptions`. Die ersten beiden fielen in die zwei Minuten, in
+denen der fertige Streifen noch dasteht. Auch ein Streifen, der nur fertige
+Vorgänge zeigt, fängt also keinen Takt an.
+
+### B4 — eine Hälfte erfüllt, die andere auf dem Server nicht gemessen
+
+Gefahren in drei Durchgängen mit angehaltener Schlange, Vorgang 1100, 1104 und
+1108. Auf dem Server lief jeder wie erwartet: 1100 wartete 44 s und 1108 32 s,
+und jeder lief nach dem Start in 2 s durch. Auf `/updates` fragte der Streifen
+dabei alle 3,0 s nach, im ersten Durchgang bei 1043.4, 1046.4 und 1049.4 s.
+
+**Die erste Hälfte ist erfüllt.** In der ganzen Sitzung steht keine Zeile
+`Strom`, von B0 bis B6 über rund eine halbe Stunde und über `/updates`,
+`/customers`, `/domains` und `/subscriptions`. Das gilt auch für `/updates`,
+wo der Streifen einen wartenden Vorgang zeigte. Gelesen ist es am Ende mit dem
+Filter `/Seite|Strom/` in der Konsole.
+
+**Die zweite Hälfte ist auf dem Server nicht gemessen.** In keinem Durchgang
+steht eine Zeile `Seite … /operations/<n>`; die Probe hat die Vorgangsseite
+nie gesehen. Auf die Frage, was ein Klick auf „ansehen" tut, hat der
+Betreiber geantwortet, dass die Seite wechselt. Danach hat er entschieden, die
+Hälfte als nicht gemessen einzutragen (Befund 4).
+
+Im Container ist der Klick am selben Abend nachgestellt, gegen den Stand von
+`rc.17`, mit einem wartenden Vorgang im Streifen, bei 1440 px und in vier
+Lagen. In allen vier stand danach `/operations/8` in der Adresse:
+
+- **Maus, ohne Probe:** keine Zeile, weil keine Probe lief.
+- **Maus, mit Taktprobe:** `Seite bei 0.5s — /operations/8` und `Strom bei
+  0.5s — /operations/8/stream`.
+- **Touch** und **Touch als Mobilgerät:** dieselben beiden Zeilen, der Strom
+  bei 0.6 s.
+
+„ansehen" hat dort einen Kasten von 67 × 21 px, und das x beginnt 5 px
+rechts davon. An allen fünf gemessenen Punkten des Verweises liegt „ansehen"
+selbst oben. Der Klick wechselt also die Seite, und die Vorgangsseite öffnet
+genau einen Strom.
+
+### B5 und B6 — erfüllt
+
+Nach dem Ende von 1108 um 20:27:28 reihte `srvpanel vhost` um 20:27:56 die
+Vorgänge 1109 bis 1111 ein, alle `web.logrotate.apply` mit `Konto —`, fertig
+um 20:27:57. In den beiden Durchgängen davor waren es 1101 bis 1103 und 1105
+bis 1107, 23 und 9 s nach dem Ende der Auffrischung.
+
+- **B5, bei 1798.4 s, etwa 20:28:25:** Auf „Abonnements" zeigte der Streifen
+  nur `Vorgang 1108 … — fertig` und keinen der drei. Sie waren 28 Sekunden alt
+  und hätten nach ihrem Alter dagestanden, filterte der Streifen nicht nach dem
+  Konto. Neben ihrer Abwesenheit stand der eigene Vorgang in derselben Hülle.
+- **B6, bei 1899.9 s, etwa 20:30:06:** Auf „Kunden" stand kein Streifen mehr,
+  158 Sekunden nach dem Ende.
+
+### B8 — erfüllt, 12. Oktober
+
+Vorgang 1113, angelegt um 08:28:44 und fertig um 08:28:50, ohne angehaltene
+Schlange; „Abonnements" bei 390 × 844 neu geladen. `bilder-messen.js` im Stand
+vom 6. September gab `dokument=0`, Gegenprobe `200 (soll 200)`, `schiebt=0`
+und `rollt=0`, und die Zeile aus §4:
+
+```
+122 px · ansehen 1 Zeile(n)
+```
+
+Das ist auf das Pixel die Höhe aus dem Container. Unter `rc.16` waren es dort
+146 px und sechs Zeilen. Das Bild zeigt 1113 fertig auf grünem Grund, „Seite
+aktualisieren" und „ansehen" nebeneinander rechts unter dem Text und das x
+oben rechts. **Damit sind Befund 1 und Befund 5 aus §6a auf dem Server
+gesehen.**
+
+### B9 — erfüllt, 12. Oktober
+
+`Werkzeuge: 6 von 6 · 67 Zeilen · 8b56817a615927a6`, die Probe frisch auf
+`/updates`, der Speicher vorher `'nichts gemerkt'` und die Schlange
+`inactive`. Dann:
+
+- **Vor dem x:** `Seite bei 63.8s — /updates/refresh`, Vorgang 1114 wartet, und
+  von 67.0 bis 85.0 s kam alle 3,0 s `Nachladen — runningOperations`.
+- **Nach dem x:** Streifen und Hülle waren fort. Die Zeitmarken standen auf
+  09:35:25 und 09:35:50, und seit 85.0 s, etwa 09:35:17, kam keine Nachfrage
+  mehr. In diesen rund 33 Sekunden wären sonst elf gekommen, und 1114 wartete
+  weiter.
+- **„Kunden" und ganz neu laden:** kein Streifen, und der Speicher sagte
+  `srvpanel.bands.account.1 = ["operation:1114"]`, genau der Vorgang aus dem
+  Streifen.
+- **Schlange wieder an:** `active`, 1114 `succeeded`, angelegt 09:34:56,
+  begonnen 09:37:18, fertig 09:37:20. Er wartete 2 Minuten 22 Sekunden und lief
+  zwei.
+- **Nach den zwei Minuten:** auf der Übersicht `'nichts gemerkt'` und kein
+  Streifen.
+
+Das Bild von „Abonnements" gleich nach dem Ende fehlt; es war eine Zugabe und
+ist nicht gesehen. **Das x am Streifen ist damit auf dem Server gesehen:** Es
+nimmt den Vorgang weg, danach fragt nichts mehr nach, solange er läuft, das
+Wegklicken übersteht Seitenwechsel und Neuladen, und der Speicher vergisst
+ihn, sobald er nicht mehr in den Streifen gehört.
+
+### B7 — erfüllt, 14. Oktober
+
+Im privaten Fenster als Konto 6 auf `/subscriptions/140/backups`, die Probe
+frisch und die Schlange `inactive`. Dann „Jetzt sichern":
+
+- **Man bleibt auf der Seite.** Genau eine Zeile `Seite bei 53.1s —
+  /subscriptions/140/backups`, das Absenden, und `location.pathname` sagte
+  `'/subscriptions/140/backups'`.
+- **Oben stand „Die Sicherung wird erstellt."**, der Streifen zeigte
+  `Vorgang 1115 backup.create — wartet`, und die Liste eine neue Zeile
+  `p6-abnahme-invalid-20261014-063228-577abbfa` mit „wird erstellt".
+- **Zwei Takte im Gleichschritt, keiner doppelt.** Von 56.6 bis 113.6 s kam
+  alle 3 s je eine Zeile `backups` und eine `runningOperations`, in derselben
+  oder in der nächsten Zehntelsekunde (Befund 5).
+- **Das Ende.** 1115 begann und endete um 08:33:27, nach 58 Sekunden in der
+  angehaltenen Schlange. 53.1 s der Probe sind das Anlegen um 08:32:29, also
+  ist 113.6 s etwa 08:33:29: Die letzte Nachfrage beider Reihen ist die erste
+  nach dem Ende. Danach stand der Streifen auf `— fertig` und die Sicherung auf
+  „vorhanden", 3 MB, 7 Dateien.
+
+Nach 113.6 s trägt das letzte Bild keine Zeile mehr. Wann es entstand, steht
+nicht darauf; verlangt waren 15 Sekunden Stille davor. `vorgaenge` fehlte
+zuerst, weil die SSH-Sitzung neu war, und ist nachgeholt (unten).
+
+### Die Vorgänge des Laufs
+
+Nachgeholt am 14. Oktober in einer neuen Sitzung, nach `. /root/b78-werkzeuge.sh`:
+
+```
+Vorgang 1110 · web.logrotate.apply      · Konto — · succeeded · 100 % · angelegt 20:27:56 · begonnen 20:27:57 · fertig 20:27:57
+Vorgang 1111 · web.logrotate.apply      · Konto — · succeeded · 100 % · angelegt 20:27:56 · begonnen 20:27:57 · fertig 20:27:57
+Vorgang 1112 · system.packages.refresh  · Konto 1  · succeeded · 100 % · angelegt 20:38:05 · begonnen 20:38:06 · fertig 20:38:07
+Vorgang 1113 · system.packages.refresh  · Konto 1  · succeeded · 100 % · angelegt 08:28:44 · begonnen 08:28:45 · fertig 08:28:50
+Vorgang 1114 · system.packages.refresh  · Konto 1  · succeeded · 100 % · angelegt 09:34:56 · begonnen 09:37:18 · fertig 09:37:20
+Vorgang 1115 · backup.create            · Konto 6  · succeeded · 100 % · angelegt 08:32:29 · begonnen 08:33:27 · fertig 08:33:27
+```
+
+1110 und 1111 gehören zu B5, 1113 zu B8, 1114 zu B9 und 1115 zu B7. 1112
+entstand um 20:38:05, als die Frage aus B4 offen stand, ohne angehaltene
+Schlange; ein Bild der Konsole gibt es dazu nicht.
+
+**Zurück bleibt**, was §2 nennt, in den Zahlen dieses Laufs: zehn
+Paketauffrischungen (1096 bis 1100, 1104, 1108 und 1112 bis 1114), neun
+`web.logrotate.apply` ohne Konto, eine Sicherung von `p6-abnahme.invalid`, die
+die Aufbewahrung mitnimmt, und der Grabstein von B7 Leer mit seiner
+Kundennummer. API-Tokens gibt es keine.
+
+### Der Befund am Prüfling: der zweite Faktor in fremder Sicht
+
+Neben „Zweiter Faktor" steht auf „Mein Konto" der Verweis „verwalten", auch in
+fremder Sicht. Er führt zu `/settings/two-factor`, und
+`TwoFactorSetupController` fragt die fremde Sicht nicht. Er ändert das
+angemeldete Konto, und in fremder Sicht ist das das Konto des Kunden.
+
+Gemessen am 11. Oktober im Container, durch die echten Routen und mit einem
+Wegwerftest, der nicht ins Repo geht; auf dem Server ist nichts angefasst. Der
+Betreiber steht in der Sicht eines Kunden ohne zweiten Faktor. Die Ausgabe ist
+gekürzt; die Adresse des Kunden und die Kennungen der Konten stehen als
+Platzhalter da.
+
+```
+Gegenprobe PUT /settings/theme · 403 · Thema des Kunden NULL
+GET /settings/two-factor · 200 · Seite Auth/TwoFactorSetup · active false · Geheimnis ja (32 Zeichen) · URI nennt totp/SrvPanel:<Adresse des Kunden>
+POST falscher Code · 302 · Fehler „Dieser Code stimmt nicht. Bitte die Uhrzeit des Geräts prüfen." · zweiter Faktor aus
+POST richtiger Code · 302 → /settings/two-factor · zweiter Faktor AN · Wiederherstellungscodes in der Kurzmeldung 8
+Protokoll · profile.theme.changed · denied · Konto <Betreiber> · handelnd als <Kunde>
+Protokoll · auth.two_factor.enabled · success · Konto <Betreiber> · handelnd als <Kunde>
+Anmeldung des Kunden mit Passwort · 302 → /two-factor
+```
+
+- **Ein Klick auf „verwalten", der QR-Code in der eigenen App und ein Code
+  genügen.** Danach hat das Konto des Kunden einen zweiten Faktor, dessen
+  Geheimnis nur beim Betreiber liegt. Die acht Wiederherstellungscodes sieht
+  der Betreiber und nicht der Kunde, und bei der nächsten Anmeldung wird der
+  Kunde nach einem Code gefragt, den er nicht hat.
+- **Nachvollziehbar ist es:** Das Protokoll nennt den Betreiber, „handelnd
+  als" Kunde.
+- **Zurück geht es nur mit einem Code aus derselben App.**
+  `TwoFactorSetupController::destroy()` verlangt einen gültigen Code, und eine
+  andere Stelle, die den zweiten Faktor eines Kunden zurücksetzt, gibt es im
+  Panel nicht.
+- **Die Seite widerspricht sich.** Oben steht in fremder Sicht „Das Konto eines
+  Kunden lässt sich von hier aus nicht ändern".
+
+**Unter `/settings` ist das die einzige Lücke**, gemessen mit `route:list`.
+Ohne Fähigkeit erreicht ein Kunde dort Profil, Passwort, Darstellung,
+API-Tokens und den zweiten Faktor. Die ersten vier weisen in fremder Sicht ab,
+der zweite Faktor nicht.
+
+**Kein Wächter hat es gesehen, und der nächstliegende konnte es nicht.**
+`ImpersonationControlTest` liest die Handlungen, die ein Controller in fremder
+Sicht abweist, aus den Aufrufen von `refuseWhileImpersonating()` und hält die
+Seite daran: Sie bietet nichts an, was die Tür abweist. Ob die Tür alles
+abweist, was sie abweisen müsste, fragt er nicht. Ein Controller, der die
+Abweisung nie ruft, kommt in seiner Liste gar nicht vor.
+
+> **Ein Wächter, der die Abweisungen aus ihren Aufrufen liest, sieht keine
+> Tür, die gar nicht abweist.**
+
+Die drei Wege, die dem Betreiber vorlagen:
+
+| | Variante | |
+|---|---|---|
+| **a** | Der zweite Faktor wird behandelt wie Profil, Passwort, Darstellung und API-Token. In fremder Sicht fällt „verwalten" weg, der Zustand „eingerichtet" oder „nicht eingerichtet" bleibt stehen. Anzeigen, Einschalten und Abschalten unter `/settings/two-factor` weisen ab, mit einer Zeile `denied` im Protokoll. Dazu ein Wächter von der Seite der Tür: Jede Route, die ein Kunde ohne Fähigkeit erreicht und die sein Konto ändert, weist in fremder Sicht ab oder steht mit Grund da | **entschieden am 11. Oktober** |
+| b | Nur Einschalten und Abschalten weisen ab. Die Seite bliebe erreichbar und zeigte einen QR-Code, mit dem sich nichts anfangen lässt | |
+| c | Es bleibt, wie es ist, etwa um einem Kunden beim Einrichten zu helfen. Die Wiederherstellungscodes sähe dann nur der Betreiber, und das Panel hat keinen Weg, sie dem Kunden zu geben | |
+
+Gebaut wird Variante a nach dem Lauf, für `0.9.0-rc.18`. B7 und B8 berührt
+sie nicht.
+
+### Die sechs Befunde an der Vorschrift
+
+| | wo | was | gefunden | Stand |
+|---|---|---|---|---|
+| 1 | Vorschrift | A9b suchte das API-Token über die Adresse `b7-leer@b7.invalid`. Das Zurückziehen gibt sie frei: Das Konto bleibt, seine Adresse wird `NULL`, und A9b hätte `entfernt: 0` gemeldet und das API-Token liegen lassen | vor dem Fahren von A9, im Container durch die echte Route gemessen; auf dem Server bestätigt mit `über die Adresse: 0 · über Konto 12: 1` | über das Konto gefahren; berichtigt, §3 A9 |
+| 2 | Vorschrift | A9 las nicht davor. Ein leeres `$T2`, etwa nach einer neuen Sitzung, gibt an `/me` ebenfalls 401, und die 401 nach dem Zurückziehen hätte nichts belegt | als die SSH-Sitzung neu war | mit einer Ablesung davor gefahren; berichtigt, §3 A9 |
+| 3 | Vorschrift | B1 rechnete mit rund 25 Sekunden für zwei Auffrischungen, und das war die Zeit für B2. Gemessen sind 2 bis 4 Sekunden je Auffrischung; beide waren fertig vor dem ersten möglichen Wechsel. Die 25 kamen aus den 12 Sekunden vom 31. August (`docs/92 §6`), und im Container bleibt ein Vorgang ohne Arbeiter auf „wartet" | B1 | B2, B4, B9 und B7 mit angehaltener Schlange gefahren; berichtigt, §4 B1 bis B4, B7 und B9 |
+| 4 | Vorschrift | B4 sagte „im Streifen sofort „ansehen", solange der Vorgang läuft". „ansehen" ist dort Verweis und Verb zugleich, und der Vorgang lief 2 Sekunden. In drei Durchgängen stand keine Zeile `/operations` in der Konsole, und meine Anweisung kam dreimal gleich zurück | B4, nach dem dritten Durchgang | die zweite Hälfte nicht gemessen, entschieden vom Betreiber; berichtigt, §4 B4 |
+| 5 | Vorschrift | B7 erwartete zwei Takte „im Wechsel". Gemessen laufen sie im Gleichschritt, denn beide beginnen mit dem Aufbau der Seite nach dem Absenden. Die Erwartung stand nicht in der Vorabmessung (§7), und B7 sagte das nicht | B7 | berichtigt, §4 B7 |
+| 6 | Vorschrift | §2 zählte „mit B8 vier" Paketauffrischungen. B9 kam mit §6b dazu, und seine fehlte in der Zählung | beim Schreiben dieses Protokolls | berichtigt, §2 |
+
+### Beobachtungen, keine Befunde
+
+1. **A7 lief in anderer Reihenfolge, und das Ergebnis stimmt.** Das Bild der
+   Rückfrage zeigt sie für `b7-leer` im Konto von B7 Leer; `b7-abnahme` war um
+   12:48:03 schon entfernt, von Konto 6. Gezeigt ist damit an `b7-leer`, dass
+   „Abbrechen" nichts schickt.
+2. **A8 lief zuerst auf dem Telefon und dann am Schreibtisch.** Auf dem Telefon
+   gibt es keine Konsole; die Zeile mit `Spalten 4` und die Zahlen am x kamen
+   am Abend dazu.
+3. **„6 issues" auf dem eigenen „Mein Konto" des Betreibers, „No issues" in
+   fremder Sicht.** Die Zahl passt zu den sechs Feldern von „Konto" und
+   „Passwort ändern", die in fremder Sicht fehlen. Die Meldung gehört zu
+   Chromes Ausfüllhilfe und ist seit dem 23. August als kein Befund
+   entschieden (`docs/76`, `docs/126`).
+4. **A9, B9 und B7 liefen in neuen SSH-Sitzungen.** Die Werkzeuge kamen als
+   Datei mit: `Werkzeuge: 6 von 6 · 67 Zeilen · 8b56817a615927a6` stand in A9
+   und B9 wieder da. In B7 fehlte `vorgaenge`, bis die Datei eingelesen war.
+   Der Klartext in `$T2` überlebt keine Sitzung, und A9 lief mit dem Klartext,
+   den der Betreiber noch hatte.
+5. **Probe und Betreiber gehen bei „ansehen" auseinander.** Die Probe sah in
+   der ganzen Sitzung keine Vorgangsseite, der Betreiber sagt, die Seite
+   wechselt, und im Container wechselt sie in vier Lagen. Wo sie beim
+   Betreiber wechselte, war die Probe nicht dabei, etwa weil ein Klick mit
+   gehaltener Taste einen neuen Tab öffnet.
+6. **„Entfernen" steht in der Karte eines API-Tokens auf dem Telefon
+   eingerückt.** Das ist das leere `::before` einer Zelle ohne Beschriftung,
+   bekannt seit dem 28. September (CLAUDE.md, „Karten neben einer
+   mehrzeiligen Zelle").
+
+### Was der Lauf über sich selbst gelernt hat
+
+**Eine Abfrage suchte über ein Merkmal, das der Schritt davor freigibt.** A9b
+fand das API-Token über die Adresse des Kunden, und das Zurückziehen setzt
+genau diese Adresse auf `NULL`. Gescheitert wäre die Abfrage nicht; sie hätte
+`entfernt: 0` gemeldet, also dasselbe wie für einen Bestand ohne API-Token.
+
+> **Eine Abfrage über ein Merkmal, das der Schritt davor freigibt, findet
+> danach nichts — und meldet das wie einen Bestand, in dem nichts war.**
+
+Und die 401 danach hätte allein nichts belegt, denn ein leeres `$T2` gibt
+dieselbe. Erst die `200` davor macht sie zu einer Messung.
+
+> **Ein Prüfkörper, der im Fehlerfall dasselbe zeigt wie im Erfolgsfall, misst
+> nicht.**
+
+**Die Dauer kam aus einem anderen Lauf, und der Container hat den Unterschied
+verdeckt.** Die 25 Sekunden waren zwei mal zwölf vom 31. August. Am
+11. Oktober brauchte eine Auffrischung 2 bis 4 Sekunden. Im Container bleibt
+jeder Vorgang ohne Arbeiter auf „wartet", so lange man will, und B2, B4 und
+B9 sind dort in einem Zustand entstanden, der von selbst hält.
+
+> **Eine Erwartung aus einer Messung unter anderen Bedingungen ist eine
+> Vermutung, auch wenn sie aus einer Messung stammt.**
+
+> **Ein Prüfstand ohne Arbeiter hält jeden Vorgang offen — und eine
+> Vorschrift, die dort entsteht, kennt nicht die Dauer, die der Server ihm
+> lässt.**
+
+**Die angehaltene Schlange hat den Zustand gehalten, ohne den Prüfling
+anzufassen.** `systemctl stop srvpanel-worker` lässt jeden neuen Vorgang auf
+„wartet", und für den Streifen ist ein wartender Vorgang so offen wie ein
+laufender (`OperationStatus::open()`). Websites berührt das nicht, nur die
+Vorgänge des Panels warten. B2, B4, B9 und B7 liefen so, und jeder Durchgang
+endete mit `active`.
+
+> **Ein Zustand, der zwei Sekunden hält, wird nicht schneller gemessen,
+> sondern länger hergestellt.**
+
+**Dreimal kam in B4 dieselbe Lücke zurück, und dreimal habe ich dieselbe
+Anweisung genauer geschrieben.** Keine Zeile `/operations`, und jedes Mal
+dieselbe Vermutung, der Klick sei nicht passiert. Entschieden hat den Punkt
+erst die Frage, was beim Klick geschieht, und da hatte der Betreiber ihn
+dreimal gefahren.
+
+> **Kommt ein Schritt zweimal mit derselben Lücke zurück, fehlt keine genauere
+> Anweisung, sondern die Frage, was beim Fahren geschieht.**
+
+**Eine Erwartung stand in der Vorschrift wie eine gemessene.** Die Einleitung
+sagt, jede Erwartung sei eine Zeile aus der Vorabmessung oder sage, warum
+nicht. §7 misst die Seite der Sicherungen nicht, und B7 sagte „zwei Takte im
+Wechsel", ohne das zu sagen.
+
+> **Eine Zahl neben einer gemessenen Zahl sieht aus wie gemessen.** Hier war
+> es ein Wort neben gemessenen Zeilen.
+
+Der sechste Befund ist dieselbe Familie wie viele hier: B9 kam am Vormittag
+des 11. Oktober dazu, und §2 zählte die Prüfkörper weiter ohne ihn.
+
+### Die Abnahme
+
+**Steht beim Betreiber**, nach diesem Protokoll. Die tragenden Punkte beider
+Kriterien sind erfüllt. Auf dem Server nicht gemessen ist die zweite Hälfte
+von B4, eingetragen auf Entscheidung des Betreibers. Der Befund zum zweiten
+Faktor berührt keines der beiden Kriterien.
+
+### Was aussteht
+
+- **Variante a für den zweiten Faktor**, für `0.9.0-rc.18`, mit dem Wächter
+  von der Seite der Tür. *Gebaut am 14. Oktober (§9); auf dem Server sieht
+  sie der Nachlauf dort.*
+- **B4, zweite Hälfte:** genau ein Strom auf der Vorgangsseite. Im Container
+  gemessen, auf dem Server nicht.
+- **B7, das Ende:** Ob nach 113.6 s noch eine Zeile kam, zeigt das letzte Bild
+  nur, wenn es mindestens drei Sekunden danach entstand.
+
+---
+
+## §9 · Variante a — gebaut am 14. Oktober 2026
+
+Entschieden am 11. Oktober (§8, „Der Befund am Prüfling"), gebaut nach dem
+Lauf für `0.9.0-rc.18`. B7 und B8 berührt es nicht. Gemessen ist der Bau im
+Container, durch die echten Routen in PHPUnit und im echten Chromium gegen die
+SQLite-Datenbank aus §7 unter `artisan serve`. Auf dem Server gesehen hat ihn
+noch niemand; das tut der Nachlauf am Ende dieses Abschnitts.
+
+### Die Tür
+
+`TwoFactorSetupController` weist in fremder Sicht ab, in allen drei Methoden
+und jeweils als erste Zeile: `show()` mit `auth.two_factor.viewed`, `store()`
+mit `auth.two_factor.enabled` und `destroy()` mit `auth.two_factor.disabled`.
+Jede Abweisung schreibt eine Zeile `denied` ins Protokoll und bricht mit 403
+ab.
+
+**Dass schon die Anzeige abweist, ist Absicht.** `show()` legt beim ersten
+Aufruf ein neues Geheimnis in die Sitzung und zeigt den QR-Code dazu. In
+fremder Sicht darf ihn niemand bestätigen, und ein QR-Code, der sich nicht
+bestätigen lässt, ist kein Angebot, sondern eine Falle. Die Abweisung steht
+vor dem Geheimnis, und `ImpersonationDoorTest` hält, dass danach keins in der
+Sitzung liegt.
+
+**Die Abweisung ist ein Trait geworden.** Bis dahin war sie eine private
+Methode von `ProfileController`, und der zweite Controller hätte sie
+abschreiben müssen. Das wäre eine zweite Fassung derselben Regel gewesen, und
+die zweite ist die, die veraltet. Sie steht jetzt in
+`App\Http\Controllers\Concerns\RefusesWhileImpersonating`, und beide
+Controller benutzen sie.
+
+### Die Seite
+
+Auf „Mein Konto" steht in fremder Sicht neben „Zweiter Faktor" nur noch der
+Zustand, „eingerichtet" oder „nicht eingerichtet". „verwalten" steht hinter
+`v-if="!props.impersonating"`, und zwar an der Zelle und nicht am Verweis:
+Ohne die Zelle hat die Zeile zwei Zellen wie die beiden darunter.
+
+Gemessen im Chromium, als Kunde Eins selbst und als Betreiber in den Sichten
+von Kunde Eins (ohne zweiten Faktor) und Kunde Zwei (mit; eingerichtet für die
+Messung und danach zurückgenommen):
+
+```
+A1 · eigene Sicht · Zeile: Zweiter Faktor | nicht eingerichtet | verwalten · Zellen je Zeile 3/2/2 · verwalten 1
+A2 · nach dem Klick: Auth/TwoFactorSetup · /settings/two-factor · active false · Geheimnis 32 Zeichen
+B · Kunde Eins · 390 px · light · Zeile: Zweiter Faktor | nicht eingerichtet · Zellen je Zeile 2/2/2 · verwalten 0 · td block · dokument=0 · gegenprobe=200/200 · schiebt=0
+B · Kunde Eins · 390 px · dark  · Zeile: Zweiter Faktor | nicht eingerichtet · Zellen je Zeile 2/2/2 · verwalten 0 · td block · dokument=0 · gegenprobe=200/200 · schiebt=0
+B · Kunde Eins · 1440 px · light · Zeile: Zweiter Faktor | nicht eingerichtet · Zellen je Zeile 2/2/2 · verwalten 0 · td table-cell · dokument=0 · gegenprobe=200/200 · schiebt=0
+B · Kunde Eins · 1440 px · dark  · Zeile: Zweiter Faktor | nicht eingerichtet · Zellen je Zeile 2/2/2 · verwalten 0 · td table-cell · dokument=0 · gegenprobe=200/200 · schiebt=0
+B · Kunde Eins · Protokoll seitdem (erwartet: nichts): —
+C1 · GET /settings/two-factor in fremder Sicht · 403 · 403 · Kein Zutritt
+C2 · Protokoll seitdem: auth.two_factor.viewed · denied · Konto 1 · handelnd als 2
+B · Kunde Zwei · 390 px · light · Zeile: Zweiter Faktor | eingerichtet · Zellen je Zeile 2/2/2 · verwalten 0 · td block · dokument=0 · gegenprobe=200/200 · schiebt=0
+B · Kunde Zwei · 390 px · dark  · Zeile: Zweiter Faktor | eingerichtet · Zellen je Zeile 2/2/2 · verwalten 0 · td block · dokument=0 · gegenprobe=200/200 · schiebt=0
+B · Kunde Zwei · 1440 px · light · Zeile: Zweiter Faktor | eingerichtet · Zellen je Zeile 2/2/2 · verwalten 0 · td table-cell · dokument=0 · gegenprobe=200/200 · schiebt=0
+B · Kunde Zwei · 1440 px · dark  · Zeile: Zweiter Faktor | eingerichtet · Zellen je Zeile 2/2/2 · verwalten 0 · td table-cell · dokument=0 · gegenprobe=200/200 · schiebt=0
+B · Kunde Zwei · Protokoll seitdem (erwartet: nichts): —
+D1 · GET /settings/two-factor in eigener Sicht des Betreibers · 200 · Auth/TwoFactorSetup · /settings/two-factor
+D2 · Protokoll seitdem (erwartet: nichts): —
+```
+
+- **A1 ist die Gegenprobe zu B.** Dieselbe Abfrage sieht den Verweis, wo er
+  steht; die `0` in fremder Sicht ist also eine Messung.
+- **`td block` bei 390 px und `table-cell` bei 1440 px ist der Ladebeleg.**
+  Ohne Stylesheet stünde beide Male `table-cell`.
+- **D1 bindet die Abweisung an die fremde Sicht und nicht an die Seite:**
+  Derselbe Betreiber kommt nach „Zurück zur Verwaltung" an dieselbe Adresse,
+  und das Protokoll bekommt dabei keine Zeile.
+
+### Der Wächter von der Tür
+
+`ImpersonationDoorTest` fragt, was `ImpersonationControlTest` nicht fragen
+kann: ob die Tür alles abweist, was sie abweisen müsste. Die Routen kommen aus
+dem Router, und zwar jede, die ein angemeldetes Konto ohne Fähigkeit erreicht
+und die schreibt: `auth` ohne `can:`, die Gruppen aufgelöst und abzüglich
+dessen, was eine Route ablegt, und eine Methode ausser GET. Gezählt am
+14. Oktober sind es neun. In fremder Sicht geht jede davon durch die Tür, mit
+leerem Rumpf, und muss 403 geben und eine Zeile `denied` schreiben. Danach
+sind Name, Adresse, Passwort, Darstellung, zweiter Faktor und die Zahl der
+API-Tokens des Kunden dieselben wie vorher.
+
+Zwei Routen stehen mit Grund als Ausnahme da, in beide Richtungen gehalten:
+Eine Ausnahme muss eine schreibende Route ohne Fähigkeit sein, und in fremder
+Sicht darf sie nicht abweisen.
+
+| Route | Grund |
+|---|---|
+| `POST impersonation/stop` | Der Rückweg zur Verwaltung. Wiese er ab, käme der Betreiber nur noch durch Abmelden heraus |
+| `POST logout` | Beendet die Sitzung und mit ihr die fremde Sicht; am Konto des Kunden ändert es nichts |
+
+Dazu zwei Fälle über die Anzeige. In fremder Sicht gibt `/settings/two-factor`
+403, legt kein Geheimnis in die Sitzung und schreibt
+`auth.two_factor.viewed · denied`. In der eigenen Sicht eines Kunden
+antwortet dieselbe Seite; ohne diesen Fall bestünde der erste auch dann, wenn
+die Seite jedem 403 gäbe.
+
+**Gegen den ausgelieferten Controller gefahren, meldet er genau den Befund**,
+und die Anzeige gab dort 200:
+
+```
+DELETE settings/two-factor — 302 statt 403
+POST settings/two-factor — 302 statt 403
+```
+
+Die 302 heisst hier: zuerst geprüft und dann nicht abgewiesen. Der leere Rumpf
+scheiterte an der Prüfung des Codes, und eine Frage nach der fremden Sicht gab
+es dort nicht.
+
+**Eine Route mit `can:` fragt er nicht.** Was dort in fremder Sicht geschieht,
+entscheidet die Policy, und das ist gewollt: Der Wechsel ist dafür da, an den
+Abonnements des Kunden zu sehen, was der Kunde sieht.
+
+**Die Auflösung der Mittelschichten gibt es dabei nur einmal.**
+`RouteAuthorizationTest` hatte sie schon, mit den drei Fallen aus B7: Gruppen
+werden aufgelöst, was eine Route ablegt, fällt weg, und der HTTP-Kernel wird
+angefasst, bevor gefragt wird. Sie steht jetzt in
+`Tests\Support\ResolvesRouteMiddleware`, und beide Wächter benutzen sie.
+
+> **Ein Wächter, der die Abweisungen aus ihren Aufrufen liest, sieht keine
+> Tür, die gar nicht abweist.** Einer, der die Routen beim Router abholt,
+> sieht sie.
+
+### `ImpersonationControlTest`, erweitert
+
+Er kannte bis dahin nur Bedienelemente auf den Seiten des Controllers, der
+abweist. „verwalten" steht auf „Mein Konto", und diese Seite zeigt
+`ProfileController` und nicht der Controller des zweiten Faktors. Drei Dinge
+sind dazugekommen:
+
+- **Eine abgewiesene Anzeige.** Für eine Handlung mit GET ist das
+  Bedienelement ein Verweis auf ihren Pfad, und der kann auf jeder Seite
+  stehen. Gesucht wird deshalb in allen `.vue` unter `resources/js`.
+- **Eine Seite, die in fremder Sicht gar nicht erscheint, bietet dort nichts
+  an.** Ihre Bedienelemente gelten als nicht angeboten, wenn jede Methode, die
+  sie zeigt, abweist. Gemessen wird das am Controller, und eine zweite
+  Methode, die dieselbe Seite ohne Abweisung zeigt, nimmt es zurück.
+- **Ein Aufruf direkt im Attribut**, wie `@submit.prevent="setup.post('/…')"`
+  auf der Seite des zweiten Faktors. Ein eigener Fall prüft den Leser an einem
+  Prüfkörper mit zwei Verweisen, einer davon in fremder Sicht verborgen, einem
+  Aufruf im Attribut und einem Verweis mit Methode.
+
+Die Untergrenze steht bei acht Handlungen: den fünf vom 11. Oktober und den
+drei des zweiten Faktors.
+
+**Ein Eingriff hat dabei zuerst nichts über die Regel gesagt.** Ohne die
+Abweisung in `show()` war der Wächter rot, aber an der Untergrenze: sieben
+statt acht, und die steht vor der Regel und bricht ab. Ob die Regel selbst die
+Bedienelemente der Seite meldet, war damit nicht gezeigt. Der Eingriff dafür
+lässt die Zahl bei acht und baut eine zweite Methode, die dieselbe Seite ohne
+Abweisung zeigt. Dann meldet die Regel Einschalten und Abschalten.
+
+> **Eine Prüfung hinter einer anderen, die im selben Fall zuerst anschlägt,
+> ist keine — sie ist ein Kommentar mit Assertion.** Der Satz steht seit
+> „Platte voll" in CLAUDE.md, dort über einen Wächter. Hier betraf er einen
+> Eingriff.
+
+### Die Brüche
+
+Zehn neue Eingriffe im Bruchskript, jeder einzeln rot und zurück grün belegt:
+
+- drei an der Tür: Einschalten, Abschalten und die Anzeige ohne Abweisung;
+- zwei an den Ausnahmen: der Rückweg ohne Eintrag und ein Eintrag ohne Route;
+- einer an der Frage an den Router, der an der Untergrenze beisst;
+- zwei an `ImpersonationControlTest`: „verwalten" ohne `v-if` und dieselbe
+  Seite ohne Abweisung;
+- einer am Leser der Aufrufe im Attribut;
+- einer an `ResolvesRouteMiddleware`, der `RouteAuthorizationTest` trifft:
+  Was eine Route ablegt, zählt wieder mit.
+
+Ein bestehender Eingriff hat seinen Anker nachgezogen. „Entfernen steht in
+fremder Sicht" suchte `<td v-if="!props.impersonating" class="right">`, und
+das steht seitdem zweimal auf der Seite. Alle 18 Eingriffe der berührten
+Dateien sind einzeln gefahren, und alle beissen.
+
+**Im vollen Lauf über `a3e7ebd2` beissen alle**: 3436 Prüfungen, jede wie
+erwartet. Über `88d6eb08` waren es 3416, und die 20 dazwischen sind die zehn
+neuen Eingriffe mit je ihrer Gegenprobe.
+
+### Die übrigen Prüfungen
+
+PHPUnit über alles: 4059 Fälle, 21883 Zusicherungen, einer übersprungen und
+vier riskant, dieselben vier wie vorher; Rückgabe 0. Dazu Pint, PHPStan über
+die geänderten Dateien mit einem Prüfkörper im selben Aufruf,
+`npm run types` und `npm run build`, alle ohne Befund.
+
+### Zwei Beobachtungen, keine Befunde
+
+1. **Die abgewiesene Seite sagt nicht, warum.** Wer in fremder Sicht
+   `/settings/two-factor` in die Adresszeile tippt, liest „403 · Kein
+   Zutritt" und darunter den Satz jeder 403-Seite: „Dieser Bereich gehört
+   einer Rolle, die dieses Konto nicht hat." Dass es an der fremden Sicht
+   liegt, steht dort nicht, denn die Fehlerseite zeigt die Meldung der
+   Abweisung nicht. Hinkommen lässt sich dort nur über die Adresse, weil der
+   Verweis fort ist. Nicht gebaut; ob es einen eigenen Satz wert ist,
+   entscheidet der Betreiber.
+2. **Über „Von" steht bei 390 px eine Lücke.** Im Bereich „Sicherheit" ist
+   die Zeile „Von" 63 px hoch und die darüber 40. Beide Zellen sind 21 px
+   hoch und stehen 33 px unter der Oberkante ihrer Zeile, in der eigenen
+   Sicht genauso wie in der fremden. Die Lücke ist älter als dieser Bau, und
+   ihre Ursache ist nicht gesucht.
+
+### Der Nachlauf gegen `0.9.0-rc.18` — ausgeschrieben vor dem Fahren
+
+Am Schreibtisch mit offener Konsole, dazu zwei Blöcke auf dem Server. Er
+braucht eine Viertelstunde, und die Werkzeugdatei aus §1 braucht er nicht.
+Jede Erwartung ist eine Zeile aus der Messung im Container, im Chromium oder
+mit denselben Befehlen gegen die SQLite-Datenbank aus §7.
+
+#### N0 — Die Fassung (Server)
+
+```bash
+# N0 · Die installierte Fassung und die drei Abweisungen darin — liest nur
+readlink -f /opt/srvpanel/current
+grep -nF "refuseWhileImpersonating(\$request, \$audit, 'auth.two_factor" /opt/srvpanel/current/app/Http/Controllers/Auth/TwoFactorSetupController.php
+```
+
+**Erwartet:**
+
+```
+/opt/srvpanel/releases/0.9.0-rc.18
+50:        $this->refuseWhileImpersonating($request, $audit, 'auth.two_factor.viewed');
+80:        $this->refuseWhileImpersonating($request, $audit, 'auth.two_factor.enabled');
+129:        $this->refuseWhileImpersonating($request, $audit, 'auth.two_factor.disabled');
+```
+
+Gegen die Datei aus `rc.17` druckt das `grep` nichts, gemessen.
+
+#### N1 — Fremde Sicht: nur der Zustand (Browser)
+
+Kunden, in der Zeile eines Kunden „Anmelden als", „Wechseln". Dann in der
+Leiste „Mein Konto" und in die Konsole:
+
+```js
+(() => { const s = [...document.querySelectorAll('section, .section')].find((x) => x.querySelector('h2')?.textContent.trim() === 'Sicherheit'); const z = s && [...s.querySelectorAll('tr')].find((tr) => tr.cells[0]?.textContent.trim() === 'Zweiter Faktor'); return z ? `Zeile: ${[...z.cells].map((td) => td.textContent.replace(/\s+/g, ' ').trim()).join(' | ')} · verwalten ${s.querySelectorAll('a[href="/settings/two-factor"]').length}` : 'keine Zeile „Zweiter Faktor"' })()
+```
+
+**Erwartet:** `Zeile: Zweiter Faktor | nicht eingerichtet · verwalten 0`,
+oder `eingerichtet`, wenn der Kunde einen zweiten Faktor hat. Unter `rc.17`
+stand dort zusätzlich `| verwalten`, und die Zahl war `1`.
+
+#### N2 — Fremde Sicht: die Adresse direkt (Browser, dann Server)
+
+In derselben Sicht `/settings/two-factor` in die Adresszeile. **Erwartet:**
+„403" und „Kein Zutritt". Danach mit dem Zurück-Knopf des Browsers auf „Mein
+Konto"; das Band der fremden Sicht steht wieder da. Dann auf dem Server:
+
+```bash
+# N2 · Die jüngsten Zeilen zum zweiten Faktor im Protokoll — liest nur
+srvpanel tinker --execute='
+  foreach (DB::table("audit_events")->whereIn("action", ["auth.two_factor.viewed", "auth.two_factor.enabled", "auth.two_factor.disabled"])->orderByDesc("id")->limit(3)->get()->reverse() as $z)
+    printf("%s · %s · %s · Konto %s · handelnd als %s\n", App\Support\Time\Clock::displayText($z->created_at), $z->action, $z->result, $z->account_id ?? "—", $z->acting_as_account_id ?? "—");
+'
+```
+
+**Erwartet** als letzte Zeile, in der Minute von N2:
+
+```
+<Zeit> · auth.two_factor.viewed · denied · Konto <Betreiber> · handelnd als <Kunde>
+```
+
+Davor können ältere Zeilen stehen, etwa das Einschalten des eigenen zweiten
+Faktors, oder keine. Im Container stand dort
+`auth.two_factor.viewed · denied · Konto 1 · handelnd als 2`.
+
+#### N3 — Eigene Sicht: Verweis und Seite (Browser, dann Server)
+
+Oben im Band „Zurück zur Verwaltung", dann in der Leiste „Mein Konto" und
+dieselbe Zeile aus N1 in die Konsole. **Erwartet:**
+`Zeile: Zweiter Faktor | eingerichtet | verwalten · verwalten 1`. Danach
+„verwalten" anklicken: Es öffnet sich die Seite „Zweiter Faktor" mit dem
+eigenen, eingerichteten Faktor. Zum Schluss N2 noch einmal auf dem Server:
+**Erwartet** ist dieselbe letzte Zeile wie in N2 und keine neue.
+
+N3 ist die Gegenprobe zu N1 und N2. Dieselbe Abfrage sieht den Verweis, wo er
+steht, und dieselbe Adresse antwortet, sobald die fremde Sicht vorbei ist.
+
+#### N4 — 390 px (darf ausfallen)
+
+In fremder Sicht „Mein Konto" bei 390 px in der Gerätesymbolleiste, frisch
+geladen, `tests/bilder-messen.js` aus dem Repository einfügen und
+`bilderMessen()`. **Erwartet:** `dokument = 0`, Gegenprobe `200/200`,
+`schiebt = 0`, wie im Container in vier Lagen. Ausfallen darf N4, weil die
+Zeile nur eine Zelle verliert und keine gewinnt.
+
+#### Wann er durch ist
+
+Wenn N0 bis N3 erfüllt sind. N4 darf ausfallen.

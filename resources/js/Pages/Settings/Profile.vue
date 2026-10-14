@@ -274,7 +274,13 @@ function savePassword(): void {
                   {{ props.profile.two_factor ? 'eingerichtet' : 'nicht eingerichtet' }}
                 </Badge>
               </td>
-              <td class="right">
+              <!--
+                In fremder Sicht steht nur der Zustand da (docs/144 §8,
+                Variante a). Die Seite dahinter weist dort ab: Wer hier den
+                zweiten Faktor einschaltet, schaltet ihn am Konto des Kunden
+                ein, mit einem Geheimnis in der eigenen App.
+              -->
+              <td v-if="!props.impersonating" class="right">
                 <Link href="/settings/two-factor" class="link">verwalten</Link>
               </td>
             </tr>

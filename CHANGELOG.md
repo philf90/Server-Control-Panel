@@ -34580,5 +34580,6 @@ Gemessen im Chromium als Betreiber in zwei fremden Sichten, bei 390 und
 `dokument = 0` und Gegenprobe 200/200. Die Adresse direkt gibt 403 und eine
 Zeile `auth.two_factor.viewed · denied`, und nach „Zurück zur Verwaltung"
 antwortet dieselbe Seite dem Betreiber. Zehn neue Eingriffe im Bruchskript,
-jeder einzeln belegt. Der Nachlauf gegen `rc.18` steht in `docs/144 §9`,
-ausgeschrieben vor dem Fahren.
+jeder einzeln belegt; im vollen Lauf über `a3e7ebd2` beissen alle 3436
+Prüfungen. Der Nachlauf gegen `rc.18` steht in `docs/144 §9`, ausgeschrieben
+vor dem Fahren.

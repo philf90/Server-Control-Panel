@@ -2564,6 +2564,10 @@ fremder Sicht" suchte `<td v-if="!props.impersonating" class="right">`, und
 das steht seitdem zweimal auf der Seite. Alle 18 Eingriffe der berührten
 Dateien sind einzeln gefahren, und alle beissen.
 
+**Im vollen Lauf über `a3e7ebd2` beissen alle**: 3436 Prüfungen, jede wie
+erwartet. Über `88d6eb08` waren es 3416, und die 20 dazwischen sind die zehn
+neuen Eingriffe mit je ihrer Gegenprobe.
+
 ### Die übrigen Prüfungen
 
 PHPUnit über alles: 4059 Fälle, 21883 Zusicherungen, einer übersprungen und

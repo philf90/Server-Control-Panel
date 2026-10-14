@@ -34472,3 +34472,61 @@ bestehende nachgezogen; im vollen Lauf beissen alle 3416 Prüfungen.
 
 > **Ein Kommentar, der „ändert nichts" sagt, braucht die Messung mit und ohne
 > die Regel — eine Messung nur mit ihr sagt nicht, was ohne sie wäre.**
+
+### Der Lauf für B7 und B8 ist gefahren — und in fremder Sicht lässt sich der zweite Faktor einschalten
+
+**Gefahren vom 11. bis 14. Oktober 2026 auf `cloudsrv24` gegen
+`0.9.0-rc.17`.** Die tragenden Punkte sind erfüllt, A2 und A6 für B7 und B1
+und B3 für B8, die dazugelegten A3 und B2 auch. Von B4 ist die zweite Hälfte
+auf dem Server nicht gemessen, entschieden vom Betreiber. Das Protokoll ist
+`docs/144 §8`. Abgenommen sind B7 und B8 noch nicht.
+
+**Die API hält.** Ein API-Token von Konto 6 las genau dessen zwei
+Abonnements. Eine fremde und eine erfundene Kennung gaben denselben Satz mit
+404, nirgends stand ein 403, und ein Kunde ohne Abonnement bekam 403 statt
+`200 []`. Das API-Token steht in keinem Protokoll, gemessen neben einem
+Merkzeichen, das genau einmal im Zugriffsprotokoll des Panels steht.
+
+**Der Streifen führt zurück in die Liste.** Zwei Auffrischungen aus
+`/updates` liessen die Seite stehen, der Streifen überlebte zwei
+Seitenwechsel mit genau einem Takt, und nach dem Ende kam keine Nachfrage
+mehr. Die fünf Behebungen vor dem Lauf sind auf dem Server gesehen, dazu das
+x am Streifen und an der fremden Sicht.
+
+**Am Prüfling ein Befund, ausserhalb der Kriterien: Der zweite Faktor lässt
+sich in fremder Sicht einschalten.** Auf „Mein Konto" steht „verwalten" auch
+in der Sicht eines Kunden, und
+`App\Http\Controllers\Auth\TwoFactorSetupController` fragt die fremde Sicht
+nicht. Im Container gemessen: ein Klick, der QR-Code in der eigenen App und
+ein Code, und das Konto des Kunden trägt einen zweiten Faktor, dessen
+Geheimnis beim Betreiber liegt. Die acht Wiederherstellungscodes sieht nur
+der Betreiber, und zurück geht es nur mit einem Code aus derselben App.
+`ImpersonationControlTest` konnte es nicht sehen: Er liest die abgewiesenen
+Handlungen aus den Aufrufen von `refuseWhileImpersonating()`, und dieser
+Controller ruft sie nie.
+
+> **Ein Wächter, der die Abweisungen aus ihren Aufrufen liest, sieht keine
+> Tür, die gar nicht abweist.**
+
+Der Betreiber hat entschieden: Die Tür weist dort ab wie bei Profil,
+Passwort, Darstellung und API-Token, „verwalten" fällt in fremder Sicht weg,
+und ein Wächter fragt von der Seite der Tür. Gebaut wird es nach dem Lauf.
+
+**An der Vorschrift sechs Befunde**, jede Stelle mit einem Vermerk
+berichtigt. Der teuerste war eine Dauer: B1 rechnete mit rund 25 Sekunden für
+zwei Auffrischungen, aus den 12 Sekunden je Auffrischung vom 31. August. Am
+11. Oktober waren es 2 bis 4. Im Container bleibt ein Vorgang ohne Arbeiter
+auf „wartet", und dort war der Unterschied nicht zu sehen. Gefahren sind B2,
+B4, B7 und B9 deshalb mit angehaltener Warteschlange.
+
+> **Ein Prüfstand ohne Arbeiter hält jeden Vorgang offen — und eine
+> Vorschrift, die dort entsteht, kennt nicht die Dauer, die der Server ihm
+> lässt.**
+
+A9b hätte das API-Token des Wegwerfkunden nicht gefunden: Es suchte über die
+Adresse, und das Zurückziehen gibt sie frei. Und in B4 kam dreimal dieselbe
+Lücke zurück, und dreimal habe ich dieselbe Anweisung genauer geschrieben,
+statt zu fragen, was beim Klick geschieht.
+
+> **Kommt ein Schritt zweimal mit derselben Lücke zurück, fehlt keine
+> genauere Anweisung, sondern die Frage, was beim Fahren geschieht.**

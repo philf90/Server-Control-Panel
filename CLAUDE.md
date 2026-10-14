@@ -81,8 +81,15 @@ alle wie vorgeschlagen, und gebaut ist alles für `0.9.0-rc.17`, mit einem
 fünften Befund, der beim Bauen herausfiel (`docs/144 §6a`, Abschnitte weiter
 unten). Am selben Vormittag kamen zwei Wünsche des Betreibers dazu, ein x an
 jedem Band und „API-Token" statt „Zugangsmarke"; beide sind für dieselbe
-Fassung gebaut (`docs/144 §6b`, Abschnitt weiter unten). Die Dokumentation ist
-vertagt und steht als offener Punkt da.
+Fassung gebaut (`docs/144 §6b`, Abschnitt weiter unten). **Gefahren ist der
+Lauf vom 11. bis 14. Oktober gegen `rc.17`:** Die tragenden Punkte beider
+Kriterien sind erfüllt, und von B4 ist die zweite Hälfte auf dem Server nicht
+gemessen, entschieden vom Betreiber. Am Prüfling fiel ein Befund ausserhalb
+der Kriterien heraus, der zweite Faktor in fremder Sicht; entschieden ist,
+dass die Tür dort abweist, gebaut wird es nach dem Lauf. An der Vorschrift
+fielen sechs heraus (`docs/144 §8`, Abschnitt weiter unten). Abgenommen sind
+B7 und B8 noch nicht. Die Dokumentation ist vertagt und steht als offener
+Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -7113,7 +7120,8 @@ seitdem so.
 
 **Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B7 und
 B8.** Für B7 und B8 gab es bis zum 11. Oktober keinen Lauf; seitdem ist er
-`docs/144`, ausgeschrieben und nicht gefahren. B9 ist am 7. Oktober dazugekommen
+`docs/144`, gefahren vom 11. bis 14. Oktober (`docs/144 §8`), und abgenommen
+sind beide noch nicht. B9 ist am 7. Oktober dazugekommen
 und gebaut (`docs/142 §10`); sein Lauf ist `docs/143`, gefahren vom 8. bis
 10. Oktober, und am 10. Oktober ist B9 abgenommen. Der Lauf für B5 ist seit dem
 5. Oktober `docs/141`, gefahren samt Nachlauf bis zum 7. Oktober, und an
@@ -7878,6 +7886,86 @@ liest die Liste in §3 und nicht die Grundsätze darüber.
 
 > **Ein Grundsatz, der auf keiner Liste steht, hält kein Wächter — er hält nur,
 > solange sich jemand an ihn erinnert.**
+
+---
+
+## Der Lauf für B7 und B8 — 11. bis 14. Oktober 2026
+
+Gefahren auf `cloudsrv24` gegen `0.9.0-rc.17`: Teil A und B0 bis B6 am
+11. Oktober, B8 und B9 am 12., B7 am 14. **Die tragenden Punkte beider
+Kriterien sind erfüllt**, A2 und A6 für B7 und B1 und B3 für B8, die
+dazugelegten A3 und B2 auch. Von B4 ist die zweite Hälfte, genau ein Strom auf
+der Vorgangsseite, auf dem Server nicht gemessen, entschieden vom Betreiber;
+im Container ist sie gemessen. Das Protokoll ist `docs/144 §8`, und die
+Abnahme steht beim Betreiber.
+
+**Der Befund am Prüfling lag neben dem Lauf: Der zweite Faktor lässt sich in
+fremder Sicht einschalten.** Auf „Mein Konto" steht „verwalten" auch in der
+Sicht eines Kunden, und `TwoFactorSetupController` fragt die fremde Sicht
+nicht. Im Container durch die echten Routen gemessen: Danach trägt das Konto
+des Kunden einen zweiten Faktor, dessen Geheimnis beim Betreiber liegt, und
+zurück geht es nur mit einem Code aus dessen App. Gesehen hat es das Bild vom
+Telefon in A8, das auf die API-Tokens hin aufgenommen war.
+
+`ImpersonationControlTest` war dabei grün und konnte nicht anders. Er liest
+die abgewiesenen Handlungen aus den Aufrufen von `refuseWhileImpersonating()`
+und hält die Seite daran, dass sie nichts anbietet, was die Tür abweist. Ein
+Controller, der die Abweisung nie ruft, kommt in seiner Liste gar nicht vor.
+
+> **Ein Wächter, der die Abweisungen aus ihren Aufrufen liest, sieht keine
+> Tür, die gar nicht abweist.**
+
+Entschieden ist Variante a: Die Tür weist dort ab wie bei Profil, Passwort,
+Darstellung und API-Token, und ein Wächter fragt von der Seite der Tür. Jede
+Route, die ein Kunde ohne Fähigkeit erreicht und die sein Konto ändert, weist
+in fremder Sicht ab oder steht mit Grund da. Gebaut wird es nach dem Lauf.
+
+**Der teuerste Befund an der Vorschrift war eine Dauer.** B1 rechnete mit
+rund 25 Sekunden für zwei Auffrischungen, aus den 12 Sekunden vom 31. August,
+und auf dem Server waren es 2 bis 4 je Auffrischung. Der Container hat den
+Unterschied verdeckt: Ohne Arbeiter bleibt dort jeder Vorgang auf „wartet",
+so lange man will, und die Erwartungen von B2, B4 und B9 sind in einem Zustand
+entstanden, der von selbst hält.
+
+> **Ein Prüfstand ohne Arbeiter hält jeden Vorgang offen — und eine
+> Vorschrift, die dort entsteht, kennt nicht die Dauer, die der Server ihm
+> lässt.**
+
+**Den Zustand hat eine angehaltene Warteschlange gehalten, ohne den Prüfling
+anzufassen.** `systemctl stop srvpanel-worker` lässt jeden neuen Vorgang auf
+„wartet", und `OperationStatus::open()` zählt einen wartenden Vorgang zu den
+offenen. Websites berührt das nicht. B2, B4, B7 und B9 liefen so, und jeder
+Block endete mit `systemctl start` und `active`.
+
+> **Ein Zustand, der zwei Sekunden hält, wird nicht schneller gemessen,
+> sondern länger hergestellt.**
+
+**A9b hätte nichts gefunden.** Es suchte das API-Token des Wegwerfkunden über
+dessen Adresse, und das Zurückziehen setzt genau diese Adresse auf `NULL`.
+Die Abfrage wäre nicht gescheitert, sondern hätte `entfernt: 0` gemeldet.
+Gefunden vor dem Fahren, im Container durch die echte Route gemessen und auf
+dem Server bestätigt.
+
+> **Eine Abfrage über ein Merkmal, das der Schritt davor freigibt, findet
+> danach nichts — und meldet das wie einen Bestand, in dem nichts war.**
+
+**Und in B4 kam dreimal dieselbe Lücke zurück**, keine Zeile `/operations` in
+der Konsole, und dreimal habe ich dieselbe Anweisung genauer geschrieben. Der
+Betreiber hatte den Punkt dreimal gefahren, als ich zum ersten Mal fragte, was
+beim Klick geschieht. Die Antwort war „die Seite wechselt", und die Probe hat
+es nie gesehen.
+
+> **Kommt ein Schritt zweimal mit derselben Lücke zurück, fehlt keine
+> genauere Anweisung, sondern die Frage, was beim Fahren geschieht.**
+
+**Eine Erwartung stand wie eine gemessene da.** Die Einleitung von
+`docs/144` sagt, jede Erwartung sei eine Zeile aus der Vorabmessung oder sage,
+warum nicht. B7 erwartete zwei Takte „im Wechsel", und die Vorabmessung hatte
+die Seite der Sicherungen nie geladen. Gemessen laufen beide im Gleichschritt,
+denn sie beginnen mit demselben Aufbau der Seite.
+
+> **Eine Zahl neben einer gemessenen Zahl sieht aus wie gemessen.** Hier war
+> es ein Wort.
 
 ---
 

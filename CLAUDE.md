@@ -87,7 +87,8 @@ Kriterien sind erfüllt, und von B4 ist die zweite Hälfte auf dem Server nicht
 gemessen, entschieden vom Betreiber. Am Prüfling fiel ein Befund ausserhalb
 der Kriterien heraus, der zweite Faktor in fremder Sicht; entschieden ist,
 dass die Tür dort abweist, und gebaut ist es am 14. Oktober für
-`0.9.0-rc.18` (`docs/144 §9`). An der Vorschrift fielen sechs heraus
+`0.9.0-rc.18` und am selben Abend auf `cloudsrv24` gesehen (`docs/144 §9`).
+An der Vorschrift fielen sechs heraus
 (`docs/144 §8`, Abschnitte weiter unten). Abgenommen sind B7 und B8 noch
 nicht. Die Dokumentation ist vertagt und steht als offener Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
@@ -7986,8 +7987,11 @@ Einschalten, das Abschalten und schon das Anzeigen ab, jedes mit einer Zeile
 und einen QR-Code zeigt, den dort niemand bestätigen darf. Die Abweisung ist
 dafür aus `ProfileController` in den Trait
 `App\Http\Controllers\Concerns\RefusesWhileImpersonating` gezogen; der
-zweite Controller hätte sie sonst abschreiben müssen. Auf dem Server gesehen
-hat es noch niemand, und der Nachlauf dafür steht in `docs/144 §9`.
+zweite Controller hätte sie sonst abschreiben müssen. **Der Nachlauf gegen
+`rc.18` hat es am selben Abend auf `cloudsrv24` gezeigt**, N0 bis N4
+erfüllt: in fremder Sicht `verwalten 0` und 403 mit der Zeile
+`auth.two_factor.viewed · denied`, in der eigenen Sicht `verwalten 1` und die
+Seite (`docs/144 §9`).
 
 **Der Wächter fragt jetzt von der Seite der Tür.** `ImpersonationDoorTest`
 holt die Routen beim Router: jede, die ein Konto ohne Fähigkeit erreicht und

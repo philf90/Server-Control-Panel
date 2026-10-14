@@ -6,9 +6,9 @@ namespace Tests\Feature;
 
 use App\Http\Middleware\AuthenticateToken;
 use App\Support\Authorization\RouteGuard;
-use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Route as Router;
+use Tests\Support\ResolvesRouteMiddleware;
 use Tests\TestCase;
 
 /**
@@ -33,6 +33,8 @@ use Tests\TestCase;
  */
 final class RouteAuthorizationTest extends TestCase
 {
+    use ResolvesRouteMiddleware;
+
     /** @return list<Route> */
     private function routes(): array
     {
@@ -44,74 +46,9 @@ final class RouteAuthorizationTest extends TestCase
         return RouteGuard::key($route->methods(), $route->uri());
     }
 
-    /**
-     * Die Middleware einer Route.
-     *
-     * Nicht `list<string>`: In `gatherMiddleware()` koennen auch Closures
-     * stehen. Die Aufrufer pruefen deshalb mit `is_string`, bevor sie
-     * vergleichen.
-     *
-     * @return list<mixed>
-     */
-    private function middleware(Route $route): array
-    {
-        /*
-         * **Abzüglich dessen, was die Route ausdrücklich ablegt.**
-         * `gatherMiddleware()` sammelt Gruppe und Route zusammen und weiss von
-         * `withoutMiddleware()` nichts — die Ausschlüsse stehen daneben. Ohne
-         * sie läse dieser Wächter `api/v1/openapi.yaml` als „braucht ein
-         * Konto", obwohl die Route ihre Wache ablegt, und die Eintragung
-         * „öffentlich" wäre fälschlich falsch.
-         *
-         * > **Eine Liste, die nur das Hinzugefügte kennt, beschreibt nicht,
-         * > was am Ende läuft.**
-         */
-        $abgelegt = $route->excludedMiddleware();
-
-        /*
-         * **Gruppen werden aufgelöst.** `gatherMiddleware()` gibt den
-         * **Namen** einer Gruppe zurück und nicht ihre Mitglieder — für eine
-         * Seite fällt das nicht auf, weil `auth` dort an der Route steht. Eine
-         * api-Route trägt `['api']` und sonst nichts, und die Wache steckt in
-         * der Gruppe.
-         *
-         * > **Eine Liste, die einen Namen statt seines Inhalts nennt, ist
-         * > vollständig und beantwortet die Frage trotzdem nicht.**
-         */
-        /*
-         * **Der HTTP-Kernel wird angefasst, bevor gefragt wird.** Die Gruppen
-         * kommen aus `withMiddleware(…)` und stehen erst im Router, nachdem
-         * der Kernel sie dorthin gespiegelt hat (`syncMiddlewareToRouter()`).
-         * Ein Fall, der keine Anfrage schickt, fragte sonst eine leere Liste —
-         * und eine leere Liste löst keine Gruppe auf und meldet trotzdem
-         * nichts.
-         */
-        $this->app?->make(HttpKernel::class);
-
-        $gruppen = Router::getMiddlewareGroups();
-        $aufgeloest = [];
-
-        foreach ($route->gatherMiddleware() as $eintrag) {
-            if (is_string($eintrag) && array_key_exists($eintrag, $gruppen)) {
-                foreach ($gruppen[$eintrag] as $mitglied) {
-                    $aufgeloest[] = $mitglied;
-                }
-
-                continue;
-            }
-
-            $aufgeloest[] = $eintrag;
-        }
-
-        return array_values(array_filter(
-            $aufgeloest,
-            static fn (mixed $m): bool => ! in_array($m, $abgelegt, true),
-        ));
-    }
-
     private function hasPolicy(Route $route): bool
     {
-        foreach ($this->middleware($route) as $middleware) {
+        foreach ($this->resolvedMiddleware($route) as $middleware) {
             if (is_string($middleware) && str_starts_with($middleware, 'can:')) {
                 return true;
             }
@@ -122,7 +59,7 @@ final class RouteAuthorizationTest extends TestCase
 
     private function requiresAccount(Route $route): bool
     {
-        foreach ($this->middleware($route) as $middleware) {
+        foreach ($this->resolvedMiddleware($route) as $middleware) {
             if ($middleware === 'auth' || (is_string($middleware) && str_starts_with($middleware, 'auth:'))) {
                 return true;
             }

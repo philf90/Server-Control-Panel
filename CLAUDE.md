@@ -86,10 +86,10 @@ Lauf vom 11. bis 14. Oktober gegen `rc.17`:** Die tragenden Punkte beider
 Kriterien sind erfüllt, und von B4 ist die zweite Hälfte auf dem Server nicht
 gemessen, entschieden vom Betreiber. Am Prüfling fiel ein Befund ausserhalb
 der Kriterien heraus, der zweite Faktor in fremder Sicht; entschieden ist,
-dass die Tür dort abweist, gebaut wird es nach dem Lauf. An der Vorschrift
-fielen sechs heraus (`docs/144 §8`, Abschnitt weiter unten). Abgenommen sind
-B7 und B8 noch nicht. Die Dokumentation ist vertagt und steht als offener
-Punkt da.
+dass die Tür dort abweist, und gebaut ist es am 14. Oktober für
+`0.9.0-rc.18` (`docs/144 §9`). An der Vorschrift fielen sechs heraus
+(`docs/144 §8`, Abschnitte weiter unten). Abgenommen sind B7 und B8 noch
+nicht. Die Dokumentation ist vertagt und steht als offener Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -1834,7 +1834,14 @@ ihrem eigenen Stilblock, weil eine gescopte Regel die Bänder einer
 Kindkomponente mit mehreren Wurzeln nicht erreicht) und
 `ImpersonationControlTest` (was der Server in fremder Sicht abweist, bietet die
 Seite dort nicht an — die Handlungen kommen aus den Aufrufen von
-`refuseWhileImpersonating()` und nicht aus einer Liste) und `ShippedFileTest`
+`refuseWhileImpersonating()` und nicht aus einer Liste; **seit dem
+14. Oktober** auch eine abgewiesene Anzeige, deren Verweis auf jeder Seite
+stehen kann) und `ImpersonationDoorTest` (jede Route, die ein Konto ohne
+Fähigkeit erreicht und die schreibt, weist in fremder Sicht ab oder steht mit
+Grund da — gefragt von der Seite der Tür, denn ein Controller, der nie
+abweist, kommt in den Aufrufen nicht vor; die Routen kommen aus dem Router,
+ihre Mittelschichten aus `Tests\Support\ResolvesRouteMiddleware`, und die
+Ausnahmen werden in beide Richtungen gehalten) und `ShippedFileTest`
 (was `app/` über `base_path()` und seine Geschwister liest, liegt unter einem
 Eintrag der Positivliste von `build.sh` — gefragt von der Seite der Leser,
 denn von der Liste aus fehlt nie etwas) und `BandDismissTest` (jedes Band
@@ -7918,7 +7925,8 @@ Controller, der die Abweisung nie ruft, kommt in seiner Liste gar nicht vor.
 Entschieden ist Variante a: Die Tür weist dort ab wie bei Profil, Passwort,
 Darstellung und API-Token, und ein Wächter fragt von der Seite der Tür. Jede
 Route, die ein Kunde ohne Fähigkeit erreicht und die sein Konto ändert, weist
-in fremder Sicht ab oder steht mit Grund da. Gebaut wird es nach dem Lauf.
+in fremder Sicht ab oder steht mit Grund da. **Gebaut ist es am
+14. Oktober** (Abschnitt darunter).
 
 **Der teuerste Befund an der Vorschrift war eine Dauer.** B1 rechnete mit
 rund 25 Sekunden für zwei Auffrischungen, aus den 12 Sekunden vom 31. August,
@@ -7966,6 +7974,42 @@ denn sie beginnen mit demselben Aufbau der Seite.
 
 > **Eine Zahl neben einer gemessenen Zahl sieht aus wie gemessen.** Hier war
 > es ein Wort.
+
+---
+
+## Der zweite Faktor in fremder Sicht ist gebaut — 14. Oktober 2026
+
+Variante a für `0.9.0-rc.18` (`docs/144 §9`): Auf „Mein Konto" steht in
+fremder Sicht nur der Zustand, und `TwoFactorSetupController` weist dort das
+Einschalten, das Abschalten und schon das Anzeigen ab, jedes mit einer Zeile
+`denied`. Die Anzeige weist ab, weil sie ein Geheimnis in die Sitzung legt
+und einen QR-Code zeigt, den dort niemand bestätigen darf. Die Abweisung ist
+dafür aus `ProfileController` in den Trait
+`App\Http\Controllers\Concerns\RefusesWhileImpersonating` gezogen; der
+zweite Controller hätte sie sonst abschreiben müssen. Auf dem Server gesehen
+hat es noch niemand, und der Nachlauf dafür steht in `docs/144 §9`.
+
+**Der Wächter fragt jetzt von der Seite der Tür.** `ImpersonationDoorTest`
+holt die Routen beim Router: jede, die ein Konto ohne Fähigkeit erreicht und
+die schreibt. In fremder Sicht muss jede 403 geben und `denied` schreiben,
+oder sie steht mit Grund als Ausnahme da. Gegen den ausgelieferten Controller
+gefahren, meldet er Einschalten und Abschalten mit 302 statt 403.
+
+> **Ein Wächter, der die Abweisungen aus ihren Aufrufen liest, sieht keine
+> Tür, die gar nicht abweist.** Einer, der die Routen beim Router abholt,
+> sieht sie.
+
+**Und ein Eingriff war zuerst nur an der Untergrenze rot.** Ohne die
+Abweisung der Anzeige zählte `ImpersonationControlTest` sieben Handlungen
+statt acht, und die Untergrenze steht vor der Regel und bricht ab. Ob die
+Regel die Bedienelemente der Seite meldet, hatte der Eingriff damit nicht
+gezeigt. Der Eingriff, der sie misst, lässt die Zahl stehen und zeigt
+dieselbe Seite aus einer zweiten Methode ohne Abweisung.
+
+> **Eine Prüfung hinter einer anderen, die im selben Fall zuerst anschlägt,
+> ist keine — sie ist ein Kommentar mit Assertion.** Das gilt für einen
+> Eingriff wie für einen Wächter: Ein Eingriff, der an der Untergrenze
+> beisst, hat die Regel dahinter nicht erreicht.
 
 ---
 

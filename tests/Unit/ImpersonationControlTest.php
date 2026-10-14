@@ -45,7 +45,8 @@ use Tests\Support\WithoutPhpComments;
  * Methode und ihren Pfad. Auf der Seite, die derselbe Controller zeigt, wird
  * jedes Bedienelement gesucht, das diese Anfrage schickt — über einen Griff im
  * Skriptblock (`form.post('/…')`, `router.delete(…)`), den die Vorlage mit
- * `@submit` oder `@click` aufruft, oder über ein `<Link method="…">`.
+ * `@submit` oder `@click` aufruft, über einen Aufruf direkt im Attribut
+ * (`@submit.prevent="setup.post('/…')"`) oder über ein `<Link method="…">`.
  *
  * Jedes davon steht in fremder Sicht nicht da (`v-if="!props.impersonating"`
  * an ihm oder um es herum) oder ist dort gesperrt (`:disabled`, das
@@ -53,13 +54,35 @@ use Tests\Support\WithoutPhpComments;
  * geben — sonst greift der Ausdruck ins Leere, und Grün hiesse hier „nicht
  * gesucht".
  *
+ * **Seit dem 14. Oktober 2026 kennt er auch eine abgewiesene Anzeige**
+ * (`docs/144 §8`, Variante a). Der Controller des zweiten Faktors weist in
+ * fremder Sicht schon das Zeigen seiner Seite ab. Für eine solche Handlung ist
+ * das Bedienelement ein Verweis auf ihren Pfad, und der kann auf jeder Seite
+ * stehen — gesucht wird deshalb in allen `.vue` und nicht nur auf den Seiten
+ * des Controllers. Bis dahin stand „verwalten" auf „Mein Konto" in fremder
+ * Sicht da, und dieser Wächter sah keine Handlung, an der er es hätte messen
+ * können.
+ *
+ * Und eine Seite, deren Anzeige in fremder Sicht abgewiesen wird, bietet dort
+ * nichts an: Ihre Bedienelemente gelten als nicht angeboten, wenn **jede**
+ * Methode, die sie zeigt, abweist. Das ist kein Freibrief — gemessen wird es
+ * am Controller, und eine Methode, die dieselbe Seite ohne Abweisung zeigt,
+ * nimmt ihn zurück.
+ *
  * ## Was er nicht kann
  *
- * Er kennt nur Seiten, die ein Controller mit `refuseWhileImpersonating()`
- * selbst zeigt. Ein Knopf auf einer anderen Seite, der dieselbe Route ruft,
- * stünde ausserhalb. Und ob ein gesperrter Knopf richtig ist oder fehlen
- * sollte, entscheidet er nicht: Die Darstellung ist gesperrt und zeigt so die
- * gewählte Fassung — das ist eine Entscheidung und kein Mechanismus.
+ * Er fragt nur Handlungen, die abgewiesen werden. **Ob die Tür alles abweist,
+ * was sie abweisen müsste, fragt er nicht** — ein Controller, der
+ * `refuseWhileImpersonating()` nie ruft, kommt in seiner Liste gar nicht vor.
+ * So stand der zweite Faktor bis zum 14. Oktober da, und das hält seitdem
+ * `ImpersonationDoorTest` von der Seite der Tür.
+ *
+ * > **Ein Wächter, der die Abweisungen aus ihren Aufrufen liest, sieht keine
+ * > Tür, die gar nicht abweist.**
+ *
+ * Und ob ein gesperrter Knopf richtig ist oder fehlen sollte, entscheidet er
+ * nicht: Die Darstellung ist gesperrt und zeigt so die gewählte Fassung — das
+ * ist eine Entscheidung und kein Mechanismus.
  */
 final class ImpersonationControlTest extends TestCase
 {
@@ -71,11 +94,12 @@ final class ImpersonationControlTest extends TestCase
     }
 
     /**
-     * Die Handlungen, die ein Controller in fremder Sicht abweist.
+     * Die Controller, die in fremder Sicht etwas abweisen: je Methode, ob sie
+     * abweist und welche Seiten sie zeigt.
      *
-     * @return list<array{controller: string, method: string, page: list<string>}>
+     * @return list<array{controller: string, methods: array<string, array{refuses: bool, pages: list<string>}>}>
      */
-    private function refused(): array
+    private function controllers(): array
     {
         $aus = [];
 
@@ -95,20 +119,69 @@ final class ImpersonationControlTest extends TestCase
                 continue;
             }
 
-            preg_match_all("/Inertia::render\(\s*'([^']+)'/", $quelle, $seiten);
             preg_match_all('/\bfunction\s+(\w+)\s*\(/', $quelle, $methoden, PREG_OFFSET_CAPTURE);
+            $je = [];
 
             foreach ($methoden[1] as $i => [$name, $start]) {
+                if ($name === 'refuseWhileImpersonating') {
+                    continue;
+                }
+
                 $ende = $methoden[1][$i + 1][1] ?? strlen($quelle);
                 $rumpf = substr($quelle, $start, $ende - $start);
 
-                if ($name !== 'refuseWhileImpersonating' && str_contains($rumpf, '$this->refuseWhileImpersonating(')) {
-                    $aus[] = [
-                        'controller' => $datei->getBasename('.php'),
-                        'method' => $name,
-                        'page' => array_values(array_unique($seiten[1])),
-                    ];
+                preg_match_all("/Inertia::render\(\s*'([^']+)'/", $rumpf, $seiten);
+
+                $je[$name] = [
+                    'refuses' => str_contains($rumpf, '$this->refuseWhileImpersonating('),
+                    'pages' => array_values(array_unique($seiten[1])),
+                ];
+            }
+
+            $aus[] = ['controller' => $datei->getBasename('.php'), 'methods' => $je];
+        }
+
+        return $aus;
+    }
+
+    /**
+     * Die Handlungen, die ein Controller in fremder Sicht abweist.
+     *
+     * `page` sind die Seiten des Controllers; `withheld` die davon, die er in
+     * fremder Sicht gar nicht zeigt, weil jede Methode, die sie zeigt,
+     * abweist.
+     *
+     * @return list<array{controller: string, method: string, page: list<string>, withheld: list<string>}>
+     */
+    private function refused(): array
+    {
+        $aus = [];
+
+        foreach ($this->controllers() as $controller) {
+            $seiten = [];
+            $offen = [];
+
+            foreach ($controller['methods'] as $methode) {
+                foreach ($methode['pages'] as $seite) {
+                    $seiten[$seite] = true;
+
+                    if (! $methode['refuses']) {
+                        $offen[$seite] = true;
+                    }
                 }
+            }
+
+            foreach ($controller['methods'] as $name => $methode) {
+                if (! $methode['refuses']) {
+                    continue;
+                }
+
+                $aus[] = [
+                    'controller' => $controller['controller'],
+                    'method' => $name,
+                    'page' => array_keys($seiten),
+                    'withheld' => array_keys(array_diff_key($seiten, $offen)),
+                ];
             }
         }
 
@@ -173,6 +246,9 @@ final class ImpersonationControlTest extends TestCase
      * Die Bedienelemente einer Vorlage, die eine Anfrage schicken: Offset und
      * Anfrage, je Element.
      *
+     * Ein Verweis ohne Methode — `<Link href>` oder `<a href>` — schickt ein
+     * GET; er zählt für eine abgewiesene Anzeige.
+     *
      * @param  array<string, list<string>>  $griffe
      * @return list<array{offset: int, request: string}>
      */
@@ -192,10 +268,23 @@ final class ImpersonationControlTest extends TestCase
                 }
             }
 
-            if ($tag[1][0] === 'Link' && preg_match('/\bmethod="(post|put|patch|delete)"/', $attribute, $methode) === 1
-                && preg_match('/\b:?href="`?([^"`]+)`?"/', $attribute, $ziel) === 1) {
-                $aus[] = ['offset' => $offset, 'request' => $methode[1].' '.$this->normal($ziel[1])];
+            if (preg_match('/(?:@submit(?:\.prevent)?|@click)="[^"]*?\.(post|put|patch|delete)\(\s*([\'`])(.+?)\2/', $attribute, $direkt) === 1) {
+                $aus[] = ['offset' => $offset, 'request' => $direkt[1].' '.$this->normal($direkt[3])];
             }
+
+            if (! in_array($tag[1][0], ['Link', 'a'], true) || preg_match('/\b:?href="`?([^"`]+)`?"/', $attribute, $ziel) !== 1) {
+                continue;
+            }
+
+            if (preg_match('/\bmethod="(post|put|patch|delete)"/', $attribute, $methode) === 1) {
+                if ($tag[1][0] === 'Link') {
+                    $aus[] = ['offset' => $offset, 'request' => $methode[1].' '.$this->normal($ziel[1])];
+                }
+
+                continue;
+            }
+
+            $aus[] = ['offset' => $offset, 'request' => 'get '.$this->normal($ziel[1])];
         }
 
         return $aus;
@@ -256,6 +345,31 @@ final class ImpersonationControlTest extends TestCase
         return (string) preg_replace('/<!--.*?-->/s', '', $vorlage);
     }
 
+    /**
+     * Jede `.vue` unter `resources/js`, Pfad relativ dazu.
+     *
+     * @return list<string>
+     */
+    private function components(): array
+    {
+        $aus = [];
+
+        $lauf = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($this->root().'/resources/js', FilesystemIterator::SKIP_DOTS),
+        );
+
+        /** @var SplFileInfo $datei */
+        foreach ($lauf as $datei) {
+            if ($datei->getExtension() === 'vue') {
+                $aus[] = substr($datei->getPathname(), strlen($this->root().'/resources/js/'));
+            }
+        }
+
+        sort($aus);
+
+        return $aus;
+    }
+
     public function test_every_refused_action_is_withheld_in_foreign_view(): void
     {
         $handlungen = $this->refused();
@@ -263,9 +377,11 @@ final class ImpersonationControlTest extends TestCase
         /*
          * **Die Untergrenze zählt mit.** Gezählt am 11. Oktober 2026: fünf
          * Handlungen in `ProfileController` — Konto, Passwort, Darstellung,
-         * API-Token anlegen, API-Token entfernen.
+         * API-Token anlegen, API-Token entfernen. Seit dem 14. Oktober drei
+         * mehr in `TwoFactorSetupController`: anzeigen, einschalten,
+         * abschalten.
          */
-        $this->assertGreaterThanOrEqual(5, count($handlungen),
+        $this->assertGreaterThanOrEqual(8, count($handlungen),
             'Es werden kaum Handlungen gefunden, die in fremder Sicht abgewiesen werden — dann greift der '.
             'Ausdruck über die Controller ins Leere, und jeder Befund hier wäre ein Freispruch.');
 
@@ -283,9 +399,19 @@ final class ImpersonationControlTest extends TestCase
             $anfrage = $route['verb'].' '.$route['path'];
             $gefunden = 0;
 
-            foreach ($handlung['page'] as $seite) {
-                $sfc = (string) file_get_contents($this->root().'/resources/js/Pages/'.$seite.'.vue');
+            /*
+             * Eine abgewiesene Anzeige erreicht man über einen Verweis, und
+             * der kann auf jeder Seite stehen — eine abgewiesene Änderung über
+             * ein Bedienelement auf der Seite, die derselbe Controller zeigt.
+             */
+            $dateien = $route['verb'] === 'get'
+                ? $this->components()
+                : array_map(static fn (string $seite): string => 'Pages/'.$seite.'.vue', $handlung['page']);
+
+            foreach ($dateien as $datei) {
+                $sfc = (string) file_get_contents($this->root().'/resources/js/'.$datei);
                 $vorlage = $this->template($sfc);
+                $seite = (string) preg_replace('#^Pages/(.+)\.vue$#', '$1', $datei);
 
                 foreach ($this->controls($vorlage, $this->handlers($sfc)) as $element) {
                     if ($element['request'] !== $anfrage) {
@@ -294,23 +420,29 @@ final class ImpersonationControlTest extends TestCase
 
                     $gefunden++;
 
-                    if (! $this->withheld($vorlage, $element['offset'])) {
-                        $offen[] = sprintf('%s · %s — ein Bedienelement für „%s" steht in fremder Sicht da',
-                            $seite, $handlung['method'], $anfrage);
+                    if (in_array($seite, $handlung['withheld'], true) || $this->withheld($vorlage, $element['offset'])) {
+                        continue;
                     }
+
+                    $offen[] = $route['verb'] === 'get'
+                        ? sprintf('%s · %s — ein Verweis auf „%s" steht in fremder Sicht da, und die Seite dahinter weist dort ab',
+                            $datei, $handlung['method'], $route['path'])
+                        : sprintf('%s · %s — ein Bedienelement für „%s" steht in fremder Sicht da',
+                            $seite, $handlung['method'], $anfrage);
                 }
             }
 
             if ($gefunden === 0) {
                 $offen[] = sprintf('%s::%s — kein Bedienelement für „%s" auf %s gefunden; dann misst dieser Wächter hier nichts',
-                    $handlung['controller'], $handlung['method'], $anfrage, implode(', ', $handlung['page']));
+                    $handlung['controller'], $handlung['method'], $anfrage,
+                    $route['verb'] === 'get' ? 'einer Seite unter resources/js' : implode(', ', $handlung['page']));
             }
         }
 
         $this->assertSame([], $offen, sprintf(
             "Der Server weist diese Handlungen in fremder Sicht ab, und die Seite bietet sie dort an:\n  %s\n\n".
             'Ein Klick darauf endet mit 403, und das Protokoll bucht ihn als selbst gestellten Versuch '.
-            '(ProfileController::refuseWhileImpersonating). Das Bedienelement gehört in ein '.
+            '(RefusesWhileImpersonating). Das Bedienelement gehört in ein '.
             '`v-if="!props.impersonating"` oder bekommt ein `:disabled`, das `impersonating` fragt.',
             implode("\n  ", $offen),
         ));
@@ -341,5 +473,35 @@ final class ImpersonationControlTest extends TestCase
         }
 
         $this->assertSame(['post /a' => true, 'put /b' => true, 'delete /c/*' => false], $urteil);
+    }
+
+    /**
+     * Die beiden Formen, die der Leser seit dem 14. Oktober kennt: ein
+     * Verweis ohne Methode, verborgen und offen, und ein Aufruf direkt im
+     * Attribut. Ein Verweis mit Methode bleibt, was er war, und schickt kein
+     * GET.
+     */
+    public function test_the_reader_finds_links_and_inline_calls(): void
+    {
+        $vorlage = <<<'VUE'
+            <template>
+              <table class="pairs">
+                <tr>
+                  <td v-if="!props.impersonating" class="right"><Link href="/a" class="link">verwalten</Link></td>
+                  <td class="right"><a href="/b">ansehen</a></td>
+                </tr>
+              </table>
+              <form @submit.prevent="setup.post('/c')"></form>
+              <Link href="/d" method="delete" as="button">Weg</Link>
+            </template>
+            VUE;
+
+        $urteil = [];
+
+        foreach ($this->controls($vorlage, []) as $element) {
+            $urteil[$element['request']] = $this->withheld($vorlage, $element['offset']);
+        }
+
+        $this->assertSame(['get /a' => true, 'get /b' => false, 'post /c' => false, 'delete /d' => false], $urteil);
     }
 }

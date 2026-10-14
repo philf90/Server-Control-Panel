@@ -44,6 +44,11 @@ herausgefallen, ausserhalb der Kriterien: Der zweite Faktor lässt sich in
 fremder Sicht einschalten. An der Vorschrift sechs. Das Protokoll ist §8, und
 wo die Vorschrift danach berichtigt ist, steht „Berichtigt nach dem Lauf".
 
+**Die Behebung des zweiten Faktors ist am 14. Oktober gebaut**, für
+`0.9.0-rc.18` und wie entschieden (Variante a). Die Tür weist in fremder Sicht
+ab, „verwalten" fällt dort weg, und ein Wächter fragt von der Seite der Tür.
+Das steht in §9, mit dem Nachlauf, der es auf dem Server zeigt.
+
 ---
 
 ## §0 · Was beim Ausschreiben herausgefallen ist
@@ -2377,8 +2382,294 @@ Faktor berührt keines der beiden Kriterien.
 ### Was aussteht
 
 - **Variante a für den zweiten Faktor**, für `0.9.0-rc.18`, mit dem Wächter
-  von der Seite der Tür.
+  von der Seite der Tür. *Gebaut am 14. Oktober (§9); auf dem Server sieht
+  sie der Nachlauf dort.*
 - **B4, zweite Hälfte:** genau ein Strom auf der Vorgangsseite. Im Container
   gemessen, auf dem Server nicht.
 - **B7, das Ende:** Ob nach 113.6 s noch eine Zeile kam, zeigt das letzte Bild
   nur, wenn es mindestens drei Sekunden danach entstand.
+
+---
+
+## §9 · Variante a — gebaut am 14. Oktober 2026
+
+Entschieden am 11. Oktober (§8, „Der Befund am Prüfling"), gebaut nach dem
+Lauf für `0.9.0-rc.18`. B7 und B8 berührt es nicht. Gemessen ist der Bau im
+Container, durch die echten Routen in PHPUnit und im echten Chromium gegen die
+SQLite-Datenbank aus §7 unter `artisan serve`. Auf dem Server gesehen hat ihn
+noch niemand; das tut der Nachlauf am Ende dieses Abschnitts.
+
+### Die Tür
+
+`TwoFactorSetupController` weist in fremder Sicht ab, in allen drei Methoden
+und jeweils als erste Zeile: `show()` mit `auth.two_factor.viewed`, `store()`
+mit `auth.two_factor.enabled` und `destroy()` mit `auth.two_factor.disabled`.
+Jede Abweisung schreibt eine Zeile `denied` ins Protokoll und bricht mit 403
+ab.
+
+**Dass schon die Anzeige abweist, ist Absicht.** `show()` legt beim ersten
+Aufruf ein neues Geheimnis in die Sitzung und zeigt den QR-Code dazu. In
+fremder Sicht darf ihn niemand bestätigen, und ein QR-Code, der sich nicht
+bestätigen lässt, ist kein Angebot, sondern eine Falle. Die Abweisung steht
+vor dem Geheimnis, und `ImpersonationDoorTest` hält, dass danach keins in der
+Sitzung liegt.
+
+**Die Abweisung ist ein Trait geworden.** Bis dahin war sie eine private
+Methode von `ProfileController`, und der zweite Controller hätte sie
+abschreiben müssen. Das wäre eine zweite Fassung derselben Regel gewesen, und
+die zweite ist die, die veraltet. Sie steht jetzt in
+`App\Http\Controllers\Concerns\RefusesWhileImpersonating`, und beide
+Controller benutzen sie.
+
+### Die Seite
+
+Auf „Mein Konto" steht in fremder Sicht neben „Zweiter Faktor" nur noch der
+Zustand, „eingerichtet" oder „nicht eingerichtet". „verwalten" steht hinter
+`v-if="!props.impersonating"`, und zwar an der Zelle und nicht am Verweis:
+Ohne die Zelle hat die Zeile zwei Zellen wie die beiden darunter.
+
+Gemessen im Chromium, als Kunde Eins selbst und als Betreiber in den Sichten
+von Kunde Eins (ohne zweiten Faktor) und Kunde Zwei (mit; eingerichtet für die
+Messung und danach zurückgenommen):
+
+```
+A1 · eigene Sicht · Zeile: Zweiter Faktor | nicht eingerichtet | verwalten · Zellen je Zeile 3/2/2 · verwalten 1
+A2 · nach dem Klick: Auth/TwoFactorSetup · /settings/two-factor · active false · Geheimnis 32 Zeichen
+B · Kunde Eins · 390 px · light · Zeile: Zweiter Faktor | nicht eingerichtet · Zellen je Zeile 2/2/2 · verwalten 0 · td block · dokument=0 · gegenprobe=200/200 · schiebt=0
+B · Kunde Eins · 390 px · dark  · Zeile: Zweiter Faktor | nicht eingerichtet · Zellen je Zeile 2/2/2 · verwalten 0 · td block · dokument=0 · gegenprobe=200/200 · schiebt=0
+B · Kunde Eins · 1440 px · light · Zeile: Zweiter Faktor | nicht eingerichtet · Zellen je Zeile 2/2/2 · verwalten 0 · td table-cell · dokument=0 · gegenprobe=200/200 · schiebt=0
+B · Kunde Eins · 1440 px · dark  · Zeile: Zweiter Faktor | nicht eingerichtet · Zellen je Zeile 2/2/2 · verwalten 0 · td table-cell · dokument=0 · gegenprobe=200/200 · schiebt=0
+B · Kunde Eins · Protokoll seitdem (erwartet: nichts): —
+C1 · GET /settings/two-factor in fremder Sicht · 403 · 403 · Kein Zutritt
+C2 · Protokoll seitdem: auth.two_factor.viewed · denied · Konto 1 · handelnd als 2
+B · Kunde Zwei · 390 px · light · Zeile: Zweiter Faktor | eingerichtet · Zellen je Zeile 2/2/2 · verwalten 0 · td block · dokument=0 · gegenprobe=200/200 · schiebt=0
+B · Kunde Zwei · 390 px · dark  · Zeile: Zweiter Faktor | eingerichtet · Zellen je Zeile 2/2/2 · verwalten 0 · td block · dokument=0 · gegenprobe=200/200 · schiebt=0
+B · Kunde Zwei · 1440 px · light · Zeile: Zweiter Faktor | eingerichtet · Zellen je Zeile 2/2/2 · verwalten 0 · td table-cell · dokument=0 · gegenprobe=200/200 · schiebt=0
+B · Kunde Zwei · 1440 px · dark  · Zeile: Zweiter Faktor | eingerichtet · Zellen je Zeile 2/2/2 · verwalten 0 · td table-cell · dokument=0 · gegenprobe=200/200 · schiebt=0
+B · Kunde Zwei · Protokoll seitdem (erwartet: nichts): —
+D1 · GET /settings/two-factor in eigener Sicht des Betreibers · 200 · Auth/TwoFactorSetup · /settings/two-factor
+D2 · Protokoll seitdem (erwartet: nichts): —
+```
+
+- **A1 ist die Gegenprobe zu B.** Dieselbe Abfrage sieht den Verweis, wo er
+  steht; die `0` in fremder Sicht ist also eine Messung.
+- **`td block` bei 390 px und `table-cell` bei 1440 px ist der Ladebeleg.**
+  Ohne Stylesheet stünde beide Male `table-cell`.
+- **D1 bindet die Abweisung an die fremde Sicht und nicht an die Seite:**
+  Derselbe Betreiber kommt nach „Zurück zur Verwaltung" an dieselbe Adresse,
+  und das Protokoll bekommt dabei keine Zeile.
+
+### Der Wächter von der Tür
+
+`ImpersonationDoorTest` fragt, was `ImpersonationControlTest` nicht fragen
+kann: ob die Tür alles abweist, was sie abweisen müsste. Die Routen kommen aus
+dem Router, und zwar jede, die ein angemeldetes Konto ohne Fähigkeit erreicht
+und die schreibt: `auth` ohne `can:`, die Gruppen aufgelöst und abzüglich
+dessen, was eine Route ablegt, und eine Methode ausser GET. Gezählt am
+14. Oktober sind es neun. In fremder Sicht geht jede davon durch die Tür, mit
+leerem Rumpf, und muss 403 geben und eine Zeile `denied` schreiben. Danach
+sind Name, Adresse, Passwort, Darstellung, zweiter Faktor und die Zahl der
+API-Tokens des Kunden dieselben wie vorher.
+
+Zwei Routen stehen mit Grund als Ausnahme da, in beide Richtungen gehalten:
+Eine Ausnahme muss eine schreibende Route ohne Fähigkeit sein, und in fremder
+Sicht darf sie nicht abweisen.
+
+| Route | Grund |
+|---|---|
+| `POST impersonation/stop` | Der Rückweg zur Verwaltung. Wiese er ab, käme der Betreiber nur noch durch Abmelden heraus |
+| `POST logout` | Beendet die Sitzung und mit ihr die fremde Sicht; am Konto des Kunden ändert es nichts |
+
+Dazu zwei Fälle über die Anzeige. In fremder Sicht gibt `/settings/two-factor`
+403, legt kein Geheimnis in die Sitzung und schreibt
+`auth.two_factor.viewed · denied`. In der eigenen Sicht eines Kunden
+antwortet dieselbe Seite; ohne diesen Fall bestünde der erste auch dann, wenn
+die Seite jedem 403 gäbe.
+
+**Gegen den ausgelieferten Controller gefahren, meldet er genau den Befund**,
+und die Anzeige gab dort 200:
+
+```
+DELETE settings/two-factor — 302 statt 403
+POST settings/two-factor — 302 statt 403
+```
+
+Die 302 heisst hier: zuerst geprüft und dann nicht abgewiesen. Der leere Rumpf
+scheiterte an der Prüfung des Codes, und eine Frage nach der fremden Sicht gab
+es dort nicht.
+
+**Eine Route mit `can:` fragt er nicht.** Was dort in fremder Sicht geschieht,
+entscheidet die Policy, und das ist gewollt: Der Wechsel ist dafür da, an den
+Abonnements des Kunden zu sehen, was der Kunde sieht.
+
+**Die Auflösung der Mittelschichten gibt es dabei nur einmal.**
+`RouteAuthorizationTest` hatte sie schon, mit den drei Fallen aus B7: Gruppen
+werden aufgelöst, was eine Route ablegt, fällt weg, und der HTTP-Kernel wird
+angefasst, bevor gefragt wird. Sie steht jetzt in
+`Tests\Support\ResolvesRouteMiddleware`, und beide Wächter benutzen sie.
+
+> **Ein Wächter, der die Abweisungen aus ihren Aufrufen liest, sieht keine
+> Tür, die gar nicht abweist.** Einer, der die Routen beim Router abholt,
+> sieht sie.
+
+### `ImpersonationControlTest`, erweitert
+
+Er kannte bis dahin nur Bedienelemente auf den Seiten des Controllers, der
+abweist. „verwalten" steht auf „Mein Konto", und diese Seite zeigt
+`ProfileController` und nicht der Controller des zweiten Faktors. Drei Dinge
+sind dazugekommen:
+
+- **Eine abgewiesene Anzeige.** Für eine Handlung mit GET ist das
+  Bedienelement ein Verweis auf ihren Pfad, und der kann auf jeder Seite
+  stehen. Gesucht wird deshalb in allen `.vue` unter `resources/js`.
+- **Eine Seite, die in fremder Sicht gar nicht erscheint, bietet dort nichts
+  an.** Ihre Bedienelemente gelten als nicht angeboten, wenn jede Methode, die
+  sie zeigt, abweist. Gemessen wird das am Controller, und eine zweite
+  Methode, die dieselbe Seite ohne Abweisung zeigt, nimmt es zurück.
+- **Ein Aufruf direkt im Attribut**, wie `@submit.prevent="setup.post('/…')"`
+  auf der Seite des zweiten Faktors. Ein eigener Fall prüft den Leser an einem
+  Prüfkörper mit zwei Verweisen, einer davon in fremder Sicht verborgen, einem
+  Aufruf im Attribut und einem Verweis mit Methode.
+
+Die Untergrenze steht bei acht Handlungen: den fünf vom 11. Oktober und den
+drei des zweiten Faktors.
+
+**Ein Eingriff hat dabei zuerst nichts über die Regel gesagt.** Ohne die
+Abweisung in `show()` war der Wächter rot, aber an der Untergrenze: sieben
+statt acht, und die steht vor der Regel und bricht ab. Ob die Regel selbst die
+Bedienelemente der Seite meldet, war damit nicht gezeigt. Der Eingriff dafür
+lässt die Zahl bei acht und baut eine zweite Methode, die dieselbe Seite ohne
+Abweisung zeigt. Dann meldet die Regel Einschalten und Abschalten.
+
+> **Eine Prüfung hinter einer anderen, die im selben Fall zuerst anschlägt,
+> ist keine — sie ist ein Kommentar mit Assertion.** Der Satz steht seit
+> „Platte voll" in CLAUDE.md, dort über einen Wächter. Hier betraf er einen
+> Eingriff.
+
+### Die Brüche
+
+Zehn neue Eingriffe im Bruchskript, jeder einzeln rot und zurück grün belegt:
+
+- drei an der Tür: Einschalten, Abschalten und die Anzeige ohne Abweisung;
+- zwei an den Ausnahmen: der Rückweg ohne Eintrag und ein Eintrag ohne Route;
+- einer an der Frage an den Router, der an der Untergrenze beisst;
+- zwei an `ImpersonationControlTest`: „verwalten" ohne `v-if` und dieselbe
+  Seite ohne Abweisung;
+- einer am Leser der Aufrufe im Attribut;
+- einer an `ResolvesRouteMiddleware`, der `RouteAuthorizationTest` trifft:
+  Was eine Route ablegt, zählt wieder mit.
+
+Ein bestehender Eingriff hat seinen Anker nachgezogen. „Entfernen steht in
+fremder Sicht" suchte `<td v-if="!props.impersonating" class="right">`, und
+das steht seitdem zweimal auf der Seite. Alle 18 Eingriffe der berührten
+Dateien sind einzeln gefahren, und alle beissen.
+
+### Die übrigen Prüfungen
+
+PHPUnit über alles: 4059 Fälle, 21883 Zusicherungen, einer übersprungen und
+vier riskant, dieselben vier wie vorher; Rückgabe 0. Dazu Pint, PHPStan über
+die geänderten Dateien mit einem Prüfkörper im selben Aufruf,
+`npm run types` und `npm run build`, alle ohne Befund.
+
+### Zwei Beobachtungen, keine Befunde
+
+1. **Die abgewiesene Seite sagt nicht, warum.** Wer in fremder Sicht
+   `/settings/two-factor` in die Adresszeile tippt, liest „403 · Kein
+   Zutritt" und darunter den Satz jeder 403-Seite: „Dieser Bereich gehört
+   einer Rolle, die dieses Konto nicht hat." Dass es an der fremden Sicht
+   liegt, steht dort nicht, denn die Fehlerseite zeigt die Meldung der
+   Abweisung nicht. Hinkommen lässt sich dort nur über die Adresse, weil der
+   Verweis fort ist. Nicht gebaut; ob es einen eigenen Satz wert ist,
+   entscheidet der Betreiber.
+2. **Über „Von" steht bei 390 px eine Lücke.** Im Bereich „Sicherheit" ist
+   die Zeile „Von" 63 px hoch und die darüber 40. Beide Zellen sind 21 px
+   hoch und stehen 33 px unter der Oberkante ihrer Zeile, in der eigenen
+   Sicht genauso wie in der fremden. Die Lücke ist älter als dieser Bau, und
+   ihre Ursache ist nicht gesucht.
+
+### Der Nachlauf gegen `0.9.0-rc.18` — ausgeschrieben vor dem Fahren
+
+Am Schreibtisch mit offener Konsole, dazu zwei Blöcke auf dem Server. Er
+braucht eine Viertelstunde, und die Werkzeugdatei aus §1 braucht er nicht.
+Jede Erwartung ist eine Zeile aus der Messung im Container, im Chromium oder
+mit denselben Befehlen gegen die SQLite-Datenbank aus §7.
+
+#### N0 — Die Fassung (Server)
+
+```bash
+# N0 · Die installierte Fassung und die drei Abweisungen darin — liest nur
+readlink -f /opt/srvpanel/current
+grep -nF "refuseWhileImpersonating(\$request, \$audit, 'auth.two_factor" /opt/srvpanel/current/app/Http/Controllers/Auth/TwoFactorSetupController.php
+```
+
+**Erwartet:**
+
+```
+/opt/srvpanel/releases/0.9.0-rc.18
+50:        $this->refuseWhileImpersonating($request, $audit, 'auth.two_factor.viewed');
+80:        $this->refuseWhileImpersonating($request, $audit, 'auth.two_factor.enabled');
+129:        $this->refuseWhileImpersonating($request, $audit, 'auth.two_factor.disabled');
+```
+
+Gegen die Datei aus `rc.17` druckt das `grep` nichts, gemessen.
+
+#### N1 — Fremde Sicht: nur der Zustand (Browser)
+
+Kunden, in der Zeile eines Kunden „Anmelden als", „Wechseln". Dann in der
+Leiste „Mein Konto" und in die Konsole:
+
+```js
+(() => { const s = [...document.querySelectorAll('section, .section')].find((x) => x.querySelector('h2')?.textContent.trim() === 'Sicherheit'); const z = s && [...s.querySelectorAll('tr')].find((tr) => tr.cells[0]?.textContent.trim() === 'Zweiter Faktor'); return z ? `Zeile: ${[...z.cells].map((td) => td.textContent.replace(/\s+/g, ' ').trim()).join(' | ')} · verwalten ${s.querySelectorAll('a[href="/settings/two-factor"]').length}` : 'keine Zeile „Zweiter Faktor"' })()
+```
+
+**Erwartet:** `Zeile: Zweiter Faktor | nicht eingerichtet · verwalten 0`,
+oder `eingerichtet`, wenn der Kunde einen zweiten Faktor hat. Unter `rc.17`
+stand dort zusätzlich `| verwalten`, und die Zahl war `1`.
+
+#### N2 — Fremde Sicht: die Adresse direkt (Browser, dann Server)
+
+In derselben Sicht `/settings/two-factor` in die Adresszeile. **Erwartet:**
+„403" und „Kein Zutritt". Danach mit dem Zurück-Knopf des Browsers auf „Mein
+Konto"; das Band der fremden Sicht steht wieder da. Dann auf dem Server:
+
+```bash
+# N2 · Die jüngsten Zeilen zum zweiten Faktor im Protokoll — liest nur
+srvpanel tinker --execute='
+  foreach (DB::table("audit_events")->whereIn("action", ["auth.two_factor.viewed", "auth.two_factor.enabled", "auth.two_factor.disabled"])->orderByDesc("id")->limit(3)->get()->reverse() as $z)
+    printf("%s · %s · %s · Konto %s · handelnd als %s\n", App\Support\Time\Clock::displayText($z->created_at), $z->action, $z->result, $z->account_id ?? "—", $z->acting_as_account_id ?? "—");
+'
+```
+
+**Erwartet** als letzte Zeile, in der Minute von N2:
+
+```
+<Zeit> · auth.two_factor.viewed · denied · Konto <Betreiber> · handelnd als <Kunde>
+```
+
+Davor können ältere Zeilen stehen, etwa das Einschalten des eigenen zweiten
+Faktors, oder keine. Im Container stand dort
+`auth.two_factor.viewed · denied · Konto 1 · handelnd als 2`.
+
+#### N3 — Eigene Sicht: Verweis und Seite (Browser, dann Server)
+
+Oben im Band „Zurück zur Verwaltung", dann in der Leiste „Mein Konto" und
+dieselbe Zeile aus N1 in die Konsole. **Erwartet:**
+`Zeile: Zweiter Faktor | eingerichtet | verwalten · verwalten 1`. Danach
+„verwalten" anklicken: Es öffnet sich die Seite „Zweiter Faktor" mit dem
+eigenen, eingerichteten Faktor. Zum Schluss N2 noch einmal auf dem Server:
+**Erwartet** ist dieselbe letzte Zeile wie in N2 und keine neue.
+
+N3 ist die Gegenprobe zu N1 und N2. Dieselbe Abfrage sieht den Verweis, wo er
+steht, und dieselbe Adresse antwortet, sobald die fremde Sicht vorbei ist.
+
+#### N4 — 390 px (darf ausfallen)
+
+In fremder Sicht „Mein Konto" bei 390 px in der Gerätesymbolleiste, frisch
+geladen, `tests/bilder-messen.js` aus dem Repository einfügen und
+`bilderMessen()`. **Erwartet:** `dokument = 0`, Gegenprobe `200/200`,
+`schiebt = 0`, wie im Container in vier Lagen. Ausfallen darf N4, weil die
+Zeile nur eine Zelle verliert und keine gewinnt.
+
+#### Wann er durch ist
+
+Wenn N0 bis N3 erfüllt sind. N4 darf ausfallen.

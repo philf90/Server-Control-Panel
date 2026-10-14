@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RefusesWhileImpersonating;
 use App\Http\Middleware\AuthenticateToken;
 use App\Models\Account;
 use App\Models\ApiToken;
 use App\Support\Audit\Audit;
-use App\Support\Audit\Impersonation;
 use App\Support\Passwords\Policy;
 use App\Support\Time\Clock;
 use Illuminate\Http\RedirectResponse;
@@ -44,6 +44,8 @@ use Inertia\Response;
  */
 final class ProfileController extends Controller
 {
+    use RefusesWhileImpersonating;
+
     public function show(Request $request): Response
     {
         $account = $this->account($request);
@@ -318,40 +320,5 @@ final class ProfileController extends Controller
                 'current_password' => 'Das aktuelle Passwort stimmt nicht.',
             ]);
         }
-    }
-
-    private function impersonating(Request $request): bool
-    {
-        return $request->hasSession()
-            && $request->session()->has(Impersonation::SESSION_KEY);
-    }
-
-    /**
-     * Änderungen am Konto während eines „Anmelden als" abweisen — und den
-     * Versuch protokollieren.
-     *
-     * Protokolliert, weil ein Versuch an dieser Stelle keine Ungeschicklichkeit
-     * ist: Die Oberfläche bietet in diesem Zustand keine dieser Handlungen an.
-     * Wer hier ankommt, hat die Anfrage selbst gestellt.
-     *
-     * **Bis zum 11. Oktober 2026 stimmte der Satz für die API-Tokens nicht**
-     * (`docs/144 §0` Befund 2). Formular und „Entfernen" standen in fremder
-     * Sicht da, und ein Klick darauf wurde hier als selbst gestellter Versuch
-     * gebucht. Geschrieben war der Satz für die Formulare, die es gab, als er
-     * entstand; die API-Tokens kamen mit B7 danach. `ImpersonationControlTest`
-     * hält ihn seitdem für jede Handlung, die hier abgewiesen wird.
-     *
-     * > **Eine Begründung, die ein Formular für abwesend erklärt, gilt für die
-     * > Formulare, die es gab, als sie geschrieben wurde.**
-     */
-    private function refuseWhileImpersonating(Request $request, Audit $audit, string $action): void
-    {
-        if (! $this->impersonating($request)) {
-            return;
-        }
-
-        $audit->denied($action, null, ['reason' => 'während „Anmelden als"']);
-
-        abort(403, 'In fremder Sicht lässt sich kein Konto ändern.');
     }
 }

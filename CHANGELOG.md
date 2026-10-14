@@ -34530,3 +34530,55 @@ statt zu fragen, was beim Klick geschieht.
 
 > **Kommt ein Schritt zweimal mit derselben Lücke zurück, fehlt keine
 > genauere Anweisung, sondern die Frage, was beim Fahren geschieht.**
+
+### In fremder Sicht weist der zweite Faktor ab — und ein Wächter fragt von der Seite der Tür
+
+**Gebaut am 14. Oktober 2026 für `0.9.0-rc.18`, wie am 11. Oktober
+entschieden** (Variante a, `docs/144 §8`). Auf „Mein Konto" steht in fremder
+Sicht neben „Zweiter Faktor" nur noch der Zustand, und
+`TwoFactorSetupController` weist dort ab: das Einschalten, das Abschalten und
+schon das Anzeigen der Seite, jedes mit einer Zeile `denied` im Protokoll. Die
+Anzeige weist ab, weil sie ein neues Geheimnis in die Sitzung legt und einen
+QR-Code zeigt, den in fremder Sicht niemand bestätigen darf.
+
+**Die Abweisung ist ein Trait geworden**,
+`App\Http\Controllers\Concerns\RefusesWhileImpersonating`. Bis dahin war sie
+eine private Methode von `ProfileController`, und ein zweiter Controller hätte
+sie abschreiben müssen.
+
+**`ImpersonationDoorTest` fragt von der Seite der Tür.** Die Routen kommen aus
+dem Router: jede, die ein angemeldetes Konto ohne Fähigkeit erreicht und die
+schreibt, gezählt neun. In fremder Sicht muss jede davon 403 geben und eine
+Zeile `denied` schreiben, und das Konto des Kunden bleibt, wie es war. Der
+Rückweg zur Verwaltung und das Abmelden stehen mit Grund als Ausnahme da, in
+beide Richtungen gehalten. Gegen den ausgelieferten Controller gefahren,
+meldet er Einschalten und Abschalten mit 302 statt 403.
+
+> **Ein Wächter, der die Abweisungen aus ihren Aufrufen liest, sieht keine
+> Tür, die gar nicht abweist.** Einer, der die Routen beim Router abholt,
+> sieht sie.
+
+**`ImpersonationControlTest` kennt eine abgewiesene Anzeige.** Ihr
+Bedienelement ist ein Verweis, und der kann auf jeder Seite stehen; gesucht
+wird deshalb in allen `.vue`. Eine Seite, deren zeigende Methoden alle
+abweisen, bietet in fremder Sicht nichts an, und ein Aufruf direkt im
+Attribut zählt mit. Die Auflösung der Mittelschichten, die
+`RouteAuthorizationTest` schon hatte, steht jetzt einmal in
+`Tests\Support\ResolvesRouteMiddleware`, und beide Wächter benutzen sie.
+
+**Ein Eingriff war zuerst nur an der Untergrenze rot.** Ohne die Abweisung der
+Anzeige zählte der Wächter sieben Handlungen statt acht, und die Untergrenze
+steht vor der Regel und bricht ab. Der Eingriff, der die Regel misst, lässt
+die Zahl stehen und zeigt dieselbe Seite aus einer zweiten Methode ohne
+Abweisung.
+
+> **Eine Prüfung hinter einer anderen, die im selben Fall zuerst anschlägt,
+> ist keine — sie ist ein Kommentar mit Assertion.**
+
+Gemessen im Chromium als Betreiber in zwei fremden Sichten, bei 390 und
+1440 px und in beiden Themen: kein „verwalten", der Zustand steht da,
+`dokument = 0` und Gegenprobe 200/200. Die Adresse direkt gibt 403 und eine
+Zeile `auth.two_factor.viewed · denied`, und nach „Zurück zur Verwaltung"
+antwortet dieselbe Seite dem Betreiber. Zehn neue Eingriffe im Bruchskript,
+jeder einzeln belegt. Der Nachlauf gegen `rc.18` steht in `docs/144 §9`,
+ausgeschrieben vor dem Fahren.

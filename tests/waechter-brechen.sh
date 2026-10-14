@@ -41015,9 +41015,9 @@ vorher_datei resources/js/Pages/Settings/Profile.vue
 python3 - <<'PY2'
 p = 'resources/js/Pages/Settings/Profile.vue'
 s = open(p, encoding='utf-8').read()
-alt = '<td v-if="!props.impersonating" class="right">'
+alt = '<td v-if="!props.impersonating" class="right">\n                <button type="button" class="button small danger" @click="removeToken(eintrag)">'
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
-open(p, 'w', encoding='utf-8').write(s.replace(alt, '<td class="right">', 1))
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace(' v-if="!props.impersonating"', '', 1), 1))
 PY2
 griff_datei resources/js/Pages/Settings/Profile.vue "Entfernen in fremder Sicht" &&
 pruefe "Entfernen in fremder Sicht" \
@@ -41356,6 +41356,205 @@ pruefe "Zugangsmarke in der Meldung" \
   WordChoiceTest::test_no_displayed_php_string_uses_a_spent_word failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" WordChoiceTest passed
+echo
+echo "── ImpersonationDoorTest: der zweite Faktor laesst sich in fremder Sicht wieder einschalten ──"
+#
+# docs/144 §8: In fremder Sicht liess sich der zweite Faktor am Konto des
+# Kunden einschalten, mit einem Geheimnis in der App des Betreibers. Der
+# Waechter fragt jede schreibende Route ohne Faehigkeit durch die Tuer.
+vorher_datei app/Http/Controllers/Auth/TwoFactorSetupController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/Auth/TwoFactorSetupController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $this->refuseWhileImpersonating($request, $audit, 'auth.two_factor.enabled');\n\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/Auth/TwoFactorSetupController.php "Einschalten in fremder Sicht" &&
+pruefe "Einschalten in fremder Sicht" \
+  ImpersonationDoorTest::test_every_writing_route_without_ability_refuses_in_foreign_view failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ImpersonationDoorTest passed
+
+echo
+echo "── ImpersonationDoorTest: der zweite Faktor laesst sich in fremder Sicht wieder abschalten ──"
+#
+# Die zweite schreibende Route desselben Controllers. Abschalten verlangt einen
+# Code; ohne die Abweisung gibt ein leerer Rumpf 302 mit einer Pruefmeldung,
+# und genau das meldet der Waechter.
+vorher_datei app/Http/Controllers/Auth/TwoFactorSetupController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/Auth/TwoFactorSetupController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $this->refuseWhileImpersonating($request, $audit, 'auth.two_factor.disabled');\n\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/Auth/TwoFactorSetupController.php "Abschalten in fremder Sicht" &&
+pruefe "Abschalten in fremder Sicht" \
+  ImpersonationDoorTest::test_every_writing_route_without_ability_refuses_in_foreign_view failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ImpersonationDoorTest passed
+
+echo
+echo "── ImpersonationDoorTest: die Seite des zweiten Faktors steht in fremder Sicht wieder da ──"
+#
+# Die eine Anzeige, die abweist. Sie legt ein Geheimnis in die Sitzung und
+# zeigt einen QR-Code, den in fremder Sicht niemand bestaetigen darf.
+vorher_datei app/Http/Controllers/Auth/TwoFactorSetupController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/Auth/TwoFactorSetupController.php'
+s = open(p, encoding='utf-8').read()
+alt = "        $this->refuseWhileImpersonating($request, $audit, 'auth.two_factor.viewed');\n\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/Auth/TwoFactorSetupController.php "Seite des zweiten Faktors in fremder Sicht" &&
+pruefe "Seite des zweiten Faktors in fremder Sicht" \
+  ImpersonationDoorTest::test_the_two_factor_page_is_refused_in_foreign_view failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ImpersonationDoorTest passed
+
+echo
+echo "── ImpersonationDoorTest: der Rueckweg steht nicht mehr unter den Ausnahmen ──"
+#
+# Die Gegenrichtung: Was in fremder Sicht durchgehen muss, steht mit Grund da.
+# Faellt der Rueckweg aus der Liste, fragt der Waechter ihn wie jede andere
+# Route und findet ein 302, wo er 403 verlangt.
+vorher_datei tests/Feature/ImpersonationDoorTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/ImpersonationDoorTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'POST impersonation/stop' => "
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'POST nirgends/stop' => ", 1))
+PY2
+griff_datei tests/Feature/ImpersonationDoorTest.php "Rueckweg ohne Ausnahme" &&
+pruefe "Rueckweg ohne Ausnahme" \
+  ImpersonationDoorTest::test_every_writing_route_without_ability_refuses_in_foreign_view failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ImpersonationDoorTest passed
+
+echo
+echo "── ImpersonationDoorTest: eine Ausnahme nimmt nichts mehr aus ──"
+#
+# Dieselbe Umbenennung, gemessen am anderen Fall: Eine Ausnahme fuer eine
+# Route, die es nicht gibt, deckt beim naechsten Umbau die falsche.
+vorher_datei tests/Feature/ImpersonationDoorTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/ImpersonationDoorTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'POST logout' => "
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "            'POST abmelden' => ", 1))
+PY2
+griff_datei tests/Feature/ImpersonationDoorTest.php "Ausnahme ohne Route" &&
+pruefe "Ausnahme ohne Route" \
+  ImpersonationDoorTest::test_every_exemption_is_a_writing_route_and_stays_open_in_foreign_view failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ImpersonationDoorTest passed
+
+echo
+echo "── ImpersonationDoorTest: die Frage an den Router findet keine Route ohne Faehigkeit ──"
+#
+# Die Untergrenze. Sucht der Waechter nach einer Mittelschicht, die keine Route
+# traegt, ist seine Liste leer — und eine leere Liste meldet sonst nichts.
+vorher_datei tests/Feature/ImpersonationDoorTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/ImpersonationDoorTest.php'
+s = open(p, encoding='utf-8').read()
+alt = "$mittelschicht === 'auth' || str_starts_with($mittelschicht, 'auth:')"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "$mittelschicht === 'auth.session'", 1))
+PY2
+griff_datei tests/Feature/ImpersonationDoorTest.php "Untergrenze der Tuer" &&
+pruefe "Untergrenze der Tuer" \
+  ImpersonationDoorTest::test_every_writing_route_without_ability_refuses_in_foreign_view failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ImpersonationDoorTest passed
+
+echo
+echo "── ImpersonationControlTest: verwalten steht in fremder Sicht wieder da ──"
+#
+# Die Seite hinter dem Verweis weist in fremder Sicht ab; der Verweis darf dort
+# nicht stehen. Seit dem 14. Oktober kennt der Waechter abgewiesene Anzeigen
+# und sucht ihre Verweise in allen Vorlagen.
+vorher_datei resources/js/Pages/Settings/Profile.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Profile.vue'
+s = open(p, encoding='utf-8').read()
+alt = '<td v-if="!props.impersonating" class="right">\n                <Link href="/settings/two-factor" class="link">verwalten</Link>'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, alt.replace(' v-if="!props.impersonating"', '', 1), 1))
+PY2
+griff_datei resources/js/Pages/Settings/Profile.vue "verwalten in fremder Sicht" &&
+pruefe "verwalten in fremder Sicht" \
+  ImpersonationControlTest::test_every_refused_action_is_withheld_in_foreign_view failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ImpersonationControlTest passed
+
+echo
+echo "── ImpersonationControlTest: dieselbe Seite steht auch ohne Abweisung da ──"
+#
+# Eine Seite, deren Anzeige abweist, bietet in fremder Sicht nichts an — aber
+# nur, wenn jede Methode, die sie zeigt, abweist. Eine zweite ohne Abweisung
+# nimmt das zurueck, und die Formulare darauf stehen wieder da.
+vorher_datei app/Http/Controllers/Auth/TwoFactorSetupController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/Auth/TwoFactorSetupController.php'
+s = open(p, encoding='utf-8').read()
+alt = "    private function account(Request $request): Account\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+neu = ("    public function preview(Request $request): Response\n    {\n"
+       "        return Inertia::render('Auth/TwoFactorSetup', ['active' => false]);\n    }\n\n" + alt)
+open(p, 'w', encoding='utf-8').write(s.replace(alt, neu, 1))
+PY2
+griff_datei app/Http/Controllers/Auth/TwoFactorSetupController.php "Seite ohne Abweisung" &&
+pruefe "Seite ohne Abweisung" \
+  ImpersonationControlTest::test_every_refused_action_is_withheld_in_foreign_view failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ImpersonationControlTest passed
+
+echo
+echo "── ImpersonationControlTest: ein Aufruf im Attribut wird nicht mehr gelesen ──"
+#
+# Die Seite des zweiten Faktors schickt ihre Anfragen direkt aus dem Attribut,
+# setup.post(...) und off.delete(...). Liest der Waechter das nicht, findet er
+# fuer Einschalten und Abschalten kein Bedienelement.
+vorher_datei tests/Unit/ImpersonationControlTest.php
+python3 - <<'PY2'
+p = 'tests/Unit/ImpersonationControlTest.php'
+s = open(p, encoding='utf-8').read()
+alt = '="[^"]*?\\.(post|put|patch|delete)\\(\\s*'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '="[^"]*?\\.(postx)\\(\\s*', 1))
+PY2
+griff_datei tests/Unit/ImpersonationControlTest.php "Aufruf im Attribut" &&
+pruefe "Aufruf im Attribut" \
+  ImpersonationControlTest::test_the_reader_finds_links_and_inline_calls failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ImpersonationControlTest passed
+
+echo
+echo "── RouteAuthorizationTest: die Mittelschichten zaehlen wieder, was eine Route ablegt ──"
+#
+# Herausgezogen nach tests/Support am 14. Oktober, damit ImpersonationDoorTest
+# dieselbe Fassung benutzt. Ohne die abgelegten Mittelschichten liest der
+# Waechter api/v1/openapi.yaml als Route mit Konto.
+vorher_datei tests/Support/ResolvesRouteMiddleware.php
+python3 - <<'PY2'
+p = 'tests/Support/ResolvesRouteMiddleware.php'
+s = open(p, encoding='utf-8').read()
+alt = '$abgelegt = $route->excludedMiddleware();'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '$abgelegt = [];', 1))
+PY2
+griff_datei tests/Support/ResolvesRouteMiddleware.php "abgelegte Mittelschichten" &&
+pruefe "abgelegte Mittelschichten" \
+  RouteAuthorizationTest::test_a_declaration_says_what_the_router_does failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RouteAuthorizationTest passed
+
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."

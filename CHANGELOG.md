@@ -34609,4 +34609,12 @@ Protokoll, das sich nicht ändert. Bestätigt hat sie der Betreiber in Worten.
 > **Eine Erwartung, die „nichts Neues" lautet, hinterlässt kein Bild — sie
 > braucht eine Ablesung, die etwas druckt.**
 
-Abgenommen sind B7 und B8 damit noch nicht; das entscheidet der Betreiber.
+### B7 und B8 sind abgenommen
+
+**B7 und B8 sind am 15. Oktober 2026 abgenommen**, ausgesprochen vom
+Betreiber nach dem Lauf gegen `0.9.0-rc.17` (`docs/144 §8`) und dem Nachlauf
+gegen `0.9.0-rc.18` (`docs/144 §9`). Zwei Punkte des Laufs bleiben benannt
+offen, darunter die zweite Hälfte von B4: Dass die Vorgangsseite genau einen
+Strom öffnet, ist nur im Container gemessen. Offen in P9 ist damit B3, dessen
+Teil 2 am 21. und 22. sowie am 28. und 29. Oktober misst. Die Dokumentation
+bleibt vertagt.

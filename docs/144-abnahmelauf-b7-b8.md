@@ -50,6 +50,9 @@ ab, „verwalten" fällt dort weg, und ein Wächter fragt von der Seite der Tür
 Das steht in §9, mit dem Nachlauf, der es am selben Abend gegen
 `0.9.0-rc.18` auf `cloudsrv24` gezeigt hat: N0 bis N4 erfüllt.
 
+**Der Betreiber hat B7 und B8 am 15. Oktober 2026 abgenommen**, nach dem Lauf
+in §8 und dem Nachlauf in §9.
+
 ---
 
 ## §0 · Was beim Ausschreiben herausgefallen ist
@@ -2375,10 +2378,12 @@ des 11. Oktober dazu, und §2 zählte die Prüfkörper weiter ohne ihn.
 
 ### Die Abnahme
 
-**Steht beim Betreiber**, nach diesem Protokoll. Die tragenden Punkte beider
-Kriterien sind erfüllt. Auf dem Server nicht gemessen ist die zweite Hälfte
-von B4, eingetragen auf Entscheidung des Betreibers. Der Befund zum zweiten
-Faktor berührt keines der beiden Kriterien.
+**Der Betreiber hat B7 und B8 am 15. Oktober 2026 abgenommen**, nach diesem
+Protokoll und dem Nachlauf gegen `0.9.0-rc.18` (§9). Die tragenden Punkte
+beider Kriterien sind erfüllt. Auf dem Server nicht gemessen ist die zweite
+Hälfte von B4, eingetragen auf Entscheidung des Betreibers. Der Befund zum
+zweiten Faktor berührt keines der beiden Kriterien; seine Behebung hat der
+Nachlauf auf dem Server gezeigt.
 
 ### Was aussteht
 
@@ -2389,6 +2394,9 @@ Faktor berührt keines der beiden Kriterien.
   gemessen, auf dem Server nicht.
 - **B7, das Ende:** Ob nach 113.6 s noch eine Zeile kam, zeigt das letzte Bild
   nur, wenn es mindestens drei Sekunden danach entstand.
+
+Die beiden letzten bleiben benannt offen. Der Betreiber hat B7 und B8 am
+15. Oktober ohne sie abgenommen.
 
 ---
 
@@ -2755,5 +2763,5 @@ Block aus N2 die Zahl der Zeilen neben der letzten.
 
 #### Die Abnahme
 
-Variante a ist auf dem Server gesehen. Die Abnahme von B7 und B8 steht
-weiter beim Betreiber (§8, „Die Abnahme").
+Variante a ist auf dem Server gesehen. Danach hat der Betreiber B7 und B8 am
+15. Oktober 2026 abgenommen (§8, „Die Abnahme").

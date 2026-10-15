@@ -21,8 +21,8 @@ ist bewusst nicht hergestellt worden, entschieden vom Betreiber: Der Lauf bei
 95 % hat Befund, Meldung und Rückweg belegt. Die drei Befunde an der Mail des
 Betreibers sind danach behoben und mit `0.9.0-rc.5` ausgeliefert; auf dem Server
 gesehen hat sie noch niemand. **B4 ist am 1. Oktober 2026 abgenommen, B6 am
-4. Oktober, B5 am 7. Oktober und B9 am 10. Oktober**; B3, B7 und B8 sind
-gebaut und nicht abgenommen. Der Lauf
+4. Oktober, B5 am 7. Oktober, B9 am 10. Oktober und B7 und B8 am
+15. Oktober**; B3 ist gebaut und nicht abgenommen. Der Lauf
 für B3 ist `docs/138`, ausgeschrieben am 28. September, und er hat vor dem
 Fahren einen Befund am Prüfling gebracht (Abschnitt weiter unten) — behoben
 am selben Tag, ausgeliefert mit `0.9.0-rc.7` und am Abend auf `cloudsrv24`
@@ -89,8 +89,9 @@ der Kriterien heraus, der zweite Faktor in fremder Sicht; entschieden ist,
 dass die Tür dort abweist, und gebaut ist es am 14. Oktober für
 `0.9.0-rc.18` und am selben Abend auf `cloudsrv24` gesehen (`docs/144 §9`).
 An der Vorschrift fielen sechs heraus
-(`docs/144 §8`, Abschnitte weiter unten). Abgenommen sind B7 und B8 noch
-nicht. Die Dokumentation ist vertagt und steht als offener Punkt da.
+(`docs/144 §8`, Abschnitte weiter unten). **Danach hat der Betreiber B7 und
+B8 am 15. Oktober 2026 abgenommen.** Die Dokumentation ist vertagt und steht
+als offener Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -7128,8 +7129,8 @@ seitdem so.
 
 **Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B7 und
 B8.** Für B7 und B8 gab es bis zum 11. Oktober keinen Lauf; seitdem ist er
-`docs/144`, gefahren vom 11. bis 14. Oktober (`docs/144 §8`), und abgenommen
-sind beide noch nicht. B9 ist am 7. Oktober dazugekommen
+`docs/144`, gefahren vom 11. bis 14. Oktober (`docs/144 §8`), und am
+15. Oktober sind beide abgenommen. B9 ist am 7. Oktober dazugekommen
 und gebaut (`docs/142 §10`); sein Lauf ist `docs/143`, gefahren vom 8. bis
 10. Oktober, und am 10. Oktober ist B9 abgenommen. Der Lauf für B5 ist seit dem
 5. Oktober `docs/141`, gefahren samt Nachlauf bis zum 7. Oktober, und an
@@ -7904,8 +7905,9 @@ Gefahren auf `cloudsrv24` gegen `0.9.0-rc.17`: Teil A und B0 bis B6 am
 Kriterien sind erfüllt**, A2 und A6 für B7 und B1 und B3 für B8, die
 dazugelegten A3 und B2 auch. Von B4 ist die zweite Hälfte, genau ein Strom auf
 der Vorgangsseite, auf dem Server nicht gemessen, entschieden vom Betreiber;
-im Container ist sie gemessen. Das Protokoll ist `docs/144 §8`, und die
-Abnahme steht beim Betreiber.
+im Container ist sie gemessen. Das Protokoll ist `docs/144 §8`. **Am
+15. Oktober hat der Betreiber B7 und B8 abgenommen**, nach dem Nachlauf gegen
+`rc.18` (Abschnitt darunter).
 
 **Der Befund am Prüfling lag neben dem Lauf: Der zweite Faktor lässt sich in
 fremder Sicht einschalten.** Auf „Mein Konto" steht „verwalten" auch in der

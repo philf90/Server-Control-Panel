@@ -34618,3 +34618,36 @@ offen, darunter die zweite Hälfte von B4: Dass die Vorgangsseite genau einen
 Strom öffnet, ist nur im Container gemessen. Offen in P9 ist damit B3, dessen
 Teil 2 am 21. und 22. sowie am 28. und 29. Oktober misst. Die Dokumentation
 bleibt vertagt.
+
+### `symfony/http-foundation` 8.1.2 → 8.1.9
+
+**Ein Advisory, CVE-2026-108082**: eine Dienstverweigerung über einen
+regulären Ausdruck (ReDoS) in `HeaderUtils::split()`, erreichbar über die
+Kopfzeile `Cache-Control` einer Anfrage. Betroffen ist in der Reihe 8.1 alles
+unter 8.1.7. In Symfony behoben ist es mit „Remove the ambiguity that makes
+HeaderUtils::split() backtrack" (`94d8b4ec`).
+
+Anders als `league/commonmark` liegt das Paket hier nicht abseits. Laravels
+`Request` erbt von Symfony, und `Request::initialize()` legt für jede Anfrage
+einen `HeaderBag` an. Dessen `set()` zerlegt `Cache-Control` über genau diese
+Funktion, vor jeder Mittelschicht und damit auch ohne Anmeldung. Das ist am
+Quelltext von 8.1.2 gelesen. Ob und wie weit sich die Lücke hinter nginx und
+php-fpm ausnutzen lässt, ist nicht gemessen.
+
+**Gefunden hat es der CI-Schritt „Schwachstellen und Lizenzen" an #296, und
+der fasst keine Abhängigkeitsdatei an.** Derselbe Lock hat den Schritt auf
+`main` um 08:06 UTC bestanden und an #296 um 11:56 UTC nicht. Als Meldedatum
+trägt das Advisory den 15. September 2026.
+
+> **Ein grünes Audit gilt für den Augenblick seines Laufs — die Datenbank,
+> gegen die es prüft, ändert sich ohne Commit.**
+
+Im Lock ändern sich sechs Zeilen, alle im Eintrag dieses einen Pakets.
+`composer.json` bleibt unberührt und der Inhalts-Hash auch. Zwischen 8.1.2 und
+8.1.9 ist ausserhalb von `Tests/` keine Datei dazugekommen oder weggefallen.
+
+Gegen die neue Fassung gefahren: der volle PHPUnit-Lauf mit 4059 Tests und
+21886 Assertions ohne Fehlschlag, und PHPStan über alle Pfade der
+Projektdatei, mit einem eingepflanzten Fehler als Gegenprobe; gemeldet wurde
+nur er. `composer validate --strict` besteht, und `composer audit` meldet
+„No security vulnerability advisories found."

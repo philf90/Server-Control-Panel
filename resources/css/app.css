@@ -3563,8 +3563,31 @@ tr:where(:has(td.multiline)) > td {
  *
  * > **Ein Abstand, der aus der Reihenfolge der Seite abgeleitet ist, fällt mit
  * > der nächsten Ergänzung.**
+ *
+ * **Und dieselbe Fuge hat auf dem Telefon 36 Zeilen aufgerissen** (gemessen am
+ * 15. Oktober 2026, `docs/144 §9`, Beobachtung 2). `.quiet` und `.ident` sind
+ * auch die beiden Klassen einer Paar-Zeile: `<td class="quiet">Von</td>` und
+ * daneben `<td class="right ident">`. Am Schreibtisch sind das Tabellenzellen,
+ * und an einer Tabellenzelle wirkt kein Rand. Unter 720 px macht
+ * `table.pairs td` sie zu Flexkindern, und dort wirkt er: Die Zeile „Von" auf
+ * „Mein Konto" war 63 px hoch statt 40, und die Beschriftung rutschte über die
+ * Grundlinie mit nach unten. Bei 390 px über alle Seiten waren es 36 Zeilen in
+ * 13 Vorlagen mit je 23 bis 24 px, dazu jede Karte im Protokoll (48 px) und in
+ * den Prozessen, den Abonnements und dem DNS-Abgleich (je 24 px). So stand es
+ * in jeder Freigabe seit `v0.9.0-rc.1`.
+ *
+ * Eine Fuge gilt im Blockfluss und nicht zwischen zwei Zellen, die eine
+ * Tabelle ordnet. Das ist dieselbe Grenze, die `BlockSpacingTest` mit
+ * `TABLE_PARTS` von der anderen Seite zieht. Das `:where()` hält das Gewicht
+ * bei 0,2,0, also dort, wo es vorher war: Die Verengung nimmt der Fuge nur die
+ * Zellen und ändert an keinem anderen Element die Kaskade. Gemessen ist danach
+ * jede dieser Zeilen so hoch wie ganz ohne Fuge, und das API-Token behält
+ * seine 24 bzw. 30 px.
+ *
+ * > **Eine Fuge zwischen zwei Klassen trifft jedes Element, das beide trägt —
+ * > auch eines, das kein Block im Fluss ist.**
  */
-.quiet + .ident,
+.quiet + .ident:not(:where(td, th)),
 
 /*
  * **Und beim nächsten Mal steht ein Formular unter einem Bereich.**

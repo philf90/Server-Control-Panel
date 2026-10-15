@@ -8019,6 +8019,54 @@ dieselbe Seite aus einer zweiten Methode ohne Abweisung.
 
 ---
 
+## Die Lücke über „Von" war eine Fuge — 15. Oktober 2026
+
+Beobachtung 2 aus `docs/144 §9`: Auf „Mein Konto" war die Zeile „Von" bei
+390 px 63 px hoch, die darüber 40. Vermutet waren drei Regeln aus dem Block
+der schmalen Fläche: die Grundlinienausrichtung, der Umbruch der Flexzeile und
+`table.pairs td.right.ident`. **Gemessen war es keine davon.** Jede Gegenprobe
+mit genau einer geänderten Regel liess die Zeile bei 63 px, auch mit
+`flex-start` und ohne die Kennungsregel. Erst ohne die Fuge `.quiet + .ident`
+stand sie bei 40.
+
+Die Fuge kam mit B7 für den Satz über dem frisch angelegten API-Token und gibt
+dem `.ident` einen Rand nach oben, auch einer Zelle `td.right.ident` hinter
+`td.quiet`. Am Schreibtisch wirkt an einer Tabellenzelle kein Rand; unter
+720 px ist sie ein Flexkind, und dann wirkt er. Die Grundlinie hat nur die
+Beschriftung mitgezogen und damit wie die Ursache ausgesehen.
+
+> **Eine Fuge zwischen zwei Klassen trifft jedes Element, das beide trägt —
+> auch eines, das kein Block im Fluss ist.**
+
+**Und das Merkmal der Zählung war falsch gestellt.** Gefragt war nach jeder
+`pairs`-Tabelle mit `td.right.ident`. Von diesen 50 Zellen haben 13 kein
+`.quiet` davor, und die Fuge erreicht sie nicht; gemessen sind davon die acht
+auf den allgemeinen Einstellungen, alle mit 0 px Lücke (die übrigen fünf, bei
+den Diensten und der Wiederherstellung, waren mit den Testdaten nicht
+herzustellen). Dafür trafen dieselben 24 px vier Kartenlisten,
+die keine Paar-Tabellen sind. Gemessen über alle 78 GET-Routen bei 390 px
+waren es 36 Zeilen in 13 Vorlagen und jede Karte im Protokoll, in den
+Prozessen, den Abonnements und im DNS-Abgleich. Bei 1440 px änderte die Fuge
+keine Zeile.
+
+> **Wer die Betroffenen über das Merkmal der Vermutung zählt, zählt die
+> Vermutung.**
+
+**Behoben, indem die Fuge leichter wurde, und nicht mit einer Gegenregel**,
+die Lehre vom 28. September ein zweites Mal: `.quiet + .ident:not(:where(td,
+th))`. Das `:where()` hält das Gewicht bei 0,2,0. Gemessen danach ist jede
+dieser Zeilen so hoch wie ganz ohne Fuge, und das API-Token behält 24 bzw.
+30 px; ohne die Fuge wären es 0. `BlockSpacingTest` fragt mit
+`test_no_seam_reaches_a_table_cell` die Gegenrichtung zu `TABLE_PARTS`: Keine
+Fuge mit senkrechtem Rand erreicht ein Paar benachbarter Zellen, auch nicht
+über die Klassen aus `:class`. Gegen den ausgelieferten Stand gefahren, meldet
+er 20 Fundzeilen in 16 Vorlagen.
+
+> **Ein Wächter, der eine Form aus seiner Frage nimmt, sagt nichts darüber,
+> ob eine Regel sie trotzdem trifft.**
+
+---
+
 ## Befehle
 
 ```bash
@@ -8202,6 +8250,36 @@ Testen berücksichtigen:
 
   > **Eine Messung, die einmal jemand von Hand macht, ist ein Datum. Eine, die
   > die CI macht, ist eine Zusage.**
+- **PHP 8.4 liegt nicht in jedem Container — es lässt sich holen.** Am
+  15. Oktober 2026 lag hier PHP 8.3.6, und das Lockfile verlangt mindestens
+  8.4.1 (Symfony 8.1). `composer install` scheiterte an achtzehn
+  Plattformbedingungen, und `php8.4-cli` kennt das Archiv von Noble nicht. Den
+  Build gibt es als GitHub-Release vom Autor von `setup-php`:
+  `shivammathur/php-builder`, Tag `8.4`, Datei `php_8.4+ubuntu24.04.tar.zst`.
+  Sein `install.sh` will Dutzende Entwicklungspakete und schreibt nach `/`;
+  entpackt in den Scratchpad und mit einer eigenen `php.ini` über `PHPRC`
+  läuft die Binärdatei auch ohne das (gemessen 8.4.26, alle Erweiterungen aus
+  dem Lockfile da).
+
+  **Und `variables_order = "GPCS"` gehört in diese `php.ini`.** Ohne die Zeile
+  steht `PHPRC` in `$_ENV`, und `artisan serve` nimmt seinem Kindprozess jede
+  Variable aus `$_ENV` weg, die nicht in `ServeCommand::$passthroughVariables`
+  steht. Der Kindprozess startet dann ohne `php.ini` und ohne Erweiterungen,
+  und jede Seite antwortet mit 200 und einem fatalen Fehler über
+  `Class "config"`.
+
+  > **Eine Variable, die ein Werkzeug seinem Kindprozess wegnimmt, fehlt genau
+  > dort, wo sie wirken soll — und die Antwort darauf sieht aus wie ein Fehler
+  > der Anwendung.**
+
+  **`display_errors = Off` gehört auch hinein.** Ohne die Zeile gilt der
+  Vorgabewert 1, und eine Warnung steht auf STDOUT. Mit `env -u AI_AGENT -u
+  CLAUDECODE` sucht `laravel/pao` den Agenten zuletzt an `/opt/.devin`, und im
+  Unterprozess von `TimezoneFileTest` liegt das ausserhalb der `open_basedir`.
+  Die Warnung steht dann in der Ausgabe, die der Test vergleicht. Gemessen am
+  15. Oktober: Im vollen Lauf war das der eine Fehlschlag von 4060
+  (`test_a_blocked_symlink_yields_no_due_time`). Mit `display_errors = Off`
+  oder `PAO_DISABLE=1` ist er grün, ebenso mit den Variablen der Sitzung.
 - **npm geht, Composer nicht — und das ist keine Kleinigkeit.** Gemessen am
   12. August 2026: `npm ping` antwortet, `npm ci` holt 108 Pakete in neun
   Sekunden, `npm run build` und `npm run types` laufen durch. Der Proxy sperrt

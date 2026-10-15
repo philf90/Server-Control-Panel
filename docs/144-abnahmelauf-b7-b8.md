@@ -47,7 +47,11 @@ wo die Vorschrift danach berichtigt ist, steht „Berichtigt nach dem Lauf".
 **Die Behebung des zweiten Faktors ist am 14. Oktober gebaut**, für
 `0.9.0-rc.18` und wie entschieden (Variante a). Die Tür weist in fremder Sicht
 ab, „verwalten" fällt dort weg, und ein Wächter fragt von der Seite der Tür.
-Das steht in §9, mit dem Nachlauf, der es auf dem Server zeigt.
+Das steht in §9, mit dem Nachlauf, der es am selben Abend gegen
+`0.9.0-rc.18` auf `cloudsrv24` gezeigt hat: N0 bis N4 erfüllt.
+
+**Der Betreiber hat B7 und B8 am 15. Oktober 2026 abgenommen**, nach dem Lauf
+in §8 und dem Nachlauf in §9.
 
 ---
 
@@ -2374,20 +2378,25 @@ des 11. Oktober dazu, und §2 zählte die Prüfkörper weiter ohne ihn.
 
 ### Die Abnahme
 
-**Steht beim Betreiber**, nach diesem Protokoll. Die tragenden Punkte beider
-Kriterien sind erfüllt. Auf dem Server nicht gemessen ist die zweite Hälfte
-von B4, eingetragen auf Entscheidung des Betreibers. Der Befund zum zweiten
-Faktor berührt keines der beiden Kriterien.
+**Der Betreiber hat B7 und B8 am 15. Oktober 2026 abgenommen**, nach diesem
+Protokoll und dem Nachlauf gegen `0.9.0-rc.18` (§9). Die tragenden Punkte
+beider Kriterien sind erfüllt. Auf dem Server nicht gemessen ist die zweite
+Hälfte von B4, eingetragen auf Entscheidung des Betreibers. Der Befund zum
+zweiten Faktor berührt keines der beiden Kriterien; seine Behebung hat der
+Nachlauf auf dem Server gezeigt.
 
 ### Was aussteht
 
 - **Variante a für den zweiten Faktor**, für `0.9.0-rc.18`, mit dem Wächter
-  von der Seite der Tür. *Gebaut am 14. Oktober (§9); auf dem Server sieht
-  sie der Nachlauf dort.*
+  von der Seite der Tür. *Gebaut am 14. Oktober und am selben Abend gegen
+  `rc.18` auf dem Server gesehen (§9).*
 - **B4, zweite Hälfte:** genau ein Strom auf der Vorgangsseite. Im Container
   gemessen, auf dem Server nicht.
 - **B7, das Ende:** Ob nach 113.6 s noch eine Zeile kam, zeigt das letzte Bild
   nur, wenn es mindestens drei Sekunden danach entstand.
+
+Die beiden letzten bleiben benannt offen. Der Betreiber hat B7 und B8 am
+15. Oktober ohne sie abgenommen.
 
 ---
 
@@ -2397,7 +2406,7 @@ Entschieden am 11. Oktober (§8, „Der Befund am Prüfling"), gebaut nach dem
 Lauf für `0.9.0-rc.18`. B7 und B8 berührt es nicht. Gemessen ist der Bau im
 Container, durch die echten Routen in PHPUnit und im echten Chromium gegen die
 SQLite-Datenbank aus §7 unter `artisan serve`. Auf dem Server gesehen hat ihn
-noch niemand; das tut der Nachlauf am Ende dieses Abschnitts.
+der Nachlauf am Ende dieses Abschnitts, gefahren am Abend des 14. Oktober.
 
 ### Die Tür
 
@@ -2677,3 +2686,82 @@ Zeile nur eine Zelle verliert und keine gewinnt.
 #### Wann er durch ist
 
 Wenn N0 bis N3 erfüllt sind. N4 darf ausfallen.
+
+### Protokoll des Nachlaufs — 14. Oktober 2026
+
+Gefahren auf `cloudsrv24` gegen `0.9.0-rc.18`, am Abend des 14. Oktober am
+Schreibtisch mit offener Konsole. **N0 bis N4 sind erfüllt.** N4 lief gleich
+nach N1, damit der Betreiber nur einmal in die fremde Sicht wechselt; die
+Blöcke selbst sind die aus der Vorschrift.
+
+#### N0 — erfüllt
+
+`/opt/srvpanel/releases/0.9.0-rc.18`, und das `grep` druckte die Zeilen 50,
+80 und 129 wörtlich wie erwartet.
+
+#### N1 — erfüllt
+
+In der Sicht von Konto 5, bei 1440 px im dunklen Thema:
+`Zeile: Zweiter Faktor | nicht eingerichtet · verwalten 0`. Das Bild zeigt
+daneben, was in fremder Sicht dasteht: den Hinweis, dass sich das Konto eines
+Kunden von hier aus nicht ändern lässt, die gesperrte Darstellung, unter
+„Sicherheit" den Zustand allein und die API-Tokens ohne Formular.
+
+#### N4 — erfüllt
+
+Bei 390 px, frisch geladen, mit `tests/bilder-messen.js` im Stand
+`2026-09-06`: `dokument = 0`, Gegenprobe `200/200`, `schiebt` und `rollt`
+leer, `versteckt = 0`, im dunklen Thema.
+
+#### N2 — erfüllt
+
+`/settings/two-factor` in der Adresszeile gab „403 · Kein Zutritt". Der Block
+auf dem Server druckte als letzte Zeile
+
+```
+2026-10-14 19:34:14 · auth.two_factor.viewed · denied · Konto 1 · handelnd als 5
+```
+
+Davor standen zwei ältere Zeilen `auth.two_factor.enabled · success` vom
+25. August und 10. September. Beide sind ohne fremde Sicht entstanden und
+gehören nicht zu diesem Lauf.
+
+#### N3 — erfüllt
+
+Nach „Zurück zur Verwaltung" gab dieselbe Zeile in der eigenen Sicht
+`Zeile: Zweiter Faktor | eingerichtet | verwalten · verwalten 1`. „verwalten"
+öffnete die Seite „Zweiter Faktor", und der Block aus N2 zeigte danach keine
+neue Zeile. Die Schritte 2 und 3 hat der Betreiber in Worten bestätigt, ohne
+Bild.
+
+#### Eine Beobachtung, kein Befund
+
+**In der Konsole stand ab N1 ein Fehler, dessen Text niemand gesehen hat.**
+DevTools zeigte oben „⊗ 1", und der Filter `/Seite|Strom/` aus B4 stand noch
+im Feld und blendete die Meldung aus. Nach N2 kam die erwartete zweite dazu,
+„Failed to load resource … 403" vom direkten Aufruf. Im Container gibt „Mein
+Konto" in fremder Sicht keinen Fehler, weder über die Leiste noch neu geladen
+noch nach dem Zurück-Knopf; den einzigen Fehler gibt der direkte Aufruf. Die
+Herkunft bleibt auf Entscheidung des Betreibers ungeklärt, und für den
+Nachlauf zählt die Meldung nicht.
+
+> **Ein Filter aus einem früheren Schritt blendet in einem späteren aus, was
+> niemand ausblenden wollte.**
+
+#### Was der Nachlauf über sich selbst gelernt hat
+
+**Zwei Schritte von N3 kamen ohne Bild zurück, und beide haben dieselbe
+Form:** Ihre Erwartung ist ein Zustand ohne eigene Zeile, eine Seite, die
+sich öffnet, und ein Protokoll, das sich nicht ändert. Die Konsolenzeile
+druckt etwas, und genau dieser Schritt stand auf dem Bild.
+
+> **Eine Erwartung, die „nichts Neues" lautet, hinterlässt kein Bild — sie
+> braucht eine Ablesung, die etwas druckt.**
+
+Für N3 hätten eine Zeile genügt, die nach dem Klick die Seite nennt, und im
+Block aus N2 die Zahl der Zeilen neben der letzten.
+
+#### Die Abnahme
+
+Variante a ist auf dem Server gesehen. Danach hat der Betreiber B7 und B8 am
+15. Oktober 2026 abgenommen (§8, „Die Abnahme").

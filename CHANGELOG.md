@@ -34583,3 +34583,38 @@ antwortet dieselbe Seite dem Betreiber. Zehn neue Eingriffe im Bruchskript,
 jeder einzeln belegt; im vollen Lauf über `a3e7ebd2` beissen alle 3436
 Prüfungen. Der Nachlauf gegen `rc.18` steht in `docs/144 §9`, ausgeschrieben
 vor dem Fahren.
+
+### Der zweite Faktor weist in fremder Sicht auch auf dem Server ab
+
+**Gesehen am 14. Oktober 2026**, im Nachlauf gegen `0.9.0-rc.18` auf
+`cloudsrv24` (`docs/144 §9`): N0 bis N4 erfüllt, am Prüfling kein Befund. In
+der Sicht von Konto 5 stand neben „Zweiter Faktor" nur der Zustand, und die
+Konsolenzeile druckte `verwalten 0`. Die Adresse direkt gab „403 · Kein
+Zutritt" und auf dem Server die Zeile `auth.two_factor.viewed · denied ·
+Konto 1 · handelnd als 5`. Nach „Zurück zur Verwaltung" stand „verwalten"
+wieder da, die Seite öffnete sich, und das Protokoll bekam keine neue Zeile.
+In fremder Sicht bei 390 px: `dokument = 0`, Gegenprobe 200/200.
+
+**Ein Fehler in der Konsole bleibt ungeklärt**, entschieden vom Betreiber. Ab
+N1 zeigte DevTools „⊗ 1", und ein Filter aus einem früheren Schritt blendete
+den Text aus. Im Container gibt „Mein Konto" in fremder Sicht keinen Fehler.
+
+> **Ein Filter aus einem früheren Schritt blendet in einem späteren aus, was
+> niemand ausblenden wollte.**
+
+**Und zwei Schritte von N3 kamen ohne Bild zurück**, beide mit einer
+Erwartung, die „nichts Neues" lautete: eine Seite, die sich öffnet, und ein
+Protokoll, das sich nicht ändert. Bestätigt hat sie der Betreiber in Worten.
+
+> **Eine Erwartung, die „nichts Neues" lautet, hinterlässt kein Bild — sie
+> braucht eine Ablesung, die etwas druckt.**
+
+### B7 und B8 sind abgenommen
+
+**B7 und B8 sind am 15. Oktober 2026 abgenommen**, ausgesprochen vom
+Betreiber nach dem Lauf gegen `0.9.0-rc.17` (`docs/144 §8`) und dem Nachlauf
+gegen `0.9.0-rc.18` (`docs/144 §9`). Zwei Punkte des Laufs bleiben benannt
+offen, darunter die zweite Hälfte von B4: Dass die Vorgangsseite genau einen
+Strom öffnet, ist nur im Container gemessen. Offen in P9 ist damit B3, dessen
+Teil 2 am 21. und 22. sowie am 28. und 29. Oktober misst. Die Dokumentation
+bleibt vertagt.

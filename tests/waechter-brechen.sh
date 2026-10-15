@@ -41556,6 +41556,51 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RouteAuthorizationTest passed
 
 echo
+echo "── BlockSpacingTest: eine Fuge erreicht wieder die Zellen einer Paar-Zeile ──"
+#
+# Der Befund vom 15. Oktober 2026 (docs/144 §9, Beobachtung 2). `.quiet + .ident`
+# kam mit B7 fuer den Satz ueber dem frisch angelegten API-Token und traf jede
+# Zelle `.ident` hinter einer Zelle `.quiet`: Unter 720 px war die Zeile „Von"
+# auf „Mein Konto" 63 px hoch statt 40. Der Eingriff nimmt der Fuge ihr
+# `:not(:where(td, th))` und stellt damit den Stand her, der von rc.1 bis rc.18
+# ausgeliefert war. Von Hand gefahren meldete der Waechter 20 Fundzeilen in 16
+# Vorlagen, je Vorlage und Zellform eine, darunter die drei, deren `ident` an
+# einer Bedingung haengt (Uebersicht des Kunden, Cron-Laeufe, DNS-Zonen).
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.quiet + .ident:not(:where(td, th)),'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.quiet + .ident,', 1))
+PY2
+griff_datei resources/css/app.css "Fuge erreicht die Paar-Zeile" &&
+pruefe "Fuge erreicht die Paar-Zeile" \
+  BlockSpacingTest::test_no_seam_reaches_a_table_cell failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
+echo "── BlockSpacingTest: die Fuge schliesst nur noch th aus ──"
+#
+# Ein Waechter, der nur nachsieht, OB ein `:not()` dasteht, bliebe hier gruen.
+# Gefragt wird aber je Marke: `:not(:where(th))` laesst jede Zelle `td` durch,
+# und genau die stehen in den Paar-Tabellen.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+alt = '.quiet + .ident:not(:where(td, th)),'
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '.quiet + .ident:not(:where(th)),', 1))
+PY2
+griff_datei resources/css/app.css "Fuge schliesst nur th aus" &&
+pruefe "Fuge schliesst nur th aus" \
+  BlockSpacingTest::test_no_seam_reaches_a_table_cell failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

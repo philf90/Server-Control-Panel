@@ -34651,3 +34651,49 @@ Gegen die neue Fassung gefahren: der volle PHPUnit-Lauf mit 4059 Tests und
 Projektdatei, mit einem eingepflanzten Fehler als Gegenprobe; gemeldet wurde
 nur er. `composer validate --strict` besteht, und `composer audit` meldet
 „No security vulnerability advisories found."
+
+### Über „Von" stand bei 390 px eine Lücke — eine Fuge für Absätze traf Tabellenzellen
+
+**Gemessen und behoben am 15. Oktober 2026** (`docs/144 §9`, Beobachtung 2).
+Auf „Mein Konto" war die Zeile „Von" bei 390 px 63 px hoch und die Zeile
+darüber 40. Vermutet waren die Grundlinienausrichtung, der Umbruch der
+Flexzeile und `table.pairs td.right.ident`. Gemessen war es keine davon: Jede
+Gegenprobe mit genau einer geänderten Regel liess die Zeile bei 63 px. Erst
+ohne die Fuge `.quiet + .ident` stand sie bei 40.
+
+Die Fuge kam mit B7 für den Satz über dem frisch angelegten API-Token. Sie
+traf auch `<td class="quiet">` mit `<td class="right ident">` daneben. An einer
+Tabellenzelle wirkt kein Rand, deshalb war am Schreibtisch nichts zu sehen.
+Unter 720 px sind die Zellen aber Flexkinder, und dann standen 24 px über der
+Kennung; die Grundlinie zog die Beschriftung mit. So stand es in jeder
+Freigabe seit `v0.9.0-rc.1`.
+
+**Gezählt über alle 78 GET-Routen bei 390 px:** 36 Zeilen in 13 Vorlagen mit
+je 23 bis 24 px. Dazu kam jede Karte im Protokoll (48 px, zwei Treffer je
+Karte), in den Prozessen der Übersicht, in der Liste der Abonnements und im
+DNS-Abgleich einer Domain (je 24 px). Das Merkmal `td.right.ident` war dabei
+das falsche: 13 solche Zellen haben kein `.quiet` davor, und die Fuge erreicht
+sie nicht (gemessen an den acht auf den allgemeinen Einstellungen: 0 px). Bei
+1440 px änderte die Fuge keine Zeile, und `tests/bilder-messen.js` ergab in
+allen vier Lagen `dokument = 0`.
+
+**Behoben, indem die Fuge leichter wurde, und nicht mit einer Gegenregel:**
+`.quiet + .ident:not(:where(td, th))`. Das `:where()` hält das Gewicht bei
+0,2,0. Danach ist jede dieser Zeilen so hoch wie ganz ohne Fuge, „Von" also
+40 px. Das API-Token behält seine 24 bzw. 30 px, und eine Kennung mit
+63-stelligem Namen bricht bei `dokument = 0` um.
+
+**`BlockSpacingTest::test_no_seam_reaches_a_table_cell` fragt die
+Gegenrichtung zu `TABLE_PARTS`.** Jedes Glied mit senkrechtem Rand wird gegen
+jedes Paar benachbarter Zellen in jeder Vorlage gehalten, auch über die
+Klassen aus `:class`. Gegen den ausgelieferten Stand gefahren, meldet er
+20 Fundzeilen in 16 Vorlagen. Zwei Eingriffe im Bruchskript belegen ihn: der
+ausgelieferte Stand und eine Fuge, die nur `th` ausschliesst. Tokenizer, leere
+Elemente und die Kette der Nachbarn stehen dafür jetzt einmal in der Klasse;
+vorher hätte der neue Fall eine zweite Fassung gebraucht.
+
+> **Eine Fuge zwischen zwei Klassen trifft jedes Element, das beide trägt —
+> auch eines, das kein Block im Fluss ist.**
+
+> **Ein Wächter, der eine Form aus seiner Frage nimmt, sagt nichts darüber,
+> ob eine Regel sie trotzdem trifft.**

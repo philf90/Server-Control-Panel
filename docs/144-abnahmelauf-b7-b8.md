@@ -2600,6 +2600,18 @@ die geänderten Dateien mit einem Prüfkörper im selben Aufruf,
    Sicht genauso wie in der fremden. Die Lücke ist älter als dieser Bau, und
    ihre Ursache ist nicht gesucht.
 
+   **Gemessen und behoben am 15. Oktober 2026**, nach der Entscheidung des
+   Betreibers. Die Ursache ist keine Regel der schmalen Fläche, sondern die
+   Fuge `.quiet + .ident` aus B7. Sie gibt der Zelle `td.right.ident` hinter
+   `td.quiet` 24 px Rand nach oben, und unter 720 px wirkt er, weil die Zellen
+   dort Flexkinder sind. Bei 390 px war das Gleiche in 36 Zeilen aus 13
+   Seitenvorlagen und in vier Kartenlisten zu sehen, seit `v0.9.0-rc.1`.
+   Behoben ist es mit
+   `.quiet + .ident:not(:where(td, th))`, gehalten von
+   `BlockSpacingTest::test_no_seam_reaches_a_table_cell`; danach ist „Von"
+   40 px hoch. Die Gegenproben und die Zählung stehen in `CLAUDE.md`
+   („Die Lücke über ‚Von' war eine Fuge") und im `CHANGELOG.md`.
+
 ### Der Nachlauf gegen `0.9.0-rc.18` — ausgeschrieben vor dem Fahren
 
 Am Schreibtisch mit offener Konsole, dazu zwei Blöcke auf dem Server. Er

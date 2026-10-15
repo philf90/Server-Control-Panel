@@ -103,6 +103,36 @@ final class BlockSpacingTest extends TestCase
     private const TABLE_PARTS = ['td', 'th', 'tr', 'thead', 'tbody', 'tfoot', 'caption', 'colgroup'];
 
     /**
+     * **Die leeren HTML-Elemente — und `link` ist hier eine Falle.**
+     *
+     * Verglichen wird **ohne** `strtolower()`, und das ist der Unterschied
+     * zwischen `<link>` und Inertias `<Link>`. Bis zum 17. August stand hier
+     * ein `strtolower()`, und damit galt jede `<Link>`-Komponente als leeres
+     * Element: Das öffnende Tag erhöhte die Tiefe nicht, das schliessende
+     * `</Link>` senkte sie — die Zählung kippte um eins, und alles dahinter
+     * bekam den falschen Elternteil.
+     *
+     * Gefunden hat es P6 Schritt 9: Der Wächter meldete für zwei Seiten
+     * `.section` als Geschwister von `.sections`, obwohl beide sauber
+     * verschachtelt waren. Sichtbar wurde es erst, als die Tiefenzählung
+     * Schritt für Schritt mitgeschrieben wurde — `<Link>` ging von 3 auf 3.
+     *
+     * > **Zwei Dinge, die im Quelltext gleich heissen, sind im Browser nicht
+     * > dasselbe** — und `strtolower()` macht aus dem einen das andere.
+     *
+     * HTML-Elemente stehen in diesen Vorlagen klein, Komponenten gross; ein
+     * genauer Vergleich trennt sie ohne eine zweite Liste.
+     *
+     * **Eine Konstante seit dem 15. Oktober 2026**, weil zwei Prüfungen dieser
+     * Klasse die Vorlage lesen: die Fugen zwischen Blöcken und die Zellen, die
+     * keine Fuge erreichen darf. Zwei Listen wären zwei Fassungen derselben
+     * Regel gewesen.
+     *
+     * @var list<string>
+     */
+    private const VOID_ELEMENTS = ['input', 'br', 'hr', 'img', 'meta', 'link', 'source', 'area', 'col'];
+
+    /**
      * Fugen, die noch niemand angesehen hat.
      *
      * **Sie sind keine Ausnahme, sondern eine Zahl, die kleiner werden soll.**
@@ -850,48 +880,8 @@ final class BlockSpacingTest extends TestCase
      */
     private function pairs(string $template, string $scoped = ''): array
     {
-        /*
-         * **Die leeren HTML-Elemente — und `link` ist hier eine Falle.**
-         *
-         * Verglichen wird **ohne** `strtolower()`, und das ist der Unterschied
-         * zwischen `<link>` und Inertias `<Link>`. Bis zum 17. August stand hier
-         * ein `strtolower()`, und damit galt jede `<Link>`-Komponente als leeres
-         * Element: Das öffnende Tag erhöhte die Tiefe nicht, das schliessende
-         * `</Link>` senkte sie — die Zählung kippte um eins, und alles dahinter
-         * bekam den falschen Elternteil.
-         *
-         * Gefunden hat es P6 Schritt 9: Der Wächter meldete für zwei Seiten
-         * `.section` als Geschwister von `.sections`, obwohl beide sauber
-         * verschachtelt waren. Sichtbar wurde es erst, als die Tiefenzählung
-         * Schritt für Schritt mitgeschrieben wurde — `<Link>` ging von 3 auf 3.
-         *
-         * > **Zwei Dinge, die im Quelltext gleich heissen, sind im Browser nicht
-         * > dasselbe** — und `strtolower()` macht aus dem einen das andere.
-         *
-         * HTML-Elemente stehen in diesen Vorlagen klein, Komponenten gross; ein
-         * genauer Vergleich trennt sie ohne eine zweite Liste.
-         */
-        $void = ['input', 'br', 'hr', 'img', 'meta', 'link', 'source', 'area', 'col'];
-
-        /*
-         * **Der Ausdruck kennt Anführungszeichen, und das ist bezahlt.**
-         *
-         * `[^>]*` hört am ersten `>` auf — auch an einem, das **in** einem
-         * Attribut steht. `:letter="cycle > 0 ? 'A' : ''"` auf der Übersicht
-         * riss damit ein selbstschliessendes Tag mitten entzwei: Die Tiefe
-         * stieg und fiel nie wieder, und alles dahinter bekam den falschen
-         * Elternteil. Gemeldet wurde eine Fuge zwischen `.button-row` und
-         * `.tiles` — zwei Kästen, die im Browser nicht einmal denselben
-         * Vorfahren haben.
-         *
-         * > **Ein `>` in einem Attribut beendet das Tag für jeden, der es mit
-         * > einem Ausdruck liest.**
-         *
-         * Derselbe Fehler hat `NoticeChildrenTest` schon einmal gekostet
-         * (`docs/76`, Befund 3). Dort steht die Lehre; hier steht sie ein
-         * zweites Mal, weil zwei Wächter zwei Ausdrücke haben.
-         */
-        preg_match_all('/<(\/?)([a-zA-Z][\w.-]*)((?:"[^"]*"|\'[^\']*\'|[^>"\'])*)>/s', $template, $tags, PREG_SET_ORDER);
+        $void = self::VOID_ELEMENTS;
+        $tags = $this->tags($template);
 
         $stil = $this->stylesheet($scoped);
         $bausteine = array_keys($this->stylesheet());
@@ -982,85 +972,7 @@ final class BlockSpacingTest extends TestCase
                 continue;
             }
 
-            /*
-             * **Ein `v-if` ist Nachbar und Luft zugleich.**
-             *
-             * Der dritte Fall derselben Familie in diesem Wächter, nach dem
-             * TypeScript-Generic und dem `<template v-else>`. Seit P6 Schritt 5c
-             * steht zwischen dem Formular und den Brotkrumen im Dateimanager ein
-             * `<form v-if="chmodFor !== null">` **ohne Klasse**. Im Quelltext ist
-             * es der Nachbar; im Browser ist es meistens gar nicht da, und dann
-             * berühren sich die beiden dahinter.
-             *
-             * Gemerkt hat es der Bruchlauf in der CI: Der Eingriff, der die Fuge
-             * wieder aufreisst, liess den Wächter grün.
-             *
-             * > **Ein Wächter, der ein `v-if` für vorhanden hält, liest ein
-             * > Markup, das es so nie gibt.**
-             *
-             * Gesammelt werden deshalb **alle** Nachbarn, die entstehen können:
-             * das nächste Geschwister, und — solange dieses an einer Bedingung
-             * hängt — auch das dahinter.
-             */
-            /*
-             * **Und ein `v-else` ist kein Nachbar, sondern eine Alternative.**
-             *
-             * Auf der Domain- und der Datenbankliste steht im Seitenkopf
-             * `<Link v-if="creatable.length === 1" class="button primary">`
-             * und daneben `<form v-else-if="creatable.length > 1"
-             * class="button-row">`. Im Quelltext folgen sie aufeinander; im
-             * Browser ist **immer nur eines von beiden** da.
-             *
-             * > **Zwei Zweige derselben Bedingung berühren sich nie — sie
-             * > schliessen einander aus.**
-             *
-             * Gesehen wurde das erst am 23. August, nachdem der Ausdruck über
-             * die Tags Anführungszeichen gelernt hatte: Vorher verzählte er
-             * sich an `creatable.length === 1` und die beiden bekamen gar
-             * nicht erst denselben Elternteil.
-             *
-             * **Ausschliessend ist das nur gegenüber dem Vorgänger selbst.**
-             * Der erste Wurf hat die Kette am *Nachfolger* weitergezählt, und
-             * damit fiel eine echte Fuge weg: Unter dem Erklärsatz der Konsole
-             * steht `<p v-if="loadingTable" class="empty">` und dahinter
-             * `<div v-else class="scrolls">`. Die beiden schliessen einander
-             * aus — den Satz darüber schliesst keines von beiden aus, und
-             * `section-note + scrolls` ist genau die Fuge, die man sieht,
-             * sobald die Tabelle geladen ist.
-             *
-             * > **Zwei Zweige einer Bedingung schliessen einander aus und
-             * > sonst niemanden.** Für den Baustein davor sind sie beide
-             * > möglich — und damit beide Nachbarn.
-             */
-            $nachbarn = [];
-            $naechster = $this->sibling($tags, $start, $void);
-
-            // Steht der Vorgänger selbst in einer Kette, sind die Glieder
-            // dahinter seine Alternativen und nicht seine Nachbarn.
-            $eigeneKette = preg_match('/\sv-(?:if|else-if)\b/', $tags[$start][3]) === 1;
-
-            while ($naechster !== null) {
-                $attribute = $tags[$naechster][3];
-
-                if ($eigeneKette && preg_match('/\sv-(?:else-if|else)\b/', $attribute) === 1) {
-                    $eigeneKette = preg_match('/\sv-else-if\b/', $attribute) === 1;
-                    $naechster = $this->sibling($tags, $naechster, $void);
-
-                    continue;
-                }
-
-                $eigeneKette = false;
-                $nachbarn[] = $naechster;
-
-                // Hängt dieser Nachbar an einer Bedingung, rückt seine eigene
-                // Alternative an seine Stelle — und die berührt den Vorgänger
-                // dann genauso.
-                if (preg_match('/\sv-(?:if|else-if)\b/', $attribute) !== 1) {
-                    break;
-                }
-
-                $naechster = $this->sibling($tags, $naechster, $void);
-            }
+            $nachbarn = $this->neighbours($tags, $start, $void);
 
             [$untenKante] = $this->transparent($tags, $start, $void);
             $untenBuendig = $this->flushClasses($untenKante, $stil, $bausteine, 'bottom');
@@ -1081,6 +993,130 @@ final class BlockSpacingTest extends TestCase
         }
 
         return $paare;
+    }
+
+    /**
+     * Die Tags einer gerendert gedachten Vorlage, öffnende wie schliessende.
+     *
+     * **Der Ausdruck kennt Anführungszeichen, und das ist bezahlt.**
+     *
+     * `[^>]*` hört am ersten `>` auf — auch an einem, das **in** einem
+     * Attribut steht. `:letter="cycle > 0 ? 'A' : ''"` auf der Übersicht
+     * riss damit ein selbstschliessendes Tag mitten entzwei: Die Tiefe
+     * stieg und fiel nie wieder, und alles dahinter bekam den falschen
+     * Elternteil. Gemeldet wurde eine Fuge zwischen `.button-row` und
+     * `.tiles` — zwei Kästen, die im Browser nicht einmal denselben
+     * Vorfahren haben.
+     *
+     * > **Ein `>` in einem Attribut beendet das Tag für jeden, der es mit
+     * > einem Ausdruck liest.**
+     *
+     * Derselbe Fehler hat `NoticeChildrenTest` schon einmal gekostet
+     * (`docs/76`, Befund 3). Dort steht die Lehre; hier steht sie ein
+     * zweites Mal, weil zwei Wächter zwei Ausdrücke haben.
+     *
+     * @return list<array{0: string, 1: string, 2: string, 3: string}>
+     */
+    private function tags(string $template): array
+    {
+        preg_match_all('/<(\/?)([a-zA-Z][\w.-]*)((?:"[^"]*"|\'[^\']*\'|[^>"\'])*)>/s', $template, $tags, PREG_SET_ORDER);
+
+        return $tags;
+    }
+
+    /**
+     * Was unmittelbar hinter einem Tag stehen kann — eines oder mehrere.
+     *
+     * **Ein `v-if` ist Nachbar und Luft zugleich.**
+     *
+     * Der dritte Fall derselben Familie in diesem Wächter, nach dem
+     * TypeScript-Generic und dem `<template v-else>`. Seit P6 Schritt 5c
+     * steht zwischen dem Formular und den Brotkrumen im Dateimanager ein
+     * `<form v-if="chmodFor !== null">` **ohne Klasse**. Im Quelltext ist
+     * es der Nachbar; im Browser ist es meistens gar nicht da, und dann
+     * berühren sich die beiden dahinter.
+     *
+     * Gemerkt hat es der Bruchlauf in der CI: Der Eingriff, der die Fuge
+     * wieder aufreisst, liess den Wächter grün.
+     *
+     * > **Ein Wächter, der ein `v-if` für vorhanden hält, liest ein
+     * > Markup, das es so nie gibt.**
+     *
+     * Gesammelt werden deshalb **alle** Nachbarn, die entstehen können:
+     * das nächste Geschwister, und — solange dieses an einer Bedingung
+     * hängt — auch das dahinter.
+     *
+     * **Und ein `v-else` ist kein Nachbar, sondern eine Alternative.**
+     *
+     * Auf der Domain- und der Datenbankliste steht im Seitenkopf
+     * `<Link v-if="creatable.length === 1" class="button primary">`
+     * und daneben `<form v-else-if="creatable.length > 1"
+     * class="button-row">`. Im Quelltext folgen sie aufeinander; im
+     * Browser ist **immer nur eines von beiden** da.
+     *
+     * > **Zwei Zweige derselben Bedingung berühren sich nie — sie
+     * > schliessen einander aus.**
+     *
+     * Gesehen wurde das erst am 23. August, nachdem der Ausdruck über
+     * die Tags Anführungszeichen gelernt hatte: Vorher verzählte er
+     * sich an `creatable.length === 1` und die beiden bekamen gar
+     * nicht erst denselben Elternteil.
+     *
+     * **Ausschliessend ist das nur gegenüber dem Vorgänger selbst.**
+     * Der erste Wurf hat die Kette am *Nachfolger* weitergezählt, und
+     * damit fiel eine echte Fuge weg: Unter dem Erklärsatz der Konsole
+     * steht `<p v-if="loadingTable" class="empty">` und dahinter
+     * `<div v-else class="scrolls">`. Die beiden schliessen einander
+     * aus — den Satz darüber schliesst keines von beiden aus, und
+     * `section-note + scrolls` ist genau die Fuge, die man sieht,
+     * sobald die Tabelle geladen ist.
+     *
+     * > **Zwei Zweige einer Bedingung schliessen einander aus und
+     * > sonst niemanden.** Für den Baustein davor sind sie beide
+     * > möglich — und damit beide Nachbarn.
+     *
+     * **Eine eigene Methode seit dem 15. Oktober 2026**: Die Zellen, die keine
+     * Fuge erreichen darf ({@see self::cellPairs()}), haben dieselben
+     * Nachbarn wie jeder Block, und eine zweite Fassung dieser Kette wäre die,
+     * die beim nächsten Fund nicht mitgezogen wird.
+     *
+     * @param  list<array{0: string, 1: string, 2: string, 3: string}>  $tags
+     * @param  list<string>  $void
+     * @return list<int>
+     */
+    private function neighbours(array $tags, int $start, array $void): array
+    {
+        $nachbarn = [];
+        $naechster = $this->sibling($tags, $start, $void);
+
+        // Steht der Vorgänger selbst in einer Kette, sind die Glieder
+        // dahinter seine Alternativen und nicht seine Nachbarn.
+        $eigeneKette = preg_match('/\sv-(?:if|else-if)\b/', $tags[$start][3]) === 1;
+
+        while ($naechster !== null) {
+            $attribute = $tags[$naechster][3];
+
+            if ($eigeneKette && preg_match('/\sv-(?:else-if|else)\b/', $attribute) === 1) {
+                $eigeneKette = preg_match('/\sv-else-if\b/', $attribute) === 1;
+                $naechster = $this->sibling($tags, $naechster, $void);
+
+                continue;
+            }
+
+            $eigeneKette = false;
+            $nachbarn[] = $naechster;
+
+            // Hängt dieser Nachbar an einer Bedingung, rückt seine eigene
+            // Alternative an seine Stelle — und die berührt den Vorgänger
+            // dann genauso.
+            if (preg_match('/\sv-(?:if|else-if)\b/', $attribute) !== 1) {
+                break;
+            }
+
+            $naechster = $this->sibling($tags, $naechster, $void);
+        }
+
+        return $nachbarn;
     }
 
     /**
@@ -1177,6 +1213,322 @@ final class BlockSpacingTest extends TestCase
         }
 
         return $paare;
+    }
+
+    /**
+     * Die Glieder aus `app.css`, die einem Geschwister einen senkrechten Rand geben.
+     *
+     * Gelesen wird wie in {@see self::covered()}: ohne Kommentare, Regel für
+     * Regel, und jede Liste an den Kommas der obersten Ebene. Dazu kommt, was
+     * {@see self::covered()} nicht braucht, nämlich **wer** den Rand bekommt.
+     * Steht hinter dem letzten `+` noch ein Kind (`.label + .choices .toggle`),
+     * bekommt ihn das Kind und nicht das Geschwister, und das Glied ist keine
+     * Fuge. Ein Rand von null ist keiner, und ein waagerechter (`margin-left`)
+     * trennt keine Zeilen.
+     *
+     * @return list<array{selector: string, left: list<list<string>>, right: list<string>, subject: string}>
+     */
+    private function verticalSeams(): array
+    {
+        $css = (string) preg_replace(
+            '#/\*.*?\*/#su',
+            '',
+            (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css'),
+        );
+
+        preg_match_all('/([^{}]+)\{([^{}]*)\}/s', $css, $regeln, PREG_SET_ORDER);
+
+        $fugen = [];
+
+        foreach ($regeln as $regel) {
+            if (preg_match('/(?:^|[;\s])margin(?:-top|-bottom|-block(?:-start|-end)?)?\s*:\s*(?!0(?:px)?\s*(?:;|$))/', $regel[2]) !== 1) {
+                continue;
+            }
+
+            foreach ($this->selectors($regel[1]) as $selektor) {
+                $selektor = trim((string) preg_replace('/\s+/', ' ', $selektor));
+                $plus = $this->lastTopLevel($selektor, ['+']);
+
+                if ($plus === null) {
+                    continue;
+                }
+
+                $subjekt = trim(substr($selektor, $plus + 1));
+
+                if ($this->lastTopLevel($subjekt, [' ', '>', '~']) !== null) {
+                    continue;
+                }
+
+                $vorne = trim(substr($selektor, 0, $plus));
+                $grenze = $this->lastTopLevel($vorne, [' ', '>', '~', '+']);
+
+                $fugen[] = [
+                    'selector' => $selektor,
+                    'left' => $this->alternatives(trim(substr($vorne, $grenze === null ? 0 : $grenze + 1))),
+                    'right' => $this->ownClasses($subjekt),
+                    'subject' => $subjekt,
+                ];
+            }
+        }
+
+        return $fugen;
+    }
+
+    /**
+     * Die letzte Stelle eines der Zeichen ausserhalb jeder Klammer, oder `null`.
+     *
+     * Aus demselben Grund wie in {@see self::selectors()}: Ein Leerzeichen in
+     * `:not(:where(td, th))` trennt keine Glieder, und ein `+` in einer Klammer
+     * ist kein Geschwister.
+     *
+     * @param  list<string>  $zeichen
+     */
+    private function lastTopLevel(string $text, array $zeichen): ?int
+    {
+        $tiefe = 0;
+        $stelle = null;
+
+        foreach (str_split($text) as $i => $c) {
+            if ($c === '(') {
+                $tiefe++;
+            } elseif ($c === ')') {
+                $tiefe--;
+            } elseif ($tiefe === 0 && in_array($c, $zeichen, true)) {
+                $stelle = $i;
+            }
+        }
+
+        return $stelle;
+    }
+
+    /**
+     * Was in einer Klammer steht, die bei `$anfang` aufgeht — bis zu ihrem Gegenstück.
+     */
+    private function argument(string $text, int $anfang): string
+    {
+        $tiefe = 1;
+
+        for ($i = $anfang; $i < strlen($text); $i++) {
+            if ($text[$i] === '(') {
+                $tiefe++;
+            } elseif ($text[$i] === ')' && --$tiefe === 0) {
+                return substr($text, $anfang, $i - $anfang);
+            }
+        }
+
+        return substr($text, $anfang);
+    }
+
+    /**
+     * Die Klassen eines Glieds, die nicht in einer Klammer stehen.
+     *
+     * Was in `:not()` steht, verlangt das Glied gerade nicht, und was in
+     * `:is()` steht, ist eine Wahl und keine Bedingung.
+     *
+     * @return list<string>
+     */
+    private function ownClasses(string $glied): array
+    {
+        $aussen = '';
+        $tiefe = 0;
+
+        foreach (str_split($glied) as $c) {
+            if ($c === '(') {
+                $tiefe++;
+            } elseif ($c === ')') {
+                $tiefe--;
+            } elseif ($tiefe === 0) {
+                $aussen .= $c;
+            }
+        }
+
+        preg_match_all('/\.([\w-]+)/', $aussen, $treffer);
+
+        return $treffer[1];
+    }
+
+    /**
+     * Die Klassenmengen, von denen ein Glied vor dem `+` eine verlangt.
+     *
+     * `:is(.field, .hint, …)` ist eine Wahl: Jede Klasse darin genügt für
+     * sich. Ein Glied ohne jede Klasse verlangt keine, und dann genügt jede
+     * Zelle; das ist die vorsichtige Seite, denn ein Fund dort ist harmlos zu
+     * beheben, eine Lücke im Blick nicht.
+     *
+     * @return list<list<string>>
+     */
+    private function alternatives(string $glied): array
+    {
+        $eigene = $this->ownClasses($glied);
+
+        if (preg_match('/:(?:is|where)\(/', $glied, $treffer, PREG_OFFSET_CAPTURE) !== 1) {
+            return [$eigene];
+        }
+
+        $wahl = [];
+
+        foreach ($this->selectors($this->argument($glied, $treffer[0][1] + strlen($treffer[0][0]))) as $teil) {
+            preg_match_all('/\.([\w-]+)/', $teil, $klassen);
+            $wahl[] = array_values(array_unique([...$eigene, ...$klassen[1]]));
+        }
+
+        return $wahl;
+    }
+
+    /**
+     * Ob eine Zelle eine der Klassenmengen trägt.
+     *
+     * @param  list<string>  $klassen
+     * @param  list<list<string>>  $wahl
+     */
+    private function carriesOneOf(array $klassen, array $wahl): bool
+    {
+        foreach ($wahl as $verlangt) {
+            if (array_diff($verlangt, $klassen) === []) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Ob das letzte Glied einer Fuge eine Zelle dieser Marke ausschliesst.
+     *
+     * Zwei Wege gibt es: ein anderer Typname vorneweg (`p.ident`) oder die
+     * Marke selbst in einem `:not()`, auch in einem `:where()` darin, das das
+     * Gewicht hält (`.ident:not(:where(td, th))`). Gefragt wird je Marke, denn
+     * ein `:not(td)` lässt jedes `th` durch.
+     */
+    private function excludes(string $subjekt, string $marke): bool
+    {
+        if (preg_match('/^([a-zA-Z][\w-]*)/', $subjekt, $typ) === 1 && $typ[1] !== $marke) {
+            return true;
+        }
+
+        $versatz = 0;
+
+        while (preg_match('/:not\(/', $subjekt, $treffer, PREG_OFFSET_CAPTURE, $versatz) === 1) {
+            $anfang = $treffer[0][1] + strlen($treffer[0][0]);
+            $inhalt = trim($this->argument($subjekt, $anfang));
+            $versatz = $anfang;
+
+            if (preg_match('/^:(?:where|is)\((.*)\)$/s', $inhalt, $innen) === 1) {
+                $inhalt = $innen[1];
+            }
+
+            foreach ($this->selectors($inhalt) as $teil) {
+                if (trim($teil) === $marke) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Jedes Paar benachbarter Zellen: Klassen beider, Marke der hinteren und der vorderen.
+     *
+     * Die Nachbarn kommen aus {@see self::neighbours()} und damit aus derselben
+     * Kette wie bei den Blöcken: Eine Zelle mit `v-if` kann fehlen, und dann
+     * steht die dahinter unmittelbar an der vorderen. So steht es auf „Mein
+     * Konto", wo „verwalten" in fremder Sicht wegfällt.
+     *
+     * **Ein `<template v-if>` um Zellen steht im Browser nicht da**; seine
+     * Zellen stehen an seiner Stelle. {@see self::rendered()} macht daraus
+     * einen Kasten mit `data-fragment`, und für die Nachbarschaft zählt seine
+     * erste bzw. letzte Zelle.
+     *
+     * @return list<array{0: list<string>, 1: list<string>, 2: string, 3: string}>
+     */
+    private function cellPairs(string $template): array
+    {
+        $tags = $this->tags($template);
+        $void = self::VOID_ELEMENTS;
+        $paare = [];
+
+        foreach ($tags as $start => $tag) {
+            if ($tag[1] === '/') {
+                continue;
+            }
+
+            $vorne = $this->cellAt($tags, $start, $void, 'last');
+
+            if ($vorne === null) {
+                continue;
+            }
+
+            foreach ($this->neighbours($tags, $start, $void) as $nachbar) {
+                $hinten = $this->cellAt($tags, $nachbar, $void, 'first');
+
+                if ($hinten !== null) {
+                    $paare[] = [
+                        $this->cellClasses($tags[$vorne][3]),
+                        $this->cellClasses($tags[$hinten][3]),
+                        $tags[$hinten][2],
+                        $tags[$vorne][2],
+                    ];
+                }
+            }
+        }
+
+        return $paare;
+    }
+
+    /**
+     * Die Zelle an einer Stelle — oder die erste bzw. letzte eines gerenderten `<template>`.
+     *
+     * @param  list<array{0: string, 1: string, 2: string, 3: string}>  $tags
+     * @param  list<string>  $void
+     */
+    private function cellAt(array $tags, int $index, array $void, string $ende): ?int
+    {
+        if (in_array($tags[$index][2], ['td', 'th'], true)) {
+            return $index;
+        }
+
+        if ($tags[$index][2] !== 'div' || ! str_contains($tags[$index][3], 'data-fragment')) {
+            return null;
+        }
+
+        [$erstes, $letztes] = $this->children($tags, $index, $void);
+        $kind = $ende === 'first' ? $erstes : $letztes;
+
+        return $kind === null ? null : $this->cellAt($tags, $kind, $void, $ende);
+    }
+
+    /**
+     * Alle Klassen, die eine Zelle tragen kann: die festen und die aus `:class`.
+     *
+     * **Ein Objektschlüssel zählt mit**, aus demselben Grund wie in
+     * `MobileTableTest`: Eine Zelle, die einmal einen Satz und einmal eine
+     * Kennung zeigt, trägt `ident` an einer Bedingung (`:class="{ ident: … }"`).
+     * Genau solche Zellen hatten die Lücke auch, auf der Übersicht des Kunden,
+     * bei den Cron-Läufen und bei den DNS-Zonen. Eine Zeichenkette in der
+     * Bindung (`… ? 'quiet' : ''`) zählt ebenso. Was erst eine Variable
+     * liefert, steht nicht im Quelltext und fehlt hier.
+     *
+     * @return list<string>
+     */
+    private function cellClasses(string $attributes): array
+    {
+        $klassen = [];
+
+        if (preg_match('/(?<![:\w-])class="([^"]*)"/', $attributes, $fest) === 1) {
+            $klassen = preg_split('/\s+/', trim($fest[1])) ?: [];
+        }
+
+        if (preg_match('/(?::|v-bind:)class="([^"]*)"/', $attributes, $gebunden) === 1) {
+            preg_match_all('/([\w-]+)\s*:|\'([^\']*)\'/', $gebunden[1], $teile, PREG_SET_ORDER | PREG_UNMATCHED_AS_NULL);
+
+            foreach ($teile as $teil) {
+                $wert = $teil[1] ?? $teil[2] ?? '';
+                array_push($klassen, ...(preg_split('/\s+/', trim($wert)) ?: []));
+            }
+        }
+
+        return array_values(array_unique(array_filter($klassen, static fn (string $k): bool => $k !== '')));
     }
 
     /**
@@ -1381,6 +1733,119 @@ final class BlockSpacingTest extends TestCase
                 count($gesehen),
                 implode(', ', array_keys($gesehen)) ?: '(keine)',
             ),
+        );
+    }
+
+    /**
+     * Eine Fuge erreicht keine Tabellenzelle.
+     *
+     * ## Der Befund, gegen den es diese Prüfung gibt
+     *
+     * Gemessen am 15. Oktober 2026 (`docs/144 §9`, Beobachtung 2): Auf „Mein
+     * Konto" war die Zeile „Von" bei 390 px 63 px hoch und die Zeile darüber 40.
+     * Die Fuge `.quiet + .ident` kam mit B7 für den Satz über dem frisch
+     * angelegten API-Token, und `.quiet` und `.ident` sind auch die beiden
+     * Klassen einer Paar-Zeile. Am Schreibtisch sind das Tabellenzellen, und an
+     * einer Tabellenzelle wirkt kein Rand. Unter 720 px macht `table.pairs td`
+     * sie zu Flexkindern, und dort setzte die Fuge 24 px über die Kennung. Bei
+     * 390 px über alle Seiten waren es 36 Zeilen in 13 Vorlagen, dazu jede Karte
+     * im Protokoll, in den Prozessen, den Abonnements und im DNS-Abgleich.
+     *
+     * Die Prüfung darüber fragt in eine Richtung: Fehlt eine Fuge, wo zwei Blöcke
+     * aneinanderstossen? Zwei Zellen nimmt sie über {@see self::TABLE_PARTS}
+     * ausdrücklich aus, und zu Recht. Ob eine Fuge sie trotzdem erreicht, hat
+     * deshalb niemand gefragt.
+     *
+     * > **Ein Wächter, der eine Form aus seiner Frage nimmt, sagt nichts darüber,
+     * > ob eine Regel sie trotzdem trifft.**
+     *
+     * ## Was gefragt wird
+     *
+     * Jedes Glied einer Regel in `app.css`, das einem Geschwister einen
+     * senkrechten Rand gibt, gegen jedes Paar benachbarter Zellen in jeder
+     * Vorlage, und zwar mit allen Klassen, die eine Zelle tragen kann, auch denen
+     * aus `:class`. Trifft ein Glied die hintere Zelle, ist das ein Fund, es sei
+     * denn, sein letztes Glied schliesst sie aus: mit einem anderen Typnamen oder
+     * mit `td` bzw. `th` in einem `:not()`.
+     *
+     * ## Was sie nicht hält
+     *
+     * Eine Zelle, deren Klasse erst eine Variable liefert (`:class="art"`),
+     * kennt sie nicht. Ob die Lücke im Browser wirklich entsteht, misst sie
+     * nicht; das ist eine Messung und steht in `docs/144 §9`.
+     */
+    public function test_no_seam_reaches_a_table_cell(): void
+    {
+        $fugen = $this->verticalSeams();
+        $paare = 0;
+        $funde = [];
+
+        foreach ($this->templates() as $path) {
+            $vorlage = $this->rendered((string) file_get_contents($path));
+
+            foreach ($this->cellPairs($vorlage) as [$vorne, $hinten, $marke, $vorneMarke]) {
+                $paare++;
+
+                foreach ($fugen as $fuge) {
+                    if (array_diff($fuge['right'], $hinten) !== [] || ! $this->carriesOneOf($vorne, $fuge['left'])) {
+                        continue;
+                    }
+
+                    if ($this->excludes($fuge['subject'], $marke)) {
+                        continue;
+                    }
+
+                    $funde[] = sprintf(
+                        '%s: <%s> mit .%s hinter <%s> mit .%s — `%s`',
+                        $this->relative($path),
+                        $marke,
+                        implode('.', $hinten),
+                        $vorneMarke,
+                        implode('.', $vorne),
+                        $fuge['selector'],
+                    );
+                }
+            }
+        }
+
+        /*
+         * **Die Untergrenzen zählen, wo die Regel stehen darf, und nicht, wo
+         * sie gebrochen war.** Gut zwanzig Glieder mit Rand und einige hundert
+         * Zellenpaare gibt es, solange `app.css` Fugen kennt und das Panel
+         * Tabellen hat (am 15. Oktober 21 und 457); die 36 Zeilen von dem Tag
+         * wären dagegen eine Zahl,
+         * die beim Aufräumen fällt und den Wächter dann abschaltet.
+         */
+        $this->assertGreaterThanOrEqual(
+            10,
+            count($fugen),
+            sprintf(
+                'Es werden nur %d Glieder mit senkrechtem Rand gelesen. Dann prüft diese Regel fast '.
+                'nichts mehr — entweder ist der Leser kaputt, oder app.css hat seine Fugen verloren.',
+                count($fugen),
+            ),
+        );
+
+        $this->assertGreaterThanOrEqual(
+            100,
+            $paare,
+            sprintf(
+                'Es werden nur %d Paare benachbarter Zellen gefunden. Dann sieht diese Regel die '.
+                'Tabellen nicht mehr, und ihr Grün sagt nichts.',
+                $paare,
+            ),
+        );
+
+        $this->assertSame(
+            [],
+            array_values(array_unique($funde)),
+            "Eine Fuge aus app.css erreicht eine Tabellenzelle:\n\n".
+            implode("\n", array_unique($funde))."\n\n".
+            'Am Schreibtisch wirkt dort kein Rand, und deshalb fällt es nicht auf. Unter 720 px sind '.
+            'die Zellen einer pairs- oder stacks-Tabelle aber Blöcke, und dann steht über der Zeile '.
+            'eine Lücke von der Höhe der Fuge: „Von" auf „Mein Konto" war so 63 px hoch statt 40 '.
+            '(docs/144 §9). Die Fuge gehört auf den Blockfluss verengt, mit `:not(:where(td, th))` '.
+            'an ihrem letzten Glied — und nicht mit einer Gegenregel überstimmt.',
         );
     }
 

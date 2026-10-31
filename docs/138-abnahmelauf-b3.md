@@ -35,8 +35,8 @@ dafür vor dem Fahren berichtigt worden, und Block 0 ist dazugekommen (§7).
 **Teil 2 ist vom 21. bis 31. Oktober 2026 gefahren** (§8), gegen
 `0.9.0-rc.18`. Jede vorausgerechnete Zahl hat der Server getroffen. Zwei
 Erwartungen in §2 stammten noch aus der Zeit vor der Behebung; berichtigt
-sind sie dort. Abgenommen ist B3 damit nicht: Die Abnahme spricht der
-Betreiber aus.
+sind sie dort. **Der Betreiber hat B3 am 31. Oktober 2026 abgenommen**
+(§8, „Die Abnahme").
 
 ---
 
@@ -1065,5 +1065,11 @@ eine Datei und ihre Prüfsumme galt dasselbe in `docs/143 §8`.
 | 3 · ohne Lücke 30 bzw. 31 Zeilen je Abonnement | `p6-b.invalid` am 21. und 23.10., dazu `p6-abnahme.invalid` am 30. und 31.10. | alle drei Abonnements am 30. und 31.10. |
 
 Offen ist kein Punkt, der sich noch messen liesse. Erschlossen statt abgelesen
-sind die Hälften, deren Tag vorbei ist. **Ob das für die Abnahme reicht,
-entscheidet der Betreiber.**
+sind die Hälften, deren Tag vorbei ist.
+
+### Die Abnahme
+
+**Der Betreiber hat B3 am 31. Oktober 2026 abgenommen**, nach Teil 1 (§7) und
+diesem Protokoll, mit den erschlossenen Hälften von Punkt 2, wie sie in der
+Tabelle darüber stehen. Damit sind alle Merkmale von P9 abgenommen. Die
+Dokumentation bleibt vertagt.

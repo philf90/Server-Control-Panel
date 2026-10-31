@@ -34708,7 +34708,7 @@ des ersten Tags entfernt, 12 je Domain und 4 je Abonnement, am 29. die von
 Platz und Datenbanken, 24 und 14. Am 30. und 31. ist der ganze Ablauf einmal
 direkt gemessen, über alle sechs Kennzahlen: die Zeilen des ersten Tags am
 Abend davor, das Journal, das genau sie entfernt, und der erste Tag einen
-weiter. **Abgenommen ist B3 damit noch nicht**; das spricht der Betreiber aus.
+weiter.
 
 **Zwei Erwartungen der Vorschrift waren seit `rc.7` falsch**, gefunden beim
 Nachrechnen am 15. Oktober und berichtigt in `docs/138 §2`.
@@ -34729,3 +34729,11 @@ mit ihrem ersten Tag.
 
 > **Eine Ablesung, die an einen Tag gebunden ist, lässt sich nicht nachholen —
 > nur erschliessen, und nur so weit, wie eine Spur stehen bleibt.**
+
+### B3 ist abgenommen — und damit alle Merkmale von P9
+
+**B3 ist am 31. Oktober 2026 abgenommen**, ausgesprochen vom Betreiber nach
+Teil 1 (`docs/138 §7`) und Teil 2 (`docs/138 §8`). Von Punkt 2 sind zwei
+Hälften erschlossen und nicht abgelesen, weil ihr Ablesetag vorbei war; der
+ganze Ablauf ist am 30. und 31. Oktober einmal direkt gemessen. Mit B3 sind
+alle Merkmale von P9 abgenommen. Die Dokumentation bleibt vertagt.

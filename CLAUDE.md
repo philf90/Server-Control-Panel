@@ -21,15 +21,15 @@ ist bewusst nicht hergestellt worden, entschieden vom Betreiber: Der Lauf bei
 95 % hat Befund, Meldung und Rückweg belegt. Die drei Befunde an der Mail des
 Betreibers sind danach behoben und mit `0.9.0-rc.5` ausgeliefert; auf dem Server
 gesehen hat sie noch niemand. **B4 ist am 1. Oktober 2026 abgenommen, B6 am
-4. Oktober, B5 am 7. Oktober, B9 am 10. Oktober und B7 und B8 am
-15. Oktober**; B3 ist gebaut und nicht abgenommen. Der Lauf
+4. Oktober, B5 am 7. Oktober, B9 am 10. Oktober, B7 und B8 am 15. Oktober
+und B3 am 31. Oktober** — damit alle Merkmale von P9. Der Lauf
 für B3 ist `docs/138`, ausgeschrieben am 28. September, und er hat vor dem
 Fahren einen Befund am Prüfling gebracht (Abschnitt weiter unten) — behoben
 am selben Tag, ausgeliefert mit `0.9.0-rc.7` und am Abend auf `cloudsrv24`
 gesehen. **Teil 1 ist am 30. September durch** (`docs/138 §7`), **Teil 2 ist
 vom 21. bis 31. Oktober gefahren**, und jede vorausgerechnete Zahl stimmt
-(`docs/138 §8`, Abschnitt weiter unten); abgenommen ist B3 noch nicht. Der
-Lauf für B4 ist `docs/139`.
+(`docs/138 §8`, Abschnitt weiter unten); danach hat der Betreiber B3 am
+31. Oktober abgenommen. Der Lauf für B4 ist `docs/139`.
 Beim Ausschreiben fielen zwei Befunde heraus; der Betreiber hat sie am selben
 Tag entschieden, und behoben sind sie mit `0.9.0-rc.8` (`docs/139 §6`). Auf
 dem Server ist Teil 1 gefahren, Teil 2 im Browser am 30. September: **alle
@@ -92,8 +92,9 @@ dass die Tür dort abweist, und gebaut ist es am 14. Oktober für
 `0.9.0-rc.18` und am selben Abend auf `cloudsrv24` gesehen (`docs/144 §9`).
 An der Vorschrift fielen sechs heraus
 (`docs/144 §8`, Abschnitte weiter unten). **Danach hat der Betreiber B7 und
-B8 am 15. Oktober 2026 abgenommen.** Die Dokumentation ist vertagt und steht
-als offener Punkt da.
+B8 am 15. Oktober 2026 abgenommen**, und **am 31. Oktober B3** (`docs/138 §8`).
+Damit sind alle Merkmale von P9 abgenommen. Die Dokumentation ist vertagt und
+steht als offener Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -8076,8 +8077,9 @@ Gefahren auf `cloudsrv24` gegen `0.9.0-rc.18`; das Protokoll ist `docs/138 §8`.
 **Jede vorausgerechnete Zahl hat der Server getroffen.** Die einunddreissigste
 Nacht des Verkehrs hat am 22. Oktober 12 Zeilen je Domain und 4 je Abonnement
 entfernt, die von Platz und Datenbanken am 29. 24 und 14. Am 30. und 31. ist der
-ganze Ablauf einmal direkt gemessen, über alle sechs Kennzahlen. Die Abnahme
-spricht der Betreiber aus.
+ganze Ablauf einmal direkt gemessen, über alle sechs Kennzahlen. **Danach hat
+der Betreiber B3 am 31. Oktober 2026 abgenommen**, und damit sind alle
+Merkmale von P9 abgenommen.
 
 **Zwei Erwartungen der Vorschrift stammten aus der Zeit vor der Behebung**, und
 gefunden hat sie das Nachrechnen eine Woche vor dem Lauf. `subscription_metrics`

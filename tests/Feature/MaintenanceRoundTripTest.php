@@ -9,6 +9,7 @@ use App\Support\Settings\Settings;
 use App\Support\Time\Clock;
 use App\Support\Web\MaintenanceMode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
@@ -56,8 +57,17 @@ final class MaintenanceRoundTripTest extends TestCase
         return Account::factory()->admin()->create();
     }
 
+    /**
+     * **Gemessen im Januar**, damit der Fall in jeder Jahreszeit beisst. Bis zum
+     * 31. Oktober 2026 kam die Zone aus „jetzt", und der Fall war im Sommer grün
+     * und im Winter rot: Neben 16:00 vom 4. September stand dann „CET". Mit
+     * „jetzt" im Januar unterscheidet er die Zone der Endzeit von der Zone von
+     * jetzt an jedem Tag des Jahres.
+     */
     public function test_what_was_typed_comes_back_in_the_display_zone(): void
     {
+        $this->travelTo(Carbon::parse('2026-01-15 12:00:00', 'UTC'));
+
         $utc = $this->eintippen('Europe/Berlin', '2026-09-04', '16:00');
 
         // Der Beleg, dass überhaupt gedreht wurde: abgelegt steht etwas anderes.

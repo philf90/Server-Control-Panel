@@ -61,7 +61,17 @@ final class MaintenanceController extends Controller
                 'enabled' => $stand['enabled'],
                 'until_date' => $teile[0],
                 'until_time' => $teile[1] ?? '',
-                'zone' => Clock::label(),
+                /*
+                 * **Die Zone der Endzeit und nicht die von jetzt.** Der Satz
+                 * „Zeiten in …" steht unter den beiden Feldern, und in ihnen
+                 * steht die gespeicherte Endzeit. Mit {@see Clock::label()}
+                 * stand neben 16:00 vom 4. September nach der Zeitumstellung
+                 * „CET", die Abkürzung einer anderen Jahreszeit; gefunden hat es
+                 * am 31. Oktober 2026 ein Test, der im Winter rot wird. Ohne
+                 * Endzeit gibt es keinen Zeitpunkt, und dann gilt die Zone von
+                 * jetzt. Dieselbe Form steht in `ServerTime`.
+                 */
+                'zone' => Clock::labelAt($stand['until']) ?? Clock::label(),
             ],
         ]);
     }

@@ -34721,3 +34721,29 @@ Im Lock ändert sich nur der Eintrag dieses einen Pakets; `composer.json`
 bleibt unberührt und der Inhalts-Hash auch. `composer validate --strict`
 besteht, und `composer audit --locked` meldet „No security vulnerability
 advisories found."
+
+### Die Wartungsseite schrieb neben die Endzeit die Zone von jetzt
+
+**Gefunden am 31. Oktober 2026, weil `MaintenanceRoundTripTest` an #298 rot
+war**, einem PR, der nur Dokumentation ändert. Unter den beiden Feldern für
+„Voraussichtlich bis" steht „Zeiten in …", und die Zone dort kam aus
+`Clock::label()`, also aus „jetzt". Neben der gespeicherten Endzeit 16:00 vom
+4. September stand seit der Zeitumstellung „CET (UTC+01:00)"; gemeint ist
+CEST. Der Fall erwartete „CEST" und war damit im Sommer grün und im Winter rot.
+Dass er seit dem 25. Oktober auf `main` rot gewesen wäre, ist gerechnet und
+nicht gemessen; der letzte Lauf dort war am 15.
+
+**Behoben mit `Clock::labelAt()` für die gespeicherte Endzeit**, und ohne
+Endzeit gilt weiter die Zone von jetzt. `ServerTime` hat dieselbe Form, und
+`Clock::labelAt()` begründet sie in seinem Kopf:
+
+> **Eine Zonenangabe, die für „jetzt" gilt, gehört nicht neben einen
+> Zeitpunkt, der woanders liegt.**
+
+Der Fall misst seitdem mit „jetzt" im Januar und beisst damit in jeder
+Jahreszeit. Ein Eingriff im Bruchskript setzt die Zone wieder auf „jetzt" und
+erwartet ihn rot. Der zweite Fall der Klasse, New York mit „EDT", wäre ab dem
+1. November ebenso gekippt; er misst dieselbe Endzeit und ist mitbehoben.
+
+> **Ein Test, der an der Jahreszeit hängt, ist ein halbes Jahr ein Beleg und
+> ein halbes Jahr ein Fehlalarm — und welches von beiden, sagt der Kalender.**

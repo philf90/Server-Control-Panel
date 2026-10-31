@@ -26065,6 +26065,25 @@ pruefe "die Seite zeigt den abgelegten Wert" \
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MaintenanceRoundTripTest passed
 
+echo "── MaintenanceRoundTripTest: die Zone gehört zur Endzeit und nicht zu jetzt ──"
+#
+# Mit der Zone von jetzt stuende im Januar neben 16:00 vom 4. September
+# "CET" — die Abkuerzung einer anderen Jahreszeit. Der Fall misst mit "jetzt"
+# im Januar und beisst deshalb in jeder Jahreszeit.
+vorher_datei app/Http/Controllers/MaintenanceController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/MaintenanceController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'zone' => Clock::labelAt($stand['until']) ?? Clock::label(),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'zone' => Clock::label(),", 1))
+PY2
+griff_datei app/Http/Controllers/MaintenanceController.php "die Zone gehört zur Endzeit und nicht zu jetzt" &&
+pruefe "die Zone gehört zur Endzeit und nicht zu jetzt" \
+  MaintenanceRoundTripTest::test_what_was_typed_comes_back_in_the_display_zone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MaintenanceRoundTripTest passed
+
 echo
 echo "── DateInputTest: das Datumsfeld nimmt wieder die ganze Zeile ──"
 #

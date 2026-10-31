@@ -34697,3 +34697,27 @@ vorher hätte der neue Fall eine zweite Fassung gebraucht.
 
 > **Ein Wächter, der eine Form aus seiner Frage nimmt, sagt nichts darüber,
 > ob eine Regel sie trotzdem trifft.**
+
+### `symfony/mime` 8.1.2 → 8.1.10
+
+**Ein Advisory, CVE-2026-45070**: Über Parameternamen mit Zeichen, die keine
+Token sind, lässt sich eine Kopfzeile in eine Mail einschleusen. Schwere
+„medium", gemeldet am 28. Oktober 2026. Betroffen ist in der Reihe 8.1 alles
+unter 8.1.10, und 8.1.10 ist am selben Tag erschienen.
+
+**Gefunden hat es wieder der CI-Schritt „Schwachstellen und Lizenzen", an
+#298, und der fasst keine Abhängigkeitsdatei an** — derselbe Fall wie bei
+`symfony/http-foundation` am 15. Oktober. Der Lock auf `main` war seit dem
+15. Oktober unverändert; das Audit gegen ihn ist erst rot geworden, als die
+Datenbank das Advisory kannte.
+
+In `app/` setzt keine Stelle einen Parameter einer Kopfzeile selbst, und keine
+Mail hängt etwas an; gesucht nach `ParameterizedHeader`, `setParameter`,
+`withSymfonyMessage` und Anhängen. Die Parameternamen der Mails dieses Panels
+kommen damit aus Symfony und Laravel. Ob sich die Lücke trotzdem erreichen
+lässt, ist nicht gemessen.
+
+Im Lock ändert sich nur der Eintrag dieses einen Pakets; `composer.json`
+bleibt unberührt und der Inhalts-Hash auch. `composer validate --strict`
+besteht, und `composer audit --locked` meldet „No security vulnerability
+advisories found."

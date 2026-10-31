@@ -34747,3 +34747,25 @@ erwartet ihn rot. Der zweite Fall der Klasse, New York mit „EDT", wäre ab dem
 
 > **Ein Test, der an der Jahreszeit hängt, ist ein halbes Jahr ein Beleg und
 > ein halbes Jahr ein Fehlalarm — und welches von beiden, sagt der Kalender.**
+
+### `vite` 8.2.0 → 8.3.5
+
+**Derselbe CI-Schritt, sein zweiter Teil.** Nach `symfony/mime` lief „Schwachstellen
+und Lizenzen" an #299 bis zu `npm audit --audit-level=high` und brach dort ab: `vite`
+8.2.0 bis 8.2.2 trägt Advisories der Schwere „high", darunter die Ausführung
+fremder Skripte über eigene Mittelschichten des Entwicklungsservers und Dateien
+ausserhalb von `server.fs.allow`. An #298 war dieser Teil nie gelaufen, weil der
+Schritt schon am PHP-Teil abbrach.
+
+> **Ein Schritt, der beim ersten Fehler abbricht, zeigt den zweiten erst, wenn
+> der erste behoben ist.**
+
+Behoben mit `npm audit fix --package-lock-only`, also ohne `--force`: `vite`
+steigt innerhalb von `^8.0.0` auf 8.3.5, mit ihm `rolldown`, `postcss` und
+`picomatch`; `package.json` bleibt unberührt. Ausgeliefert wird `vite` nicht,
+es baut die Oberfläche. Lokal gefahren gegen den neuen Lock: `npm ci`,
+`npm run build`, `npm run types`, und `npm audit --audit-level=high` endet mit 0.
+
+Offen bleiben drei Meldungen der Schwere „moderate" über `minimatch` in
+`vue-tsc`. Behoben wären sie nur mit `--force`, also mit einem Sprung auf
+`vue-tsc` 3.3, der als brechend ausgewiesen ist; der Schritt prüft ab „high".

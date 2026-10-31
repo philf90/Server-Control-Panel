@@ -34698,6 +34698,78 @@ vorher hätte der neue Fall eine zweite Fassung gebraucht.
 > **Ein Wächter, der eine Form aus seiner Frage nimmt, sagt nichts darüber,
 > ob eine Regel sie trotzdem trifft.**
 
+### `symfony/mime` 8.1.2 → 8.1.10
+
+**Ein Advisory, CVE-2026-45070**: Über Parameternamen mit Zeichen, die keine
+Token sind, lässt sich eine Kopfzeile in eine Mail einschleusen. Schwere
+„medium", gemeldet am 28. Oktober 2026. Betroffen ist in der Reihe 8.1 alles
+unter 8.1.10, und 8.1.10 ist am selben Tag erschienen.
+
+**Gefunden hat es wieder der CI-Schritt „Schwachstellen und Lizenzen", an
+#298, und der fasst keine Abhängigkeitsdatei an** — derselbe Fall wie bei
+`symfony/http-foundation` am 15. Oktober. Der Lock auf `main` war seit dem
+15. Oktober unverändert; das Audit gegen ihn ist erst rot geworden, als die
+Datenbank das Advisory kannte.
+
+In `app/` setzt keine Stelle einen Parameter einer Kopfzeile selbst, und keine
+Mail hängt etwas an; gesucht nach `ParameterizedHeader`, `setParameter`,
+`withSymfonyMessage` und Anhängen. Die Parameternamen der Mails dieses Panels
+kommen damit aus Symfony und Laravel. Ob sich die Lücke trotzdem erreichen
+lässt, ist nicht gemessen.
+
+Im Lock ändert sich nur der Eintrag dieses einen Pakets; `composer.json`
+bleibt unberührt und der Inhalts-Hash auch. `composer validate --strict`
+besteht, und `composer audit --locked` meldet „No security vulnerability
+advisories found."
+
+### Die Wartungsseite schrieb neben die Endzeit die Zone von jetzt
+
+**Gefunden am 31. Oktober 2026, weil `MaintenanceRoundTripTest` an #298 rot
+war**, einem PR, der nur Dokumentation ändert. Unter den beiden Feldern für
+„Voraussichtlich bis" steht „Zeiten in …", und die Zone dort kam aus
+`Clock::label()`, also aus „jetzt". Neben der gespeicherten Endzeit 16:00 vom
+4. September stand seit der Zeitumstellung „CET (UTC+01:00)"; gemeint ist
+CEST. Der Fall erwartete „CEST" und war damit im Sommer grün und im Winter rot.
+Dass er seit dem 25. Oktober auf `main` rot gewesen wäre, ist gerechnet und
+nicht gemessen; der letzte Lauf dort war am 15.
+
+**Behoben mit `Clock::labelAt()` für die gespeicherte Endzeit**, und ohne
+Endzeit gilt weiter die Zone von jetzt. `ServerTime` hat dieselbe Form, und
+`Clock::labelAt()` begründet sie in seinem Kopf:
+
+> **Eine Zonenangabe, die für „jetzt" gilt, gehört nicht neben einen
+> Zeitpunkt, der woanders liegt.**
+
+Der Fall misst seitdem mit „jetzt" im Januar und beisst damit in jeder
+Jahreszeit. Ein Eingriff im Bruchskript setzt die Zone wieder auf „jetzt" und
+erwartet ihn rot. Der zweite Fall der Klasse, New York mit „EDT", wäre ab dem
+1. November ebenso gekippt; er misst dieselbe Endzeit und ist mitbehoben.
+
+> **Ein Test, der an der Jahreszeit hängt, ist ein halbes Jahr ein Beleg und
+> ein halbes Jahr ein Fehlalarm — und welches von beiden, sagt der Kalender.**
+
+### `vite` 8.2.0 → 8.3.5
+
+**Derselbe CI-Schritt, sein zweiter Teil.** Nach `symfony/mime` lief „Schwachstellen
+und Lizenzen" an #299 bis zu `npm audit --audit-level=high` und brach dort ab: `vite`
+8.2.0 bis 8.2.2 trägt Advisories der Schwere „high", darunter die Ausführung
+fremder Skripte über eigene Mittelschichten des Entwicklungsservers und Dateien
+ausserhalb von `server.fs.allow`. An #298 war dieser Teil nie gelaufen, weil der
+Schritt schon am PHP-Teil abbrach.
+
+> **Ein Schritt, der beim ersten Fehler abbricht, zeigt den zweiten erst, wenn
+> der erste behoben ist.**
+
+Behoben mit `npm audit fix --package-lock-only`, also ohne `--force`: `vite`
+steigt innerhalb von `^8.0.0` auf 8.3.5, mit ihm `rolldown`, `postcss` und
+`picomatch`; `package.json` bleibt unberührt. Ausgeliefert wird `vite` nicht,
+es baut die Oberfläche. Lokal gefahren gegen den neuen Lock: `npm ci`,
+`npm run build`, `npm run types`, und `npm audit --audit-level=high` endet mit 0.
+
+Offen bleiben drei Meldungen der Schwere „moderate" über `minimatch` in
+`vue-tsc`. Behoben wären sie nur mit `--force`, also mit einem Sprung auf
+`vue-tsc` 3.3, der als brechend ausgewiesen ist; der Schritt prüft ab „high".
+
 ### B3: Teil 2 ist gefahren
 
 **Teil 2 des Laufs für B3 ist vom 21. bis 31. Oktober 2026 auf `cloudsrv24`

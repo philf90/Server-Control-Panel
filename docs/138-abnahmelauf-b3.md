@@ -32,6 +32,12 @@ was sich mit ihr an den Erwartungen ändert, steht bei jedem Block und in §5.
 **Seit `0.9.0-rc.7` gelten die Erwartungen „mit der Behebung".** Block 4 ist
 dafür vor dem Fahren berichtigt worden, und Block 0 ist dazugekommen (§7).
 
+**Teil 2 ist vom 21. bis 31. Oktober 2026 gefahren** (§8), gegen
+`0.9.0-rc.18`. Jede vorausgerechnete Zahl hat der Server getroffen. Zwei
+Erwartungen in §2 stammten noch aus der Zeit vor der Behebung; berichtigt
+sind sie dort. Abgenommen ist B3 damit nicht: Die Abnahme spricht der
+Betreiber aus.
+
 ---
 
 ## §0 · Was beim Ausschreiben umgefallen ist
@@ -411,8 +417,9 @@ des Verkehrs.
 `Älter als 30 Tag(e) entfernt: X je Domain, Y je Abonnement.` — und **X und Y
 sind genau die beiden Zahlen von gestern**, über Kreuz: Block 5 nennt zuerst
 die Abonnements, das Journal zuerst die Domains. Der erste Tag ist `D0 + 1`,
-keine Tabelle führt mehr als 30 Tage, und die Abonnements von gestern haben
-wieder 30 Zeilen je Kennzahl.
+`domain_metrics` führt 30 Tage und `subscription_metrics` 31, und die
+Abonnements von gestern haben wieder 30 Zeilen je Kennzahl des Verkehrs
+(berichtigt, Absatz unten).
 
 > **Eine Erwartung, die man aus den Zahlen ausrechnet statt sie zu schätzen,
 > macht aus dem Ergebnis einen Beleg** (`docs/913 §15`). Das Journal von Nacht
@@ -431,6 +438,31 @@ Abonnement — dreissig abgeschlossene Tage und der laufende —, und Nacht 31
 nimmt den ersten. Die Kachel zeigt davon die letzten dreissig. Die Vorhersage
 aus Block 5 hält dabei: Er zählt alle Zeilen des ersten Tags, und dieselbe
 Grenze nimmt sie alle (gemessen, §5).
+
+**Berichtigt nach Teil 2, gefunden am 15. Oktober 2026 beim Nachrechnen
+davor.** Zwei Erwartungen dieses Abschnitts stammten aus der Zeit vor der
+Behebung, und der Absatz darüber hatte sie nicht mitgenommen:
+
+- **Tage insgesamt.** Hier stand, an Nacht 31 führe keine Tabelle mehr als 30
+  Tage. Block 5 zählt die Tage über alle Kennzahlen, und seit `rc.7` legt
+  `srvpanel:usage` nach Mitternacht den laufenden Tag der Stände ab.
+  `subscription_metrics` führt deshalb an jedem Tag von Teil 2 31 Tage,
+  dreissig des Verkehrs und den laufenden; `domain_metrics` führt 30. Ebenso
+  meinte „30 Zeilen je Kennzahl" nur die Kennzahlen des Verkehrs.
+- **Nacht 30 der Stände räumt ab.** Am 28. Oktober ist die Uhr des Verkehrs
+  sieben Nächte weiter, und `forget()` nimmt dessen Zeilen vom 27. September,
+  vorausgerechnet 24 je Domain und 8 je Abonnement. Dass von Platz und
+  Datenbanken nichts entfernt ist, steht in Block 2 an `erster` und nicht an
+  der Zeile `Älter als`. Punkt 1 aus §4 gilt für ihre Uhr in dieser Lesart.
+
+Nachgefahren ist beides im Container, gegen eine Wegwerf-SQLite mit dem
+Bestand aus §7, mit dem echten `Daily::forget()` und dem Wortlaut der Blöcke 5
+und 2: mit den Ständen 31 und 30 Tage, ohne sie 30 und 30. Der Server hat
+beides bestätigt (§8).
+
+**Und jeder Block wird am Kalendertag seiner Nacht gefahren.** Die nächste
+Nacht rückt den ersten Tag weiter. Was der Lauf gesagt hat, hält danach das
+Journal; den Stand der Tabelle hält niemand (§8).
 
 ---
 
@@ -824,6 +856,214 @@ bevor der Block lief. Berichtigt ist er in §1, die Gegenprobe steht in §1a.
   er am **28. und 29. Oktober**. Punkt 3 aus §4 misst an `p6-b.invalid`, dem
   einzigen Abonnement mit `ohne Zeile: 0` (Block 3): `p6-abnahme.invalid` hat
   Zeilen erst ab dem 27. September, und `p6-nochmaltest` hat keine Domain.
+  Gefahren ist er vom 21. bis 31. Oktober; das Protokoll ist §8.
 - Am 30. September hat `p6-abnahme.invalid` für den Lauf von B4 eine
   Datenbank mit 3.801.036 B bekommen (`docs/139 §7`). Sie ändert, was
   `database_bytes` an diesem Tag trägt, und keine Zahl von Zeilen.
+
+---
+
+## §8 · Protokoll — Teil 2, gefahren vom 21. bis 31. Oktober 2026
+
+Gefahren auf `cloudsrv24` gegen `0.9.0-rc.18`. An Schreiber, Abräumen, Kacheln
+und Zeitgebern hat sich seit `rc.8` nichts geändert, nachgesehen am Verlauf der
+betroffenen Dateien. Was Teil 1 gemessen hat, gilt damit für Teil 2.
+
+| Tag | gefahren |
+|---|---|
+| 21. Oktober | Blöcke 5, 2 und 3 — Nacht 30 des Verkehrs |
+| 22. Oktober | nur eine Abfrage zur Kachel (unten), die Blöcke nicht |
+| 23. Oktober | das Journal vom 22. und die Blöcke 5, 2 und 3 |
+| 28. und 29. Oktober | nichts |
+| 30. Oktober | das Journal vom 28. und 29. und die Blöcke 5, 2 und 3 |
+| 31. Oktober | die Blöcke 5, 2 und 3 |
+
+**Jede Zahl war vorher ausgerechnet, und der Server hat jede getroffen.**
+Gerechnet ist sie aus dem Bestand von Teil 1 (§7): `p6-b.invalid` mit drei
+Domains und Verkehr ab dem 21. September, `p6-abnahme.invalid` mit drei Domains
+ab dem 27., die Stände aller drei Abonnements ab dem 28. Am 15. Oktober ist sie
+im Container nachgefahren (§2, Berichtigung). Die Besetzung blieb über den
+ganzen Lauf dieselbe: Jeder gelesene Nachtlauf meldete
+`Abgelegt: 24 Zeile(n) je Domain, 8 je Abonnement.`
+
+### Nacht 30 des Verkehrs — 21. Oktober
+
+```
+0.9.0-rc.18
+LastTriggerUSec=Wed 2026-10-21 00:57:08 CEST
+Okt 21 00:57:08 cloudsrv24 php[212526]:   Laufender Tag auf dem Server: 2026-10-21 (Europe/Berlin).
+Okt 21 00:57:08 cloudsrv24 php[212526]:   Abgelegt: 24 Zeile(n) je Domain, 8 je Abonnement.
+Okt 21 00:57:08 cloudsrv24 php[212526]:   Fertig in 122 ms.
+subscription_metrics   erster Tag 2026-09-21 mit 4 Zeile(n), 31 Tage insgesamt
+domain_metrics         erster Tag 2026-09-21 mit 12 Zeile(n), 30 Tage insgesamt
+```
+
+- **Keine Zeile `Älter als`, und beide Tabellen beginnen bei `D0`.** Punkt 1
+  aus §4 ist für den Verkehr erfüllt.
+- Block 2: die vier Kennzahlen des Verkehrs mit 54 Zeilen bei den Abonnements
+  und 162 bei den Domains, 30 Tage vom 21.09. bis 20.10.; `disk_mb` und
+  `database_bytes` mit je 72 Zeilen, 24 Tage vom 28.09. bis 21.10.; beide
+  Tabellen `doppelt: 0`.
+- Block 3, `Spanne 2026-09-21 bis 2026-10-20: 30 Tage`: `p6-b.invalid` mit 30
+  Zeilen je Kennzahl des Verkehrs und `ohne Zeile: 0 von 30 Tagen`,
+  `p6-abnahme.invalid` mit 24 und den sechs Tagen vom 21. bis 26. September
+  ohne Zeile, `p6-nochmaltest` ohne Zeile des Verkehrs. Platz und Datenbanken
+  bei allen dreien mit 24 Zeilen, also an jedem Tag seit dem 28. September
+  gemessen.
+- **Die 31 Tage zeigt die Ausgabe selbst.** In Block 2 endet der Verkehr am
+  20., die Stände am 21.; der 31. Tag ist der heutige Stand.
+- Abgeschrieben: 4 und 12.
+
+### Nacht 31 des Verkehrs — 22. Oktober, nachgelesen am 23.
+
+Am 22. sind die Blöcke nicht gefahren worden. Das Journal, gelesen am 23.:
+
+```
+Okt 22 00:08:14 cloudsrv24 php[279547]:   Laufender Tag auf dem Server: 2026-10-22 (Europe/Berlin).
+Okt 22 00:08:14 cloudsrv24 php[279547]:   Abgelegt: 24 Zeile(n) je Domain, 8 je Abonnement.
+Okt 22 00:08:14 cloudsrv24 php[279547]:   Älter als 30 Tag(e) entfernt: 12 je Domain, 4 je Abonnement.
+Okt 22 00:08:14 cloudsrv24 php[279547]:   Fertig in 58 ms.
+```
+
+Und die Blöcke am 23.:
+
+```
+LastTriggerUSec=Fri 2026-10-23 00:39:53 CEST
+Okt 23 00:39:53 cloudsrv24 php[394121]:   Älter als 30 Tag(e) entfernt: 12 je Domain, 4 je Abonnement.
+subscription_metrics   erster Tag 2026-09-23 mit 4 Zeile(n), 31 Tage insgesamt
+domain_metrics         erster Tag 2026-09-23 mit 12 Zeile(n), 30 Tage insgesamt
+```
+
+- **Das Journal vom 22. hat genau die beiden Zahlen vom Abend davor entfernt**,
+  über Kreuz. Das ist die tragende Hälfte von Punkt 2, gemessen.
+- **Dass beide Tabellen danach am 22. September begannen, ist erschlossen.**
+  Der Lauf vom 23. hat genau die Zeilen des 22. entfernt, und danach beginnen
+  sie am 23. Hätte der Lauf vom 22. eine ältere Zeile stehen lassen, wäre am 23.
+  mehr entfernt worden. Abgelesen hat den Stand vom 22. niemand.
+- Block 2 am 23.: 56 und 168 Zeilen, 30 Tage vom 23.09. bis 22.10.; die Stände
+  mit je 78 Zeilen und 26 Tagen. Block 3: `p6-b.invalid` mit 30 und
+  `ohne Zeile: 0`, `p6-abnahme.invalid` mit 26 und vier Tagen ohne Zeile.
+  **Punkt 3 hält an `p6-b.invalid`**, gemessen am 21. und am 23.
+
+### Nacht 30 und 31 von Platz und Datenbanken — 28. und 29. Oktober, nachgelesen am 30.
+
+An beiden Tagen ist nichts gefahren worden. Das Journal, gelesen am 30.:
+
+```
+Okt 28 00:29:32 cloudsrv24 php[709981]:   Laufender Tag auf dem Server: 2026-10-28 (Europe/Berlin).
+Okt 28 00:29:32 cloudsrv24 php[709981]:   Abgelegt: 24 Zeile(n) je Domain, 8 je Abonnement.
+Okt 28 00:29:32 cloudsrv24 php[709981]:   Älter als 30 Tag(e) entfernt: 24 je Domain, 8 je Abonnement.
+Okt 28 00:29:32 cloudsrv24 php[709981]:   Fertig in 43 ms.
+Okt 29 00:03:01 cloudsrv24 php[770881]:   Laufender Tag auf dem Server: 2026-10-29 (Europe/Berlin).
+Okt 29 00:03:01 cloudsrv24 php[770881]:   Abgelegt: 24 Zeile(n) je Domain, 8 je Abonnement.
+Okt 29 00:03:01 cloudsrv24 php[770881]:   Älter als 30 Tag(e) entfernt: 24 je Domain, 14 je Abonnement.
+Okt 29 00:03:01 cloudsrv24 php[770881]:   Fertig in 47 ms.
+```
+
+- **Am 28. gingen 8 Zeilen je Abonnement**, die des Verkehrs vom 27. September.
+  Platz und Datenbanken hatten keine Zeile, die alt genug war; ihr erster Tag
+  ist der 28. Das ist Punkt 1 für ihre Uhr, gelesen am Journal.
+- **Am 29. gingen 14**: die 8 des Verkehrs vom 28. September und die 6 Stände
+  desselben Tags, ihres ersten. Ihr erster Tag ist damit genau in ihrer
+  einunddreissigsten Nacht gegangen. Stünde am 28. schon 14 da, wäre er eine
+  Nacht zu früh gegangen; stünde am 29. nur 8, gar nicht.
+- Vorausgesagt waren beide Zahlen am 15. Oktober aus Teil 1. Den Block 5 vom
+  Abend des 28., der die Vorhersage am Server festgehalten hätte, gibt es
+  nicht.
+
+### Der ganze Ablauf einmal direkt — 30. und 31. Oktober
+
+Beide Paare haben damit je eine erschlossene Hälfte. Am 30. und 31. sind die
+Blöcke deshalb an zwei Tagen hintereinander gefahren. Seit der
+einunddreissigsten Nacht der Stände trägt der erste Tag Zeilen beider Uhren, und
+jede Nacht tut mit ihm, was die einunddreissigste mit `D0` getan hat.
+
+```
+LastTriggerUSec=Fri 2026-10-30 00:36:01 CET
+Okt 30 00:36:01 cloudsrv24 php[833956]:   Älter als 30 Tag(e) entfernt: 24 je Domain, 14 je Abonnement.
+subscription_metrics   erster Tag 2026-09-30 mit 14 Zeile(n), 31 Tage insgesamt
+domain_metrics         erster Tag 2026-09-30 mit 24 Zeile(n), 30 Tage insgesamt
+```
+
+```
+LastTriggerUSec=Sat 2026-10-31 00:44:41 CET
+Okt 31 00:44:41 cloudsrv24 php[898002]:   Älter als 30 Tag(e) entfernt: 24 je Domain, 14 je Abonnement.
+subscription_metrics   erster Tag 2026-10-01 mit 14 Zeile(n), 31 Tage insgesamt
+domain_metrics         erster Tag 2026-10-01 mit 24 Zeile(n), 30 Tage insgesamt
+```
+
+- **Am Abend des 30. stand der erste Tag mit 14 und 24 Zeilen da, am 31. hat
+  das Journal genau diese entfernt, und der erste Tag ist um einen gerückt.**
+  Das ist Punkt 2 einmal ganz gemessen, über alle sechs Kennzahlen, nur nicht
+  in der einunddreissigsten Nacht.
+- Block 2 an beiden Tagen: der Verkehr mit 60 und 180 Zeilen und 30 Tagen,
+  `disk_mb` und `database_bytes` mit je 93 Zeilen und 31 Tagen, am 30. vom
+  30.09. bis 30.10. und am 31. vom 01.10. bis 31.10.; `doppelt: 0`.
+- Block 3 an beiden Tagen: alle drei Abonnements mit 31 Zeilen Platz und 31
+  Datenbanken, **Punkt 3 für die Stände**. `p6-b.invalid` und
+  `p6-abnahme.invalid` mit je 30 Zeilen des Verkehrs und `ohne Zeile: 0`:
+  **Punkt 3 des Verkehrs hält jetzt an zwei Abonnements.** Das zweite haben die
+  Nullen für ruhige Tage dahin gebracht, die es seit `rc.7` gibt (§5).
+- Die Zeitumstellung am 25. Oktober liegt zwischen den beiden Paaren und hat
+  an keiner Zahl etwas geändert. Die Zeitgeber melden seitdem `CET`.
+
+### Eine Beobachtung an der Kachel, kein Befund
+
+Die Traffic-Kachel von `p6-abnahme.invalid` stand in Teil 1 auf `0` und am
+21. Oktober auf `0,0`. Die Kachel zeigt den Wert von gestern, Einheit und
+Stellen wählt `Points::bytesFormatter()` aber nach dem grössten Tag im Fenster:
+unter 1.000 B ohne Nachkommastelle, ab 1 kB mit einer. Nachgesehen am
+22. Oktober, an welchen Tagen das Abonnement ausgehenden Verkehr hatte:
+
+```
+25 Tage mit Zeile, davon 1 über null
+  2026-10-09  693009 B
+```
+
+Der 9. Oktober liegt im Lauf für B9 (`docs/143`). Ab dem 9. November ist er aus
+dem Fenster, und die Kachel steht wieder auf `0`; das ist gerechnet und nicht
+gemessen. B3 misst die Kacheln nicht (§3).
+
+### Was der Lauf über sich selbst gelernt hat
+
+**Zwei Erwartungen aus §2 waren seit `rc.7` falsch, und gefunden hat sie das
+Nachrechnen vor dem Lauf und nicht der Lauf.** Der Absatz über den Stand war mit
+der Behebung dazugekommen; die Erwartung zwei Absätze darüber blieb, wie sie
+vorher stand.
+
+> **Eine Erwartung, die vor einer Behebung geschrieben wurde, gilt für den
+> Prüfling von vorher — auch wenn der Absatz daneben die Behebung schon
+> beschreibt.**
+
+**Drei Ablesetage sind ausgefallen.** Was die Läufe an ihnen gesagt hatten,
+stand noch Tage später im Journal; den Stand der Tabelle zwischen zwei Läufen
+hält niemand.
+
+> **Eine Ablesung, die an einen Tag gebunden ist, lässt sich nicht nachholen —
+> nur erschliessen, und nur so weit, wie eine Spur stehen bleibt.**
+
+Der Ausweg war nicht, den Tag zu wiederholen. Nach der einunddreissigsten Nacht
+tut jede Nacht mit ihrem ersten Tag dasselbe, und an zwei beliebigen Tagen
+danach liess sich der ganze Ablauf messen.
+
+> **Ein Kriterium über die einunddreissigste Nacht misst einen Vorgang, der
+> danach jede Nacht wiederkommt — eine verpasste Nacht kostet dann einen Tag und
+> nicht die Messung.**
+
+**Und das Echo auf dem Telefon war verstümmelt, die Ausgabe nicht.** Am 31.
+stand in der eingefügten Zeile von Block 3 ein Rest wie `'); }ize_bytes"));`,
+und darunter jede Zeile der Ausgabe. Was gelaufen ist, sagt die Ausgabe; für
+eine Datei und ihre Prüfsumme galt dasselbe in `docs/143 §8`.
+
+### Wie das Kriterium steht
+
+| Punkt aus §4 | Verkehr | Platz und Datenbanken |
+|---|---|---|
+| 1 · Nacht 30 beginnt bei `D0`, nichts davon entfernt | erfüllt am 21.10., Block 5 und Journal | am Journal vom 28.10.: entfernt nur der Verkehr vom 27.09. |
+| 2 · Nacht 31 entfernt genau die vorhergesagten Zahlen, Beginn bei `D0 + 1` | Journal vom 22.10. gemessen, der Beginn erschlossen | Journal vom 29.10. gemessen, Vorhersage aus Teil 1, der Beginn erschlossen |
+| 2 · der ganze Ablauf, direkt | am 30. und 31.10., über alle sechs Kennzahlen | ebenso |
+| 3 · ohne Lücke 30 bzw. 31 Zeilen je Abonnement | `p6-b.invalid` am 21. und 23.10., dazu `p6-abnahme.invalid` am 30. und 31.10. | alle drei Abonnements am 30. und 31.10. |
+
+Offen ist kein Punkt, der sich noch messen liesse. Erschlossen statt abgelesen
+sind die Hälften, deren Tag vorbei ist. **Ob das für die Abnahme reicht,
+entscheidet der Betreiber.**

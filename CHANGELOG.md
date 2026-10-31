@@ -34697,3 +34697,35 @@ vorher hätte der neue Fall eine zweite Fassung gebraucht.
 
 > **Ein Wächter, der eine Form aus seiner Frage nimmt, sagt nichts darüber,
 > ob eine Regel sie trotzdem trifft.**
+
+### B3: Teil 2 ist gefahren
+
+**Teil 2 des Laufs für B3 ist vom 21. bis 31. Oktober 2026 auf `cloudsrv24`
+gefahren**, gegen `0.9.0-rc.18` (`docs/138 §8`). Jede Zahl war vorher
+ausgerechnet, aus dem Bestand von Teil 1, und der Server hat jede getroffen.
+Am 22. Oktober hat die einunddreissigste Nacht des Verkehrs genau die Zeilen
+des ersten Tags entfernt, 12 je Domain und 4 je Abonnement, am 29. die von
+Platz und Datenbanken, 24 und 14. Am 30. und 31. ist der ganze Ablauf einmal
+direkt gemessen, über alle sechs Kennzahlen: die Zeilen des ersten Tags am
+Abend davor, das Journal, das genau sie entfernt, und der erste Tag einen
+weiter. **Abgenommen ist B3 damit noch nicht**; das spricht der Betreiber aus.
+
+**Zwei Erwartungen der Vorschrift waren seit `rc.7` falsch**, gefunden beim
+Nachrechnen am 15. Oktober und berichtigt in `docs/138 §2`.
+`subscription_metrics` führt 31 Tage und nicht 30, weil `srvpanel:usage` nach
+Mitternacht den laufenden Tag der Stände ablegt. Und in Nacht 30 von Platz und
+Datenbanken räumt das Journal ab, nämlich den Verkehr vom 27. September; was
+von den Ständen bleibt, steht in Block 2.
+
+> **Eine Erwartung, die vor einer Behebung geschrieben wurde, gilt für den
+> Prüfling von vorher — auch wenn der Absatz daneben die Behebung schon
+> beschreibt.**
+
+**Drei Ablesetage sind ausgefallen.** Was die Läufe gesagt hatten, stand im
+Journal und liess sich nachlesen. Den Stand der Tabellen dazwischen hielt
+niemand, und er ist erschlossen. Das Paar am 30. und 31. hat den Ablauf danach
+ganz gemessen, denn nach der einunddreissigsten Nacht tut jede Nacht dasselbe
+mit ihrem ersten Tag.
+
+> **Eine Ablesung, die an einen Tag gebunden ist, lässt sich nicht nachholen —
+> nur erschliessen, und nur so weit, wie eine Spur stehen bleibt.**

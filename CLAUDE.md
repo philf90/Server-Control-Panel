@@ -21,13 +21,15 @@ ist bewusst nicht hergestellt worden, entschieden vom Betreiber: Der Lauf bei
 95 % hat Befund, Meldung und Rückweg belegt. Die drei Befunde an der Mail des
 Betreibers sind danach behoben und mit `0.9.0-rc.5` ausgeliefert; auf dem Server
 gesehen hat sie noch niemand. **B4 ist am 1. Oktober 2026 abgenommen, B6 am
-4. Oktober, B5 am 7. Oktober, B9 am 10. Oktober und B7 und B8 am
-15. Oktober**; B3 ist gebaut und nicht abgenommen. Der Lauf
+4. Oktober, B5 am 7. Oktober, B9 am 10. Oktober, B7 und B8 am 15. Oktober
+und B3 am 31. Oktober** — damit alle Merkmale von P9. Der Lauf
 für B3 ist `docs/138`, ausgeschrieben am 28. September, und er hat vor dem
 Fahren einen Befund am Prüfling gebracht (Abschnitt weiter unten) — behoben
 am selben Tag, ausgeliefert mit `0.9.0-rc.7` und am Abend auf `cloudsrv24`
-gesehen. **Teil 1 ist am 30. September durch** (`docs/138 §7`); Teil 2 misst
-am 21. und 22. sowie am 28. und 29. Oktober. Der Lauf für B4 ist `docs/139`.
+gesehen. **Teil 1 ist am 30. September durch** (`docs/138 §7`), **Teil 2 ist
+vom 21. bis 31. Oktober gefahren**, und jede vorausgerechnete Zahl stimmt
+(`docs/138 §8`, Abschnitt weiter unten); danach hat der Betreiber B3 am
+31. Oktober abgenommen. Der Lauf für B4 ist `docs/139`.
 Beim Ausschreiben fielen zwei Befunde heraus; der Betreiber hat sie am selben
 Tag entschieden, und behoben sind sie mit `0.9.0-rc.8` (`docs/139 §6`). Auf
 dem Server ist Teil 1 gefahren, Teil 2 im Browser am 30. September: **alle
@@ -90,8 +92,9 @@ dass die Tür dort abweist, und gebaut ist es am 14. Oktober für
 `0.9.0-rc.18` und am selben Abend auf `cloudsrv24` gesehen (`docs/144 §9`).
 An der Vorschrift fielen sechs heraus
 (`docs/144 §8`, Abschnitte weiter unten). **Danach hat der Betreiber B7 und
-B8 am 15. Oktober 2026 abgenommen.** Die Dokumentation ist vertagt und steht
-als offener Punkt da.
+B8 am 15. Oktober 2026 abgenommen**, und **am 31. Oktober B3** (`docs/138 §8`).
+Damit sind alle Merkmale von P9 abgenommen. Die Dokumentation ist vertagt und
+steht als offener Punkt da.
 P7 (der DNS-Abgleich) ist am **24. August
 2026** auf `cloudsrv24` gegen `0.7.0-rc.8` abgenommen — alle acht Kriterien aus
 `docs/72 §3`, der Lauf ist `docs/77`, das Protokoll **`docs/78`**. Die Lehre
@@ -6587,9 +6590,9 @@ der Browser nicht anzeigt (gemessen am Übersetzer).
 `rc.8`, und jede Zahl war vorher ausgerechnet. Nach dem ersten Nachtlauf unter
 `rc.8` blieben drei Ablesungen über zwei Läufen gleich, 48 und 144 Zeilen, die
 Nullen genau an der vorausgesagten Untergrenze. Das dritte Abonnement bekam
-keine Zeile, weil es keine Domain hat. Teil 2 misst am 21. und 22. sowie am
-28. und 29. Oktober, und zwar an `p6-b.invalid`, dem einzigen Abonnement mit
-einer Zeile an jedem Tag.
+keine Zeile, weil es keine Domain hat. Teil 2 hat vom 21. bis 31. Oktober
+gemessen, zuerst an `p6-b.invalid`, dem einzigen Abonnement mit einer Zeile
+an jedem Tag (Abschnitt weiter unten).
 
 **Von B4 ist Teil 1 gefahren** (`docs/139 §7`), und er hat einen Befund am
 Prüfmittel gebracht. Die Klammer von Block 2 druckte `—` für zwei Zustände, die
@@ -7127,8 +7130,9 @@ Wer einen Prüfstand mit einer schreibenden Zeile herstellt, gibt sie in einem
 eigenen Block und sagt dazu, dass sie schreibt. In `docs/140 §8` steht sie
 seitdem so.
 
-**Offen in P9 sind damit B3, dessen Teil 2 im Oktober misst, sowie B7 und
-B8.** Für B7 und B8 gab es bis zum 11. Oktober keinen Lauf; seitdem ist er
+**Offen in P9 sind damit B3, dessen Teil 2 vom 21. bis 31. Oktober gefahren
+ist, sowie B7 und B8.** Für B7 und B8 gab es bis zum 11. Oktober keinen
+Lauf; seitdem ist er
 `docs/144`, gefahren vom 11. bis 14. Oktober (`docs/144 §8`), und am
 15. Oktober sind beide abgenommen. B9 ist am 7. Oktober dazugekommen
 und gebaut (`docs/142 §10`); sein Lauf ist `docs/143`, gefahren vom 8. bis
@@ -8064,6 +8068,43 @@ er 20 Fundzeilen in 16 Vorlagen.
 
 > **Ein Wächter, der eine Form aus seiner Frage nimmt, sagt nichts darüber,
 > ob eine Regel sie trotzdem trifft.**
+
+---
+
+## Teil 2 von B3 — 21. bis 31. Oktober 2026
+
+Gefahren auf `cloudsrv24` gegen `0.9.0-rc.18`; das Protokoll ist `docs/138 §8`.
+**Jede vorausgerechnete Zahl hat der Server getroffen.** Die einunddreissigste
+Nacht des Verkehrs hat am 22. Oktober 12 Zeilen je Domain und 4 je Abonnement
+entfernt, die von Platz und Datenbanken am 29. 24 und 14. Am 30. und 31. ist der
+ganze Ablauf einmal direkt gemessen, über alle sechs Kennzahlen. **Danach hat
+der Betreiber B3 am 31. Oktober 2026 abgenommen**, und damit sind alle
+Merkmale von P9 abgenommen.
+
+**Zwei Erwartungen der Vorschrift stammten aus der Zeit vor der Behebung**, und
+gefunden hat sie das Nachrechnen eine Woche vor dem Lauf. `subscription_metrics`
+führt 31 Tage statt 30, weil der Stand den laufenden Tag trägt, und in Nacht 30
+der Stände räumt das Journal ab, weil die Uhr des Verkehrs dann sieben Nächte
+weiter ist.
+
+> **Eine Erwartung, die vor einer Behebung geschrieben wurde, gilt für den
+> Prüfling von vorher — auch wenn der Absatz daneben die Behebung schon
+> beschreibt.**
+
+**Drei Ablesetage sind ausgefallen.** Was die Läufe an ihnen gesagt hatten,
+stand noch Tage später im Journal; den Stand einer Tabelle zwischen zwei
+Läufen hält niemand.
+
+> **Eine Ablesung, die an einen Tag gebunden ist, lässt sich nicht nachholen —
+> nur erschliessen, und nur so weit, wie eine Spur stehen bleibt.**
+
+Der Ausweg war ein Vorgang statt eines Datums: Nach der einunddreissigsten Nacht
+tut jede Nacht mit ihrem ersten Tag dasselbe, und ein Paar an zwei beliebigen
+Tagen danach misst den ganzen Ablauf.
+
+> **Ein Kriterium über die einunddreissigste Nacht misst einen Vorgang, der
+> danach jede Nacht wiederkommt — eine verpasste Nacht kostet dann einen Tag und
+> nicht die Messung.**
 
 ---
 

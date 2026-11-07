@@ -62,6 +62,28 @@ enum DatabaseEngine: string
     }
 
     /**
+     * Der Server, den eine Anwendung auf diesem Rechner einträgt.
+     *
+     * **Jedes Installationsprogramm fragt nach vier Angaben** — Server, Name,
+     * Benutzer, Passwort —, und bis zum 7. November 2026 nannte die
+     * Datenbankseite drei davon. Für PostgreSQL stand der Server nur in einem
+     * Satz unter der Tabelle, für MariaDB nirgends (`docs/145 §0`, Befund 2).
+     *
+     * `localhost` und nicht `127.0.0.1` für MariaDB: Die Zugänge entstehen als
+     * `name@localhost`, und ein Client, der `localhost` liest, nimmt den
+     * Socket. Für PostgreSQL ist es umgekehrt — dort verlangt `local all all
+     * peer` eine Rolle mit dem Namen des Unix-Benutzers, und die Verbindung
+     * geht über TCP (`docs/38 §14`).
+     */
+    public function localHost(): string
+    {
+        return match ($this) {
+            self::MariaDb => 'localhost',
+            self::Postgres => '127.0.0.1',
+        };
+    }
+
+    /**
      * Die PHP-Erweiterung, mit der ein Kunde sich verbindet.
      *
      * **Der teuerste fehlende Bezug dieser Stufe, und er stand nirgends.**

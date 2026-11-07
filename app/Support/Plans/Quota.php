@@ -203,6 +203,25 @@ enum Quota: string
     }
 
     /**
+     * Begrenzt dieses Kontingent etwas?
+     *
+     * **Eines tut es nicht: „FTP-Konten".** Es steht im Katalog mit der
+     * Vorgabe 5, und keine Zeile ausserhalb der Planklassen liest es — P6 hat
+     * statt FTP-Konten einen SFTP-Zugang je Abonnement gebaut, mit Schlüsseln.
+     * Ein Kunde, der unter „Kontingente" „FTP-Konten: 5" las, suchte fünf
+     * Konten, die nirgends angelegt werden (`docs/145 §0`, Befund 9). Die
+     * Kundenansicht lässt es deshalb weg; in der Ansicht des Betreibers bleibt
+     * es, weil es in den Plänen steht.
+     *
+     * `QuotaLimitsTest` hält die Gegenrichtung: Liest eines Tages jemand
+     * `Quota::FtpAccounts`, gehört es wieder in die Kundenansicht.
+     */
+    public function limits(): bool
+    {
+        return $this !== self::FtpAccounts;
+    }
+
+    /**
      * Darf dieses Kontingent unbegrenzt sein?
      *
      * Zwei dürfen es nicht, und beide aus demselben Grund: Sie teilen sich eine

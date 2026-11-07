@@ -40,6 +40,9 @@ const props = defineProps<{
   subscription: { id: number; name: string; system_user: string | null }
   keys: Key[]
   check: Check
+
+  /** Rechner und Port für das SFTP-Programm; der Port fehlt, wenn der Agent nicht antwortet. */
+  connect: { host: string; port: string | null }
   can: { manage: boolean }
 }>()
 
@@ -216,8 +219,22 @@ function problem(): Link | null {
           zweite Form für dieselbe Sache heisst: Eine wird gepflegt und die
           andere nicht.
         -->
+        <!--
+          **Rechner und Port zuerst**, in der Reihenfolge, in der ein
+          SFTP-Programm fragt. Bis zum 7. November 2026 standen hier nur
+          Benutzer und Verzeichnis, und wer sich verbinden wollte, musste
+          fragen (`docs/145 §0`, Befund 1).
+        -->
         <table class="pairs">
           <tbody>
+            <tr>
+              <td class="quiet">Rechner</td>
+              <td class="right ident">{{ props.connect.host }}</td>
+            </tr>
+            <tr>
+              <td class="quiet">Port</td>
+              <td class="right ident">{{ props.connect.port ?? '—' }}</td>
+            </tr>
             <tr>
               <td class="quiet">Benutzer</td>
               <td class="right ident">{{ props.subscription.system_user ?? '—' }}</td>

@@ -287,6 +287,45 @@ final class AbilityReachTest extends TestCase
             ->assertInertia(fn ($page) => $page->count('creatable', 0)->etc());
     }
 
+    /**
+     * **Ohne Abonnement steht „Abonnements" nicht im Menü** — dieselbe Frage,
+     * die die Liste an ihrer Tür stellt.
+     *
+     * Bis zum 7. November 2026 stand der Punkt für jeden Kunden da und führte
+     * ohne Abonnement auf „Kein Zutritt — dieser Bereich gehört einer Rolle,
+     * die dieses Konto nicht hat". Es fehlte keine Rolle, sondern ein
+     * Abonnement (`docs/145 §0`, Befund 7). Der zweite Aufruf hält fest,
+     * wohin der Punkt geführt hätte.
+     */
+    public function test_a_customer_without_a_subscription_is_not_sent_to_the_list(): void
+    {
+        $account = Account::factory()->customer(Customer::factory()->create())->withoutTwoFactor()->create();
+
+        $this->actingAs($account)
+            ->get('/')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('account.has_subscription', false)->etc());
+
+        $this->actingAs($account)
+            ->get('/subscriptions')
+            ->assertForbidden();
+    }
+
+    /** Ein gesperrtes Abonnement behält den Weg zur Liste — sie zeigt es weiter. */
+    public function test_a_suspended_subscription_keeps_the_way_to_the_list(): void
+    {
+        [$account, $subscription] = $this->customerWithSubscription();
+        $subscription->forceFill(['status' => SubscriptionStatus::Suspended])->save();
+
+        $this->actingAs($account)
+            ->get('/subscriptions')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('account.has_subscription', true)
+                ->where('account.has_active_subscription', false)
+                ->etc());
+    }
+
     public function test_the_operator_keeps_the_way_through_the_subscription(): void
     {
         $this->customerWithSubscription();
@@ -298,6 +337,7 @@ final class AbilityReachTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->count('creatable', 0)
                 ->where('account.has_active_subscription', true)
+                ->where('account.has_subscription', true)
                 ->etc());
     }
 
@@ -326,6 +366,53 @@ final class AbilityReachTest extends TestCase
                 ->where('can.suspend', true)
                 ->where('can.delete', true)
                 ->where('can.viewCustomer', true)
+                ->etc());
+    }
+
+    /**
+     * **Und auf der eigenen Kundenseite auch nicht.**
+     *
+     * Der Weg dorthin steht oben mit `true`: „Kunde" auf dem Abonnement
+     * verweist auf die Kundenseite, und `CustomerPolicy::view()` lässt den
+     * eigenen Kunden durch. Bis zum 7. November 2026 standen dort
+     * „Bearbeiten", „Sperren", „Zurückziehen", je Abonnement „Bearbeiten" und
+     * der Brotkrümel „Kunden" ohne Bedingung — fünf Angebote, die alle mit 403
+     * endeten. Gefunden beim Ausschreiben des Durchlaufs mit einer fremden
+     * Person (`docs/145 §0`, Befund 4), nicht vom ersten Test dieser Klasse,
+     * weil er die Kundenseite nicht aufrief.
+     */
+    public function test_the_own_customer_page_offers_a_customer_none_of_the_operators_actions(): void
+    {
+        [$account, $subscription] = $this->customerWithSubscription();
+
+        $this->actingAs($account)
+            ->get('/customers/'.$subscription->customer_id)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Customers/Show')
+                ->where('can.viewAny', false)
+                ->where('can.update', false)
+                ->where('can.suspend', false)
+                ->where('can.delete', false)
+                ->where('subscriptions.0.can.update', false)
+                ->etc());
+    }
+
+    /** Dieselbe Seite bietet dem Betreiber alles an — die Gegenprobe zum Fall darüber. */
+    public function test_the_customer_page_offers_the_operator_everything(): void
+    {
+        [, $subscription] = $this->customerWithSubscription();
+
+        $this->actingAs(Account::factory()->admin()->create())
+            ->get('/customers/'.$subscription->customer_id)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Customers/Show')
+                ->where('can.viewAny', true)
+                ->where('can.update', true)
+                ->where('can.suspend', true)
+                ->where('can.delete', true)
+                ->where('subscriptions.0.can.update', true)
                 ->etc());
     }
 

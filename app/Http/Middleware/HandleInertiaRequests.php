@@ -204,6 +204,23 @@ final class HandleInertiaRequests extends Middleware
                         ->whereIn('id', $account->accessibleSubscriptionIds())
                         ->whereIn('status', SubscriptionStatus::usableValues())
                         ->exists(),
+
+                /*
+                 * **Erreicht dieses Konto überhaupt ein Abonnement?** Dieselbe
+                 * Frage, die `SubscriptionPolicy::viewAny()` stellt, und aus
+                 * demselben Grund wie die Zeile darüber: Der Menüpunkt
+                 * „Abonnements" stand für jeden Kunden da, und ohne Abonnement
+                 * führte er auf „Kein Zutritt — dieser Bereich gehört einer
+                 * Rolle, die dieses Konto nicht hat". Das stimmte nicht: Es
+                 * fehlte ein Abonnement und keine Rolle (`docs/145 §0`,
+                 * Befund 7). Die Übersicht sagt in diesem Fall schon, dass noch
+                 * keines eingerichtet ist.
+                 *
+                 * Nicht `has_active_subscription`: Ein gesperrtes Abonnement
+                 * bleibt in der Liste sichtbar, und die Liste bleibt erreichbar.
+                 */
+                'has_subscription' => $account->isAdmin()
+                    || $account->accessibleSubscriptionIds() !== [],
             ] : null,
 
             /*

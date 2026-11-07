@@ -107,7 +107,7 @@ const props = defineProps<{
     } | null
     providers: { value: string; label: string; usable: boolean; reason: string | null }[]
   } | null
-  operations: { id: number; task: string | null; status_label: string; created_at: string | null }[]
+  operations: { id: number; label: string; status_label: string; created_at: string | null }[]
 
   /*
    * Die Verläufe der letzten dreissig Tage (B4).
@@ -459,13 +459,22 @@ function remove(): void {
             verlässlich mit einem Punkt, und was danach kommt, klebt an ihr.
             Am Satzende braucht sie keinen.
           -->
+          <!--
+            **Der Weg dorthin ist eine Auskunft für den Betreiber.** Ein Kunde
+            kann weder die Quota des Dateisystems einschalten noch
+            `docs/41` lesen; dem Kunden bleibt der erste Satz (`docs/145 §0`,
+            Befund 6).
+          -->
           <span>
-            Diese Grenze ist <strong>nicht in Kraft</strong>. Das Dateisystem
-            unter <span class="ident">/var/www/vhosts</span> führt keine Quota
-            für Benutzer; der Weg dorthin steht in
-            <span class="ident">docs/41-dateisystem-quota.md</span>.
-            <template v-if="props.usage.note">
-              Das System meldet: <span class="ident">{{ props.usage.note }}</span>
+            Diese Grenze ist <strong>nicht in Kraft</strong>.
+            <template v-if="props.can.update">
+              Das Dateisystem
+              unter <span class="ident">/var/www/vhosts</span> führt keine Quota
+              für Benutzer; der Weg dorthin steht in
+              <span class="ident">docs/41-dateisystem-quota.md</span>.
+              <template v-if="props.usage.note">
+                Das System meldet: <span class="ident">{{ props.usage.note }}</span>
+              </template>
             </template>
           </span>
         </p>
@@ -475,7 +484,7 @@ function remove(): void {
           worden — weder dass die Grenze gilt noch dass sie fehlgeht. Ein
           `notice warn` behauptete einen Befund, den es nicht gibt.
         -->
-        <p v-else-if="quotaUnknown" class="hint">
+        <p v-else-if="quotaUnknown && props.can.update" class="hint">
           Ob diese Grenze im Dateisystem gilt, ist nicht nachgesehen worden. Sie
           wird angewandt, sobald sie sich ändert — oder gleich hier.
         </p>
@@ -493,10 +502,20 @@ function remove(): void {
           </button>
         </div>
 
+        <!--
+          **Unit und Mount sind eine Auskunft für den Betreiber.** Bis zum
+          7. November 2026 las ein Kunde in der ersten Viertelstunde eines
+          neuen Abonnements denselben Satz (`docs/145 §0`, Befund 6). Er
+          bekommt den Takt und kein Versprechen: Ohne Quota kommt der erste
+          Wert nie.
+        -->
         <p v-if="props.usage.used_mb === null" class="empty">
-          Noch nicht gemessen. Die Messung läuft im Viertelstundentakt
-          (<span class="ident">srvpanel-usage.timer</span>) und braucht eine
-          Dateisystem-Quota auf dem Mount von /var/www/vhosts.
+          <template v-if="props.can.update">
+            Noch nicht gemessen. Die Messung läuft im Viertelstundentakt
+            (<span class="ident">srvpanel-usage.timer</span>) und braucht eine
+            Dateisystem-Quota auf dem Mount von /var/www/vhosts.
+          </template>
+          <template v-else>Noch nicht gemessen. Gemessen wird jede Viertelstunde.</template>
         </p>
 
         <template v-else>
@@ -535,9 +554,12 @@ function remove(): void {
         </p>
 
         <p v-else-if="props.database_usage.used_mb === null" class="empty">
-          Noch nicht gemessen. Die Messung läuft im selben Viertelstundentakt
-          (<span class="ident">srvpanel-usage.timer</span>) und braucht einen
-          erreichbaren Datenbankserver.
+          <template v-if="props.can.update">
+            Noch nicht gemessen. Die Messung läuft im selben Viertelstundentakt
+            (<span class="ident">srvpanel-usage.timer</span>) und braucht einen
+            erreichbaren Datenbankserver.
+          </template>
+          <template v-else>Noch nicht gemessen. Gemessen wird jede Viertelstunde.</template>
         </p>
 
         <template v-else>
@@ -684,7 +706,7 @@ function remove(): void {
                 <td data-column="Nummer" class="ident">
                   <Link :href="`/operations/${o.id}`" class="link">{{ o.id }}</Link>
                 </td>
-                <td data-column="Aufgabe" class="ident name">{{ o.task ?? '—' }}</td>
+                <td data-column="Aufgabe" class="name">{{ o.label }}</td>
                 <td data-column="Zustand" class="quiet">{{ o.status_label }}</td>
                 <td data-column="Angelegt" class="quiet">{{ o.created_at ?? '—' }}</td>
               </tr>

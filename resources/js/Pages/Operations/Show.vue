@@ -198,8 +198,7 @@ watch(output, () => {
           ← <span class="ident">{{ herkunft }}</span>
         </Link> ·
       </template>
-      <Link href="/operations" class="link">Vorgänge</Link> ·
-      <span class="ident">{{ props.operation.type }}</span> · Nummer {{ props.operation.id }}
+      <Link href="/operations" class="link">Vorgänge</Link> · Nummer {{ props.operation.id }}
     </template>
 
     <template #actions>
@@ -225,7 +224,15 @@ watch(output, () => {
       <Section title="Gegenstand">
         <table class="pairs">
           <tbody>
-            <tr><td class="quiet">Aufgabe</td><td class="right ident name">{{ props.operation.type }}</td></tr>
+            <!--
+              **Die Aufgabe in Worten, die Kennung darunter.** Bis zum
+              7. November 2026 stand hier und im Brotkrümel nur die Kennung —
+              für einen Kunden `web.site.apply` statt „Domain einrichten"
+              (`docs/145 §0`, Befund 5). Die Kennung bleibt als eigene Zeile:
+              Wer einen Vorgang im Protokoll des Agenten sucht, sucht sie.
+            -->
+            <tr><td class="quiet">Aufgabe</td><td class="right">{{ props.operation.label }}</td></tr>
+            <tr><td class="quiet">Kennung</td><td class="right ident name">{{ props.operation.type }}</td></tr>
 
             <!--
               **Wovon der Vorgang handelt.** `subject_type` und `subject_id`

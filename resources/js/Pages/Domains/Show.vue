@@ -102,7 +102,7 @@ const props = defineProps<{
     } | null
     addresses: { derived: string[]; override: string[]; effective: string[] }
   }
-  operations: { id: number; task: string | null; status_label: string; created_at: string | null }[]
+  operations: { id: number; label: string; status_label: string; created_at: string | null }[]
 
   /*
    * Die drei Verläufe der letzten dreissig Tage (B4) — Traffic, Zugriffe,
@@ -848,7 +848,7 @@ const dnsAdressenWeichenAb = computed(() => {
                 <td data-column="Nummer" class="ident">
                   <Link :href="`/operations/${op.id}`" class="link">{{ op.id }}</Link>
                 </td>
-                <td data-column="Aufgabe" class="ident name">{{ op.task }}</td>
+                <td data-column="Aufgabe" class="name">{{ op.label }}</td>
                 <td data-column="Zustand" class="quiet">{{ op.status_label }}</td>
                 <td data-column="Angelegt" class="quiet">{{ op.created_at ?? '—' }}</td>
               </tr>

@@ -10,6 +10,7 @@ use App\Jobs\RunAgentOperation;
 use App\Models\Account;
 use App\Models\Operation;
 use App\Support\Audit\Audit;
+use App\Support\Operations\OperationLabel;
 use App\Support\Operations\Task;
 use App\Support\Time\Clock;
 use App\Support\Web\Page;
@@ -234,17 +235,18 @@ final class OperationController extends Controller
     /** @return array<string, mixed> */
     private function row(Operation $operation): array
     {
-        $task = $operation->task === null ? null : Task::tryFrom($operation->task);
-
         return [
             'id' => (int) $operation->id,
             'type' => $operation->type,
-            // Fällt auf die Operation des Agenten zurück, wenn die Aufgabe
-            // unbekannt ist. Das ist kein hypothetischer Fall: Ein Vorgang
+            // Fällt auf die Operation des Agenten zurück, wenn es keine
+            // Bezeichnung gibt. Das ist kein hypothetischer Fall: Ein Vorgang
             // bleibt stehen, ein Katalogeintrag kann verschwinden — und ein
             // alter Vorgang, der die Liste zum Absturz brächte, wäre die
             // schlechtere Antwort auf „diese Aufgabe kennen wir nicht mehr".
-            'label' => $task?->label() ?? $operation->type,
+            // Bis zum 7. November 2026 fragte diese Zeile nur `Task`, und jeder
+            // Vorgang eines Kunden fiel auf die Kennung zurück (`docs/145 §0`,
+            // Befund 5).
+            'label' => OperationLabel::of($operation->task, $operation->type),
             'status' => $operation->status->value,
             'status_label' => $operation->status->label(),
 

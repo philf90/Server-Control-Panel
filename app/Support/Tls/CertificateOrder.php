@@ -71,7 +71,18 @@ final class CertificateOrder
             'subscription_id' => $domain->subscription_id,
             'subject_type' => OperationSubject::Domain->value,
             'subject_id' => $domain->id,
-            'account_id' => $cause?->account_id,
+
+            /*
+             * **Ohne Ursache gehört der Vorgang dem, der den Knopf gedrückt
+             * hat** — dieselbe Form wie in `WebLifecycle`, `Backups` und
+             * `Dumps`. Bis zum 7. November 2026 stand hier nur
+             * `$cause?->account_id`, und der Knopf „Zertifikat bestellen" ruft
+             * ohne Ursache: Der Vorgang trug kein Konto, und der Streifen, der
+             * nur die eigenen zeigt, zeigte ihn niemandem (`docs/145 §0`,
+             * Befund 3). Im Arbeiter gibt es keine angemeldete Person; dort
+             * bleibt es bei der Ursache oder bei keinem Konto.
+             */
+            'account_id' => $cause?->account_id ?? request()->user()?->getAuthIdentifier(),
             'type' => 'acme.certificate.issue',
             'task' => 'acme.certificate.issue',
             'payload' => [

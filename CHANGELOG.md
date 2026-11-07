@@ -34809,3 +34809,44 @@ Teil 1 (`docs/138 §7`) und Teil 2 (`docs/138 §8`). Von Punkt 2 sind zwei
 Hälften erschlossen und nicht abgelesen, weil ihr Ablesetag vorbei war; der
 ganze Ablauf ist am 30. und 31. Oktober einmal direkt gemessen. Mit B3 sind
 alle Merkmale von P9 abgenommen. Die Dokumentation bleibt vertagt.
+
+### Der Durchlauf mit einer fremden Person steht ausgeschrieben — und die SFTP-Seite nennt keinen Rechner
+
+**`docs/145`**, ausgeschrieben am 7. November 2026 vor dem Fahren. Es ist die
+Vorschrift für das Kriterium der Stufe P9: *ein fremder Kunde kann das Panel
+benutzen, ohne zu fragen.* Der Ablauf:
+- **Die Person** erledigt elf Aufgaben allein, vom Anmelden bis zum Fehler im
+  Protokoll.
+- **Der Betreiber** schweigt und schreibt mit.
+- **Belegt** wird jede Aufgabe mit Protokoll, Vorgängen und der Seitenfolge aus
+  dem Zugriffsprotokoll des Panels.
+
+Vorab gemessen ist am Code. Im Browser war es nicht möglich, weil der Container
+kein PHP 8.4 hat.
+
+Beim Ausschreiben fielen neun Befunde am Prüfling heraus; über alle entscheidet
+der Betreiber (`docs/145 §0`, `§7`). Drei liegen so auf dem Weg, dass eine
+Aufgabe ohne Frage nicht geht:
+
+- **Die Seite „SFTP-Zugang" nennt keinen Rechner und keinen Port.**
+  `Sftp.vue` führt nur „Benutzer" und „Verzeichnis", und ein SFTP-Programm
+  fragt zuerst nach dem Rechner.
+- **Die Datenbankseite nennt für MariaDB keinen Server.** Einen Satz dazu gibt
+  es nur für PostgreSQL über TCP.
+- **Ein von Hand bestelltes Zertifikat erscheint nicht im Streifen.**
+  `CertificateOrder::place()` setzt ohne Ursache kein Konto, und der Streifen
+  zeigt nur die Vorgänge des eigenen Kontos. Der Kommentar am Controller
+  verspricht ihn trotzdem.
+
+Die übrigen sechs:
+- `Customers/Show.vue` zeigt einem Kunden „Bearbeiten", „Sperren" und
+  „Zurückziehen", die mit 403 enden, gegen die Regel aus `AbilityReachTest`.
+- Kundenvorgänge stehen als `web.site.apply` und `backup.create` da.
+- Kundenseiten sprechen von `srvpanel-usage.timer` und einer „späteren
+  Ausbaustufe", einmal mit „du".
+- „Abonnements" führt ohne Abonnement auf „Kein Zutritt".
+- Ein Kundenkonto hat keinen Weg zu einem neuen Passwort.
+- „FTP-Konten: 5" begrenzt nichts.
+
+> **Was ein Kunde nicht findet, ist kein Fehler des Kunden — und was die Seite
+> nicht nennt, findet er nicht, so gut sie es auch weiss.**

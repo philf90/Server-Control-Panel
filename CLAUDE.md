@@ -22,7 +22,10 @@ ist bewusst nicht hergestellt worden, entschieden vom Betreiber: Der Lauf bei
 Betreibers sind danach behoben und mit `0.9.0-rc.5` ausgeliefert; auf dem Server
 gesehen hat sie noch niemand. **B4 ist am 1. Oktober 2026 abgenommen, B6 am
 4. Oktober, B5 am 7. Oktober, B9 am 10. Oktober, B7 und B8 am 15. Oktober
-und B3 am 31. Oktober** — damit alle Merkmale von P9. Der Lauf
+und B3 am 31. Oktober** — damit alle Merkmale von P9. **Offen ist das
+Kriterium der Stufe**, der Durchlauf mit einer Person, die das Projekt nicht
+kennt; seine Vorschrift ist `docs/145`, ausgeschrieben am 7. November 2026
+(Abschnitt weiter unten). Der Lauf
 für B3 ist `docs/138`, ausgeschrieben am 28. September, und er hat vor dem
 Fahren einen Befund am Prüfling gebracht (Abschnitt weiter unten) — behoben
 am selben Tag, ausgeliefert mit `0.9.0-rc.7` und am Abend auf `cloudsrv24`
@@ -7130,8 +7133,9 @@ Wer einen Prüfstand mit einer schreibenden Zeile herstellt, gibt sie in einem
 eigenen Block und sagt dazu, dass sie schreibt. In `docs/140 §8` steht sie
 seitdem so.
 
-**Offen in P9 sind damit B3, dessen Teil 2 vom 21. bis 31. Oktober gefahren
-ist, sowie B7 und B8.** Für B7 und B8 gab es bis zum 11. Oktober keinen
+**Offen in P9 waren damit B3, B7 und B8; abgenommen sind inzwischen alle
+drei.** B3 ist nach Teil 2 vom 21. bis 31. Oktober am 31. Oktober abgenommen
+(`docs/138 §8`). Für B7 und B8 gab es bis zum 11. Oktober keinen
 Lauf; seitdem ist er
 `docs/144`, gefahren vom 11. bis 14. Oktober (`docs/144 §8`), und am
 15. Oktober sind beide abgenommen. B9 ist am 7. Oktober dazugekommen
@@ -8105,6 +8109,56 @@ Tagen danach misst den ganzen Ablauf.
 > **Ein Kriterium über die einunddreissigste Nacht misst einen Vorgang, der
 > danach jede Nacht wiederkommt — eine verpasste Nacht kostet dann einen Tag und
 > nicht die Messung.**
+
+---
+
+## Der Durchlauf mit einer fremden Person — ausgeschrieben am 7. November 2026
+
+**`docs/145` ist die Vorschrift für das Kriterium der Stufe P9**: *ein fremder
+Kunde kann das Panel benutzen, ohne zu fragen — gemessen an einem Durchlauf mit
+einer Person, die das Projekt nicht kennt.* Sie besteht aus elf Kernaufgaben
+und zwei Aufgaben Kür. Die Kernaufgaben reichen vom Anmelden über die eigene
+Seite, eine Subdomain mit Zertifikat, eine Datenbank und SFTP bis zum
+Fehlerprotokoll. Der Betreiber sitzt daneben, schweigt und schreibt mit.
+Belegt wird jede Aufgabe mit drei Spuren am Server: Protokoll des Kontos,
+Vorgänge und die Seitenfolge aus dem Zugriffsprotokoll des Panels.
+
+**Vorab gemessen ist am Code und nicht im Browser.** Der Container hat PHP 8.3,
+das Projekt verlangt 8.4, und eine Nachinstallation war hier nicht möglich.
+Gefahren ist im Container nur die Auswertung der Seitenfolge, an nachgebauten
+Zeilen.
+
+**Beim Ausschreiben fielen neun Befunde am Prüfling heraus** (`docs/145 §0`),
+und drei davon liegen so auf dem Weg, dass eine Aufgabe ohne Frage nicht
+geht:
+- **Die SFTP-Seite** nennt keinen Rechner und keinen Port.
+- **Die Datenbankseite** nennt für MariaDB keinen Server.
+- **Ein von Hand bestelltes Zertifikat** erscheint nicht im Streifen, weil
+  `CertificateOrder::place()` ohne Ursache kein Konto setzt, obwohl der
+  Kommentar daneben den Streifen verspricht.
+
+Die übrigen sechs:
+- Eine Kundenseite mit vier Adminknöpfen, die ein Kunde erreicht.
+- Maschinenkennungen wie `web.site.apply` im Streifen.
+- Sätze für den Betreiber auf Kundenseiten („spätere Ausbaustufe",
+  `srvpanel-usage.timer`).
+- „Abonnements" ohne Abonnement als „Kein Zutritt".
+- Kein Weg zu einem neuen Passwort für ein Kundenkonto.
+- Ein Kontingent „FTP-Konten", das nichts begrenzt.
+
+**Sechs Fragen liegen beim Betreiber** (`docs/145 §7`):
+- welche Befunde vor dem Lauf behoben werden, getrennt nach 1 bis 3 und 4 bis 9;
+- wie das Kriterium gelesen wird — vorgeschlagen: eine Frage oder ein Abbruch
+  macht „nicht erfüllt", und der Nachlauf läuft mit einer neuen Person;
+- wer die Person ist;
+- auf welchem Gerät gefahren wird;
+- gegen welche Freigabe.
+
+> **Ein Durchlauf mit derselben Person misst ihr Gedächtnis und nicht die
+> Behebung.**
+
+> **Was ein Kunde nicht findet, ist kein Fehler des Kunden — und was die Seite
+> nicht nennt, findet er nicht, so gut sie es auch weiss.**
 
 ---
 

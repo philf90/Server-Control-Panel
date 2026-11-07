@@ -41628,7 +41628,7 @@ vorher_datei app/Support/Tls/CertificateOrder.php
 python3 - <<'PY2'
 p = 'app/Support/Tls/CertificateOrder.php'
 s = open(p, encoding='utf-8').read()
-alt = "'account_id' => $cause?->account_id ?? request()->user()?->getAuthIdentifier(),"
+alt = "'account_id' => $cause->account_id ?? request()->user()?->getAuthIdentifier(),"
 assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
 open(p, 'w', encoding='utf-8').write(s.replace(alt, "'account_id' => $cause?->account_id,", 1))
 PY2

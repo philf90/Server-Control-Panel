@@ -82,7 +82,7 @@ final class CertificateOrder
              * Befund 3). Im Arbeiter gibt es keine angemeldete Person; dort
              * bleibt es bei der Ursache oder bei keinem Konto.
              */
-            'account_id' => $cause?->account_id ?? request()->user()?->getAuthIdentifier(),
+            'account_id' => $cause->account_id ?? request()->user()?->getAuthIdentifier(),
             'type' => 'acme.certificate.issue',
             'task' => 'acme.certificate.issue',
             'payload' => [

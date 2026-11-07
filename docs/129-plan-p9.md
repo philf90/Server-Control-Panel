@@ -614,8 +614,12 @@ dem Server. Beim Ausschreiben fielen am Code neun Befunde am Prüfling heraus
 (`docs/145 §0`). Drei davon machen eine Aufgabe ohne Frage unlösbar oder ohne
 Antwort: Die Seite „SFTP-Zugang" nennt keinen Rechner, die Datenbankseite
 keinen Server, und ein von Hand bestelltes Zertifikat erscheint nicht im
-Streifen. Wie das Kriterium gelesen wird und was vor dem Lauf behoben wird,
-entscheidet der Betreiber (`docs/145 §7`).
+Streifen. **Entschieden hat der Betreiber am selben Tag, alle sechs Fragen
+wie vorgeschlagen** (`docs/145 §7`): Eine Frage oder ein Abbruch macht den
+Lauf zu „nicht erfüllt", und der Nachlauf kommt mit einer neuen Person.
+Behoben sind die Befunde 1 bis 7 und 9 für `0.9.0-rc.19` (`docs/145 §7a`);
+Befund 8, ein neues Passwort für ein Kundenkonto, wird ein eigenes kleines
+Merkmal.
 
 ---
 

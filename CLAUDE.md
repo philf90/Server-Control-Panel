@@ -8160,6 +8160,24 @@ Die übrigen sechs:
 > **Was ein Kunde nicht findet, ist kein Fehler des Kunden — und was die Seite
 > nicht nennt, findet er nicht, so gut sie es auch weiss.**
 
+**Entschieden am selben Tag, alle sechs wie vorgeschlagen, und gebaut für
+`0.9.0-rc.19`** (`docs/145 §7a`): Behoben sind die Befunde 1 bis 7 und 9, jeder
+mit einem Fall an der Wirkung und einem Eingriff im Bruchskript. Befund 8 wird
+ein eigenes kleines Merkmal. Neu sind dabei:
+- `OperationLabel`, der eine Ort, an dem ein Vorgang seine Bezeichnung
+  bekommt. `OperationLabelTest` verlangt eine für jeden Vorgang, der entsteht,
+  und eine Operation im Agenten für jede Bezeichnung.
+- `Quota::limits()`, das „FTP-Konten" verneint und dessen Gegenrichtung
+  `QuotaLimitsTest` hält.
+- `CustomerWordingTest`: Das Panel siezt, keine Seite spricht von
+  Ausbaustufen, und Unit und Mount stehen nur unter `props.can.update`.
+
+> **Ein Netz, das nur sucht, was ein Kunde sieht, zieht eine Grenze, die der
+> Quelltext nicht kennt — „jeder Vorgang, der entsteht" lässt sich prüfen.**
+
+Pint, PHPStan und die Fälle, die Laravel brauchen, sind nicht im Container
+gelaufen: PHP 8.3, und GitHub verweigerte die Downloads der Abhängigkeiten.
+
 ---
 
 ## Befehle

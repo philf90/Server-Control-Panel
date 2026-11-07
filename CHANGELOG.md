@@ -34850,3 +34850,40 @@ Die übrigen sechs:
 
 > **Was ein Kunde nicht findet, ist kein Fehler des Kunden — und was die Seite
 > nicht nennt, findet er nicht, so gut sie es auch weiss.**
+
+### Die Befunde vor dem Durchlauf mit einer fremden Person sind behoben — und jeder Vorgang hat einen Namen
+
+Entschieden vom Betreiber am 7. November 2026, alle sechs Fragen aus
+`docs/145 §7` wie vorgeschlagen; gebaut für `0.9.0-rc.19` (`docs/145 §7a`).
+Behoben sind die Befunde 1 bis 7 und 9, jeder mit einem Fall an der Wirkung
+und einem Eingriff im Bruchskript:
+
+- **„SFTP-Zugang" nennt Rechner und Port.** Der Rechner kommt aus
+  `Names::host()`, der Port aus `sshd -T` über `SftpCheck`. Antwortet der Agent
+  nicht, steht der Port offen und nicht geraten da (`SftpConnectTest`,
+  `SftpCheckTest`).
+- **Die Datenbankseite nennt den Server**: `localhost` für MariaDB,
+  `127.0.0.1` für PostgreSQL (`DatabaseHostTest`).
+- **Ein von Hand bestelltes Zertifikat steht im Streifen.**
+  `App\Support\Tls\CertificateOrder` setzt ohne Ursache das Konto dessen, der
+  bestellt, wie die drei Geschwister (`DomainCertificateTest`).
+- **Die Kundenseite bietet einem Kunden keine Aktion des Betreibers mehr an**
+  (`AbilityReachTest`, in beide Richtungen).
+- **Jeder Vorgang, der entsteht, hat eine Bezeichnung.**
+  `App\Support\Operations\OperationLabel` ist der eine Ort dafür. Der Streifen,
+  die Vorgangsliste, die Vorgangsseite und die Tabellen auf Domain- und
+  Abonnementseite fragen ihn. Ein Kunde liest „Domain einrichten — läuft" statt
+  „web.site.apply — läuft" (`OperationLabelTest`, `RunningBandTest`).
+- **Kundenseiten sprechen zu Kunden.** Ohne Unit und Mount, ohne Ausbaustufe,
+  durchgehend gesiezt, und die Fehlerseite sagt, wer nachsehen kann
+  (`CustomerWordingTest`).
+- **„Abonnements" steht nur mit Abonnement im Menü**, unter derselben
+  Bedingung wie die Liste (`AbilityReachTest`).
+- **„FTP-Konten" fällt aus der Kundenansicht**, solange es nichts begrenzt
+  (`SubscriptionQuotaRowsTest`, `QuotaLimitsTest`).
+
+Befund 8, ein neues Passwort für ein Kundenkonto, wird ein eigenes kleines
+Merkmal.
+
+> **Ein Netz, das nur sucht, was ein Kunde sieht, zieht eine Grenze, die der
+> Quelltext nicht kennt — „jeder Vorgang, der entsteht" lässt sich prüfen.**

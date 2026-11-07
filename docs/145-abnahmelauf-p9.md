@@ -28,7 +28,11 @@ Nachinstallation war hier nicht möglich; der Lauf für B7 und B8 hatte das noch
 
 **Beim Ausschreiben sind neun Befunde am Prüfling herausgefallen** (§0). Drei
 davon liegen so auf dem Weg, dass eine Aufgabe ohne Frage nicht zu erledigen
-ist. Ob sie vor dem Lauf behoben werden, entscheidet der Betreiber (§7).
+ist. **Der Betreiber hat am selben Tag alle sechs Fragen aus §7 wie
+vorgeschlagen entschieden.** Behoben sind die Befunde 1 bis 7 und 9 für
+`0.9.0-rc.19`; Befund 8 wird ein eigenes kleines Merkmal (§7a). Die Karten in
+§3 beschreiben den Weg mit diesen Behebungen. **Gefahren wird gegen die
+Freigabe, die sie trägt.**
 
 **Der Lauf braucht einen Vorbereitungsabend und einen Termin von gut zwei
 Stunden.** Am Vortag legt der Betreiber DNS, Plan, Kunde und Abonnement an. Am
@@ -272,8 +276,9 @@ Dazu misst Block E3 von aussen, was eine Aufgabe als Ergebnis verspricht:
 | **nach §8** | Rückbau, wenn der Betreiber ihn will (Block R) | 10 min |
 
 **Das Abonnement entsteht am Vortag und nicht am Termin.** In der ersten
-Viertelstunde stünde auf seiner Seite der Satz aus Befund 6. Die Kacheln aus
-B4 zeigen einen Wert erst ab dem zweiten Tag (`docs/139`).
+Viertelstunde steht auf seiner Seite noch kein Wert — seit `rc.19` mit einem
+Satz für Kunden und nicht mehr dem aus Befund 6 (§7a). Die Kacheln aus B4
+zeigen einen Wert erst ab dem zweiten Tag (`docs/139`).
 
 ### Die Prüfkörper
 
@@ -407,7 +412,8 @@ sshd: port <Port> · Zone des Servers: <Zone>
 - **Das Zertifikat des Panels** ist ebenfalls `0`. Eine Warnung beim ersten
   Aufruf wäre die erste Frage der Person, und sie ginge nicht auf das Panel.
 - **Port und Zone** werden abgeschrieben:
-  - Den Port braucht A7, solange Befund 1 steht.
+  - Den Port nennt seit `rc.19` die SFTP-Seite (§7a). Block 0 ist die
+    Gegenprobe: Beide Zahlen müssen übereinstimmen.
   - Die Zone braucht A8. Liegt sie nicht in der Zone der Person, ist „3 Uhr"
     im Formular eine andere Stunde als auf ihrer Uhr.
 
@@ -523,13 +529,14 @@ was gilt, wenn die frühere nicht erfüllt wurde.
   1. „Domains" → „Domain anlegen" → „Sorte": „Subdomain", „Gehört zu":
      `<testdomain>`, „Name": `shop.<testdomain>` → „Anlegen".
   2. Die Domainseite zeigt den Zustand „wird angelegt". Eine Meldung kommt
-     nicht. Im Streifen steht `web.site.apply`, danach
-     `acme.certificate.issue` (Befund 5).
+     nicht. Im Streifen steht „Domain einrichten", danach „Zertifikat
+     bestellen" — bis `rc.18` standen dort die Kennungen (Befund 5, §7a).
   3. Ist der Vorgang durch, steht im Bereich „Zertifikat" ein Aussteller.
 - **Vorab:**
   - **Nur „shop" eingetippt** gibt einen Fehler: „Eine Subdomain von
     `<testdomain>` endet auf .`<testdomain>`" (`Web/Domains.php:281`).
-  - **Ein Klick auf „Zertifikat bestellen"** antwortet mit nichts (Befund 3).
+  - **Ein Klick auf „Zertifikat bestellen"** bringt seit `rc.19` den Vorgang in
+    den Streifen; bis `rc.18` antwortete er mit nichts (Befund 3, §7a).
   - **Warten:** Die Bestellung kommt von selbst, sobald der Server-Block
     steht. Die Wartezeit läuft in der Grenze mit, denn auch sie ist etwas,
     das die Person deuten muss.
@@ -545,8 +552,8 @@ was gilt, wenn die frühere nicht erfüllt wurde.
 - **Erfüllt**, wenn die Domainseite PHP `<Version>` nennt und der Vorgang
   fertig ist.
 - **Weg:** Domainseite → Bereich „Verzeichnis und Handler" → „PHP-Version" →
-  „Übernehmen". Eine Meldung kommt nicht; im Streifen steht `php.pool.apply`
-  (Befund 5).
+  „Übernehmen". Eine Meldung kommt nicht; im Streifen steht „PHP einrichten"
+  (Befund 5, §7a).
 - **Spur:** `domain.updated`; der Bestand nennt die Version.
 
 #### A6 · Eine Datenbank — Grenze 10 min
@@ -561,11 +568,11 @@ was gilt, wenn die frühere nicht erfüllt wurde.
   1. „Datenbanken" → „Datenbank anlegen" → „Name", „Benutzername" →
      „Anlegen".
   2. Die Detailseite zeigt „Zugang `<…>` angelegt. Das Passwort lautet … —
-     es steht hier zum **einzigen Mal**". Den Namen findet die Person unter
-     „Name auf dem Server".
+     es steht hier zum **einzigen Mal**". Im Bereich „Datenbank" stehen
+     „Server" (`localhost`) und „Name auf dem Server".
 - **Vorab:**
-  - **Der Server** steht nirgends (Befund 2). Schreibt die Person ihn trotzdem
-    richtig auf, war es Vorwissen, und der Bogen sagt das.
+  - **Der Server** steht seit `rc.19` als erste Zeile da; bis `rc.18` stand er
+    nirgends (Befund 2, §7a).
   - **Gefragt wird** nach dem Server und nicht nach einem Rechner, weil
     Installationsprogramme so fragen.
 - **Spur:** `database.created`, `database.user.created`; E3.
@@ -583,11 +590,11 @@ was gilt, wenn die frühere nicht erfüllt wurde.
   1. „SFTP-Zugang" → „Schlüssel erzeugen". Der private Schlüssel steht einmal
      da, mit „Herunterladen". Wer einen eigenen Schlüssel hat, trägt ihn
      unter „Öffentlicher Schlüssel" ein → „Eintragen".
-  2. Im Programm: Rechner, Port, Benutzer aus „Benutzer", die Schlüsseldatei.
-- **Vorab:** Rechner und Port nennt keine Kundenseite (Befund 1). Ohne
-  Behebung ist diese Aufgabe ohne Frage nur mit Raten zu erledigen. Rät die
-  Person den Rechner aus der Adresse des Panels, ist das Raten und nicht ein
-  Weg; der Bogen sagt das.
+  2. Im Programm: „Rechner", „Port" und „Benutzer" aus dem Bereich
+     „Verbinden", dazu die Schlüsseldatei.
+- **Vorab:** Rechner und Port stehen seit `rc.19` im Bereich „Verbinden",
+  vor Benutzer und Verzeichnis. Bis `rc.18` nannte sie keine Kundenseite, und
+  die Aufgabe war ohne Frage nur mit Raten zu erledigen (Befund 1, §7a).
 - **Spur:** `sftp.key.add`; in E3 `Accepted publickey for <SYSUSER>`.
 
 #### A8 · Ein Cronjob — Grenze 5 min
@@ -617,7 +624,7 @@ was gilt, wenn die frühere nicht erfüllt wurde.
 - **Erfüllt**, wenn das Archiv im Download-Ordner liegt.
 - **Weg:**
   1. „Sicherungen" → „Jetzt sichern" → „Die Sicherung wird erstellt." Im
-     Streifen steht `backup.create` (Befund 5).
+     Streifen steht „Sicherung anlegen" (Befund 5, §7a).
   2. Die Zeile wird „fertig" → „Herunterladen".
 - **Spur:** `backup.created`, `backup.downloaded`; der Vorgang `backup.create`
   fertig.
@@ -872,6 +879,16 @@ aus.
 
 ## §7 · Sechs Fragen an den Betreiber — vor dem Lauf
 
+**Entschieden am 7. November 2026, alle sechs wie vorgeschlagen:**
+- **Fragen 1 und 2:** Behoben sind die Befunde 1 bis 7 und 9; Befund 8 bleibt
+  ein eigenes Merkmal.
+- **Frage 3:** Die Lesart aus §1 gilt.
+- **Fragen 4 und 5:** Die Person ist ein möglicher Kunde und kennt das Projekt
+  nicht; sie arbeitet auf ihrem eigenen Rechner.
+- **Frage 6:** Gefahren wird gegen `0.9.0-rc.19`.
+
+Was gebaut ist, steht in §7a.
+
 Alle betreffen, was ein Kunde sieht, und stehen damit unter der Regel vom
 27. September: *Macht es Sinn und gibt es einen spürbaren Mehrwert für einen
 Nutzer im Panel?*
@@ -944,6 +961,69 @@ SFTP-Programm, das vor dem Termin installiert ist.
   - `vite` 8.3.5.
 - **Wer den Tag setzt:** Der Betreiber; die Nachricht und die Befehle bereite
   ich vor.
+
+---
+
+## §7a · Entschieden und gebaut: `0.9.0-rc.19`
+
+Gebaut am 7. November 2026, wie entschieden. Jede Behebung hat einen Fall,
+der an der Wirkung misst, und einen Eingriff im Bruchskript, der ihn rot
+macht.
+
+| | Was jetzt gilt | Fall | Eingriff |
+|---|---|---|---|
+| **1** | Die SFTP-Seite nennt „Rechner" und „Port" vor Benutzer und Verzeichnis. Den Rechner liefert `Names::host()`, den Port `sshd -T` über `SftpCheck`: `SftpCheck::pick()` liest dort jetzt fünf Angaben und nicht vier. Antwortet der Agent nicht, steht der Port als „—" da und nicht geraten. | `SftpCheckTest`, `SftpConnectTest` | `port` aus der gelesenen Liste; `connect` aus der Seite |
+| **2** | Die Datenbankseite nennt „Server" als erste Zeile: `localhost` für MariaDB, `127.0.0.1` für PostgreSQL. Den Wert liefert `DatabaseEngine::localHost()`. | `DatabaseHostTest` | `host` aus der Seite |
+| **3** | `CertificateOrder::place()` setzt ohne Ursache das Konto dessen, der den Knopf drückt — dieselbe Form wie in `WebLifecycle`, `Backups` und `Dumps`. Der Vorgang steht damit in seinem Streifen. | `DomainCertificateTest` | zurück auf `$cause?->account_id` |
+| **4** | Die Kundenseite fragt dieselbe Policy, die die Aktion abweist, und zeigt „Kunden", „Bearbeiten", „Sperren"/„Freigeben", „Zurückziehen" und je Abonnement „Bearbeiten" nur mit der Fähigkeit. | `AbilityReachTest`, in beide Richtungen | `update` immer `true` |
+| **5** | Ein Katalog `OperationLabel` gibt jedem Vorgang, der entsteht, eine Bezeichnung: „Domain einrichten", „PHP einrichten", „Zertifikat bestellen", „Sicherung anlegen" und so fort, 31 Einträge neben den elf Aufgaben in `Task`. Der Streifen, die Vorgangsliste, die Vorgangsseite und die Tabellen auf Domain- und Abonnementseite fragen ihn. | `OperationLabelTest`, `RunningBandTest` | eine Bezeichnung weg; das Band zurück auf `task ?? type` |
+| **6** | Ein Kunde liest „Noch nicht gemessen. Gemessen wird jede Viertelstunde." statt Unit und Mount. Vor „Datenbank entfernen" steht der Hinweis auf „Sicherungen" statt der Ausbaustufe, und der eine Satz mit „du" siezt. Die Fehlerseite sagt, dass der Betreiber nachsehen kann. | `CustomerWordingTest` | die Bedingung vor der Unit weg; das „du" zurück |
+| **7** | „Abonnements" steht im Menü nur mit einem erreichbaren Abonnement — `has_subscription`, dieselbe Frage wie `SubscriptionPolicy::viewAny()`. Ein gesperrtes Abonnement behält den Weg. | `AbilityReachTest` | `has_subscription` immer `true` |
+| **9** | `Quota::limits()` verneint „FTP-Konten"; die Kundenansicht lässt es weg, der Betreiber sieht es weiter. | `SubscriptionQuotaRowsTest`, `QuotaLimitsTest` | `limits()` immer `true` |
+
+### Beim Beheben dazugekommen
+
+- **Zu Befund 6, auf derselben Seite:** Auch die Meldung „Diese Grenze ist
+  nicht in Kraft" nannte einem Kunden `docs/41`, und der Hinweis „… oder
+  gleich hier" zeigte auf einen Knopf, den nur der Betreiber hat. Für den
+  Kunden bleibt der erste Satz; den Rest liest nur, wer `props.can.update`
+  hat. `CustomerWordingTest` liest dafür die Verschachtelung der Blöcke.
+- **Zu Befund 5:** Das Netz, das Vorgänge findet, fand auch sechs des
+  Betreibers ohne Abonnement, `system.packages.upgrade` und `system.reboot`
+  darunter. Sie stehen mit im Katalog: Die Regel heisst damit „jeder Vorgang,
+  der entsteht", und nicht „jeder, den ein Kunde sieht" — eine Grenze, die
+  sich im Quelltext nicht ziehen liesse.
+- **Die Vorgangsseite** trägt die Bezeichnung im Titel und unter „Aufgabe";
+  die Kennung steht als eigene Zeile „Kennung" darunter, für wen sie im
+  Protokoll des Agenten sucht. Aus dem Brotkrümel ist sie gegangen, und
+  `BlockSpacingTest` hat die Ausnahme dafür gestrichen bekommen — er bestand
+  darauf, weil es die Stelle nicht mehr gab.
+- **Ein bestehender Fall hat die Reihenfolge festgelegt.** Ist die Aufgabe
+  unbekannt, steht die Operation des Agenten da und nicht die Aufgabe
+  (`OperationTaskTest`). `OperationLabel::of()` fragt deshalb beide und fällt
+  auf die Operation zurück.
+
+### Nachgemessen — und was nicht
+
+- **Im Container gefahren:**
+  - im framework-freien Gestell `SftpCheckTest`, `OperationLabelTest`,
+    `CustomerWordingTest`, `QuotaLimitsTest`, `BreakScriptTest`,
+    `BlockSpacingTest`, `ChangelogTest` und `DocLinkTest`;
+  - alle 385 framework-freien Testdateien je auf dem Zweig und auf `main`.
+    Auf dem Endstand unterscheiden sich nur die neuen Fälle. Der erste
+    Vergleich hatte `BlockSpacingTest` gefunden — die gestrichene Ausnahme
+    oben.
+  - `npm run types` und `npm run build`.
+- **Gegenproben:** Die neuen Wächter, die im Gestell laufen, sind je einmal
+  gebrochen worden und rot geworden.
+- **Nicht im Container:**
+  - die Fälle, die Laravel brauchen (`SftpConnectTest`, `DatabaseHostTest`,
+    `SubscriptionQuotaRowsTest` und die neuen Fälle in `AbilityReachTest`,
+    `DomainCertificateTest` und `RunningBandTest`);
+  - Pint und PHPStan.
+
+  Der Container hat PHP 8.3, und die Abhängigkeiten liessen sich nicht laden:
+  GitHub verweigerte die Downloads ohne Anmeldung. Das fährt die CI.
 
 ---
 

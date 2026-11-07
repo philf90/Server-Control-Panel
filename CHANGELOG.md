@@ -34887,3 +34887,26 @@ Merkmal.
 
 > **Ein Netz, das nur sucht, was ein Kunde sieht, zieht eine Grenze, die der
 > Quelltext nicht kennt — „jeder Vorgang, der entsteht" lässt sich prüfen.**
+
+### `symfony/http-foundation`, `symfony/http-kernel` und `symfony/routing` → 8.1.11
+
+**Sechs Advisories in drei Paketen, gemeldet am 4. November 2026**, darunter
+CVE-2026-118514 (HEAD-Anfragen umgehen die Methodenregel einer Zugriffsregel)
+und CVE-2026-118516 (ein Platzhalter für den Host trifft den Anfang des
+Pfades). Betroffen ist in der Reihe 8.1 alles unter 8.1.11. Im Lock standen
+`http-foundation` 8.1.9 und `http-kernel` und `routing` 8.1.2.
+
+**Gefunden hat es der CI-Schritt „Schwachstellen und Lizenzen" an #300**, so
+wie `symfony/mime` an #298. Der Lock auf `main` ist seit #299 unverändert;
+das Audit wurde erst rot, als die Datenbank die Advisories kannte. Die
+Hebung steht in #300, damit `0.9.0-rc.19` sie mitnimmt.
+
+Gesucht in `app/`, `bootstrap/` und `config/`: Das Panel setzt keine
+vertrauenswürdigen Proxys, keine Route mit Host und keine erzwungene
+Basisadresse. Die Symfony-Komponente für Zugriffsregeln benutzt es nicht.
+Ob sich eine der Lücken trotzdem erreichen lässt, ist nicht gemessen.
+
+Im Lock ändern sich nur die drei Einträge; `composer.json` bleibt unberührt.
+`composer validate --strict` besteht, `composer audit --locked` meldet „No
+security vulnerability advisories found.", und `npm audit --audit-level=high`
+endet mit 0.

@@ -51,6 +51,9 @@ interface Row {
 
   /** Ob der Kunde dieses System über 127.0.0.1 erreicht statt über den Socket. */
   over_tcp: boolean
+
+  /** Der Server, den eine Anwendung auf diesem Rechner einträgt. */
+  host: string
   collation: string | null
   size_bytes: number | null
   size_measured_at: string | null
@@ -398,6 +401,16 @@ function size(): string {
         -->
         <table class="pairs">
           <tbody>
+            <!--
+              **Die vierte Angabe, nach der jedes Installationsprogramm
+              fragt.** Name, Benutzer und Passwort standen hier; der Server
+              stand für MariaDB nirgends und für PostgreSQL nur im Satz unter
+              der Tabelle (`docs/145 §0`, Befund 2).
+            -->
+            <tr>
+              <td class="quiet">Server</td>
+              <td class="right ident">{{ props.database.host }}</td>
+            </tr>
             <tr>
               <td class="quiet">Name auf dem Server</td>
               <td class="right ident">{{ props.database.name }}</td>
@@ -810,7 +823,7 @@ function size(): string {
           <p class="hint">
             Eine gepackte Sicherung (<span class="ident">.sql.gz</span>) bis
             {{ props.import_limit }}. Sie wird übernommen und liegt danach in dieser Liste
-            — <b>in die Datenbank kommt sie erst, wenn du sie zurückspielst</b>, und dabei wird
+            — <b>in die Datenbank kommt sie erst, wenn Sie sie zurückspielen</b>, und dabei wird
             der jetzige Stand von <span class="ident">{{ props.database.name }}</span>
             überschrieben.
           </p>
@@ -827,7 +840,8 @@ function size(): string {
         <p class="notice critical">
           <span>
             Die Datenbank und ihre Daten werden gelöscht. <b>Es gibt keine
-            Sicherung davor</b> — sie kommt mit einer späteren Ausbaustufe.
+            Sicherung davor</b> — wer den Inhalt behalten will, legt vorher
+            unter „Sicherungen" eine an.
             Zugänge, die an keiner weiteren Datenbank hängen, gehen mit.
           </span>
         </p>

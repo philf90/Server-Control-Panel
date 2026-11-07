@@ -607,6 +607,20 @@ Kunde kann das Panel benutzen, ohne zu fragen — gemessen an einem Durchlauf mi
 einer Person, die das Projekt nicht kennt.* Es steht **nach** B1 bis B9 und
 nicht statt ihrer; ein Merkmal nimmt es nicht ab.
 
+**Der Lauf dafür ist `docs/145`**, ausgeschrieben am 7. November 2026 vor dem
+Fahren: elf Aufgaben, die eine Person allein am Panel erledigt, während der
+Betreiber schweigt und mitschreibt; belegt wird jede Aufgabe mit Spuren auf
+dem Server. Beim Ausschreiben fielen am Code neun Befunde am Prüfling heraus
+(`docs/145 §0`). Drei davon machen eine Aufgabe ohne Frage unlösbar oder ohne
+Antwort: Die Seite „SFTP-Zugang" nennt keinen Rechner, die Datenbankseite
+keinen Server, und ein von Hand bestelltes Zertifikat erscheint nicht im
+Streifen. **Entschieden hat der Betreiber am selben Tag, alle sechs Fragen
+wie vorgeschlagen** (`docs/145 §7`): Eine Frage oder ein Abbruch macht den
+Lauf zu „nicht erfüllt", und der Nachlauf kommt mit einer neuen Person.
+Behoben sind die Befunde 1 bis 7 und 9 für `0.9.0-rc.19` (`docs/145 §7a`);
+Befund 8, ein neues Passwort für ein Kundenkonto, wird ein eigenes kleines
+Merkmal.
+
 ---
 
 ## §10 · Was auf dem Server zu messen bleibt

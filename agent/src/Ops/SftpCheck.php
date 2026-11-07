@@ -151,11 +151,47 @@ final class SftpCheck implements Op
     }
 
     /**
+     * Die Angaben aus `sshd -T`, an denen dieser Zugang hängt.
+     *
+     * Vier davon braucht die Prüfung. Die fünfte, `port`, braucht der Kunde:
+     * Ein SFTP-Programm fragt zuerst nach Rechner und Port, und bis zum
+     * 7. November 2026 nannte die Seite keins von beiden (`docs/145 §0`,
+     * Befund 1). Sie kommt aus derselben Ausgabe, damit die Seite den Port
+     * nennt, auf dem sshd wirklich horcht, und nicht den, den man erwartet.
+     */
+    public const PICKED = ['chrootdirectory', 'forcecommand', 'authorizedkeysfile', 'permitrootlogin', 'port'];
+
+    /**
+     * Aus den Zeilen von `sshd -T` die Angaben in {@see self::PICKED} lesen.
+     *
+     * **Die erste Zeile gewinnt.** Mehrfach stehen in der Ausgabe nur Angaben
+     * wie `port` und `listenaddress` — horcht sshd auf zwei Ports, taugt jeder,
+     * und der erste ist der, den die Konfiguration zuerst nennt.
+     *
+     * @param  list<string>  $lines
+     * @return array<string,string>
+     */
+    public static function pick(array $lines): array
+    {
+        $gefunden = [];
+
+        foreach ($lines as $line) {
+            foreach (self::PICKED as $schlüssel) {
+                if (! isset($gefunden[$schlüssel]) && str_starts_with($line, $schlüssel.' ')) {
+                    $gefunden[$schlüssel] = trim(substr($line, strlen($schlüssel) + 1));
+                }
+            }
+        }
+
+        return $gefunden;
+    }
+
+    /**
      * Die wirksame Konfiguration für diesen Benutzer.
      *
-     * Gelesen werden nur die vier Angaben, an denen dieser Zugang hängt — der
-     * ganze Ausdruck von `sshd -T` sind über hundert Zeilen, und eine Auskunft,
-     * die alles zeigt, zeigt nichts.
+     * Gelesen werden nur die Angaben aus {@see self::PICKED} — der ganze
+     * Ausdruck von `sshd -T` sind über hundert Zeilen, und eine Auskunft, die
+     * alles zeigt, zeigt nichts.
      *
      * @return array<string,string>
      */
@@ -164,9 +200,6 @@ final class SftpCheck implements Op
         $result = $context->runner->run('sshd', [
             '-T', '-C', 'user='.$user.',host=127.0.0.1,addr=127.0.0.1',
         ], 30);
-
-        $gesucht = ['chrootdirectory', 'forcecommand', 'authorizedkeysfile', 'permitrootlogin'];
-        $gefunden = [];
 
         if (! $result->successful()) {
             /*
@@ -180,14 +213,6 @@ final class SftpCheck implements Op
             return ['error' => trim($result->message())];
         }
 
-        foreach ($result->lines() as $line) {
-            foreach ($gesucht as $schlüssel) {
-                if (str_starts_with($line, $schlüssel.' ')) {
-                    $gefunden[$schlüssel] = trim(substr($line, strlen($schlüssel) + 1));
-                }
-            }
-        }
-
-        return $gefunden;
+        return self::pick($result->lines());
     }
 }

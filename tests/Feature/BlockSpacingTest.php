@@ -255,10 +255,9 @@ final class BlockSpacingTest extends TestCase
         ],
         /*
          * **Eine Brotkrume ist kein Block.** `<Link class="link">Kunden</Link> ·
-         * <span class="ident">…</span>` steht in `Customers/Show.vue` und
-         * `Operations/Show.vue` in einer Zeile, getrennt von einem Mittelpunkt;
-         * zwei Blöcke im Fluss sind das nicht, und ein Abstand dazwischen wäre
-         * an dieser Stelle falsch.
+         * <span class="ident">…</span>` steht in `Customers/Show.vue` in einer
+         * Zeile, getrennt von einem Mittelpunkt; zwei Blöcke im Fluss sind das
+         * nicht, und ein Abstand dazwischen wäre an dieser Stelle falsch.
          *
          * **Gesehen wurde sie erst am 17. August**, und zwar durch die Korrektur
          * eine Ebene tiefer: Solange `<Link>` als leeres HTML-Element galt, kippte
@@ -266,10 +265,14 @@ final class BlockSpacingTest extends TestCase
          *
          * > **Ein Wächter mit einem Zählfehler meldet nicht zu viel, sondern das
          * > Falsche — und schweigt über das Richtige.**
+         *
+         * `Operations/Show.vue` stand hier bis zum 7. November 2026 mit
+         * derselben Brotkrume. Dort trug die Kennung des Vorgangs das `ident`,
+         * und sie ist aus dem Brotkrümel gegangen, weil der Seitentitel die
+         * Bezeichnung trägt (`docs/145 §0`, Befund 5).
          */
         'link + ident' => [
             'resources/js/Pages/Customers/Show.vue',
-            'resources/js/Pages/Operations/Show.vue',
         ],
         /*
          * **`quiet + link` stand hier bis zum 8. September 2026 und war nie eine

@@ -14,6 +14,7 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Names;
 use SrvPanel\Agent\Ssh\PublicKey;
 
 /**
@@ -102,6 +103,8 @@ final class SftpController extends Controller
             ])
             ->all();
 
+        $check = $this->check($subscription);
+
         return Inertia::render('Subscriptions/Sftp', [
             'subscription' => [
                 'id' => (int) $subscription->id,
@@ -109,7 +112,8 @@ final class SftpController extends Controller
                 'system_user' => $subscription->system_user,
             ],
             'keys' => $keys,
-            'check' => $this->check($subscription),
+            'check' => $check,
+            'connect' => self::connect($check),
             'can' => [
                 'manage' => request()->user()?->can('manageSftp', $subscription) ?? false,
             ],
@@ -212,6 +216,36 @@ final class SftpController extends Controller
     private static function spoken(string $success, ?string $note): string
     {
         return $note === null ? $success : $success.' '.$note.'.';
+    }
+
+    /**
+     * Rechner und Port, die ein SFTP-Programm zuerst verlangt.
+     *
+     * **Bis zum 7. November 2026 nannte die Seite keins von beiden**, nur
+     * Benutzer und Verzeichnis (`docs/145 §0`, Befund 1). Wer sich verbinden
+     * wollte, musste fragen — der Betreiber wusste es aus `hostname -f` und
+     * `sshd -T`, die Seite wusste es nicht.
+     *
+     * - **Der Rechner** kommt aus {@see Names::host()}, der einen Stelle, die
+     *   diese Frage beantworten darf (`HostnameSourceTest`).
+     * - **Der Port** kommt aus der Prüfung, die die Seite ohnehin fragt: aus
+     *   `sshd -T` für diesen Benutzer, also dem Port, auf dem sshd wirklich
+     *   horcht. Antwortet der Agent nicht, steht er offen und nicht geraten
+     *   da — eine angenommene 22 wäre auf einem Server mit verlegtem sshd die
+     *   falsche Auskunft.
+     *
+     * @param  array<string, mixed>  $check  Die Antwort von {@see self::check()}.
+     * @return array{host: string, port: string|null}
+     */
+    public static function connect(array $check): array
+    {
+        $effective = $check['effective'] ?? null;
+        $port = is_array($effective) ? ($effective['port'] ?? null) : null;
+
+        return [
+            'host' => Names::host(),
+            'port' => is_string($port) && $port !== '' ? $port : null,
+        ];
     }
 
     /**

@@ -41618,6 +41618,217 @@ pruefe "Fuge schliesst nur th aus" \
   BlockSpacingTest::test_no_seam_reaches_a_table_cell failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BlockSpacingTest passed
+echo
+echo "── DomainCertificateTest: der bestellte Vorgang hat wieder kein Konto ──"
+#
+# Ohne Konto zeigt der Streifen den Vorgang niemandem: Nach dem Klick auf
+# "Zertifikat bestellen" kam weder eine Meldung noch ein Band (docs/145 §0,
+# Befund 3).
+vorher_datei app/Support/Tls/CertificateOrder.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateOrder.php'
+s = open(p, encoding='utf-8').read()
+alt = "'account_id' => $cause->account_id ?? request()->user()?->getAuthIdentifier(),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'account_id' => $cause?->account_id,", 1))
+PY2
+griff_datei app/Support/Tls/CertificateOrder.php "der bestellte Vorgang hat wieder kein Konto" &&
+pruefe "der bestellte Vorgang hat wieder kein Konto" \
+  DomainCertificateTest::test_the_ordered_certificate_shows_in_the_band_of_whoever_pressed_the_button failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DomainCertificateTest passed
+
+echo
+echo "── DatabaseHostTest: die Datenbankseite nennt wieder keinen Server ──"
+#
+# Jedes Installationsprogramm fragt nach Server, Name, Benutzer und Passwort;
+# ohne die Zeile fehlt die erste davon (docs/145 §0, Befund 2).
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'host' => $database->engine->localHost(),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "die Datenbankseite nennt wieder keinen Server" &&
+pruefe "die Datenbankseite nennt wieder keinen Server" \
+  DatabaseHostTest::test_a_mariadb_database_names_localhost failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DatabaseHostTest passed
+
+echo
+echo "── SftpCheckTest: der Port faellt aus dem, was die Pruefung liest ──"
+#
+# Ohne die Zeile nennt die SFTP-Seite keinen Port, und ein angenommener waere
+# auf einem Server mit verlegtem sshd falsch (docs/145 §0, Befund 1).
+vorher_datei agent/src/Ops/SftpCheck.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SftpCheck.php'
+s = open(p, encoding='utf-8').read()
+alt = "'permitrootlogin', 'port'];"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'permitrootlogin'];", 1))
+PY2
+griff_datei agent/src/Ops/SftpCheck.php "der Port faellt aus dem, was die Pruefung liest" &&
+pruefe "der Port faellt aus dem, was die Pruefung liest" \
+  SftpCheckTest::test_the_port_is_read_from_what_applies failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SftpCheckTest passed
+
+echo
+echo "── SftpConnectTest: die SFTP-Seite nennt wieder weder Rechner noch Port ──"
+#
+# Ein SFTP-Programm fragt zuerst nach dem Rechner; ohne ihn bleibt einem
+# Kunden nur Raten oder Fragen (docs/145 §0, Befund 1).
+vorher_datei app/Http/Controllers/SftpController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/SftpController.php'
+s = open(p, encoding='utf-8').read()
+alt = "            'connect' => self::connect($check),\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Http/Controllers/SftpController.php "die SFTP-Seite nennt wieder weder Rechner noch Port" &&
+pruefe "die SFTP-Seite nennt wieder weder Rechner noch Port" \
+  SftpConnectTest::test_the_customer_gets_both_on_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SftpConnectTest passed
+
+echo
+echo "── AbilityReachTest: die eigene Kundenseite bietet einem Kunden wieder Bearbeiten an ──"
+#
+# Ein Knopf, den der Betrachter nicht druecken darf, endet mit 403 — auf der
+# Kundenseite standen fuenf davon (docs/145 §0, Befund 4).
+vorher_datei app/Http/Controllers/CustomerController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/CustomerController.php'
+s = open(p, encoding='utf-8').read()
+alt = "'update' => $account?->can('update', $customer) ?? false,"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'update' => true,", 1))
+PY2
+griff_datei app/Http/Controllers/CustomerController.php "die eigene Kundenseite bietet einem Kunden wieder Bearbeiten an" &&
+pruefe "die eigene Kundenseite bietet einem Kunden wieder Bearbeiten an" \
+  AbilityReachTest::test_the_own_customer_page_offers_a_customer_none_of_the_operators_actions failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AbilityReachTest passed
+
+echo
+echo "── OperationLabelTest: ein Vorgang entsteht wieder ohne Bezeichnung ──"
+#
+# Ohne Bezeichnung steht im Streifen die Kennung — fuer einen Kunden
+# "php.pool.apply" statt "PHP einrichten" (docs/145 §0, Befund 5).
+vorher_datei app/Support/Operations/OperationLabel.php
+python3 - <<'PY2'
+p = 'app/Support/Operations/OperationLabel.php'
+s = open(p, encoding='utf-8').read()
+alt = "        'php.pool.apply' => 'PHP einrichten',\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, '', 1))
+PY2
+griff_datei app/Support/Operations/OperationLabel.php "ein Vorgang entsteht wieder ohne Bezeichnung" &&
+pruefe "ein Vorgang entsteht wieder ohne Bezeichnung" \
+  OperationLabelTest::test_every_operation_that_is_created_has_a_label failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationLabelTest passed
+
+echo
+echo "── RunningBandTest: das Band nennt den Vorgang wieder mit seiner Kennung ──"
+#
+# Hier stand task ?? type, und ein Kunde las "web.site.apply — laeuft"
+# (docs/145 §0, Befund 5).
+vorher_datei app/Support/Operations/RunningBand.php
+python3 - <<'PY2'
+p = 'app/Support/Operations/RunningBand.php'
+s = open(p, encoding='utf-8').read()
+alt = "'label' => OperationLabel::of($vorgang->task, $vorgang->type),"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "'label' => $vorgang->task ?? $vorgang->type,", 1))
+PY2
+griff_datei app/Support/Operations/RunningBand.php "das Band nennt den Vorgang wieder mit seiner Kennung" &&
+pruefe "das Band nennt den Vorgang wieder mit seiner Kennung" \
+  RunningBandTest::test_the_band_names_the_operation_in_words failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RunningBandTest passed
+
+echo
+echo "── CustomerWordingTest: ein Kunde liest wieder Unit und Mount ──"
+#
+# Ein frisches Abonnement nannte einem Kunden srvpanel-usage.timer und den
+# Mount von /var/www/vhosts (docs/145 §0, Befund 6).
+vorher_datei resources/js/Pages/Subscriptions/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = """          <template v-if="props.can.update">
+            Noch nicht gemessen. Die Messung läuft im Viertelstundentakt"""
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, """          <template v-if="true">
+            Noch nicht gemessen. Die Messung läuft im Viertelstundentakt""", 1))
+PY2
+griff_datei resources/js/Pages/Subscriptions/Show.vue "ein Kunde liest wieder Unit und Mount" &&
+pruefe "ein Kunde liest wieder Unit und Mount" \
+  CustomerWordingTest::test_a_customer_reads_neither_unit_nor_mount failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CustomerWordingTest passed
+
+echo
+echo "── CustomerWordingTest: ein Satz duzt wieder ──"
+#
+# Das Panel siezt; der eine Satz auf der Datenbankseite tat es nicht
+# (docs/145 §0, Befund 6).
+vorher_datei resources/js/Pages/Databases/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Show.vue'
+s = open(p, encoding='utf-8').read()
+alt = "wenn Sie sie zurückspielen"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "wenn du sie zurückspielst", 1))
+PY2
+griff_datei resources/js/Pages/Databases/Show.vue "ein Satz duzt wieder" &&
+pruefe "ein Satz duzt wieder" \
+  CustomerWordingTest::test_the_panel_addresses_everyone_formally failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CustomerWordingTest passed
+
+echo
+echo "── AbilityReachTest: Abonnements stehen wieder ohne Abonnement im Menü ──"
+#
+# Ohne Abonnement fuehrte der Punkt auf "Kein Zutritt" mit einer Rolle, die
+# nicht der Grund war (docs/145 §0, Befund 7).
+vorher_datei app/Http/Middleware/HandleInertiaRequests.php
+python3 - <<'PY2'
+p = 'app/Http/Middleware/HandleInertiaRequests.php'
+s = open(p, encoding='utf-8').read()
+alt = "                'has_subscription' => $account->isAdmin()\n                    || $account->accessibleSubscriptionIds() !== [],\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "                'has_subscription' => true,\n", 1))
+PY2
+griff_datei app/Http/Middleware/HandleInertiaRequests.php "Abonnements stehen wieder ohne Abonnement im Menü" &&
+pruefe "Abonnements stehen wieder ohne Abonnement im Menü" \
+  AbilityReachTest::test_a_customer_without_a_subscription_is_not_sent_to_the_list failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AbilityReachTest passed
+
+echo
+echo "── SubscriptionQuotaRowsTest: ein Kunde sieht wieder FTP-Konten ──"
+#
+# "FTP-Konten: 5" stand vor jedem Kunden, und FTP-Konten gibt es nicht
+# (docs/145 §0, Befund 9).
+vorher_datei app/Support/Plans/Quota.php
+python3 - <<'PY2'
+p = 'app/Support/Plans/Quota.php'
+s = open(p, encoding='utf-8').read()
+alt = "        return $this !== self::FtpAccounts;\n"
+assert s.count(alt) == 1, 'Zielstelle nicht eindeutig — der Bruch waere blind'
+open(p, 'w', encoding='utf-8').write(s.replace(alt, "        return true;\n", 1))
+PY2
+griff_datei app/Support/Plans/Quota.php "ein Kunde sieht wieder FTP-Konten" &&
+pruefe "ein Kunde sieht wieder FTP-Konten" \
+  SubscriptionQuotaRowsTest::test_a_customer_does_not_see_the_ftp_accounts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SubscriptionQuotaRowsTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

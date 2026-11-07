@@ -17,7 +17,8 @@ const props = defineProps<{
     id: number; name: string; email: string | null
     type: string; type_label: string; status_label: string; last_login_at: string | null
   }[]
-  subscriptions: { id: number; name: string; status: string; status_label: string }[]
+  subscriptions: { id: number; name: string; status: string; status_label: string; can: { update: boolean } }[]
+  can: { viewAny: boolean; update: boolean; suspend: boolean; delete: boolean }
 }>()
 
 const page = usePage()
@@ -95,23 +96,31 @@ function freigeben(): void {
   <Head :title="props.customer.name" />
 
   <PanelLayout :title="props.customer.name">
+    <!--
+      **Jede Aktion fragt vorher dieselbe Policy, die sie später abweist.** Ein
+      Kunde erreicht diese Seite über „Kunde" auf dem eigenen Abonnement, und bis zum
+      7. November 2026 standen dort alle vier Knöpfe und der Brotkrümel „Kunden"
+      und endeten mit 403 (`docs/145 §0`, Befund 4).
+    -->
     <template #breadcrumb>
-      <Link href="/customers" class="link">Kunden</Link> · <span class="ident">{{ props.customer.number }}</span>
+      <template v-if="props.can.viewAny"><Link href="/customers" class="link">Kunden</Link> · </template><span class="ident">{{ props.customer.number }}</span>
     </template>
 
     <template #actions>
       <Badge :kind="rang(props.customer.status)">{{ props.customer.status_label }}</Badge>
-      <Link :href="`/customers/${props.customer.id}/edit`" class="button primary">Bearbeiten</Link>
-      <button
-        v-if="props.customer.status !== 'suspended'"
-        type="button"
-        class="button"
-        @click="sperren"
-      >
-        Sperren
-      </button>
-      <button v-else type="button" class="button" @click="freigeben">Freigeben</button>
-      <button type="button" class="button danger" @click="zurueckziehen">Zurückziehen</button>
+      <Link v-if="props.can.update" :href="`/customers/${props.customer.id}/edit`" class="button primary">Bearbeiten</Link>
+      <template v-if="props.can.suspend">
+        <button
+          v-if="props.customer.status !== 'suspended'"
+          type="button"
+          class="button"
+          @click="sperren"
+        >
+          Sperren
+        </button>
+        <button v-else type="button" class="button" @click="freigeben">Freigeben</button>
+      </template>
+      <button v-if="props.can.delete" type="button" class="button danger" @click="zurueckziehen">Zurückziehen</button>
     </template>
 
     <p v-if="fehler" class="notice critical">{{ fehler }}</p>
@@ -175,7 +184,7 @@ function freigeben(): void {
                 </td>
                 <td data-column="Zustand"><Badge :kind="rang(s.status)">{{ s.status_label }}</Badge></td>
                 <td>
-                  <Link :href="`/subscriptions/${s.id}/edit`" class="button small">Bearbeiten</Link>
+                  <Link v-if="s.can.update" :href="`/subscriptions/${s.id}/edit`" class="button small">Bearbeiten</Link>
                 </td>
               </tr>
               <tr v-if="props.subscriptions.length === 0">

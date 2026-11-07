@@ -15,6 +15,7 @@ use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Dns\Dns;
 use App\Support\Metrics\History;
+use App\Support\Operations\OperationLabel;
 use App\Support\Plans\Quota;
 use App\Support\Time\Clock;
 use App\Support\Tls\AcmeSettings;
@@ -294,7 +295,8 @@ final class DomainController extends Controller
                 ->get()
                 ->map(static fn (Operation $o): array => [
                     'id' => (int) $o->id,
-                    'task' => $o->task,
+                    // In Worten und nicht als Kennung (`docs/145 §0`, Befund 5).
+                    'label' => OperationLabel::of($o->task, $o->type),
                     'status_label' => $o->status->label(),
                     'created_at' => Clock::display($o->created_at),
                 ])->all(),

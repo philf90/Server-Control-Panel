@@ -103,6 +103,26 @@ final class RunningBandTest extends TestCase
         self::assertSame([$vorgang->id], $this->kennungen($konto));
     }
 
+    /**
+     * **Das Band nennt den Vorgang in Worten.** Hier stand `task ?? type`, und
+     * ein Kunde las nach „Domain anlegen" „Vorgang 812 web.site.apply —
+     * läuft" (`docs/145 §0`, Befund 5). Gemessen an einer Kennung, die ein
+     * Kunde auslöst und die keine Aufgabe des Betreibers ist — genau die fiel
+     * vorher durch.
+     */
+    public function test_the_band_names_the_operation_in_words(): void
+    {
+        $konto = $this->konto();
+        $this->vorgang($konto, $this->abo($konto), ['type' => 'web.site.apply', 'task' => 'web.site.apply']);
+
+        app(Tenancy::class)->forAccount($konto);
+
+        self::assertSame(
+            ['Domain einrichten'],
+            array_map(static fn (array $zeile): string => (string) $zeile['label'], app(RunningBand::class)->rows($konto, $this->jetzt)),
+        );
+    }
+
     /** Und die des Nachbarn nicht — mit der eigenen daneben, damit die Null etwas bedeutet. */
     public function test_a_foreign_account_is_not_shown(): void
     {

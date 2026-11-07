@@ -43,7 +43,9 @@ defineProps<{ title: string; subline?: string }>()
 const page = usePage()
 const source = computed(() => page.props.source as { url: string; version: string })
 const account = computed(
-  () => page.props.account as { id: number; name: string; is_admin: boolean; has_active_subscription: boolean } | null,
+  () => page.props.account as {
+    id: number; name: string; is_admin: boolean; has_subscription: boolean; has_active_subscription: boolean
+  } | null,
 )
 const impersonation = computed(() => page.props.impersonation as { active: boolean; admin: string } | null)
 
@@ -271,7 +273,21 @@ const navigation = computed<{ group: string | null; items: NavItem[] }[]>(() => 
     return [
       { group: null, items: [{ name: 'Übersicht', href: '/', icon: 'overview' }] },
       { group: 'Konto', items: [
-        { name: 'Abonnements', href: '/subscriptions', icon: 'subscriptions' },
+        /*
+         * **Abonnements stehen erst da, wenn es eines gibt** — dieselbe
+         * Bedingung, die die Liste an ihrer Tür stellt
+         * (`SubscriptionPolicy::viewAny()`). Bis zum 7. November 2026 stand
+         * der Punkt für jeden Kunden da und führte ohne Abonnement auf „Kein
+         * Zutritt" mit einer Rolle, die nicht der Grund war (`docs/145 §0`,
+         * Befund 7). Die Übersicht sagt dann schon, dass keines eingerichtet
+         * ist.
+         *
+         * Nicht `has_active_subscription` wie darunter: Ein gesperrtes
+         * Abonnement bleibt sichtbar, und die Liste zeigt es.
+         */
+        ...(account.value?.has_subscription
+          ? [{ name: 'Abonnements', href: '/subscriptions', icon: 'subscriptions' }]
+          : []),
 
         /*
          * **Domains stehen erst da, wenn es etwas zu benennen gibt.**

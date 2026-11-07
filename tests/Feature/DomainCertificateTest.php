@@ -10,9 +10,11 @@ use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Setting;
 use App\Models\Subscription;
+use App\Support\Operations\RunningBand;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tls\AcmeSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
@@ -204,6 +206,36 @@ final class DomainCertificateTest extends TestCase
         app(Tenancy::class)->allowAll();
 
         $this->assertSame(1, Operation::query()->where('task', 'acme.certificate.issue')->count());
+    }
+
+    /**
+     * **Der Vorgang des Knopfes gehört dem, der ihn gedrückt hat — und steht
+     * damit in seinem Streifen.** Der Controller leitet seit B8 auf die
+     * Domainseite zurück, und den Fortschritt soll der Streifen tragen. Er
+     * zeigt nur die Vorgänge des eigenen Kontos; ohne Konto zeigte er diesen
+     * niemandem, und nach dem Klick kam weder eine Meldung noch ein Band
+     * (`docs/145 §0`, Befund 3).
+     */
+    public function test_the_ordered_certificate_shows_in_the_band_of_whoever_pressed_the_button(): void
+    {
+        $this->withContact();
+        $domain = $this->domain();
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->post('/domains/'.$domain->id.'/certificate')
+            ->assertRedirect('/domains/'.$domain->id);
+
+        app(Tenancy::class)->allowAll();
+
+        $operation = Operation::query()->where('task', 'acme.certificate.issue')->sole();
+
+        $this->assertSame((int) $admin->id, (int) $operation->account_id);
+        $this->assertContains(
+            (int) $operation->id,
+            array_map(static fn (array $row): int => (int) $row['id'], app(RunningBand::class)->rows($admin, Carbon::now())),
+            'Der bestellte Vorgang steht nicht im Streifen dessen, der bestellt hat.',
+        );
     }
 
     /** Ohne Kontaktadresse bestellt es nichts — und sagt, warum. */

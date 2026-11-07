@@ -109,7 +109,10 @@ final class RunningBand
             ->get()
             ->map(fn (Operation $vorgang): array => [
                 'id' => $vorgang->id,
-                'label' => $vorgang->task ?? $vorgang->type,
+                // Die Bezeichnung und nicht die Kennung: Hier stand
+                // `task ?? type`, und ein Kunde las „web.site.apply — läuft"
+                // (`docs/145 §0`, Befund 5).
+                'label' => OperationLabel::of($vorgang->task, $vorgang->type),
                 'status' => $vorgang->status->value,
                 'progress' => $vorgang->progress,
                 'running' => $vorgang->status->open(),

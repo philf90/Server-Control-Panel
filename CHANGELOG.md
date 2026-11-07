@@ -34809,3 +34809,104 @@ Teil 1 (`docs/138 §7`) und Teil 2 (`docs/138 §8`). Von Punkt 2 sind zwei
 Hälften erschlossen und nicht abgelesen, weil ihr Ablesetag vorbei war; der
 ganze Ablauf ist am 30. und 31. Oktober einmal direkt gemessen. Mit B3 sind
 alle Merkmale von P9 abgenommen. Die Dokumentation bleibt vertagt.
+
+### Der Durchlauf mit einer fremden Person steht ausgeschrieben — und die SFTP-Seite nennt keinen Rechner
+
+**`docs/145`**, ausgeschrieben am 7. November 2026 vor dem Fahren. Es ist die
+Vorschrift für das Kriterium der Stufe P9: *ein fremder Kunde kann das Panel
+benutzen, ohne zu fragen.* Der Ablauf:
+- **Die Person** erledigt elf Aufgaben allein, vom Anmelden bis zum Fehler im
+  Protokoll.
+- **Der Betreiber** schweigt und schreibt mit.
+- **Belegt** wird jede Aufgabe mit Protokoll, Vorgängen und der Seitenfolge aus
+  dem Zugriffsprotokoll des Panels.
+
+Vorab gemessen ist am Code. Im Browser war es nicht möglich, weil der Container
+kein PHP 8.4 hat.
+
+Beim Ausschreiben fielen neun Befunde am Prüfling heraus; über alle entscheidet
+der Betreiber (`docs/145 §0`, `§7`). Drei liegen so auf dem Weg, dass eine
+Aufgabe ohne Frage nicht geht:
+
+- **Die Seite „SFTP-Zugang" nennt keinen Rechner und keinen Port.**
+  `Sftp.vue` führt nur „Benutzer" und „Verzeichnis", und ein SFTP-Programm
+  fragt zuerst nach dem Rechner.
+- **Die Datenbankseite nennt für MariaDB keinen Server.** Einen Satz dazu gibt
+  es nur für PostgreSQL über TCP.
+- **Ein von Hand bestelltes Zertifikat erscheint nicht im Streifen.**
+  `CertificateOrder::place()` setzt ohne Ursache kein Konto, und der Streifen
+  zeigt nur die Vorgänge des eigenen Kontos. Der Kommentar am Controller
+  verspricht ihn trotzdem.
+
+Die übrigen sechs:
+- `Customers/Show.vue` zeigt einem Kunden „Bearbeiten", „Sperren" und
+  „Zurückziehen", die mit 403 enden, gegen die Regel aus `AbilityReachTest`.
+- Kundenvorgänge stehen als `web.site.apply` und `backup.create` da.
+- Kundenseiten sprechen von `srvpanel-usage.timer` und einer „späteren
+  Ausbaustufe", einmal mit „du".
+- „Abonnements" führt ohne Abonnement auf „Kein Zutritt".
+- Ein Kundenkonto hat keinen Weg zu einem neuen Passwort.
+- „FTP-Konten: 5" begrenzt nichts.
+
+> **Was ein Kunde nicht findet, ist kein Fehler des Kunden — und was die Seite
+> nicht nennt, findet er nicht, so gut sie es auch weiss.**
+
+### Die Befunde vor dem Durchlauf mit einer fremden Person sind behoben — und jeder Vorgang hat einen Namen
+
+Entschieden vom Betreiber am 7. November 2026, alle sechs Fragen aus
+`docs/145 §7` wie vorgeschlagen; gebaut für `0.9.0-rc.19` (`docs/145 §7a`).
+Behoben sind die Befunde 1 bis 7 und 9, jeder mit einem Fall an der Wirkung
+und einem Eingriff im Bruchskript:
+
+- **„SFTP-Zugang" nennt Rechner und Port.** Der Rechner kommt aus
+  `Names::host()`, der Port aus `sshd -T` über `SftpCheck`. Antwortet der Agent
+  nicht, steht der Port offen und nicht geraten da (`SftpConnectTest`,
+  `SftpCheckTest`).
+- **Die Datenbankseite nennt den Server**: `localhost` für MariaDB,
+  `127.0.0.1` für PostgreSQL (`DatabaseHostTest`).
+- **Ein von Hand bestelltes Zertifikat steht im Streifen.**
+  `App\Support\Tls\CertificateOrder` setzt ohne Ursache das Konto dessen, der
+  bestellt, wie die drei Geschwister (`DomainCertificateTest`).
+- **Die Kundenseite bietet einem Kunden keine Aktion des Betreibers mehr an**
+  (`AbilityReachTest`, in beide Richtungen).
+- **Jeder Vorgang, der entsteht, hat eine Bezeichnung.**
+  `App\Support\Operations\OperationLabel` ist der eine Ort dafür. Der Streifen,
+  die Vorgangsliste, die Vorgangsseite und die Tabellen auf Domain- und
+  Abonnementseite fragen ihn. Ein Kunde liest „Domain einrichten — läuft" statt
+  „web.site.apply — läuft" (`OperationLabelTest`, `RunningBandTest`).
+- **Kundenseiten sprechen zu Kunden.** Ohne Unit und Mount, ohne Ausbaustufe,
+  durchgehend gesiezt, und die Fehlerseite sagt, wer nachsehen kann
+  (`CustomerWordingTest`).
+- **„Abonnements" steht nur mit Abonnement im Menü**, unter derselben
+  Bedingung wie die Liste (`AbilityReachTest`).
+- **„FTP-Konten" fällt aus der Kundenansicht**, solange es nichts begrenzt
+  (`SubscriptionQuotaRowsTest`, `QuotaLimitsTest`).
+
+Befund 8, ein neues Passwort für ein Kundenkonto, wird ein eigenes kleines
+Merkmal.
+
+> **Ein Netz, das nur sucht, was ein Kunde sieht, zieht eine Grenze, die der
+> Quelltext nicht kennt — „jeder Vorgang, der entsteht" lässt sich prüfen.**
+
+### `symfony/http-foundation`, `symfony/http-kernel` und `symfony/routing` → 8.1.11
+
+**Sechs Advisories in drei Paketen, gemeldet am 4. November 2026**, darunter
+CVE-2026-118514 (HEAD-Anfragen umgehen die Methodenregel einer Zugriffsregel)
+und CVE-2026-118516 (ein Platzhalter für den Host trifft den Anfang des
+Pfades). Betroffen ist in der Reihe 8.1 alles unter 8.1.11. Im Lock standen
+`http-foundation` 8.1.9 und `http-kernel` und `routing` 8.1.2.
+
+**Gefunden hat es der CI-Schritt „Schwachstellen und Lizenzen" an #300**, so
+wie `symfony/mime` an #298. Der Lock auf `main` ist seit #299 unverändert;
+das Audit wurde erst rot, als die Datenbank die Advisories kannte. Die
+Hebung steht in #300, damit `0.9.0-rc.19` sie mitnimmt.
+
+Gesucht in `app/`, `bootstrap/` und `config/`: Das Panel setzt keine
+vertrauenswürdigen Proxys, keine Route mit Host und keine erzwungene
+Basisadresse. Die Symfony-Komponente für Zugriffsregeln benutzt es nicht.
+Ob sich eine der Lücken trotzdem erreichen lässt, ist nicht gemessen.
+
+Im Lock ändern sich nur die drei Einträge; `composer.json` bleibt unberührt.
+`composer validate --strict` besteht, `composer audit --locked` meldet „No
+security vulnerability advisories found.", und `npm audit --audit-level=high`
+endet mit 0.

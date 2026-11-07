@@ -17,6 +17,7 @@ use App\Support\Backups\Backups;
 use App\Support\Databases\Databases;
 use App\Support\Databases\Dumps;
 use App\Support\Metrics\History;
+use App\Support\Operations\OperationLabel;
 use App\Support\Plans\Feature;
 use App\Support\Plans\Quota;
 use App\Support\Plans\Quotas;
@@ -302,13 +303,17 @@ final class SubscriptionController extends Controller
 
             // Der Stand, nicht die Vorlage: Was am Abonnement abweicht, ist
             // markiert. Ein Kunde sieht hier seine Grenzen und nicht den Plan,
-            // aus dem sie kommen.
-            'quotas' => array_map(static fn (Quota $quota): array => [
+            // aus dem sie kommen — und nur die, die etwas begrenzen
+            // (`Quota::limits()`, `docs/145 §0`, Befund 9).
+            'quotas' => array_values(array_map(static fn (Quota $quota): array => [
                 'key' => $quota->value,
                 'label' => $quota->label(),
                 'value' => Quotas::format($quota, $subscription->quota($quota->value)),
                 'differs' => $subscription->quotaDiffersFromPlan($quota->value),
-            ], Quota::cases()),
+            ], array_filter(
+                Quota::cases(),
+                static fn (Quota $quota): bool => $quota->limits() || ($account?->isAdmin() ?? false),
+            ))),
 
             'features' => array_map(static fn (Feature $feature): array => [
                 'label' => $feature->label(),
@@ -487,7 +492,8 @@ final class SubscriptionController extends Controller
                 ->get()
                 ->map(static fn (Operation $o): array => [
                     'id' => (int) $o->id,
-                    'task' => $o->task,
+                    // In Worten und nicht als Kennung (`docs/145 §0`, Befund 5).
+                    'label' => OperationLabel::of($o->task, $o->type),
                     'status_label' => $o->status->label(),
                     'created_at' => Clock::display($o->created_at),
                 ])->all(),

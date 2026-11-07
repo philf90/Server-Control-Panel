@@ -77,4 +77,35 @@ final class SftpCheckTest extends TestCase
         // Ohne sie hiesse „alles fällt zurück" auch, dass nie etwas geprüft wird.
         $this->assertSame('/srv/sftp', SftpCheck::applied(self::ROOT, ['chrootdirectory' => '/srv/sftp']));
     }
+
+    /**
+     * **Der Port kommt aus dem, was gilt.**
+     *
+     * Ein SFTP-Programm fragt zuerst nach Rechner und Port, und bis zum
+     * 7. November 2026 nannte die Seite keins von beiden (`docs/145 §0`,
+     * Befund 1). Ein Port, den die Seite annimmt statt liest, wäre auf einem
+     * Server mit verlegtem sshd die falsche Auskunft — und die schlechtere als
+     * keine.
+     *
+     * Die Zeilen stehen hier so, wie `sshd -T` sie schreibt: kleingeschrieben,
+     * ein Leerzeichen, der Wert; ein zweiter Port in einer eigenen Zeile.
+     */
+    public function test_the_port_is_read_from_what_applies(): void
+    {
+        $gelesen = SftpCheck::pick([
+            'port 2222',
+            'port 22',
+            'addressfamily any',
+            'chrootdirectory '.self::ROOT,
+            'passwordauthentication no',
+        ]);
+
+        $this->assertSame('2222', $gelesen['port'] ?? null, 'Der Port fehlt in dem, was die Prüfung liest — oder es gewinnt nicht der erste.');
+        $this->assertSame(self::ROOT, $gelesen['chrootdirectory'] ?? null);
+
+        // Die Gegenprobe: Was die Prüfung nicht braucht, liest sie nicht.
+        // Ohne sie bestünde auch eine Fassung, die jede Zeile übernimmt.
+        $this->assertArrayNotHasKey('addressfamily', $gelesen);
+        $this->assertArrayNotHasKey('passwordauthentication', $gelesen);
+    }
 }

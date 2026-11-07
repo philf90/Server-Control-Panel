@@ -426,6 +426,9 @@ final class CustomerController extends Controller
 
     public function show(Customer $customer): Response
     {
+        /** @var Account|null $account */
+        $account = request()->user();
+
         return Inertia::render('Customers/Show', [
             'customer' => [
                 'id' => (int) $customer->id,
@@ -453,7 +456,26 @@ final class CustomerController extends Controller
                     'name' => $subscription->name,
                     'status' => $subscription->status->value,
                     'status_label' => $subscription->status->label(),
+                    'can' => [
+                        'update' => $account?->can('update', $subscription) ?? false,
+                    ],
                 ])->all(),
+
+            /*
+             * **Ein Kunde erreicht diese Seite — seine eigene.** Die
+             * Abonnementseite verweist auf sie, und `CustomerPolicy::view()`
+             * lässt den eigenen Kunden durch. Bis zum 7. November 2026 standen
+             * hier „Bearbeiten", „Sperren", „Zurückziehen", je Abonnement
+             * „Bearbeiten" und der Brotkrümel „Kunden" ohne Bedingung, und
+             * jedes davon endete mit 403 (`docs/145 §0`, Befund 4).
+             * Gefragt wird dieselbe Policy, die die Aktion später abweist.
+             */
+            'can' => [
+                'viewAny' => $account?->can('viewAny', Customer::class) ?? false,
+                'update' => $account?->can('update', $customer) ?? false,
+                'suspend' => $account?->can('suspend', $customer) ?? false,
+                'delete' => $account?->can('delete', $customer) ?? false,
+            ],
         ]);
     }
 

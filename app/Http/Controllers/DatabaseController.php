@@ -1128,6 +1128,10 @@ final class DatabaseController extends Controller
              */
             'over_tcp' => $database->engine !== DatabaseEngine::MariaDb,
 
+            // Der Server für die Verbindungsdaten einer Anwendung — die vierte
+            // Angabe neben Name, Benutzer und Passwort (`docs/145 §0`, Befund 2).
+            'host' => $database->engine->localHost(),
+
             /*
              * **`null` für PostgreSQL, und das ist keine fehlende Angabe,
              * sondern die richtige.** Die Spalte trägt dort weiterhin
